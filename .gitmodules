@@ -4,12 +4,15 @@
 [submodule "include/SDL"]
 	path = include/SDL
 	url = https://github.com/libsdl-org/SDL.git
+	branch = SDL2
 [submodule "include/SDL_image"]
 	path = include/SDL_image
 	url = https://github.com/libsdl-org/SDL_image.git
+	branch = SDL2
 [submodule "include/SDL_ttf"]
 	path = include/SDL_ttf
 	url = https://github.com/libsdl-org/SDL_ttf.git
+	branch = SDL2
 [submodule "include/imgui"]
 	path = include/imgui
 	url = https://github.com/ocornut/imgui.git

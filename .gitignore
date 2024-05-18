@@ -1,0 +1,8 @@
+# Ignore cache folder
+cache/
+
+# Ignore vscode folder
+.vscode/
+
+# Ignore build folder
+build/
