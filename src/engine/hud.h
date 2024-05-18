@@ -1,37 +1,37 @@
-#include <string>
+#pragma once
 
+#include "SDL_render.h"
 #include "imgui.h"
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 
 #include "config.h"
-#include "player.h"
+#include "focus.h"
 
 namespace zebes {
 
 class Hud {
  public:
-  Hud(const GameConfig* config, SDL_Window* window, SDL_Renderer* renderer, const Player* player);
+  // Create a new HUD object.
+  static absl::StatusOr<std::unique_ptr<Hud>> Create(const GameConfig* config, 
+    const Focus* focus, SDL_Window* window, SDL_Renderer* renderer);
   ~Hud() = default;
-  // Initialize IMGUI and other elements.
-  absl::Status Init();
   // Render the text.
   void Render();
 
  private:
-  // Get player stats.
-  std::string GetPlayerStats();
+  Hud(const GameConfig* config, const Focus* focus);
+  // Initialize IMGUI and other elements.
+  absl::Status Init(SDL_Window* window, SDL_Renderer* renderer);
   // Global config. 
   const GameConfig* config_;
-  // SDL Related items.
-  SDL_Window* window_;
-  SDL_Renderer* renderer_;
   // IMGUI Related items.
   ImGuiIO* imgui_io_;
   ImGuiContext* imgui_context_;
   ImVec4 clear_color_;
   // Items related to getting information to display.
-  const Player* player_;
+  const Focus* focus_;
 };
 
 }  // namespace zebes 

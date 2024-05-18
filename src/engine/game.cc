@@ -30,7 +30,6 @@ absl::Status Game::Init() {
   }
 
   std::cout << "Zebes: Initializing window..." << std::endl;
-  // Create window with graphics context
   window_ = SDL_CreateWindow(config_.window.title.c_str(), config_.window.xpos,
     config_.window.ypos, config_.window.width, config_.window.height, config_.window.flags);
   if (window_ == nullptr) {
@@ -84,24 +83,33 @@ absl::Status Game::Init() {
   result = object_->AddPrimaryAxisIndex(0, AxisDirection::axis_left);
   if (!result.ok()) return result;
 
-  std::cout << "Zebes: Initializing player..." << std::endl;
-  // player_ = std::make_unique<Player>(&config_);
-  // result = player_->Init();
-  absl::StatusOr<std::unique_ptr<Player>> maybe_player = 
-    Player::Create(&config_, sprite_manager_.get());
-  if (!maybe_player.ok()) return maybe_player.status();
-  player_ = std::move(maybe_player.value());
-  result = sprite_manager_->AddSpriteObject(player_->GetObject());
-  if (!result.ok()) return result;
+  if (config_.mode == GameConfig::Mode::kPlayerMode) {
+    std::cout << "Zebes: Initializing player..." << std::endl;
+    absl::StatusOr<std::unique_ptr<Player>> maybe_player = 
+      Player::Create(&config_, sprite_manager_.get());
+    if (!maybe_player.ok()) return maybe_player.status();
+    player_ = std::move(*maybe_player);
+    focus_ = static_cast<Focus*>(player_.get());
+    result = sprite_manager_->AddSpriteObject(player_->GetObject());
+    if (!result.ok()) return result;
+  } else if (config_.mode == GameConfig::Mode::kCreatorMode) {
+    std::cout << "Zebes: Initializing creator..." << std::endl;
+    creator_ = std::make_unique<Creator>(&config_);
+    focus_ = static_cast<Focus*>(creator_.get());
+  } else {
+    return absl::InvalidArgumentError("Invalid game mode.");
+  }
 
   std::cout << "Zebes: Initializing collision manager..." << std::endl;
   collision_manager_ = std::make_unique<CollisionManager>(&config_);
   result = collision_manager_->Init();
   if (!result.ok()) return result;
-  result = collision_manager_->AddObject(player_->GetObject());
-  if (!result.ok()) return result;
   result = collision_manager_->AddObject(object_.get());
   if (!result.ok()) return result;
+  if (config_.mode == GameConfig::Mode::kPlayerMode) {
+    result = collision_manager_->AddObject(player_->GetObject());
+    if (!result.ok()) return result;
+  }
 
   std::cout << "Zebes: Initializing tile manager..." << std::endl;
   tile_manager_ = std::make_unique<TileManager>(&config_, camera_.get(), tile_matrix_.get());
@@ -109,9 +117,10 @@ absl::Status Game::Init() {
   if (!result.ok()) return result;
 
   std::cout << "Zebes: Initializing hud..." << std::endl;
-  hud_ = std::make_unique<Hud>(&config_, window_, renderer_, player_.get());
-  result = hud_->Init();
-  if (!result.ok()) return result;
+  absl::StatusOr<std::unique_ptr<Hud>> maybe_hud = 
+      Hud::Create(&config_, focus_, window_, renderer_);
+  if (!maybe_hud.ok()) return maybe_hud.status();
+  hud_ = std::move(*maybe_hud);
 
   std::cout << "Zebes: Initializing controller..." << std::endl;
   controller_ = std::make_unique<Controller>(&config_);
@@ -181,7 +190,6 @@ void Game::Clear() {
     collision_manager_->CleanUp();
   }
 }
-
 
 void Game::Clean() {
   std::cout << "Zebes: Exiting..." << std::endl;

@@ -159,6 +159,10 @@ struct CollisionConfig {
 
 class GameConfig {
  public:
+  enum Mode { 
+    kPlayerMode = 0, 
+    kCreatorMode = 1
+  };
   // Create the game config. 
   static GameConfig Create();
   // Constructor, probably should be private.
@@ -175,6 +179,8 @@ class GameConfig {
   TileConfig tiles;
   // Config for collision manager.
   CollisionConfig collisions;
+  // Mode of the game.
+  Mode mode = Mode::kPlayerMode;
 
   int fps = 60;
   int frame_delay = 1000 / fps;

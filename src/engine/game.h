@@ -8,6 +8,8 @@
 #include "config.h"
 #include "controller.h"
 #include "collision_manager.h"
+#include "creator.h"
+#include "focus.h"
 #include "hud.h"
 #include "map.h"
 #include "player.h"
@@ -70,10 +72,14 @@ class Game {
     std::unique_ptr<TileMatrix> tile_matrix_;
     std::unique_ptr<TileManager> tile_manager_;
     std::unique_ptr<Player> player_;
+    std::unique_ptr<Creator> creator_;
     std::unique_ptr<Object> object_;
     std::unique_ptr<Map> map_;
     std::unique_ptr<Hud> hud_;
     std::unique_ptr<Controller> controller_;
+
+    // Focus pointer to update the camera.
+    Focus* focus_;
 };
 
 }  // namespace zebes

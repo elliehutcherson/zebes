@@ -198,4 +198,17 @@ float Player::y_center() const {
   return mobile_object_->polygon()->y_min() + (mobile_object_->polygon()->y_max() - mobile_object_->polygon()->y_min());
 }
 
+std::string Player::to_string() const {
+  const Polygon* polygon = mobile_object_->polygon();
+  std::string message = absl::StrFormat("[x1, x2]: %d, %d\n", polygon->x_min_floor(), polygon->x_max_floor());
+  absl::StrAppend(&message, absl::StrFormat("[y1, y2]: %d, %d\n", polygon->y_min_floor(), polygon->y_max_floor()));
+  absl::StrAppend(&message, absl::StrFormat("stype: %d\n", mobile_object_->GetActiveSpriteProfile()->type)); 
+  absl::StrAppend(&message, absl::StrFormat("sticks: %d\n", mobile_object_->GetActiveSpriteTicks())); 
+  absl::StrAppend(&message, absl::StrFormat("scycle: %d\n", mobile_object_->GetActiveSpriteCycles())); 
+  absl::StrAppend(&message, absl::StrFormat("is_grounded: %d\n", mobile_object_->is_grounded())); 
+  absl::StrAppend(&message, absl::StrFormat("velocity_x: %f\n", mobile_object_->velocity_x())); 
+  absl::StrAppend(&message, absl::StrFormat("velocity_y: %f\n", mobile_object_->velocity_x()));
+  return message;
+}
+
 }  // namespace zebes

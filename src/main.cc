@@ -13,15 +13,20 @@ int main(int argc, char* argv[]) {
     }
 
     std::string program = argv[1];
+    zebes::GameConfig config = zebes::GameConfig::Create();
     if (program == "zebes") {
-        zebes::GameConfig config = zebes::GameConfig::Create();
-        zebes::Game game(config);
-        absl::Status result = game.Init();
-        if (result.ok()) result = game.Run();
-        std::cout << "exiting zebes: " << result.ToString() << std::endl;
+        config.mode = zebes::GameConfig::Mode::kPlayerMode;
+    } else if (program == "creator") {
+        config.mode = zebes::GameConfig::Mode::kCreatorMode;
     } else {
         std::cout << "ECLI did not receive a recognized command..." << std::endl;
+        return 1;
     }
+
+    zebes::Game game(config);
+    absl::Status result = game.Init();
+    if (result.ok()) result = game.Run();
+    std::cout << "exiting zebes: " << result.ToString() << std::endl;
     
     return 0;
 }

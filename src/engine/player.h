@@ -9,17 +9,18 @@
 #include "engine/sprite_manager.h"
 #include "object.h"
 #include "sprite.h"
+#include "focus.h"
 
 namespace zebes {
 
 
-class Player {
+class Player : public Focus {
   public:
     static absl::StatusOr<std::unique_ptr<Player>> Create(
       const GameConfig* config, const SpriteManager* sprite_manager);
     ~Player() = default;
     // All updates per tick for player.
-    void Update(const ControllerState* state);
+    void Update(const ControllerState* state) override;
     // Reset the player position, velocity, and sprite.
     void Reset();
     // Get the player's object.
@@ -37,9 +38,11 @@ class Player {
     // Get velocity in y direction.
     float velocity_y() const;
     // Get the player's x position.
-    float x_center() const;
+    float x_center() const override;
     // Get the player's y position.
-    float y_center() const;
+    float y_center() const override;
+    // Get the player's string representation.
+    std::string to_string() const override;
 
   private:
     Player(const GameConfig* config);

@@ -79,6 +79,10 @@ void Object::PreUpdate() {
 }
 
 void Object::Render() {
+  if (camera_ == nullptr) {
+    std::cerr << "Camera not set for object when rendering." << std::endl;
+    return;
+  };
   DrawColor color = collision_ ? DrawColor::kColorCollide : DrawColor::kColorTile;
   camera_->RenderLines(*polygon_.vertices(), color, /*static_position=*/false);
 }
