@@ -1,0 +1,15 @@
+[submodule "include/abseil-cpp"]
+	path = include/abseil-cpp
+	url = https://github.com/abseil/abseil-cpp.git
+[submodule "include/SDL"]
+	path = include/SDL
+	url = https://github.com/libsdl-org/SDL.git
+[submodule "include/SDL_image"]
+	path = include/SDL_image
+	url = https://github.com/libsdl-org/SDL_image.git
+[submodule "include/SDL_ttf"]
+	path = include/SDL_ttf
+	url = https://github.com/libsdl-org/SDL_ttf.git
+[submodule "include/imgui"]
+	path = include/imgui
+	url = https://github.com/ocornut/imgui.git
