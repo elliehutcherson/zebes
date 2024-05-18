@@ -1,5 +1,5 @@
 # Ignore cache folder
-cache/
+.cache/
 
 # Ignore vscode folder
 .vscode/
