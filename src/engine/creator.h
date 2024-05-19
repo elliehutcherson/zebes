@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "controller.h"
+#include "engine/camera.h"
 #include "vector.h"
 #include "focus.h"
 
@@ -12,21 +13,28 @@ namespace zebes {
 
 class Creator : public Focus {
  public:
-  Creator(const GameConfig* config);
-
-  void Update(const ControllerState* state) override;
+  Creator(const GameConfig* config, Camera* camera);
 
   float x_center() const override;
-  
   float y_center() const override;
 
+  // Update the position of the creator, and the position of the mouse.
+  void Update(const ControllerState* state) override;
+  // Render the tile outline for the tile the mouse is currently hovering over.
+  void Render();
+  // Outputs the current state of the creator.
   std::string to_string() const override; 
 
-
-
  private:
-  Point point_;
+  Point window_dimensions_;
+  Point world_position_;
+  Point mouse_window_position_;
+  Point mouse_window_tile_position_;
+  Point mouse_world_position_;
+  Point mouse_world_tile_position_;
+
   const GameConfig* config_;
+  Camera* camera_;
 };
 
 }  // namespace zebes

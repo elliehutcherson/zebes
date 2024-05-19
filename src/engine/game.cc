@@ -95,7 +95,7 @@ absl::Status Game::Init() {
     if (!result.ok()) return result;
   } else if (config_.mode == GameConfig::Mode::kCreatorMode) {
     std::cout << "Zebes: Initializing creator..." << std::endl;
-    creator_ = std::make_unique<Creator>(&config_);
+    creator_ = std::make_unique<Creator>(&config_, camera_.get());
     focus_ = static_cast<Focus*>(creator_.get());
   } else {
     return absl::InvalidArgumentError("Invalid game mode.");
@@ -173,7 +173,10 @@ void Game::Render() {
   map_->Render();
   object_->Render();
   sprite_manager_->Render();
-  if (config_.mode == GameConfig::Mode::kCreatorMode) camera_->RenderGrid();
+  if (config_.mode == GameConfig::Mode::kCreatorMode) {
+    camera_->RenderGrid();
+    creator_->Render();
+  }
   hud_->Render();
   SDL_RenderPresent(renderer_);
 }

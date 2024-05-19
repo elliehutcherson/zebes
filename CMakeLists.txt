@@ -4,6 +4,7 @@ set(CMAKE_CXX_COMPILER /Library/Developer/CommandLineTools/usr/bin/clang++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) 
+# set(CMAKE_BUILD_TYPE Debug)
 
 cmake_minimum_required(VERSION 3.0.0)
 project(zebes VERSION 0.1.0)

@@ -13,6 +13,8 @@ void Controller::HandleEvent(const SDL_Event* event) {
     int x, y;
     SDL_GetMouseState(&x, &y);
     state_.mouse_position = Point {.x = static_cast<double>(x), .y = static_cast<double>(y)};
+  } else if (event->type == SDL_QUIT) {
+    UpdateState(SDL_KeyCode::SDLK_ESCAPE, KeyState::pressed);
   } else if (event->type == SDL_KEYDOWN) {
     KeyState key_state = event->key.repeat ? KeyState::pressed : KeyState::down;
     UpdateState(event->key.keysym.sym, key_state);

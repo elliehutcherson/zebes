@@ -1,6 +1,9 @@
 add_library(vector INTERFACE vector.h)
 target_link_libraries(vector INTERFACE absl::strings)
 
+add_library(util INTERFACE util.h)
+target_link_libraries(util INTERFACE vector)
+
 add_library(polygon polygon.cc)
 target_link_libraries(polygon vector)
 
@@ -79,12 +82,13 @@ target_link_libraries(tile_manager absl::strings)
 target_link_libraries(tile_manager absl::status)
 target_link_libraries(tile_manager SDL2-static SDL2_image SDL2_ttf)
 
-
 add_library(creator creator.cc)
+target_link_libraries(creator camera)
 target_link_libraries(creator config)
 target_link_libraries(creator controller)
 target_link_libraries(creator focus)
 target_link_libraries(creator vector)
+target_link_libraries(creator util)
 
 add_library(player player.cc)
 target_link_libraries(player controller)

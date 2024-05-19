@@ -9,6 +9,12 @@ namespace zebes {
 struct Point {
   double x = 0;
   double y = 0;
+  int x_floor() const {
+    return static_cast<int>(x);
+  }
+  int y_floor() const {
+    return static_cast<int>(y);
+  }
   std::string to_string() const {
     return absl::StrFormat("{x: %f, y: %f}", x, y);
   };

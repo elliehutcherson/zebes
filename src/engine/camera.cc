@@ -148,6 +148,7 @@ void Camera::RenderLines(const std::vector<Point>& vertices, DrawColor color, bo
     sdl_points[i] = {.x = static_cast<int>(point.x), .y = static_cast<int>(point.y)};
     if (!static_position) sdl_points[i] = Adjust(&sdl_points[i]);
   }
+
   SDL_RenderDrawLines(renderer_, sdl_points, vertices.size() + 1);
 }
 
