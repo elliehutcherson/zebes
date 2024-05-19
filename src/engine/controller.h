@@ -25,6 +25,8 @@ struct ControllerState {
   KeyState y = KeyState::none;
   KeyState l = KeyState::none;
   KeyState r = KeyState::none;
+  KeyState left_click = KeyState::none;
+  KeyState right_click = KeyState::none;
   KeyState player_reset = KeyState::none; 
   KeyState game_quit = KeyState::none; 
   KeyState enable_frame_by_frame = KeyState::none;

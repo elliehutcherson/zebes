@@ -6,6 +6,7 @@
 #include "config.h"
 #include "controller.h"
 #include "engine/camera.h"
+#include "engine/polygon.h"
 #include "vector.h"
 #include "focus.h"
 
@@ -26,6 +27,12 @@ class Creator : public Focus {
   std::string to_string() const override; 
 
  private:
+  // If the mouse is clicked, toggle the state of the tile the 
+  // mouse is currently hovering over.
+  void ToggleTileState();
+  // Get vertices for the tile the mouse is currently hovering over.
+  std::vector<Point> GetTileVertices() const;
+
   Point window_dimensions_;
   Point world_position_;
   Point mouse_window_position_;
@@ -35,6 +42,7 @@ class Creator : public Focus {
 
   const GameConfig* config_;
   Camera* camera_;
+  absl::flat_hash_map<Point, std::unique_ptr<Polygon>, PointHash> tiles_;
 };
 
 }  // namespace zebes

@@ -13,6 +13,10 @@ void Controller::HandleEvent(const SDL_Event* event) {
     int x, y;
     SDL_GetMouseState(&x, &y);
     state_.mouse_position = Point {.x = static_cast<double>(x), .y = static_cast<double>(y)};
+  } else if (event->type == SDL_MOUSEBUTTONDOWN) {
+    if (event->button.button == SDL_BUTTON_LEFT) {
+      state_.left_click = KeyState::pressed;
+    }
   } else if (event->type == SDL_QUIT) {
     UpdateState(SDL_KeyCode::SDLK_ESCAPE, KeyState::pressed);
   } else if (event->type == SDL_KEYDOWN) {
@@ -82,6 +86,8 @@ void Controller::Clear() {
   for (int i = 0; i < scan_codes_.size(); ++i) {
     UpdateState(key_codes_[i], KeyState::none, /*overwrite=*/true);
   }
+  state_.left_click = KeyState::none;
+  state_.right_click = KeyState::none;
 }
 
 const ControllerState* Controller::GetState() const {

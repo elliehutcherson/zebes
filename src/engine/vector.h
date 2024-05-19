@@ -32,6 +32,14 @@ struct Point {
   }
 };
 
+struct PointHash {
+    std::size_t operator()(const Point &p) const {
+        std::size_t h1 = std::hash<double>()(p.x);
+        std::size_t h2 = std::hash<double>()(p.y);
+        return h1 ^ (h2 << 1); // Combine the two hashes
+    }
+};
+
 struct Vector {
   double x = 0;
   double y = 0;
