@@ -22,6 +22,8 @@ class Creator : public Focus {
 
   std::string to_string() const override; 
 
+
+
  private:
   Point point_;
   const GameConfig* config_;

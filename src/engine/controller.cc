@@ -1,18 +1,22 @@
 #include "controller.h"
 
+#include "SDL_events.h"
+#include "SDL_mouse.h"
 #include "config.h"
 
 namespace zebes {
 
 Controller::Controller(const GameConfig* config) : config_(config) {}
 
-void Controller::HandleKeyDown(const SDL_KeyboardEvent& event) {
-  SDL_Keycode code = event.keysym.sym;
-  if (event.repeat) {
-    UpdateState(code, KeyState::pressed);
-  } else {
-    UpdateState(code, KeyState::down);
-  }
+void Controller::HandleEvent(const SDL_Event* event) {
+  if (event->type == SDL_MOUSEMOTION) {
+    int x, y;
+    SDL_GetMouseState(&x, &y);
+    state_.mouse_position = Point {.x = static_cast<double>(x), .y = static_cast<double>(y)};
+  } else if (event->type == SDL_KEYDOWN) {
+    KeyState key_state = event->key.repeat ? KeyState::pressed : KeyState::down;
+    UpdateState(event->key.keysym.sym, key_state);
+  } 
 }
 
 void Controller::UpdateState(SDL_Keycode code, uint8_t value, bool overwrite) {

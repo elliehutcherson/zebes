@@ -5,6 +5,7 @@
 
 #include "SDL.h"
 
+#include "SDL_events.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 
@@ -152,15 +153,7 @@ void Game::HandleEvent() {
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     ImGui_ImplSDL2_ProcessEvent(&event);
-    switch (event.type) {
-      case SDL_QUIT:
-        is_running_ = false;
-        break;
-      case SDL_KEYDOWN:
-        controller_->HandleKeyDown(event.key);
-      default:
-        break;
-    }
+    controller_->HandleEvent(&event);
   }
 }
 
@@ -169,9 +162,9 @@ void Game::Update() {
   GameUpdate();
   if (AdvanceFrame()) {
     object_->PreUpdate();
-    player_->Update(controller_->GetState());
+    focus_->Update(controller_->GetState());
     collision_manager_->Update();
-    camera_->Update(player_->x_center(), player_->y_center());
+    camera_->Update(focus_->x_center(), focus_->y_center());
   }
 }
 
@@ -180,6 +173,7 @@ void Game::Render() {
   map_->Render();
   object_->Render();
   sprite_manager_->Render();
+  if (config_.mode == GameConfig::Mode::kCreatorMode) camera_->RenderGrid();
   hud_->Render();
   SDL_RenderPresent(renderer_);
 }

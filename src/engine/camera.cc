@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "SDL_rect.h"
 #include "SDL_ttf.h"
 
 #include "absl/status/status.h" 
@@ -30,6 +31,22 @@ absl::Status Camera::Init() {
     std::string error = absl::StrCat("Camera: Unable to create font. ", TTF_GetError());
     return absl::InternalError(error);
   }
+
+  int max_num_tiles_x = config_->window.width / config_->tiles.render_width;
+  for (int i = 0; i < max_num_tiles_x; i++) {
+    std::vector<SDL_Point> column;
+    SDL_Point p1 = {.x = i * config_->tiles.render_width, .y = 0};
+    SDL_Point p2 = {.x = i * config_->tiles.render_width, .y = config_->window.height};
+    grid_x_.push_back({p1, p2});
+  }
+  int max_num_tiles_y = config_->window.height / config_->tiles.render_height;
+  for (int i = 0; i < max_num_tiles_y; i++) {
+    std::vector<SDL_Point> row;
+    SDL_Point p1 = {.x = 0, .y = i * config_->tiles.render_height};
+    SDL_Point p2 = {.x = config_->window.width, .y = i * config_->tiles.render_height};
+    grid_y_.push_back({p1, p2});
+  } 
+
   return absl::OkStatus();
 }
 
@@ -63,6 +80,9 @@ void Camera::UpdateColor(DrawColor color) {
       break;
     case kColorCollide:
       SDL_SetRenderDrawColor(renderer_, 255, 0, 0, 255);
+      break;
+    case kColorGrid:
+      SDL_SetRenderDrawColor(renderer_, 255, 255, 255, 255);
       break;
     default:
       printf("unkown color?????\n");
@@ -129,6 +149,22 @@ void Camera::RenderLines(const std::vector<Point>& vertices, DrawColor color, bo
     if (!static_position) sdl_points[i] = Adjust(&sdl_points[i]);
   }
   SDL_RenderDrawLines(renderer_, sdl_points, vertices.size() + 1);
+}
+
+void Camera::RenderGrid() {
+  UpdateColor(DrawColor::kColorGrid);
+  int x_adjustment = (config_->tiles.render_width - (rect_.x % config_->tiles.render_width));
+  for (std::vector<SDL_Point> line : grid_x_) {
+    line[0].x += x_adjustment;
+    line[1].x += x_adjustment;
+    SDL_RenderDrawLine(renderer_, line[0].x, line[0].y, line[1].x, line[1].y);
+  }
+  int y_adjustment = (config_->tiles.render_height - (rect_.y % config_->tiles.render_height));
+  for (std::vector<SDL_Point> line : grid_y_) {
+    line[0].y += y_adjustment;
+    line[1].y += y_adjustment;
+    SDL_RenderDrawLine(renderer_, line[0].x, line[0].y, line[1].x, line[1].y);
+  }
 }
 
 }  // namespace zebes

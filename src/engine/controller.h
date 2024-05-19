@@ -3,6 +3,7 @@
 #include "SDL_events.h"
 
 #include "config.h"
+#include "vector.h"
 
 namespace zebes {
 
@@ -28,6 +29,7 @@ struct ControllerState {
   KeyState game_quit = KeyState::none; 
   KeyState enable_frame_by_frame = KeyState::none;
   KeyState advance_frame = KeyState::none;
+  Point mouse_position;
 };
 
 class Controller {
@@ -36,7 +38,7 @@ class Controller {
     Controller(const GameConfig* config);
     ~Controller() = default;
     // Handle keydown event for specific keys.
-    void HandleKeyDown(const SDL_KeyboardEvent& event);
+    void HandleEvent(const SDL_Event* event);
     // Update controller state.
     void Update();
     // Clear keyboard state.

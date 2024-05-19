@@ -18,7 +18,8 @@ enum DrawColor : int {
   kColorPlayer = 0,
   kColorTile = 1,
   kColorMenu = 2,
-  kColorCollide = 3
+  kColorCollide = 3,
+  kColorGrid = 4
 };
 
 class Camera {
@@ -43,6 +44,7 @@ class Camera {
     void RenderText(const std::string& message, SDL_Rect* dst_rect) const;
     // Render lines.
     void RenderLines(const std::vector<Point>& vertices, DrawColor color, bool static_position = true);
+    void RenderGrid();
     
   private:
     // Update the current color. 
@@ -58,6 +60,8 @@ class Camera {
     DrawColor current_color_ = kColorPlayer;
     TTF_Font* font_;
     SDL_Color font_color_ = {255, 255, 255};
+    std::vector<std::vector<SDL_Point>> grid_x_;
+    std::vector<std::vector<SDL_Point>> grid_y_;
 };
 
 }  // namespace zebes
