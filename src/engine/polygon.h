@@ -261,8 +261,9 @@ public:
   PolygonOverlap GetOverlap(const Polygon &other) const;
   // Add primary axis index. This axis will be marked as a primary axis
   // when caculating the overlap between two objects.
-  absl::Status AddPrimaryAxisIndex(
-    uint8_t index, AxisDirection axis_direction = AxisDirection::axis_none);
+  absl::Status
+  AddPrimaryAxisIndex(uint8_t index,
+                      AxisDirection axis_direction = AxisDirection::axis_none);
   // Move all vertices.
   void Move(float x, float y);
 

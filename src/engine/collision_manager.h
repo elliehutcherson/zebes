@@ -18,9 +18,8 @@ struct CollisionArea {
   float y_min = 0;
   float y_max = 0;
   std::string DebugString() {
-    return absl::StrFormat(
-      "id: %d, x_min: %f, x_max: %f, y_min: %f, y_max: %f",
-      id, x_min, x_max, y_min, y_max);
+    return absl::StrFormat("id: %d, x_min: %f, x_max: %f, y_min: %f, y_max: %f",
+                           id, x_min, x_max, y_min, y_max);
   }
 };
 
