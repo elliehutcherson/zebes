@@ -8,5 +8,6 @@ target_link_libraries(sprite_manager_test absl::flags)
 target_link_libraries(sprite_manager_test absl::flags_parse)
 target_link_libraries(sprite_manager_test SDL2main SDL2-static SDL2_image SDL2_ttf)
 target_link_libraries(sprite_manager_test ${IMGUI_LIBRARIES}) 
-
 target_link_libraries(sprite_manager_test sprite_manager)
+
+add_executable(bmp_test bmp_test.cc)

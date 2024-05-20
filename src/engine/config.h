@@ -1,6 +1,5 @@
 #pragma once
 
-#include <map>
 #include <string>
 #include <vector>
 
@@ -24,26 +23,29 @@ inline constexpr int kDefaultPlayerRenderH = kDefaultPlayerTextureH * 2;
 inline constexpr float kDefaultGravity = 2.0;
 
 // File Paths
-static const std::string kZebesAssetsPath = "assets/zebes"; 
+static const std::string kZebesAssetsPath = "assets/zebes";
 static const std::string kZebesDatabasePath = "assets/zebes/sql/zebes.db";
-static const std::string kZebesTileMatrixPath = "layer-5.csv"; 
-static const std::string kHudFont = "Courier-Prime.ttf"; 
-static const std::string kSamusIdleLeftPath = "samus-idle-left.png"; 
-static const std::string kSamusIdleRightPath = "samus-idle-right.png"; 
-static const std::string kSamusTurningLeftPath = "samus-turning-left.png"; 
-static const std::string kSamusTurningRightPath = "samus-turning-right.png"; 
-static const std::string kSamusRunningLeftPath = "samus-running-left.png"; 
-static const std::string kSamusRunningRightPath = "samus-running-right.png"; 
-static const std::string kSamusJumpingRightPath = "samus-jumping-right.png"; 
+static const std::string kZebesTileMatrixPath = "layer-5.csv";
+static const std::string kHudFont = "Courier-Prime.ttf";
+static const std::string kSamusIdleLeftPath = "samus-idle-left.png";
+static const std::string kSamusIdleRightPath = "samus-idle-right.png";
+static const std::string kSamusTurningLeftPath = "samus-turning-left.png";
+static const std::string kSamusTurningRightPath = "samus-turning-right.png";
+static const std::string kSamusRunningLeftPath = "samus-running-left.png";
+static const std::string kSamusRunningRightPath = "samus-running-right.png";
+static const std::string kSamusJumpingRightPath = "samus-jumping-right.png";
 
-static const std::string kBackgroundPath = "assets/sunny-land/PNG/environment/layers/back.png";
-static const std::string kTileSetPath = "assets/sunny-land/PNG/environment/layers/tileset.png";
-static const std::string kCustomTileSetPath = "assets/sunny-land/PNG/environment/layers/custom-tileset.png";
+static const std::string kBackgroundPath =
+    "assets/sunny-land/PNG/environment/layers/back.png";
+static const std::string kTileSetPath =
+    "assets/sunny-land/PNG/environment/layers/tileset.png";
+static const std::string kCustomTileSetPath =
+    "assets/sunny-land/PNG/environment/layers/custom-tileset.png";
 
 namespace zebes {
 
 struct WindowConfig {
-  std::string title; 
+  std::string title;
   int xpos = 0;
   int ypos = 0;
   int width = 0;
@@ -70,11 +72,11 @@ struct TileConfig {
 
 struct PathConfig {
   // Execute path.
-  std::string execute; 
+  std::string execute;
   // Where all the assets live.
-  std::string assets; 
+  std::string assets;
   // The CSV containing all the tile values.
-  std::string tile_matrix; 
+  std::string tile_matrix;
   // The background.
   std::string background;
   // The path to the tileset.
@@ -93,11 +95,11 @@ enum class SpriteType : int {
   kGrass1 = 1,
   kGrass2 = 2,
   kGrass3 = 3,
-  kDirt1 = 4, 
+  kDirt1 = 4,
   kGrassSlopeUpRight = 5,
-  kGrass1Left = 6,  
-  kGrass1Right = 7,  
-  kGrass1Down = 8,  
+  kGrass1Left = 6,
+  kGrass1Right = 7,
+  kGrass1Down = 8,
   kGrassCornerUpLeft = 9,
   kGrassCornerUpRight = 10,
   kGrassCornerDownLeft = 11,
@@ -112,25 +114,25 @@ enum class SpriteType : int {
 };
 
 struct SubSprite {
-  // Size of the sources texture sprites. 
+  // Size of the sources texture sprites.
   int texture_x = 0;
   int texture_y = 0;
   int texture_w = 0;
   int texture_h = 0;
-  // The offset from the left most point of the hitbox 
+  // The offset from the left most point of the hitbox
   // at the scale of the source texture.
   int texture_offset_x = 0;
-  // The offset from the upper most point of the hitbox 
+  // The offset from the upper most point of the hitbox
   // at the scale of the source texture.
   int texture_offset_y = 0;
-  // The width that the texture will be rendered. 
+  // The width that the texture will be rendered.
   int render_w = 0;
-  // The height that the texture will be rendered. 
+  // The height that the texture will be rendered.
   int render_h = 0;
-  // The offset from the left most point of the hitbox 
+  // The offset from the left most point of the hitbox
   // at the scale of the destination render.
   int render_offset_x = 0;
-  // The offset from the upper most point of the hitbox 
+  // The offset from the upper most point of the hitbox
   // at the scale of the destination render.
   int render_offset_y = 0;
 };
@@ -146,9 +148,7 @@ struct SpriteConfig {
   // containing the config for each animation.
   std::vector<SubSprite> sub_sprites;
   // Return the size of sub sprites.
-  int size() const {
-    return sub_sprites.size();
-  }
+  int size() const { return sub_sprites.size(); }
 };
 
 struct CollisionConfig {
@@ -158,16 +158,13 @@ struct CollisionConfig {
 };
 
 class GameConfig {
- public:
-  enum Mode { 
-    kPlayerMode = 0, 
-    kCreatorMode = 1
-  };
-  // Create the game config. 
+public:
+  enum Mode { kPlayerMode = 0, kCreatorMode = 1 };
+  // Create the game config.
   static GameConfig Create();
   // Constructor, probably should be private.
   GameConfig(WindowConfig window_config, PathConfig path_config);
-  // Destructor, nothing special should happen so make it default. 
+  // Destructor, nothing special should happen so make it default.
   ~GameConfig() = default;
   // Window config, mainly for SDL.
   WindowConfig window;
@@ -200,4 +197,4 @@ class GameConfig {
   bool enable_hud_render = true;
 };
 
-}  // namespace zebes 
+} // namespace zebes

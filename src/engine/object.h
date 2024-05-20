@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <functional>
 #include <vector>
@@ -10,7 +10,6 @@
 #include "camera.h"
 #include "config.h"
 #include "polygon.h"
-
 
 namespace zebes {
 
@@ -24,76 +23,78 @@ struct Collision {
   PolygonOverlap overlap;
   ObjectType object_type = kInvalid;
   bool hit_ground() const {
-    return  overlap.overlap && object_type == kTile && 
-    overlap.min_overlap_x() == 0 && overlap.min_overlap_y() > 0;
+    return overlap.overlap && object_type == kTile &&
+           overlap.min_overlap_x() == 0 && overlap.min_overlap_y() > 0;
   }
 };
 
-using CollisionCallback = std::function<void(Collision& collision)>;
+using CollisionCallback = std::function<void(Collision &collision)>;
 
 struct ObjectOptions {
-  const GameConfig* config;
-  Camera* camera; 
+  const GameConfig *config;
+  Camera *camera;
   ObjectType object_type = kInvalid;
   std::vector<Point> vertices;
 };
 
 class ObjectInterface {
- public:
+public:
   // Return id of the object.
   virtual uint64_t object_id() const = 0;
   // Return type of the object.
   virtual ObjectType object_type() const = 0;
   // Return pointer to polygon.
-  virtual const Polygon* polygon() const = 0;
+  virtual const Polygon *polygon() const = 0;
   // Check if object can collide with another object.
   virtual bool IsInteractive(ObjectType type) const = 0;
   // Register a callback for any collision events.
   virtual void RegisterCollisionCallback(CollisionCallback callback) = 0;
   // Handle a collision.
   virtual absl::Status HandleCollision(Collision collision) = 0;
-  // Clean up state right before the update pipeline, but only in 
-  // the case that a frame is advancing. 
+  // Clean up state right before the update pipeline, but only in
+  // the case that a frame is advancing.
   virtual void PreUpdate() = 0;
-  // Add primary axis index. This axis will be marked as a primary axis 
+  // Add primary axis index. This axis will be marked as a primary axis
   // when caculating the overlap between two objects.
-  virtual absl::Status AddPrimaryAxisIndex(uint8_t index, 
-  AxisDirection axis_direction = AxisDirection::axis_none) = 0;
-  // Move from one position to another. 
+  virtual absl::Status AddPrimaryAxisIndex(
+      uint8_t index,
+      AxisDirection axis_direction = AxisDirection::axis_none) = 0;
+  // Move from one position to another.
   virtual void Move(float x, float y) = 0;
 };
 
 class Object : virtual public ObjectInterface {
- public:
-  Object(ObjectOptions& options);
+public:
+  Object(ObjectOptions &options);
   ~Object() = default;
   // Return id of the object.
   uint64_t object_id() const override;
   // Return type of the object.
   ObjectType object_type() const override;
   // Return pointer to polygon.
-  const Polygon* polygon() const override;
+  const Polygon *polygon() const override;
   // Check if object can collide with another object.
   bool IsInteractive(ObjectType type) const override;
   // Register a callback for any collision events.
   void RegisterCollisionCallback(CollisionCallback callback) override;
   // Handle a collision.
   absl::Status HandleCollision(Collision collision) override;
-  // Add primary axis index. This axis will be marked as a primary axis 
+  // Add primary axis index. This axis will be marked as a primary axis
   // when caculating the overlap between two objects.
-  absl::Status AddPrimaryAxisIndex(uint8_t index, 
-  AxisDirection axis_direction = AxisDirection::axis_none) override;
-  // Move from one position to another. 
+  absl::Status AddPrimaryAxisIndex(
+      uint8_t index,
+      AxisDirection axis_direction = AxisDirection::axis_none) override;
+  // Move from one position to another.
   void Move(float x, float y) override;
-  // Clean up state right before the update pipeline, but only in 
-  // the case that a frame is advancing. 
+  // Clean up state right before the update pipeline, but only in
+  // the case that a frame is advancing.
   void PreUpdate() override;
   // Convert points to SDL objects, and render to window.
   void Render();
 
- protected:
-  const GameConfig* config_;
-  Camera* camera_;
+protected:
+  const GameConfig *config_;
+  Camera *camera_;
 
   uint64_t id_ = 0;
   ObjectType type_ = ObjectType::kInvalid;
@@ -105,9 +106,9 @@ class Object : virtual public ObjectInterface {
 };
 
 struct SpriteProfile {
-  // Type of sprite, the sprite manager contain the rest of 
+  // Type of sprite, the sprite manager contain the rest of
   // the information. Pass the sprite type to the sprite manager
-  // and the current tick and the position and it will take care 
+  // and the current tick and the position and it will take care
   // of the rest.
   SpriteType type;
   // Max number of ticks per rotation.
@@ -117,11 +118,11 @@ struct SpriteProfile {
 };
 
 class SpriteObjectInterface : virtual public ObjectInterface {
- public:
+public:
   // Return pointer to polygon.
   // virtual const Polygon* polygon() const = 0;
   // Get sprite profile.
-  virtual const SpriteProfile* profile(SpriteType type) const = 0;
+  virtual const SpriteProfile *profile(SpriteType type) const = 0;
   // Add sprite profile.
   virtual absl::Status AddSpriteProfile(SpriteProfile profile) = 0;
   // Remove mobile profile.
@@ -129,23 +130,23 @@ class SpriteObjectInterface : virtual public ObjectInterface {
   // Set the active mobile profile.
   virtual absl::Status SetActiveSpriteProfile(SpriteType type) = 0;
   // Get the active mobile profile.
-  virtual const SpriteProfile* GetActiveSpriteProfile() const = 0;
+  virtual const SpriteProfile *GetActiveSpriteProfile() const = 0;
   // Get number of ticks for the active sprite.
   virtual uint8_t GetActiveSpriteTicks() const = 0;
   // Get number of cycles for the active sprite.
   virtual uint64_t GetActiveSpriteCycles() const = 0;
   // Update the tick counter.
   virtual void Update() = 0;
-  // Reset sprite ticks. 
+  // Reset sprite ticks.
   virtual void ResetSprite() = 0;
 };
 
-class SpriteObject: public Object, virtual public SpriteObjectInterface {
- public:
-  SpriteObject(ObjectOptions& options);
+class SpriteObject : public Object, virtual public SpriteObjectInterface {
+public:
+  SpriteObject(ObjectOptions &options);
   ~SpriteObject() = default;
   // Get mobile profile. Is no profile is found, nullptr will be returned.
-  const SpriteProfile* profile(SpriteType type) const override;
+  const SpriteProfile *profile(SpriteType type) const override;
   // Add mobile profile.
   absl::Status AddSpriteProfile(SpriteProfile profile) override;
   // Remove mobile profile.
@@ -153,7 +154,7 @@ class SpriteObject: public Object, virtual public SpriteObjectInterface {
   // Set the active mobile profile.
   absl::Status SetActiveSpriteProfile(SpriteType type) override;
   // Get the active mobile profile.
-  const SpriteProfile* GetActiveSpriteProfile() const override;
+  const SpriteProfile *GetActiveSpriteProfile() const override;
   // Get number of ticks for the active sprite.
   uint8_t GetActiveSpriteTicks() const override;
   // Get number of cycles for the active sprite.
@@ -163,7 +164,7 @@ class SpriteObject: public Object, virtual public SpriteObjectInterface {
   // Reset velocity and position.
   void ResetSprite() override;
 
- private:
+private:
   uint8_t active_sprite_ticks_ = 0;
   uint64_t active_sprite_cycles_ = 0;
   SpriteType active_sprite_type_ = SpriteType::Invalid;
@@ -185,7 +186,7 @@ struct MobileProfile {
 };
 
 class MobileInterface : virtual public SpriteObjectInterface {
- public:
+public:
   // Get Velocity in the x direction.
   virtual float velocity_x() const = 0;
   // Set Velocity in the x direction.
@@ -199,7 +200,7 @@ class MobileInterface : virtual public SpriteObjectInterface {
   // Set if the object is grounded.
   virtual void set_is_grounded(bool is_grounded) = 0;
   // Get mobile profile.
-  virtual const MobileProfile* profile(uint8_t id) const = 0;
+  virtual const MobileProfile *profile(uint8_t id) const = 0;
   // Add mobile profile.
   virtual absl::Status AddProfile(MobileProfile profile) = 0;
   // Remove mobile profile.
@@ -207,16 +208,16 @@ class MobileInterface : virtual public SpriteObjectInterface {
   // Set the active mobile profile.
   virtual absl::Status SetActiveProfile(uint8_t id) = 0;
   // Get the active mobile profile.
-  virtual const MobileProfile* GetActiveProfile() = 0;
-  // Mobiles have the ability to move accodring to their mobile profile. 
+  virtual const MobileProfile *GetActiveProfile() = 0;
+  // Mobiles have the ability to move accodring to their mobile profile.
   virtual void MoveWithProfile(float x, float y) = 0;
   // Reset velocity and position.
   virtual void Reset() = 0;
 };
 
 class MobileObject : public SpriteObject, virtual public MobileInterface {
- public:
-  MobileObject(ObjectOptions& options);
+public:
+  MobileObject(ObjectOptions &options);
   ~MobileObject() = default;
   // Get Velocity in the x direction.
   float velocity_x() const override;
@@ -231,7 +232,7 @@ class MobileObject : public SpriteObject, virtual public MobileInterface {
   // Set if the object is grounded.
   void set_is_grounded(bool is_grounded) override;
   // Get mobile profile. Is no profile is found, nullptr will be returned.
-  const MobileProfile* profile(uint8_t id) const override;
+  const MobileProfile *profile(uint8_t id) const override;
   // Add mobile profile.
   absl::Status AddProfile(MobileProfile profile) override;
   // Remove mobile profile.
@@ -239,17 +240,19 @@ class MobileObject : public SpriteObject, virtual public MobileInterface {
   // Set the active mobile profile.
   absl::Status SetActiveProfile(uint8_t id) override;
   // Get the active mobile profile.
-  const MobileProfile* GetActiveProfile() override;
-  // Mobiles have the ability to move. 
+  const MobileProfile *GetActiveProfile() override;
+  // Mobiles have the ability to move.
   void MoveWithProfile(float x, float y) override;
   // After moving, followed by collision, resolve any potential collisions.
   absl::Status HandleCollision(Collision collision) override;
   // Reset velocity and position.
   void Reset() override;
 
- private:
-  // Accelerate or decelerate velocity in a particular dimension. Returns the new velocity.
-  float Accelerate(float velocity, float delta_v, float deceleration, float max_velocity) const;
+private:
+  // Accelerate or decelerate velocity in a particular dimension. Returns the
+  // new velocity.
+  float Accelerate(float velocity, float delta_v, float deceleration,
+                   float max_velocity) const;
 
   bool is_grounded_ = false;
   float velocity_x_ = 0;
@@ -259,4 +262,4 @@ class MobileObject : public SpriteObject, virtual public MobileInterface {
   std::vector<Point> start_verticies_;
 };
 
-}  // namespace zebes
+} // namespace zebes
