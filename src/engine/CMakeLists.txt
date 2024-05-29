@@ -10,6 +10,10 @@ target_link_libraries(util INTERFACE vector)
 add_library(polygon polygon.cc)
 target_link_libraries(polygon vector)
 
+add_library(shape shape.cc)
+target_link_libraries(shape vector)
+target_link_libraries(shape polygon)
+
 add_library(config config.cc)
 target_link_libraries(config absl::strings)
 target_link_libraries(config absl::str_format)
@@ -90,6 +94,7 @@ target_link_libraries(creator camera)
 target_link_libraries(creator config)
 target_link_libraries(creator controller)
 target_link_libraries(creator focus)
+target_link_libraries(creator shape)
 target_link_libraries(creator vector)
 target_link_libraries(creator util)
 

@@ -27,7 +27,7 @@ public:
   absl::StatusOr<const Sprite *> GetSprite(SpriteType type) const;
   // Add any sprite object through this method. All sprite objects will be
   // rendered at the render step.
-  absl::Status AddSpriteObject(const SpriteObjectInterface *object);
+  absl::Status AddSpriteObject(SpriteObjectInterface *object);
   // Render all objects registered.
   void Render();
 
@@ -40,7 +40,7 @@ private:
   Camera *camera_;
   absl::flat_hash_map<std::string, SDL_Texture *> path_to_texture_ = {};
   absl::flat_hash_map<SpriteType, Sprite> sprites_ = {};
-  std::vector<const SpriteObjectInterface *> sprite_objects_;
+  std::vector<SpriteObjectInterface *> sprite_objects_;
 };
 
 } // namespace zebes

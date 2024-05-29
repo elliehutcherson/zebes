@@ -1,12 +1,14 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 
+#include "absl/status/statusor.h"
 #include "camera.h"
 #include "config.h"
 #include "polygon.h"
@@ -54,6 +56,10 @@ public:
   // Clean up state right before the update pipeline, but only in
   // the case that a frame is advancing.
   virtual void PreUpdate() = 0;
+  // Marks the object for destruction.
+  virtual void Destroy() = 0;
+  // Checks whether the object is marked for destruction.
+  virtual bool IsDestroyed() = 0;
   // Add primary axis index. This axis will be marked as a primary axis
   // when caculating the overlap between two objects.
   virtual absl::Status AddPrimaryAxisIndex(
@@ -65,40 +71,47 @@ public:
 
 class Object : virtual public ObjectInterface {
 public:
-  Object(ObjectOptions &options);
+  static absl::StatusOr<std::unique_ptr<Object>> Create(ObjectOptions &options);
+  
   ~Object() = default;
-  // Return id of the object.
+ 
   uint64_t object_id() const override;
-  // Return type of the object.
+ 
   ObjectType object_type() const override;
-  // Return pointer to polygon.
+ 
   const Polygon *polygon() const override;
-  // Check if object can collide with another object.
+ 
   bool IsInteractive(ObjectType type) const override;
-  // Register a callback for any collision events.
+ 
   void RegisterCollisionCallback(CollisionCallback callback) override;
-  // Handle a collision.
+ 
   absl::Status HandleCollision(Collision collision) override;
-  // Add primary axis index. This axis will be marked as a primary axis
-  // when caculating the overlap between two objects.
+ 
   absl::Status AddPrimaryAxisIndex(
       uint8_t index,
       AxisDirection axis_direction = AxisDirection::axis_none) override;
-  // Move from one position to another.
+ 
   void Move(float x, float y) override;
-  // Clean up state right before the update pipeline, but only in
-  // the case that a frame is advancing.
+  
   void PreUpdate() override;
+
+  void Destroy() override;
+  
+  bool IsDestroyed() override;
+
   // Convert points to SDL objects, and render to window.
-  void Render();
+  absl::Status Render();
 
 protected:
+  Object(ObjectOptions &options);
+
   const GameConfig *config_;
   Camera *camera_;
 
   uint64_t id_ = 0;
   ObjectType type_ = ObjectType::kInvalid;
 
+  bool is_destroyed_ = false;
   bool collision_ = false;
   Polygon polygon_;
   absl::flat_hash_set<ObjectType> compatible_collisions_;
@@ -143,7 +156,10 @@ public:
 
 class SpriteObject : public Object, virtual public SpriteObjectInterface {
 public:
-  SpriteObject(ObjectOptions &options);
+  // Factory method for creating sprite object.
+  static absl::StatusOr<std::unique_ptr<SpriteObject>>
+  Create(ObjectOptions &options);
+  // Default destructor.
   ~SpriteObject() = default;
   // Get mobile profile. Is no profile is found, nullptr will be returned.
   const SpriteProfile *profile(SpriteType type) const override;
@@ -163,6 +179,10 @@ public:
   void Update() override;
   // Reset velocity and position.
   void ResetSprite() override;
+
+protected:
+  // Use the factory method instead.
+  SpriteObject(ObjectOptions &options);
 
 private:
   uint8_t active_sprite_ticks_ = 0;
@@ -217,7 +237,10 @@ public:
 
 class MobileObject : public SpriteObject, virtual public MobileInterface {
 public:
-  MobileObject(ObjectOptions &options);
+  // Factory method for creating sprite object.
+  static absl::StatusOr<std::unique_ptr<MobileObject>>
+  Create(ObjectOptions &options);
+  // Default destructor.
   ~MobileObject() = default;
   // Get Velocity in the x direction.
   float velocity_x() const override;
@@ -249,6 +272,8 @@ public:
   void Reset() override;
 
 private:
+  // Use the factory method instead.
+  MobileObject(ObjectOptions &options);
   // Accelerate or decelerate velocity in a particular dimension. Returns the
   // new velocity.
   float Accelerate(float velocity, float delta_v, float deceleration,

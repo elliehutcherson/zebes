@@ -6,6 +6,7 @@
 #include "absl/status/status.h"
 #include "engine/camera.h"
 #include "engine/game.h"
+#include "engine/object.h"
 #include "engine/sprite_manager.h"
 
 bool IsRunning() {
@@ -70,8 +71,12 @@ absl::Status Run() {
       .vertices = vertices,
   };
 
+  absl::StatusOr<std::unique_ptr<zebes::SpriteObject>> sprite_object_result =
+      zebes::SpriteObject::Create(options);
+  if (!sprite_object_result.ok())
+    return sprite_object_result.status();
   std::unique_ptr<zebes::SpriteObject> sprite_object =
-      std::make_unique<zebes::SpriteObject>(options);
+      std::move(*sprite_object_result);
 
   result = sprite_object->AddSpriteProfile({.type = zebes::SpriteType::kDirt1});
   if (!result.ok())

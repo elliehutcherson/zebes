@@ -145,8 +145,10 @@ void Camera::RenderText(const std::string &message, SDL_Rect *dst_rect) const {
   SDL_DestroyTexture(texture);
 }
 
-void Camera::RenderLines(const std::vector<Point> &vertices, DrawColor color,
-                         bool static_position) {
+absl::Status Camera::RenderLines(const std::vector<Point> &vertices,
+                                 DrawColor color, bool static_position) {
+  if (vertices.empty())
+    return absl::InvalidArgumentError("Received empty set of verticies");
   UpdateColor(color);
   SDL_Point sdl_points[vertices.size()];
   for (int i = 0; i < vertices.size() + 1; i++) {
@@ -158,6 +160,7 @@ void Camera::RenderLines(const std::vector<Point> &vertices, DrawColor color,
   }
 
   SDL_RenderDrawLines(renderer_, sdl_points, vertices.size() + 1);
+  return absl::OkStatus();
 }
 
 void Camera::RenderGrid() {

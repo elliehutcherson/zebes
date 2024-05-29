@@ -1,7 +1,7 @@
 #include "object.h"
 
 #include <_types/_uint8_t.h>
-#include <iostream>
+#include <memory>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
@@ -31,6 +31,16 @@ inline uint64_t GetObjectId() {
 }
 
 } // namespace
+
+absl::StatusOr<std::unique_ptr<Object>> Object::Create(ObjectOptions &options) {
+  if (options.config == nullptr)
+    return absl::InvalidArgumentError("Config must not be null");
+  if (options.camera == nullptr)
+    return absl::InvalidArgumentError("Camera must not be null");
+  if (options.vertices.empty())
+    return absl::InvalidArgumentError("Vertices must not be empty.");
+  return std::unique_ptr<Object>(new Object(options));
+}
 
 Object::Object(ObjectOptions &options)
     : config_(options.config), camera_(options.camera),
@@ -71,14 +81,26 @@ absl::Status Object::HandleCollision(Collision collision) {
 
 void Object::PreUpdate() { collision_ = false; }
 
-void Object::Render() {
-  if (camera_ == nullptr) {
-    std::cerr << "Camera not set for object when rendering." << std::endl;
-    return;
-  };
+void Object::Destroy() { is_destroyed_ = true; }
+
+bool Object::IsDestroyed() { return is_destroyed_; }
+
+absl::Status Object::Render() {
   DrawColor color =
       collision_ ? DrawColor::kColorCollide : DrawColor::kColorTile;
-  camera_->RenderLines(*polygon_.vertices(), color, /*static_position=*/false);
+  return camera_->RenderLines(*polygon_.vertices(), color,
+                              /*static_position=*/false);
+}
+
+absl::StatusOr<std::unique_ptr<SpriteObject>>
+SpriteObject::Create(ObjectOptions &options) {
+  if (options.config == nullptr)
+    return absl::InvalidArgumentError("Config must not be null");
+  if (options.camera == nullptr)
+    return absl::InvalidArgumentError("Camera must not be null");
+  if (options.vertices.empty())
+    return absl::InvalidArgumentError("Vertices must not be empty.");
+  return std::unique_ptr<SpriteObject>(new SpriteObject(options));
 }
 
 SpriteObject::SpriteObject(ObjectOptions &options) : Object(options) { return; }
@@ -140,9 +162,18 @@ void SpriteObject::ResetSprite() {
   active_sprite_cycles_ = 0;
 };
 
-MobileObject::MobileObject(ObjectOptions &options) : SpriteObject(options) {
-  return;
+absl::StatusOr<std::unique_ptr<MobileObject>>
+MobileObject::Create(ObjectOptions &options) {
+  if (options.config == nullptr)
+    return absl::InvalidArgumentError("Config must not be null");
+  if (options.camera == nullptr)
+    return absl::InvalidArgumentError("Camera must not be null");
+  if (options.vertices.empty())
+    return absl::InvalidArgumentError("Vertices must not be empty.");
+  return std::unique_ptr<MobileObject>(new MobileObject(options));
 }
+
+MobileObject::MobileObject(ObjectOptions &options) : SpriteObject(options) {}
 
 const MobileProfile *MobileObject::profile(uint8_t id) const {
   auto profiles_iter = profiles_.find(id);

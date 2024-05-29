@@ -1,8 +1,11 @@
 #include "controller.h"
 
 #include "SDL_events.h"
+#include "SDL_keycode.h"
 #include "SDL_mouse.h"
 #include "config.h"
+#include <cmath>
+#include <iostream>
 
 namespace zebes {
 
@@ -16,7 +19,7 @@ void Controller::HandleEvent(const SDL_Event *event) {
         Point{.x = static_cast<double>(x), .y = static_cast<double>(y)};
   } else if (event->type == SDL_MOUSEBUTTONDOWN) {
     if (event->button.button == SDL_BUTTON_LEFT) {
-      state_.left_click = KeyState::pressed;
+      state_.tile_toggle = KeyState::pressed;
     }
   } else if (event->type == SDL_QUIT) {
     UpdateState(SDL_KeyCode::SDLK_ESCAPE, KeyState::pressed);
@@ -26,67 +29,81 @@ void Controller::HandleEvent(const SDL_Event *event) {
   }
 }
 
-void Controller::UpdateState(SDL_Keycode code, uint8_t value, bool overwrite) {
-  KeyState key_state = static_cast<KeyState>(value);
+void Controller::UpdateState(SDL_Keycode code, uint8_t value) {
+  KeyState new_state = static_cast<KeyState>(value);
+  std::vector<KeyState*> old_states;
   switch (code) {
+  case SDL_KeyCode::SDLK_LSHIFT:
+  case SDL_KeyCode::SDLK_RSHIFT:
+    state_.modifiers.shift = new_state != KeyState::none;
+    break;
+  case SDL_KeyCode::SDLK_LCTRL:
+  case SDL_KeyCode::SDLK_RCTRL:
+    state_.modifiers.ctrl = new_state != KeyState::none;
+    break;
+  case SDL_KeyCode::SDLK_LALT:
+  case SDL_KeyCode::SDLK_RALT:
+    state_.modifiers.alt = new_state != KeyState::none;
+    break;
   case SDL_KeyCode::SDLK_ESCAPE:
-    if (overwrite || state_.game_quit < key_state)
-      state_.game_quit = key_state;
+    old_states.push_back(&state_.game_quit);
     break;
   case SDL_KeyCode::SDLK_0:
-    if (overwrite || state_.player_reset < key_state)
-      state_.player_reset = key_state;
+    old_states.push_back(&state_.player_reset);
     break;
   case SDL_KeyCode::SDLK_1:
-    if (overwrite || state_.enable_frame_by_frame < key_state)
-      state_.enable_frame_by_frame = key_state;
+    old_states.push_back(&state_.enable_frame_by_frame);
     break;
   case SDL_KeyCode::SDLK_SPACE:
-    if (overwrite || state_.advance_frame < key_state)
-      state_.advance_frame = key_state;
+    old_states.push_back(&state_.advance_frame);
+    if (state_.modifiers.shift) {
+      old_states.push_back(&state_.tile_previous);
+    } else {
+      old_states.push_back(&state_.tile_next);
+    }
     break;
   case SDL_KeyCode::SDLK_UP:
-    if (overwrite || state_.up < key_state)
-      state_.up = key_state;
+    old_states.push_back(&state_.up);
     break;
   case SDL_KeyCode::SDLK_LEFT:
-    if (overwrite || state_.left < key_state)
-      state_.left = key_state;
+    old_states.push_back(&state_.left);
     break;
   case SDL_KeyCode::SDLK_RIGHT:
-    if (overwrite || state_.right < key_state)
-      state_.right = key_state;
+    old_states.push_back(&state_.right);
     break;
   case SDL_KeyCode::SDLK_DOWN:
-    if (overwrite || state_.down < key_state)
-      state_.down = key_state;
+    old_states.push_back(&state_.down);
     break;
   case SDL_KeyCode::SDLK_w:
-    if (overwrite || state_.y < key_state)
-      state_.y = key_state;
+    old_states.push_back(&state_.y);
     break;
   case SDL_KeyCode::SDLK_d:
-    if (overwrite || state_.b < key_state)
-      state_.b = key_state;
+    old_states.push_back(&state_.b);
     break;
   case SDL_KeyCode::SDLK_s:
-    if (overwrite || state_.a < key_state)
-      state_.a = key_state;
+    old_states.push_back(&state_.a);
     break;
   case SDL_KeyCode::SDLK_a:
-    if (overwrite || state_.x < key_state)
-      state_.x = key_state;
+    old_states.push_back(&state_.x);
     break;
   case SDL_KeyCode::SDLK_q:
-    if (overwrite || state_.l < key_state)
-      state_.l = key_state;
+    old_states.push_back(&state_.l);
     break;
   case SDL_KeyCode::SDLK_e:
-    if (overwrite || state_.r < key_state)
-      state_.r = key_state;
+    old_states.push_back(&state_.r);
+    break;
+  case SDL_KeyCode::SDLK_r:
+    if (state_.modifiers.shift) {
+      old_states.push_back(&state_.tile_rotate_counter_clockwise);
+    } else {
+      old_states.push_back(&state_.tile_rotate_clockwise);
+    }
     break;
   default:
     break;
+  }
+  for (KeyState *old_state : old_states) {
+    *old_state = std::max(*old_state, new_state);
   }
 }
 
@@ -98,11 +115,9 @@ void Controller::Update() {
 }
 
 void Controller::Clear() {
-  for (int i = 0; i < scan_codes_.size(); ++i) {
-    UpdateState(key_codes_[i], KeyState::none, /*overwrite=*/true);
-  }
-  state_.left_click = KeyState::none;
-  state_.right_click = KeyState::none;
+  Point mouse_position = state_.mouse_position;
+  state_ = ControllerState();
+  state_.mouse_position = mouse_position;
 }
 
 const ControllerState *Controller::GetState() const { return &state_; }

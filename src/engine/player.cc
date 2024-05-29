@@ -47,7 +47,12 @@ absl::Status Player::Init(const SpriteManager *sprite_manager) {
                                   .velocity_start_y = 0.0f,
                                   .gravity = true};
 
-  mobile_object_ = std::make_unique<MobileObject>(object_options);
+  absl::StatusOr<std::unique_ptr<MobileObject>> mobile_object =
+      MobileObject::Create(object_options);
+  if (!mobile_object.ok())
+    return mobile_object.status();
+
+  mobile_object_ = std::move(*mobile_object);
   absl::Status result = mobile_object_->AddProfile(mobile_profile);
   if (!result.ok())
     return result;

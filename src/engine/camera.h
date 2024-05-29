@@ -45,8 +45,8 @@ public:
   // Render text.
   void RenderText(const std::string &message, SDL_Rect *dst_rect) const;
   // Render lines.
-  void RenderLines(const std::vector<Point> &vertices, DrawColor color,
-                   bool static_position = true);
+  absl::Status RenderLines(const std::vector<Point> &vertices, DrawColor color,
+                           bool static_position = true);
   void RenderGrid();
 
 private:

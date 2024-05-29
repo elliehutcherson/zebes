@@ -84,7 +84,12 @@ absl::Status Game::Init() {
                                       {.x = 350, .y = 700},
                                       {.x = 325, .y = 750},
                                   }};
-  object_ = std::make_unique<Object>(object_options);
+  absl::StatusOr<std::unique_ptr<Object>> object =
+      Object::Create(object_options);
+  if (!object.ok())
+    return object.status();
+
+  object_ = std::move(*object);
   result = object_->AddPrimaryAxisIndex(0, AxisDirection::axis_left);
   if (!result.ok())
     return result;

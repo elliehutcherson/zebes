@@ -1,19 +1,25 @@
 #include "creator.h"
 
+#include <cmath>
 #include <memory>
 #include <string>
-#include <vector>
 
+#include "absl/container/flat_hash_set.h"
+#include "bitmap.h"
 #include "camera.h"
 #include "config.h"
 #include "controller.h"
-#include "engine/vector.h"
+#include "shape.h"
 #include "util.h"
+#include "vector.h"
 
 namespace zebes {
 
 Creator::Creator(const GameConfig *config, Camera *camera)
-    : config_(config), camera_(camera){};
+    : config_(config), camera_(camera) {
+  Shape::set_render_width(config_->tiles.render_width);
+  Shape::set_render_height(config_->tiles.render_height);
+};
 
 void Creator::Update(const ControllerState *state) {
   if (state->left != KeyState::none)
@@ -24,6 +30,14 @@ void Creator::Update(const ControllerState *state) {
     world_position_.y -= 10;
   if (state->down != KeyState::none)
     world_position_.y += 10;
+  if (state->tile_next == KeyState::down)
+    shape_.set_type(Shape::TypePlusOne(shape_.type()));
+  if (state->tile_previous == KeyState::down)
+    shape_.set_type(Shape::TypeMinusOne(shape_.type()));
+  if (state->tile_rotate_clockwise == KeyState::down)
+    shape_.set_rotation(Shape::RotationPlusOne(shape_.rotation()));
+  if (state->tile_rotate_counter_clockwise == KeyState::down)
+    shape_.set_rotation(Shape::RotationMinusOne(shape_.rotation()));
 
   window_dimensions_ = {static_cast<double>(config_->window.width),
                         static_cast<double>(config_->window.height)};
@@ -38,7 +52,7 @@ void Creator::Update(const ControllerState *state) {
       Point{.x = floor(mouse_world_position_.x / config_->tiles.render_width),
             .y = floor(mouse_world_position_.y / config_->tiles.render_height)};
 
-  if (state->left_click == KeyState::pressed) {
+  if (state->tile_toggle == KeyState::pressed) {
     ToggleTileState();
   }
 }
@@ -54,29 +68,43 @@ std::string Creator::to_string() const {
                          mouse_world_position_.to_string());
 }
 
-std::vector<Point> Creator::GetTileVertices() const {
-  Point point{.x = mouse_world_tile_position_.x * config_->tiles.render_width,
-              .y = mouse_world_tile_position_.y * config_->tiles.render_height};
-  return {point,
-          {point.x + config_->tiles.render_width, point.y},
-          {point.x + config_->tiles.render_width,
-           point.y + config_->tiles.render_height},
-          {point.x, point.y + config_->tiles.render_height}};
+Point Creator::GetPosition() const {
+  return {.x = mouse_world_tile_position_.x * config_->tiles.render_width,
+          .y = mouse_world_tile_position_.y * config_->tiles.render_height};
 }
 
 void Creator::Render() {
   auto it = tiles_.find(mouse_world_tile_position_);
   if (it == tiles_.end()) {
-    Point point{.x = mouse_world_tile_position_.x * config_->tiles.render_width,
-                .y = mouse_world_tile_position_.y *
-                     config_->tiles.render_height};
-    std::vector<Point> vertices = GetTileVertices();
-    camera_->RenderLines(vertices, DrawColor::kColorTile,
-                         /*static_position=*/false);
+    shape_.set_position(GetPosition());
+    absl::Status result = camera_->RenderLines(*shape_.polygon()->vertices(),
+                                               DrawColor::kColorTile,
+                                               /*static_position=*/false);
+    if (!result.ok()) {
+      std::cerr << absl::StrFormat(
+          "%s, shape render failed, type: %s, error: %s\n", __func__,
+          Shape::TypeToString(shape_.type()), result.message());
+
+      // Reset shape if render failed.
+      shape_ = Shape();
+    }
   }
-  for (const auto &[_, polygon] : tiles_) {
-    camera_->RenderLines(*polygon->vertices(), DrawColor::kColorTile,
-                         /*static_position=*/false);
+
+  absl::flat_hash_set<Point, PointHash> failed_renders;
+  for (const auto &[point, shape] : tiles_) {
+    absl::Status result = camera_->RenderLines(*shape->polygon()->vertices(),
+                                               DrawColor::kColorTile,
+                                               /*static_position=*/false);
+    if (!result.ok()) {
+      std::cerr << absl::StrFormat(
+          "%s, shape render failed, type: %s, error: %s\n", __func__,
+          Shape::TypeToString(shape_.type()), result.message());
+     failed_renders.insert(point); 
+    }
+  }
+  // Erase points that failed to render.
+  for (const auto &point : failed_renders) {
+    tiles_.erase(point);
   }
 }
 
@@ -87,9 +115,14 @@ void Creator::ToggleTileState() {
     return;
   }
   tiles_[mouse_world_tile_position_] =
-      std::make_unique<Polygon>(GetTileVertices());
+      std::unique_ptr<Shape>(new Shape(std::move(shape_)));
+  shape_ = Shape();
 }
 
-std::string Creator::StateToCsv() const { return ""; }
+std::string Creator::StateToCsv() const {
+  Bitmap bitmap(config_->boundaries.x_max, config_->boundaries.y_max);
+  for (const auto &[_, polygon] : tiles_) {
+  }
+}
 
 } // namespace zebes

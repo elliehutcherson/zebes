@@ -198,7 +198,7 @@ absl::StatusOr<const Sprite *> SpriteManager::GetSprite(SpriteType type) const {
 }
 
 absl::Status
-SpriteManager::AddSpriteObject(const SpriteObjectInterface *object) {
+SpriteManager::AddSpriteObject(SpriteObjectInterface *object) {
   if (object == nullptr)
     return absl::InvalidArgumentError("SpriteObjectInterface is null.");
   sprite_objects_.push_back(object);
@@ -206,7 +206,8 @@ SpriteManager::AddSpriteObject(const SpriteObjectInterface *object) {
 }
 
 void SpriteManager::Render() {
-  for (const SpriteObjectInterface *sprite_object : sprite_objects_) {
+
+  for (SpriteObjectInterface *sprite_object : sprite_objects_) {
     Sprite &sprite = sprites_.at(sprite_object->GetActiveSpriteProfile()->type);
     const SpriteConfig *sprite_config = sprite.GetConfig();
     int sprite_index = 0;
@@ -228,9 +229,17 @@ void SpriteManager::Render() {
 
     camera_->Render(texture, sprite.GetSource(sprite_index), &dst_rect);
     const std::vector<Point> &vertices = *sprite_object->polygon()->vertices();
-    camera_->RenderLines(*sprite_object->polygon()->vertices(),
-                         DrawColor::kColorTile, false);
+    absl::Status result = camera_->RenderLines(
+        *sprite_object->polygon()->vertices(), DrawColor::kColorTile, false);
+    if (!result.ok()) {
+      std::cerr << "Failed to render lines." << std::endl;
+      sprite_object->Destroy();
+    }
   }
+
+  std::erase_if(sprite_objects_, [](SpriteObjectInterface *object) {
+    return object->IsDestroyed();
+  });
 }
 
 } // namespace zebes

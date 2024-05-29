@@ -2,12 +2,14 @@
 
 #include <memory>
 #include <string>
+#include <sys/types.h>
 
 #include "config.h"
 #include "controller.h"
-#include "engine/camera.h"
-#include "engine/polygon.h"
+#include "camera.h"
+#include "polygon.h"
 #include "focus.h"
+#include "shape.h"
 #include "vector.h"
 
 namespace zebes {
@@ -32,8 +34,8 @@ private:
   // If the mouse is clicked, toggle the state of the tile the
   // mouse is currently hovering over.
   void ToggleTileState();
-  // Get vertices for the tile the mouse is currently hovering over.
-  std::vector<Point> GetTileVertices() const;
+  // Get full position for the currently selected tile.
+  Point GetPosition() const;
 
   Point window_dimensions_;
   Point world_position_;
@@ -41,10 +43,11 @@ private:
   Point mouse_window_tile_position_;
   Point mouse_world_position_;
   Point mouse_world_tile_position_;
+  Shape shape_;
 
   const GameConfig *config_;
   Camera *camera_;
-  absl::flat_hash_map<Point, std::unique_ptr<Polygon>, PointHash> tiles_;
+  absl::flat_hash_map<Point, std::unique_ptr<Shape>, PointHash> tiles_;
 };
 
 } // namespace zebes

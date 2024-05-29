@@ -121,8 +121,12 @@ absl::Status TileManager::Init(CollisionManager *collision_manager,
           .vertices = GetRenderVertices(type, x, y),
       };
 
-      std::unique_ptr<SpriteObject> sprite_object =
-          std::make_unique<SpriteObject>(options);
+      absl::StatusOr<std::unique_ptr<SpriteObject>> sprite_result =
+          SpriteObject::Create(options);
+      if (!sprite_result.ok())
+        return sprite_result.status();
+
+      std::unique_ptr<SpriteObject>& sprite_object = *sprite_result;
       result = collision_manager->AddObject(sprite_object.get());
       if (!result.ok())
         return result;
