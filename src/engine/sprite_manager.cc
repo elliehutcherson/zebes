@@ -1,7 +1,6 @@
 #include "sprite_manager.h"
 
 #include <_types/_uint16_t.h>
-#include <cstddef>
 #include <iostream>
 #include <sqlite3.h>
 #include <vector>
@@ -11,6 +10,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 
@@ -37,7 +37,7 @@ absl::Status SpriteManager::Init() {
   std::string query =
       "SELECT * FROM SpriteConfig WHERE type > 0 AND type < 106";
 
-  std::cout << query << std::endl;
+  LOG(INFO) << query;
 
   sqlite3_stmt *stmt;
   return_code =
@@ -110,10 +110,9 @@ SpriteManager::GetSubSprites(SpriteType type) {
     return absl::AbortedError("Failed to prepare statement.");
   }
 
-  std::cout << __func__ << ": " << sqlite3_column_count(stmt) << std::endl;
-  std::cout << __func__ << ": "
-            << absl::StrFormat("type = %d", static_cast<int>(type))
-            << std::endl;
+  LOG(INFO) << __func__ << ": " << sqlite3_column_count(stmt);
+  LOG(INFO) << __func__ << ": "
+            << absl::StrFormat("type = %d", static_cast<int>(type));
 
   // Fetch the sub sprites
   while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -144,7 +143,7 @@ SpriteManager::GetSubSprites(SpriteType type) {
         sub_sprite.texture_h, sub_sprite.texture_offset_x,
         sub_sprite.texture_offset_y, sub_sprite.render_w, sub_sprite.render_h,
         sub_sprite.render_offset_x, sub_sprite.render_offset_y);
-    std::cout << test_output << std::endl;
+    LOG(INFO) << test_output;
 
     sub_sprites.push_back(sub_sprite);
   }
@@ -162,14 +161,13 @@ absl::Status SpriteManager::InitializeSprite(SpriteConfig sprite_config) {
   }
   SDL_Texture *texture = nullptr;
   auto texture_iter = path_to_texture_.find(sprite_config.texture_path);
-  std::cout << __func__ << ": "
+  LOG(INFO) << __func__ << ": "
             << absl::StrFormat("sprite_config.texture_path = %s",
-                               sprite_config.texture_path)
-            << std::endl;
-  std::cout << __func__ << ": "
+                               sprite_config.texture_path);
+
+  LOG(INFO) << __func__ << ": "
             << absl::StrFormat("sprite_config.type = %d",
-                               static_cast<int>(sprite_config.type))
-            << std::endl;
+                               static_cast<int>(sprite_config.type));
 
   if (texture_iter == path_to_texture_.end()) {
     SDL_Surface *tmp_surface = IMG_Load(sprite_config.texture_path.c_str());
@@ -197,8 +195,7 @@ absl::StatusOr<const Sprite *> SpriteManager::GetSprite(SpriteType type) const {
   return &sprite_iter->second;
 }
 
-absl::Status
-SpriteManager::AddSpriteObject(SpriteObjectInterface *object) {
+absl::Status SpriteManager::AddSpriteObject(SpriteObjectInterface *object) {
   if (object == nullptr)
     return absl::InvalidArgumentError("SpriteObjectInterface is null.");
   sprite_objects_.push_back(object);

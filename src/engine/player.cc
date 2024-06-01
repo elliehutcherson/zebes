@@ -1,13 +1,13 @@
 #include "player.h"
 
-#include <iostream>
 #include <memory>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 
-#include "config.h"
+#include "engine/config.h"
 #include "engine/sprite_manager.h"
-#include "object.h"
+#include "engine/object.h"
 
 namespace zebes {
 
@@ -144,7 +144,7 @@ void Player::UpdateSprite(const ControllerState *state) {
     absl::Status result = mobile_object_->SetActiveSpriteProfile(new_type);
     if (!result.ok()) {
       // We should probably crash in this case.
-      std::cout << result.message() << std::endl;
+      LOG(WARNING) << result.message(); 
     }
   }
 }
@@ -155,7 +155,7 @@ void Player::Reset() {
       mobile_object_->SetActiveSpriteProfile(SpriteType::SamusRunningRight);
   if (!result.ok()) {
     // We should probably crash in this case.
-    std::cout << result.message() << std::endl;
+    LOG(WARNING) << result.message();
   }
 }
 

@@ -8,6 +8,7 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 
 #include "config.h"
@@ -62,7 +63,7 @@ void Hud::Render() {
     ImGui::SameLine();
     if (ImGui::Button("Save")) {
       controller_->set_save_path(creator_save_path_);
-      std::cout << "Saving creator state..." << std::endl;
+      LOG(INFO) << "Saving creator state..." << std::endl;
     }
 
     ImGui::Text("Import Path: ");
@@ -71,7 +72,7 @@ void Hud::Render() {
     ImGui::SameLine();
     if (ImGui::Button("Import")) {
       controller_->set_import_path(creator_import_path_);
-      std::cout << "Importing layer..." << std::endl;
+      LOG(INFO) << "Importing layer..." << std::endl;
     }
 
   } else if (config_->mode == GameConfig::Mode::kPlayerMode) {

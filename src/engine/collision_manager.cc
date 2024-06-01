@@ -1,9 +1,8 @@
 #include "collision_manager.h"
 
-#include <iostream>
-
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/log/log.h"
 
 #include "absl/status/status.h"
 #include "config.h"
@@ -37,7 +36,6 @@ absl::Status CollisionManager::Init() {
               config_->boundaries.y_min + (y * config_->collisions.area_height),
           .y_max = area.y_min + config_->collisions.area_height,
       };
-      // std::cout << area.DebugString() << std::endl;
       areas_[area.id] = area;
     }
   }
@@ -152,7 +150,7 @@ void CollisionManager::UpdateArea(int area_id, ObjectInterface &object_a) {
         {.overlap = overlap, .object_type = object_b.object_type()});
     // Oh no, errors are bad, print message.
     if (!collision_result.ok()) {
-      std::cout << collision_result.message() << std::endl;
+      LOG(WARNING) << collision_result.message();
       continue;
     }
     // Add collision hash to hashes so we don't calculate it again.
@@ -169,7 +167,7 @@ void CollisionManager::UpdateArea(int area_id, ObjectInterface &object_a) {
     // absl::Status reaction_result = object_b.HandleCollision(
     //   {.overlap = overlap, .object_type = object_a.object_type()});
     // if (!collision_result.ok()) {
-    //   std::cout << collision_result.message() << std::endl;
+    //   LOG(INFO) << collision_result.message();
     //   continue;
     // }
     // Calculate the hash, and add it to the list of collisions already
