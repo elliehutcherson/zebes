@@ -1,14 +1,23 @@
-#include <iostream>
-
+#include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
+
 #include "engine/game.h"
+
+ABSL_FLAG(std::string, log_dir, "/tmp",
+          "Path to the directory where logs should be written.");
+ABSL_FLAG(int, minloglevel, 0,
+          "Minimum log level to log. (0=INFO, 1=WARNING, 2=ERROR, 3=FATAL)");
 
 int main(int argc, char *argv[]) {
   absl::ParseCommandLine(argc, argv);
+  absl::InitializeLog();
+
   if (argc < 2) {
-    std::cout << "ECLI did not receive any command..." << std::endl;
-    return 0;
+    LOG(ERROR) << "Zebes: no command received...";
+    return 1;
   }
 
   std::string program = argv[1];
@@ -18,7 +27,7 @@ int main(int argc, char *argv[]) {
   } else if (program == "creator") {
     config.mode = zebes::GameConfig::Mode::kCreatorMode;
   } else {
-    std::cout << "ECLI did not receive a recognized command..." << std::endl;
+    LOG(INFO) << "Zebes command not recognized...";
     return 1;
   }
 
@@ -26,7 +35,7 @@ int main(int argc, char *argv[]) {
   absl::Status result = game.Init();
   if (result.ok())
     result = game.Run();
-  std::cout << "exiting zebes: " << result.ToString() << std::endl;
+  LOG(INFO) << "Zebes: exiting, " << result.ToString();
 
   return 0;
 }

@@ -1,11 +1,14 @@
 add_subdirectory(engine)
 
 add_executable(${PROJECT_NAME} main.cc)
+target_link_libraries(${PROJECT_NAME} absl::base)
+target_link_libraries(${PROJECT_NAME} absl::flags)
+target_link_libraries(${PROJECT_NAME} absl::flags_parse)
+target_link_libraries(${PROJECT_NAME} absl::log)
+target_link_libraries(${PROJECT_NAME} absl::log_initialize)
 target_link_libraries(${PROJECT_NAME} absl::status)
 target_link_libraries(${PROJECT_NAME} absl::strings)
 target_link_libraries(${PROJECT_NAME} absl::str_format)
-target_link_libraries(${PROJECT_NAME} absl::flags)
-target_link_libraries(${PROJECT_NAME} absl::flags_parse)
 target_link_libraries(${PROJECT_NAME} SDL2main SDL2-static SDL2_image SDL2_ttf)
 target_link_libraries(${PROJECT_NAME} ${IMGUI_LIBRARIES}) 
 
