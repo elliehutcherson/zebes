@@ -134,15 +134,22 @@ absl::Status Game::Init() {
   if (!result.ok())
     return result;
 
+  std::cout << "Zebes: Initializing controller..." << std::endl;
+  controller_ = std::make_unique<Controller>(&config_);
+
+
   std::cout << "Zebes: Initializing hud..." << std::endl;
+  Hud::Options hud_options = {.config = &config_,
+                              .focus = focus_,
+                              .controller = controller_.get(),
+                              .window = window_,
+                              .renderer = renderer_};
+
   absl::StatusOr<std::unique_ptr<Hud>> maybe_hud =
-      Hud::Create(&config_, focus_, window_, renderer_);
+      Hud::Create(std::move(hud_options));
   if (!maybe_hud.ok())
     return maybe_hud.status();
   hud_ = std::move(*maybe_hud);
-
-  std::cout << "Zebes: Initializing controller..." << std::endl;
-  controller_ = std::make_unique<Controller>(&config_);
 
   std::cout << "Zebes: Initialization done..." << std::endl;
   is_running_ = true;

@@ -7,36 +7,44 @@
 #include "absl/status/statusor.h"
 
 #include "config.h"
+#include "controller.h"
 #include "focus.h"
 
 namespace zebes {
 
 class Hud {
 public:
-  // Create a new HUD object.
-  static absl::StatusOr<std::unique_ptr<Hud>> Create(const GameConfig *config,
-                                                     const Focus *focus,
-                                                     SDL_Window *window,
-                                                     SDL_Renderer *renderer);
+  struct Options {
+    const GameConfig *config;
+    const Focus *focus;
+    Controller *controller;
+
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+  };
+
+  static absl::StatusOr<std::unique_ptr<Hud>> Create(Options options);
 
   ~Hud() = default;
-  // Render the text.
+
   void Render();
 
 private:
-  Hud(const GameConfig *config, const Focus *focus);
-  // Initialize IMGUI and other elements.
+  Hud(const GameConfig *config, const Focus *focus, Controller *controller);
+
   absl::Status Init(SDL_Window *window, SDL_Renderer *renderer);
-  // Global config.
+
   const GameConfig *config_;
-  // IMGUI Related items.
+  const Focus *focus_;
+  Controller *controller_;
+
   ImGuiIO *imgui_io_;
   ImGuiContext *imgui_context_;
   ImVec4 clear_color_;
-  // Items related to getting information to display.
-  const Focus *focus_;
+
   // Path to save creator state.
-  char save_path_[4096] = "";
+  char creator_save_path_[4096] = "";
+  char creator_import_path_[4096] = "";
 };
 
 } // namespace zebes

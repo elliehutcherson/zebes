@@ -4,11 +4,11 @@
 #include <string>
 #include <sys/types.h>
 
+#include "camera.h"
 #include "config.h"
 #include "controller.h"
-#include "camera.h"
-#include "polygon.h"
 #include "focus.h"
+#include "polygon.h"
 #include "shape.h"
 #include "vector.h"
 
@@ -20,15 +20,14 @@ public:
 
   float x_center() const override;
   float y_center() const override;
-
+  // Outputs the current state of the creator.
+  std::string to_string() const override;
   // Update the position of the creator, and the position of the mouse.
   void Update(const ControllerState *state) override;
   // Render the tile outline for the tile the mouse is currently hovering over.
   void Render();
-  // Outputs the current state of the creator.
-  std::string to_string() const override;
-  // Outputs the current state of the creator to a csv format.
-  std::string StateToCsv() const;
+  // Outputs the current state of the creator to a bmp format.
+  absl::Status StateToBmp(std::string path) const;
 
 private:
   // If the mouse is clicked, toggle the state of the tile the

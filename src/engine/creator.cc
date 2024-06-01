@@ -99,7 +99,7 @@ void Creator::Render() {
       std::cerr << absl::StrFormat(
           "%s, shape render failed, type: %s, error: %s\n", __func__,
           Shape::TypeToString(shape_.type()), result.message());
-     failed_renders.insert(point); 
+      failed_renders.insert(point);
     }
   }
   // Erase points that failed to render.
@@ -119,10 +119,16 @@ void Creator::ToggleTileState() {
   shape_ = Shape();
 }
 
-std::string Creator::StateToCsv() const {
+absl::Status Creator::StateToBmp(std::string path) const {
   Bitmap bitmap(config_->boundaries.x_max, config_->boundaries.y_max);
-  for (const auto &[_, polygon] : tiles_) {
+  for (const auto &[point, shape] : tiles_) {
+    Shape::State state = shape->state();
+    absl::Status result = bitmap.Set(point.x_floor(), point.y_floor(),
+                                     state.raw_eight[0], state.raw_eight[1], 0);
+    if (!result.ok())
+      return result;
   }
+  return bitmap.SaveToBmp(path);
 }
 
 } // namespace zebes

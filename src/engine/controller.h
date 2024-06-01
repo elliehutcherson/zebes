@@ -42,6 +42,8 @@ struct ControllerState {
   KeyState tile_rotate_counter_clockwise = KeyState::none;
   KeyState tile_toggle = KeyState::none;
   KeyState tile_reset = KeyState::none;
+  std::string creator_save_path;
+  std::string creator_import_path;
 };
 
 class Controller {
@@ -60,6 +62,12 @@ public:
   bool ShouldUpdate();
   // Get controller buttons.
   const ControllerState *GetState() const;
+
+  std::string save_path() const { return state_.creator_save_path; }
+  void set_save_path(std::string path) { state_.creator_save_path = path; }
+
+  std::string import_path() const { return state_.creator_import_path; }
+  void set_import_path(std::string path) { state_.creator_import_path = path; }
 
 private:
   // The pointer returned is a pointer to an internal SDL array.
