@@ -3,9 +3,8 @@
 #include "SDL_events.h"
 #include "SDL_keycode.h"
 #include "SDL_mouse.h"
-#include "config.h"
-#include <cmath>
-#include <iostream>
+
+#include "engine/config.h"
 
 namespace zebes {
 

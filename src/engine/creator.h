@@ -8,7 +8,6 @@
 #include "config.h"
 #include "controller.h"
 #include "focus.h"
-#include "polygon.h"
 #include "shape.h"
 #include "vector.h"
 

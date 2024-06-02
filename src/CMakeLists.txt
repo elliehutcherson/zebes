@@ -12,6 +12,7 @@ target_link_libraries(${PROJECT_NAME} absl::str_format)
 target_link_libraries(${PROJECT_NAME} SDL2main SDL2-static SDL2_image SDL2_ttf)
 target_link_libraries(${PROJECT_NAME} ${IMGUI_LIBRARIES}) 
 
+target_link_libraries(${PROJECT_NAME} logging)
 target_link_libraries(${PROJECT_NAME} vector)
 target_link_libraries(${PROJECT_NAME} polygon)
 target_link_libraries(${PROJECT_NAME} config)
