@@ -116,7 +116,6 @@ absl::Status TileManager::Init(CollisionManager *collision_manager,
 
       ObjectOptions options{
           .config = config_,
-          .camera = camera_,
           .object_type = ObjectType::kTile,
           .vertices = GetRenderVertices(type, x, y),
       };

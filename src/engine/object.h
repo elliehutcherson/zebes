@@ -34,7 +34,6 @@ using CollisionCallback = std::function<void(Collision &collision)>;
 
 struct ObjectOptions {
   const GameConfig *config;
-  Camera *camera;
   ObjectType object_type = kInvalid;
   std::vector<Point> vertices;
 };
@@ -100,17 +99,14 @@ public:
   bool IsDestroyed() override;
 
   // Convert points to SDL objects, and render to window.
-  absl::Status Render();
+  absl::Status Render(Camera* camera) const;
 
 protected:
   Object(ObjectOptions &options);
 
   const GameConfig *config_;
-  Camera *camera_;
-
   uint64_t id_ = 0;
   ObjectType type_ = ObjectType::kInvalid;
-
   bool is_destroyed_ = false;
   bool collision_ = false;
   Polygon polygon_;

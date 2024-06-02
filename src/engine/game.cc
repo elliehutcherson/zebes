@@ -5,6 +5,7 @@
 #include "SDL.h"
 #include "SDL_events.h"
 
+#include "engine/collision_manager.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 
@@ -77,7 +78,6 @@ absl::Status Game::Init() {
 
   LOG(INFO) << "Zebes: Initializing object...";
   ObjectOptions object_options = {.config = &config_,
-                                  .camera = camera_.get(),
                                   .object_type = ObjectType::kTile,
                                   .vertices = {
                                       {.x = 300, .y = 700},
@@ -114,10 +114,11 @@ absl::Status Game::Init() {
   }
 
   LOG(INFO) << "Zebes: Initializing collision manager...";
-  collision_manager_ = std::make_unique<CollisionManager>(&config_);
-  result = collision_manager_->Init();
-  if (!result.ok())
-    return result;
+  absl::StatusOr<std::unique_ptr<CollisionManager>> collision_manager =
+      CollisionManager::Create(&config_, camera_.get());
+  if (!collision_manager.ok())
+    return collision_manager.status();
+  collision_manager_ = std::move(*collision_manager);
   result = collision_manager_->AddObject(object_.get());
   if (!result.ok())
     return result;
@@ -194,8 +195,8 @@ void Game::Update() {
 void Game::Render() {
   SDL_RenderClear(renderer_);
   map_->Render();
-  object_->Render();
   sprite_manager_->Render();
+  collision_manager_->Render();
   if (config_.mode == GameConfig::Mode::kCreatorMode) {
     camera_->RenderGrid();
     creator_->Render();

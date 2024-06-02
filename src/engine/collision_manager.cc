@@ -6,8 +6,10 @@
 
 #include "absl/status/status.h"
 #include "config.h"
+#include "engine/camera.h"
 #include "object.h"
 #include "polygon.h"
+#include <memory>
 
 namespace zebes {
 namespace {
@@ -18,8 +20,22 @@ int CollisionHash(int id_a, int id_b) {
 
 } // namespace
 
-CollisionManager::CollisionManager(const GameConfig *config)
-    : config_(config) {}
+absl::StatusOr<std::unique_ptr<CollisionManager>>
+CollisionManager::Create(const GameConfig *config, Camera *camera) {
+  if (config == nullptr)
+    return absl::InvalidArgumentError("Config must not be null.");
+  if (camera == nullptr)
+    return absl::InvalidArgumentError("Camera must not be null.");
+  auto collision_manager =
+      std::unique_ptr<CollisionManager>(new CollisionManager(config, camera));
+  absl::Status result = collision_manager->Init();
+  if (!result.ok())
+    return result;
+  return collision_manager;
+}
+
+CollisionManager::CollisionManager(const GameConfig *config, Camera *camera)
+    : config_(config), camera_(camera) {}
 
 absl::Status CollisionManager::Init() {
   if (config_->collisions.area_width <= 0 ||
@@ -160,20 +176,33 @@ void CollisionManager::UpdateArea(int area_id, ObjectInterface &object_a) {
     // that _causes_ collisions, all objects can react to a collision. Overlap
     // reaction_overlap = object_b.polygon()->GetOverlap(*object_a.polygon());
     // If there was an overlap with a to b, there must be an overlap with b to
-    // a. if (!overlap.overlap) {
-    //   continue;
-    // }
+    // a.
+    if (!overlap.overlap) {
+      continue;
+    }
     // Add collision result to object_b collision storage.
-    // absl::Status reaction_result = object_b.HandleCollision(
-    //   {.overlap = overlap, .object_type = object_a.object_type()});
-    // if (!collision_result.ok()) {
-    //   LOG(INFO) << collision_result.message();
-    //   continue;
-    // }
+    absl::Status reaction_result = object_b.HandleCollision(
+        {.overlap = overlap, .object_type = object_a.object_type()});
+    if (!collision_result.ok()) {
+      LOG(INFO) << collision_result.message();
+      continue;
+    }
     // Calculate the hash, and add it to the list of collisions already
-    // calculated. int reaction_hash = CollisionHash(object_a.object_id(),
-    // object_b.object_id()); Add it to the list of hashes.
-    // hashes_.insert(reaction_hash);
+    // calculated.
+    int reaction_hash =
+        CollisionHash(object_a.object_id(), object_b.object_id());
+    // Add it to the list of hashes.
+    hashes_.insert(reaction_hash);
+  }
+}
+
+void CollisionManager::Render() const {
+  for (auto &[object_id, object] : objects_) {
+    absl::Status result =
+        camera_->RenderLines(*object->polygon()->vertices(),
+                             DrawColor::kColorTile, /*static_position=*/false);
+    if (!result.ok())
+      LOG(WARNING) << __func__ << ": " << result.message();
   }
 }
 

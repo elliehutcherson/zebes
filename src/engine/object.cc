@@ -35,16 +35,14 @@ inline uint64_t GetObjectId() {
 absl::StatusOr<std::unique_ptr<Object>> Object::Create(ObjectOptions &options) {
   if (options.config == nullptr)
     return absl::InvalidArgumentError("Config must not be null");
-  if (options.camera == nullptr)
-    return absl::InvalidArgumentError("Camera must not be null");
   if (options.vertices.empty())
     return absl::InvalidArgumentError("Vertices must not be empty.");
   return std::unique_ptr<Object>(new Object(options));
 }
 
 Object::Object(ObjectOptions &options)
-    : config_(options.config), camera_(options.camera),
-      type_(options.object_type), polygon_(options.vertices) {
+    : config_(options.config), type_(options.object_type),
+      polygon_(options.vertices) {
   id_ = GetObjectId();
   compatible_collisions_ = GetCompatibleCollisions(type_);
 }
@@ -85,10 +83,10 @@ void Object::Destroy() { is_destroyed_ = true; }
 
 bool Object::IsDestroyed() { return is_destroyed_; }
 
-absl::Status Object::Render() {
+absl::Status Object::Render(Camera *camera) const {
   DrawColor color =
       collision_ ? DrawColor::kColorCollide : DrawColor::kColorTile;
-  return camera_->RenderLines(*polygon_.vertices(), color,
+  return camera->RenderLines(*polygon_.vertices(), color,
                               /*static_position=*/false);
 }
 
@@ -96,8 +94,6 @@ absl::StatusOr<std::unique_ptr<SpriteObject>>
 SpriteObject::Create(ObjectOptions &options) {
   if (options.config == nullptr)
     return absl::InvalidArgumentError("Config must not be null");
-  if (options.camera == nullptr)
-    return absl::InvalidArgumentError("Camera must not be null");
   if (options.vertices.empty())
     return absl::InvalidArgumentError("Vertices must not be empty.");
   return std::unique_ptr<SpriteObject>(new SpriteObject(options));
@@ -166,8 +162,6 @@ absl::StatusOr<std::unique_ptr<MobileObject>>
 MobileObject::Create(ObjectOptions &options) {
   if (options.config == nullptr)
     return absl::InvalidArgumentError("Config must not be null");
-  if (options.camera == nullptr)
-    return absl::InvalidArgumentError("Camera must not be null");
   if (options.vertices.empty())
     return absl::InvalidArgumentError("Vertices must not be empty.");
   return std::unique_ptr<MobileObject>(new MobileObject(options));

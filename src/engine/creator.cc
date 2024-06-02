@@ -5,13 +5,15 @@
 #include <string>
 
 #include "absl/container/flat_hash_set.h"
-#include "bitmap.h"
-#include "camera.h"
-#include "config.h"
-#include "controller.h"
-#include "shape.h"
-#include "util.h"
-#include "vector.h"
+#include "absl/log/log.h"
+
+#include "engine/bitmap.h"
+#include "engine/camera.h"
+#include "engine/config.h"
+#include "engine/controller.h"
+#include "engine/shape.h"
+#include "engine/util.h"
+#include "engine/vector.h"
 
 namespace zebes {
 
@@ -54,6 +56,21 @@ void Creator::Update(const ControllerState *state) {
 
   if (state->tile_toggle == KeyState::pressed) {
     ToggleTileState();
+  }
+
+  if (!state->creator_save_path.empty()) {
+    absl::Status result = StateToBmp(state->creator_save_path);
+    if (!result.ok()) {
+      LOG(ERROR) << absl::StrFormat(
+          "%s, failed to save state, error: %s, path: %s\n", __func__,
+          result.message(), state->creator_save_path);
+    } else {
+      LOG(INFO) << absl::StrFormat(
+          "%s, successfully saved state, path: %s\n", __func__,
+          state->creator_save_path);
+    }
+  } else {
+    LOG(INFO) << absl::StrFormat("%s, save path is empty\n", __func__);
   }
 }
 

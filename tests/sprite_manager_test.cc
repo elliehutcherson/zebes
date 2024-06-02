@@ -66,7 +66,6 @@ absl::Status Run() {
 
   zebes::ObjectOptions options{
       .config = &config,
-      .camera = camera.get(),
       .object_type = zebes::ObjectType::kTile,
       .vertices = vertices,
   };

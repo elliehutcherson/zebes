@@ -25,7 +25,8 @@ struct CollisionArea {
 
 class CollisionManager {
 public:
-  CollisionManager(const GameConfig *config);
+  static absl::StatusOr<std::unique_ptr<CollisionManager>>
+  Create(const GameConfig *config, Camera *camera);
   ~CollisionManager() = default;
   // Initialize collision manager, including areas.
   absl::Status Init();
@@ -45,15 +46,20 @@ public:
   absl::Status AddObject(ObjectInterface *object);
   // Check for collisions between all objects.
   void Update();
+  // Render the lines of the objects
+  void Render() const;
   // After update pipeline, collisions could have affected positions.
   // Check for new positions, and update areas.
   void CleanUp();
 
 private:
+  CollisionManager(const GameConfig *config, Camera *camera);
   // Check for collisions between all objects within the specified area.
   void UpdateArea(int area_id, ObjectInterface &object_a);
 
   const GameConfig *config_;
+  Camera *camera_;
+
   absl::flat_hash_set<ObjectType> collsion_types_ = {ObjectType::kPlayer};
   absl::flat_hash_map<uint64_t, ObjectInterface *> objects_;
   absl::flat_hash_map<uint64_t, absl::flat_hash_set<int>>
