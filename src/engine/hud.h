@@ -45,6 +45,9 @@ private:
   // Path to save creator state.
   char creator_save_path_[4096] = "";
   char creator_import_path_[4096] = "";
+
+  // If the log size hasn't changed, we don't need to update the log.
+  int log_size_ = 0;
 };
 
 } // namespace zebes

@@ -1,17 +1,17 @@
 add_library(bitmap INTERFACE bitmap.h)
 target_link_libraries(bitmap INTERFACE absl::status)
 
-add_library(logging INTERFACE logging.h)
-target_link_libraries(logging INTERFACE absl::log)
-target_link_libraries(logging INTERFACE absl::log_sink)
-target_link_libraries(logging INTERFACE  absl::flags)
-target_link_libraries(logging INTERFACE  absl::strings)
-
 add_library(vector INTERFACE vector.h)
 target_link_libraries(vector INTERFACE absl::strings)
 
 add_library(util INTERFACE util.h)
 target_link_libraries(util INTERFACE vector)
+
+add_library(logging logging.cc)
+target_link_libraries(logging absl::log)
+target_link_libraries(logging absl::log_sink)
+target_link_libraries(logging absl::flags)
+target_link_libraries(logging absl::strings)
 
 add_library(polygon polygon.cc)
 target_link_libraries(polygon vector)
@@ -129,6 +129,7 @@ target_link_libraries(map SDL2main SDL2-static SDL2_image)
 add_library(hud hud.cc)
 target_link_libraries(hud camera)
 target_link_libraries(hud config)
+target_link_libraries(hud logging)
 target_link_libraries(hud player)
 target_link_libraries(hud absl::log)
 target_link_libraries(hud absl::status)

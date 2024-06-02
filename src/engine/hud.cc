@@ -12,6 +12,7 @@
 #include "absl/status/status.h"
 
 #include "config.h"
+#include "logging.h"
 
 namespace zebes {
 
@@ -74,6 +75,15 @@ void Hud::Render() {
       controller_->set_import_path(creator_import_path_);
       LOG(INFO) << "Importing layer..." << std::endl;
     }
+
+    ImGui::Spacing();
+    ImGui::BeginChild("Log");
+    ImGui::TextUnformatted(HudLogSink::Get()->log()->c_str());
+    if (log_size_ != HudLogSink::Get()->log()->size()) {
+      ImGui::SetScrollHereY(1.0f);
+      log_size_ = HudLogSink::Get()->log()->size();
+    }
+    ImGui::EndChild();
 
   } else if (config_->mode == GameConfig::Mode::kPlayerMode) {
     ImGui::Begin("Player Mode");
