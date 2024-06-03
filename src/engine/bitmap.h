@@ -54,25 +54,42 @@ public:
     Bitmap bitmap(info_header.bi_width, info_header.bi_height);
 
     for (int y = info_header.bi_height - 1; y >= 0; --y) {
-      file.read(reinterpret_cast<char *>(bitmap.data_[y].data()), info_header.bi_width * 3);
+      file.read(reinterpret_cast<char *>(bitmap.data_[y].data()),
+                info_header.bi_width * 3);
     }
 
     file.close();
-    return bitmap; 
+    return bitmap;
   }
 
   Bitmap(int width, int height)
       : width_(width), height_(height),
-        data_(height, std::vector<uint8_t>(width * 3, 255)) {}
+        data_(height, std::vector<uint8_t>(width * 3, 0)) {}
+
+  int width() const { return width_; }
+
+  int height() const { return height_; }
 
   absl::Status Set(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) {
       return absl::InvalidArgumentError("Index out of bounds");
     }
-    size_t index = (y * width_ + x) * 3;
+    size_t index = x * 3;
     data_[y][index + 2] = r;
     data_[y][index + 1] = g;
     data_[y][index] = b;
+
+    return absl::OkStatus();
+  }
+
+  absl::Status Get(int x, int y, uint8_t *r, uint8_t *g, uint8_t *b) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) {
+      return absl::InvalidArgumentError("Index out of bounds");
+    }
+    size_t index = x * 3;
+    *r = data_[y][index + 2];
+    *g = data_[y][index + 1];
+    *b = data_[y][index];
 
     return absl::OkStatus();
   }
@@ -81,12 +98,10 @@ public:
     data_.clear();
     width_ = width;
     height_ = height;
-    data_.resize(height_, std::vector<uint8_t>(width_ * 3, 255));
+    data_.resize(height_, std::vector<uint8_t>(width_ * 3, 0));
   }
 
-  void Clear() {
-    data_.clear();
-  }
+  void Clear() { data_.clear(); }
 
   absl::Status SaveToBmp(const std::string &filename) const {
     BitmapFileHeader file_header;

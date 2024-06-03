@@ -88,7 +88,7 @@ void Camera::UpdateColor(DrawColor color) {
     SDL_SetRenderDrawColor(renderer_, 255, 255, 255, 255);
     break;
   default:
-    printf("unkown color?????\n");
+    break;
   }
 }
 

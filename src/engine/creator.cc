@@ -7,6 +7,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/log/log.h"
 
+#include "absl/status/statusor.h"
 #include "engine/bitmap.h"
 #include "engine/camera.h"
 #include "engine/config.h"
@@ -59,21 +60,27 @@ void Creator::Update(const ControllerState *state) {
   }
 
   if (!state->creator_save_path.empty()) {
-    absl::Status result = StateToBmp(state->creator_save_path);
+    absl::Status result = SaveToBmp(state->creator_save_path);
     if (!result.ok()) {
       LOG(ERROR) << absl::StrFormat(
-          "%s, failed to save state, error: %s, path: %s\n", __func__,
+          "%s, failed to save state, error: %s, path: %s", __func__,
           result.message(), state->creator_save_path);
     } else {
-      LOG(INFO) << absl::StrFormat(
-          "%s, successfully saved state, path: %s\n", __func__,
-          state->creator_save_path);
+      LOG(INFO) << absl::StrFormat("%s, successfully saved state, path: %s",
+                                   __func__, state->creator_save_path);
     }
   }
 
   if (!state->creator_import_path.empty()) {
-    LOG(INFO) << absl::StrFormat("%s, import path: %s\n", __func__,
-                                 state->creator_import_path);
+    absl::Status result = LoadFromBmp(state->creator_import_path);
+    if (!result.ok()) {
+      LOG(ERROR) << absl::StrFormat(
+          "%s, failed to load state, error: %s, path: %s", __func__,
+          result.message(), state->creator_import_path);
+    } else {
+      LOG(INFO) << absl::StrFormat("%s, successfully loaded state, path: %s",
+                                   __func__, state->creator_import_path);
+    }
   }
 }
 
@@ -101,8 +108,8 @@ void Creator::Render() {
                                                DrawColor::kColorTile,
                                                /*static_position=*/false);
     if (!result.ok()) {
-      std::cerr << absl::StrFormat(
-          "%s, shape render failed, type: %s, error: %s\n", __func__,
+      LOG(ERROR) << absl::StrFormat(
+          "%s, shape render failed, type: %s, error: %s", __func__,
           Shape::TypeToString(shape_.type()), result.message());
 
       // Reset shape if render failed.
@@ -116,8 +123,8 @@ void Creator::Render() {
                                                DrawColor::kColorTile,
                                                /*static_position=*/false);
     if (!result.ok()) {
-      std::cerr << absl::StrFormat(
-          "%s, shape render failed, type: %s, error: %s\n", __func__,
+      LOG(ERROR) << absl::StrFormat(
+          "%s, shape render failed, type: %s, error: %s", __func__,
           Shape::TypeToString(shape_.type()), result.message());
       failed_renders.insert(point);
     }
@@ -139,7 +146,7 @@ void Creator::ToggleTileState() {
   shape_ = Shape();
 }
 
-absl::Status Creator::StateToBmp(std::string path) const {
+absl::Status Creator::SaveToBmp(std::string path) const {
   Bitmap bitmap(config_->boundaries.x_max, config_->boundaries.y_max);
   for (const auto &[point, shape] : tiles_) {
     Shape::State state = shape->state();
@@ -150,6 +157,37 @@ absl::Status Creator::StateToBmp(std::string path) const {
       return result;
   }
   return bitmap.SaveToBmp(path);
+}
+
+absl::Status Creator::LoadFromBmp(std::string path) {
+  tiles_.clear();
+  absl::StatusOr<Bitmap> loaded_bitmap = Bitmap::LoadFromBmp(path);
+  if (!loaded_bitmap.ok())
+    return loaded_bitmap.status();
+
+  Shape::State state;
+  for (int x = 0; x < loaded_bitmap->width(); x++) {
+    for (int y = 0; y < loaded_bitmap->height(); y++) {
+      uint8_t unused = 0;
+      absl::Status result = loaded_bitmap->Get(x, y, &state.raw_eight[0],
+                                               &state.raw_eight[1], &unused);
+
+      if (!result.ok())
+        return result;
+
+      if (state.type == ShapeType::kNone)
+        continue;
+
+      Point point =
+          Point{.x = static_cast<double>(x), .y = static_cast<double>(y)};
+      tiles_[point] = std::unique_ptr<Shape>(new Shape(state));
+      Point world_position = Point{
+          .x = point.x * config_->tiles.render_width,
+          .y = point.y * config_->tiles.render_height};
+      tiles_[point]->set_position(world_position);
+    }
+  }
+  return absl::OkStatus();
 }
 
 } // namespace zebes

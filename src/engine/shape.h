@@ -16,12 +16,13 @@ enum Rotation : uint8_t {
 };
 
 enum ShapeType : uint8_t {
-  kSquare = 0,
-  kTriangle_30_60_90 = 1,
-  kTriangle_60_90_30 = 2,
-  kTriangle_90_30_60 = 3,
-  kTriangle_30_90_60 = 4,
-  kTriangleRight = 5,
+  kNone = 0,
+  kSquare = 1,
+  kTriangle_30_60_90 = 2,
+  kTriangle_60_90_30 = 3,
+  kTriangle_90_30_60 = 4,
+  kTriangle_30_90_60 = 5,
+  kTriangleRight = 6,
   kShapeLast
 };
 

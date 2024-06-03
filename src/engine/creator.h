@@ -26,7 +26,9 @@ public:
   // Render the tile outline for the tile the mouse is currently hovering over.
   void Render();
   // Outputs the current state of the creator to a bmp format.
-  absl::Status StateToBmp(std::string path) const;
+  absl::Status SaveToBmp(std::string path) const;
+  // Load a bmp file into the creator.
+  absl::Status LoadFromBmp(std::string path);
 
 private:
   // If the mouse is clicked, toggle the state of the tile the
