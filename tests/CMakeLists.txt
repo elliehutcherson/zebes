@@ -10,6 +10,10 @@ target_link_libraries(sprite_manager_test ${IMGUI_LIBRARIES})
 target_link_libraries(sprite_manager_test sprite_manager)
 
 add_executable(bmp_test bmp_test.cc)
+target_link_libraries(bmp_test absl::log)
+target_link_libraries(bmp_test absl::status)
+target_link_libraries(bmp_test absl::statusor)
+target_link_libraries(bmp_test bitmap)
 
 add_executable(creator_test creator_test.cc)
 target_link_libraries(creator_test shape)

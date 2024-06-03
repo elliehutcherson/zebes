@@ -70,6 +70,11 @@ void Creator::Update(const ControllerState *state) {
           state->creator_save_path);
     }
   }
+
+  if (!state->creator_import_path.empty()) {
+    LOG(INFO) << absl::StrFormat("%s, import path: %s\n", __func__,
+                                 state->creator_import_path);
+  }
 }
 
 float Creator::x_center() const { return world_position_.x; }

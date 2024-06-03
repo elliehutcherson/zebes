@@ -1,5 +1,6 @@
 add_library(bitmap INTERFACE bitmap.h)
 target_link_libraries(bitmap INTERFACE absl::status)
+target_link_libraries(bitmap INTERFACE absl::statusor)
 target_link_libraries(bitmap INTERFACE absl::log)
 
 add_library(vector INTERFACE vector.h)
