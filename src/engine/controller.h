@@ -66,6 +66,8 @@ public:
   // Constructor & Destructor.
   Controller(const GameConfig *config);
   ~Controller() = default;
+  // Handle internal events, this could effect how external events are handled.
+  void HandleInternalEvents();
   // Handle keydown event for specific keys.
   void HandleEvent(const SDL_Event *event);
   // Update controller state.

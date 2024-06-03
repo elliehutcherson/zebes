@@ -49,13 +49,16 @@ absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
   return absl::OkStatus();
 }
 
-void Hud::Update() {
+void Hud::InjectEvents() {
   bool is_main_window_focused = !ImGui::GetIO().WantCaptureMouse;
-  if (is_main_window_focused)
-    return;
+  if (is_main_window_focused) return;
   controller_->AddInternalEvent(
       {.type = InternalEventType::kIsMainWindowFocused,
        .value = is_main_window_focused});
+}
+
+void Hud::Update() {
+  return;
 }
 
 void Hud::Render() {

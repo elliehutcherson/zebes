@@ -31,8 +31,10 @@ public:
   absl::Status Run();
   // Anything that needs to run before the pipeline.
   void PrePipeline();
+  // Allow interfaces to inject events before calling handle events.
+  void InjectEvents();
   // Handle inputs from user or other events.
-  void HandleEvent();
+  void HandleEvents();
   // Update any state that needs updating before rendering.
   void Update();
   // Draw the game.

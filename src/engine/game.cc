@@ -161,7 +161,8 @@ absl::Status Game::Run() {
   LOG(INFO) << "Zebes: Running...";
   while (is_running_) {
     PrePipeline();
-    HandleEvent();
+    InjectEvents();
+    HandleEvents();
     Update();
     Render();
     Clear();
@@ -173,7 +174,12 @@ absl::Status Game::Run() {
 
 void Game::PrePipeline() { frame_start_ = SDL_GetTicks64(); }
 
-void Game::HandleEvent() {
+void Game::InjectEvents() {
+  hud_->InjectEvents();
+}
+
+void Game::HandleEvents() {
+  controller_->HandleInternalEvents();
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     ImGui_ImplSDL2_ProcessEvent(&event);

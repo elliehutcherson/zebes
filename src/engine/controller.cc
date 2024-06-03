@@ -12,6 +12,23 @@ namespace zebes {
 
 Controller::Controller(const GameConfig *config) : config_(config) {}
 
+void Controller::HandleInternalEvents() {
+  for (InternalEvent &event : internal_events_) {
+    switch (event.type) {
+    case InternalEventType::kCreatorSavePath:
+      state_.creator_save_path = std::get<std::string>(event.value);
+      break;
+    case InternalEventType::kCreatorImportPath:
+      state_.creator_import_path = std::get<std::string>(event.value);
+      break;
+    case InternalEventType::kIsMainWindowFocused:
+      state_.is_main_window_focused = std::get<bool>(event.value);
+      break;
+    }
+  }
+  internal_events_.clear();
+}
+
 void Controller::HandleEvent(const SDL_Event *event) {
   if (event->type == SDL_QUIT) {
     UpdateState(SDL_KeyCode::SDLK_ESCAPE, KeyState::pressed);
@@ -27,7 +44,6 @@ void Controller::HandleEvent(const SDL_Event *event) {
     state_.mouse_position =
         Point{.x = static_cast<double>(x), .y = static_cast<double>(y)};
   } else if (event->type == SDL_MOUSEBUTTONDOWN) {
-    LOG(INFO) << "Mouse button down, is_main_window_focused = " << state_.is_main_window_focused;
     if (event->button.button == SDL_BUTTON_LEFT) {
       state_.tile_toggle = KeyState::pressed;
     }
@@ -116,21 +132,6 @@ void Controller::UpdateState(SDL_Keycode code, uint8_t value) {
 }
 
 void Controller::Update() {
-  for (InternalEvent &event : internal_events_) {
-    switch (event.type) {
-    case InternalEventType::kCreatorSavePath:
-      state_.creator_save_path = std::get<std::string>(event.value);
-      break;
-    case InternalEventType::kCreatorImportPath:
-      state_.creator_import_path = std::get<std::string>(event.value);
-      break;
-    case InternalEventType::kIsMainWindowFocused:
-      state_.is_main_window_focused = std::get<bool>(event.value);
-      break;
-    }
-  }
-  internal_events_.clear();
-
   if (!state_.is_main_window_focused) {
     return;
   }

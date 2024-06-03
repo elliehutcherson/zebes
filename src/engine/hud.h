@@ -27,6 +27,9 @@ public:
 
   ~Hud() = default;
 
+  // Inject events to the controller, like if ImGui is capturing the mouse.
+  void InjectEvents();
+
   void Update();
 
   void Render();
