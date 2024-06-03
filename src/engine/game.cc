@@ -5,7 +5,6 @@
 #include "SDL.h"
 #include "SDL_events.h"
 
-#include "engine/collision_manager.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 
@@ -13,10 +12,11 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 
-#include "config.h"
-#include "controller.h"
-#include "object.h"
-#include "polygon.h"
+#include "engine/config.h"
+#include "engine/collision_manager.h"
+#include "engine/controller.h"
+#include "engine/object.h"
+#include "engine/polygon.h"
 
 namespace zebes {
 
@@ -96,11 +96,11 @@ absl::Status Game::Init() {
 
   if (config_.mode == GameConfig::Mode::kPlayerMode) {
     LOG(INFO) << "Zebes: Initializing player...";
-    absl::StatusOr<std::unique_ptr<Player>> maybe_player =
+    absl::StatusOr<std::unique_ptr<Player>> player =
         Player::Create(&config_, sprite_manager_.get());
-    if (!maybe_player.ok())
-      return maybe_player.status();
-    player_ = std::move(*maybe_player);
+    if (!player.ok())
+      return player.status();
+    player_ = std::move(*player);
     focus_ = static_cast<Focus *>(player_.get());
     result = sprite_manager_->AddSpriteObject(player_->GetObject());
     if (!result.ok())
@@ -186,6 +186,7 @@ void Game::Update() {
   GameUpdate();
   if (AdvanceFrame()) {
     object_->PreUpdate();
+    hud_->Update();
     focus_->Update(controller_->GetState());
     collision_manager_->Update();
     camera_->Update(focus_->x_center(), focus_->y_center());

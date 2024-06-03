@@ -1,8 +1,0 @@
-<html>
-    <head>
-        <title>seedbox.io box</title>
-    </head>
-    <frameset rows="100%" border="0">
-        <frame src="/rutorrent/" name="content" />
-    </frameset>
-</html>

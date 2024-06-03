@@ -1,8 +1,10 @@
-#include "controller.h"
+#include "engine/controller.h"
 
 #include "SDL_events.h"
 #include "SDL_keycode.h"
 #include "SDL_mouse.h"
+
+#include "absl/log/log.h"
 
 #include "engine/config.h"
 
@@ -11,17 +13,24 @@ namespace zebes {
 Controller::Controller(const GameConfig *config) : config_(config) {}
 
 void Controller::HandleEvent(const SDL_Event *event) {
+  if (event->type == SDL_QUIT) {
+    UpdateState(SDL_KeyCode::SDLK_ESCAPE, KeyState::pressed);
+  }
+
+  if (!state_.is_main_window_focused) {
+    return;
+  }
+
   if (event->type == SDL_MOUSEMOTION) {
     int x, y;
     SDL_GetMouseState(&x, &y);
     state_.mouse_position =
         Point{.x = static_cast<double>(x), .y = static_cast<double>(y)};
   } else if (event->type == SDL_MOUSEBUTTONDOWN) {
+    LOG(INFO) << "Mouse button down, is_main_window_focused = " << state_.is_main_window_focused;
     if (event->button.button == SDL_BUTTON_LEFT) {
       state_.tile_toggle = KeyState::pressed;
     }
-  } else if (event->type == SDL_QUIT) {
-    UpdateState(SDL_KeyCode::SDLK_ESCAPE, KeyState::pressed);
   } else if (event->type == SDL_KEYDOWN) {
     KeyState key_state = event->key.repeat ? KeyState::pressed : KeyState::down;
     UpdateState(event->key.keysym.sym, key_state);
@@ -30,7 +39,7 @@ void Controller::HandleEvent(const SDL_Event *event) {
 
 void Controller::UpdateState(SDL_Keycode code, uint8_t value) {
   KeyState new_state = static_cast<KeyState>(value);
-  std::vector<KeyState*> old_states;
+  std::vector<KeyState *> old_states;
   switch (code) {
   case SDL_KeyCode::SDLK_LSHIFT:
   case SDL_KeyCode::SDLK_RSHIFT:
@@ -107,6 +116,25 @@ void Controller::UpdateState(SDL_Keycode code, uint8_t value) {
 }
 
 void Controller::Update() {
+  for (InternalEvent &event : internal_events_) {
+    switch (event.type) {
+    case InternalEventType::kCreatorSavePath:
+      state_.creator_save_path = std::get<std::string>(event.value);
+      break;
+    case InternalEventType::kCreatorImportPath:
+      state_.creator_import_path = std::get<std::string>(event.value);
+      break;
+    case InternalEventType::kIsMainWindowFocused:
+      state_.is_main_window_focused = std::get<bool>(event.value);
+      break;
+    }
+  }
+  internal_events_.clear();
+
+  if (!state_.is_main_window_focused) {
+    return;
+  }
+
   key_states_ = SDL_GetKeyboardState(NULL);
   for (int i = 0; i < scan_codes_.size(); ++i) {
     UpdateState(key_codes_[i], key_states_[scan_codes_[i]]);

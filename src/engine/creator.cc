@@ -69,8 +69,6 @@ void Creator::Update(const ControllerState *state) {
           "%s, successfully saved state, path: %s\n", __func__,
           state->creator_save_path);
     }
-  } else {
-    LOG(INFO) << absl::StrFormat("%s, save path is empty\n", __func__);
   }
 }
 
@@ -140,6 +138,7 @@ absl::Status Creator::StateToBmp(std::string path) const {
   Bitmap bitmap(config_->boundaries.x_max, config_->boundaries.y_max);
   for (const auto &[point, shape] : tiles_) {
     Shape::State state = shape->state();
+    LOG(INFO) << __func__ << point.to_string();
     absl::Status result = bitmap.Set(point.x_floor(), point.y_floor(),
                                      state.raw_eight[0], state.raw_eight[1], 0);
     if (!result.ok())

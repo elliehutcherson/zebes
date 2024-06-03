@@ -27,6 +27,8 @@ public:
 
   ~Hud() = default;
 
+  void Update();
+
   void Render();
 
 private:

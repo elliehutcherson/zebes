@@ -6,8 +6,20 @@
 #include "SDL_scancode.h"
 #include "config.h"
 #include "vector.h"
+#include <variant>
 
 namespace zebes {
+
+enum class InternalEventType : uint8_t {
+  kCreatorSavePath = 0,
+  kCreatorImportPath = 1,
+  kIsMainWindowFocused = 2,
+};
+
+struct InternalEvent {
+  InternalEventType type;
+  std::variant<bool, std::string> value;
+};
 
 enum KeyState : uint8_t { none = 0, pressed = 1, down = 2, up = 3 };
 
@@ -44,6 +56,9 @@ struct ControllerState {
   KeyState tile_reset = KeyState::none;
   std::string creator_save_path;
   std::string creator_import_path;
+
+  // Is the main window focused.
+  bool is_main_window_focused = true;
 };
 
 class Controller {
@@ -63,11 +78,9 @@ public:
   // Get controller buttons.
   const ControllerState *GetState() const;
 
-  std::string save_path() const { return state_.creator_save_path; }
-  void set_save_path(std::string path) { state_.creator_save_path = path; }
-
-  std::string import_path() const { return state_.creator_import_path; }
-  void set_import_path(std::string path) { state_.creator_import_path = path; }
+  void AddInternalEvent(InternalEvent event) {
+    internal_events_.push_back(event);
+  }
 
 private:
   // The pointer returned is a pointer to an internal SDL array.
@@ -80,6 +93,8 @@ private:
   const GameConfig *config_;
   // Buttons to be read by multiple objects.
   ControllerState state_;
+  // Internal events to handle.
+  std::vector<InternalEvent> internal_events_;
   // All of the scancodes that we care about.
   std::vector<SDL_Scancode> scan_codes_{
       SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RSHIFT, SDL_SCANCODE_LCTRL,

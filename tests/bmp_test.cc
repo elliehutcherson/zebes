@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 
+#pragma pack(push, 1)
 struct BitmapFileHeader {
   uint16_t bfType{0x4D42}; // 'BM'
   uint32_t bfSize{0};      // Size of the file (in bytes)
@@ -24,6 +25,7 @@ struct BitmapInfoHeader {
   uint32_t biClrUsed{0};      // Number of colors in the color table
   uint32_t biClrImportant{0}; // Number of important colors
 };
+#pragma pack(pop)
 
 class Bitmap {
 public:

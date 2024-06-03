@@ -3,8 +3,10 @@
 #include <iostream>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 
+#pragma pack(push, 1)
 struct BitmapFileHeader {
   uint16_t bf_type{0x4D42};    // 'BM'
   uint32_t bf_size{0};         // Size of the file (in bytes)
@@ -26,6 +28,7 @@ struct BitmapInfoHeader {
   uint32_t bi_colors_used{0};       // Number of colors in the color table
   uint32_t bi_colors_important{0};  // Number of important colors
 };
+#pragma pack(pop)
 
 class Bitmap {
 public:
@@ -36,6 +39,9 @@ public:
   absl::Status Set(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) {
       return absl::InvalidArgumentError("Index out of bounds");
+    } else {
+      LOG(INFO) << absl::StrFormat("Setting pixel at (%d, %d) to (%u,%u,%u)", x,
+                                   y, r, g, b);
     }
     size_t index = (y * width_ + x) * 3;
     data_[y][index + 2] = r;

@@ -4,6 +4,7 @@
 
 #include "SDL_video.h"
 
+#include "engine/controller.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
@@ -48,6 +49,15 @@ absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
   return absl::OkStatus();
 }
 
+void Hud::Update() {
+  bool is_main_window_focused = !ImGui::GetIO().WantCaptureMouse;
+  if (is_main_window_focused)
+    return;
+  controller_->AddInternalEvent(
+      {.type = InternalEventType::kIsMainWindowFocused,
+       .value = is_main_window_focused});
+}
+
 void Hud::Render() {
   ImGui_ImplSDLRenderer2_NewFrame();
   ImGui_ImplSDL2_NewFrame();
@@ -63,7 +73,9 @@ void Hud::Render() {
     ImGui::InputText("##input1", creator_save_path_, 4096);
     ImGui::SameLine();
     if (ImGui::Button("Save")) {
-      controller_->set_save_path(creator_save_path_);
+      controller_->AddInternalEvent(
+          {.type = InternalEventType::kCreatorSavePath,
+           .value = creator_save_path_});
       LOG(INFO) << "Saving creator state..." << std::endl;
     }
 
@@ -72,7 +84,9 @@ void Hud::Render() {
     ImGui::InputText("##input2", creator_import_path_, 4096);
     ImGui::SameLine();
     if (ImGui::Button("Import")) {
-      controller_->set_import_path(creator_import_path_);
+      controller_->AddInternalEvent(
+          {.type = InternalEventType::kCreatorImportPath,
+           .value = creator_import_path_});
       LOG(INFO) << "Importing layer..." << std::endl;
     }
 
