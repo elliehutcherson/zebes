@@ -25,27 +25,27 @@ absl::Status Camera::Init() {
   if (SDL_SetRenderDrawColor(renderer_, 0, 255, 0, 255) != 0) {
     return absl::InternalError("Camera: Unable to set draw color.");
   }
-  font_ = TTF_OpenFont(config_->paths.hud_font.c_str(), 12);
+  font_ = TTF_OpenFont(config_->paths.hud_font().c_str(), 12);
   if (font_ == nullptr) {
     std::string error =
         absl::StrCat("Camera: Unable to create font. ", TTF_GetError());
     return absl::InternalError(error);
   }
 
-  int max_num_tiles_x = config_->window.width / config_->tiles.render_width;
+  int max_num_tiles_x = config_->window.width / config_->tiles.render_width();
   for (int i = 0; i < max_num_tiles_x; i++) {
     std::vector<SDL_Point> column;
-    SDL_Point p1 = {.x = i * config_->tiles.render_width, .y = 0};
-    SDL_Point p2 = {.x = i * config_->tiles.render_width,
+    SDL_Point p1 = {.x = i * config_->tiles.render_width(), .y = 0};
+    SDL_Point p2 = {.x = i * config_->tiles.render_width(),
                     .y = config_->window.height};
     grid_x_.push_back({p1, p2});
   }
-  int max_num_tiles_y = config_->window.height / config_->tiles.render_height;
+  int max_num_tiles_y = config_->window.height / config_->tiles.render_height();
   for (int i = 0; i < max_num_tiles_y; i++) {
     std::vector<SDL_Point> row;
-    SDL_Point p1 = {.x = 0, .y = i * config_->tiles.render_height};
+    SDL_Point p1 = {.x = 0, .y = i * config_->tiles.render_height()};
     SDL_Point p2 = {.x = config_->window.width,
-                    .y = i * config_->tiles.render_height};
+                    .y = i * config_->tiles.render_height()};
     grid_y_.push_back({p1, p2});
   }
 
@@ -166,14 +166,14 @@ absl::Status Camera::RenderLines(const std::vector<Point> &vertices,
 void Camera::RenderGrid() {
   UpdateColor(DrawColor::kColorGrid);
   int x_adjustment =
-      (config_->tiles.render_width - (rect_.x % config_->tiles.render_width));
+      (config_->tiles.render_width() - (rect_.x % config_->tiles.render_width()));
   for (std::vector<SDL_Point> line : grid_x_) {
     line[0].x += x_adjustment;
     line[1].x += x_adjustment;
     SDL_RenderDrawLine(renderer_, line[0].x, line[0].y, line[1].x, line[1].y);
   }
   int y_adjustment =
-      (config_->tiles.render_height - (rect_.y % config_->tiles.render_height));
+      (config_->tiles.render_height() - (rect_.y % config_->tiles.render_height()));
   for (std::vector<SDL_Point> line : grid_y_) {
     line[0].y += y_adjustment;
     line[1].y += y_adjustment;

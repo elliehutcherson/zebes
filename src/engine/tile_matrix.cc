@@ -17,7 +17,7 @@ TileMatrix::TileMatrix(const GameConfig *config)
       matrix_(std::vector<float>(x_size_ * y_size_, kNoTile)){};
 
 absl::Status TileMatrix::Init() {
-  std::ifstream input(config_->paths.tile_matrix);
+  std::ifstream input(config_->paths.tile_matrix());
   int y = 0;
   for (std::string line; getline(input, line);) {
     int x = 0;

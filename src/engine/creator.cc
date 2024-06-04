@@ -20,8 +20,8 @@ namespace zebes {
 
 Creator::Creator(const GameConfig *config, Camera *camera)
     : config_(config), camera_(camera) {
-  Shape::set_render_width(config_->tiles.render_width);
-  Shape::set_render_height(config_->tiles.render_height);
+  Shape::set_render_width(config_->tiles.render_width());
+  Shape::set_render_height(config_->tiles.render_height());
 };
 
 void Creator::Update(const ControllerState *state) {
@@ -49,11 +49,11 @@ void Creator::Update(const ControllerState *state) {
       GetWorldPosition(mouse_window_position_, world_position_,
                        window_dimensions_, config_->boundaries);
   mouse_window_tile_position_ = Point{
-      .x = floor(mouse_window_position_.x / config_->tiles.render_width),
-      .y = floor(mouse_window_position_.y / config_->tiles.render_height)};
+      .x = floor(mouse_window_position_.x / config_->tiles.render_width()),
+      .y = floor(mouse_window_position_.y / config_->tiles.render_height())};
   mouse_world_tile_position_ =
-      Point{.x = floor(mouse_world_position_.x / config_->tiles.render_width),
-            .y = floor(mouse_world_position_.y / config_->tiles.render_height)};
+      Point{.x = floor(mouse_world_position_.x / config_->tiles.render_width()),
+            .y = floor(mouse_world_position_.y / config_->tiles.render_height())};
 
   if (state->tile_toggle == KeyState::pressed) {
     ToggleTileState();
@@ -96,8 +96,8 @@ std::string Creator::to_string() const {
 }
 
 Point Creator::GetPosition() const {
-  return {.x = mouse_world_tile_position_.x * config_->tiles.render_width,
-          .y = mouse_world_tile_position_.y * config_->tiles.render_height};
+  return {.x = mouse_world_tile_position_.x * config_->tiles.render_width(),
+          .y = mouse_world_tile_position_.y * config_->tiles.render_height()};
 }
 
 void Creator::Render() {
@@ -150,7 +150,6 @@ absl::Status Creator::SaveToBmp(std::string path) const {
   Bitmap bitmap(config_->boundaries.x_max, config_->boundaries.y_max);
   for (const auto &[point, shape] : tiles_) {
     Shape::State state = shape->state();
-    LOG(INFO) << __func__ << point.to_string();
     absl::Status result = bitmap.Set(point.x_floor(), point.y_floor(),
                                      state.raw_eight[0], state.raw_eight[1], 0);
     if (!result.ok())
@@ -182,8 +181,8 @@ absl::Status Creator::LoadFromBmp(std::string path) {
           Point{.x = static_cast<double>(x), .y = static_cast<double>(y)};
       tiles_[point] = std::unique_ptr<Shape>(new Shape(state));
       Point world_position = Point{
-          .x = point.x * config_->tiles.render_width,
-          .y = point.y * config_->tiles.render_height};
+          .x = point.x * config_->tiles.render_width(),
+          .y = point.y * config_->tiles.render_height()};
       tiles_[point]->set_position(world_position);
     }
   }

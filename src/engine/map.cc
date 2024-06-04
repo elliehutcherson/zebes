@@ -21,7 +21,7 @@ Map::Map(const GameConfig *config, const Camera *camera)
 };
 
 absl::Status Map::Init(SDL_Renderer *renderer) {
-  SDL_Surface *tmp_surface = IMG_Load(config_->paths.background.c_str());
+  SDL_Surface *tmp_surface = IMG_Load(config_->paths.background().c_str());
   if (tmp_surface == nullptr) {
     return absl::AbortedError("Failed to create map tmp_surface.");
   }

@@ -6,12 +6,12 @@
 
 #include "absl/status/status.h"
 
-#include "collision_manager.h"
-#include "config.h"
-#include "object.h"
-#include "polygon.h"
-#include "sprite_manager.h"
-#include "tile_matrix.h"
+#include "engine/collision_manager.h"
+#include "engine/config.h"
+#include "engine/object.h"
+#include "engine/polygon.h"
+#include "engine/sprite_manager.h"
+#include "engine/tile_matrix.h"
 
 namespace zebes {
 namespace {

@@ -52,6 +52,7 @@ add_subdirectory(include/SDL)
 add_subdirectory(include/SDL_image)
 add_subdirectory(include/SDL_ttf)
 add_subdirectory(include/abseil-cpp)
+add_subdirectory(include/nlohmann)
 # add_subdirectory(include/googletest)
 
 include_directories(${SDL_INCLUDE_DIRS})
@@ -59,6 +60,7 @@ include_directories(${SDLIMAGE_INCLUDE_DIRS})
 include_directories(${SDLTTF_INCLUDE_DIRS})
 include_directories(${SQLite3_INCLUDE_DIRS})
 include_directories(include/abseil-cpp)
+include_directories(include/nlohmann)
 # include_directories(include/googletest)
 
 ### All custom find cmake files live in the cmake directory

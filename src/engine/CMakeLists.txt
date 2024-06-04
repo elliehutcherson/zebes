@@ -26,6 +26,7 @@ add_library(config config.cc)
 target_link_libraries(config absl::strings)
 target_link_libraries(config absl::str_format)
 target_link_libraries(config SDL2-static SDL2_image SDL2_ttf)
+target_link_libraries(config nlohmann_json::nlohmann_json)
 
 add_library(controller controller.cc)
 target_link_libraries(controller absl::log)
