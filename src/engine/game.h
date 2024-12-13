@@ -4,6 +4,8 @@
 
 #include "absl/status/status.h"
 
+#include "nlohmann/json.hpp"
+
 #include "camera.h"
 #include "collision_manager.h"
 #include "config.h"
@@ -16,7 +18,6 @@
 #include "player.h"
 #include "sprite_manager.h"
 #include "tile_manager.h"
-#include "tile_matrix.h"
 
 namespace zebes {
 
@@ -71,7 +72,7 @@ private:
   std::unique_ptr<Camera> camera_;
   std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<CollisionManager> collision_manager_;
-  std::unique_ptr<TileMatrix> tile_matrix_;
+  std::unique_ptr<TextureManager> texture_manager_;
   std::unique_ptr<TileManager> tile_manager_;
   std::unique_ptr<Player> player_;
   std::unique_ptr<Creator> creator_;

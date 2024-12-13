@@ -144,6 +144,8 @@ public:
   virtual uint8_t GetActiveSpriteTicks() const = 0;
   // Get number of cycles for the active sprite.
   virtual uint64_t GetActiveSpriteCycles() const = 0;
+  // Get active sprite index depending on the number of ticks.
+  virtual uint64_t GetActiveSpriteIndex() const = 0;
   // Update the tick counter.
   virtual void Update() = 0;
   // Reset sprite ticks.
@@ -171,6 +173,8 @@ public:
   uint8_t GetActiveSpriteTicks() const override;
   // Get number of cycles for the active sprite.
   uint64_t GetActiveSpriteCycles() const override;
+  // Get active sprite index depending on the number of ticks.
+  uint64_t GetActiveSpriteIndex() const override;
   // Update the tick counter.
   void Update() override;
   // Reset velocity and position.

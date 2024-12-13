@@ -5,6 +5,7 @@
 #include "SDL.h"
 #include "SDL_events.h"
 
+#include "engine/tile_manager.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 
@@ -70,12 +71,6 @@ absl::Status Game::Init() {
   if (!result.ok())
     return result;
 
-  LOG(INFO) << "Zebes: Initializing tile matrix...";
-  tile_matrix_ = std::make_unique<TileMatrix>(&config_);
-  result = tile_matrix_->Init();
-  if (!result.ok())
-    return result;
-
   LOG(INFO) << "Zebes: Initializing object...";
   ObjectOptions object_options = {.config = &config_,
                                   .object_type = ObjectType::kTile,
@@ -128,12 +123,29 @@ absl::Status Game::Init() {
       return result;
   }
 
+  LOG(INFO) << "Zebes: Initializing texture manager...";
+  TextureManager::Options texture_manager_options = {
+    .config = &config_,
+    .camera = camera_.get(),
+    .renderer = renderer_,
+  };
+  absl::StatusOr<std::unique_ptr<TextureManager>> texture_manager =
+      TextureManager::Create(texture_manager_options);
+  if (!texture_manager.ok())
+    return texture_manager.status();
+  texture_manager_ = std::move(*texture_manager);
+
   LOG(INFO) << "Zebes: Initializing tile manager...";
-  tile_manager_ = std::make_unique<TileManager>(&config_, camera_.get(),
-                                                tile_matrix_.get());
-  result = tile_manager_->Init(collision_manager_.get(), sprite_manager_.get());
-  if (!result.ok())
-    return result;
+  struct TileManager::Options tile_manager_options = {
+    .config = &config_,
+    .texture_manager = texture_manager_.get(),
+    .collision_manager = collision_manager_.get(),
+  };
+  absl::StatusOr<std::unique_ptr<TileManager>> tile_manager =
+      TileManager::Create(tile_manager_options);
+  if (!tile_manager.ok())
+    return tile_manager.status();
+  tile_manager_ = std::move(*tile_manager);
 
   LOG(INFO) << "Zebes: Initializing controller...";
   controller_ = std::make_unique<Controller>(&config_);
@@ -143,6 +155,7 @@ absl::Status Game::Init() {
   Hud::Options hud_options = {.config = &config_,
                               .focus = focus_,
                               .controller = controller_.get(),
+                              .texture_manager = texture_manager_.get(),
                               .window = window_,
                               .renderer = renderer_};
 

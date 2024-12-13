@@ -4,6 +4,7 @@
 #include <string>
 
 #include "engine/polygon.h"
+#include "engine/config.h"
 
 namespace zebes {
 
@@ -38,9 +39,9 @@ public:
         uint8_t primary3 : 1 = 0;
         uint8_t reserved : 2;
         ShapeType type = kSquare;
+        SpriteType sprite_type = SpriteType::kEmpty; 
       };
-      uint8_t raw_eight[2];
-      uint16_t raw_sixteen;
+      uint8_t raw_eight[3];
     };
     State() : rotation(kRotationZero), type(kSquare){};
   };

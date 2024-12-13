@@ -3,38 +3,69 @@
 #include <string>
 #include <vector>
 
-#include "SDL_video.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
 
-#include "absl/log/log.h"
-#include "absl/status/status.h"
+#include "SDL_video.h"
 
-#include "engine/controller.h"
 #include "engine/config.h"
+#include "engine/controller.h"
 #include "engine/logging.h"
 
 namespace zebes {
+namespace {
+
+bool IsMouseOverRect(const ImVec2 &position, const ImVec2 &size) {
+  ImGuiIO &io = ImGui::GetIO();
+  ImVec2 mouse_position = io.MousePos;
+  return mouse_position.x >= position.x &&
+         mouse_position.x <= position.x + size.x &&
+         mouse_position.y >= position.y &&
+         mouse_position.y <= position.y + size.y;
+}
+
+void RenderTextureToImGui(SDL_Texture *texture, int width, int height) {
+  // Create a temporary ImGui texture ID
+  ImTextureID texture_id = (ImTextureID)(intptr_t)texture;
+  ImVec2 size = ImVec2(width, height);
+
+  // Position must be set before rendering the image.
+  ImVec2 position = ImGui::GetCursorScreenPos();
+  ImGui::Image(texture_id, size);
+
+  // Check if the texture was clicked.
+  if (IsMouseOverRect(position, size) && ImGui::IsMouseClicked(0)) {
+    LOG(INFO) << "Texture clicked!";
+  }
+}
+
+} // namespace
 
 absl::StatusOr<std::unique_ptr<Hud>> Hud::Create(Hud::Options options) {
-  std::unique_ptr<Hud> hud(
-      new Hud(options.config, options.focus, options.controller));
+  std::unique_ptr<Hud> hud(new Hud(options));
   if (options.config == nullptr)
     return absl::InvalidArgumentError("Config must not be null.");
   if (options.focus == nullptr)
     return absl::InvalidArgumentError("Focus must not be null.");
   if (options.controller == nullptr)
     return absl::InvalidArgumentError("Controller must not be null.");
+  if (options.texture_manager == nullptr)
+    return absl::InvalidArgumentError("TextureManager must not be null.");
   absl::Status result = hud->Init(options.window, options.renderer);
   if (!result.ok())
     return result;
   return hud;
 }
 
-Hud::Hud(const GameConfig *config, const Focus *focus, Controller *controller)
-    : config_(config), focus_(focus), controller_(controller),
+Hud::Hud(Options options)
+    : config_(options.config), focus_(options.focus),
+      controller_(options.controller),
+      texture_manager_(options.texture_manager),
       hud_window_config_(config_->window),
       hud_boundary_config_(config_->boundaries),
       hud_tile_config_(config_->tiles) {}
@@ -116,12 +147,12 @@ void Hud::RenderCreatorMode() {
 
   if (ImGui::CollapsingHeader("Collision Config")) {
     RenderCollisionConfig();
-  } 
+  }
 
   if (ImGui::CollapsingHeader("Scene Creation")) {
     if (ImGui::Button("Add Scene")) {
       int index = scenes_.size();
-      scenes_.push_back({.index = index, .is_active = false});
+      scenes_.push_back({.index = index});
     }
 
     for (int i = 0; i < scenes_.size(); i++) {
@@ -130,6 +161,10 @@ void Hud::RenderCreatorMode() {
         RenderSceneWindow(i);
       }
     }
+  }
+
+  if (ImGui::CollapsingHeader("Textures")) {
+    RenderTextureWindow();
   }
 
   if (ImGui::CollapsingHeader("Terminal")) {
@@ -235,37 +270,59 @@ void Hud::RenderSceneWindow(int index) {
   Scene &scene = scenes_[index];
   scene.index = index;
   ImGui::PushID(index);
-  ImGui::Checkbox("Active", &scene.is_active);
-  ImGui::SameLine();
-  ImGui::Text("Scene %d", scene.index);
+  // ImGui::Text("Scene %d", scene.index);
   ImGui::PopID();
 
-  std::string label = "##SceneSave" + std::to_string(scene.index);
+  std::string label = absl::StrCat("##SceneSave", scene.index);
   ImGui::Text("Save Path: ");
   ImGui::SameLine();
-  ImGui::InputText(label.c_str(), creator_save_path_, 4096);
+  ImGui::InputText(label.c_str(), scene.save_path, 4096);
   ImGui::SameLine();
   if (ImGui::Button("Save")) {
     controller_->AddInternalEvent({.type = InternalEventType::kCreatorSavePath,
-                                   .value = creator_save_path_});
+                                   .value = scene.save_path});
     LOG(INFO) << "Saving creator state..." << std::endl;
   }
 
-  label = "##SceneImport" + std::to_string(scene.index);
+  label = absl::StrCat("##SceneImport", scene.index);
   ImGui::Text("Import Path: ");
   ImGui::SameLine();
-  ImGui::InputText(label.c_str(), creator_import_path_, 4096);
+  ImGui::InputText(label.c_str(), scene.import_path, 4096);
   ImGui::SameLine();
   if (ImGui::Button("Import")) {
     controller_->AddInternalEvent(
         {.type = InternalEventType::kCreatorImportPath,
-         .value = creator_import_path_});
+         .value = scene.import_path});
     LOG(INFO) << "Importing layer..." << std::endl;
   }
 
   if (ImGui::Button("Remove Scene")) {
+    if (scene.index == active_scene_) {
+      active_scene_ = -1;
+    }
     removed_scenes_.insert(scene.index);
   }
+
+  ImGui::SameLine();
+
+  label = "Activate";
+  bool pop_color = false;
+  if (scene.index == active_scene_) {
+    ImGui::PushStyleColor(ImGuiCol_Button,
+                          ImVec4(0.4f, 0.8f, 0.4f, 1.0f)); // Greenish button
+    label = "Deactivate";
+    pop_color = true;
+  }
+  if (ImGui::Button(label.c_str())) {
+    active_scene_ = scene.index;
+  }
+  if (pop_color) {
+    ImGui::PopStyleColor();
+  }
+}
+
+void Hud::RenderTextureWindow() {
+  RenderTextureToImGui(texture_manager_->Experiment(), 256, 256);
 }
 
 } // namespace zebes

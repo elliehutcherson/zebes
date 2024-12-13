@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "polygon.h"
+#include "engine/polygon.h"
 
 namespace zebes {
 

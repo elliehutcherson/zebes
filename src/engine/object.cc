@@ -1,6 +1,7 @@
 #include "object.h"
 
 #include <_types/_uint8_t.h>
+#include <cstdint>
 #include <memory>
 
 #include "absl/container/flat_hash_map.h"
@@ -142,6 +143,15 @@ uint8_t SpriteObject::GetActiveSpriteTicks() const {
 
 uint64_t SpriteObject::GetActiveSpriteCycles() const {
   return active_sprite_cycles_;
+}
+
+uint64_t SpriteObject::GetActiveSpriteIndex() const {
+  if (active_sprite_type_ == SpriteType::Invalid)
+    return 0;
+  const SpriteProfile &profile = profiles_.at(active_sprite_type_);
+  if (profile.ticks_per_sprite == 0)
+    return 0;
+  return GetActiveSpriteTicks() / profile.ticks_per_sprite;
 }
 
 void SpriteObject::Update() {

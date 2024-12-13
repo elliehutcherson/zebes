@@ -8,7 +8,6 @@ set(CMAKE_BUILD_TYPE Debug)
 
 cmake_minimum_required(VERSION 3.0.0)
 project(zebes VERSION 0.1.0)
-# project(zebes LANGUAGE CXX C)
 enable_language(OBJC)
 
 
@@ -52,16 +51,16 @@ add_subdirectory(include/SDL)
 add_subdirectory(include/SDL_image)
 add_subdirectory(include/SDL_ttf)
 add_subdirectory(include/abseil-cpp)
+add_subdirectory(include/googletest)
 add_subdirectory(include/nlohmann)
-# add_subdirectory(include/googletest)
 
 include_directories(${SDL_INCLUDE_DIRS})
 include_directories(${SDLIMAGE_INCLUDE_DIRS})
 include_directories(${SDLTTF_INCLUDE_DIRS})
 include_directories(${SQLite3_INCLUDE_DIRS})
 include_directories(include/abseil-cpp)
+include_directories(include/googletest)
 include_directories(include/nlohmann)
-# include_directories(include/googletest)
 
 ### All custom find cmake files live in the cmake directory
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
@@ -69,6 +68,7 @@ include(${CMAKE_MODULE_PATH}/imgui.cmake)
 
 include_directories(src)
 add_subdirectory(src)
+
 include_directories(tests)
 add_subdirectory(tests)
 

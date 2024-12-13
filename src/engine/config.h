@@ -5,8 +5,8 @@
 
 #include "SDL_video.h"
 
-#include "absl/strings/string_view.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 
 #include "nlohmann/json.hpp"
 
@@ -15,9 +15,9 @@ inline constexpr int kNoTile = 0;
 inline constexpr float kDefaultGravity = 2.0;
 
 // File Paths
+static const std::string kZebesConfigPath = "config.json";
 static const std::string kZebesAssetsPath = "assets/zebes";
 static const std::string kZebesDatabasePath = "assets/zebes/sql/zebes.db";
-static const std::string kZebesTileMatrixPath = "layer-5.csv";
 static const std::string kHudFont = "Courier-Prime.ttf";
 
 static const std::string kBackgroundPath =
@@ -31,8 +31,8 @@ namespace zebes {
 
 struct WindowConfig {
   std::string title = "Zebes";
-  int xpos = SDL_WINDOWPOS_CENTERED;
-  int ypos = SDL_WINDOWPOS_CENTERED;
+  uint32_t xpos = SDL_WINDOWPOS_CENTERED;
+  uint32_t ypos = SDL_WINDOWPOS_CENTERED;
   int width = 1400;
   int height = 640;
   int flags = 0;
@@ -40,10 +40,9 @@ struct WindowConfig {
   // Define to_json and from_json functions for serialization and
   // deserialization
   friend void to_json(nlohmann::json &j, const WindowConfig &s) {
-    j = nlohmann::json{
-        {"title", s.title},
-        {"xpos", s.xpos, "ypos", s.ypos},
-        {"width", s.width, "height", s.height, "flags", s.flags}};
+    j = nlohmann::json{{"title", s.title},   {"xpos", s.xpos},
+                       {"ypos", s.ypos},     {"width", s.width},
+                       {"height", s.height}, {"flags", s.flags}};
   }
 
   friend void from_json(const nlohmann::json &j, WindowConfig &s) {
@@ -129,18 +128,18 @@ struct CollisionConfig {
 
 struct PathConfig {
   std::string relative_assets = kZebesAssetsPath;
-  std::string relative_tile_matrix = kZebesTileMatrixPath;
   std::string relative_background = kBackgroundPath;
   std::string relative_tile_set = kTileSetPath;
   std::string relative_custom_tile_set = kCustomTileSetPath;
   std::string relative_hud_font = kHudFont;
 
   PathConfig(absl::string_view execute_path);
+  std::string execute() const { return execute_; }
+  std::string config() const {
+    return absl::StrFormat("%s/%s", execute_, kZebesConfigPath);
+  }
   std::string assets() const {
     return absl::StrFormat("%s/%s", execute_, relative_assets);
-  }
-  std::string tile_matrix() const {
-    return absl::StrFormat("%s/%s", assets(), relative_tile_matrix);
   }
   std::string background() const {
     return absl::StrFormat("%s/%s", execute_, relative_background);
@@ -160,7 +159,6 @@ struct PathConfig {
   friend void to_json(nlohmann::json &j, const PathConfig &s) {
     j = nlohmann::json{
         {"relative_assets", s.relative_assets},
-        {"relative_tile_matrix", s.relative_tile_matrix},
         {"relative_background", s.relative_background},
         {"relative_tile_set", s.relative_tile_set},
         {"relative_custom_tile_set", s.relative_custom_tile_set},
@@ -170,7 +168,6 @@ struct PathConfig {
 
   friend void from_json(const nlohmann::json &j, PathConfig &s) {
     j.at("relative_assets").get_to(s.relative_assets);
-    j.at("relative_tile_matrix").get_to(s.relative_tile_matrix);
     j.at("relative_background").get_to(s.relative_background);
     j.at("relative_tile_set").get_to(s.relative_tile_set);
     j.at("relative_custom_tile_set").get_to(s.relative_custom_tile_set);
@@ -183,7 +180,6 @@ private:
 };
 
 enum class SpriteType : int {
-  Invalid = -1,
   kEmpty = 0,
   kGrass1 = 1,
   kGrass2 = 2,
@@ -204,6 +200,7 @@ enum class SpriteType : int {
   SamusRunningLeft = 104,
   SamusRunningRight = 105,
   SamusJumpingRight = 106,
+  Invalid = 255,
 };
 
 struct SubSprite {
@@ -247,6 +244,8 @@ struct SpriteConfig {
 class GameConfig {
 public:
   enum Mode { kPlayerMode = 0, kCreatorMode = 1 };
+  // Get the path of the executable.
+  static std::string GetExecPath();
   // Create the game config.
   static GameConfig Create();
   // Constructor, probably should be private.

@@ -4,6 +4,7 @@
 
 #include "SDL_render.h"
 
+#include "engine/texture_manager.h"
 #include "imgui.h"
 
 #include "absl/status/status.h"
@@ -22,6 +23,7 @@ public:
     const GameConfig *config;
     const Focus *focus;
     Controller *controller;
+    TextureManager* texture_manager;
 
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -42,10 +44,11 @@ private:
   struct Scene {
     std::string name;
     int index = 0;
-    bool is_active = false;
+    char save_path[4096] = "";
+    char import_path[4096] = "";
   };
 
-  Hud(const GameConfig *config, const Focus *focus, Controller *controller);
+  Hud(Options options);
 
   absl::Status Init(SDL_Window *window, SDL_Renderer *renderer);
 
@@ -56,10 +59,12 @@ private:
   void RenderTileConfig();
   void RenderCollisionConfig();
   void RenderSceneWindow(int index);
+  void RenderTextureWindow();
 
   const GameConfig *config_;
   const Focus *focus_;
   Controller *controller_;
+  TextureManager* texture_manager_;
 
   ImGuiIO *imgui_io_;
   ImGuiContext *imgui_context_;
@@ -71,14 +76,11 @@ private:
   TileConfig hud_tile_config_;
   CollisionConfig hud_collision_config_;
 
-  // Path to save creator state.
-  char creator_save_path_[4096] = "";
-  char creator_import_path_[4096] = "";
-
   // If the log size hasn't changed, we don't need to update the log.
   int log_size_ = 0;
 
   // If creating scenes, store them here.
+  int active_scene_ = -1;
   std::vector<Scene> scenes_;
   absl::flat_hash_set<int> removed_scenes_;
 };

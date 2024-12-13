@@ -10,9 +10,11 @@
 #endif
 
 namespace zebes {
-namespace {
 
-std::string GetExecPath() {
+PathConfig::PathConfig(absl::string_view execute_path)
+    : execute_(execute_path) {};
+
+std::string GameConfig::GetExecPath() {
   std::string path;
 #if __APPLE__
   char buf[PATH_MAX];
@@ -27,11 +29,6 @@ std::string GetExecPath() {
   paths.pop_back();
   return absl::StrJoin(paths, "/");
 }
-
-} // namespace
-
-PathConfig::PathConfig(absl::string_view execute_path)
-    : execute_(execute_path) {};
 
 GameConfig GameConfig::Create() {
   WindowConfig window_config;

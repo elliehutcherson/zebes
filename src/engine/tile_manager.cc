@@ -1,154 +1,206 @@
 #include "tile_manager.h"
 
+#include <cstdint>
 #include <memory>
-#include <set>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 
 #include "engine/collision_manager.h"
 #include "engine/config.h"
 #include "engine/object.h"
 #include "engine/polygon.h"
-#include "engine/sprite_manager.h"
-#include "engine/tile_matrix.h"
+#include "engine/shape.h"
+#include "engine/texture_manager.h"
 
 namespace zebes {
-namespace {
 
-std::vector<Point> GetRenderVertices(SpriteType type, int x, int y) {
-  std::vector<Point> vertices;
-  switch (type) {
-  case SpriteType::kDirt1:
-  case SpriteType::kGrass1:
-  case SpriteType::kGrass2:
-  case SpriteType::kGrass3:
-  case SpriteType::kGrass1Down:
-  case SpriteType::kGrass1Left:
-  case SpriteType::kGrass1Right:
-  case SpriteType::kGrassCornerDownLeft:
-  case SpriteType::kGrassCornerDownRight:
-  case SpriteType::kGrassCornerUpLeft:
-  case SpriteType::kGrassCornerUpRight:
-    vertices = {
-        {.x = 0, .y = 0},
-        {.x = 32, .y = 0},
-        {.x = 32, .y = 32},
-        {.x = 0, .y = 32},
-    };
-    break;
-  case SpriteType::kGrassSlopeUpRight:
-    vertices = {
-        {.x = 0, .y = 32},
-        {.x = 64, .y = 0},
-        {.x = 64, .y = 64},
-        {.x = 0, .y = 64},
-    };
-    break;
-  default:
-    break;
-  }
-  for (Point &vertex : vertices) {
-    vertex.x += (x * 32);
-    vertex.y += (y * 32);
-  }
-  return vertices;
+absl::StatusOr<std::unique_ptr<TileManager>>
+TileManager::Create(const TileManager::Options &options) {
+  std::unique_ptr<TileManager> tile_manager =
+      std::unique_ptr<TileManager>(new TileManager(options));
+  return tile_manager;
 }
 
-std::vector<uint8_t> GetPrimaryAxes(SpriteType type) {
-  std::vector<uint8_t> axes;
-  switch (type) {
-  case SpriteType::kGrass1:
-  case SpriteType::kGrass2:
-  case SpriteType::kGrass3:
-    axes = {0};
-    break;
-  case SpriteType::kGrass1Right:
-    axes = {1};
-    break;
-  case SpriteType::kGrass1Down:
-    axes = {2};
-    break;
-  case SpriteType::kGrass1Left:
-    axes = {3};
-    break;
-  case SpriteType::kGrassCornerUpRight:
-    axes = {0, 1};
-    break;
-  case SpriteType::kGrassCornerDownRight:
-    axes = {1, 2};
-    break;
-  case SpriteType::kGrassCornerDownLeft:
-    axes = {2, 3};
-    break;
-  case SpriteType::kGrassCornerUpLeft:
-    axes = {3, 0};
-    break;
-  default:
-    break;
-  }
-  return axes;
+TileManager::TileManager(TileManager::Options options)
+    : config_(options.config), collision_manager_(options.collision_manager),
+      texture_manager_(options.texture_manager) {}
+
+uint64_t TileManager::AddScene(int width, int height) {
+  Scene scene = {
+      .id = scenes_.size(),
+      .width = width,
+      .height = height,
+  };
+  active_scene_ = scene.id;
+  scenes_.push_back(std::move(scene));
+  return active_scene_;
 }
 
-} // namespace
+absl::Status TileManager::AddLayerToScene(uint64_t scene_id, int layer,
+                                          std::string path) {
+  absl::StatusOr<Bitmap> bitmap_result = Bitmap::LoadFromBmp(path);
+  if (!bitmap_result.ok())
+    return bitmap_result.status();
+  return AddLayerToScene(scene_id, layer, *bitmap_result);
+}
 
-TileManager::TileManager(const GameConfig *config, Camera *camera,
-                         const TileMatrix *tile_matrix)
-    : config_(config), camera_(camera), tile_matrix_(tile_matrix) {}
+absl::Status TileManager::AddLayerToScene(uint64_t scene_id, int layer,
+                                          const Bitmap &bitmap) {
+  if (scene_id >= scenes_.size())
+    return absl::InvalidArgumentError("Scene ID out of bounds.");
 
-absl::Status TileManager::Init(CollisionManager *collision_manager,
-                               SpriteManager *sprite_manager) {
-  std::set<Point> dont_render = {};
-  absl::Status result = absl::OkStatus();
-  for (int x = 0; x < tile_matrix_->x_max(); ++x) {
-    for (int y = 0; y < tile_matrix_->y_max(); ++y) {
-      Point coordinates = {.x = (double)x, .y = (double)y};
-      SpriteType type = static_cast<SpriteType>(tile_matrix_->Get(x, y));
+  Scene& scene = scenes_[scene_id];
+  SceneLayer &scene_layer = scenes_.back().layers[layer];
+
+  for (int x = 0; x < bitmap.width(); ++x) {
+    for (int y = 0; y < bitmap.height(); ++y) {
+      Shape::State state;
+      absl::Status result = bitmap.Get(
+          x, y, &state.raw_eight[0], &state.raw_eight[1], &state.raw_eight[2]);
+      if (!result.ok())
+        return result;
+
+      SpriteType type = static_cast<SpriteType>(state.sprite_type);
       if (type == SpriteType::kEmpty)
         continue;
-      if (type == SpriteType::kGrassSlopeUpRight) {
-        if (dont_render.contains(coordinates))
-          continue;
-        dont_render.insert({x + 1.0, y + 0.0});
-        dont_render.insert({x + 0.0, y + 1.0});
-        dont_render.insert({x + 1.0, y + 1.0});
-      }
 
-      ObjectOptions options{
-          .config = config_,
-          .object_type = ObjectType::kTile,
-          .vertices = GetRenderVertices(type, x, y),
-      };
-
-      absl::StatusOr<std::unique_ptr<SpriteObject>> sprite_result =
-          SpriteObject::Create(options);
-      if (!sprite_result.ok())
-        return sprite_result.status();
-
-      std::unique_ptr<SpriteObject>& sprite_object = *sprite_result;
-      result = collision_manager->AddObject(sprite_object.get());
-      if (!result.ok())
-        return result;
-
-      result = sprite_object->AddSpriteProfile({.type = type});
-      if (!result.ok())
-        return result;
-
-      result = sprite_manager->AddSpriteObject(sprite_object.get());
-      if (!result.ok())
-        return result;
-
-      for (const uint8_t axis : GetPrimaryAxes(type)) {
-        result =
-            sprite_object->AddPrimaryAxisIndex(axis, AxisDirection::axis_left);
-        if (!result.ok())
-          return result;
-      }
-
-      sprite_objects_.push_back(std::move(sprite_object));
+      Shape shape(state);
     }
   }
   return absl::OkStatus();
+}
+
+absl::Status TileManager::AddTileToLayer(uint64_t scene_id, int layer_id,
+                                         const Shape &shape) {
+  if (scene_id >= scenes_.size())
+    return absl::InvalidArgumentError("Scene ID out of bounds.");
+  Scene &scene = scenes_[scene_id];
+
+  auto it = scene.layers.find(layer_id);
+  if (it == scene.layers.end())
+    return absl::InvalidArgumentError("Layer ID out of bounds.");
+  SceneLayer &scene_layer = it->second;
+
+  ObjectOptions options = {.config = config_,
+                           .object_type = ObjectType::kTile,
+                           .vertices = *shape.polygon()->vertices()};
+
+  absl::StatusOr<std::unique_ptr<SpriteObject>> sprite_result =
+      SpriteObject::Create(options);
+  if (!sprite_result.ok())
+    return sprite_result.status();
+
+  std::unique_ptr<SpriteObject> &sprite_object = *sprite_result;
+  absl::Status result = collision_manager_->AddObject(sprite_object.get());
+  if (!result.ok())
+    return result;
+
+  SpriteType type = shape.state().sprite_type;
+  result = sprite_object->AddSpriteProfile({.type = type});
+  if (!result.ok())
+    return result;
+
+  if (shape.state().primary0)
+    result = sprite_object->AddPrimaryAxisIndex(0, AxisDirection::axis_left);
+  if (result.ok() && shape.state().primary1)
+    result = sprite_object->AddPrimaryAxisIndex(1, AxisDirection::axis_left);
+  if (result.ok() && shape.state().primary2)
+    result = sprite_object->AddPrimaryAxisIndex(2, AxisDirection::axis_left);
+  if (result.ok() && shape.state().primary3)
+    result = sprite_object->AddPrimaryAxisIndex(3, AxisDirection::axis_left);
+  if (!result.ok())
+    return result;
+
+  scene_layer.tiles[shape.position()] = std::move(sprite_object);
+  return absl::OkStatus();
+}
+
+absl::Status TileManager::RemoveScene(uint64_t scene_id) {
+  if (scene_id >= scenes_.size())
+    return absl::InvalidArgumentError("Scene ID out of bounds.");
+
+  if (scene_id == active_scene_)
+    active_scene_ = -1;
+
+  scenes_.erase(scenes_.begin() + scene_id);
+  return absl::OkStatus();
+}
+
+absl::Status TileManager::RemoveLayerFromScene(uint64_t scene_id, int layer) {
+  if (scene_id >= scenes_.size())
+    return absl::InvalidArgumentError("Scene ID out of bounds.");
+  Scene &scene = scenes_[scene_id];
+
+  auto it = scene.layers.find(layer);
+  if (it == scene.layers.end())
+    return absl::InvalidArgumentError("Layer ID out of bounds.");
+
+  scene.layers.erase(it);
+  return absl::OkStatus();
+}
+
+absl::Status TileManager::RemoveTileFromLayer(uint64_t scene_id, int layer,
+                                              const Point &position) {
+  if (scene_id >= scenes_.size())
+    return absl::InvalidArgumentError("Scene ID out of bounds.");
+
+  Scene &scene = scenes_[scene_id];
+  auto it = scene.layers.find(layer);
+  if (it == scene.layers.end())
+    return absl::InvalidArgumentError("Layer ID out of bounds.");
+
+  SceneLayer &scene_layer = it->second;
+  auto tile_it = scene_layer.tiles.find(position);
+  if (tile_it == scene_layer.tiles.end())
+    return absl::InvalidArgumentError("Tile not found.");
+
+  tile_it->second->Destroy();
+  return absl::OkStatus();
+}
+
+void TileManager::Update() {
+  Scene &scene = scenes_[active_scene_];
+  for (const auto &it : scene.layers) {
+    for (auto &sprite_object : it.second.tiles) {
+      sprite_object.second->Update();
+    }
+  }
+}
+
+void TileManager::Render() {
+  Scene &scene = scenes_[active_scene_];
+  for (auto &it : scene.layers) {
+    RenderLayer(it.second);
+  }
+}
+
+void TileManager::RenderLayer(SceneLayer &layer) {
+  for (auto &it : layer.tiles) {
+    const Point &position = it.first;
+    std::unique_ptr<SpriteObject> &sprite_object = it.second;
+
+    int type = static_cast<int>(sprite_object->GetActiveSpriteProfile()->type);
+    int sprite_index = sprite_object->GetActiveSpriteIndex();
+    Point point = {
+        .x = sprite_object->polygon()->x_min(),
+        .y = sprite_object->polygon()->y_min(),
+    };
+
+    absl::Status result = texture_manager_->Render(type, sprite_index, point);
+    if (!result.ok()) {
+      LOG(WARNING) << "Failed to render texture.";
+      sprite_object->Destroy();
+    }
+  }
+
+  auto cb = [](auto &it) -> bool {
+    std::unique_ptr<SpriteObject> &sprite_object = it.second;
+    return sprite_object->IsDestroyed();
+  };
+
+  absl::erase_if(layer.tiles, cb);
 }
 
 } // namespace zebes

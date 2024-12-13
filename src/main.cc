@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
 
   std::string program = argv[1];
   zebes::GameConfig config = zebes::GameConfig::Create();
-  if (program == "zebes") {
+  if (program == "player") {
     config.mode = zebes::GameConfig::Mode::kPlayerMode;
   } else if (program == "creator") {
     config.mode = zebes::GameConfig::Mode::kCreatorMode;
