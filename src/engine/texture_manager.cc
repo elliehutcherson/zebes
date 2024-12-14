@@ -1,6 +1,5 @@
 #include "texture_manager.h"
 
-#include <_types/_uint16_t.h>
 #include <memory>
 #include <sqlite3.h>
 #include <vector>

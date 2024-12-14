@@ -11,6 +11,7 @@ target_link_libraries(${PROJECT_NAME} absl::strings)
 target_link_libraries(${PROJECT_NAME} absl::str_format)
 target_link_libraries(${PROJECT_NAME} SDL2main SDL2-static SDL2_image SDL2_ttf)
 target_link_libraries(${PROJECT_NAME} ${IMGUI_LIBRARIES}) 
+target_link_libraries(${PROJECT_NAME} ${SQLITE3_LIBRARIES}) 
 target_link_libraries(${PROJECT_NAME} nlohmann_json::nlohmann_json)
 
 target_link_libraries(${PROJECT_NAME} logging)

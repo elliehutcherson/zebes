@@ -1,6 +1,5 @@
 #include "sprite_manager.h"
 
-#include <_types/_uint16_t.h>
 #include <iostream>
 #include <sqlite3.h>
 #include <vector>

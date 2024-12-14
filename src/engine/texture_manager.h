@@ -1,11 +1,10 @@
 #pragma once
 
-#include <_types/_uint16_t.h>
-#include <sqlite3.h>
 #include <vector>
 
 #include "SDL_render.h"
 
+#include "sqlite3.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"

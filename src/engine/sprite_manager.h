@@ -1,7 +1,5 @@
 #pragma once
 
-#include <_types/_uint16_t.h>
-
 #include "SDL_render.h"
 
 #include "absl/status/statusor.h"

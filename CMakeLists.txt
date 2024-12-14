@@ -1,6 +1,11 @@
 # https://stackoverflow.com/questions/45933732/how-to-specify-a-compiler-in-cmake
-set(CMAKE_C_COMPILER /Library/Developer/CommandLineTools/usr/bin/clang)
-set(CMAKE_CXX_COMPILER /Library/Developer/CommandLineTools/usr/bin/clang++)
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(CMAKE_C_COMPILER /Library/Developer/CommandLineTools/usr/bin/clang)
+    set(CMAKE_CXX_COMPILER /Library/Developer/CommandLineTools/usr/bin/clang++)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_C_COMPILER /usr/bin/clang)
+    set(CMAKE_CXX_COMPILER /usr/bin/clang++)
+endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) 
@@ -8,7 +13,7 @@ set(CMAKE_BUILD_TYPE Debug)
 
 cmake_minimum_required(VERSION 3.0.0)
 project(zebes VERSION 0.1.0)
-enable_language(OBJC)
+# enable_language(OBJC)
 
 
 ### Require out-of-source builds
@@ -43,9 +48,6 @@ set(SDLIMAGE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/SDL_image)
 # there is no include directory? SDL_ttf.h is in the main folder.
 set(SDLTTF_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/SDL_ttf)
 
-# Find SQLite3
-find_package(SQLite3)
-
 ### Add all of the subdirectories
 add_subdirectory(include/SDL)
 add_subdirectory(include/SDL_image)
@@ -57,7 +59,6 @@ add_subdirectory(include/nlohmann)
 include_directories(${SDL_INCLUDE_DIRS})
 include_directories(${SDLIMAGE_INCLUDE_DIRS})
 include_directories(${SDLTTF_INCLUDE_DIRS})
-include_directories(${SQLite3_INCLUDE_DIRS})
 include_directories(include/abseil-cpp)
 include_directories(include/googletest)
 include_directories(include/nlohmann)
@@ -65,6 +66,7 @@ include_directories(include/nlohmann)
 ### All custom find cmake files live in the cmake directory
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 include(${CMAKE_MODULE_PATH}/imgui.cmake)
+include(${CMAKE_MODULE_PATH}/sqlite3.cmake)
 
 include_directories(src)
 add_subdirectory(src)

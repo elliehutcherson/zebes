@@ -1,6 +1,5 @@
 #include "polygon.h"
 
-#include <_types/_uint8_t.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
