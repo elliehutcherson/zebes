@@ -1,24 +1,25 @@
 #pragma once
 
-#include "SDL_events.h"
+#include <variant>
 
+#include "SDL_events.h"
 #include "SDL_keycode.h"
 #include "SDL_scancode.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "config.h"
 #include "vector.h"
-#include <variant>
 
 namespace zebes {
 
 enum class InternalEventType : uint8_t {
-  kCreatorSavePath = 0,
-  kCreatorImportPath = 1,
-  kIsMainWindowFocused = 2,
+  kCreatorSaveConfig = 0,
+  kIsMainWindowFocused = 1,
 };
 
 struct InternalEvent {
   InternalEventType type;
-  std::variant<bool, std::string> value;
+  std::variant<bool, GameConfig> value;
 };
 
 enum KeyState : uint8_t { none = 0, pressed = 1, down = 2, up = 3 };
@@ -54,17 +55,19 @@ struct ControllerState {
   KeyState tile_rotate_counter_clockwise = KeyState::none;
   KeyState tile_toggle = KeyState::none;
   KeyState tile_reset = KeyState::none;
-  std::string creator_save_path;
-  std::string creator_import_path;
 
   // Is the main window focused.
   bool is_main_window_focused = true;
 };
 
 class Controller {
-public:
-  // Constructor & Destructor.
-  Controller(const GameConfig *config);
+ public:
+  struct Options {
+    std::function<void(const GameConfig &config)> save_config;
+  };
+  // Will return non-okay status if the controller fails to initialize.
+  static absl::StatusOr<std::unique_ptr<Controller>> Create(Options options);
+
   ~Controller() = default;
   // Handle internal events, this could effect how external events are handled.
   void HandleInternalEvents();
@@ -79,20 +82,21 @@ public:
   bool ShouldUpdate();
   // Get controller buttons.
   const ControllerState *GetState() const;
-
+  // Add an internal event to the controller. Internal events
+  // will be handled before external events.
   void AddInternalEvent(InternalEvent event) {
     internal_events_.push_back(event);
   }
 
-private:
+ private:
+  // Constructor.
+  Controller(Options options);
   // The pointer returned is a pointer to an internal SDL array.
   // It will be valid for the whole lifetime of the application
   // and should not be freed by the caller.
   const uint8_t *key_states_ = nullptr;
   // Get inputs and translate them into applicable buttons/events.
   void UpdateState(SDL_Keycode code, uint8_t value);
-  // Game config.
-  const GameConfig *config_;
   // Buttons to be read by multiple objects.
   ControllerState state_;
   // Internal events to handle.
@@ -118,6 +122,8 @@ private:
       SDL_KeyCode::SDLK_w,      SDL_KeyCode::SDLK_d,
       SDL_KeyCode::SDLK_s,      SDL_KeyCode::SDLK_a,
       SDL_KeyCode::SDLK_q,      SDL_KeyCode::SDLK_e};
+
+  std::function<void(const GameConfig &config)> save_config_;
 };
 
-} // namespace zebes
+}  // namespace zebes

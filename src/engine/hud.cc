@@ -3,19 +3,16 @@
 #include <string>
 #include <vector>
 
+#include "SDL_video.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-
-#include "imgui.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_sdlrenderer2.h"
-
-#include "SDL_video.h"
-
 #include "engine/config.h"
 #include "engine/controller.h"
 #include "engine/logging.h"
+#include "imgui.h"
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdlrenderer2.h"
 
 namespace zebes {
 namespace {
@@ -44,7 +41,7 @@ void RenderTextureToImGui(SDL_Texture *texture, int width, int height) {
   }
 }
 
-} // namespace
+}  // namespace
 
 absl::StatusOr<std::unique_ptr<Hud>> Hud::Create(Hud::Options options) {
   std::unique_ptr<Hud> hud(new Hud(options));
@@ -57,17 +54,18 @@ absl::StatusOr<std::unique_ptr<Hud>> Hud::Create(Hud::Options options) {
   if (options.texture_manager == nullptr)
     return absl::InvalidArgumentError("TextureManager must not be null.");
   absl::Status result = hud->Init(options.window, options.renderer);
-  if (!result.ok())
-    return result;
+  if (!result.ok()) return result;
   return hud;
 }
 
 Hud::Hud(Options options)
-    : config_(options.config), focus_(options.focus),
+    : config_(options.config),
+      focus_(options.focus),
       controller_(options.controller),
       texture_manager_(options.texture_manager) {}
 
 absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
+  renderer_ = renderer;
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -83,8 +81,7 @@ absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
 
 void Hud::InjectEvents() {
   bool is_main_window_focused = !ImGui::GetIO().WantCaptureMouse;
-  if (is_main_window_focused)
-    return;
+  if (is_main_window_focused) return;
   controller_->AddInternalEvent(
       {.type = InternalEventType::kIsMainWindowFocused,
        .value = is_main_window_focused});
@@ -112,7 +109,7 @@ void Hud::Render() {
 
   // End of frame: render Dear ImGui
   ImGui::Render();
-  ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+  ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer_);
 }
 
 void Hud::RenderPlayerMode() {
@@ -158,7 +155,7 @@ void Hud::RenderWindowConfig() {
   ImGui::InputInt("window_width", &hud_config_.window.width);
   ImGui::InputInt("window_height", &hud_config_.window.height);
   if (ImGui::Button("Apply")) {
-    LOG(INFO) << "Applying window config...";
+    SaveConfig();
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
@@ -178,7 +175,7 @@ void Hud::RenderBoundaryConfig() {
   ImGui::InputInt("boundary_y_min", &hud_config_.boundaries.y_min);
   ImGui::InputInt("boundary_y_max", &hud_config_.boundaries.y_max);
   if (ImGui::Button("Apply")) {
-    LOG(INFO) << "Applying boundary config...";
+    SaveConfig();
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
@@ -203,7 +200,7 @@ void Hud::RenderTileConfig() {
   ImGui::Text("tile_render_height: %d",
               hud_config_.tiles.source_height * hud_config_.tiles.scale);
   if (ImGui::Button("Apply")) {
-    LOG(INFO) << "Applying tile config...";
+    SaveConfig();
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
@@ -221,7 +218,7 @@ void Hud::RenderCollisionConfig() {
   ImGui::InputFloat("area_width", &hud_config_.collisions.area_width);
   ImGui::InputFloat("area_height", &hud_config_.collisions.area_height);
   if (ImGui::Button("Apply")) {
-    LOG(INFO) << "Applying tile config...";
+    SaveConfig();
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
@@ -262,9 +259,7 @@ void Hud::RenderSceneWindow(int index) {
   ImGui::InputText(label.c_str(), scene.save_path, 4096);
   ImGui::SameLine();
   if (ImGui::Button("Save")) {
-    controller_->AddInternalEvent({.type = InternalEventType::kCreatorSavePath,
-                                   .value = scene.save_path});
-    LOG(INFO) << "Saving creator state..." << std::endl;
+    SaveConfig();
   }
 
   label = absl::StrCat("##SceneImport", scene.index);
@@ -273,9 +268,6 @@ void Hud::RenderSceneWindow(int index) {
   ImGui::InputText(label.c_str(), scene.import_path, 4096);
   ImGui::SameLine();
   if (ImGui::Button("Import")) {
-    controller_->AddInternalEvent(
-        {.type = InternalEventType::kCreatorImportPath,
-         .value = scene.import_path});
     LOG(INFO) << "Importing layer..." << std::endl;
   }
 
@@ -292,7 +284,7 @@ void Hud::RenderSceneWindow(int index) {
   bool pop_color = false;
   if (scene.index == active_scene_) {
     ImGui::PushStyleColor(ImGuiCol_Button,
-                          ImVec4(0.4f, 0.8f, 0.4f, 1.0f)); // Greenish button
+                          ImVec4(0.4f, 0.8f, 0.4f, 1.0f));  // Greenish button
     label = "Deactivate";
     pop_color = true;
   }
@@ -318,4 +310,10 @@ void Hud::RenderTerminalWindow() {
   ImGui::EndChild();
 }
 
-} // namespace zebes
+void Hud::SaveConfig() {
+  LOG(INFO) << "Saving creator state..." << std::endl;
+  controller_->AddInternalEvent(
+      {.type = InternalEventType::kCreatorSaveConfig, .value = hud_config_});
+}
+
+}  // namespace zebes

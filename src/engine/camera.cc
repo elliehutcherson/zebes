@@ -1,17 +1,31 @@
 #include "camera.h"
 
+#include <memory>
 #include <string>
 
 #include "SDL_rect.h"
 #include "SDL_ttf.h"
-
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-
 #include "config.h"
 #include "vector.h"
 
 namespace zebes {
+
+absl::StatusOr<std::unique_ptr<Camera>> Camera::Create(const Options &options) {
+  if (options.config == nullptr) {
+    return absl::InvalidArgumentError("Config must not be null.");
+  }
+  if (options.renderer == nullptr) {
+    return absl::InvalidArgumentError("Renderer must not be null.");
+  }
+
+  std::unique_ptr<Camera> camera(new Camera(options.config, options.renderer));
+  absl::Status result = camera->Init();
+  if (!result.ok()) return result;
+
+  return camera;
+}
 
 Camera::Camera(const GameConfig *config, SDL_Renderer *renderer)
     : config_(config), renderer_(renderer) {}
@@ -68,27 +82,26 @@ void Camera::Update(int center_x, int center_y) {
 }
 
 void Camera::UpdateColor(DrawColor color) {
-  if (current_color_ == color)
-    return;
+  if (current_color_ == color) return;
   current_color_ = color;
   switch (color) {
-  case kColorPlayer:
-    SDL_SetRenderDrawColor(renderer_, 0, 0, 255, 255);
-    break;
-  case kColorTile:
-    SDL_SetRenderDrawColor(renderer_, 0, 255, 0, 255);
-    break;
-  case kColorMenu:
-    SDL_SetRenderDrawColor(renderer_, 100, 100, 100, 100);
-    break;
-  case kColorCollide:
-    SDL_SetRenderDrawColor(renderer_, 255, 0, 0, 255);
-    break;
-  case kColorGrid:
-    SDL_SetRenderDrawColor(renderer_, 255, 255, 255, 255);
-    break;
-  default:
-    break;
+    case kColorPlayer:
+      SDL_SetRenderDrawColor(renderer_, 0, 0, 255, 255);
+      break;
+    case kColorTile:
+      SDL_SetRenderDrawColor(renderer_, 0, 255, 0, 255);
+      break;
+    case kColorMenu:
+      SDL_SetRenderDrawColor(renderer_, 100, 100, 100, 100);
+      break;
+    case kColorCollide:
+      SDL_SetRenderDrawColor(renderer_, 255, 0, 0, 255);
+      break;
+    case kColorGrid:
+      SDL_SetRenderDrawColor(renderer_, 255, 255, 255, 255);
+      break;
+    default:
+      break;
   }
 }
 
@@ -155,8 +168,7 @@ absl::Status Camera::RenderLines(const std::vector<Point> &vertices,
     const Point &point = vertices[i % vertices.size()];
     sdl_points[i] = {.x = static_cast<int>(point.x),
                      .y = static_cast<int>(point.y)};
-    if (!static_position)
-      sdl_points[i] = Adjust(&sdl_points[i]);
+    if (!static_position) sdl_points[i] = Adjust(&sdl_points[i]);
   }
 
   SDL_RenderDrawLines(renderer_, sdl_points, vertices.size() + 1);
@@ -165,15 +177,15 @@ absl::Status Camera::RenderLines(const std::vector<Point> &vertices,
 
 void Camera::RenderGrid() {
   UpdateColor(DrawColor::kColorGrid);
-  int x_adjustment =
-      (config_->tiles.render_width() - (rect_.x % config_->tiles.render_width()));
+  int x_adjustment = (config_->tiles.render_width() -
+                      (rect_.x % config_->tiles.render_width()));
   for (std::vector<SDL_Point> line : grid_x_) {
     line[0].x += x_adjustment;
     line[1].x += x_adjustment;
     SDL_RenderDrawLine(renderer_, line[0].x, line[0].y, line[1].x, line[1].y);
   }
-  int y_adjustment =
-      (config_->tiles.render_height() - (rect_.y % config_->tiles.render_height()));
+  int y_adjustment = (config_->tiles.render_height() -
+                      (rect_.y % config_->tiles.render_height()));
   for (std::vector<SDL_Point> line : grid_y_) {
     line[0].y += y_adjustment;
     line[1].y += y_adjustment;
@@ -181,4 +193,4 @@ void Camera::RenderGrid() {
   }
 }
 
-} // namespace zebes
+}  // namespace zebes

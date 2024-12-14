@@ -1,11 +1,6 @@
 #pragma once
 
-#include "imgui.h"
-
 #include "absl/status/status.h"
-
-#include "nlohmann/json.hpp"
-
 #include "camera.h"
 #include "collision_manager.h"
 #include "config.h"
@@ -13,7 +8,9 @@
 #include "creator.h"
 #include "focus.h"
 #include "hud.h"
+#include "imgui.h"
 #include "map.h"
+#include "nlohmann/json.hpp"
 #include "object.h"
 #include "player.h"
 #include "sprite_manager.h"
@@ -22,7 +19,7 @@
 namespace zebes {
 
 class Game {
-public:
+ public:
   Game(const GameConfig &config);
   ~Game() = default;
 
@@ -49,7 +46,7 @@ public:
   // Check if it's okay to advance to the next frame.
   bool AdvanceFrame();
 
-private:
+ private:
   // Update game state local to this object.
   void GameUpdate();
   // Delay the game loop for the next frame until we meet the delay
@@ -85,4 +82,4 @@ private:
   Focus *focus_;
 };
 
-} // namespace zebes
+}  // namespace zebes

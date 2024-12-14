@@ -1,10 +1,12 @@
 #pragma once
 
-#include <memory>
-#include <string>
 #include <sys/types.h>
 
-#include "camera.h"
+#include <memory>
+#include <string>
+
+#include "absl/container/flat_hash_map.h"
+#include "camera_interface.h"
 #include "config.h"
 #include "controller.h"
 #include "focus.h"
@@ -14,8 +16,13 @@
 namespace zebes {
 
 class Creator : public Focus {
-public:
-  Creator(const GameConfig *config, Camera *camera);
+ public:
+  struct Options {
+    const GameConfig *config;
+    CameraInterface *camera;
+  };
+  static absl::StatusOr<std::unique_ptr<Creator>> Create(
+      const Options &options);
 
   float x_center() const override;
   float y_center() const override;
@@ -29,8 +36,13 @@ public:
   absl::Status SaveToBmp(std::string path) const;
   // Load a bmp file into the creator.
   absl::Status LoadFromBmp(std::string path);
+  // Save the current game config to a file.
+  absl::Status SaveConfig(const GameConfig &config);
+  // Load a game config from a file.
+  absl::StatusOr<GameConfig> ImportConfig(const std::string &path);
 
-private:
+ private:
+  Creator(const Options &options);
   // If the mouse is clicked, toggle the state of the tile the
   // mouse is currently hovering over.
   void ToggleTileState();
@@ -46,8 +58,8 @@ private:
   Shape shape_;
 
   const GameConfig *config_;
-  Camera *camera_;
+  CameraInterface *camera_;
   absl::flat_hash_map<Point, std::unique_ptr<Shape>, PointHash> tiles_;
 };
 
-} // namespace zebes
+}  // namespace zebes
