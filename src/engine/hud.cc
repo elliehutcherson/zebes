@@ -65,10 +65,7 @@ absl::StatusOr<std::unique_ptr<Hud>> Hud::Create(Hud::Options options) {
 Hud::Hud(Options options)
     : config_(options.config), focus_(options.focus),
       controller_(options.controller),
-      texture_manager_(options.texture_manager),
-      hud_window_config_(config_->window),
-      hud_boundary_config_(config_->boundaries),
-      hud_tile_config_(config_->tiles) {}
+      texture_manager_(options.texture_manager) {}
 
 absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
   // Setup Dear ImGui context
@@ -132,137 +129,123 @@ void Hud::RenderCreatorMode() {
   if (ImGui::CollapsingHeader("Camera Info")) {
     ImGui::Text("%s", focus_->to_string().c_str());
   }
-
   if (ImGui::CollapsingHeader("Window Config")) {
     RenderWindowConfig();
   }
-
   if (ImGui::CollapsingHeader("Boundary Config")) {
     RenderBoundaryConfig();
   }
-
   if (ImGui::CollapsingHeader("Tile Config")) {
     RenderTileConfig();
   }
-
   if (ImGui::CollapsingHeader("Collision Config")) {
     RenderCollisionConfig();
   }
-
   if (ImGui::CollapsingHeader("Scene Creation")) {
-    if (ImGui::Button("Add Scene")) {
-      int index = scenes_.size();
-      scenes_.push_back({.index = index});
-    }
-
-    for (int i = 0; i < scenes_.size(); i++) {
-      if (ImGui::CollapsingHeader(absl::StrFormat("Scene %d", i).c_str(),
-                                  ImGuiTreeNodeFlags_DefaultOpen)) {
-        RenderSceneWindow(i);
-      }
-    }
+    RenderSceneWindowPrimary();
   }
-
   if (ImGui::CollapsingHeader("Textures")) {
     RenderTextureWindow();
   }
-
   if (ImGui::CollapsingHeader("Terminal")) {
-    ImGui::BeginChild("Log");
-    ImGui::TextUnformatted(HudLogSink::Get()->log()->c_str());
-    if (log_size_ != HudLogSink::Get()->log()->size()) {
-      ImGui::SetScrollHereY(1.0f);
-      log_size_ = HudLogSink::Get()->log()->size();
-    }
-    ImGui::EndChild();
+    RenderTerminalWindow();
   }
 
   ImGui::End();
 }
 
 void Hud::RenderWindowConfig() {
-  ImGui::InputInt("window_width", &hud_window_config_.width);
-  ImGui::InputInt("window_height", &hud_window_config_.height);
+  ImGui::InputInt("window_width", &hud_config_.window.width);
+  ImGui::InputInt("window_height", &hud_config_.window.height);
   if (ImGui::Button("Apply")) {
     LOG(INFO) << "Applying window config...";
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
     LOG(INFO) << "Reseting window config...";
-    hud_window_config_ = config_->window;
+    hud_config_.window = config_->window;
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset to Default")) {
     LOG(INFO) << "Reseting to default window config...";
-    hud_window_config_ = {};
+    hud_config_.window = WindowConfig();
   }
 }
 
 void Hud::RenderBoundaryConfig() {
-  ImGui::InputInt("boundary_x_min", &hud_boundary_config_.x_min);
-  ImGui::InputInt("boundary_x_max", &hud_boundary_config_.x_max);
-  ImGui::InputInt("boundary_y_min", &hud_boundary_config_.y_min);
-  ImGui::InputInt("boundary_y_max", &hud_boundary_config_.y_max);
+  ImGui::InputInt("boundary_x_min", &hud_config_.boundaries.x_min);
+  ImGui::InputInt("boundary_x_max", &hud_config_.boundaries.x_max);
+  ImGui::InputInt("boundary_y_min", &hud_config_.boundaries.y_min);
+  ImGui::InputInt("boundary_y_max", &hud_config_.boundaries.y_max);
   if (ImGui::Button("Apply")) {
     LOG(INFO) << "Applying boundary config...";
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
     LOG(INFO) << "Reseting boundary config...";
-    hud_boundary_config_ = config_->boundaries;
+    hud_config_.boundaries = config_->boundaries;
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset to Default")) {
     LOG(INFO) << "Reseting to default boundary config...";
-    hud_boundary_config_ = {};
+    hud_config_.boundaries = BoundaryConfig();
   }
 }
 
 void Hud::RenderTileConfig() {
-  ImGui::InputInt("tile_scale", &hud_tile_config_.scale);
-  ImGui::InputInt("tile_source_width", &hud_tile_config_.source_width);
-  ImGui::InputInt("tile_source_height", &hud_tile_config_.source_height);
-  ImGui::InputInt("tile_size_x", &hud_tile_config_.size_x);
-  ImGui::InputInt("tile_size_y", &hud_tile_config_.size_y);
+  ImGui::InputInt("tile_scale", &hud_config_.tiles.scale);
+  ImGui::InputInt("tile_source_width", &hud_config_.tiles.source_width);
+  ImGui::InputInt("tile_source_height", &hud_config_.tiles.source_height);
+  ImGui::InputInt("tile_size_x", &hud_config_.tiles.size_x);
+  ImGui::InputInt("tile_size_y", &hud_config_.tiles.size_y);
   ImGui::Text("tile_render_width: %d",
-              hud_tile_config_.source_width * hud_tile_config_.scale);
+              hud_config_.tiles.source_width * hud_config_.tiles.scale);
   ImGui::Text("tile_render_height: %d",
-              hud_tile_config_.source_height * hud_tile_config_.scale);
+              hud_config_.tiles.source_height * hud_config_.tiles.scale);
   if (ImGui::Button("Apply")) {
     LOG(INFO) << "Applying tile config...";
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
     LOG(INFO) << "Reseting tile config...";
-    hud_tile_config_.scale = config_->tiles.scale;
-    hud_tile_config_.source_width = config_->tiles.source_width;
-    hud_tile_config_.source_height = config_->tiles.source_height;
-    hud_tile_config_.size_x = config_->tiles.size_x;
-    hud_tile_config_.size_y = config_->tiles.size_y;
+    hud_config_.tiles = config_->tiles;
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset to Default")) {
     LOG(INFO) << "Reseting to default tile config...";
-    hud_tile_config_ = {};
+    hud_config_.tiles = TileConfig();
   }
 }
 
 void Hud::RenderCollisionConfig() {
-  ImGui::InputFloat("area_width", &hud_collision_config_.area_width);
-  ImGui::InputFloat("area_height", &hud_collision_config_.area_height);
+  ImGui::InputFloat("area_width", &hud_config_.collisions.area_width);
+  ImGui::InputFloat("area_height", &hud_config_.collisions.area_height);
   if (ImGui::Button("Apply")) {
     LOG(INFO) << "Applying tile config...";
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
     LOG(INFO) << "Reseting tile config...";
-    hud_collision_config_.area_width = config_->collisions.area_width;
-    hud_collision_config_.area_height = config_->collisions.area_height;
+    hud_config_.collisions = config_->collisions;
   }
   ImGui::SameLine();
   if (ImGui::Button("Reset to Default")) {
     LOG(INFO) << "Reseting to default tile config...";
-    hud_collision_config_ = {};
+    hud_config_.collisions = CollisionConfig();
+  }
+}
+
+void Hud::RenderSceneWindowPrimary() {
+  if (ImGui::Button("Add Scene")) {
+    int index = scenes_.size();
+    scenes_.push_back({.index = index});
+  }
+
+  for (int i = 0; i < scenes_.size(); i++) {
+    if (ImGui::CollapsingHeader(absl::StrFormat("Scene %d", i).c_str(),
+                                ImGuiTreeNodeFlags_DefaultOpen)) {
+      RenderSceneWindow(i);
+    }
   }
 }
 
@@ -323,6 +306,16 @@ void Hud::RenderSceneWindow(int index) {
 
 void Hud::RenderTextureWindow() {
   RenderTextureToImGui(texture_manager_->Experiment(), 256, 256);
+}
+
+void Hud::RenderTerminalWindow() {
+  ImGui::BeginChild("Log");
+  ImGui::TextUnformatted(HudLogSink::Get()->log()->c_str());
+  if (log_size_ != HudLogSink::Get()->log()->size()) {
+    ImGui::SetScrollHereY(1.0f);
+    log_size_ = HudLogSink::Get()->log()->size();
+  }
+  ImGui::EndChild();
 }
 
 } // namespace zebes

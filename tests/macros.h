@@ -1,11 +1,21 @@
 #include "absl/status/statusor.h"
 
+#include "gtest/gtest.h"
+#include "gtest/gtest-matchers.h"
+
 namespace {
 
 template <typename T>
 using StatusOr = absl::StatusOr<T>;
 
 }  // namespace
+
+
+#define EXPECT_OK(expression) \
+  EXPECT_TRUE(expression.ok()) << expression;
+
+#define ASSERT_OK(expression) \
+  ASSERT_TRUE(expression.ok()) << expression;
 
 #define ASSERT_OK_AND_ASSIGN(lhs, rexpr)                                \
   ASSERT_OK_AND_ASSIGN_IMPL(                                            \

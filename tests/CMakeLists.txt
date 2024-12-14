@@ -1,5 +1,6 @@
 add_library(macros INTERFACE macros.h)
 target_link_libraries(macros INTERFACE absl::statusor)
+target_link_libraries(macros INTERFACE gtest)
 
 add_executable(bmp_test bmp_test.cc)
 target_link_libraries(bmp_test absl::log)

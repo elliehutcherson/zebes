@@ -58,8 +58,10 @@ private:
   void RenderBoundaryConfig();
   void RenderTileConfig();
   void RenderCollisionConfig();
+  void RenderSceneWindowPrimary();
   void RenderSceneWindow(int index);
   void RenderTextureWindow();
+  void RenderTerminalWindow();
 
   const GameConfig *config_;
   const Focus *focus_;
@@ -70,11 +72,8 @@ private:
   ImGuiContext *imgui_context_;
   ImVec4 clear_color_;
 
-  // Settings for window configuration.
-  WindowConfig hud_window_config_;
-  BoundaryConfig hud_boundary_config_;
-  TileConfig hud_tile_config_;
-  CollisionConfig hud_collision_config_;
+  // Copy of the config to modify and save. 
+  GameConfig hud_config_ = *config_; 
 
   // If the log size hasn't changed, we don't need to update the log.
   int log_size_ = 0;

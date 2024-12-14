@@ -1,3 +1,10 @@
+# Steps to build
+# 1. make a build directory: mkdir include/sqlite/build
+# 2. cd include/sqlite/build
+# 3. ../configure
+# 4. make sqlite3
+# 5. profit =)
+
 set(SQLITE3_SOURCES_DIR ${CMAKE_SOURCE_DIR}/include/sqlite/build)
 
 set(SQLITE3_HEADERS
