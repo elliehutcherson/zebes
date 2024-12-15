@@ -4,10 +4,9 @@
 #include <vector>
 
 #include "SDL_video.h"
-
+#include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-
 #include "nlohmann/json.hpp"
 
 inline constexpr int kNoTile = 0;
@@ -174,82 +173,21 @@ struct PathConfig {
     j.at("relative_hud_font").get_to(s.relative_hud_font);
   }
 
-private:
+ private:
   // Execute path.
   std::string execute_;
 };
 
-enum class SpriteType : int {
-  kEmpty = 0,
-  kGrass1 = 1,
-  kGrass2 = 2,
-  kGrass3 = 3,
-  kDirt1 = 4,
-  kGrassSlopeUpRight = 5,
-  kGrass1Left = 6,
-  kGrass1Right = 7,
-  kGrass1Down = 8,
-  kGrassCornerUpLeft = 9,
-  kGrassCornerUpRight = 10,
-  kGrassCornerDownLeft = 11,
-  kGrassCornerDownRight = 12,
-  SamusIdleLeft = 100,
-  SamusIdleRight = 101,
-  SamusTurningLeft = 102,
-  SamusTurningRight = 103,
-  SamusRunningLeft = 104,
-  SamusRunningRight = 105,
-  SamusJumpingRight = 106,
-  Invalid = 255,
-};
-
-struct SubSprite {
-  // Size of the sources texture sprites.
-  int texture_x = 0;
-  int texture_y = 0;
-  int texture_w = 0;
-  int texture_h = 0;
-  // The offset from the left most point of the hitbox
-  // at the scale of the source texture.
-  int texture_offset_x = 0;
-  // The offset from the upper most point of the hitbox
-  // at the scale of the source texture.
-  int texture_offset_y = 0;
-  // The width that the texture will be rendered.
-  int render_w = 0;
-  // The height that the texture will be rendered.
-  int render_h = 0;
-  // The offset from the left most point of the hitbox
-  // at the scale of the destination render.
-  int render_offset_x = 0;
-  // The offset from the upper most point of the hitbox
-  // at the scale of the destination render.
-  int render_offset_y = 0;
-};
-
-struct SpriteConfig {
-  // The type of the sprite, running right, idle left, etc.
-  SpriteType type = SpriteType::Invalid;
-  // Path from the binary to the png file.
-  std::string texture_path = "";
-  // Ticks each sub sprite is rendered per sprite cycle.
-  int ticks_per_sprite = 0;
-  // Per texture and sprite config, there are multiple sub sprites
-  // containing the config for each animation.
-  std::vector<SubSprite> sub_sprites;
-  // Return the size of sub sprites.
-  int size() const { return sub_sprites.size(); }
-};
-
 class GameConfig {
-public:
+ public:
   enum Mode { kPlayerMode = 0, kCreatorMode = 1 };
   // Get the path of the executable.
   static std::string GetExecPath();
+  // Get the path of the executable.
+  static std::string GetDefaultConfigPath();
   // Create the game config.
-  static GameConfig Create();
-  // Constructor, probably should be private.
-  GameConfig(WindowConfig window_config, PathConfig path_config);
+  static absl::StatusOr<GameConfig> Create(
+      std::optional<std::string> path = std::nullopt);
   // Destructor, nothing special should happen so make it default.
   ~GameConfig() = default;
 
@@ -319,6 +257,11 @@ public:
     j.at("enable_tile_hitbox_render").get_to(s.enable_tile_hitbox_render);
     j.at("enable_hud_render").get_to(s.enable_hud_render);
   }
+
+ private:
+  static absl::StatusOr<GameConfig> LoadConfig(const std::string &path);
+  // Constructor, probably should be private.
+  GameConfig();
 };
 
-} // namespace zebes
+}  // namespace zebes

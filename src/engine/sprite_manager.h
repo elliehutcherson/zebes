@@ -1,44 +1,56 @@
 #pragma once
 
+#include <cstdint>
+
 #include "SDL_render.h"
-
 #include "absl/status/statusor.h"
-
 #include "camera.h"
 #include "config.h"
 #include "object.h"
 #include "sprite.h"
+#include "sprite_interface.h"
 
 namespace zebes {
 
 class SpriteManager {
-public:
+ public:
   SpriteManager(const GameConfig *config, SDL_Renderer *renderer,
                 Camera *camera);
   ~SpriteManager() = default;
+
   // Initialize all sprites.
   absl::Status Init();
+
   // Initialize sprite, and potentially a new texture if this
   // texture has not been initialized before.
   absl::Status InitializeSprite(SpriteConfig config);
+
   // Get a sprite by type. Returns not found if sprite type does not exist.
-  absl::StatusOr<const Sprite *> GetSprite(SpriteType type) const;
+  absl::StatusOr<const Sprite *> GetSprite(uint16_t sprite_id) const;
+
+  // Get a sprite by type. Returns not found if sprite type does not exist.
+  absl::StatusOr<const Sprite *> GetSpriteByType(uint16_t sprite_type) const;
+
   // Add any sprite object through this method. All sprite objects will be
   // rendered at the render step.
   absl::Status AddSpriteObject(SpriteObjectInterface *object);
+
   // Render all objects registered.
   void Render();
 
-private:
+ private:
   // Retreive SubSpriteConfig records from database.
-  absl::StatusOr<std::vector<SubSprite>> GetSubSprites(SpriteType type);
-  // The game config.
+  absl::StatusOr<std::vector<SubSprite>> GetSubSprites(uint16_t sprite_id);
+
+  // Stateful objects.
   const GameConfig *config_;
   SDL_Renderer *renderer_;
   Camera *camera_;
-  absl::flat_hash_map<std::string, SDL_Texture *> path_to_texture_ = {};
-  absl::flat_hash_map<SpriteType, Sprite> sprites_ = {};
+
+  absl::flat_hash_map<std::string, SDL_Texture *> path_to_texture_;
+  absl::flat_hash_map<uint16_t, std::unique_ptr<Sprite>> sprites_;
+  absl::flat_hash_map<uint16_t, Sprite *> type_to_sprites_;
   std::vector<SpriteObjectInterface *> sprite_objects_;
 };
 
-} // namespace zebes
+}  // namespace zebes

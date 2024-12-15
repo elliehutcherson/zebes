@@ -3,7 +3,6 @@
 #include <memory>
 
 #include "absl/status/status.h"
-
 #include "config.h"
 #include "controller.h"
 #include "engine/sprite_manager.h"
@@ -14,9 +13,9 @@
 namespace zebes {
 
 class Player : public Focus {
-public:
-  static absl::StatusOr<std::unique_ptr<Player>>
-  Create(const GameConfig *config, const SpriteManager *sprite_manager);
+ public:
+  static absl::StatusOr<std::unique_ptr<Player>> Create(
+      const GameConfig *config, const SpriteManager *sprite_manager);
   ~Player() = default;
   // All updates per tick for player.
   void Update(const ControllerState *state) override;
@@ -43,10 +42,12 @@ public:
   // Get the player's string representation.
   std::string to_string() const override;
 
-private:
+ private:
   Player(const GameConfig *config);
   // Initialize Player
   absl::Status Init(const SpriteManager *sprite_manager);
+  // Get the active sprite type for the mobile object.
+  SpriteType GetActiveSpriteType() const;
   // Jump player.
   void Jump();
   // Update the current sprite.
@@ -60,4 +61,4 @@ private:
   SpriteType current_sprite_type_ = SpriteType::SamusIdleRight;
 };
 
-} // namespace zebes
+}  // namespace zebes

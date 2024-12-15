@@ -1,22 +1,22 @@
 #include "player.h"
 
+#include <cstdint>
 #include <memory>
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
-
 #include "engine/config.h"
-#include "engine/sprite_manager.h"
 #include "engine/object.h"
+#include "engine/sprite_manager.h"
 
 namespace zebes {
 
-absl::StatusOr<std::unique_ptr<Player>>
-Player::Create(const GameConfig *config, const SpriteManager *sprite_manager) {
+absl::StatusOr<std::unique_ptr<Player>> Player::Create(
+    const GameConfig *config, const SpriteManager *sprite_manager) {
   auto player = std::unique_ptr<Player>(new Player(config));
   absl::Status result = player->Init(sprite_manager);
-  if (!result.ok())
-    return result;
+  if (!result.ok()) return result;
+
   return player;
 }
 
@@ -24,7 +24,6 @@ Player::Player(const GameConfig *config) : config_(config){};
 
 absl::Status Player::Init(const SpriteManager *sprite_manager) {
   ObjectOptions object_options = {
-      .config = config_,
       .object_type = ObjectType::kPlayer,
       .vertices = {
           {.x = config_->player_starting_x, .y = config_->player_starting_y},
@@ -49,13 +48,11 @@ absl::Status Player::Init(const SpriteManager *sprite_manager) {
 
   absl::StatusOr<std::unique_ptr<MobileObject>> mobile_object =
       MobileObject::Create(object_options);
-  if (!mobile_object.ok())
-    return mobile_object.status();
+  if (!mobile_object.ok()) return mobile_object.status();
 
   mobile_object_ = std::move(*mobile_object);
   absl::Status result = mobile_object_->AddProfile(mobile_profile);
-  if (!result.ok())
-    return result;
+  if (!result.ok()) return result;
 
   std::vector<SpriteType> sprite_types = {
       SpriteType::SamusTurningLeft, SpriteType::SamusTurningRight,
@@ -64,21 +61,18 @@ absl::Status Player::Init(const SpriteManager *sprite_manager) {
 
   for (SpriteType sprite_type : sprite_types) {
     absl::StatusOr<const Sprite *> sprite =
-        sprite_manager->GetSprite(sprite_type);
-    if (!sprite.ok())
-      return sprite.status();
+        sprite_manager->GetSpriteByType(static_cast<uint16_t>(sprite_type));
+    if (!sprite.ok()) return sprite.status();
 
-    SpriteProfile profile = {.type = sprite_type,
-                             .ticks_per_sprite =
-                                 (*sprite)->GetConfig()->ticks_per_sprite,
-                             .ticks_per_cycle = (*sprite)->GetConfig()->size() *
-                                                profile.ticks_per_sprite};
-    result = mobile_object_->AddSpriteProfile(profile);
-    if (!result.ok())
-      return result;
+    result = mobile_object_->AddSprite(*sprite);
+    if (!result.ok()) return result;
   }
 
   return absl::OkStatus();
+}
+
+SpriteType Player::GetActiveSpriteType() const {
+  return static_cast<SpriteType>(mobile_object_->GetActiveSprite()->GetType());
 }
 
 void Player::Update(const ControllerState *state) {
@@ -100,24 +94,23 @@ void Player::UpdatePosition(const ControllerState *state) {
   } else {
     y++;
   }
-  if (state->left != KeyState::none)
-    x--;
-  if (state->right != KeyState::none)
-    x++;
+  if (state->left != KeyState::none) x--;
+  if (state->right != KeyState::none) x++;
   mobile_object_->MoveWithProfile(x, y);
 }
 
 void Player::UpdateSprite(const ControllerState *state) {
   mobile_object_->Update();
-  uint64_t cycles = mobile_object_->GetActiveSpriteCycles();
-  SpriteType current_type = mobile_object_->GetActiveSpriteProfile()->type;
+
+  uint16_t cycles = mobile_object_->GetActiveSpriteCycles();
+  SpriteType current_type =
+      static_cast<SpriteType>(mobile_object_->GetActiveSprite()->GetType());
   SpriteType new_type = SpriteType::Invalid;
+
   if (current_type == SpriteType::SamusTurningLeft) {
-    if (cycles > 0)
-      new_type = SpriteType::SamusIdleLeft;
+    if (cycles > 0) new_type = SpriteType::SamusIdleLeft;
   } else if (current_type == SpriteType::SamusTurningRight) {
-    if (cycles > 0)
-      new_type = SpriteType::SamusIdleRight;
+    if (cycles > 0) new_type = SpriteType::SamusIdleRight;
   } else if (state->left != KeyState::none) {
     if (!FacingLeft()) {
       new_type = SpriteType::SamusTurningLeft;
@@ -141,18 +134,19 @@ void Player::UpdateSprite(const ControllerState *state) {
   }
   if (new_type != SpriteType::Invalid) {
     mobile_object_->ResetSprite();
-    absl::Status result = mobile_object_->SetActiveSpriteProfile(new_type);
+    absl::Status result =
+        mobile_object_->SetActiveSpriteByType(static_cast<uint16_t>(new_type));
     if (!result.ok()) {
       // We should probably crash in this case.
-      LOG(WARNING) << result.message(); 
+      LOG(WARNING) << result.message();
     }
   }
 }
 
 void Player::Reset() {
   mobile_object_->Reset();
-  absl::Status result =
-      mobile_object_->SetActiveSpriteProfile(SpriteType::SamusRunningRight);
+  absl::Status result = mobile_object_->SetActiveSpriteByType(
+      static_cast<uint16_t>(SpriteType::SamusRunningRight));
   if (!result.ok()) {
     // We should probably crash in this case.
     LOG(WARNING) << result.message();
@@ -164,25 +158,25 @@ MobileObject *Player::GetObject() const { return mobile_object_.get(); }
 void Player::Jump() { return; }
 
 bool Player::FacingLeft() const {
-  switch (mobile_object_->GetActiveSpriteProfile()->type) {
-  case SpriteType::SamusIdleLeft:
-  case SpriteType::SamusTurningLeft:
-  case SpriteType::SamusRunningLeft:
-    return true;
-  default:
-    break;
+  switch (GetActiveSpriteType()) {
+    case SpriteType::SamusIdleLeft:
+    case SpriteType::SamusTurningLeft:
+    case SpriteType::SamusRunningLeft:
+      return true;
+    default:
+      break;
   }
   return false;
 }
 
 bool Player::FacingRight() const {
-  switch (mobile_object_->GetActiveSpriteProfile()->type) {
-  case SpriteType::SamusIdleRight:
-  case SpriteType::SamusTurningRight:
-  case SpriteType::SamusRunningRight:
-    return true;
-  default:
-    break;
+  switch (GetActiveSpriteType()) {
+    case SpriteType::SamusIdleRight:
+    case SpriteType::SamusTurningRight:
+    case SpriteType::SamusRunningRight:
+      return true;
+    default:
+      break;
   }
   return false;
 }
@@ -212,10 +206,8 @@ std::string Player::to_string() const {
   absl::StrAppend(&message,
                   absl::StrFormat("[y1, y2]: %d, %d\n", polygon->y_min_floor(),
                                   polygon->y_max_floor()));
-  absl::StrAppend(
-      &message,
-      absl::StrFormat("stype: %d\n",
-                      mobile_object_->GetActiveSpriteProfile()->type));
+  absl::StrAppend(&message,
+                  absl::StrFormat("stype: %d\n", GetActiveSpriteType()));
   absl::StrAppend(
       &message,
       absl::StrFormat("sticks: %d\n", mobile_object_->GetActiveSpriteTicks()));
@@ -231,4 +223,4 @@ std::string Player::to_string() const {
   return message;
 }
 
-} // namespace zebes
+}  // namespace zebes

@@ -1,7 +1,8 @@
 #include "engine/config.h"
 
-#include "gtest/gtest.h"
 #include "absl/log/log.h"
+#include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -27,7 +28,7 @@ TEST(ConfigTest, BoundaryConfig) {
   int new_x_max = 1234;
   j["x_max"] = new_x_max;
   nlohmann::from_json(j, boundary_config);
-  EXPECT_EQ(boundary_config.x_max , new_x_max);
+  EXPECT_EQ(boundary_config.x_max, new_x_max);
 }
 
 TEST(ConfigTest, TileConfig) {
@@ -72,7 +73,7 @@ TEST(ConfigTest, PathConfig) {
 }
 
 TEST(ConfigTest, GameConfig) {
-  GameConfig game_config = GameConfig::Create();
+  ASSERT_OK_AND_ASSIGN(GameConfig game_config, GameConfig::Create());
   nlohmann::json j;
   nlohmann::to_json(j, game_config);
   LOG(INFO) << j.dump(2);
@@ -83,9 +84,8 @@ TEST(ConfigTest, GameConfig) {
   EXPECT_EQ(game_config.fps, new_fps);
 }
 
-} // namespace
-} // namespace zebes
-
+}  // namespace
+}  // namespace zebes
 
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

@@ -20,7 +20,7 @@ namespace zebes {
 
 class Game {
  public:
-  Game(const GameConfig &config);
+  Game(GameConfig config);
   ~Game() = default;
 
   // Initialize all SDL objects and state.

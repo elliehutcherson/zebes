@@ -3,15 +3,13 @@
 #include <vector>
 
 #include "SDL_render.h"
-
-#include "sqlite3.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-
 #include "engine/camera.h"
 #include "engine/config.h"
 #include "engine/vector.h"
+#include "sqlite3.h"
 
 namespace zebes {
 
@@ -46,34 +44,34 @@ struct TexturePack {
   std::string name;
   std::string path;
   std::vector<Texture> textures;
-  int ticks_per_sprite = 0; // Deprecated
+  int ticks_per_sprite = 0;  // Deprecated
   int size() const { return textures.size(); }
 };
 
 class TextureManager {
-public:
+ public:
   struct Options {
     const GameConfig *config;
-    Camera* camera;
+    Camera *camera;
     SDL_Renderer *renderer;
   };
 
-  static absl::StatusOr<std::unique_ptr<TextureManager>>
-  Create(const Options &options);
-  
+  static absl::StatusOr<std::unique_ptr<TextureManager>> Create(
+      const Options &options);
+
   ~TextureManager() = default;
 
-  absl::Status Render(int type, int index, Point position);
+  absl::Status Render(uint16_t sprite_id, int index, Point position);
 
-  SDL_Texture* Experiment();
+  SDL_Texture *Experiment();
 
-private:
+ private:
   TextureManager(const Options &options);
-  
+
   absl::Status Init();
   absl::Status LoadPack(int type);
   absl::Status LoadSdlTextures(TexturePack &pack);
-  absl::Status LoadTextures(TexturePack& pack);
+  absl::Status LoadTextures(TexturePack &pack);
 
   const GameConfig *config_;
   SDL_Renderer *renderer_;
@@ -82,5 +80,4 @@ private:
   absl::flat_hash_map<int, TexturePack> texture_packs_;
 };
 
-
-} // namespace zebes
+}  // namespace zebes

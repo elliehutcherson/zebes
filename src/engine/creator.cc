@@ -175,9 +175,9 @@ absl::Status Creator::LoadFromBmp(std::string path) {
   Shape::State state;
   for (int x = 0; x < loaded_bitmap->width(); x++) {
     for (int y = 0; y < loaded_bitmap->height(); y++) {
-      uint8_t unused = 0;
-      absl::Status result = loaded_bitmap->Get(x, y, &state.raw_eight[0],
-                                               &state.raw_eight[1], &unused);
+      absl::Status result =
+          loaded_bitmap->Get(x, y, &state.raw_eight[0], &state.raw_eight[1],
+                             &state.raw_eight[2], &state.raw_eight[3]);
 
       if (!result.ok()) return result;
 
@@ -219,26 +219,7 @@ absl::Status Creator::SaveConfig(const GameConfig &config) {
 absl::StatusOr<GameConfig> Creator::ImportConfig(const std::string &path) {
   LOG(INFO) << __func__ << ": "
             << "Importing config from path: " << path;
-
-  std::ifstream file(path);
-  if (file.fail() || !file.is_open()) {
-    return absl::NotFoundError(absl::StrCat("Failed to open file: ", path));
-  }
-
-  std::stringstream file_contents;
-  file_contents << file.rdbuf();
-  file.close();
-
-  nlohmann::json j;
-  j = nlohmann::json::parse(file_contents.str());
-
-  GameConfig config = GameConfig::Create();
-  nlohmann::from_json(j, config);
-
-  LOG(INFO) << __func__ << ": "
-            << "Successfully imported: " << j.dump(2);
-
-  return config;
+  return GameConfig::Create(path);
 }
 
 }  // namespace zebes

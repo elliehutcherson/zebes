@@ -4,6 +4,14 @@
 
 namespace zebes {
 
+absl::StatusOr<std::unique_ptr<Sprite>> Sprite::Create(Options options) {
+  std::unique_ptr<Sprite> sprite(new Sprite(std::move(options.config)));
+  absl::Status result = sprite->Init(options.renderer);
+  if (!result.ok()) return result;
+
+  return sprite;
+}
+
 Sprite::Sprite(SpriteConfig sprite_config) : sprite_config_(sprite_config) {
   for (const SubSprite &sub_sprite : sprite_config_.sub_sprites) {
     SDL_Rect source{.x = sub_sprite.texture_x,
@@ -50,7 +58,9 @@ SDL_Rect *Sprite::GetSource() { return &sources_[index_]; }
 
 const SDL_Rect *Sprite::GetSource(int index) const { return &sources_[index]; }
 
-SpriteType Sprite::GetType() const { return sprite_config_.type; }
+uint16_t Sprite::GetId() const { return sprite_config_.id; }
+
+uint16_t Sprite::GetType() const { return sprite_config_.type; }
 
 const SpriteConfig *Sprite::GetConfig() const { return &sprite_config_; }
 
@@ -66,6 +76,6 @@ int Sprite::GetTicks() const { return ticks_; }
 
 int Sprite::GetIndex() const { return index_; }
 
-uint64_t Sprite::GetCycle() const { return cycle_; }
+uint16_t Sprite::GetCycle() const { return cycle_; }
 
-} // namespace zebes
+}  // namespace zebes

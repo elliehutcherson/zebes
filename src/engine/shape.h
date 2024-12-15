@@ -3,8 +3,8 @@
 #include <cstdint>
 #include <string>
 
-#include "engine/polygon.h"
-#include "engine/config.h"
+#include "polygon.h"
+#include "sprite_interface.h"
 
 namespace zebes {
 
@@ -28,7 +28,7 @@ enum ShapeType : uint8_t {
 };
 
 class Shape {
-public:
+ public:
   struct State {
     union {
       struct {
@@ -39,9 +39,9 @@ public:
         uint8_t primary3 : 1 = 0;
         uint8_t reserved : 2;
         ShapeType type = kSquare;
-        SpriteType sprite_type = SpriteType::kEmpty; 
+        uint16_t sprite_id = 0;
       };
-      uint8_t raw_eight[3];
+      uint8_t raw_eight[4];
     };
     State() : rotation(kRotationZero), type(kSquare){};
   };
@@ -80,11 +80,11 @@ public:
   void set_type(ShapeType type);
 
   Point position() const;
-  void set_position(Point position); 
+  void set_position(Point position);
 
   Polygon* polygon() const;
 
-private:
+ private:
   static int render_width_;
   static int render_height_;
 

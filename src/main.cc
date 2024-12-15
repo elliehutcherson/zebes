@@ -3,7 +3,6 @@
 #include "absl/log/log.h"
 #include "absl/log/log_sink_registry.h"
 #include "absl/status/status.h"
-
 #include "engine/game.h"
 #include "engine/logging.h"
 
@@ -21,20 +20,26 @@ int main(int argc, char *argv[]) {
   }
 
   std::string program = argv[1];
-  zebes::GameConfig config = zebes::GameConfig::Create();
+  std::string config_path = zebes::GameConfig::GetDefaultConfigPath();
+  absl::StatusOr<zebes::GameConfig> config =
+      zebes::GameConfig::Create(config_path);
+  if (!config.ok()) {
+    LOG(ERROR) << "Zebes: failed to create game config...";
+    return 1;
+  }
+
   if (program == "player") {
-    config.mode = zebes::GameConfig::Mode::kPlayerMode;
+    config->mode = zebes::GameConfig::Mode::kPlayerMode;
   } else if (program == "creator") {
-    config.mode = zebes::GameConfig::Mode::kCreatorMode;
+    config->mode = zebes::GameConfig::Mode::kCreatorMode;
   } else {
     LOG(INFO) << "Zebes command not recognized...";
     return 1;
   }
 
-  zebes::Game game(config);
+  zebes::Game game(std::move(*config));
   absl::Status result = game.Init();
-  if (result.ok())
-    result = game.Run();
+  if (result.ok()) result = game.Run();
   LOG(INFO) << "Zebes: exiting, " << result.ToString();
 
   return 0;

@@ -15,10 +15,11 @@
 #include "engine/tile_manager.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
+#include "imgui_internal.h"
 
 namespace zebes {
 
-Game::Game(const GameConfig &config) : config_(config) {
+Game::Game(GameConfig config) : config_(std::move(config)) {
   LOG(INFO) << "Zebes: Game Constructing...";
 }
 
@@ -68,8 +69,7 @@ absl::Status Game::Init() {
   if (!result.ok()) return result;
 
   LOG(INFO) << "Zebes: Initializing object...";
-  ObjectOptions object_options = {.config = &config_,
-                                  .object_type = ObjectType::kTile,
+  ObjectOptions object_options = {.object_type = ObjectType::kTile,
                                   .vertices = {
                                       {.x = 300, .y = 700},
                                       {.x = 350, .y = 700},
@@ -134,6 +134,7 @@ absl::Status Game::Init() {
   struct TileManager::Options tile_manager_options = {
       .config = &config_,
       .texture_manager = texture_manager_.get(),
+      .sprite_manager = sprite_manager_.get(),
       .collision_manager = collision_manager_.get(),
   };
   absl::StatusOr<std::unique_ptr<TileManager>> tile_manager =
@@ -165,10 +166,10 @@ absl::Status Game::Init() {
                               .window = window_,
                               .renderer = renderer_};
 
-  absl::StatusOr<std::unique_ptr<Hud>> maybe_hud =
+  absl::StatusOr<std::unique_ptr<Hud>> hud =
       Hud::Create(std::move(hud_options));
-  if (!maybe_hud.ok()) return maybe_hud.status();
-  hud_ = std::move(*maybe_hud);
+  if (!hud.ok()) return hud.status();
+  hud_ = std::move(*hud);
 
   LOG(INFO) << "Zebes: Initialization done...";
   is_running_ = true;

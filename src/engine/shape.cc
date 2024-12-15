@@ -2,41 +2,41 @@
 
 #include <memory>
 
-#include "engine/polygon.h"
+#include "polygon.h"
 
 namespace zebes {
 
 std::string Shape::TypeToString(ShapeType type) {
   switch (type) {
-  case kSquare:
-    return "Square";
-  case kTriangle_30_60_90:
-    return "Triangle_30_60_90";
-  case kTriangle_60_90_30:
-    return "Triangle_60_90_30";
-  case kTriangle_90_30_60:
-    return "Triangle_90_30_60";
-  case kTriangle_30_90_60:
-    return "Triangle_30_90_60";
-  case kTriangleRight:
-    return "TriangleRight";
-  default:
-    return "Unknown";
+    case kSquare:
+      return "Square";
+    case kTriangle_30_60_90:
+      return "Triangle_30_60_90";
+    case kTriangle_60_90_30:
+      return "Triangle_60_90_30";
+    case kTriangle_90_30_60:
+      return "Triangle_90_30_60";
+    case kTriangle_30_90_60:
+      return "Triangle_30_90_60";
+    case kTriangleRight:
+      return "TriangleRight";
+    default:
+      return "Unknown";
   }
 };
 
 std::string Shape::RotationToString(Rotation rotation) {
   switch (rotation) {
-  case kRotationZero:
-    return "Zero";
-  case kRotationNinety:
-    return "Ninety";
-  case kRotationOneEighty:
-    return "OneEighty";
-  case kRotationTwoSeventy:
-    return "TwoSeventy";
-  default:
-    return "Unknown";
+    case kRotationZero:
+      return "Zero";
+    case kRotationNinety:
+      return "Ninety";
+    case kRotationOneEighty:
+      return "OneEighty";
+    case kRotationTwoSeventy:
+      return "TwoSeventy";
+    default:
+      return "Unknown";
   }
 };
 
@@ -78,38 +78,35 @@ ShapeType Shape::TypePlusOne(ShapeType type) {
 
 Point Shape::RotatePoint(Point point, Rotation rotation) {
   switch (rotation) {
-  case kRotationZero:
-    return point;
-  case kRotationNinety:
-    return {.x = 1.0f - point.y, .y = point.x};
-  case kRotationOneEighty:
-    return {.x = 1.0f - point.x, .y = 1.0f - point.y};
-  case kRotationTwoSeventy:
-    return {.x = point.y, .y = 1.0f - point.x};
-  default:
-    return point;
+    case kRotationZero:
+      return point;
+    case kRotationNinety:
+      return {.x = 1.0f - point.y, .y = point.x};
+    case kRotationOneEighty:
+      return {.x = 1.0f - point.x, .y = 1.0f - point.y};
+    case kRotationTwoSeventy:
+      return {.x = point.y, .y = 1.0f - point.x};
+    default:
+      return point;
   }
 };
 
 Shape::State Shape::state() const { return state_; }
 void Shape::set_state(State state) {
   state_ = state;
-  if (position_ != nullptr)
-    polygon_ = CreatePolygon(*position_);
+  if (position_ != nullptr) polygon_ = CreatePolygon(*position_);
 }
 
 Rotation Shape::rotation() const { return state_.rotation; }
 void Shape::set_rotation(Rotation rotation) {
   state_.rotation = rotation;
-  if (position_ != nullptr)
-    polygon_ = CreatePolygon(*position_);
+  if (position_ != nullptr) polygon_ = CreatePolygon(*position_);
 }
 
 ShapeType Shape::type() const { return state_.type; }
 void Shape::set_type(ShapeType type) {
   state_.type = type;
-  if (position_ != nullptr)
-    polygon_ = CreatePolygon(*position_);
+  if (position_ != nullptr) polygon_ = CreatePolygon(*position_);
 }
 
 Point Shape::position() const { return *position_; }
@@ -128,31 +125,33 @@ std::unique_ptr<Polygon> Shape::CreatePolygon(Point position) const {
 
   std::vector<Point> ratios;
   switch (state_.type) {
-  case kSquare:
-    ratios = {
-        {.x = 0, .y = 0}, {.x = 1, .y = 0}, {.x = 1, .y = 1}, {.x = 0, .y = 1}};
-    break;
-  case kTriangle_30_60_90:
-    ratios = {{.x = 0, .y = 0},
-              {.x = 1, .y = 0},
-              {.x = long_width_ratio, .y = short_height_ratio}};
-    break;
-  case kTriangle_60_90_30:
-    ratios = {{.x = 0, .y = 0},
-              {.x = 1, .y = 0},
-              {.x = short_width_ratio, .y = short_height_ratio}};
-    break;
-  case kTriangle_90_30_60:
-    ratios = {{.x = 0, .y = 0}, {.x = 1, .y = 0}, {.x = 0, .y = 0.5f}};
-    break;
-  case kTriangle_30_90_60:
-    ratios = {{.x = 0, .y = 0}, {.x = 1, .y = 0}, {.x = 1, .y = 0.5f}};
-    break;
-  case kTriangleRight:
-    ratios = {{.x = 0, .y = 0}, {.x = 1, .y = 0}, {.x = 1, .y = 1}};
-    break;
-  default:
-    ratios = {};
+    case kSquare:
+      ratios = {{.x = 0, .y = 0},
+                {.x = 1, .y = 0},
+                {.x = 1, .y = 1},
+                {.x = 0, .y = 1}};
+      break;
+    case kTriangle_30_60_90:
+      ratios = {{.x = 0, .y = 0},
+                {.x = 1, .y = 0},
+                {.x = long_width_ratio, .y = short_height_ratio}};
+      break;
+    case kTriangle_60_90_30:
+      ratios = {{.x = 0, .y = 0},
+                {.x = 1, .y = 0},
+                {.x = short_width_ratio, .y = short_height_ratio}};
+      break;
+    case kTriangle_90_30_60:
+      ratios = {{.x = 0, .y = 0}, {.x = 1, .y = 0}, {.x = 0, .y = 0.5f}};
+      break;
+    case kTriangle_30_90_60:
+      ratios = {{.x = 0, .y = 0}, {.x = 1, .y = 0}, {.x = 1, .y = 0.5f}};
+      break;
+    case kTriangleRight:
+      ratios = {{.x = 0, .y = 0}, {.x = 1, .y = 0}, {.x = 1, .y = 1}};
+      break;
+    default:
+      ratios = {};
   }
 
   std::vector<Point> vertices;
@@ -164,4 +163,4 @@ std::unique_ptr<Polygon> Shape::CreatePolygon(Point position) const {
   return std::unique_ptr<Polygon>(new Polygon(vertices));
 }
 
-} // namespace zebes
+}  // namespace zebes

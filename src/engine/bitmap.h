@@ -8,33 +8,36 @@
 #include "absl/status/statusor.h"
 
 inline constexpr uint16_t kBmpType = 0x4D42;
+inline constexpr uint16_t kBmpBytesPerPixel = 4;
+inline constexpr uint16_t kBmpBitsPerPixel = kBmpBytesPerPixel * 8;
 
 #pragma pack(push, 1)
 struct BitmapFileHeader {
-  uint16_t bf_type{kBmpType};  // 'BM'
-  uint32_t bf_size{0};         // Size of the file (in bytes)
-  uint16_t bf_reserved1{0};    // Reserved, must be zero
-  uint16_t bf_reserved2{0};    // Reserved, must be zero
-  uint32_t bf_offset_bits{54}; // Offset to the start of the pixel data
+  uint16_t bf_type = kBmpType;   // 'BM'
+  uint32_t bf_size = 0;          // Size of the file (in bytes)
+  uint16_t bf_reserved1 = 0;     // Reserved, must be zero
+  uint16_t bf_reserved2 = 0;     // Reserved, must be zero
+  uint32_t bf_offset_bits = 54;  // Offset to the start of the pixel data
 };
 
 struct BitmapInfoHeader {
-  uint32_t bi_size{40};             // Size of this header (in bytes)
-  int32_t bi_width{0};              // Width of the bitmap (in pixels)
-  int32_t bi_height{0};             // Height of the bitmap (in pixels)
-  uint16_t bi_planes{1};            // Number of planes (must be 1)
-  uint16_t bi_bit_count{24};        // Bits per pixel (24 for RGB)
-  uint32_t bi_compression{0};       // Compression type (0 for no compression)
-  uint32_t bi_size_image{0};        // Image size (in bytes)
-  int32_t bi_x_pixels_per_meter{0}; // Horizontal resolution (pixels per meter)
-  int32_t bi_y_pixels_per_meter{0}; // Vertical resolution (pixels per meter)
-  uint32_t bi_colors_used{0};       // Number of colors in the color table
-  uint32_t bi_colors_important{0};  // Number of important colors
+  uint32_t bi_size = 40;                     // Size of this header (in bytes)
+  int32_t bi_width = 0;                      // Width of the bitmap (in pixels)
+  int32_t bi_height = 0;                     // Height of the bitmap (in pixels)
+  uint16_t bi_planes = 1;                    // Number of planes (must be 1)
+  uint16_t bi_bit_count = kBmpBitsPerPixel;  // Bits per pixel (24 for RGB)
+  uint32_t bi_compression = 0;  // Compression type (0 for no compression)
+  uint32_t bi_size_image = 0;   // Image size (in bytes)
+  int32_t bi_x_pixels_per_meter =
+      0;  // Horizontal resolution (pixels per meter)
+  int32_t bi_y_pixels_per_meter = 0;  // Vertical resolution (pixels per meter)
+  uint32_t bi_colors_used = 0;        // Number of colors in the color table
+  uint32_t bi_colors_important = 0;   // Number of important colors
 };
 #pragma pack(pop)
 
 class Bitmap {
-public:
+ public:
   static absl::StatusOr<Bitmap> LoadFromBmp(const std::string &filename) {
     std::ifstream file(filename, std::ios::in | std::ios::binary);
     if (!file) {
@@ -47,7 +50,7 @@ public:
     file.read(reinterpret_cast<char *>(&file_header), sizeof(file_header));
     file.read(reinterpret_cast<char *>(&info_header), sizeof(info_header));
 
-    if (file_header.bf_type != kBmpType) { // Check if it's a BMP file
+    if (file_header.bf_type != kBmpType) {  // Check if it's a BMP file
       return absl::AbortedError("Not a valid BMP file!");
     }
 
@@ -55,7 +58,7 @@ public:
 
     for (int y = info_header.bi_height - 1; y >= 0; --y) {
       file.read(reinterpret_cast<char *>(bitmap.data_[y].data()),
-                info_header.bi_width * 3);
+                info_header.bi_width * kBmpBytesPerPixel);
     }
 
     file.close();
@@ -63,33 +66,39 @@ public:
   }
 
   Bitmap(int width, int height)
-      : width_(width), height_(height),
-        data_(height, std::vector<uint8_t>(width * 3, 0)) {}
+      : width_(width),
+        height_(height),
+        data_(height, std::vector<uint8_t>(width * kBmpBytesPerPixel, 0)) {}
 
   int width() const { return width_; }
 
   int height() const { return height_; }
 
-  absl::Status Set(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+  absl::Status Set(int x, int y, uint8_t r = 0, uint8_t g = 0, uint8_t b = 0,
+                   uint8_t a = 0) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) {
       return absl::InvalidArgumentError("Index out of bounds");
     }
-    size_t index = x * 3;
-    data_[y][index + 2] = r;
-    data_[y][index + 1] = g;
+    size_t index = x * kBmpBytesPerPixel;
     data_[y][index] = b;
+    data_[y][index + 1] = g;
+    data_[y][index + 2] = r;
+    data_[y][index + 3] = a;
 
     return absl::OkStatus();
   }
 
-  absl::Status Get(int x, int y, uint8_t *r, uint8_t *g, uint8_t *b) const {
+  absl::Status Get(int x, int y, uint8_t *r, uint8_t *g, uint8_t *b,
+                   uint8_t *a) const {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) {
       return absl::InvalidArgumentError("Index out of bounds");
     }
-    size_t index = x * 3;
-    *r = data_[y][index + 2];
-    *g = data_[y][index + 1];
+    size_t index = x * 4;
+
     *b = data_[y][index];
+    *g = data_[y][index + 1];
+    *r = data_[y][index + 2];
+    *a = data_[y][index + 3];
 
     return absl::OkStatus();
   }
@@ -98,7 +107,7 @@ public:
     data_.clear();
     width_ = width;
     height_ = height;
-    data_.resize(height_, std::vector<uint8_t>(width_ * 3, 0));
+    data_.resize(height_, std::vector<uint8_t>(width_ * kBmpBytesPerPixel, 0));
   }
 
   void Clear() { data_.clear(); }
@@ -108,10 +117,10 @@ public:
     BitmapInfoHeader info_header;
 
     file_header.bf_size = sizeof(BitmapFileHeader) + sizeof(BitmapInfoHeader) +
-                          width_ * height_ * 3;
+                          width_ * height_ * kBmpBytesPerPixel;
     info_header.bi_width = width_;
     info_header.bi_height = height_;
-    info_header.bi_size_image = width_ * height_ * 3;
+    info_header.bi_size_image = width_ * height_ * kBmpBytesPerPixel;
 
     std::ofstream out_file(filename, std::ios::out | std::ios::binary);
     if (!out_file) {
@@ -125,7 +134,7 @@ public:
 
     for (int y = height_ - 1; y >= 0; --y) {
       out_file.write(reinterpret_cast<const char *>(data_[y].data()),
-                     width_ * 3);
+                     width_ * kBmpBytesPerPixel);
     }
 
     out_file.close();
@@ -140,7 +149,7 @@ public:
 
     for (size_t row = 0; row < max_rows; ++row) {
       for (size_t col = 0; col < max_cols; ++col) {
-        size_t index = col * 3;
+        size_t index = col * kBmpBytesPerPixel;
         oss << "(" << static_cast<int>(data_[row][index]) << ", "
             << static_cast<int>(data_[row][index + 1]) << ", "
             << static_cast<int>(data_[row][index + 2]) << ") ";
@@ -158,7 +167,7 @@ public:
 
   void Print() const { LOG(INFO) << ToString(); }
 
-private:
+ private:
   int width_ = 0;
   int height_ = 0;
   std::vector<std::vector<uint8_t>> data_;

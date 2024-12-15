@@ -1,22 +1,23 @@
 #include "sprite_manager.h"
 
-#include <iostream>
 #include <sqlite3.h>
+
+#include <cstdint>
+#include <iostream>
+#include <memory>
 #include <vector>
 
 #include "SDL_image.h"
 #include "SDL_render.h"
-
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
-
 #include "camera.h"
-#include "config.h"
 #include "object.h"
 #include "sprite.h"
+#include "sprite_interface.h"
 
 namespace zebes {
 
@@ -51,20 +52,19 @@ absl::Status SpriteManager::Init() {
 
   while (sqlite3_step(stmt) == SQLITE_ROW) {
     SpriteConfig sprite_config;
-    sprite_config.type = static_cast<SpriteType>(sqlite3_column_int(stmt, 1));
+    sprite_config.id = sqlite3_column_int(stmt, 0);
+    sprite_config.type = sqlite3_column_int(stmt, 1);
     sprite_config.texture_path =
         reinterpret_cast<const char *>(sqlite3_column_text(stmt, 3));
     sprite_config.ticks_per_sprite = sqlite3_column_int(stmt, 4);
 
-    absl::StatusOr<std::vector<SubSprite>> maybe_subsprites =
-        GetSubSprites(sprite_config.type);
-    if (!maybe_subsprites.ok())
-      return maybe_subsprites.status();
-    sprite_config.sub_sprites = *maybe_subsprites;
+    absl::StatusOr<std::vector<SubSprite>> subsprites =
+        GetSubSprites(sprite_config.id);
+    if (!subsprites.ok()) return subsprites.status();
+    sprite_config.sub_sprites = *subsprites;
 
     absl::Status result = InitializeSprite(sprite_config);
-    if (!result.ok())
-      return result;
+    if (!result.ok()) return result;
   }
 
   sqlite3_finalize(stmt);
@@ -73,8 +73,8 @@ absl::Status SpriteManager::Init() {
   return absl::OkStatus();
 }
 
-absl::StatusOr<std::vector<SubSprite>>
-SpriteManager::GetSubSprites(SpriteType type) {
+absl::StatusOr<std::vector<SubSprite>> SpriteManager::GetSubSprites(
+    uint16_t sprite_id) {
   std::vector<SubSprite> sub_sprites;
 
   // Open the database
@@ -85,23 +85,23 @@ SpriteManager::GetSubSprites(SpriteType type) {
   }
 
   // Prepare the query
-  std::string query =
-      absl::StrFormat("SELECT "
-                      "texture_x, "
-                      "texture_y, "
-                      "texture_w, "
-                      "texture_h, "
-                      "texture_offset_x, "
-                      "texture_offset_y, "
-                      "render_w, "
-                      "render_h, "
-                      "render_offset_x, "
-                      "render_offset_y "
-                      "FROM SubSpriteConfig "
-                      "INNER JOIN SpriteConfig ON "
-                      "SubSpriteConfig.sprite_config_id = SpriteConfig.id "
-                      "WHERE SpriteConfig.type = %d",
-                      static_cast<int>(type));
+  std::string query = absl::StrFormat(
+      "SELECT "
+      "texture_x, "
+      "texture_y, "
+      "texture_w, "
+      "texture_h, "
+      "texture_offset_x, "
+      "texture_offset_y, "
+      "render_w, "
+      "render_h, "
+      "render_offset_x, "
+      "render_offset_y "
+      "FROM SubSpriteConfig "
+      "INNER JOIN SpriteConfig ON "
+      "SubSpriteConfig.sprite_config_id = SpriteConfig.id "
+      "WHERE SpriteConfig.id = %d",
+      static_cast<int>(sprite_id));
   sqlite3_stmt *stmt;
   return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
   if (return_code != SQLITE_OK) {
@@ -110,8 +110,7 @@ SpriteManager::GetSubSprites(SpriteType type) {
   }
 
   LOG(INFO) << __func__ << ": " << sqlite3_column_count(stmt);
-  LOG(INFO) << __func__ << ": "
-            << absl::StrFormat("type = %d", static_cast<int>(type));
+  LOG(INFO) << __func__ << ": " << absl::StrFormat("sprite_id = %d", sprite_id);
 
   // Fetch the sub sprites
   while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -156,8 +155,11 @@ SpriteManager::GetSubSprites(SpriteType type) {
 
 absl::Status SpriteManager::InitializeSprite(SpriteConfig sprite_config) {
   if (sprite_config.size() <= 0) {
-    return absl::InternalError("Sprite Config has invalid size.");
+    return absl::InternalError(absl::StrCat(
+        __func__,
+        "Sprite Config has invalid size, sprite_id: ", sprite_config.id));
   }
+
   SDL_Texture *texture = nullptr;
   auto texture_iter = path_to_texture_.find(sprite_config.texture_path);
   LOG(INFO) << __func__ << ": "
@@ -181,17 +183,38 @@ absl::Status SpriteManager::InitializeSprite(SpriteConfig sprite_config) {
     path_to_texture_.insert({sprite_config.texture_path, texture});
   }
 
-  sprites_.insert({sprite_config.type, Sprite(sprite_config)});
+  absl::StatusOr<std::unique_ptr<Sprite>> sprite =
+      Sprite::Create({.config = sprite_config, .renderer = renderer_});
+  if (!sprite.ok()) return sprite.status();
+
+  auto [it, inserted] = sprites_.emplace(sprite_config.id, std::move(*sprite));
+  if (!inserted) {
+    return absl::AbortedError("Failed to insert sprite.");
+  }
+
+  type_to_sprites_.insert({sprite_config.type, it->second.get()});
 
   return absl::OkStatus();
 }
 
-absl::StatusOr<const Sprite *> SpriteManager::GetSprite(SpriteType type) const {
-  auto sprite_iter = sprites_.find(type);
+absl::StatusOr<const Sprite *> SpriteManager::GetSprite(
+    uint16_t sprite_id) const {
+  auto sprite_iter = sprites_.find(sprite_id);
   if (sprite_iter == sprites_.end()) {
-    return absl::NotFoundError("Sprite not found.");
+    return absl::NotFoundError(
+        absl::StrCat("Sprite not found, sprite_id: ", sprite_id));
   }
-  return &sprite_iter->second;
+  return sprite_iter->second.get();
+}
+
+absl::StatusOr<const Sprite *> SpriteManager::GetSpriteByType(
+    uint16_t sprite_type) const {
+  auto it = type_to_sprites_.find(sprite_type);
+  if (it == type_to_sprites_.end()) {
+    return absl::NotFoundError(
+        absl::StrCat("Sprite not found, sprite_type: ", sprite_type));
+  }
+  return it->second;
 }
 
 absl::Status SpriteManager::AddSpriteObject(SpriteObjectInterface *object) {
@@ -202,16 +225,25 @@ absl::Status SpriteManager::AddSpriteObject(SpriteObjectInterface *object) {
 }
 
 void SpriteManager::Render() {
-
   for (SpriteObjectInterface *sprite_object : sprite_objects_) {
-    Sprite &sprite = sprites_.at(sprite_object->GetActiveSpriteProfile()->type);
-    const SpriteConfig *sprite_config = sprite.GetConfig();
+    uint16_t sprite_id = sprite_object->GetActiveSprite()->GetId();
+
+    auto it = sprites_.find(sprite_id);
+    if (it == sprites_.end()) {
+      LOG(ERROR) << "Sprite not found, sprite_id: " << sprite_id;
+      sprite_object->Destroy();
+      continue;
+    }
+    std::unique_ptr<Sprite> &sprite = it->second;
+
+    const SpriteConfig *sprite_config = sprite->GetConfig();
     int sprite_index = 0;
+
     if (sprite_config->ticks_per_sprite > 0) {
       sprite_index = sprite_object->GetActiveSpriteTicks() /
-                     sprite.GetConfig()->ticks_per_sprite;
+                     sprite->GetConfig()->ticks_per_sprite;
     }
-    const SubSprite *sub_sprite = sprite.GetSubSprite(sprite_index);
+    const SubSprite *sub_sprite = sprite->GetSubSprite(sprite_index);
 
     SDL_Texture *texture = path_to_texture_[sprite_config->texture_path];
     SDL_Rect dst_rect{
@@ -221,14 +253,15 @@ void SpriteManager::Render() {
         .w = sub_sprite->render_w,
         .h = sub_sprite->render_h,
     };
-    const SDL_Rect *src_rect = sprite.GetSource(sprite_index);
+    const SDL_Rect *src_rect = sprite->GetSource(sprite_index);
+    camera_->Render(texture, src_rect, &dst_rect);
 
-    camera_->Render(texture, sprite.GetSource(sprite_index), &dst_rect);
     const std::vector<Point> &vertices = *sprite_object->polygon()->vertices();
     absl::Status result = camera_->RenderLines(
         *sprite_object->polygon()->vertices(), DrawColor::kColorTile, false);
+
     if (!result.ok()) {
-      std::cerr << "Failed to render lines." << std::endl;
+      LOG(ERROR) << "Failed to render lines.";
       sprite_object->Destroy();
     }
   }
@@ -238,4 +271,4 @@ void SpriteManager::Render() {
   });
 }
 
-} // namespace zebes
+}  // namespace zebes

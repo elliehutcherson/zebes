@@ -4,7 +4,6 @@
 #include "camera_mock.h"
 #include "engine/camera_interface.h"
 #include "engine/config.h"
-#include "gmock/gmock-matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
@@ -17,10 +16,12 @@ using ::absl_testing::StatusIs;
 class CreatorTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    ASSERT_OK_AND_ASSIGN(GameConfig config, GameConfig::Create());
+    config_ = std::make_unique<GameConfig>(std::move(config));
     // Any common setup for the tests
     camera_mock_ = std::make_unique<CameraMock>();
     ASSERT_OK_AND_ASSIGN(creator_,
-                         Creator::Create({&config_, camera_mock_.get()}));
+                         Creator::Create({config_.get(), camera_mock_.get()}));
   }
 
   void TearDown() override {
@@ -28,12 +29,12 @@ class CreatorTest : public ::testing::Test {
     camera_mock_.reset();
   }
 
-  const GameConfig config_ = GameConfig::Create();
+  std::unique_ptr<GameConfig> config_;
   std::unique_ptr<CameraMock> camera_mock_;
   std::unique_ptr<Creator> creator_;
 };
 
-TEST_F(CreatorTest, SaveSucceeds) { EXPECT_OK(creator_->SaveConfig(config_)); }
+TEST_F(CreatorTest, SaveSucceeds) { EXPECT_OK(creator_->SaveConfig(*config_)); }
 
 TEST_F(CreatorTest, ImportFails) {
   EXPECT_THAT(creator_->ImportConfig("non_existent_file").status(),
@@ -41,10 +42,10 @@ TEST_F(CreatorTest, ImportFails) {
 }
 
 TEST_F(CreatorTest, ImportSucceeds) {
-  ASSERT_OK(creator_->SaveConfig(config_));
+  ASSERT_OK(creator_->SaveConfig(*config_));
 
   ASSERT_OK_AND_ASSIGN(const GameConfig imported_config,
-                       creator_->ImportConfig(config_.paths.config()));
+                       creator_->ImportConfig(config_->paths.config()));
 }
 
 }  // namespace
