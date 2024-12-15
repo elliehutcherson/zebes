@@ -1,3 +1,7 @@
+add_library(status_macros INTERFACE status_macros.h)
+target_link_libraries(status_macros INTERFACE absl::status)
+target_link_libraries(status_macros INTERFACE absl::statusor)
+
 add_library(bitmap INTERFACE bitmap.h)
 target_link_libraries(bitmap INTERFACE absl::status)
 target_link_libraries(bitmap INTERFACE absl::statusor)
@@ -8,6 +12,15 @@ target_link_libraries(vector INTERFACE absl::strings)
 
 add_library(util INTERFACE util.h)
 target_link_libraries(util INTERFACE vector)
+
+add_library(sprite_interface INTERFACE sprite_interface.h)
+target_link_libraries(sprite_interface INTERFACE SDL2-static SDL2_image SDL2_ttf)
+
+add_library(db_interface INTERFACE db_interface.h)
+target_link_libraries(db_interface INTERFACE absl::status)
+target_link_libraries(db_interface INTERFACE absl::statusor)
+target_link_libraries(db_interface INTERFACE sprite_interface)
+target_link_libraries(db_interface INTERFACE status_macros)
 
 add_library(logging logging.cc)
 target_link_libraries(logging absl::log)
@@ -29,6 +42,15 @@ target_link_libraries(shape sprite_interface)
 target_link_libraries(shape vector)
 target_link_libraries(shape polygon)
 
+add_library(db db.cc)
+target_link_libraries(db absl::strings)
+target_link_libraries(db absl::status)
+target_link_libraries(db absl::statusor)
+target_link_libraries(db ${SQLITE3_LIBRARIES})
+target_link_libraries(db status_macros)
+target_link_libraries(db sprite_interface)
+target_link_libraries(db db_interface)
+
 add_library(controller controller.cc)
 target_link_libraries(controller absl::log)
 target_link_libraries(controller absl::status)
@@ -46,9 +68,6 @@ target_link_libraries(texture_manager absl::status)
 target_link_libraries(texture_manager absl::flat_hash_map)
 target_link_libraries(texture_manager SDL2-static SDL2_image SDL2_ttf)
 target_link_libraries(texture_manager ${SQLITE3_LIBRARIES})
-
-add_library(sprite_interface INTERFACE sprite_interface.h)
-target_link_libraries(sprite_interface INTERFACE SDL2-static SDL2_image SDL2_ttf)
 
 add_library(sprite sprite.cc)
 target_link_libraries(sprite sprite_interface)

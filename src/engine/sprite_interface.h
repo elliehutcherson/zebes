@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "SDL_image.h"
 #include "SDL_render.h"
 
 namespace zebes {
@@ -68,8 +69,11 @@ struct SpriteConfig {
   // The type of the sprite, running right, idle left, etc.
   uint16_t type = 0;
 
+  // The type of the sprite, running right, idle left, etc.
+  std::string type_name;
+
   // Path from the binary to the png file.
-  std::string texture_path = "";
+  std::string texture_path;
 
   // Ticks each sub sprite is rendered per sprite cycle.
   int ticks_per_sprite = 0;
