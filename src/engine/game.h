@@ -14,8 +14,8 @@
 #include "nlohmann/json.hpp"
 #include "object.h"
 #include "player.h"
+#include "scene_manager.h"
 #include "sprite_manager.h"
-#include "tile_manager.h"
 
 namespace zebes {
 
@@ -71,8 +71,7 @@ class Game {
   std::unique_ptr<Db> db_;
   std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<CollisionManager> collision_manager_;
-  std::unique_ptr<TextureManager> texture_manager_;
-  std::unique_ptr<TileManager> tile_manager_;
+  std::unique_ptr<SceneManager> scene_manager_;
   std::unique_ptr<Player> player_;
   std::unique_ptr<Creator> creator_;
   std::unique_ptr<Object> object_;

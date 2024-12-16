@@ -6,6 +6,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "engine/config.h"
+#include "engine/mobile_object.h"
 #include "engine/object.h"
 #include "engine/sprite_manager.h"
 
@@ -24,7 +25,7 @@ Player::Player(const GameConfig *config) : config_(config){};
 
 absl::Status Player::Init(const SpriteManager *sprite_manager) {
   ObjectOptions object_options = {
-      .object_type = ObjectType::kPlayer,
+      .object_type = ObjectType::kMobile,
       .vertices = {
           {.x = config_->player_starting_x, .y = config_->player_starting_y},
           {.x = config_->player_starting_x + 32.0f,

@@ -16,6 +16,7 @@
 #include "object.h"
 #include "sprite.h"
 #include "sprite_interface.h"
+#include "sprite_object.h"
 #include "status_macros.h"
 
 namespace zebes {
@@ -128,46 +129,47 @@ absl::Status SpriteManager::AddSpriteObject(SpriteObjectInterface *object) {
   return absl::OkStatus();
 }
 
-void SpriteManager::Render() {
-  for (SpriteObjectInterface *sprite_object : sprite_objects_) {
-    const uint16_t sprite_id = sprite_object->GetActiveSprite()->GetId();
-    const uint16_t sprite_index = sprite_object->GetActiveSpriteIndex();
+absl::Status SpriteManager::Render(uint16_t sprite_id, int index,
+                                   Point position) {
+  auto it = sprites_.find(sprite_id);
+  if (it == sprites_.end())
+    return absl::InvalidArgumentError("Type not found.");
 
-    const auto it = sprites_.find(sprite_id);
-    if (it == sprites_.end()) {
-      LOG(ERROR) << "Sprite not found, sprite_id: " << sprite_id;
-      sprite_object->Destroy();
-      continue;
-    }
+  Sprite *sprite = it->second.get();
+  const SpriteConfig *config = sprite->GetConfig();
 
-    const Sprite *sprite = it->second.get();
-    const SpriteConfig *sprite_config = sprite->GetConfig();
-    const SubSprite *sub_sprite = sprite->GetSubSprite(sprite_index);
+  if (index >= config->size())
+    return absl::InvalidArgumentError("Index out of bounds.");
 
-    SDL_Texture *texture = path_to_texture_[sprite_config->texture_path];
-    SDL_Rect dst_rect{
-        .x = sub_sprite->render_offset_x +
-             sprite_object->polygon()->x_min_floor(),
-        .y = sprite_object->polygon()->y_max_floor() - sub_sprite->render_h,
-        .w = sub_sprite->render_w,
-        .h = sub_sprite->render_h,
-    };
-    const SDL_Rect *src_rect = sprite->GetSource(sprite_index);
-    camera_->Render(texture, src_rect, &dst_rect);
+  const SubSprite *sub_sprite = sprite->GetSubSprite(index);
 
-    const std::vector<Point> &vertices = *sprite_object->polygon()->vertices();
-    absl::Status result = camera_->RenderLines(
-        *sprite_object->polygon()->vertices(), DrawColor::kColorTile, false);
+  const SDL_Rect dst_rect{
+      .x = position.x_floor() + sub_sprite->render_offset_x,
+      .y = position.y_floor() + sub_sprite->render_offset_y,
+      .w = sub_sprite->render_w,
+      .h = sub_sprite->render_h,
+  };
+  const SDL_Rect *src_rect = sprite->GetSource(index);
 
-    if (!result.ok()) {
-      LOG(ERROR) << "Failed to render lines.";
-      sprite_object->Destroy();
-    }
-  }
+  camera_->Render(sprite->GetTexture(), src_rect, &dst_rect);
 
-  std::erase_if(sprite_objects_, [](SpriteObjectInterface *object) {
-    return object->IsDestroyed();
-  });
+  return absl::OkStatus();
+}
+
+SDL_Texture *SpriteManager::Experiment() {
+  static SDL_Texture *target_texture = nullptr;
+  if (target_texture != nullptr) return target_texture;
+
+  Sprite *sprite = type_to_sprites_.begin()->second;
+
+  target_texture = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888,
+                                     SDL_TEXTUREACCESS_TARGET, 256, 256);
+  SDL_SetRenderTarget(renderer_, target_texture);
+  SDL_RenderCopy(renderer_, sprite->GetTexture(), sprite->GetSource(0),
+                 nullptr);
+  SDL_SetRenderTarget(renderer_, nullptr);
+
+  return target_texture;
 }
 
 }  // namespace zebes

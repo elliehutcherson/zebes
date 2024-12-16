@@ -25,3 +25,6 @@
 [submodule "include/sqlite"]
 	path = include/sqlite
 	url = https://github.com/sqlite/sqlite.git
+[submodule "include/cereal"]
+	path = include/cereal
+	url = https://github.com/USCiLab/cereal.git

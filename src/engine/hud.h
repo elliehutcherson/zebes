@@ -9,7 +9,7 @@
 #include "engine/config.h"
 #include "engine/controller.h"
 #include "engine/focus.h"
-#include "engine/texture_manager.h"
+#include "engine/sprite_manager.h"
 #include "imgui.h"
 
 namespace zebes {
@@ -20,7 +20,7 @@ class Hud {
     const GameConfig *config;
     const Focus *focus;
     Controller *controller;
-    TextureManager *texture_manager;
+    SpriteManager *sprite_manager;
 
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -66,7 +66,7 @@ class Hud {
   const GameConfig *config_;
   const Focus *focus_;
   Controller *controller_;
-  TextureManager *texture_manager_;
+  SpriteManager *sprite_manager_;
 
   SDL_Renderer *renderer_;
   ImGuiIO *imgui_io_;

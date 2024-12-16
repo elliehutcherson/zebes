@@ -7,41 +7,39 @@
 #include "engine/bitmap.h"
 #include "engine/collision_manager.h"
 #include "engine/config.h"
+#include "engine/mobile_object.h"
 #include "engine/object.h"
 #include "engine/shape.h"
 #include "engine/sprite_manager.h"
-#include "engine/texture_manager.h"
+#include "engine/sprite_object.h"
 #include "engine/vector.h"
 
 namespace zebes {
 
-using SceneTiles =
-    absl::flat_hash_map<Point, std::unique_ptr<SpriteObject>, PointHash>;
-
 struct SceneLayer {
-  SceneTiles tiles;
+  int layer_id = 0;
+  absl::flat_hash_map<int, std::unique_ptr<ObjectInterface>> objects;
 };
 
 struct Scene {
   uint16_t id = 0;
   int width = 100000;
   int height = 100000;
-  absl::flat_hash_map<int, SceneLayer> layers;
+  absl::flat_hash_map<int, std::unique_ptr<SceneLayer>> layers;
 };
 
-class TileManager {
+class SceneManager {
  public:
   struct Options {
     const GameConfig *config;
-    TextureManager *texture_manager;
     SpriteManager *sprite_manager;
     CollisionManager *collision_manager;
   };
 
-  static absl::StatusOr<std::unique_ptr<TileManager>> Create(
+  static absl::StatusOr<std::unique_ptr<SceneManager>> Create(
       const Options &options);
 
-  ~TileManager() = default;
+  ~SceneManager() = default;
 
   uint16_t AddScene(int width, int height);
 
@@ -50,14 +48,15 @@ class TileManager {
   absl::Status AddLayerToScene(uint16_t scene_id, int layer,
                                const Bitmap &bitmap);
 
-  absl::Status AddTileToLayer(uint16_t scene_id, int layer, const Shape &shape);
+  absl::Status AddObjectToLayer(uint16_t scene_id, int layer_id,
+                                std::unique_ptr<ObjectInterface> object);
 
   absl::Status RemoveScene(uint16_t scene_id);
 
   absl::Status RemoveLayerFromScene(uint16_t scene_id, int layer);
 
-  absl::Status RemoveTileFromLayer(uint16_t scene_id, int layer,
-                                   const Point &position);
+  absl::Status RemoveObjectFromLayer(uint16_t scene_id, int layer,
+                                     uint64_t object_id);
 
   void Update();
 
@@ -66,7 +65,7 @@ class TileManager {
   void Clean();
 
  private:
-  TileManager(Options options);
+  SceneManager(Options options);
 
   void RenderLayer(SceneLayer &layer);
 
@@ -76,7 +75,6 @@ class TileManager {
   const GameConfig *config_;
   CollisionManager *collision_manager_;
   SpriteManager *sprite_manager_;
-  TextureManager *texture_manager_;
 };
 
 }  // namespace zebes

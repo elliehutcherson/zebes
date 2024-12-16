@@ -10,6 +10,7 @@
 #include "object.h"
 #include "sprite.h"
 #include "sprite_interface.h"
+#include "sprite_object.h"
 
 namespace zebes {
 
@@ -44,8 +45,11 @@ class SpriteManager {
   // rendered at the render step.
   absl::Status AddSpriteObject(SpriteObjectInterface *object);
 
-  // Render all objects registered.
-  void Render();
+  // Render all sprite's subsprite at index and position.
+  absl::Status Render(uint16_t sprite_id, int index, Point position);
+
+  // Experiment method to render a texture.
+  SDL_Texture *Experiment();
 
  private:
   SpriteManager(const Options &options);

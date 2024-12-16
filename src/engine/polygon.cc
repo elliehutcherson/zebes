@@ -17,7 +17,7 @@ namespace {
 
 Vector Distance(const Point &p1, const Point &p2) { return Vector(p1 - p2); };
 
-} // namespace
+}  // namespace
 
 const std::vector<Point> *Polygon::vertices() const { return &vertices_; }
 
@@ -39,18 +39,22 @@ int Polygon::y_max_floor() const { return vertices_[y_max_index_].y; }
 
 std::vector<Vector> Polygon::GetAxes() const {
   std::vector<Vector> axes;
+
   for (int i = 0; i < vertices_.size(); ++i) {
     const Point &p1 = vertices_[i];
     const Point &p2 = vertices_[(i + 1) % vertices_.size()];
+
     Vector axis = Vector(p2 - p1);
     axis = axis.normalize().orthogonal();
+
     axes.push_back(axis);
   }
+
   return axes;
 }
 
-const absl::flat_hash_map<uint8_t, AxisDirection> *
-Polygon::GetPrimaryAxes() const {
+const absl::flat_hash_map<uint8_t, AxisDirection> *Polygon::GetPrimaryAxes()
+    const {
   return &primary_axes_;
 }
 
@@ -73,8 +77,7 @@ std::optional<AxisOverlap> Polygon::GetOverlapOnAxis(const Polygon &other,
     b_max = std::max(b_max, projection);
   }
 
-  if (a_max < b_min || b_max < a_min)
-    return std::nullopt;
+  if (a_max < b_min || b_max < a_min) return std::nullopt;
 
   double a_delta = a_max - b_min;
   double b_delta = b_max - a_min;
@@ -89,29 +92,32 @@ std::optional<AxisOverlap> Polygon::GetOverlapOnAxis(const Polygon &other,
 PolygonOverlap Polygon::GetOverlap(const Polygon &other) const {
   PolygonOverlap polygon_overlap;
   int axis_index = 0;
+
   // Check each axis to see if it separates the two polygons.
   for (const Vector &axis : GetAxes()) {
     std::optional<AxisOverlap> axis_overlap = GetOverlapOnAxis(other, axis);
-    if (!axis_overlap.has_value())
-      return polygon_overlap;
+    if (!axis_overlap.has_value()) return polygon_overlap;
+
     const auto primary_iter = primary_axes_.find(axis_index++);
     if (primary_iter != primary_axes_.end()) {
       axis_overlap->is_primary = true;
       axis_overlap->primary_axis_direction = primary_iter->second;
     }
+
     polygon_overlap.AddAxisOverlap(*axis_overlap);
   }
 
   axis_index = 0;
   for (const Vector &axis : other.GetAxes()) {
     std::optional<AxisOverlap> axis_overlap = GetOverlapOnAxis(other, axis);
-    if (!axis_overlap.has_value())
-      return polygon_overlap;
+    if (!axis_overlap.has_value()) return polygon_overlap;
+
     const auto primary_iter = other.GetPrimaryAxes()->find(axis_index++);
     if (primary_iter != primary_axes_.end()) {
       axis_overlap->is_primary = true;
       axis_overlap->primary_axis_direction = primary_iter->second;
     }
+
     polygon_overlap.AddAxisOverlap(*axis_overlap);
   }
 
@@ -125,6 +131,7 @@ absl::Status Polygon::AddPrimaryAxisIndex(uint8_t index,
   if (index >= vertices_.size())
     return absl::OutOfRangeError(
         "Index out of range when tryting to add primary axis.");
+
   primary_axes_[index] = axis_direction;
   return absl::OkStatus();
 }
@@ -136,4 +143,4 @@ void Polygon::Move(float x, float y) {
   }
 }
 
-} // namespace zebes
+}  // namespace zebes

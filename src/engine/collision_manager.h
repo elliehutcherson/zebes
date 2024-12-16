@@ -4,7 +4,6 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
-
 #include "config.h"
 #include "object.h"
 #include "polygon.h"
@@ -24,9 +23,9 @@ struct CollisionArea {
 };
 
 class CollisionManager {
-public:
-  static absl::StatusOr<std::unique_ptr<CollisionManager>>
-  Create(const GameConfig *config, Camera *camera);
+ public:
+  static absl::StatusOr<std::unique_ptr<CollisionManager>> Create(
+      const GameConfig *config, Camera *camera);
   ~CollisionManager() = default;
   // Initialize collision manager, including areas.
   absl::Status Init();
@@ -52,7 +51,7 @@ public:
   // Check for new positions, and update areas.
   void CleanUp();
 
-private:
+ private:
   CollisionManager(const GameConfig *config, Camera *camera);
   // Check for collisions between all objects within the specified area.
   void UpdateArea(int area_id, ObjectInterface &object_a);
@@ -60,7 +59,7 @@ private:
   const GameConfig *config_;
   Camera *camera_;
 
-  absl::flat_hash_set<ObjectType> collsion_types_ = {ObjectType::kPlayer};
+  absl::flat_hash_set<ObjectType> collsion_types_ = {ObjectType::kMobile};
   absl::flat_hash_map<uint64_t, ObjectInterface *> objects_;
   absl::flat_hash_map<uint64_t, absl::flat_hash_set<int>>
       object_id_to_area_ids_;
@@ -70,4 +69,4 @@ private:
   absl::flat_hash_set<int> hashes_;
 };
 
-} // namespace zebes
+}  // namespace zebes

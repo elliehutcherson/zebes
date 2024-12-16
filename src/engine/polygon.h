@@ -6,7 +6,6 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-
 #include "engine/vector.h"
 
 namespace zebes {
@@ -109,43 +108,42 @@ struct PolygonOverlap {
   std::vector<AxisOverlap> axis_overlaps;
 
   int min_overlap_distance() const {
-    if (min_overlap_index < 0)
-      return 1000000;
+    if (min_overlap_index < 0) return 1000000;
     return axis_overlaps[min_overlap_index].min_distance();
   }
+
   int min_overlap_magnitude() const { return abs(min_overlap_distance()); }
+
   double min_overlap_x() const {
-    if (min_overlap_index < 0)
-      abort();
+    if (min_overlap_index < 0) abort();
     const AxisOverlap &axis_overlap = axis_overlaps[min_overlap_index];
     return axis_overlap.min_overlap_x();
   }
+
   double min_overlap_y() const {
-    if (min_overlap_index < 0)
-      abort();
+    if (min_overlap_index < 0) abort();
     const AxisOverlap &axis_overlap = axis_overlaps[min_overlap_index];
     return axis_overlap.min_overlap_y();
   }
 
   int min_primary_overlap_distance() const {
-    if (min_primary_overlap_index < 0)
-      return 1000000;
+    if (min_primary_overlap_index < 0) return 1000000;
     return axis_overlaps[min_primary_overlap_index].primary_distance();
   }
+
   int min_primary_overlap_magnitude() const {
-    if (min_primary_overlap_index < 0)
-      return 1000000;
+    if (min_primary_overlap_index < 0) return 1000000;
     return axis_overlaps[min_primary_overlap_index].primary_magitude();
   }
+
   double min_primary_overlap_x() const {
-    if (min_primary_overlap_index < 0)
-      abort();
+    if (min_primary_overlap_index < 0) abort();
     const AxisOverlap &axis_overlap = axis_overlaps[min_primary_overlap_index];
     return axis_overlap.primary_overlap_x();
   }
+
   double min_primary_overlap_y() const {
-    if (min_primary_overlap_index < 0)
-      abort();
+    if (min_primary_overlap_index < 0) abort();
     const AxisOverlap &axis_overlap = axis_overlaps[min_primary_overlap_index];
     return axis_overlap.primary_overlap_y();
   }
@@ -202,7 +200,7 @@ struct PolygonOverlap {
 };
 
 class Polygon {
-public:
+ public:
   Polygon(std::vector<Point> vertices) : vertices_(vertices) {
     float x_min = 1000000;
     float y_min = 1000000;
@@ -231,42 +229,56 @@ public:
   ~Polygon() = default;
   // Get vertices
   const std::vector<Point> *vertices() const;
+
   // Get the min x value from all vertices.
   float x_min() const;
+
   // Get the min x floor value from all vertices.
   int x_min_floor() const;
+
   // Get the max x value from all vertices.
   float x_max() const;
+
   // Get the max x floor value from all vertices.
   int x_max_floor() const;
+
   // Get the min y value from all vertices.
   float y_min() const;
+
   // Get the min y floor value from all vertices.
   int y_min_floor() const;
+
   // Get the max y value from all vertices.
   float y_max() const;
+
   // Get the max y floor value from all vertices.
   int y_max_floor() const;
+
   // Get debug info include list of vertices.
   std::string GetDebugString() const;
+
   // Get project axes.
   std::vector<Vector> GetAxes() const;
+
   // Get primary axes indices.
   const absl::flat_hash_map<uint8_t, AxisDirection> *GetPrimaryAxes() const;
+
   // Get overlap for all vectors on the specified axis.
   std::optional<AxisOverlap> GetOverlapOnAxis(const Polygon &other,
                                               const Vector &axis) const;
+
   // Return whether other polygon overlaps.
   PolygonOverlap GetOverlap(const Polygon &other) const;
+
   // Add primary axis index. This axis will be marked as a primary axis
   // when caculating the overlap between two objects.
-  absl::Status
-  AddPrimaryAxisIndex(uint8_t index,
-                      AxisDirection axis_direction = AxisDirection::axis_none);
+  absl::Status AddPrimaryAxisIndex(
+      uint8_t index, AxisDirection axis_direction = AxisDirection::axis_none);
+
   // Move all vertices.
   void Move(float x, float y);
 
-private:
+ private:
   std::vector<Point> vertices_;
   uint8_t x_min_index_ = 0;
   uint8_t x_max_index_ = 0;
@@ -278,4 +290,4 @@ private:
   absl::flat_hash_map<uint8_t, AxisDirection> primary_axes_;
 };
 
-} // namespace zebes
+}  // namespace zebes

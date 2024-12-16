@@ -10,6 +10,7 @@
 #include "engine/config.h"
 #include "engine/controller.h"
 #include "engine/logging.h"
+#include "engine/status_macros.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
@@ -51,10 +52,10 @@ absl::StatusOr<std::unique_ptr<Hud>> Hud::Create(Hud::Options options) {
     return absl::InvalidArgumentError("Focus must not be null.");
   if (options.controller == nullptr)
     return absl::InvalidArgumentError("Controller must not be null.");
-  if (options.texture_manager == nullptr)
-    return absl::InvalidArgumentError("TextureManager must not be null.");
-  absl::Status result = hud->Init(options.window, options.renderer);
-  if (!result.ok()) return result;
+  if (options.sprite_manager == nullptr)
+    return absl::InvalidArgumentError("SpriteManager must not be null.");
+
+  RETURN_IF_ERROR(hud->Init(options.window, options.renderer));
   return hud;
 }
 
@@ -62,7 +63,7 @@ Hud::Hud(Options options)
     : config_(options.config),
       focus_(options.focus),
       controller_(options.controller),
-      texture_manager_(options.texture_manager) {}
+      sprite_manager_(options.sprite_manager) {}
 
 absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
   renderer_ = renderer;
@@ -297,7 +298,7 @@ void Hud::RenderSceneWindow(int index) {
 }
 
 void Hud::RenderTextureWindow() {
-  RenderTextureToImGui(texture_manager_->Experiment(), 256, 256);
+  RenderTextureToImGui(sprite_manager_->Experiment(), 256, 256);
 }
 
 void Hud::RenderTerminalWindow() {

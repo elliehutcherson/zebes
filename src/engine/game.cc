@@ -7,16 +7,17 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
+#include "collision_manager.h"
+#include "config.h"
+#include "controller.h"
 #include "db.h"
-#include "engine/collision_manager.h"
-#include "engine/config.h"
-#include "engine/controller.h"
-#include "engine/object.h"
-#include "engine/polygon.h"
-#include "engine/tile_manager.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_internal.h"
+#include "object.h"
+#include "polygon.h"
+#include "scene_manager.h"
+#include "sprite_manager.h"
 #include "status_macros.h"
 
 namespace zebes {
@@ -75,7 +76,7 @@ absl::Status Game::Init() {
                    SpriteManager::Create(sprite_manager_options));
 
   LOG(INFO) << "Zebes: Initializing object...";
-  ObjectOptions object_options = {.object_type = ObjectType::kTile,
+  ObjectOptions object_options = {.object_type = ObjectType::kSprite,
                                   .vertices = {
                                       {.x = 300, .y = 700},
                                       {.x = 350, .y = 700},
@@ -111,23 +112,13 @@ absl::Status Game::Init() {
     RETURN_IF_ERROR(collision_manager_->AddObject(player_->GetObject()));
   }
 
-  LOG(INFO) << "Zebes: Initializing texture manager...";
-  TextureManager::Options texture_manager_options = {
-      .config = &config_,
-      .camera = camera_.get(),
-      .renderer = renderer_,
-  };
-  ASSIGN_OR_RETURN(texture_manager_,
-                   TextureManager::Create(texture_manager_options));
-
   LOG(INFO) << "Zebes: Initializing tile manager...";
-  struct TileManager::Options tile_manager_options = {
+  struct SceneManager::Options scene_manager_options = {
       .config = &config_,
-      .texture_manager = texture_manager_.get(),
       .sprite_manager = sprite_manager_.get(),
       .collision_manager = collision_manager_.get(),
   };
-  ASSIGN_OR_RETURN(tile_manager_, TileManager::Create(tile_manager_options));
+  ASSIGN_OR_RETURN(scene_manager_, SceneManager::Create(scene_manager_options));
 
   LOG(INFO) << "Zebes: Initializing controller...";
   Controller::Options controller_options = {
@@ -147,7 +138,7 @@ absl::Status Game::Init() {
   Hud::Options hud_options = {.config = &config_,
                               .focus = focus_,
                               .controller = controller_.get(),
-                              .texture_manager = texture_manager_.get(),
+                              .sprite_manager = sprite_manager_.get(),
                               .window = window_,
                               .renderer = renderer_};
 
@@ -201,7 +192,6 @@ void Game::Update() {
 void Game::Render() {
   SDL_RenderClear(renderer_);
   map_->Render();
-  sprite_manager_->Render();
   collision_manager_->Render();
   if (config_.mode == GameConfig::Mode::kCreatorMode) {
     camera_->RenderGrid();

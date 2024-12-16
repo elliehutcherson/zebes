@@ -68,6 +68,7 @@ add_subdirectory(include/SDL_ttf)
 add_subdirectory(include/googletest)
 add_subdirectory(include/abseil-cpp)
 add_subdirectory(include/nlohmann)
+add_subdirectory(include/cereal)
 
 include_directories(${SDL_INCLUDE_DIRS})
 include_directories(${SDLIMAGE_INCLUDE_DIRS})
@@ -75,6 +76,7 @@ include_directories(${SDLTTF_INCLUDE_DIRS})
 include_directories(include/googletest)
 include_directories(include/abseil-cpp)
 include_directories(include/nlohmann)
+include_directories(include/cereal/include)
 
 # ## All custom find cmake files live in the cmake directory
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})

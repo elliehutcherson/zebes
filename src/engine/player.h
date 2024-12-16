@@ -7,6 +7,7 @@
 #include "controller.h"
 #include "engine/sprite_manager.h"
 #include "focus.h"
+#include "mobile_object.h"
 #include "object.h"
 #include "sprite.h"
 
