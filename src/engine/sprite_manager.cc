@@ -130,23 +130,18 @@ absl::Status SpriteManager::AddSpriteObject(SpriteObjectInterface *object) {
 
 void SpriteManager::Render() {
   for (SpriteObjectInterface *sprite_object : sprite_objects_) {
-    uint16_t sprite_id = sprite_object->GetActiveSprite()->GetId();
+    const uint16_t sprite_id = sprite_object->GetActiveSprite()->GetId();
+    const uint16_t sprite_index = sprite_object->GetActiveSpriteIndex();
 
-    auto it = sprites_.find(sprite_id);
+    const auto it = sprites_.find(sprite_id);
     if (it == sprites_.end()) {
       LOG(ERROR) << "Sprite not found, sprite_id: " << sprite_id;
       sprite_object->Destroy();
       continue;
     }
-    std::unique_ptr<Sprite> &sprite = it->second;
 
+    const Sprite *sprite = it->second.get();
     const SpriteConfig *sprite_config = sprite->GetConfig();
-    int sprite_index = 0;
-
-    if (sprite_config->ticks_per_sprite > 0) {
-      sprite_index = sprite_object->GetActiveSpriteTicks() /
-                     sprite->GetConfig()->ticks_per_sprite;
-    }
     const SubSprite *sub_sprite = sprite->GetSubSprite(sprite_index);
 
     SDL_Texture *texture = path_to_texture_[sprite_config->texture_path];

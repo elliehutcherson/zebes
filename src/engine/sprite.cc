@@ -39,22 +39,7 @@ absl::Status Sprite::Init(SDL_Renderer *renderer) {
   return absl::OkStatus();
 }
 
-void Sprite::Update() {
-  int ticks_per_cycle = sprite_config_.size() * sprite_config_.ticks_per_sprite;
-  ticks_ = (ticks_ + 1) % ticks_per_cycle;
-  index_ = ticks_ / sprite_config_.ticks_per_sprite;
-  cycle_ += ticks_ % ticks_per_cycle ? 0 : 1;
-}
-
-void Sprite::Reset() {
-  ticks_ = 0;
-  index_ = 0;
-  cycle_ = 0;
-}
-
 SDL_Texture *Sprite::GetTexture() { return texture_; }
-
-SDL_Rect *Sprite::GetSource() { return &sources_[index_]; }
 
 const SDL_Rect *Sprite::GetSource(int index) const { return &sources_[index]; }
 
@@ -67,15 +52,5 @@ const SpriteConfig *Sprite::GetConfig() const { return &sprite_config_; }
 const SubSprite *Sprite::GetSubSprite(int index) const {
   return &sprite_config_.sub_sprites[index];
 }
-
-const SubSprite *Sprite::CurrentSubSprite() const {
-  return &sprite_config_.sub_sprites[index_];
-}
-
-int Sprite::GetTicks() const { return ticks_; }
-
-int Sprite::GetIndex() const { return index_; }
-
-uint16_t Sprite::GetCycle() const { return cycle_; }
 
 }  // namespace zebes

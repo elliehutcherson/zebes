@@ -91,17 +91,8 @@ struct SpriteConfig {
 
 class SpriteInterface {
  public:
-  // Update ticks
-  virtual void Update() = 0;
-
-  // Get Source texture rectangle.
-  virtual void Reset() = 0;
-
   // Get Source texture.
   virtual SDL_Texture *GetTexture() = 0;
-
-  // Get Source texture rectangle.
-  virtual SDL_Rect *GetSource() = 0;
 
   // Get Source texture rectangle.
   virtual const SDL_Rect *GetSource(int index) const = 0;
@@ -117,19 +108,6 @@ class SpriteInterface {
 
   // Get SubSprite.
   virtual const SubSprite *GetSubSprite(int index) const = 0;
-
-  // Return the subsprite using the internal index.
-  virtual const SubSprite *CurrentSubSprite() const = 0;
-
-  // Get the index for the current cycle.
-  virtual int GetIndex() const = 0;
-
-  // Get number of cycles, or the number of times a full
-  // animation has been played since reset.
-  virtual uint16_t GetCycle() const = 0;
-
-  // Get the ticks for the current cycle.
-  virtual int GetTicks() const = 0;
 };
 
 }  // namespace zebes
