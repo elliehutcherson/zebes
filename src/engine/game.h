@@ -6,6 +6,7 @@
 #include "config.h"
 #include "controller.h"
 #include "creator.h"
+#include "db.h"
 #include "focus.h"
 #include "hud.h"
 #include "imgui.h"
@@ -67,6 +68,7 @@ class Game {
   ImGuiIO imgui_io_;
 
   std::unique_ptr<Camera> camera_;
+  std::unique_ptr<Db> db_;
   std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<CollisionManager> collision_manager_;
   std::unique_ptr<TextureManager> texture_manager_;

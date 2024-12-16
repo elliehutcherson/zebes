@@ -6,6 +6,7 @@
 #include "absl/status/statusor.h"
 #include "camera.h"
 #include "config.h"
+#include "db_interface.h"
 #include "object.h"
 #include "sprite.h"
 #include "sprite_interface.h"
@@ -14,8 +15,16 @@ namespace zebes {
 
 class SpriteManager {
  public:
-  SpriteManager(const GameConfig *config, SDL_Renderer *renderer,
-                Camera *camera);
+  struct Options {
+    const GameConfig *config;
+    SDL_Renderer *renderer;
+    Camera *camera;
+    DbInterface *db;
+  };
+
+  static absl::StatusOr<std::unique_ptr<SpriteManager>> Create(
+      const Options &options);
+
   ~SpriteManager() = default;
 
   // Initialize all sprites.
@@ -39,6 +48,8 @@ class SpriteManager {
   void Render();
 
  private:
+  SpriteManager(const Options &options);
+
   // Retreive SubSpriteConfig records from database.
   absl::StatusOr<std::vector<SubSprite>> GetSubSprites(uint16_t sprite_id);
 
@@ -46,6 +57,7 @@ class SpriteManager {
   const GameConfig *config_;
   SDL_Renderer *renderer_;
   Camera *camera_;
+  DbInterface *db_;
 
   absl::flat_hash_map<std::string, SDL_Texture *> path_to_texture_;
   absl::flat_hash_map<uint16_t, std::unique_ptr<Sprite>> sprites_;

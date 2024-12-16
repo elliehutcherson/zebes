@@ -1,13 +1,12 @@
 #include "db.h"
 
-#include <sqlite3.h>
-
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "sprite_interface.h"
+#include "sqlite3.h"
 #include "status_macros.h"
 
 namespace zebes {
@@ -61,18 +60,15 @@ absl::StatusOr<uint16_t> Db::InsertSprite(const SpriteConfig &sprite_config) {
 
 absl::Status Db::DeleteSprite(uint16_t sprite_id) {
   // Open the database
-  sqlite3 *db;
-  int return_code = sqlite3_open(db_path_.c_str(), &db);
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to open database.");
-  }
+  ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
 
   // Prepare the statement to delete all subsprites
   std::string statement =
       absl::StrFormat("DELETE FROM SubSpriteConfig WHERE sprite_config_id = %d",
                       static_cast<int>(sprite_id));
 
-  return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
+  int return_code =
+      sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
   if (return_code != SQLITE_OK) {
     return absl::AbortedError("Failed to delete sprite.");
   }
@@ -95,11 +91,7 @@ absl::StatusOr<SpriteConfig> Db::GetSprite(uint16_t sprite_id) {
   SpriteConfig sprite_config;
 
   // Open the database
-  sqlite3 *db;
-  int return_code = sqlite3_open(db_path_.c_str(), &db);
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to open database.");
-  }
+  ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
 
   // Prepare the query
   std::string query = absl::StrFormat(
@@ -108,7 +100,7 @@ absl::StatusOr<SpriteConfig> Db::GetSprite(uint16_t sprite_id) {
       static_cast<int>(sprite_id));
 
   sqlite3_stmt *stmt;
-  return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
+  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
   if (return_code != SQLITE_OK) {
     sqlite3_close(db);
     return absl::AbortedError("Failed to prepare statement.");
@@ -131,16 +123,49 @@ absl::StatusOr<SpriteConfig> Db::GetSprite(uint16_t sprite_id) {
   return sprite_config;
 }
 
+absl::StatusOr<std::vector<SpriteConfig>> Db::GetAllSprites() {
+  std::vector<SpriteConfig> sprite_configs;
+
+  // Open the database
+  ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+
+  // Prepare the query
+  std::string query =
+      "SELECT id, type, type_name, texture_path, ticks_per_sprite "
+      "FROM SpriteConfig";
+
+  sqlite3_stmt *stmt;
+  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
+  if (return_code != SQLITE_OK) {
+    sqlite3_close(db);
+    return absl::AbortedError("Failed to prepare statement.");
+  }
+
+  // Fetch the sprite
+  while (sqlite3_step(stmt) == SQLITE_ROW) {
+    SpriteConfig sprite_config;
+    sprite_config.id = sqlite3_column_int(stmt, 0);
+    sprite_config.type = sqlite3_column_int(stmt, 1);
+    sprite_config.type_name = sqlite3_column_int(stmt, 2);
+    sprite_config.texture_path =
+        reinterpret_cast<const char *>(sqlite3_column_text(stmt, 3));
+    sprite_config.ticks_per_sprite = sqlite3_column_int(stmt, 4);
+
+    sprite_configs.push_back(sprite_config);
+  }
+
+  // Finalize the statement and close the database
+  sqlite3_finalize(stmt);
+  sqlite3_close(db);
+
+  return sprite_configs;
+};
+
 absl::StatusOr<std::vector<SubSprite>> Db::GetSubSprites(uint16_t sprite_id) {
   std::vector<SubSprite> sub_sprites;
 
   // Open the database
-  sqlite3 *db;
-  int return_code = sqlite3_open(db_path_.c_str(), &db);
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError(
-        absl::StrCat("Failed to open database, return_code: ", return_code));
-  }
+  ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
 
   // Prepare the query
   std::string query = absl::StrFormat(
@@ -162,14 +187,14 @@ absl::StatusOr<std::vector<SubSprite>> Db::GetSubSprites(uint16_t sprite_id) {
       sprite_id);
 
   sqlite3_stmt *stmt;
-  return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
+  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
   if (return_code != SQLITE_OK) {
     sqlite3_close(db);
     return absl::AbortedError("Failed to prepare statement.");
   }
 
   LOG(INFO) << __func__ << ": " << sqlite3_column_count(stmt);
-  LOG(INFO) << __func__ << ": " << absl::StrFormat("type = %d", sprite_id);
+  LOG(INFO) << __func__ << ": " << absl::StrFormat("sprite_id = %d", sprite_id);
 
   // Fetch the sub sprites
   while (sqlite3_step(stmt) == SQLITE_ROW) {

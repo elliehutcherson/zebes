@@ -23,6 +23,8 @@ class Db : public DbInterface {
 
   absl::StatusOr<SpriteConfig> GetSprite(uint16_t sprite_id) override;
 
+  absl::StatusOr<std::vector<SpriteConfig>> GetAllSprites() override;
+
   absl::StatusOr<std::vector<SubSprite>> GetSubSprites(
       uint16_t sprite_id) override;
 

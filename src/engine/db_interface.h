@@ -18,6 +18,8 @@ class DbInterface {
 
   virtual absl::StatusOr<SpriteConfig> GetSprite(uint16_t sprite_id) = 0;
 
+  virtual absl::StatusOr<std::vector<SpriteConfig>> GetAllSprites() = 0;
+
   virtual absl::StatusOr<std::vector<SubSprite>> GetSubSprites(
       uint16_t sprite_id) = 0;
 };

@@ -7,6 +7,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
+#include "db.h"
 #include "engine/collision_manager.h"
 #include "engine/config.h"
 #include "engine/controller.h"
@@ -16,6 +17,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_internal.h"
+#include "status_macros.h"
 
 namespace zebes {
 
@@ -52,21 +54,25 @@ absl::Status Game::Init() {
 
   LOG(INFO) << "Zebes: Initializing camera...";
   Camera::Options camera_options = {.config = &config_, .renderer = renderer_};
-  absl::StatusOr<std::unique_ptr<Camera>> camera =
-      Camera::Create(camera_options);
-  if (!camera.ok()) return camera.status();
-  camera_ = std::move(*camera);
+  ASSIGN_OR_RETURN(camera_, Camera::Create(camera_options));
 
   LOG(INFO) << "Zebes: Initializing map...";
   map_ = std::make_unique<Map>(&config_, camera_.get());
-  absl::Status result = map_->Init(renderer_);
-  if (!result.ok()) return result;
+  RETURN_IF_ERROR(map_->Init(renderer_));
+
+  LOG(INFO) << "Zebes: Initializing database...";
+  Db::Options db_options = {.db_path = kZebesDatabasePath};
+  ASSIGN_OR_RETURN(db_, Db::Create(db_options));
 
   LOG(INFO) << "Zebes: Initializing sprite manager...";
-  sprite_manager_ =
-      std::make_unique<SpriteManager>(&config_, renderer_, camera_.get());
-  result = sprite_manager_->Init();
-  if (!result.ok()) return result;
+  SpriteManager::Options sprite_manager_options = {
+      .config = &config_,
+      .renderer = renderer_,
+      .camera = camera_.get(),
+      .db = db_.get(),
+  };
+  ASSIGN_OR_RETURN(sprite_manager_,
+                   SpriteManager::Create(sprite_manager_options));
 
   LOG(INFO) << "Zebes: Initializing object...";
   ObjectOptions object_options = {.object_type = ObjectType::kTile,
@@ -75,48 +81,34 @@ absl::Status Game::Init() {
                                       {.x = 350, .y = 700},
                                       {.x = 325, .y = 750},
                                   }};
-  absl::StatusOr<std::unique_ptr<Object>> object =
-      Object::Create(object_options);
-  if (!object.ok()) return object.status();
-
-  object_ = std::move(*object);
-  result = object_->AddPrimaryAxisIndex(0, AxisDirection::axis_left);
-  if (!result.ok()) return result;
+  ASSIGN_OR_RETURN(object_, Object::Create(object_options));
+  RETURN_IF_ERROR(object_->AddPrimaryAxisIndex(0, AxisDirection::axis_left));
 
   if (config_.mode == GameConfig::Mode::kPlayerMode) {
     LOG(INFO) << "Zebes: Initializing player...";
-    absl::StatusOr<std::unique_ptr<Player>> player =
-        Player::Create(&config_, sprite_manager_.get());
-    if (!player.ok()) return player.status();
+    ASSIGN_OR_RETURN(player_, Player::Create(&config_, sprite_manager_.get()));
 
-    player_ = std::move(*player);
     focus_ = static_cast<Focus *>(player_.get());
-    result = sprite_manager_->AddSpriteObject(player_->GetObject());
-    if (!result.ok()) return result;
+    RETURN_IF_ERROR(sprite_manager_->AddSpriteObject(player_->GetObject()));
 
   } else if (config_.mode == GameConfig::Mode::kCreatorMode) {
     LOG(INFO) << "Zebes: Initializing creator...";
     Creator::Options options = {.config = &config_, .camera = camera_.get()};
-    absl::StatusOr<std::unique_ptr<Creator>> creator = Creator::Create(options);
-    if (!creator.ok()) return creator.status();
+    ASSIGN_OR_RETURN(creator_, Creator::Create(options));
 
-    creator_ = std::move(*creator);
     focus_ = static_cast<Focus *>(creator_.get());
-
   } else {
     return absl::InvalidArgumentError("Invalid game mode.");
   }
 
   LOG(INFO) << "Zebes: Initializing collision manager...";
-  absl::StatusOr<std::unique_ptr<CollisionManager>> collision_manager =
-      CollisionManager::Create(&config_, camera_.get());
-  if (!collision_manager.ok()) return collision_manager.status();
-  collision_manager_ = std::move(*collision_manager);
-  result = collision_manager_->AddObject(object_.get());
-  if (!result.ok()) return result;
+  ASSIGN_OR_RETURN(collision_manager_,
+                   CollisionManager::Create(&config_, camera_.get()));
+
+  RETURN_IF_ERROR(collision_manager_->AddObject(object_.get()));
+
   if (config_.mode == GameConfig::Mode::kPlayerMode) {
-    result = collision_manager_->AddObject(player_->GetObject());
-    if (!result.ok()) return result;
+    RETURN_IF_ERROR(collision_manager_->AddObject(player_->GetObject()));
   }
 
   LOG(INFO) << "Zebes: Initializing texture manager...";
@@ -125,10 +117,8 @@ absl::Status Game::Init() {
       .camera = camera_.get(),
       .renderer = renderer_,
   };
-  absl::StatusOr<std::unique_ptr<TextureManager>> texture_manager =
-      TextureManager::Create(texture_manager_options);
-  if (!texture_manager.ok()) return texture_manager.status();
-  texture_manager_ = std::move(*texture_manager);
+  ASSIGN_OR_RETURN(texture_manager_,
+                   TextureManager::Create(texture_manager_options));
 
   LOG(INFO) << "Zebes: Initializing tile manager...";
   struct TileManager::Options tile_manager_options = {
@@ -137,10 +127,7 @@ absl::Status Game::Init() {
       .sprite_manager = sprite_manager_.get(),
       .collision_manager = collision_manager_.get(),
   };
-  absl::StatusOr<std::unique_ptr<TileManager>> tile_manager =
-      TileManager::Create(tile_manager_options);
-  if (!tile_manager.ok()) return tile_manager.status();
-  tile_manager_ = std::move(*tile_manager);
+  ASSIGN_OR_RETURN(tile_manager_, TileManager::Create(tile_manager_options));
 
   LOG(INFO) << "Zebes: Initializing controller...";
   Controller::Options controller_options = {
@@ -153,10 +140,8 @@ absl::Status Game::Init() {
           LOG(ERROR) << "Controller: Save config failed: " << save_status;
         }
       }};
-  absl::StatusOr<std::unique_ptr<Controller>> controller =
-      Controller::Create(std::move(controller_options));
-  if (!controller.ok()) return controller.status();
-  controller_ = std::move(*controller);
+  ASSIGN_OR_RETURN(controller_,
+                   Controller::Create(std::move(controller_options)));
 
   LOG(INFO) << "Zebes: Initializing hud...";
   Hud::Options hud_options = {.config = &config_,
@@ -166,10 +151,7 @@ absl::Status Game::Init() {
                               .window = window_,
                               .renderer = renderer_};
 
-  absl::StatusOr<std::unique_ptr<Hud>> hud =
-      Hud::Create(std::move(hud_options));
-  if (!hud.ok()) return hud.status();
-  hud_ = std::move(*hud);
+  ASSIGN_OR_RETURN(hud_, Hud::Create(std::move(hud_options)));
 
   LOG(INFO) << "Zebes: Initialization done...";
   is_running_ = true;

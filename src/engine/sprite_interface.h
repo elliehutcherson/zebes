@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -7,6 +8,8 @@
 #include "SDL_render.h"
 
 namespace zebes {
+
+inline constexpr uint16_t kInvalidSpriteId = 0;
 
 enum class SpriteType : uint16_t {
   kEmpty = 0,
