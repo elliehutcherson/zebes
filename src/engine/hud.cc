@@ -348,11 +348,25 @@ void Hud::RenderTexturesWindow() {
     }
   }
 
+  ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
   int texture_index = 0;
   for (auto &[path, texture] : *sprite_manager_->GetAllTextures()) {
     int width, height;
     SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
+
+   // Get current cursor position
+    ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
+
+    // Render the texture to ImGui
     RenderTextureToImGui(texture, width, height);
+
+    // Calculate rectangle position and size
+    ImVec2 rect_min = cursor_pos;                           // Top-left corner
+    ImVec2 rect_max = ImVec2(cursor_pos.x + width, cursor_pos.y + height); // Bottom-right corner
+
+    // Draw rectangle around the texture
+    draw_list->AddRect(rect_min, rect_max, IM_COL32(0, 255, 0, 255), 0.0f, 0, 2.0f); // Green border, 2px thick
 
     ImGui::SameLine();
     std::string label = absl::StrCat("##TextureSettings", texture_index);
