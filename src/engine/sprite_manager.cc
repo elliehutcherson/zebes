@@ -71,10 +71,6 @@ absl::Status SpriteManager::InitializeSprite(SpriteConfig sprite_config) {
             << absl::StrFormat("sprite_config.texture_path = %s",
                                sprite_config.texture_path);
 
-  LOG(INFO) << __func__ << ": "
-            << absl::StrFormat("sprite_config.type = %d",
-                               static_cast<int>(sprite_config.type));
-
   if (texture_iter == path_to_texture_.end()) {
     SDL_Surface *tmp_surface = IMG_Load(sprite_config.texture_path.c_str());
     if (tmp_surface == nullptr)
@@ -102,9 +98,9 @@ absl::Status SpriteManager::InitializeSprite(SpriteConfig sprite_config) {
   return absl::OkStatus();
 }
 
-absl::flat_hash_map<std::string, SDL_Texture *> SpriteManager::GetAllTextures()
-    const {
-  return path_to_texture_;
+const absl::flat_hash_map<std::string, SDL_Texture *>
+    *SpriteManager::GetAllTextures() const {
+  return &path_to_texture_;
 }
 
 std::vector<uint16_t> SpriteManager::GetAllSpriteIds() const {
@@ -142,6 +138,21 @@ absl::Status SpriteManager::AddSpriteObject(SpriteObjectInterface *object) {
   return absl::OkStatus();
 }
 
+absl::Status SpriteManager::AddTexture(std::string path) {
+  SDL_Surface *tmp_surface = IMG_Load(path.c_str());
+  if (tmp_surface == nullptr)
+    return absl::AbortedError("Failed to create tmp_surface.");
+
+  SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer_, tmp_surface);
+  if (texture == nullptr)
+    return absl::AbortedError("Failed to create texture.");
+
+  SDL_FreeSurface(tmp_surface);
+  path_to_texture_.insert({path, texture});
+
+  return absl::OkStatus();
+}
+
 absl::Status SpriteManager::Render(uint16_t sprite_id, int index,
                                    Point position) {
   auto it = sprites_.find(sprite_id);
@@ -168,26 +179,5 @@ absl::Status SpriteManager::Render(uint16_t sprite_id, int index,
 
   return absl::OkStatus();
 }
-
-// const std::vector<SDL_Texture *> &SpriteManager::GetAllSpritesAsTextures() {
-//   if (!experiment_textures_.empty()) return experiment_textures_;
-
-//   for (auto &[_, sprite] : sprites_) {
-//     for (int i = 0; i < sprite->GetConfig()->size(); i++) {
-//       SDL_Texture *target_texture = SDL_CreateTexture(
-//           renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
-//           config_->tiles.render_width(), config_->tiles.render_height());
-
-//       SDL_SetRenderTarget(renderer_, target_texture);
-//       SDL_RenderCopy(renderer_, sprite->GetTexture(), sprite->GetSource(i),
-//                      nullptr);
-//       SDL_SetRenderTarget(renderer_, nullptr);
-
-//       experiment_textures_.push_back(target_texture);
-//     }
-//   }
-
-//   return experiment_textures_;
-// }
 
 }  // namespace zebes

@@ -100,8 +100,6 @@ absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
     sprite_objects_.insert({sprite_id, std::move(sprite_object)});
   }
 
-  path_to_texture_ = sprite_manager_->GetAllTextures();
-
   return absl::OkStatus();
 }
 
@@ -330,8 +328,28 @@ void Hud::RenderSceneWindow(int index) {
 }
 
 void Hud::RenderTexturesWindow() {
+  std::string label = absl::StrCat("##TextureImport");
+  ImGui::Text("Import Path: ");
+  ImGui::SameLine();
+  ImGui::InputText(label.c_str(), texture_import_path_,
+                   sizeof(texture_import_path_));
+  ImGui::SameLine();
+  if (ImGui::Button("Import")) {
+    std::string path = std::string(texture_import_path_);
+    LOG(INFO) << "Importing texture from path: " << path;
+
+    absl::Status status =
+        sprite_manager_->AddTexture(std::string(texture_import_path_));
+
+    if (!status.ok()) {
+      LOG(WARNING) << "Failed to import texture: " << status.message();
+    } else {
+      LOG(INFO) << "Successfully imported texture.";
+    }
+  }
+
   int texture_index = 0;
-  for (auto &[path, texture] : path_to_texture_) {
+  for (auto &[path, texture] : *sprite_manager_->GetAllTextures()) {
     int width, height;
     SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
     RenderTextureToImGui(texture, width, height);

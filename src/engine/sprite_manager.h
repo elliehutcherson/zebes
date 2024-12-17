@@ -36,7 +36,7 @@ class SpriteManager {
   absl::Status InitializeSprite(SpriteConfig config);
 
   // Get all textures by their paths.
-  absl::flat_hash_map<std::string, SDL_Texture *> GetAllTextures() const;
+  const absl::flat_hash_map<std::string, SDL_Texture *> *GetAllTextures() const;
 
   // Get all sprite_ids.
   std::vector<uint16_t> GetAllSpriteIds() const;
@@ -50,6 +50,9 @@ class SpriteManager {
   // Add any sprite object through this method. All sprite objects will be
   // rendered at the render step.
   absl::Status AddSpriteObject(SpriteObjectInterface *object);
+
+  // Add texture to the path_to_texture_ map.
+  absl::Status AddTexture(std::string path);
 
   // Render all sprite's subsprite at index and position.
   absl::Status Render(uint16_t sprite_id, int index, Point position);

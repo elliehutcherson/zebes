@@ -85,9 +85,10 @@ class Hud {
   int active_scene_ = -1;
   std::vector<Scene> scenes_;
   absl::flat_hash_set<int> removed_scenes_;
-  absl::flat_hash_map<std::string, SDL_Texture *> path_to_texture_;
   absl::flat_hash_map<uint16_t, std::unique_ptr<SpriteObject>> sprite_objects_;
   absl::flat_hash_map<uint16_t, SubSprite> sprite_settings_;
+
+  char texture_import_path_[4096];
 };
 
 }  // namespace zebes
