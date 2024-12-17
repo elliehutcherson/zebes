@@ -102,6 +102,14 @@ absl::Status SpriteManager::InitializeSprite(SpriteConfig sprite_config) {
   return absl::OkStatus();
 }
 
+std::vector<uint16_t> SpriteManager::GetAllSpriteIds() const {
+  std::vector<uint16_t> sprite_ids;
+  for (auto &[id, sprite] : sprites_) {
+    sprite_ids.push_back(id);
+  }
+  return sprite_ids;
+}
+
 absl::StatusOr<const Sprite *> SpriteManager::GetSprite(
     uint16_t sprite_id) const {
   auto sprite_iter = sprites_.find(sprite_id);
@@ -156,20 +164,25 @@ absl::Status SpriteManager::Render(uint16_t sprite_id, int index,
   return absl::OkStatus();
 }
 
-SDL_Texture *SpriteManager::Experiment() {
-  static SDL_Texture *target_texture = nullptr;
-  if (target_texture != nullptr) return target_texture;
+// const std::vector<SDL_Texture *> &SpriteManager::GetAllSpritesAsTextures() {
+//   if (!experiment_textures_.empty()) return experiment_textures_;
 
-  Sprite *sprite = type_to_sprites_.begin()->second;
+//   for (auto &[_, sprite] : sprites_) {
+//     for (int i = 0; i < sprite->GetConfig()->size(); i++) {
+//       SDL_Texture *target_texture = SDL_CreateTexture(
+//           renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+//           config_->tiles.render_width(), config_->tiles.render_height());
 
-  target_texture = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888,
-                                     SDL_TEXTUREACCESS_TARGET, 256, 256);
-  SDL_SetRenderTarget(renderer_, target_texture);
-  SDL_RenderCopy(renderer_, sprite->GetTexture(), sprite->GetSource(0),
-                 nullptr);
-  SDL_SetRenderTarget(renderer_, nullptr);
+//       SDL_SetRenderTarget(renderer_, target_texture);
+//       SDL_RenderCopy(renderer_, sprite->GetTexture(), sprite->GetSource(i),
+//                      nullptr);
+//       SDL_SetRenderTarget(renderer_, nullptr);
 
-  return target_texture;
-}
+//       experiment_textures_.push_back(target_texture);
+//     }
+//   }
+
+//   return experiment_textures_;
+// }
 
 }  // namespace zebes

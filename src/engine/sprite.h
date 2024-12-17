@@ -21,7 +21,9 @@ class Sprite : public SpriteInterface {
 
   ~Sprite() = default;
 
-  SDL_Texture *GetTexture() override;
+  SDL_Texture *GetTexture() const override;
+
+  SDL_Texture *GetTextureCopy(int index) const override;
 
   const SDL_Rect *GetSource(int index) const override;
 
@@ -43,6 +45,7 @@ class Sprite : public SpriteInterface {
   SpriteConfig sprite_config_;
   SDL_Texture *texture_;
   std::vector<SDL_Rect> sources_;
+  std::vector<SDL_Texture *> textures_copies_;
 };
 
 }  // namespace zebes

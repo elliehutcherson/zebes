@@ -1,6 +1,7 @@
 #include "sprite.h"
 
 #include "SDL_image.h"
+#include "SDL_render.h"
 
 namespace zebes {
 
@@ -36,10 +37,29 @@ absl::Status Sprite::Init(SDL_Renderer *renderer) {
   }
   SDL_FreeSurface(tmp_surface);
 
+  // Texture copies for rendering in creator hud.
+  for (int i = 0; i < sprite_config_.size(); i++) {
+    SDL_Texture *texture = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+        sprite_config_.sub_sprites[i].render_w,
+        sprite_config_.sub_sprites[i].render_h);
+
+    SDL_SetRenderTarget(renderer, texture);
+    SDL_RenderCopy(renderer, texture_, GetSource(i), nullptr);
+    SDL_SetRenderTarget(renderer, nullptr);
+
+    textures_copies_.push_back(texture);
+  }
+
   return absl::OkStatus();
 }
 
-SDL_Texture *Sprite::GetTexture() { return texture_; }
+SDL_Texture *Sprite::GetTexture() const { return texture_; }
+
+SDL_Texture *Sprite::GetTextureCopy(int index) const {
+  if (textures_copies_.size() <= index) return nullptr;
+  return textures_copies_[index];
+}
 
 const SDL_Rect *Sprite::GetSource(int index) const { return &sources_[index]; }
 

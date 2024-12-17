@@ -35,6 +35,9 @@ class SpriteManager {
   // texture has not been initialized before.
   absl::Status InitializeSprite(SpriteConfig config);
 
+  // Get all sprite_ids.
+  std::vector<uint16_t> GetAllSpriteIds() const;
+
   // Get a sprite by type. Returns not found if sprite type does not exist.
   absl::StatusOr<const Sprite *> GetSprite(uint16_t sprite_id) const;
 
@@ -47,9 +50,6 @@ class SpriteManager {
 
   // Render all sprite's subsprite at index and position.
   absl::Status Render(uint16_t sprite_id, int index, Point position);
-
-  // Experiment method to render a texture.
-  SDL_Texture *Experiment();
 
  private:
   SpriteManager(const Options &options);
@@ -67,6 +67,9 @@ class SpriteManager {
   absl::flat_hash_map<uint16_t, std::unique_ptr<Sprite>> sprites_;
   absl::flat_hash_map<uint16_t, Sprite *> type_to_sprites_;
   std::vector<SpriteObjectInterface *> sprite_objects_;
+
+  // Experiment method to render a texture in HUD.
+  std::vector<SDL_Texture *> experiment_textures_;
 };
 
 }  // namespace zebes

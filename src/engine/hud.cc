@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "SDL_render.h"
 #include "SDL_video.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
@@ -10,6 +11,7 @@
 #include "engine/config.h"
 #include "engine/controller.h"
 #include "engine/logging.h"
+#include "engine/sprite_object.h"
 #include "engine/status_macros.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
@@ -77,6 +79,27 @@ absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
   ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
   ImGui_ImplSDLRenderer2_Init(renderer);
   clear_color_ = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+  std::vector<Point> vertices = {{0, 0}, {0, 0}, {0, 0}, {0, 0}};
+
+  for (uint16_t sprite_id : sprite_manager_->GetAllSpriteIds()) {
+    ObjectOptions options = {.object_type = ObjectType::kSprite,
+                             .vertices = vertices,
+                             .sprite_ids = {sprite_id}};
+
+    ASSIGN_OR_RETURN(std::unique_ptr<SpriteObject> sprite_object,
+                     SpriteObject::Create(options));
+
+    ASSIGN_OR_RETURN(const SpriteInterface *sprite,
+                     sprite_manager_->GetSprite(sprite_id));
+
+    RETURN_IF_ERROR(sprite_object->AddSprite(sprite));
+    RETURN_IF_ERROR(sprite_object->SetActiveSprite(sprite_id));
+
+    sprite_settings_.insert({sprite_id, *sprite->GetSubSprite(0)});
+    sprite_objects_.insert({sprite_id, std::move(sprite_object)});
+  }
+
   return absl::OkStatus();
 }
 
@@ -94,6 +117,11 @@ void Hud::Update() {
     return removed_scenes_.contains(index++);
   });
   removed_scenes_.clear();
+
+  for (auto &[_, sprite_object] : sprite_objects_) {
+    LOG(INFO) << "Updating sprite object.";
+    sprite_object->Update();
+  }
 }
 
 void Hud::Render() {
@@ -298,7 +326,26 @@ void Hud::RenderSceneWindow(int index) {
 }
 
 void Hud::RenderTextureWindow() {
-  RenderTextureToImGui(sprite_manager_->Experiment(), 256, 256);
+  int texture_index = 0;
+  LOG(INFO) << "Rendering textures...";
+  for (auto &[_, sprite_object] : sprite_objects_) {
+    int active_index = sprite_object->GetActiveSpriteIndex();
+    const SpriteInterface *active_sprite = sprite_object->GetActiveSprite();
+    const SubSprite *active_sub_sprite =
+        active_sprite->GetSubSprite(active_index);
+
+    SDL_Texture *active_texture = active_sprite->GetTextureCopy(active_index);
+    RenderTextureToImGui(active_texture, active_sub_sprite->render_w,
+                         active_sub_sprite->render_h);
+
+    ImGui::SameLine();
+    std::string label = absl::StrCat("##TextureSettings", texture_index);
+    LOG(INFO) << label;
+    if (ImGui::CollapsingHeader(label.c_str())) {
+      ImGui::InputInt(label.c_str(), &sprite_settings_[texture_index].render_w);
+    }
+    texture_index++;
+  }
 }
 
 void Hud::RenderTerminalWindow() {

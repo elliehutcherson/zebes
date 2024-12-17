@@ -92,7 +92,11 @@ struct SpriteConfig {
 class SpriteInterface {
  public:
   // Get Source texture.
-  virtual SDL_Texture *GetTexture() = 0;
+  virtual SDL_Texture *GetTexture() const = 0;
+
+  // This will get a texture that is specific to the sub sprite,
+  // not the entire texture.
+  virtual SDL_Texture *GetTextureCopy(int index) const = 0;
 
   // Get Source texture rectangle.
   virtual const SDL_Rect *GetSource(int index) const = 0;

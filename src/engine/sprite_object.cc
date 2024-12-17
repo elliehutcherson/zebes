@@ -76,6 +76,8 @@ absl::Status SpriteObject::SetActiveSpriteByType(uint16_t sprite_type) {
 }
 
 const SpriteInterface *SpriteObject::GetActiveSprite() const {
+  LOG(INFO) << "Active sprite id: " << active_sprite_id_;
+  LOG(INFO) << sprites_.size() << " sprites in object.";
   return sprites_.at(active_sprite_id_);
 }
 
@@ -106,6 +108,8 @@ void SpriteObject::Update() {
   int ticks_per_cycle = sprite_config->ticks_per_sprite * sprite_config->size();
 
   active_sprite_ticks_++;
+  if (ticks_per_cycle == 0) return;
+
   active_sprite_cycles_ += (active_sprite_ticks_ / ticks_per_cycle);
   active_sprite_ticks_ = active_sprite_ticks_ % ticks_per_cycle;
 };
