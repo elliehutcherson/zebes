@@ -102,6 +102,11 @@ absl::Status SpriteManager::InitializeSprite(SpriteConfig sprite_config) {
   return absl::OkStatus();
 }
 
+absl::flat_hash_map<std::string, SDL_Texture *> SpriteManager::GetAllTextures()
+    const {
+  return path_to_texture_;
+}
+
 std::vector<uint16_t> SpriteManager::GetAllSpriteIds() const {
   std::vector<uint16_t> sprite_ids;
   for (auto &[id, sprite] : sprites_) {

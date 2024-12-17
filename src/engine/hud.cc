@@ -100,6 +100,8 @@ absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
     sprite_objects_.insert({sprite_id, std::move(sprite_object)});
   }
 
+  path_to_texture_ = sprite_manager_->GetAllTextures();
+
   return absl::OkStatus();
 }
 
@@ -119,7 +121,6 @@ void Hud::Update() {
   removed_scenes_.clear();
 
   for (auto &[_, sprite_object] : sprite_objects_) {
-    LOG(INFO) << "Updating sprite object.";
     sprite_object->Update();
   }
 }
@@ -171,7 +172,10 @@ void Hud::RenderCreatorMode() {
     RenderSceneWindowPrimary();
   }
   if (ImGui::CollapsingHeader("Textures")) {
-    RenderTextureWindow();
+    RenderTexturesWindow();
+  }
+  if (ImGui::CollapsingHeader("Sprites")) {
+    RenderSpritesWindow();
   }
   if (ImGui::CollapsingHeader("Terminal")) {
     RenderTerminalWindow();
@@ -325,9 +329,25 @@ void Hud::RenderSceneWindow(int index) {
   }
 }
 
-void Hud::RenderTextureWindow() {
+void Hud::RenderTexturesWindow() {
   int texture_index = 0;
-  LOG(INFO) << "Rendering textures...";
+  for (auto &[path, texture] : path_to_texture_) {
+    int width, height;
+    SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
+    RenderTextureToImGui(texture, width, height);
+
+    ImGui::SameLine();
+    std::string label = absl::StrCat("##TextureSettings", texture_index);
+    LOG(INFO) << label;
+    if (ImGui::CollapsingHeader(label.c_str())) {
+      ImGui::InputInt(label.c_str(), &sprite_settings_[texture_index].render_w);
+    }
+    texture_index++;
+  }
+}
+
+void Hud::RenderSpritesWindow() {
+  int texture_index = 0;
   for (auto &[_, sprite_object] : sprite_objects_) {
     int active_index = sprite_object->GetActiveSpriteIndex();
     const SpriteInterface *active_sprite = sprite_object->GetActiveSprite();

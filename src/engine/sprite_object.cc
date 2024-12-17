@@ -76,8 +76,6 @@ absl::Status SpriteObject::SetActiveSpriteByType(uint16_t sprite_type) {
 }
 
 const SpriteInterface *SpriteObject::GetActiveSprite() const {
-  LOG(INFO) << "Active sprite id: " << active_sprite_id_;
-  LOG(INFO) << sprites_.size() << " sprites in object.";
   return sprites_.at(active_sprite_id_);
 }
 

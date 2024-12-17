@@ -35,6 +35,9 @@ class SpriteManager {
   // texture has not been initialized before.
   absl::Status InitializeSprite(SpriteConfig config);
 
+  // Get all textures by their paths.
+  absl::flat_hash_map<std::string, SDL_Texture *> GetAllTextures() const;
+
   // Get all sprite_ids.
   std::vector<uint16_t> GetAllSpriteIds() const;
 
