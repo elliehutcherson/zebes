@@ -1,5 +1,8 @@
 #include "hud.h"
 
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -11,14 +14,25 @@
 #include "engine/config.h"
 #include "engine/controller.h"
 #include "engine/logging.h"
+#include "engine/sprite_interface.h"
 #include "engine/sprite_object.h"
 #include "engine/status_macros.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include "imgui_internal.h"
 
 namespace zebes {
 namespace {
+
+ImVec2 GetRelativePosition(const ImVec2 &offset_position, int scale) {
+  ImGuiIO &io = ImGui::GetIO();
+  ImVec2 mouse_position = io.MousePos;
+  ImVec2 relative_position;
+  relative_position.x = (mouse_position.x - offset_position.x) / scale;
+  relative_position.y = (mouse_position.y - offset_position.y) / scale;
+  return relative_position;
+}
 
 bool IsMouseOverRect(const ImVec2 &position, const ImVec2 &size) {
   ImGuiIO &io = ImGui::GetIO();
@@ -40,11 +54,27 @@ void RenderTextureToImGui(SDL_Texture *texture, int width, int height) {
 
   // Check if the texture was clicked.
   if (IsMouseOverRect(position, size) && ImGui::IsMouseClicked(0)) {
-    LOG(INFO) << "Texture clicked!";
+    ImGuiIO &io = ImGui::GetIO();
+    ImVec2 mouse_position = io.MousePos;
+    LOG(INFO) << absl::StrFormat("Texture mouse down, x: %f, y: %f",
+                                 mouse_position.x, mouse_position.y);
+  }
+
+  if (IsMouseOverRect(position, size) && ImGui::IsMouseReleased(0)) {
+    ImGuiIO &io = ImGui::GetIO();
+    ImVec2 mouse_position = io.MousePos;
+    LOG(INFO) << absl::StrFormat("Texture mouse down, x: %f, y: %f",
+                                 mouse_position.x, mouse_position.y);
   }
 }
 
 }  // namespace
+
+ImVec2 Hud::GetSourceCoordinates(const HudTexture &hud_texture,
+                                 Point coordinates) {
+  return ImVec2(coordinates.x / hud_texture.width,
+                coordinates.y / hud_texture.height);
+}
 
 absl::StatusOr<std::unique_ptr<Hud>> Hud::Create(Hud::Options options) {
   std::unique_ptr<Hud> hud(new Hud(options));
@@ -69,12 +99,16 @@ Hud::Hud(Options options)
 
 absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
   renderer_ = renderer;
+
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   imgui_io_ = &ImGui::GetIO();
+  imgui_io_->ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
   // Setup Dear ImGui style
   ImGui::StyleColorsDark();
+
   // Setup Platform/Renderer backends
   ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
   ImGui_ImplSDLRenderer2_Init(renderer);
@@ -96,8 +130,10 @@ absl::Status Hud::Init(SDL_Window *window, SDL_Renderer *renderer) {
     RETURN_IF_ERROR(sprite_object->AddSprite(sprite));
     RETURN_IF_ERROR(sprite_object->SetActiveSprite(sprite_id));
 
-    sprite_settings_.insert({sprite_id, *sprite->GetSubSprite(0)});
-    sprite_objects_.insert({sprite_id, std::move(sprite_object)});
+    auto hud_sprite = std::unique_ptr<HudSprite>(new HudSprite{
+        .sprite_id = sprite_id, .sprite_object = std::move(sprite_object)});
+
+    sprites_.insert({sprite_id, std::move(hud_sprite)});
   }
 
   return absl::OkStatus();
@@ -118,8 +154,27 @@ void Hud::Update() {
   });
   removed_scenes_.clear();
 
-  for (auto &[_, sprite_object] : sprite_objects_) {
-    sprite_object->Update();
+  for (auto &[_, sprite] : sprites_) {
+    sprite->sprite_object->Update();
+  }
+
+  if (sprite_manager_->GetAllTextures()->size() != name_to_textures_.size()) {
+    name_to_textures_.clear();
+    texture_names_.clear();
+    texture_names_.push_back("None");
+    for (auto &[path, texture] : *sprite_manager_->GetAllTextures()) {
+      int width, height;
+      SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
+
+      std::string name = path.substr(path.find_last_of('/') + 1);
+      HudTexture hud_texture = {.texture = texture,
+                                .name = name,
+                                .path = path,
+                                .width = width,
+                                .height = height};
+      texture_names_.push_back(strdup(hud_texture.name.c_str()));
+      name_to_textures_.insert({name, std::move(hud_texture)});
+    }
   }
 }
 
@@ -148,51 +203,30 @@ void Hud::RenderPlayerMode() {
   ImGui::End();
 }
 
-void Hud::RenderCreatorMode() {
-  ImGui::Begin("Creator Mode");
-
-  if (ImGui::CollapsingHeader("Camera Info")) {
-    ImGui::Text("%s", focus_->to_string().c_str());
-  }
-  if (ImGui::CollapsingHeader("Window Config")) {
-    RenderWindowConfig();
-  }
-  if (ImGui::CollapsingHeader("Boundary Config")) {
-    RenderBoundaryConfig();
-  }
-  if (ImGui::CollapsingHeader("Tile Config")) {
-    RenderTileConfig();
-  }
-  if (ImGui::CollapsingHeader("Collision Config")) {
-    RenderCollisionConfig();
-  }
-  if (ImGui::CollapsingHeader("Scene Creation")) {
-    RenderSceneWindowPrimary();
-  }
-  if (ImGui::CollapsingHeader("Textures")) {
-    RenderTexturesWindow();
-  }
-  if (ImGui::CollapsingHeader("Sprites")) {
-    RenderSpritesWindow();
-  }
-  if (ImGui::CollapsingHeader("Terminal")) {
-    RenderTerminalWindow();
-  }
-
-  ImGui::End();
-}
-
 void Hud::RenderWindowConfig() {
+  static bool full_screen = hud_config_.window.full_screen();
+  ImGui::PushItemWidth(100);
   ImGui::InputInt("window_width", &hud_config_.window.width);
+
+  ImGui::PushItemWidth(100);
   ImGui::InputInt("window_height", &hud_config_.window.height);
+
+  ImGui::PushItemWidth(100);
+  if (ImGui::Checkbox("FullScreen ", &full_screen)) {
+    hud_config_.window.flags = full_screen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+    LOG(INFO) << "Setting full screen to: " << full_screen;
+  }
+
   if (ImGui::Button("Apply")) {
     SaveConfig();
   }
+
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
     LOG(INFO) << "Reseting window config...";
     hud_config_.window = config_->window;
   }
+
   ImGui::SameLine();
   if (ImGui::Button("Reset to Default")) {
     LOG(INFO) << "Reseting to default window config...";
@@ -230,14 +264,17 @@ void Hud::RenderTileConfig() {
               hud_config_.tiles.source_width * hud_config_.tiles.scale);
   ImGui::Text("tile_render_height: %d",
               hud_config_.tiles.source_height * hud_config_.tiles.scale);
+
   if (ImGui::Button("Apply")) {
     SaveConfig();
   }
+
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
     LOG(INFO) << "Reseting tile config...";
     hud_config_.tiles = config_->tiles;
   }
+
   ImGui::SameLine();
   if (ImGui::Button("Reset to Default")) {
     LOG(INFO) << "Reseting to default tile config...";
@@ -281,14 +318,16 @@ void Hud::RenderSceneWindow(int index) {
   Scene &scene = scenes_[index];
   scene.index = index;
   ImGui::PushID(index);
-  // ImGui::Text("Scene %d", scene.index);
+  ImGui::Text("Scene %d", scene.index);
   ImGui::PopID();
 
   std::string label = absl::StrCat("##SceneSave", scene.index);
   ImGui::Text("Save Path: ");
   ImGui::SameLine();
+
   ImGui::InputText(label.c_str(), scene.save_path, 4096);
   ImGui::SameLine();
+
   if (ImGui::Button("Save")) {
     SaveConfig();
   }
@@ -296,8 +335,10 @@ void Hud::RenderSceneWindow(int index) {
   label = absl::StrCat("##SceneImport", scene.index);
   ImGui::Text("Import Path: ");
   ImGui::SameLine();
+
   ImGui::InputText(label.c_str(), scene.import_path, 4096);
   ImGui::SameLine();
+
   if (ImGui::Button("Import")) {
     LOG(INFO) << "Importing layer..." << std::endl;
   }
@@ -319,9 +360,11 @@ void Hud::RenderSceneWindow(int index) {
     label = "Deactivate";
     pop_color = true;
   }
+
   if (ImGui::Button(label.c_str())) {
     active_scene_ = scene.index;
   }
+
   if (pop_color) {
     ImGui::PopStyleColor();
   }
@@ -331,9 +374,11 @@ void Hud::RenderTexturesWindow() {
   std::string label = absl::StrCat("##TextureImport");
   ImGui::Text("Import Path: ");
   ImGui::SameLine();
+
   ImGui::InputText(label.c_str(), texture_import_path_,
                    sizeof(texture_import_path_));
   ImGui::SameLine();
+
   if (ImGui::Button("Import")) {
     std::string path = std::string(texture_import_path_);
     LOG(INFO) << "Importing texture from path: " << path;
@@ -348,56 +393,430 @@ void Hud::RenderTexturesWindow() {
     }
   }
 
-  ImDrawList* draw_list = ImGui::GetWindowDrawList();
-
   int texture_index = 0;
-  for (auto &[path, texture] : *sprite_manager_->GetAllTextures()) {
-    int width, height;
-    SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
+  ImDrawList *draw_list = ImGui::GetWindowDrawList();
 
-   // Get current cursor position
-    ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
-
-    // Render the texture to ImGui
-    RenderTextureToImGui(texture, width, height);
-
-    // Calculate rectangle position and size
-    ImVec2 rect_min = cursor_pos;                           // Top-left corner
-    ImVec2 rect_max = ImVec2(cursor_pos.x + width, cursor_pos.y + height); // Bottom-right corner
-
-    // Draw rectangle around the texture
-    draw_list->AddRect(rect_min, rect_max, IM_COL32(0, 255, 0, 255), 0.0f, 0, 2.0f); // Green border, 2px thick
-
-    ImGui::SameLine();
-    std::string label = absl::StrCat("##TextureSettings", texture_index);
-    LOG(INFO) << label;
-    if (ImGui::CollapsingHeader(label.c_str())) {
-      ImGui::InputInt(label.c_str(), &sprite_settings_[texture_index].render_w);
-    }
-    texture_index++;
+  for (auto &[_, hud_texture] : name_to_textures_) {
+    RenderTextureCollapse(draw_list, hud_texture, texture_index++);
   }
 }
 
+void Hud::RenderTextureCollapse(ImDrawList *draw_list, HudTexture &hud_texture,
+                                int texture_index) {
+  std::string label = absl::StrCat("##TextureSettings", texture_index);
+  if (!ImGui::CollapsingHeader(label.c_str())) return;
+
+  // Get current cursor position
+  const ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
+
+  // Render the texture to ImGui
+  RenderTextureToImGui(hud_texture.texture, hud_texture.width,
+                       hud_texture.height);
+
+  // Calculate rectangle position and size
+  const ImVec2 rect_min = cursor_pos;  // Top-left corner
+  const ImVec2 rect_max =
+      ImVec2(cursor_pos.x + hud_texture.width,
+             cursor_pos.y + hud_texture.height);  // Bottom-right corner
+
+  // Draw rectangle around the texture
+  draw_list->AddRect(rect_min, rect_max, IM_COL32(0, 255, 0, 255), 0.0f, 0,
+                     2.0f);  // Green border, 2px thick
+}
+
 void Hud::RenderSpritesWindow() {
-  int texture_index = 0;
-  for (auto &[_, sprite_object] : sprite_objects_) {
-    int active_index = sprite_object->GetActiveSpriteIndex();
-    const SpriteInterface *active_sprite = sprite_object->GetActiveSprite();
-    const SubSprite *active_sub_sprite =
-        active_sprite->GetSubSprite(active_index);
-
-    SDL_Texture *active_texture = active_sprite->GetTextureCopy(active_index);
-    RenderTextureToImGui(active_texture, active_sub_sprite->render_w,
-                         active_sub_sprite->render_h);
-
-    ImGui::SameLine();
-    std::string label = absl::StrCat("##TextureSettings", texture_index);
-    LOG(INFO) << label;
-    if (ImGui::CollapsingHeader(label.c_str())) {
-      ImGui::InputInt(label.c_str(), &sprite_settings_[texture_index].render_w);
-    }
-    texture_index++;
+  if (ImGui::Button("Create New Sprite")) {
+    editting_state_.sprite_id = UINT16_MAX;
+    LOG(INFO) << "Creating new sprite...";
   }
+
+  // Only set collapsed state in the case that the button is clicked. This will
+  // apply to all sprite windows.
+  std::optional<bool> expand_header;
+
+  ImGui::SameLine();
+  if (ImGui::Button("Collapse All##Sprites")) {
+    LOG(INFO) << "Collapsing all sprite windows...";
+    expand_header = false;
+  }
+
+  ImGui::SameLine();
+  if (ImGui::Button("Expand All##Sprites")) {
+    LOG(INFO) << "Expanding all sprite windows...";
+    expand_header = true;
+  }
+
+  ImDrawList *draw_list = ImGui::GetWindowDrawList();
+  for (auto &[_, sprite] : sprites_) {
+    if (expand_header.has_value()) {
+      ImGui::SetNextItemOpen(*expand_header);
+    }
+    if (ImGui::CollapsingHeader(sprite->label_main.c_str())) {
+      RenderSpriteCollapse(draw_list, *sprite);
+    }
+  }
+}
+
+void Hud::RenderSpriteCollapse(ImDrawList *draw_list, HudSprite &sprite) {
+  int active_index = sprite.sprite_object->GetActiveSpriteIndex();
+
+  ImGui::BeginDisabled(true);
+  int sprite_id = sprite.sprite_id;
+  ImGui::InputInt(sprite.label_sprite_id.c_str(), &sprite_id);
+  ImGui::EndDisabled();
+
+  ImGui::InputText(sprite.label_type_name.c_str(),
+                   sprite.hud_config.type_name.data(),
+                   sizeof(sprite.hud_config.type_name));
+  ImGui::InputInt(sprite.label_ticks_per_sprite.c_str(),
+                  &sprite.hud_config.ticks_per_sprite);
+
+  std::string apply_label = absl::StrCat("Apply##", sprite.unique_name);
+  if (ImGui::Button(apply_label.c_str())) {
+    LOG(INFO) << "Applying sprite changes...";
+  }
+
+  ImGui::SameLine();
+  std::string edit_label = absl::StrCat("Edit Animation", sprite.unique_name);
+  if (ImGui::Button(edit_label.c_str())) {
+    editting_state_.sprite_id = sprite.sprite_id;
+    LOG(INFO) << "Editting sprite animation...";
+  }
+
+  ImGui::SameLine();
+  std::string pause_label = absl::StrCat("Pause", sprite.unique_name);
+  if (ImGui::Button(pause_label.c_str())) {
+    LOG(INFO) << "Pausing sprite animation...";
+  }
+
+  ImGui::SameLine();
+  std::string delete_label = absl::StrCat("Delete", sprite.unique_name);
+  if (ImGui::Button(delete_label.c_str())) {
+    LOG(INFO) << "Deleting sprite...";
+  }
+
+  // Get active sprite from sprite object, there could be multiple sprites
+  // per object
+  const SpriteInterface *active_sprite =
+      sprite.sprite_object->GetActiveSprite();
+
+  // Get sub sprite from sprite for configuration information (height,
+  // width)
+  const SubSprite *active_sub_sprite =
+      active_sprite->GetSubSprite(active_index);
+
+  // Get texture from sprite
+  SDL_Texture *active_texture = active_sprite->GetTextureCopy(active_index);
+
+  // Render the texture to ImGui
+  RenderTextureToImGui(active_texture, active_sub_sprite->render_w,
+                       active_sub_sprite->render_h);
+}
+
+void Hud::RenderSpriteEditor() {
+  if (editting_state_.sprite_id == 0) {
+    ImGui::Text("Create a new sprite or edit an existing sprite to begin.");
+    return;
+  }
+
+  ImGui::SetNextItemWidth(150.0f);
+  const char **texture_names = texture_names_.data();
+  ImGui::Combo("Texture Select", &editting_state_.texture_index, texture_names,
+               sizeof(texture_names));
+
+  if (editting_state_.texture_index == 0) {
+    ImGui::Text("No texture selected.");
+    return;
+  }
+
+  ImGui::NewLine();
+
+  ImGui::BeginDisabled(true);
+  ImGui::SetNextItemWidth(150.0f);
+  int temp_sprite_id = editting_state_.sprite_id;
+  ImGui::InputInt("Sprite ID", &temp_sprite_id);
+  ImGui::EndDisabled();
+
+  ImGui::SetNextItemWidth(150.0f);
+  int temp_ticks_per_sprite = editting_state_.ticks_per_sprite;
+  if (ImGui::InputInt("Ticks Per Sprite", &temp_ticks_per_sprite)) {
+    editting_state_.ticks_per_sprite =
+        std::clamp(temp_ticks_per_sprite, 0, 100);
+  }
+
+  ImGui::SetNextItemWidth(150.0f);
+  int temp_type = editting_state_.type;
+  if (ImGui::InputInt("Type", &temp_type)) {
+    editting_state_.type = std::clamp(temp_type, 0, UINT16_MAX);
+  }
+
+  ImGui::SetNextItemWidth(150.0f);
+  ImGui::InputText("Type Name", editting_state_.type_name.data(),
+                   sizeof(editting_state_.type_name));
+
+  ImGui::Checkbox("Interactable", &editting_state_.interactable);
+
+  absl::StatusOr<HudTexture *> texture_result =
+      FindTextureByIndex(editting_state_.texture_index);
+  if (!texture_result.ok()) {
+    ImGui::Text("Texture not found.");
+    return;
+  }
+  HudTexture &hud_texture = *texture_result.value();
+
+  ImGui::NewLine();
+  if (ImGui::Button("Add Sub Sprite")) {
+    editting_state_.sub_sprites.push_back({
+        .active = false,
+        .index = editting_state_.sub_sprites.size(),
+    });
+  }
+
+  ImGui::SameLine();
+  if (ImGui::Button("Delete Sub Sprite")) {
+    if (!editting_state_.sub_sprites.empty()) {
+      editting_state_.sub_sprites.pop_back();
+    }
+  }
+
+  ImGui::NewLine();
+
+  // Sub sprite settings.
+  bool already_active = false;
+  for (size_t i = 0; i < editting_state_.sub_sprites.size(); i++) {
+    absl::Status result = RenderSubSpriteEditor(i, already_active);
+    if (!result.ok()) {
+      LOG(WARNING) << "Failed to render sub sprite editor: "
+                   << result.message();
+    }
+  }
+
+  if (editting_state_.zoom < 1) {
+    editting_state_.zoom = 1;
+  }
+
+  ImGui::NewLine();
+  ImGui::SetNextItemWidth(150.0f);
+  ImGui::InputInt("Texture Zoom", &editting_state_.zoom);
+  ImGui::NewLine();
+
+  // Create a temporary ImGui texture ID
+  ImTextureID texture_id = (ImTextureID)(intptr_t)hud_texture.texture;
+  ImVec2 size = ImVec2(hud_texture.width * editting_state_.zoom,
+                       hud_texture.height * editting_state_.zoom);
+
+  // Position must be set before rendering the image.
+  ImVec2 offset_position = ImGui::GetCursorScreenPos();
+  ImGui::Image(texture_id, size);
+
+  ImVec2 relative_position;
+  // Check if the texture was clicked.
+  if (IsMouseOverRect(offset_position, size) && ImGui::IsMouseClicked(0)) {
+    editting_state_.selection_start =
+        GetRelativePosition(offset_position, editting_state_.zoom);
+    editting_state_.selection_end = editting_state_.selection_start;
+  }
+
+  if (IsMouseOverRect(offset_position, size) && ImGui::IsMouseDown(0)) {
+    editting_state_.selection_end =
+        GetRelativePosition(offset_position, editting_state_.zoom);
+  }
+
+  if (IsMouseOverRect(offset_position, size) && ImGui::IsMouseReleased(0)) {
+    if (editting_state_.selection_start.has_value()) {
+      editting_state_.selection_start->x =
+          std::round(editting_state_.selection_start->x);
+      editting_state_.selection_start->y =
+          std::round(editting_state_.selection_start->y);
+    }
+    if (editting_state_.selection_end.has_value()) {
+      editting_state_.selection_end->x =
+          std::round(editting_state_.selection_end->x);
+      editting_state_.selection_end->y =
+          std::round(editting_state_.selection_end->y);
+    }
+
+    int active_index = editting_state_.GetActiveIndex();
+    if (active_index >= 0) {
+      SubSprite &sub_sprite =
+          editting_state_.sub_sprites[active_index].sub_sprite;
+      sub_sprite.texture_x = editting_state_.selection_start->x;
+      sub_sprite.texture_y = editting_state_.selection_start->y;
+      sub_sprite.texture_w =
+          editting_state_.selection_end->x - editting_state_.selection_start->x;
+      sub_sprite.texture_h =
+          editting_state_.selection_end->y - editting_state_.selection_start->y;
+      sub_sprite.render_w = sub_sprite.texture_w;
+      sub_sprite.render_h = sub_sprite.texture_h;
+    }
+  }
+
+  if (editting_state_.selection_start.has_value() &&
+      editting_state_.selection_end.has_value()) {
+    ImVec2 min = ImVec2(std::min(editting_state_.selection_start->x,
+                                 editting_state_.selection_end->x),
+                        std::min(editting_state_.selection_start->y,
+                                 editting_state_.selection_end->y));
+    ImVec2 max = ImVec2(std::max(editting_state_.selection_start->x,
+                                 editting_state_.selection_end->x),
+                        std::max(editting_state_.selection_start->y,
+                                 editting_state_.selection_end->y));
+
+    min.x = (min.x * editting_state_.zoom) + offset_position.x;
+    min.y = (min.y * editting_state_.zoom) + offset_position.y;
+
+    max.x = (max.x * editting_state_.zoom) + offset_position.x;
+    max.y = (max.y * editting_state_.zoom) + offset_position.y;
+
+    float thickness = static_cast<float>(editting_state_.zoom);
+    ImGui::GetWindowDrawList()->AddRect(min, max, IM_COL32(0, 255, 0, 255),
+                                        0.0f, 0, thickness);
+  }
+}
+
+absl::Status Hud::RenderSubSpriteEditor(int index, bool &already_active) {
+  // Get texture from texture index
+  ASSIGN_OR_RETURN(HudTexture * hud_texture,
+                   FindTextureByIndex(editting_state_.texture_index));
+
+  // Get sub sprite from sprite index
+  if (editting_state_.sub_sprites.size() <= index) {
+    return absl::InvalidArgumentError("Sub sprite not found.");
+  }
+  EdittingSubSprite &edit_sub = editting_state_.sub_sprites[index];
+  SubSprite &sub_sprite = edit_sub.sub_sprite;
+
+  // If collapse header is not expanded, return early.
+  std::string label = absl::StrCat("Sub Sprite ", edit_sub.unique_name);
+  if (!ImGui::CollapsingHeader(label.c_str())) {
+    edit_sub.active = false;
+    return absl::OkStatus();
+  }
+  edit_sub.active = !already_active && edit_sub.active;
+
+  auto label_maker = [&](const std::string &name,
+                         std::optional<int> id = std::nullopt) -> const char * {
+    if (id.has_value()) {
+      return strdup(absl::StrCat(name, edit_sub.unique_name, *id).c_str());
+    }
+    return strdup(absl::StrCat(name, edit_sub.unique_name).c_str());
+  };
+
+  ImGui::BeginColumns(label_maker("Columns"), 3);
+  ImGui::Checkbox(label_maker("Active"), &edit_sub.active);
+  ImGui::Checkbox(label_maker("Show Hitbox"), &edit_sub.show_hitbox);
+
+  if (sub_sprite.texture_w == 0 || sub_sprite.texture_h == 0 ||
+      sub_sprite.render_w == 0 || sub_sprite.render_h == 0) {
+    ImGui::Text("Image Goes Here");
+  } else {
+    ImVec2 offset_position = ImGui::GetCursorScreenPos();
+    const ImTextureID texture_id = (ImTextureID)(intptr_t)hud_texture->texture;
+
+    const ImVec2 render_size =
+        ImVec2(sub_sprite.texture_w * editting_state_.zoom,
+               sub_sprite.texture_h * editting_state_.zoom);
+
+    const ImVec2 source_min = GetSourceCoordinates(
+        *hud_texture, {.x = static_cast<double>(sub_sprite.texture_x),
+                       .y = static_cast<double>(sub_sprite.texture_y)});
+
+    const ImVec2 source_max = GetSourceCoordinates(
+        *hud_texture,
+        {.x = static_cast<double>(sub_sprite.texture_x + sub_sprite.texture_w),
+         .y =
+             static_cast<double>(sub_sprite.texture_y + sub_sprite.texture_h)});
+
+    ImGui::Image(texture_id, render_size, source_min, source_max);
+
+    if (edit_sub.show_hitbox) {
+      for (size_t i = 0; i < edit_sub.hitbox.size(); i++) {
+        Point &p1 = edit_sub.hitbox[i];
+        Point &p2 = edit_sub.hitbox[(i + 1) % edit_sub.hitbox.size()];
+
+        ImVec2 p1i = ImVec2(p1.x * editting_state_.zoom + offset_position.x,
+                            p1.y * editting_state_.zoom + offset_position.y);
+        ImVec2 p2i = ImVec2(p2.x * editting_state_.zoom + offset_position.x,
+                            p2.y * editting_state_.zoom + offset_position.y);
+
+        float thickness = static_cast<float>(editting_state_.zoom);
+        ImGui::GetWindowDrawList()->AddLine(p1i, p2i, IM_COL32(0, 255, 0, 255),
+                                            thickness);
+      }
+    }
+  }
+  ImGui::NextColumn();
+
+  ImGui::SetNextItemWidth(150.0f);
+  ImGui::InputInt(label_maker("Sub Sprite Source X"), &sub_sprite.texture_x);
+
+  ImGui::SetNextItemWidth(150.0f);
+  ImGui::InputInt(label_maker("Sub Sprite Source Y"), &sub_sprite.texture_y);
+
+  ImGui::SetNextItemWidth(150.0f);
+  ImGui::InputInt(label_maker("Sub Sprite Source Width"),
+                  &sub_sprite.texture_w);
+
+  ImGui::SetNextItemWidth(150.0f);
+  ImGui::InputInt(label_maker("Sub Sprite Source Height"),
+                  &sub_sprite.texture_h);
+
+  ImGui::SetNextItemWidth(150.0f);
+  ImGui::InputInt(label_maker("Sub Sprite Render Width"), &sub_sprite.render_w);
+
+  ImGui::SetNextItemWidth(150.0f);
+  ImGui::InputInt(label_maker("Sub Sprite Render Height"),
+                  &sub_sprite.render_h);
+
+  ImGui::NextColumn();
+
+  ImGui::Text("Hitbox");
+  if (!editting_state_.interactable) {
+    ImGui::Text("Interactable must be enabled to edit hitbox.");
+    ImGui::EndColumns();
+    already_active |= edit_sub.active;
+    return absl::OkStatus();
+  }
+
+  if (edit_sub.hitbox.empty()) {
+    edit_sub.hitbox.push_back({.x = 0, .y = 0});
+    edit_sub.hitbox.push_back(
+        {.x = static_cast<double>(sub_sprite.texture_w), .y = 0});
+    edit_sub.hitbox.push_back({.x = static_cast<double>(sub_sprite.texture_w),
+                               .y = static_cast<double>(sub_sprite.texture_h)});
+    edit_sub.hitbox.push_back(
+        {.x = 0, .y = static_cast<double>(sub_sprite.texture_h)});
+  }
+
+  if (ImGui::Button("Add Point")) {
+    edit_sub.hitbox.push_back({0, 0});
+  }
+
+  ImGui::SameLine();
+  if (ImGui::Button("Remove Point")) {
+    if (edit_sub.hitbox.size() > 3) {
+      edit_sub.hitbox.pop_back();
+    } else {
+      LOG(WARNING) << "Cannot remove point, must have at least 3 points.";
+    }
+  }
+
+  while (edit_sub.hitbox.size() < 3) {
+    edit_sub.hitbox.push_back({.x = 0, .y = 0});
+  }
+
+  for (size_t j = 0; j < edit_sub.hitbox.size(); j++) {
+    Point &point = edit_sub.hitbox[j];
+    ImGui::SetNextItemWidth(150.0f);
+    ImGui::InputDouble(label_maker("X", j), &point.x);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(150.0f);
+    ImGui::InputDouble(label_maker("Y", j), &point.y);
+  }
+
+  ImGui::EndColumns();
+  already_active |= edit_sub.active;
+  return absl::OkStatus();
 }
 
 void Hud::RenderTerminalWindow() {
@@ -408,6 +827,101 @@ void Hud::RenderTerminalWindow() {
     log_size_ = HudLogSink::Get()->log()->size();
   }
   ImGui::EndChild();
+}
+
+void Hud::RenderCreatorMode() {
+  bool open = true;
+
+  ImGuiWindowFlags window_flags =
+      ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |
+      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+      ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+  ImGuiViewport *viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(viewport->Pos);
+  ImGui::SetNextWindowSize(viewport->Size);
+  ImGui::SetNextWindowViewport(viewport->ID);
+
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+  ImGui::Begin("DockSpace Demo", &open, window_flags);
+  ImGui::PopStyleVar(3);
+
+  ImGuiID dockspace_id = ImGui::GetID("dockspace_id");
+  if (ImGui::DockBuilderGetNode(dockspace_id) == nullptr || rebuild_docks_) {
+    ImGui::DockBuilderRemoveNode(dockspace_id);  // Clear out existing layout
+    ImGui::DockBuilderAddNode(dockspace_id,
+                              ImGuiDockNodeFlags_None);  // Add empty node
+
+    ImGuiID dock_main_id = dockspace_id;
+    ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(
+        dock_main_id, ImGuiDir_Right, 0.2f, nullptr, &dock_main_id);
+    ImGuiID dock_left_id = ImGui::DockBuilderSplitNode(
+        dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
+    ImGuiID dock_up_id = ImGui::DockBuilderSplitNode(
+        dock_main_id, ImGuiDir_Up, 0.05f, nullptr, &dock_main_id);
+    ImGuiID dock_down_id = ImGui::DockBuilderSplitNode(
+        dock_main_id, ImGuiDir_Down, 0.2f, nullptr, &dock_main_id);
+
+    ImGui::DockBuilderDockWindow("Scene", dock_main_id);
+    ImGui::DockBuilderDockWindow("Config", dock_left_id);
+    ImGui::DockBuilderDockWindow("Assets", dock_right_id);
+    ImGui::DockBuilderDockWindow("Editor", dock_up_id);
+    ImGui::DockBuilderDockWindow("Console", dock_down_id);
+
+    ImGui::DockBuilderFinish(dockspace_id);
+    rebuild_docks_ = false;
+  }
+
+  ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), 0);
+  ImGui::End();
+
+  // Left side of the dock
+  ImGui::Begin("Config", &open, 0);
+  if (ImGui::CollapsingHeader("Camera Info")) {
+    ImGui::Text("%s", focus_->to_string().c_str());
+  }
+  if (ImGui::CollapsingHeader("Window Config")) {
+    RenderWindowConfig();
+  }
+  if (ImGui::CollapsingHeader("Boundary Config")) {
+    RenderBoundaryConfig();
+  }
+  if (ImGui::CollapsingHeader("Tile Config")) {
+    RenderTileConfig();
+  }
+  if (ImGui::CollapsingHeader("Collision Config")) {
+    RenderCollisionConfig();
+  }
+  if (ImGui::CollapsingHeader("Scene Creation")) {
+    RenderSceneWindowPrimary();
+  }
+  ImGui::End();
+
+  // Right side of the dock
+  ImGui::Begin("Assets", &open, 0);
+  if (ImGui::CollapsingHeader("Textures")) {
+    RenderTexturesWindow();
+  }
+  if (ImGui::CollapsingHeader("Sprites")) {
+    RenderSpritesWindow();
+  }
+  ImGui::End();
+
+  // Top side of the dock
+  ImGui::Begin("Editor", &open, 0);
+  RenderSpriteEditor();
+  ImGui::End();
+
+  // Bottom side of the dock
+  ImGui::Begin("Console", &open, 0);
+  if (ImGui::CollapsingHeader("Termainal")) {
+    RenderTerminalWindow();
+  }
+  ImGui::End();
 }
 
 void Hud::SaveConfig() {

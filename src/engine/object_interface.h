@@ -45,6 +45,7 @@ struct ObjectOptions {
 
 class ObjectInterface {
  public:
+  virtual ~ObjectInterface() = default;
   // Return id of the object.
   virtual uint64_t object_id() const = 0;
 

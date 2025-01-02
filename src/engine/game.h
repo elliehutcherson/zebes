@@ -54,7 +54,7 @@ class Game {
   // specified in the config.
   void GameDelay();
 
-  const GameConfig config_;
+  GameConfig config_;
   uint64_t frame_start_ = 0;
   uint64_t frame_time_ = 0;
   bool is_running_ = false;

@@ -4,6 +4,7 @@
 
 #include "SDL.h"
 #include "SDL_events.h"
+#include "SDL_video.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
@@ -36,10 +37,13 @@ absl::Status Game::Init() {
   LOG(INFO) << "Zebes: Initializing window...";
   window_ = SDL_CreateWindow(config_.window.title.c_str(), config_.window.xpos,
                              config_.window.ypos, config_.window.width,
-                             config_.window.height, config_.window.flags);
+                             config_.window.height, config_.window.flags); 
   if (window_ == nullptr) {
     return absl::AbortedError("Failed to create window.");
   }
+  SDL_GetWindowSize(window_, &config_.window.width, &config_.window.height);
+  LOG(INFO) << "window width: " << config_.window.width
+            << " window height: " << config_.window.height;
 
   LOG(INFO) << "Zebes: Initializing font library...";
   if (TTF_Init() != 0) {

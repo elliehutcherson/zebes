@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #include "SDL_video.h"
 #include "absl/status/statusor.h"
@@ -34,7 +33,11 @@ struct WindowConfig {
   uint32_t ypos = SDL_WINDOWPOS_CENTERED;
   int width = 1400;
   int height = 640;
-  int flags = 0;
+  uint32_t flags = SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+  bool full_screen() const {
+    return flags & SDL_WINDOW_FULLSCREEN_DESKTOP;
+  }
 
   // Define to_json and from_json functions for serialization and
   // deserialization
@@ -200,7 +203,6 @@ class GameConfig {
   Mode mode = Mode::kPlayerMode;
   int fps = 60;
   int frame_delay = 1000 / fps;
-  bool full_screen = false;
 
   float gravity = kDefaultGravity;
 
@@ -226,7 +228,6 @@ class GameConfig {
         {"mode", s.mode},
         {"fps", s.fps},
         {"frame_delay", s.frame_delay},
-        {"full_screen", s.full_screen},
         {"gravity", s.gravity},
         {"player_starting_x", s.player_starting_x},
         {"player_starting_y", s.player_starting_y},
@@ -247,7 +248,6 @@ class GameConfig {
     j.at("mode").get_to(s.mode);
     j.at("fps").get_to(s.fps);
     j.at("frame_delay").get_to(s.frame_delay);
-    j.at("full_screen").get_to(s.full_screen);
     j.at("gravity").get_to(s.gravity);
     j.at("player_starting_x").get_to(s.player_starting_x);
     j.at("player_starting_y").get_to(s.player_starting_y);

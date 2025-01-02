@@ -35,10 +35,12 @@ absl::Status Camera::Init() {
   rect_.w = config_->window.width;
   rect_.x = config_->boundaries.x_min;
   rect_.y = config_->boundaries.y_min;
+
   SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
   if (SDL_SetRenderDrawColor(renderer_, 0, 255, 0, 255) != 0) {
     return absl::InternalError("Camera: Unable to set draw color.");
   }
+
   font_ = TTF_OpenFont(config_->paths.hud_font().c_str(), 12);
   if (font_ == nullptr) {
     std::string error =
@@ -54,6 +56,7 @@ absl::Status Camera::Init() {
                     .y = config_->window.height};
     grid_x_.push_back({p1, p2});
   }
+
   int max_num_tiles_y = config_->window.height / config_->tiles.render_height();
   for (int i = 0; i < max_num_tiles_y; i++) {
     std::vector<SDL_Point> row;
@@ -162,6 +165,7 @@ absl::Status Camera::RenderLines(const std::vector<Point> &vertices,
                                  DrawColor color, bool static_position) {
   if (vertices.empty())
     return absl::InvalidArgumentError("Received empty set of verticies");
+
   UpdateColor(color);
   SDL_Point sdl_points[vertices.size()];
   for (int i = 0; i < vertices.size() + 1; i++) {
