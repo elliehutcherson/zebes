@@ -26,7 +26,7 @@ class HudTextureCreator {
 
   absl::StatusOr<HudTexture *> FindTextureByIndex(int index);
 
-  const char **GetTextureNames();
+  const char **GetTextureNames(int* count);
 
   void Render();
 

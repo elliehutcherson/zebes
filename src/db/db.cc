@@ -41,8 +41,8 @@ absl::StatusOr<uint16_t> Db::InsertTexture(const std::string &path) {
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
 
   // Prepare the query
-  const std::string statement =
-      absl::StrFormat("INSERT INTO TextureConfig(texture_path) VALUES('%s')", path);
+  const std::string statement = absl::StrFormat(
+      "INSERT INTO TextureConfig(texture_path) VALUES('%s')", path);
 
   char *err_msg = nullptr;
   int return_code =
@@ -68,8 +68,8 @@ absl::Status Db::DeleteTexture(const std::string &path) {
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
 
   // Prepare the statement
-  const std::string statement =
-      absl::StrFormat("DELETE FROM TextureConfig WHERE texture_path = '%s'", path);
+  const std::string statement = absl::StrFormat(
+      "DELETE FROM TextureConfig WHERE texture_path = '%s'", path);
 
   int return_code =
       sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
@@ -126,7 +126,8 @@ absl::StatusOr<std::vector<std::string>> Db::GetAllTexturePaths() {
 
   std::vector<std::string> texture_paths;
   while (sqlite3_step(stmt) == SQLITE_ROW) {
-    const char *texture_path = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+    const char *texture_path =
+        reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
     texture_paths.emplace_back(texture_path);
   }
 
@@ -325,9 +326,9 @@ absl::Status Db::DeleteSubSprite(uint16_t sub_sprite_id) {
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
 
   // Prepare the statement to delete the subsprite
-  const std::string statement = absl::StrFormat(
-      "DELETE FROM SubSpriteConfig WHERE id = %d",
-      static_cast<int>(sub_sprite_id));
+  const std::string statement =
+      absl::StrFormat("DELETE FROM SubSpriteConfig WHERE id = %d",
+                      static_cast<int>(sub_sprite_id));
 
   int return_code =
       sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);

@@ -67,7 +67,8 @@ absl::StatusOr<HudTexture *> HudTextureCreator::FindTextureByIndex(int index) {
   return &it->second;
 }
 
-const char **HudTextureCreator::GetTextureNames() {
+const char **HudTextureCreator::GetTextureNames(int* count) {
+  *count = texture_names_.size();
   return texture_names_.data();
 }
 
@@ -157,7 +158,7 @@ void HudTextureCreator::RenderTexture(ImDrawList *draw_list,
 }
 
 void HudTextureCreator::Update() {
-  if (sprite_manager_->GetAllTextures()->size() == name_to_textures_.size()) {
+  if ((sprite_manager_->GetAllTextures()->size() + 1) == name_to_textures_.size()) {
     return;
   }
 

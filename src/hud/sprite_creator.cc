@@ -188,9 +188,10 @@ void HudSpriteCreator::RenderEditor() {
 
   // Render texture selection drop down.
   ImGui::SetNextItemWidth(150.0f);
-  const char **texture_names = texture_creator_->GetTextureNames();
+  int count = 0;
+  const char **texture_names = texture_creator_->GetTextureNames(&count);
   ImGui::Combo("Texture Select", &editting_state_.texture_index, texture_names,
-               sizeof(texture_names));
+               count);
 
   if (editting_state_.texture_index == 0) {
     ImGui::Text("No texture selected.");
