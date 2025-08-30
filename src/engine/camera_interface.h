@@ -2,26 +2,16 @@
 
 #include <string>
 
-#include "SDL_pixels.h"
 #include "SDL_rect.h"
 #include "SDL_render.h"
-#include "SDL_ttf.h"
 #include "absl/status/status.h"
-#include "vector.h"
+#include "common/common.h"
 
 namespace zebes {
 
-enum DrawColor : int {
-  kColorPlayer = 0,
-  kColorTile = 1,
-  kColorMenu = 2,
-  kColorCollide = 3,
-  kColorGrid = 4
-};
-
 class CameraInterface {
  public:
-  ~CameraInterface() = default;
+  virtual ~CameraInterface() = default;
   // Update the position of the camera frame.
   virtual void Update(int center_x, int center_y) = 0;
 
@@ -47,9 +37,7 @@ class CameraInterface {
                           SDL_Rect *dst_rect) const = 0;
 
   // Render lines.
-  virtual absl::Status RenderLines(const std::vector<Point> &vertices,
-                                   DrawColor color,
-                                   bool static_position = true) = 0;
+  virtual absl::Status RenderLines(RenderData render_data) = 0;
 
   virtual void RenderGrid() = 0;
 };

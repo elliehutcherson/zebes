@@ -1,3 +1,19 @@
+-- Inserting record into TextureConfig table
+INSERT INTO TextureConfig (texture_path)
+VALUES ('assets/zebes/textures/samus-idle-left.png'),
+       ('assets/zebes/textures/samus-idle-right.png'),
+       ('assets/zebes/textures/samus-turning-left.png'),
+       ('assets/zebes/textures/samus-turning-right.png'),
+       ('assets/zebes/textures/samus-running-left.png'),
+       ('assets/zebes/textures/samus-running-right.png'),
+       ('assets/zebes/textures/samus-jumping-left.png'),
+       ('assets/zebes/textures/samus-jumping-right.png'),
+       ('assets/zebes/textures/sunny-back.png'),
+       ('assets/zebes/textures/sunny-custom-tileset.png'),
+       ('assets/zebes/textures/sunny-middle.png'),
+       ('assets/zebes/textures/sunny-props.png'),
+       ('assets/zebes/textures/sunny-tileset.png');
+
 -- Inserting records into SpriteConfig table
 -- type INTEGER NOT NULL
 -- type_name TEXT NOT NULL
@@ -5,26 +21,26 @@
 -- ticks_per_sprite INTEGER NOT NULL
 INSERT INTO SpriteConfig (type, type_name, texture_path, ticks_per_sprite)
 VALUES 
-(1, 'kGrass1', 'assets/sunny-land/PNG/environment/layers/tileset.png', 0),
-(2, 'kGrass2', 'assets/sunny-land/PNG/environment/layers/tileset.png', 0),
-(3, 'kGrass3', 'assets/sunny-land/PNG/environment/layers/tileset.png', 0),
-(4, 'kDirt1', 'assets/sunny-land/PNG/environment/layers/tileset.png', 0),
-(5, 'kGrassSlopeUpRight', 'assets/sunny-land/PNG/environment/layers/tileset.png', 0),
-(6, 'kGrass1Left', 'assets/sunny-land/PNG/environment/layers/custom-tileset.png', 0),
-(7, 'kGrass1Right', 'assets/sunny-land/PNG/environment/layers/custom-tileset.png', 0),
-(8, 'kGrass1Down', 'assets/sunny-land/PNG/environment/layers/custom-tileset.png', 0),
-(9, 'kGrassCornerUpLeft', 'assets/sunny-land/PNG/environment/layers/custom-tileset.png', 0),
-(10, 'kGrassCornerUpRight', 'assets/sunny-land/PNG/environment/layers/custom-tileset.png', 0),
-(11, 'kGrassCornerDownLeft', 'assets/sunny-land/PNG/environment/layers/custom-tileset.png', 0),
-(12, 'kGrassCornerDownRight', 'assets/sunny-land/PNG/environment/layers/custom-tileset.png', 0),
-(100, 'kSamusIdleLeft', 'assets/zebes/samus-idle-left.png', 10),
-(101, 'kSamusIdleRight', 'assets/zebes/samus-idle-right.png', 10),
-(102, 'kSamusTurningLeft', 'assets/zebes/samus-turning-left.png', 2),
-(103, 'kSamusTurningRight', 'assets/zebes/samus-turning-right.png', 2),
-(104, 'kSamusRunningLeft', 'assets/zebes/samus-running-left.png', 2),
-(105, 'kSamusRunningRight', 'assets/zebes/samus-running-right.png', 2);
--- (106, 'kSamusJumpingLeft', 'assets/zebes/samus-jumping-left.png', 2);
--- (107, 'kSamusJumpingRight', 'assets/zebes/samus-jumping-right.png', 2);
+(1, 'kGrass1', 'assets/zebes/textures/sunny-tileset.png', 0),
+(2, 'kGrass2', 'assets/zebes/textures/sunny-tileset.png', 0),
+(3, 'kGrass3', 'assets/zebes/textures/sunny-tileset.png', 0),
+(4, 'kDirt1', 'assets/zebes/textures/sunny-tileset.png', 0),
+(5, 'kGrassSlopeUpRight', 'assets/zebes/textures/sunny-tileset.png', 0),
+(6, 'kGrass1Left', 'assets/zebes/textures/sunny-custom-tileset.png', 0),
+(7, 'kGrass1Right', 'assets/zebes/textures/sunny-custom-tileset.png', 0),
+(8, 'kGrass1Down', 'assets/zebes/textures/sunny-custom-tileset.png', 0),
+(9, 'kGrassCornerUpLeft', 'assets/zebes/textures/sunny-custom-tileset.png', 0),
+(10, 'kGrassCornerUpRight', 'assets/zebes/textures/sunny-custom-tileset.png', 0),
+(11, 'kGrassCornerDownLeft', 'assets/zebes/textures/sunny-custom-tileset.png', 0),
+(12, 'kGrassCornerDownRight', 'assets/zebes/textures/sunny-custom-tileset.png', 0),
+(100, 'kSamusIdleLeft', 'assets/zebes/textures/samus-idle-left.png', 10),
+(101, 'kSamusIdleRight', 'assets/zebes/textures/samus-idle-right.png', 10),
+(102, 'kSamusTurningLeft', 'assets/zebes/textures/samus-turning-left.png', 2),
+(103, 'kSamusTurningRight', 'assets/zebes/textures/samus-turning-right.png', 2),
+(104, 'kSamusRunningLeft', 'assets/zebes/textures/samus-running-left.png', 2),
+(105, 'kSamusRunningRight', 'assets/zebes/textures/samus-running-right.png', 2);
+-- (106, 'kSamusJumpingLeft', 'assets/zebes/textures/samus-jumping-left.png', 2);
+-- (107, 'kSamusJumpingRight', 'assets/zebes/textures/samus-jumping-right.png', 2);
 
 
 -- Inserting records into SubSpriteConfig table

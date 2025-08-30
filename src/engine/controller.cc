@@ -3,8 +3,8 @@
 #include "SDL_events.h"
 #include "SDL_keycode.h"
 #include "SDL_mouse.h"
-#include "absl/log/log.h"
-#include "engine/config.h"
+#include "common/vector.h"
+#include "common/config.h"
 
 namespace zebes {
 

@@ -1,4 +1,4 @@
-#include "game.h"
+#include "engine/game.h"
 
 #include <memory>
 
@@ -8,18 +8,15 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
-#include "collision_manager.h"
-#include "config.h"
-#include "controller.h"
-#include "db.h"
-#include "imgui.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_internal.h"
-#include "object.h"
-#include "polygon.h"
-#include "scene_manager.h"
-#include "sprite_manager.h"
-#include "status_macros.h"
+#include "api/api.h"
+#include "common/config.h"
+#include "common/status_macros.h"
+#include "db/db.h"
+#include "engine/camera.h"
+#include "engine/collision_manager.h"
+#include "engine/controller.h"
+#include "engine/sprite_manager.h"
+#include "hud/hud.h"
 
 namespace zebes {
 
@@ -37,7 +34,7 @@ absl::Status Game::Init() {
   LOG(INFO) << "Zebes: Initializing window...";
   window_ = SDL_CreateWindow(config_.window.title.c_str(), config_.window.xpos,
                              config_.window.ypos, config_.window.width,
-                             config_.window.height, config_.window.flags); 
+                             config_.window.height, config_.window.flags);
   if (window_ == nullptr) {
     return absl::AbortedError("Failed to create window.");
   }
@@ -57,13 +54,13 @@ absl::Status Game::Init() {
     return absl::AbortedError("Failed to create renderer.");
   }
 
+  LOG(INFO) << "Zebes: Initializing focus lite...";
+  focus_lite_ = std::make_unique<FocusLite>();
+  focus_ = focus_lite_.get();
+
   LOG(INFO) << "Zebes: Initializing camera...";
   Camera::Options camera_options = {.config = &config_, .renderer = renderer_};
   ASSIGN_OR_RETURN(camera_, Camera::Create(camera_options));
-
-  LOG(INFO) << "Zebes: Initializing map...";
-  map_ = std::make_unique<Map>(&config_, camera_.get());
-  RETURN_IF_ERROR(map_->Init(renderer_));
 
   LOG(INFO) << "Zebes: Initializing database...";
   Db::Options db_options = {.db_path = kZebesDatabasePath};
@@ -79,70 +76,29 @@ absl::Status Game::Init() {
   ASSIGN_OR_RETURN(sprite_manager_,
                    SpriteManager::Create(sprite_manager_options));
 
-  LOG(INFO) << "Zebes: Initializing object...";
-  ObjectOptions object_options = {.object_type = ObjectType::kSprite,
-                                  .vertices = {
-                                      {.x = 300, .y = 700},
-                                      {.x = 350, .y = 700},
-                                      {.x = 325, .y = 750},
-                                  }};
-  ASSIGN_OR_RETURN(object_, Object::Create(object_options));
-  RETURN_IF_ERROR(object_->AddPrimaryAxisIndex(0, AxisDirection::axis_left));
-
-  if (config_.mode == GameConfig::Mode::kPlayerMode) {
-    LOG(INFO) << "Zebes: Initializing player...";
-    ASSIGN_OR_RETURN(player_, Player::Create(&config_, sprite_manager_.get()));
-
-    focus_ = static_cast<Focus *>(player_.get());
-    RETURN_IF_ERROR(sprite_manager_->AddSpriteObject(player_->GetObject()));
-
-  } else if (config_.mode == GameConfig::Mode::kCreatorMode) {
-    LOG(INFO) << "Zebes: Initializing creator...";
-    Creator::Options options = {.config = &config_, .camera = camera_.get()};
-    ASSIGN_OR_RETURN(creator_, Creator::Create(options));
-
-    focus_ = static_cast<Focus *>(creator_.get());
-  } else {
-    return absl::InvalidArgumentError("Invalid game mode.");
-  }
-
   LOG(INFO) << "Zebes: Initializing collision manager...";
   ASSIGN_OR_RETURN(collision_manager_,
                    CollisionManager::Create(&config_, camera_.get()));
 
-  RETURN_IF_ERROR(collision_manager_->AddObject(object_.get()));
-
-  if (config_.mode == GameConfig::Mode::kPlayerMode) {
-    RETURN_IF_ERROR(collision_manager_->AddObject(player_->GetObject()));
-  }
-
-  LOG(INFO) << "Zebes: Initializing tile manager...";
-  struct SceneManager::Options scene_manager_options = {
-      .config = &config_,
-      .sprite_manager = sprite_manager_.get(),
-      .collision_manager = collision_manager_.get(),
-  };
-  ASSIGN_OR_RETURN(scene_manager_, SceneManager::Create(scene_manager_options));
-
   LOG(INFO) << "Zebes: Initializing controller...";
-  Controller::Options controller_options = {
-      .save_config = [this](const GameConfig &config) {
-        if (config_.mode != GameConfig::Mode::kCreatorMode) {
-          LOG(FATAL) << "Controller: Save config called in player mode.";
-        }
-        absl::Status save_status = creator_->SaveConfig(config);
-        if (!save_status.ok()) {
-          LOG(ERROR) << "Controller: Save config failed: " << save_status;
-        }
-      }};
-  ASSIGN_OR_RETURN(controller_,
-                   Controller::Create(std::move(controller_options)));
+  ASSIGN_OR_RETURN(
+      controller_,
+      Controller::Create({.save_config = [](const GameConfig &config) {
+        SaveConfig(config);
+      }}));
+
+  LOG(INFO) << "Zebes: Initializing api...";
+  Api::Options api_options = {.config = &config_,
+                              .db = db_.get(),
+                              .sprite_manager = sprite_manager_.get()};
+  ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
   LOG(INFO) << "Zebes: Initializing hud...";
   Hud::Options hud_options = {.config = &config_,
                               .focus = focus_,
                               .controller = controller_.get(),
                               .sprite_manager = sprite_manager_.get(),
+                              .api = api_.get(),
                               .window = window_,
                               .renderer = renderer_};
 
@@ -176,7 +132,8 @@ void Game::HandleEvents() {
   controller_->HandleInternalEvents();
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
-    ImGui_ImplSDL2_ProcessEvent(&event);
+    // ImGui_ImplSDL2_ProcessEvent(&event);
+    hud_->HandleEvent(event);
     controller_->HandleEvent(&event);
   }
 }
@@ -185,7 +142,6 @@ void Game::Update() {
   controller_->Update();
   GameUpdate();
   if (AdvanceFrame()) {
-    object_->PreUpdate();
     hud_->Update();
     focus_->Update(controller_->GetState());
     collision_manager_->Update();
@@ -195,11 +151,9 @@ void Game::Update() {
 
 void Game::Render() {
   SDL_RenderClear(renderer_);
-  map_->Render();
   collision_manager_->Render();
   if (config_.mode == GameConfig::Mode::kCreatorMode) {
     camera_->RenderGrid();
-    creator_->Render();
   }
   hud_->Render();
   SDL_RenderPresent(renderer_);
@@ -215,7 +169,7 @@ void Game::Clear() {
 void Game::Clean() {
   LOG(INFO) << "Zebes: Exiting...";
 
-  ImGui_ImplSDL2_Shutdown();
+  // ImGui_ImplSDL2_Shutdown();
   ImGui::DestroyContext();
 
   SDL_DestroyWindow(window_);

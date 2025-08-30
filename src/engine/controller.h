@@ -5,10 +5,9 @@
 #include "SDL_events.h"
 #include "SDL_keycode.h"
 #include "SDL_scancode.h"
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "config.h"
-#include "vector.h"
+#include "common/config.h"
+#include "common/vector.h"
 
 namespace zebes {
 

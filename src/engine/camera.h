@@ -8,9 +8,9 @@
 #include "SDL_ttf.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "camera_interface.h"
-#include "config.h"
-#include "vector.h"
+#include "common/common.h"
+#include "engine/camera_interface.h"
+#include "common/config.h"
 
 namespace zebes {
 
@@ -24,6 +24,7 @@ class Camera : public CameraInterface {
   static absl::StatusOr<std::unique_ptr<Camera>> Create(const Options &options);
 
   Camera(const GameConfig *config, SDL_Renderer *renderer);
+  ~Camera() = default;
 
   // Update the position of the camera frame.
   void Update(int center_x, int center_y) override;
@@ -50,17 +51,13 @@ class Camera : public CameraInterface {
                   SDL_Rect *dst_rect) const override;
 
   // Render lines.
-  absl::Status RenderLines(const std::vector<Point> &vertices, DrawColor color,
-                           bool static_position = true) override;
+  absl::Status RenderLines(RenderData render_data) override;
 
   void RenderGrid() override;
 
  private:
   // Initialize the camera. Could fail when creating font.
   absl::Status Init();
-
-  // Update the current color.
-  void UpdateColor(DrawColor color);
 
   // Adjust the destination rectangle to match camera position.
   SDL_Rect Adjust(const SDL_Rect *dst_rect) const;
@@ -71,7 +68,6 @@ class Camera : public CameraInterface {
   const GameConfig *config_;
   SDL_Renderer *renderer_;
   SDL_Rect rect_;
-  DrawColor current_color_ = kColorPlayer;
   TTF_Font *font_;
   SDL_Color font_color_ = {255, 255, 255};
   std::vector<std::vector<SDL_Point>> grid_x_;

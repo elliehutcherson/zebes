@@ -7,8 +7,9 @@
 #include "SDL_ttf.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-#include "config.h"
-#include "vector.h"
+#include "common/common.h"
+#include "common/config.h"
+#include "common/vector.h"
 
 namespace zebes {
 
@@ -84,30 +85,6 @@ void Camera::Update(int center_x, int center_y) {
   return;
 }
 
-void Camera::UpdateColor(DrawColor color) {
-  if (current_color_ == color) return;
-  current_color_ = color;
-  switch (color) {
-    case kColorPlayer:
-      SDL_SetRenderDrawColor(renderer_, 0, 0, 255, 255);
-      break;
-    case kColorTile:
-      SDL_SetRenderDrawColor(renderer_, 0, 255, 0, 255);
-      break;
-    case kColorMenu:
-      SDL_SetRenderDrawColor(renderer_, 100, 100, 100, 100);
-      break;
-    case kColorCollide:
-      SDL_SetRenderDrawColor(renderer_, 255, 0, 0, 255);
-      break;
-    case kColorGrid:
-      SDL_SetRenderDrawColor(renderer_, 255, 255, 255, 255);
-      break;
-    default:
-      break;
-  }
-}
-
 SDL_Rect Camera::Adjust(const SDL_Rect *dst_rect) const {
   return {
       .x = dst_rect->x - rect_.x,
@@ -136,19 +113,16 @@ void Camera::RenderStatic(SDL_Texture *texture, SDL_Rect *src_rect,
 }
 
 void Camera::RenderPlayerRectangle(SDL_Rect *dst_rect) {
-  UpdateColor(DrawColor::kColorPlayer);
   SDL_Rect adjusted = Adjust(dst_rect);
   SDL_RenderDrawRect(renderer_, &adjusted);
 }
 
 void Camera::RenderTileRectangle(SDL_Rect *dst_rect) {
-  UpdateColor(DrawColor::kColorTile);
   SDL_Rect adjusted = Adjust(dst_rect);
   SDL_RenderDrawRect(renderer_, &adjusted);
 }
 
 void Camera::RenderMenuRectangle(SDL_Rect *dst_rect) {
-  UpdateColor(DrawColor::kColorMenu);
   SDL_RenderFillRect(renderer_, dst_rect);
 }
 
@@ -161,26 +135,23 @@ void Camera::RenderText(const std::string &message, SDL_Rect *dst_rect) const {
   SDL_DestroyTexture(texture);
 }
 
-absl::Status Camera::RenderLines(const std::vector<Point> &vertices,
-                                 DrawColor color, bool static_position) {
-  if (vertices.empty())
+absl::Status Camera::RenderLines(RenderData render_data) {
+  if (render_data.vertices.empty())
     return absl::InvalidArgumentError("Received empty set of verticies");
 
-  UpdateColor(color);
-  SDL_Point sdl_points[vertices.size()];
-  for (int i = 0; i < vertices.size() + 1; i++) {
-    const Point &point = vertices[i % vertices.size()];
+  SDL_Point sdl_points[render_data.vertices.size()];
+  for (int i = 0; i < render_data.vertices.size() + 1; i++) {
+    const Point &point = render_data.vertices[i % render_data.vertices.size()];
     sdl_points[i] = {.x = static_cast<int>(point.x),
                      .y = static_cast<int>(point.y)};
-    if (!static_position) sdl_points[i] = Adjust(&sdl_points[i]);
+    if (!render_data.static_position) sdl_points[i] = Adjust(&sdl_points[i]);
   }
 
-  SDL_RenderDrawLines(renderer_, sdl_points, vertices.size() + 1);
+  SDL_RenderDrawLines(renderer_, sdl_points, render_data.vertices.size() + 1);
   return absl::OkStatus();
 }
 
 void Camera::RenderGrid() {
-  UpdateColor(DrawColor::kColorGrid);
   int x_adjustment = (config_->tiles.render_width() -
                       (rect_.x % config_->tiles.render_width()));
   for (std::vector<SDL_Point> line : grid_x_) {

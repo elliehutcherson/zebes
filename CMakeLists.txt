@@ -12,7 +12,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug)
 
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.5)
 project(zebes VERSION 0.1.0)
 
 # I'm not sure when this was added, or when it is required, but I'm keeping it here for reference.
@@ -61,6 +61,11 @@ set(ABSL_USE_EXTERNAL_GOOGLETEST ON)
 set(ABSL_BUILD_TEST_HELPERS ON)
 set(ABSL_LOCAL_GOOGLETEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/googletest)
 
+# ## All custom find cmake files live in the cmake directory
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+include(${CMAKE_MODULE_PATH}/imgui.cmake)
+include(${CMAKE_MODULE_PATH}/sqlite3.cmake)
+
 # ## Add all of the subdirectories
 add_subdirectory(include/SDL)
 add_subdirectory(include/SDL_image)
@@ -77,11 +82,6 @@ include_directories(include/googletest)
 include_directories(include/abseil-cpp)
 include_directories(include/nlohmann)
 include_directories(include/cereal/include)
-
-# ## All custom find cmake files live in the cmake directory
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
-include(${CMAKE_MODULE_PATH}/imgui.cmake)
-include(${CMAKE_MODULE_PATH}/sqlite3.cmake)
 
 include_directories(src)
 add_subdirectory(src)

@@ -1,15 +1,15 @@
 #include "collision_manager.h"
 
+#include <memory>
+
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/log/log.h"
-
 #include "absl/status/status.h"
-#include "config.h"
-#include "engine/camera.h"
-#include "object.h"
-#include "polygon.h"
-#include <memory>
+#include "common/config.h"
+#include "engine/camera_interface.h"
+#include "objects/object_interface.h"
+#include "objects/polygon.h"
 
 namespace zebes {
 namespace {
@@ -18,10 +18,10 @@ int CollisionHash(int id_a, int id_b) {
   return ((id_a + id_b) * (id_a + id_b + 1) / 2) + id_a;
 }
 
-} // namespace
+}  // namespace
 
-absl::StatusOr<std::unique_ptr<CollisionManager>>
-CollisionManager::Create(const GameConfig *config, Camera *camera) {
+absl::StatusOr<std::unique_ptr<CollisionManager>> CollisionManager::Create(
+    const GameConfig *config, CameraInterface *camera) {
   if (config == nullptr)
     return absl::InvalidArgumentError("Config must not be null.");
   if (camera == nullptr)
@@ -29,12 +29,12 @@ CollisionManager::Create(const GameConfig *config, Camera *camera) {
   auto collision_manager =
       std::unique_ptr<CollisionManager>(new CollisionManager(config, camera));
   absl::Status result = collision_manager->Init();
-  if (!result.ok())
-    return result;
+  if (!result.ok()) return result;
   return collision_manager;
 }
 
-CollisionManager::CollisionManager(const GameConfig *config, Camera *camera)
+CollisionManager::CollisionManager(const GameConfig *config,
+                                   CameraInterface *camera)
     : config_(config), camera_(camera) {}
 
 absl::Status CollisionManager::Init() {
@@ -84,8 +84,8 @@ int CollisionManager::GetCollisionAreaId(int x, int y) const {
   return x * NumberAreasY() + y;
 }
 
-absl::flat_hash_set<int>
-CollisionManager::GetCollisionAreaIds(const Polygon *polygon) const {
+absl::flat_hash_set<int> CollisionManager::GetCollisionAreaIds(
+    const Polygon *polygon) const {
   int x_area_min = AreaIndexX(polygon->x_min());
   int x_area_max = AreaIndexX(polygon->x_max());
   int y_area_min = AreaIndexY(polygon->y_min());
@@ -129,8 +129,7 @@ void CollisionManager::Update() {
   for (auto &[object_id, object_a] : objects_) {
     // If this object is not the type of object causes collisions, mostly
     // meaning objects that can move, then continue.
-    if (!collsion_types_.contains(object_a->object_type()))
-      continue;
+    if (!collsion_types_.contains(object_a->object_type())) continue;
     // Get all area ids object_a is within.
     absl::flat_hash_set<int> area_ids =
         GetCollisionAreaIds(object_a->polygon());
@@ -144,23 +143,19 @@ void CollisionManager::Update() {
 void CollisionManager::UpdateArea(int area_id, ObjectInterface &object_a) {
   for (uint64_t object_id : area_id_to_object_ids_[area_id]) {
     // We don't want to collide objects with themselves.
-    if (object_a.object_id() == object_id)
-      continue;
+    if (object_a.object_id() == object_id) continue;
     // Get potential object to collide against.
     ObjectInterface &object_b = *objects_[object_id];
     // Check if this collision has already ocurred.
     int hash = CollisionHash(object_a.object_id(), object_b.object_id());
-    if (hashes_.contains(hash))
-      continue;
+    if (hashes_.contains(hash)) continue;
     // If object_a and object_b are not interactive, then continue.
-    if (!object_a.IsInteractive(object_b.object_type()))
-      continue;
+    if (!object_a.IsInteractive(object_b.object_type())) continue;
     // Check if there was a collision and if so, how much overlap.
     PolygonOverlap overlap =
         object_a.polygon()->GetOverlap(*object_b.polygon());
     // If no collision, continue.
-    if (!overlap.overlap)
-      continue;
+    if (!overlap.overlap) continue;
     // Add collision result to objects collision storage.
     absl::Status collision_result = object_a.HandleCollision(
         {.overlap = overlap, .object_type = object_b.object_type()});
@@ -198,11 +193,9 @@ void CollisionManager::UpdateArea(int area_id, ObjectInterface &object_a) {
 
 void CollisionManager::Render() const {
   for (auto &[object_id, object] : objects_) {
-    absl::Status result =
-        camera_->RenderLines(*object->polygon()->vertices(),
-                             DrawColor::kColorTile, /*static_position=*/false);
-    if (!result.ok())
-      LOG(WARNING) << __func__ << ": " << result.message();
+    absl::Status result = camera_->RenderLines(
+        {.vertices = *object->polygon()->vertices(), .static_position = false});
+    if (!result.ok()) LOG(WARNING) << __func__ << ": " << result.message();
   }
 }
 
@@ -210,15 +203,13 @@ void CollisionManager::CleanUp() {
   for (auto &[object_id, object] : objects_) {
     // If this object is not the type of object that causes collisions, mostly
     // meaning objects that can move, then continue.
-    if (!collsion_types_.contains(object->object_type()))
-      continue;
+    if (!collsion_types_.contains(object->object_type())) continue;
     // Get the objects new areas.
     absl::flat_hash_set<int> area_ids = GetCollisionAreaIds(object->polygon());
     // Get old area ids.
     absl::flat_hash_set<int> &old_area_ids = object_id_to_area_ids_[object_id];
     // If the areas are the same continue.
-    if (area_ids == old_area_ids)
-      continue;
+    if (area_ids == old_area_ids) continue;
     // Iterate over the new area ids.
     for (int area_id : area_ids) {
       // Erase all the old area ids.
@@ -235,4 +226,4 @@ void CollisionManager::CleanUp() {
   }
 }
 
-} // namespace zebes
+}  // namespace zebes

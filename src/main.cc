@@ -3,8 +3,9 @@
 #include "absl/log/log.h"
 #include "absl/log/log_sink_registry.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "engine/game.h"
-#include "engine/logging.h"
+#include "common/logging.h"
 
 int main(int argc, char *argv[]) {
   absl::ParseCommandLine(argc, argv);
@@ -20,11 +21,13 @@ int main(int argc, char *argv[]) {
   }
 
   std::string program = argv[1];
-  std::string config_path = zebes::GameConfig::GetDefaultConfigPath();
-  absl::StatusOr<zebes::GameConfig> config =
-      zebes::GameConfig::Create(config_path);
+  // std::string config_path = zebes::GameConfig::GetDefaultConfigPath();
+  // absl::StatusOr<zebes::GameConfig> config =
+  //     zebes::GameConfig::Create(config_path);
+  absl::StatusOr<zebes::GameConfig> config = zebes::GameConfig::Create();
   if (!config.ok()) {
     LOG(ERROR) << "Zebes: failed to create game config...";
+    LOG(ERROR) << config.status();
     return 1;
   }
 

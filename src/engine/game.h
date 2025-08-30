@@ -1,21 +1,19 @@
 #pragma once
 
+#include <memory>
+
 #include "absl/status/status.h"
-#include "camera.h"
-#include "collision_manager.h"
-#include "config.h"
-#include "controller.h"
-#include "creator.h"
-#include "db.h"
-#include "focus.h"
-#include "hud.h"
+#include "api/api.h"
+#include "common/config.h"
+#include "db/db_interface.h"
+#include "engine/camera_interface.h"
+#include "engine/collision_manager.h"
+#include "engine/controller.h"
+#include "engine/focus.h"
+#include "engine/focus_lite.h"
+#include "engine/sprite_manager.h"
+#include "hud/hud.h"
 #include "imgui.h"
-#include "map.h"
-#include "nlohmann/json.hpp"
-#include "object.h"
-#include "player.h"
-#include "scene_manager.h"
-#include "sprite_manager.h"
 
 namespace zebes {
 
@@ -67,15 +65,12 @@ class Game {
   ImGuiContext *imgui_context_;
   ImGuiIO imgui_io_;
 
-  std::unique_ptr<Camera> camera_;
-  std::unique_ptr<Db> db_;
+  std::unique_ptr<FocusLite> focus_lite_;
+  std::unique_ptr<CameraInterface> camera_;
+  std::unique_ptr<DbInterface> db_;
   std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<CollisionManager> collision_manager_;
-  std::unique_ptr<SceneManager> scene_manager_;
-  std::unique_ptr<Player> player_;
-  std::unique_ptr<Creator> creator_;
-  std::unique_ptr<Object> object_;
-  std::unique_ptr<Map> map_;
+  std::unique_ptr<Api> api_;
   std::unique_ptr<Hud> hud_;
   std::unique_ptr<Controller> controller_;
 

@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "controller.h"
+#include "engine/controller.h"
 
 namespace zebes {
 
