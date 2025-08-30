@@ -28,3 +28,6 @@
 [submodule "include/cereal"]
 	path = include/cereal
 	url = https://github.com/USCiLab/cereal.git
+[submodule "include/ImGuiFileDialog"]
+	path = include/ImGuiFileDialog
+	url = https://github.com/aiekick/ImGuiFileDialog.git
