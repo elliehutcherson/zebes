@@ -12,10 +12,10 @@ CREATE TABLE SpriteConfig (
     ticks_per_sprite INTEGER NOT NULL
 );
 
-CREATE TABLE SubSpriteConfig (
+CREATE TABLE SpriteFrameConfig (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sprite_config_id INTEGER NOT NULL,
-    sub_sprite_index INTEGER NOT NULL,
+    sprite_frame_index INTEGER NOT NULL,
     texture_x INTEGER NOT NULL,
     texture_y INTEGER NOT NULL,
     texture_w INTEGER NOT NULL,

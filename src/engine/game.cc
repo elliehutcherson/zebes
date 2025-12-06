@@ -89,8 +89,7 @@ absl::Status Game::Init() {
 
   LOG(INFO) << "Zebes: Initializing api...";
   Api::Options api_options = {.config = &config_,
-                              .db = db_.get(),
-                              .sprite_manager = sprite_manager_.get()};
+                              .db = db_.get()};
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
   LOG(INFO) << "Zebes: Initializing hud...";

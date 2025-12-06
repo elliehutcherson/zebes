@@ -16,19 +16,19 @@ class Db : public DbInterface {
   };
   static absl::StatusOr<std::unique_ptr<Db>> Create(const Options& options);
 
-
   absl::StatusOr<uint16_t> InsertTexture(const std::string& path) override;
 
   absl::Status DeleteTexture(const std::string& path) override;
 
-  absl::StatusOr<bool> TextureExists(const std::string &path) override;
+  absl::StatusOr<bool> TextureExists(const std::string& path) override;
+
+  absl::StatusOr<std::vector<Texture>> GetAllTextures() override;
 
   absl::StatusOr<std::vector<std::string>> GetAllTexturePaths() override;
 
   absl::StatusOr<int> NumSpritesWithTexture(const std::string& path) override;
 
-  absl::StatusOr<uint16_t> InsertSprite(
-      const SpriteConfig& sprite_config) override;
+  absl::StatusOr<uint16_t> InsertSprite(const SpriteConfig& sprite_config) override;
 
   absl::Status DeleteSprite(uint16_t sprite_id) override;
 
@@ -36,15 +36,18 @@ class Db : public DbInterface {
 
   absl::StatusOr<std::vector<SpriteConfig>> GetAllSprites() override;
 
-  absl::StatusOr<uint16_t> InsertSubSprite(
-      uint16_t sprite_id, const SubSprite& sub_sprite) override;
+  absl::StatusOr<uint16_t> InsertSpriteFrame(uint16_t sprite_id,
+                                             const SpriteFrame& sprite_frame) override;
 
-  absl::Status DeleteSubSprite(uint16_t sub_sprite_id) override;
+  absl::Status DeleteSpriteFrame(uint16_t sprite_frame_id) override;
 
-  absl::StatusOr<SubSprite> GetSubSprite(uint16_t sub_sprite_id) override;
+  absl::StatusOr<SpriteFrame> GetSpriteFrame(uint16_t sprite_frame_id) override;
 
-  absl::StatusOr<std::vector<SubSprite>> GetSubSprites(
-      uint16_t sprite_id) override;
+  absl::StatusOr<std::vector<SpriteFrame>> GetSpriteFrames(uint16_t sprite_id) override;
+
+  absl::Status UpdateSprite(const SpriteConfig& config) override;
+
+  absl::Status UpdateSpriteFrame(const SpriteFrame& sprite_frame) override;
 
  private:
   Db(const Options& options);

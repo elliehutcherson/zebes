@@ -4,6 +4,7 @@ add_subdirectory(db)
 add_subdirectory(objects)
 add_subdirectory(engine)
 add_subdirectory(hud)
+add_subdirectory(editor)
 
 add_executable(${PROJECT_NAME} main.cc)
 target_link_libraries(${PROJECT_NAME} absl::base)

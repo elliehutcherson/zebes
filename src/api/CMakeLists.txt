@@ -10,5 +10,4 @@ target_link_libraries(api
   common
   status_macros
   sprite_interface
-  sprite_manager
 )

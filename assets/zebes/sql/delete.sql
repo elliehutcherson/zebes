@@ -1,3 +1,6 @@
 DROP TABLE TextureConfig;
+
 DROP TABLE SpriteConfig;
-DROP TABLE SubSpriteConfig;
+
+DROP TABLE SpriteFrameConfig;
+-- DROP TABLE SubSpriteConfig;

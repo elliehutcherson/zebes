@@ -84,7 +84,13 @@ inline std::string SpriteTypeToString(SpriteType type) {
   }
 };
 
-struct SubSprite {
+struct SpriteFrame {
+  // Database ID
+  uint16_t id = 0;
+
+  // Ordering index
+  int index = 0;
+
   // Size of the sources texture sprites.
   int texture_x = 0;
   int texture_y = 0;
@@ -130,26 +136,26 @@ struct SpriteConfig {
   // Ticks each sub sprite is rendered per sprite cycle.
   int ticks_per_sprite = 0;
 
-  // Per texture and sprite config, there are multiple sub sprites
+  // Per texture and sprite config, there are multiple sprite frames
   // containing the config for each animation.
-  std::vector<SubSprite> sub_sprites;
+  std::vector<SpriteFrame> sprite_frames;
 
-  // Return the size of sub sprites.
-  int size() const { return sub_sprites.size(); }
+  // Return the size of sprite frames.
+  int size() const { return sprite_frames.size(); }
 };
 
 class SpriteInterface {
  public:
   virtual ~SpriteInterface() = default;
   // Get Source texture.
-  virtual SDL_Texture *GetTexture() const = 0;
+  virtual SDL_Texture* GetTexture() const = 0;
 
-  // This will get a texture that is specific to the sub sprite,
+  // This will get a texture that is specific to the sprite frame,
   // not the entire texture.
-  virtual SDL_Texture *GetTextureCopy(int index) const = 0;
+  virtual SDL_Texture* GetTextureCopy(int index) const = 0;
 
   // Get Source texture rectangle.
-  virtual const SDL_Rect *GetSource(int index) const = 0;
+  virtual const SDL_Rect* GetSource(int index) const = 0;
 
   // Get assigned id for the sprite by the db.
   virtual uint16_t GetId() const = 0;
@@ -158,10 +164,10 @@ class SpriteInterface {
   virtual uint16_t GetType() const = 0;
 
   // Get config.
-  virtual const SpriteConfig *GetConfig() const = 0;
+  virtual const SpriteConfig* GetConfig() const = 0;
 
-  // Get SubSprite.
-  virtual const SubSprite *GetSubSprite(int index) const = 0;
+  // Get SpriteFrame.
+  virtual const SpriteFrame* GetSpriteFrame(int index) const = 0;
 };
 
 }  // namespace zebes

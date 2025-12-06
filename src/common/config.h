@@ -29,19 +29,17 @@ struct WindowConfig {
   int height = 640;
   uint32_t flags = SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-  bool full_screen() const {
-    return flags & SDL_WINDOW_FULLSCREEN_DESKTOP;
-  }
+  bool full_screen() const { return flags & SDL_WINDOW_FULLSCREEN_DESKTOP; }
 
   // Define to_json and from_json functions for serialization and
   // deserialization
-  friend void to_json(nlohmann::json &j, const WindowConfig &s) {
+  friend void to_json(nlohmann::json& j, const WindowConfig& s) {
     j = nlohmann::json{{"title", s.title},   {"xpos", s.xpos},
                        {"ypos", s.ypos},     {"width", s.width},
                        {"height", s.height}, {"flags", s.flags}};
   }
 
-  friend void from_json(const nlohmann::json &j, WindowConfig &s) {
+  friend void from_json(const nlohmann::json& j, WindowConfig& s) {
     j.at("title").get_to(s.title);
     j.at("xpos").get_to(s.xpos);
     j.at("ypos").get_to(s.ypos);
@@ -59,14 +57,14 @@ struct BoundaryConfig {
 
   // Define to_json and from_json functions for serialization and
   // deserialization
-  friend void to_json(nlohmann::json &j, const BoundaryConfig &s) {
+  friend void to_json(nlohmann::json& j, const BoundaryConfig& s) {
     j = nlohmann::json{{"x_min", s.x_min},
                        {"x_max", s.x_max},
                        {"y_min", s.y_min},
                        {"y_max", s.y_max}};
   }
 
-  friend void from_json(const nlohmann::json &j, BoundaryConfig &s) {
+  friend void from_json(const nlohmann::json& j, BoundaryConfig& s) {
     j.at("x_min").get_to(s.x_min);
     j.at("x_max").get_to(s.x_max);
     j.at("y_min").get_to(s.y_min);
@@ -85,7 +83,7 @@ struct TileConfig {
 
   // Define to_json and from_json functions for serialization and
   // deserialization
-  friend void to_json(nlohmann::json &j, const TileConfig &s) {
+  friend void to_json(nlohmann::json& j, const TileConfig& s) {
     j = nlohmann::json{
         {"scale", s.scale},
         {"source_width", s.source_width},
@@ -95,7 +93,7 @@ struct TileConfig {
     };
   }
 
-  friend void from_json(const nlohmann::json &j, TileConfig &s) {
+  friend void from_json(const nlohmann::json& j, TileConfig& s) {
     j.at("scale").get_to(s.scale);
     j.at("source_width").get_to(s.source_width);
     j.at("source_height").get_to(s.source_height);
@@ -111,12 +109,12 @@ struct CollisionConfig {
 
   // Define to_json and from_json functions for serialization and
   // deserialization.
-  friend void to_json(nlohmann::json &j, const CollisionConfig &s) {
+  friend void to_json(nlohmann::json& j, const CollisionConfig& s) {
     j = nlohmann::json{{"area_width", s.area_width},
                        {"area_height", s.area_height}};
   }
 
-  friend void from_json(const nlohmann::json &j, CollisionConfig &s) {
+  friend void from_json(const nlohmann::json& j, CollisionConfig& s) {
     j.at("area_width").get_to(s.area_width);
     j.at("area_height").get_to(s.area_height);
   }
@@ -137,20 +135,23 @@ struct PathConfig {
   std::string hud_font() const {
     return absl::StrFormat("%s/%s", assets(), relative_hud_font);
   }
+  std::string database() const {
+    return absl::StrFormat("%s/%s", execute_, kZebesDatabasePath);
+  }
   std::string top() const {
     return absl::StrFormat("%s/%s", execute_, "../..");
   }
 
   // Define to_json and from_json functions for serialization and
   // deserialization.
-  friend void to_json(nlohmann::json &j, const PathConfig &s) {
+  friend void to_json(nlohmann::json& j, const PathConfig& s) {
     j = nlohmann::json{
         {"relative_assets", s.relative_assets},
         {"relative_hud_font", s.relative_hud_font},
     };
   }
 
-  friend void from_json(const nlohmann::json &j, PathConfig &s) {
+  friend void from_json(const nlohmann::json& j, PathConfig& s) {
     j.at("relative_assets").get_to(s.relative_assets);
     j.at("relative_hud_font").get_to(s.relative_hud_font);
   }
@@ -171,9 +172,7 @@ class GameConfig {
   static absl::StatusOr<GameConfig> Create(
       std::optional<std::string> path = std::nullopt);
   // Destructor, nothing special should happen so make it default.
-  ~GameConfig() {
-    LOG(INFO) << "GameConfig destroyed";
-  }
+  ~GameConfig() { LOG(INFO) << "GameConfig destroyed"; }
 
   WindowConfig window;
   PathConfig paths;
@@ -199,7 +198,7 @@ class GameConfig {
 
   // Define to_json and from_json functions for serialization and
   // deserialization.
-  friend void to_json(nlohmann::json &j, const GameConfig &s) {
+  friend void to_json(nlohmann::json& j, const GameConfig& s) {
     j = nlohmann::json{
         {"window", s.window},
         {"paths", s.paths},
@@ -220,7 +219,7 @@ class GameConfig {
     };
   }
 
-  friend void from_json(const nlohmann::json &j, GameConfig &s) {
+  friend void from_json(const nlohmann::json& j, GameConfig& s) {
     j.at("window").get_to(s.window);
     j.at("paths").get_to(s.paths);
     j.at("boundaries").get_to(s.boundaries);
@@ -240,7 +239,7 @@ class GameConfig {
   }
 
  private:
-  static absl::StatusOr<GameConfig> LoadConfig(const std::string &path);
+  static absl::StatusOr<GameConfig> LoadConfig(const std::string& path);
   // Constructor, probably should be private.
   GameConfig();
 };

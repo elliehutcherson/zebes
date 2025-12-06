@@ -12,7 +12,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug)
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 project(zebes VERSION 0.1.0)
 
 # I'm not sure when this was added, or when it is required, but I'm keeping it here for reference.
@@ -26,15 +26,32 @@ if(EXISTS ${LOC_PATH})
 endif()
 
 # ## Copy assets to build directory
-file(COPY ${CMAKE_CURRENT_LIST_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/src)
+
+option(COPY_SQL "Force copy SQL assets" OFF)
+option(COPY_TEXTURES "Force copy texture assets" OFF)
+
+# Determine the copy script path
+set(COPY_SCRIPT "${PROJECT_SOURCE_DIR}/cmake/copy_assets.cmake")
+
+# Target for src/assets
 add_custom_target(copy_assets
-  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_CURRENT_BINARY_DIR}/src/assets
+  COMMAND ${CMAKE_COMMAND} 
+    -DACTION_SRC=${CMAKE_CURRENT_LIST_DIR}/assets
+    -DACTION_DEST=${CMAKE_CURRENT_BINARY_DIR}/src
+    -DCOPY_SQL=${COPY_SQL}
+    -DCOPY_TEXTURES=${COPY_TEXTURES}
+    -P ${COPY_SCRIPT}
 )
 add_dependencies(copy_assets ${PROJECT_NAME})
 
-file(COPY ${CMAKE_CURRENT_LIST_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/tests)
+# Target for tests/assets
 add_custom_target(copy_assets_tests
-  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_CURRENT_BINARY_DIR}/tests/assets
+  COMMAND ${CMAKE_COMMAND} 
+    -DACTION_SRC=${CMAKE_CURRENT_LIST_DIR}/assets
+    -DACTION_DEST=${CMAKE_CURRENT_BINARY_DIR}/tests
+    -DCOPY_SQL=${COPY_SQL}
+    -DCOPY_TEXTURES=${COPY_TEXTURES}
+    -P ${COPY_SCRIPT}
 )
 add_dependencies(copy_assets_tests ${PROJECT_NAME})
 

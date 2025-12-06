@@ -20,13 +20,13 @@ namespace zebes {
 class Hud {
  public:
   struct Options {
-    const GameConfig *config;
-    const Focus *focus;
-    Controller *controller;
-    SpriteManager *sprite_manager;
+    const GameConfig* config;
+    const Focus* focus;
+    Controller* controller;
+    SpriteManager* sprite_manager;
 
-    SDL_Window *window;
-    SDL_Renderer *renderer;
+    SDL_Window* window;
+    SDL_Renderer* renderer;
   };
 
   static absl::StatusOr<std::unique_ptr<Hud>> Create(Options options);
@@ -51,7 +51,7 @@ class Hud {
   };
 
   struct HudTexture {
-    SDL_Texture *texture;
+    SDL_Texture* texture;
     std::string name;
     std::string path;
     int width = 0;
@@ -68,23 +68,22 @@ class Hud {
     std::string unique_name = absl::StrCat("##Sprite", sprite_id);
     std::string label_main = absl::StrCat("Sprite ", unique_name);
     std::string label_sprite_id = absl::StrCat("Sprite ID", unique_name);
-    std::string label_ticks_per_sprite =
-        absl::StrCat("Ticks Per Sprite", unique_name);
+    std::string label_ticks_per_sprite = absl::StrCat("Ticks Per Sprite", unique_name);
     std::string label_type_name = absl::StrCat("Type Name", unique_name);
   };
 
-  struct EdittingSubSprite {
+  struct EdittingSpriteFrame {
     bool active = false;
     bool show_hitbox = true;
     size_t index = 0;
-    std::string unique_name = absl::StrCat("##SubSprite", index);
+    std::string unique_name = absl::StrCat("##SpriteFrame", index);
 
-    SubSprite sub_sprite;
+    SpriteFrame sprite_frame;
     std::vector<Point> hitbox;
 
     void set_index(size_t i) {
       index = i;
-      unique_name = absl::StrCat("##SubSprite", index);
+      unique_name = absl::StrCat("##SpriteFrame", index);
     }
   };
 
@@ -99,11 +98,11 @@ class Hud {
     int texture_index = 0;
     std::optional<ImVec2> selection_start;
     std::optional<ImVec2> selection_end;
-    std::vector<EdittingSubSprite> sub_sprites;
+    std::vector<EdittingSpriteFrame> sprite_frames;
 
     int GetActiveIndex() {
-      for (size_t i = 0; i < sub_sprites.size(); i++) {
-        if (sub_sprites[i].active) return i;
+      for (size_t i = 0; i < sprite_frames.size(); i++) {
+        if (sprite_frames[i].active) return i;
       }
       return -1;
     }
@@ -111,12 +110,11 @@ class Hud {
 
   static constexpr char kTextureNone[] = "None";
 
-  static ImVec2 GetSourceCoordinates(const HudTexture &hud_texture,
-                                     Point coordinates);
+  static ImVec2 GetSourceCoordinates(const HudTexture& hud_texture, Point coordinates);
 
   Hud(Options options);
 
-  absl::Status Init(SDL_Window *window, SDL_Renderer *renderer);
+  absl::Status Init(SDL_Window* window, SDL_Renderer* renderer);
 
   // Update the position selection on the texture currently rendered in the
   // editor.
@@ -133,18 +131,17 @@ class Hud {
   void RenderSceneWindow(int index);
 
   void RenderTexturesWindow();
-  void RenderTextureCollapse(ImDrawList *draw_list, HudTexture &hud_texture,
-                             int texture_index);
+  void RenderTextureCollapse(ImDrawList* draw_list, HudTexture& hud_texture, int texture_index);
 
   void RenderSpritesWindow();
-  void RenderSpriteCollapse(ImDrawList *draw_list, HudSprite &sprite);
+  void RenderSpriteCollapse(ImDrawList* draw_list, HudSprite& sprite);
   void RenderSpriteEditor();
   void RenderSpriteEditorSelection();
-  absl::Status RenderSubSpriteEditor(int index, bool &already_active);
+  absl::Status RenderSpriteFrameEditor(int index, bool& already_active);
 
   void RenderTerminalWindow();
 
-  absl::StatusOr<HudTexture *> FindTextureByIndex(int index) {
+  absl::StatusOr<HudTexture*> FindTextureByIndex(int index) {
     if (index < 0 || index >= texture_names_.size()) {
       return absl::InvalidArgumentError("Texture index out of bounds.");
     }
@@ -155,7 +152,7 @@ class Hud {
     return &it->second;
   }
 
-  absl::StatusOr<HudSprite *> FindSpriteById(uint16_t sprite_id) {
+  absl::StatusOr<HudSprite*> FindSpriteById(uint16_t sprite_id) {
     auto it = sprites_.find(sprite_id);
     if (it == sprites_.end()) {
       return absl::InvalidArgumentError("Sprite not found.");
@@ -166,14 +163,14 @@ class Hud {
   // Actions to take from the hud interface.
   void SaveConfig();
 
-  const GameConfig *config_;
-  const Focus *focus_;
-  Controller *controller_;
-  SpriteManager *sprite_manager_;
+  const GameConfig* config_;
+  const Focus* focus_;
+  Controller* controller_;
+  SpriteManager* sprite_manager_;
 
-  SDL_Renderer *renderer_;
-  ImGuiIO *imgui_io_;
-  ImGuiContext *imgui_context_;
+  SDL_Renderer* renderer_;
+  ImGuiIO* imgui_io_;
+  ImGuiContext* imgui_context_;
   ImVec4 clear_color_;
 
   // Sprite editor state.
@@ -198,7 +195,7 @@ class Hud {
 
   // Textures in asset window.
   std::map<std::string, HudTexture> name_to_textures_;
-  std::vector<const char *> texture_names_;
+  std::vector<const char*> texture_names_;
 
   // Editting state for the sprite editor.
   EdittingState editting_state_;

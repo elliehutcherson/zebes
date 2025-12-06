@@ -3,3 +3,6 @@ IndentWidth: 2
 TabWidth: 2
 UseTab: Never
 PointerAlignment: Left 
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+ColumnLimit: 100

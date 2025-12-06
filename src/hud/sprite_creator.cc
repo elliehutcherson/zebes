@@ -13,12 +13,11 @@ namespace zebes {
 
 namespace {
 
-ImVec2 GetSourceCoordinates(const HudTexture &hud_texture, Point coordinates) {
-  return ImVec2(coordinates.x / hud_texture.width,
-                coordinates.y / hud_texture.height);
+ImVec2 GetSourceCoordinates(const HudTexture& hud_texture, Point coordinates) {
+  return ImVec2(coordinates.x / hud_texture.width, coordinates.y / hud_texture.height);
 }
 
-void RenderTextureToImGui(SDL_Texture *texture, int width, int height) {
+void RenderTextureToImGui(SDL_Texture* texture, int width, int height) {
   // Create a temporary ImGui texture ID
   ImTextureID texture_id = (ImTextureID)(intptr_t)texture;
   ImVec2 size = ImVec2(width, height);
@@ -29,24 +28,23 @@ void RenderTextureToImGui(SDL_Texture *texture, int width, int height) {
 
   // Check if the texture was clicked.
   if (IsMouseOverRect(position, size) && ImGui::IsMouseClicked(0)) {
-    ImGuiIO &io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
     ImVec2 mouse_position = io.MousePos;
-    LOG(INFO) << absl::StrFormat("Texture mouse down, x: %f, y: %f",
-                                 mouse_position.x, mouse_position.y);
+    LOG(INFO) << absl::StrFormat("Texture mouse down, x: %f, y: %f", mouse_position.x,
+                                 mouse_position.y);
   }
 
   if (IsMouseOverRect(position, size) && ImGui::IsMouseReleased(0)) {
-    ImGuiIO &io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
     ImVec2 mouse_position = io.MousePos;
-    LOG(INFO) << absl::StrFormat("Texture mouse down, x: %f, y: %f",
-                                 mouse_position.x, mouse_position.y);
+    LOG(INFO) << absl::StrFormat("Texture mouse down, x: %f, y: %f", mouse_position.x,
+                                 mouse_position.y);
   }
 }
 
 }  // namespace
 
-absl::StatusOr<HudSpriteCreator> HudSpriteCreator::Create(
-    const Options &options) {
+absl::StatusOr<HudSpriteCreator> HudSpriteCreator::Create(const Options& options) {
   if (options.sprite_manager == nullptr)
     return absl::InvalidArgumentError("Sprite Manager must not be null.");
   if (options.texture_creator == nullptr)
@@ -56,29 +54,25 @@ absl::StatusOr<HudSpriteCreator> HudSpriteCreator::Create(
   return hud_sprite_creator;
 }
 
-HudSpriteCreator::HudSpriteCreator(const Options &options)
-    : sprite_manager_(options.sprite_manager),
-      texture_creator_(options.texture_creator) {}
+HudSpriteCreator::HudSpriteCreator(const Options& options)
+    : sprite_manager_(options.sprite_manager), texture_creator_(options.texture_creator) {}
 
 absl::Status HudSpriteCreator::Init() {
   const std::vector<Point> vertices = {{0, 0}, {0, 0}, {0, 0}, {0, 0}};
 
   for (uint16_t sprite_id : sprite_manager_->GetAllSpriteIds()) {
-    ObjectOptions options = {.object_type = ObjectType::kSprite,
-                             .vertices = vertices,
-                             .sprite_ids = {sprite_id}};
+    ObjectOptions options = {
+        .object_type = ObjectType::kSprite, .vertices = vertices, .sprite_ids = {sprite_id}};
 
-    ASSIGN_OR_RETURN(std::unique_ptr<SpriteObject> sprite_object,
-                     SpriteObject::Create(options));
+    ASSIGN_OR_RETURN(std::unique_ptr<SpriteObject> sprite_object, SpriteObject::Create(options));
 
-    ASSIGN_OR_RETURN(const SpriteInterface *sprite,
-                     sprite_manager_->GetSprite(sprite_id));
+    ASSIGN_OR_RETURN(const SpriteInterface* sprite, sprite_manager_->GetSprite(sprite_id));
 
     RETURN_IF_ERROR(sprite_object->AddSprite(sprite));
     RETURN_IF_ERROR(sprite_object->SetActiveSprite(sprite_id));
 
-    auto hud_sprite = std::unique_ptr<HudSprite>(new HudSprite{
-        .sprite_id = sprite_id, .sprite_object = std::move(sprite_object)});
+    auto hud_sprite = std::unique_ptr<HudSprite>(
+        new HudSprite{.sprite_id = sprite_id, .sprite_object = std::move(sprite_object)});
 
     sprites_.insert({sprite_id, std::move(hud_sprite)});
   }
@@ -108,8 +102,8 @@ void HudSpriteCreator::RenderSpriteList() {
     expand_header = true;
   }
 
-  ImDrawList *draw_list = ImGui::GetWindowDrawList();
-  for (auto &[_, sprite] : sprites_) {
+  ImDrawList* draw_list = ImGui::GetWindowDrawList();
+  for (auto& [_, sprite] : sprites_) {
     if (expand_header.has_value()) {
       ImGui::SetNextItemOpen(*expand_header);
     }
@@ -119,8 +113,7 @@ void HudSpriteCreator::RenderSpriteList() {
   }
 }
 
-void HudSpriteCreator::RenderSpriteCollapse(ImDrawList *draw_list,
-                                            HudSprite &sprite) {
+void HudSpriteCreator::RenderSpriteCollapse(ImDrawList* draw_list, HudSprite& sprite) {
   int active_index = sprite.sprite_object->GetActiveSpriteIndex();
 
   ImGui::BeginDisabled(true);
@@ -128,11 +121,9 @@ void HudSpriteCreator::RenderSpriteCollapse(ImDrawList *draw_list,
   ImGui::InputInt(sprite.label_sprite_id.c_str(), &sprite_id);
   ImGui::EndDisabled();
 
-  ImGui::InputText(sprite.label_type_name.c_str(),
-                   sprite.hud_config.type_name.data(),
+  ImGui::InputText(sprite.label_type_name.c_str(), sprite.hud_config.type_name.data(),
                    sizeof(sprite.hud_config.type_name));
-  ImGui::InputInt(sprite.label_ticks_per_sprite.c_str(),
-                  &sprite.hud_config.ticks_per_sprite);
+  ImGui::InputInt(sprite.label_ticks_per_sprite.c_str(), &sprite.hud_config.ticks_per_sprite);
 
   std::string apply_label = absl::StrCat("Apply##", sprite.unique_name);
   if (ImGui::Button(apply_label.c_str())) {
@@ -160,20 +151,18 @@ void HudSpriteCreator::RenderSpriteCollapse(ImDrawList *draw_list,
 
   // Get active sprite from sprite object, there could be multiple sprites
   // per object
-  const SpriteInterface *active_sprite =
-      sprite.sprite_object->GetActiveSprite();
+  const SpriteInterface* active_sprite = sprite.sprite_object->GetActiveSprite();
 
   // Get sub sprite from sprite for configuration information (height,
   // width)
-  const SubSprite *active_sub_sprite =
-      active_sprite->GetSubSprite(active_index);
+  const SpriteFrame* active_sprite_frame = active_sprite->GetSpriteFrame(active_index);
 
   // Get texture from sprite
-  SDL_Texture *active_texture = active_sprite->GetTextureCopy(active_index);
+  SDL_Texture* active_texture = active_sprite->GetTextureCopy(active_index);
 
   // Render the texture to ImGui
-  RenderTextureToImGui(active_texture, active_sub_sprite->render_w,
-                       active_sub_sprite->render_h);
+  RenderTextureToImGui(active_texture, active_sprite_frame->render_w,
+                       active_sprite_frame->render_h);
 }
 
 void HudSpriteCreator::RenderEditor() {
@@ -189,9 +178,8 @@ void HudSpriteCreator::RenderEditor() {
   // Render texture selection drop down.
   ImGui::SetNextItemWidth(150.0f);
   int count = 0;
-  const char **texture_names = texture_creator_->GetTextureNames(&count);
-  ImGui::Combo("Texture Select", &editting_state_.texture_index, texture_names,
-               count);
+  const char** texture_names = texture_creator_->GetTextureNames(&count);
+  ImGui::Combo("Texture Select", &editting_state_.texture_index, texture_names, count);
 
   if (editting_state_.texture_index == 0) {
     ImGui::Text("No texture selected.");
@@ -211,8 +199,7 @@ void HudSpriteCreator::RenderEditor() {
   ImGui::SetNextItemWidth(150.0f);
   int temp_ticks_per_sprite = editting_state_.ticks_per_sprite;
   if (ImGui::InputInt("Ticks Per Sprite", &temp_ticks_per_sprite)) {
-    editting_state_.ticks_per_sprite =
-        std::clamp(temp_ticks_per_sprite, 0, 100);
+    editting_state_.ticks_per_sprite = std::clamp(temp_ticks_per_sprite, 0, 100);
   }
 
   // Render textbox to get user defined numerical id for this sprite.
@@ -233,29 +220,29 @@ void HudSpriteCreator::RenderEditor() {
 
   // Now render the texture that has been selected. The user will be able to
   // select an area on the texture to specificy a specific sub sprite.
-  absl::StatusOr<HudTexture *> texture_result =
+  absl::StatusOr<HudTexture*> texture_result =
       texture_creator_->FindTextureByIndex(editting_state_.texture_index);
   if (!texture_result.ok()) {
     ImGui::Text("Texture not found.");
     return;
   }
-  HudTexture &hud_texture = *texture_result.value();
+  HudTexture& hud_texture = *texture_result.value();
 
   // Next, render the button to add a subsprite. Each sprite requires at least
   // one subsprite.
   ImGui::NewLine();
-  if (ImGui::Button("Add Sub Sprite")) {
-    editting_state_.sub_sprites.push_back({
+  if (ImGui::Button("Add Sprite Frame")) {
+    editting_state_.sprite_frames.push_back({
         .active = false,
-        .index = editting_state_.sub_sprites.size(),
+        .index = editting_state_.sprite_frames.size(),
     });
   }
 
   // Next, render the button to delete a previously defined sub sprite.
   ImGui::SameLine();
-  if (ImGui::Button("Delete Sub Sprite")) {
-    if (!editting_state_.sub_sprites.empty()) {
-      editting_state_.sub_sprites.pop_back();
+  if (ImGui::Button("Delete Sprite Frame")) {
+    if (!editting_state_.sprite_frames.empty()) {
+      editting_state_.sprite_frames.pop_back();
     }
   }
 
@@ -263,11 +250,10 @@ void HudSpriteCreator::RenderEditor() {
 
   // Sub sprite settings.
   bool already_active = false;
-  for (size_t i = 0; i < editting_state_.sub_sprites.size(); i++) {
-    absl::Status result = RenderSubSpriteEditor(i, already_active);
+  for (size_t i = 0; i < editting_state_.sprite_frames.size(); i++) {
+    absl::Status result = RenderSpriteFrameEditor(i, already_active);
     if (!result.ok()) {
-      LOG(WARNING) << "Failed to render sub sprite editor: "
-                   << result.message();
+      LOG(WARNING) << "Failed to render sprite frame editor: " << result.message();
     }
   }
 
@@ -282,8 +268,8 @@ void HudSpriteCreator::RenderEditor() {
 
   // Create a temporary ImGui texture ID
   ImTextureID texture_id = (ImTextureID)(intptr_t)hud_texture.texture;
-  texture_size_ = ImVec2(hud_texture.width * editting_state_.zoom,
-                         hud_texture.height * editting_state_.zoom);
+  texture_size_ =
+      ImVec2(hud_texture.width * editting_state_.zoom, hud_texture.height * editting_state_.zoom);
 
   // Position must be set before rendering the image.
   texture_offset_ = ImGui::GetCursorScreenPos();
@@ -294,20 +280,17 @@ void HudSpriteCreator::RenderEditor() {
 }
 
 void HudSpriteCreator::RenderSpriteEditorSelection() {
-  if (!editting_state_.selection_start.has_value() ||
-      !editting_state_.selection_end.has_value() ||
+  if (!editting_state_.selection_start.has_value() || !editting_state_.selection_end.has_value() ||
       !texture_offset_.has_value()) {
     return;
   }
 
-  ImVec2 min = ImVec2(std::min(editting_state_.selection_start->x,
-                               editting_state_.selection_end->x),
-                      std::min(editting_state_.selection_start->y,
-                               editting_state_.selection_end->y));
-  ImVec2 max = ImVec2(std::max(editting_state_.selection_start->x,
-                               editting_state_.selection_end->x),
-                      std::max(editting_state_.selection_start->y,
-                               editting_state_.selection_end->y));
+  ImVec2 min =
+      ImVec2(std::min(editting_state_.selection_start->x, editting_state_.selection_end->x),
+             std::min(editting_state_.selection_start->y, editting_state_.selection_end->y));
+  ImVec2 max =
+      ImVec2(std::max(editting_state_.selection_start->x, editting_state_.selection_end->x),
+             std::max(editting_state_.selection_start->y, editting_state_.selection_end->y));
 
   min.x = (min.x * editting_state_.zoom) + texture_offset_->x;
   min.y = (min.y * editting_state_.zoom) + texture_offset_->y;
@@ -316,63 +299,58 @@ void HudSpriteCreator::RenderSpriteEditorSelection() {
   max.y = (max.y * editting_state_.zoom) + texture_offset_->y;
 
   const float thickness = static_cast<float>(editting_state_.zoom);
-  ImGui::GetWindowDrawList()->AddRect(min, max, IM_COL32(0, 255, 0, 255), 0.0f,
-                                      0, thickness);
+  ImGui::GetWindowDrawList()->AddRect(min, max, IM_COL32(0, 255, 0, 255), 0.0f, 0, thickness);
 }
 
-absl::Status HudSpriteCreator::RenderSubSpriteEditor(int index,
-                                                     bool &already_active) {
+absl::Status HudSpriteCreator::RenderSpriteFrameEditor(int index, bool& already_active) {
   // Get sub sprite from sprite index
-  if (editting_state_.sub_sprites.size() <= index) {
-    return absl::InvalidArgumentError("Sub sprite not found.");
+  if (editting_state_.sprite_frames.size() <= index) {
+    return absl::InvalidArgumentError("Sprite frame not found.");
   }
-  EdittingSubSprite &edit_sub = editting_state_.sub_sprites[index];
-  SubSprite &sub_sprite = edit_sub.sub_sprite;
+  EdittingSpriteFrame& edit_frame = editting_state_.sprite_frames[index];
+  SpriteFrame& sprite_frame = edit_frame.sprite_frame;
 
   // If collapse header is not expanded, return early.
-  const std::string label = absl::StrCat("Sub Sprite ", edit_sub.unique_name);
+  const std::string label = absl::StrCat("Sprite Frame ", edit_frame.unique_name);
   if (!ImGui::CollapsingHeader(label.c_str())) {
-    edit_sub.active = false;
+    edit_frame.active = false;
     return absl::OkStatus();
   }
-  edit_sub.active = !already_active && edit_sub.active;
+  edit_frame.active = !already_active && edit_frame.active;
 
-  auto label_maker = [&](const std::string &name,
-                         std::optional<int> id = std::nullopt) -> const char * {
+  auto label_maker = [&](const std::string& name,
+                         std::optional<int> id = std::nullopt) -> const char* {
     if (id.has_value()) {
-      return strdup(absl::StrCat(name, edit_sub.unique_name, *id).c_str());
+      return strdup(absl::StrCat(name, edit_frame.unique_name, *id).c_str());
     }
-    return strdup(absl::StrCat(name, edit_sub.unique_name).c_str());
+    return strdup(absl::StrCat(name, edit_frame.unique_name).c_str());
   };
 
   ImGui::BeginColumns(label_maker("Columns"), 3);
-  ImGui::Checkbox(label_maker("Active"), &edit_sub.active);
-  ImGui::Checkbox(label_maker("Show Hitbox"), &edit_sub.show_hitbox);
-  RETURN_IF_ERROR(RenderSubSpriteImage(edit_sub));
+  ImGui::Checkbox(label_maker("Active"), &edit_frame.active);
+  ImGui::Checkbox(label_maker("Show Hitbox"), &edit_frame.show_hitbox);
+  RETURN_IF_ERROR(RenderSpriteFrameImage(edit_frame));
   ImGui::NextColumn();
 
   // Render next column which consists of coordinate settings for this
   // subsprite.
   ImGui::SetNextItemWidth(150.0f);
-  ImGui::InputInt(label_maker("Sub Sprite Source X"), &sub_sprite.texture_x);
+  ImGui::InputInt(label_maker("Frame Source X"), &sprite_frame.texture_x);
 
   ImGui::SetNextItemWidth(150.0f);
-  ImGui::InputInt(label_maker("Sub Sprite Source Y"), &sub_sprite.texture_y);
+  ImGui::InputInt(label_maker("Frame Source Y"), &sprite_frame.texture_y);
 
   ImGui::SetNextItemWidth(150.0f);
-  ImGui::InputInt(label_maker("Sub Sprite Source Width"),
-                  &sub_sprite.texture_w);
+  ImGui::InputInt(label_maker("Frame Source Width"), &sprite_frame.texture_w);
 
   ImGui::SetNextItemWidth(150.0f);
-  ImGui::InputInt(label_maker("Sub Sprite Source Height"),
-                  &sub_sprite.texture_h);
+  ImGui::InputInt(label_maker("Frame Source Height"), &sprite_frame.texture_h);
 
   ImGui::SetNextItemWidth(150.0f);
-  ImGui::InputInt(label_maker("Sub Sprite Render Width"), &sub_sprite.render_w);
+  ImGui::InputInt(label_maker("Frame Render Width"), &sprite_frame.render_w);
 
   ImGui::SetNextItemWidth(150.0f);
-  ImGui::InputInt(label_maker("Sub Sprite Render Height"),
-                  &sub_sprite.render_h);
+  ImGui::InputInt(label_maker("Frame Render Height"), &sprite_frame.render_h);
 
   // Render next column which consists of hitbox related settings.
   ImGui::NextColumn();
@@ -382,45 +360,43 @@ absl::Status HudSpriteCreator::RenderSubSpriteEditor(int index,
   if (!editting_state_.interactable) {
     ImGui::Text("Interactable must be enabled to edit hitbox.");
     ImGui::EndColumns();
-    already_active |= edit_sub.active;
+    already_active |= edit_frame.active;
     return absl::OkStatus();
   }
 
   // If the hitbox is "empty", populate default hitbox.
-  if (edit_sub.hitbox.empty()) {
-    edit_sub.hitbox.push_back({.x = 0, .y = 0});
-    edit_sub.hitbox.push_back(
-        {.x = static_cast<double>(sub_sprite.texture_w), .y = 0});
-    edit_sub.hitbox.push_back({.x = static_cast<double>(sub_sprite.texture_w),
-                               .y = static_cast<double>(sub_sprite.texture_h)});
-    edit_sub.hitbox.push_back(
-        {.x = 0, .y = static_cast<double>(sub_sprite.texture_h)});
+  if (edit_frame.hitbox.empty()) {
+    edit_frame.hitbox.push_back({.x = 0, .y = 0});
+    edit_frame.hitbox.push_back({.x = static_cast<double>(sprite_frame.texture_w), .y = 0});
+    edit_frame.hitbox.push_back({.x = static_cast<double>(sprite_frame.texture_w),
+                                 .y = static_cast<double>(sprite_frame.texture_h)});
+    edit_frame.hitbox.push_back({.x = 0, .y = static_cast<double>(sprite_frame.texture_h)});
   }
 
   // Add point to hitbox, typically you should have four points per hitbox.
   // Additinally, the shape must be entirely compose of convex vertices.
   if (ImGui::Button("Add Point")) {
-    edit_sub.hitbox.push_back({0, 0});
+    edit_frame.hitbox.push_back({0, 0});
   }
 
   // Remove point from hitbox.
   ImGui::SameLine();
   if (ImGui::Button("Remove Point")) {
-    if (edit_sub.hitbox.size() > 3) {
-      edit_sub.hitbox.pop_back();
+    if (edit_frame.hitbox.size() > 3) {
+      edit_frame.hitbox.pop_back();
     } else {
       LOG(WARNING) << "Cannot remove point, must have at least 3 points.";
     }
   }
 
   // Ensure that there is no less than three points per hitbox.
-  while (edit_sub.hitbox.size() < 3) {
-    edit_sub.hitbox.push_back({.x = 0, .y = 0});
+  while (edit_frame.hitbox.size() < 3) {
+    edit_frame.hitbox.push_back({.x = 0, .y = 0});
   }
 
   // Create inputs for all points within the hitbox.
-  for (size_t j = 0; j < edit_sub.hitbox.size(); j++) {
-    Point &point = edit_sub.hitbox[j];
+  for (size_t j = 0; j < edit_frame.hitbox.size(); j++) {
+    Point& point = edit_frame.hitbox[j];
     ImGui::SetNextItemWidth(150.0f);
     ImGui::InputDouble(label_maker("X", j), &point.x);
     ImGui::SameLine();
@@ -430,20 +406,18 @@ absl::Status HudSpriteCreator::RenderSubSpriteEditor(int index,
 
   // Make sure this is the currently active sub sprite.
   ImGui::EndColumns();
-  already_active |= edit_sub.active;
+  already_active |= edit_frame.active;
   return absl::OkStatus();
 }
 
-absl::Status HudSpriteCreator::RenderSubSpriteImage(
-    const EdittingSubSprite &edit_sub) {
+absl::Status HudSpriteCreator::RenderSpriteFrameImage(const EdittingSpriteFrame& edit_frame) {
   // Get texture from texture index
-  ASSIGN_OR_RETURN(
-      HudTexture * hud_texture,
-      texture_creator_->FindTextureByIndex(editting_state_.texture_index));
+  ASSIGN_OR_RETURN(HudTexture * hud_texture,
+                   texture_creator_->FindTextureByIndex(editting_state_.texture_index));
 
-  const SubSprite &sub_sprite = edit_sub.sub_sprite;
-  if (sub_sprite.texture_w <= 0 || sub_sprite.texture_h <= 0 ||
-      sub_sprite.render_w <= 0 || sub_sprite.render_h <= 0) {
+  const SpriteFrame& sprite_frame = edit_frame.sprite_frame;
+  if (sprite_frame.texture_w <= 0 || sprite_frame.texture_h <= 0 || sprite_frame.render_w <= 0 ||
+      sprite_frame.render_h <= 0) {
     ImGui::Text("Image Goes Here");
     return absl::OkStatus();
   }
@@ -452,28 +426,26 @@ absl::Status HudSpriteCreator::RenderSubSpriteImage(
   const ImVec2 offset_position = ImGui::GetCursorScreenPos();
   const ImTextureID texture_id = (ImTextureID)(intptr_t)hud_texture->texture;
 
-  const ImVec2 render_size =
-      ImVec2(sub_sprite.texture_w * editting_state_.zoom,
-             sub_sprite.texture_h * editting_state_.zoom);
+  const ImVec2 render_size = ImVec2(sprite_frame.texture_w * editting_state_.zoom,
+                                    sprite_frame.texture_h * editting_state_.zoom);
 
-  const ImVec2 source_min = GetSourceCoordinates(
-      *hud_texture, {.x = static_cast<double>(sub_sprite.texture_x),
-                     .y = static_cast<double>(sub_sprite.texture_y)});
+  const ImVec2 source_min =
+      GetSourceCoordinates(*hud_texture, {.x = static_cast<double>(sprite_frame.texture_x),
+                                          .y = static_cast<double>(sprite_frame.texture_y)});
 
   const ImVec2 source_max = GetSourceCoordinates(
-      *hud_texture,
-      {.x = static_cast<double>(sub_sprite.texture_x + sub_sprite.texture_w),
-       .y = static_cast<double>(sub_sprite.texture_y + sub_sprite.texture_h)});
+      *hud_texture, {.x = static_cast<double>(sprite_frame.texture_x + sprite_frame.texture_w),
+                     .y = static_cast<double>(sprite_frame.texture_y + sprite_frame.texture_h)});
 
   ImGui::Image(texture_id, render_size, source_min, source_max);
 
-  if (!edit_sub.show_hitbox) {
+  if (!edit_frame.show_hitbox) {
     return absl::OkStatus();
   }
 
-  for (size_t i = 0; i < edit_sub.hitbox.size(); i++) {
-    const Point &p1 = edit_sub.hitbox[i];
-    const Point &p2 = edit_sub.hitbox[(i + 1) % edit_sub.hitbox.size()];
+  for (size_t i = 0; i < edit_frame.hitbox.size(); i++) {
+    const Point& p1 = edit_frame.hitbox[i];
+    const Point& p2 = edit_frame.hitbox[(i + 1) % edit_frame.hitbox.size()];
 
     ImVec2 p1i = ImVec2(p1.x * editting_state_.zoom + offset_position.x,
                         p1.y * editting_state_.zoom + offset_position.y);
@@ -481,8 +453,7 @@ absl::Status HudSpriteCreator::RenderSubSpriteImage(
                         p2.y * editting_state_.zoom + offset_position.y);
 
     float thickness = static_cast<float>(editting_state_.zoom);
-    ImGui::GetWindowDrawList()->AddLine(p1i, p2i, IM_COL32(0, 255, 0, 255),
-                                        thickness);
+    ImGui::GetWindowDrawList()->AddLine(p1i, p2i, IM_COL32(0, 255, 0, 255), thickness);
   }
 
   return absl::OkStatus();
@@ -490,7 +461,7 @@ absl::Status HudSpriteCreator::RenderSubSpriteImage(
 
 void HudSpriteCreator::Update() {
   // Update all sprite objects.
-  for (auto &[_, sprite] : sprites_) {
+  for (auto& [_, sprite] : sprites_) {
     sprite->sprite_object->Update();
   }
 
@@ -503,15 +474,13 @@ void HudSpriteCreator::Update() {
   }
 
   if (ImGui::IsMouseClicked(0)) {
-    editting_state_.selection_start =
-        GetRelativePosition(*texture_offset_, editting_state_.zoom);
+    editting_state_.selection_start = GetRelativePosition(*texture_offset_, editting_state_.zoom);
     editting_state_.selection_end = editting_state_.selection_start;
     return;
   }
 
   if (ImGui::IsMouseDown(0)) {
-    editting_state_.selection_end =
-        GetRelativePosition(*texture_offset_, editting_state_.zoom);
+    editting_state_.selection_end = GetRelativePosition(*texture_offset_, editting_state_.zoom);
     return;
   }
 
@@ -522,17 +491,13 @@ void HudSpriteCreator::Update() {
 
   // Here we are going to adjust the selection to the nearest integer.
   if (editting_state_.selection_start.has_value()) {
-    editting_state_.selection_start->x =
-        std::round(editting_state_.selection_start->x);
-    editting_state_.selection_start->y =
-        std::round(editting_state_.selection_start->y);
+    editting_state_.selection_start->x = std::round(editting_state_.selection_start->x);
+    editting_state_.selection_start->y = std::round(editting_state_.selection_start->y);
   }
 
   if (editting_state_.selection_end.has_value()) {
-    editting_state_.selection_end->x =
-        std::round(editting_state_.selection_end->x);
-    editting_state_.selection_end->y =
-        std::round(editting_state_.selection_end->y);
+    editting_state_.selection_end->x = std::round(editting_state_.selection_end->x);
+    editting_state_.selection_end->y = std::round(editting_state_.selection_end->y);
   }
 
   // At this point there should be an active index.
@@ -542,15 +507,13 @@ void HudSpriteCreator::Update() {
   }
 
   // Upsert the subsprite for the active index.
-  SubSprite &sub_sprite = editting_state_.sub_sprites[active_index].sub_sprite;
-  sub_sprite.texture_x = editting_state_.selection_start->x;
-  sub_sprite.texture_y = editting_state_.selection_start->y;
-  sub_sprite.texture_w =
-      editting_state_.selection_end->x - editting_state_.selection_start->x;
-  sub_sprite.texture_h =
-      editting_state_.selection_end->y - editting_state_.selection_start->y;
-  sub_sprite.render_w = sub_sprite.texture_w;
-  sub_sprite.render_h = sub_sprite.texture_h;
+  SpriteFrame& sprite_frame = editting_state_.sprite_frames[active_index].sprite_frame;
+  sprite_frame.texture_x = editting_state_.selection_start->x;
+  sprite_frame.texture_y = editting_state_.selection_start->y;
+  sprite_frame.texture_w = editting_state_.selection_end->x - editting_state_.selection_start->x;
+  sprite_frame.texture_h = editting_state_.selection_end->y - editting_state_.selection_start->y;
+  sprite_frame.render_w = sprite_frame.texture_w;
+  sprite_frame.render_h = sprite_frame.texture_h;
 }
 
 }  // namespace zebes
