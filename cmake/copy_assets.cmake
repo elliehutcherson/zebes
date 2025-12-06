@@ -24,21 +24,13 @@ file(COPY "${ACTION_SRC}"
 # CMake docs: "PATTERN matches the filename only."
 # So excluding "sql" matches ".../sql".
 
+# 2. Copy SQL assets (migrations)
 set(SRC_SQL "${ACTION_SRC}/zebes/sql")
-set(DEST_SQL "${ACTION_DEST}/assets/zebes/sql")
 set(SRC_TEX "${ACTION_SRC}/zebes/textures")
 set(DEST_TEX "${ACTION_DEST}/assets/zebes/textures")
-
-# 2. Check and copy SQL
 if(EXISTS "${SRC_SQL}")
-    if(COPY_SQL OR NOT EXISTS "${DEST_SQL}")
-        message(STATUS "Copying SQL assets from ${SRC_SQL} to ${DEST_SQL} (Force: ${COPY_SQL})")
-        # We want to copy the CONTENTS of src/sql to dest/sql
-        # or copy directory 'sql' to 'dest/assets/zebes'
-        file(COPY "${SRC_SQL}" DESTINATION "${ACTION_DEST}/assets/zebes")
-    else()
-        message(STATUS "Skipping SQL assets copy (Destination exists and COPY_SQL is OFF)")
-    endif()
+    message(STATUS "Copying SQL assets (migrations) from ${SRC_SQL} to ${ACTION_DEST}/assets/zebes")
+    file(COPY "${SRC_SQL}" DESTINATION "${ACTION_DEST}/assets/zebes")
 endif()
 
 # 3. Check and copy Textures

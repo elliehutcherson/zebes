@@ -27,9 +27,6 @@ endif()
 
 # ## Copy assets to build directory
 
-option(COPY_SQL "Force copy SQL assets" OFF)
-option(COPY_TEXTURES "Force copy texture assets" OFF)
-
 # Determine the copy script path
 set(COPY_SCRIPT "${PROJECT_SOURCE_DIR}/cmake/copy_assets.cmake")
 
@@ -38,7 +35,6 @@ add_custom_target(copy_assets
   COMMAND ${CMAKE_COMMAND} 
     -DACTION_SRC=${CMAKE_CURRENT_LIST_DIR}/assets
     -DACTION_DEST=${CMAKE_CURRENT_BINARY_DIR}/src
-    -DCOPY_SQL=${COPY_SQL}
     -DCOPY_TEXTURES=${COPY_TEXTURES}
     -P ${COPY_SCRIPT}
 )
@@ -49,7 +45,6 @@ add_custom_target(copy_assets_tests
   COMMAND ${CMAKE_COMMAND} 
     -DACTION_SRC=${CMAKE_CURRENT_LIST_DIR}/assets
     -DACTION_DEST=${CMAKE_CURRENT_BINARY_DIR}/tests
-    -DCOPY_SQL=${COPY_SQL}
     -DCOPY_TEXTURES=${COPY_TEXTURES}
     -P ${COPY_SCRIPT}
 )

@@ -1,11 +1,14 @@
 #include "db/db.h"
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "common/status_macros.h"
+#include "db/migration_manager.h"
+#include "db/sqlite_wrapper.h"
 #include "objects/sprite_interface.h"
 #include "sqlite3.h"
 
@@ -13,97 +16,85 @@ namespace zebes {
 
 absl::StatusOr<std::unique_ptr<Db>> Db::Create(const Options& options) {
   // Check that the database can be opened.
-  sqlite3* db;
   LOG(INFO) << "Attempting to open database at: " << options.db_path;
-  int return_code = sqlite3_open(options.db_path.c_str(), &db);
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to open database.");
+  ASSIGN_OR_RETURN(sqlite3 * db, SqliteWrapper::Open(options.db_path));
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
+
+  // Perform migration
+  if (!options.migration_path.empty()) {
+    absl::StatusOr<int> status = MigrationManager::Migrate(db, options.migration_path);
+    if (!status.ok()) {
+      return status.status();
+    }
+  } else {
+    LOG(WARNING) << "No migration path provided, skipping migrations.";
   }
-  sqlite3_close(db);
 
   return std::unique_ptr<Db>(new Db(options));
 }
 
 Db::Db(const Options& options) : db_path_(options.db_path) {}
 
-absl::StatusOr<sqlite3*> Db::OpenDb() {
-  sqlite3* db;
-  int return_code = sqlite3_open(db_path_.c_str(), &db);
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to open database.");
-  }
-
-  return db;
-}
+absl::StatusOr<sqlite3*> Db::OpenDb() { return SqliteWrapper::Open(db_path_); }
 
 absl::StatusOr<uint16_t> Db::InsertTexture(const std::string& path) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string statement =
       absl::StrFormat("INSERT INTO TextureConfig(texture_path) VALUES('%s')", path);
 
-  char* err_msg = nullptr;
-  int return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, &err_msg);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    std::string error_str = "SQL execution failed: ";
-    if (err_msg != nullptr) {
-      error_str = absl::StrCat(error_str, err_msg);
-      sqlite3_free(err_msg);
-    }
-
-    return absl::AbortedError(error_str);
+  absl::Status status = SqliteWrapper::Execute(db, statement, "Failed to insert texture.");
+  if (!status.ok()) {
+    return status;
   }
 
-  uint16_t texture_id = sqlite3_last_insert_rowid(db);
-  sqlite3_close(db);
+  uint16_t texture_id = SqliteWrapper::LastInsertRowId(db);
   return texture_id;
 }
 
 absl::Status Db::DeleteTexture(const std::string& path) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the statement
   const std::string statement =
       absl::StrFormat("DELETE FROM TextureConfig WHERE texture_path = '%s'", path);
 
-  int return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return absl::AbortedError("Failed to delete texture.");
-  }
-
-  sqlite3_close(db);
-  return absl::OkStatus();
+  absl::Status status = SqliteWrapper::Execute(db, statement, "Failed to delete texture.");
+  return status;
 }
 
 absl::StatusOr<bool> Db::TextureExists(const std::string& path) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string query =
       absl::StrFormat("SELECT COUNT(*) FROM TextureConfig WHERE texture_path = '%s'", path);
 
-  sqlite3_stmt* stmt;
-  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return false;
+  auto stmt_or = SqliteWrapper::Prepare(db, query);
+  if (!stmt_or.ok()) {
+    return stmt_or.status();
   }
+  sqlite3_stmt* stmt = *stmt_or;
+  absl::Cleanup stmt_finalizer =
+      absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
 
   // Fetch the result
   bool exists = false;
-  if (sqlite3_step(stmt) == SQLITE_ROW) {
-    exists = sqlite3_column_int(stmt, 0) > 0;
+  auto step_or = SqliteWrapper::Step(stmt);
+  if (!step_or.ok()) {
+    return step_or.status();
   }
 
-  // Finalize the statement and close the database
-  sqlite3_finalize(stmt);
-  sqlite3_close(db);
+  if (*step_or) {
+    exists = SqliteWrapper::ColumnInt(stmt, 0) > 0;
+  }
 
   return exists;
 }
@@ -111,26 +102,22 @@ absl::StatusOr<bool> Db::TextureExists(const std::string& path) {
 absl::StatusOr<std::vector<std::string>> Db::GetAllTexturePaths() {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string query = "SELECT texture_path FROM TextureConfig";
 
-  sqlite3_stmt* stmt;
-  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return absl::AbortedError("Failed to prepare statement.");
-  }
+  ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
+  absl::Cleanup stmt_finalizer =
+      absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
 
   std::vector<std::string> texture_paths;
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
-    const char* texture_path = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-    texture_paths.emplace_back(texture_path);
-  }
+  while (true) {
+    ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
+    if (!step_result) break;
 
-  // Finalize the statement and close the database
-  sqlite3_finalize(stmt);
-  sqlite3_close(db);
+    texture_paths.emplace_back(SqliteWrapper::ColumnText(stmt, 0));
+  }
 
   return texture_paths;
 }
@@ -138,28 +125,25 @@ absl::StatusOr<std::vector<std::string>> Db::GetAllTexturePaths() {
 absl::StatusOr<std::vector<Texture>> Db::GetAllTextures() {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string query = "SELECT id, texture_path FROM TextureConfig";
 
-  sqlite3_stmt* stmt;
-  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return absl::AbortedError("Failed to prepare statement.");
-  }
+  ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
+  absl::Cleanup stmt_finalizer =
+      absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
 
   std::vector<Texture> textures;
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
+  while (true) {
+    ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
+    if (!step_result) break;
+
     Texture texture;
-    texture.id = sqlite3_column_int(stmt, 0);
-    texture.path = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+    texture.id = SqliteWrapper::ColumnInt(stmt, 0);
+    texture.path = SqliteWrapper::ColumnText(stmt, 1);
     textures.push_back(texture);
   }
-
-  // Finalize the statement and close the database
-  sqlite3_finalize(stmt);
-  sqlite3_close(db);
 
   return textures;
 }
@@ -167,27 +151,22 @@ absl::StatusOr<std::vector<Texture>> Db::GetAllTextures() {
 absl::StatusOr<int> Db::NumSpritesWithTexture(const std::string& path) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string query =
       absl::StrFormat("SELECT COUNT(*) FROM SpriteConfig WHERE texture_path = '%s'", path);
 
-  sqlite3_stmt* stmt;
-  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return absl::AbortedError("Failed to prepare statement.");
-  }
+  ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
+  absl::Cleanup stmt_finalizer =
+      absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
 
   // Fetch the result
   int count = 0;
-  if (sqlite3_step(stmt) == SQLITE_ROW) {
-    count = sqlite3_column_int(stmt, 0);
+  ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
+  if (step_result) {
+    count = SqliteWrapper::ColumnInt(stmt, 0);
   }
-
-  // Finalize the statement and close the database
-  sqlite3_finalize(stmt);
-  sqlite3_close(db);
 
   return count;
 }
@@ -195,48 +174,39 @@ absl::StatusOr<int> Db::NumSpritesWithTexture(const std::string& path) {
 absl::StatusOr<uint16_t> Db::InsertSprite(const SpriteConfig& sprite_config) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string statement = absl::StrFormat(
       "INSERT INTO SpriteConfig(type, type_name, texture_path, "
-      "ticks_per_sprite "
+      "ticks_per_sprite) "
       "VALUES(%d, '%s', '%s', %d)",
       sprite_config.type, sprite_config.type_name, sprite_config.texture_path,
       sprite_config.ticks_per_sprite);
 
-  int return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
-  sqlite3_close(db);
+  RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to insert sprite."));
 
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to insert sprite.");
-  }
+  uint16_t id = SqliteWrapper::LastInsertRowId(db);
 
-  return sqlite3_last_insert_rowid(db);
+  return id;
 }
 
 absl::Status Db::DeleteSprite(uint16_t sprite_id) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the statement to delete all subsprites
   std::string statement = absl::StrFormat(
       "DELETE FROM SpriteFrameConfig WHERE sprite_config_id = %d", static_cast<int>(sprite_id));
 
-  int return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to delete sprite.");
-  }
+  RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to delete sprite frames."));
 
   // Prepare the statement to delete the sprite
   statement =
       absl::StrFormat("DELETE FROM SpriteConfig WHERE id = %d", static_cast<int>(sprite_id));
 
-  return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
-  sqlite3_close(db);
-
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to delete sprite.");
-  }
+  RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to delete sprite."));
 
   return absl::OkStatus();
 }
@@ -246,6 +216,7 @@ absl::StatusOr<SpriteConfig> Db::GetSprite(uint16_t sprite_id) {
 
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string query = absl::StrFormat(
@@ -253,25 +224,24 @@ absl::StatusOr<SpriteConfig> Db::GetSprite(uint16_t sprite_id) {
       "FROM SpriteConfig WHERE id = %d",
       static_cast<int>(sprite_id));
 
-  sqlite3_stmt* stmt;
-  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return absl::AbortedError("Failed to prepare statement.");
-  }
+  ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
+  absl::Cleanup stmt_finalizer =
+      absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
 
   // Fetch the sprite
-  if (sqlite3_step(stmt) == SQLITE_ROW) {
-    sprite_config.id = sqlite3_column_int(stmt, 0);
-    sprite_config.type = sqlite3_column_int(stmt, 1);
-    sprite_config.type_name = sqlite3_column_int(stmt, 2);
-    sprite_config.texture_path = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-    sprite_config.ticks_per_sprite = sqlite3_column_int(stmt, 4);
+  ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
+  if (step_result) {
+    sprite_config.id = SqliteWrapper::ColumnInt(stmt, 0);
+    sprite_config.type = SqliteWrapper::ColumnInt(stmt, 1);
+    // Be careful with ColumnText returning std::string vs const char*
+    // existing code: sqlite3_column_text returning uchar*, cast to char*.
+    // Wrapper uses ColumnText returning std::string.
+    // SpriteConfig fields: type_name is std::string? Let's check type definition if needed.
+    // Usually std::string assignment works.
+    sprite_config.type_name = SqliteWrapper::ColumnText(stmt, 2);
+    sprite_config.texture_path = SqliteWrapper::ColumnText(stmt, 3);
+    sprite_config.ticks_per_sprite = SqliteWrapper::ColumnInt(stmt, 4);
   }
-
-  // Finalize the statement and close the database
-  sqlite3_finalize(stmt);
-  sqlite3_close(db);
 
   return sprite_config;
 }
@@ -281,34 +251,31 @@ absl::StatusOr<std::vector<SpriteConfig>> Db::GetAllSprites() {
 
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string query =
       "SELECT id, type, type_name, texture_path, ticks_per_sprite "
       "FROM SpriteConfig";
 
-  sqlite3_stmt* stmt;
-  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return absl::AbortedError("Failed to prepare statement.");
-  }
+  ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
+  absl::Cleanup stmt_finalizer =
+      absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
 
   // Fetch the sprite
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
+  while (true) {
+    ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
+    if (!step_result) break;
+
     SpriteConfig sprite_config;
-    sprite_config.id = sqlite3_column_int(stmt, 0);
-    sprite_config.type = sqlite3_column_int(stmt, 1);
-    sprite_config.type_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-    sprite_config.texture_path = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-    sprite_config.ticks_per_sprite = sqlite3_column_int(stmt, 4);
+    sprite_config.id = SqliteWrapper::ColumnInt(stmt, 0);
+    sprite_config.type = SqliteWrapper::ColumnInt(stmt, 1);
+    sprite_config.type_name = SqliteWrapper::ColumnText(stmt, 2);
+    sprite_config.texture_path = SqliteWrapper::ColumnText(stmt, 3);
+    sprite_config.ticks_per_sprite = SqliteWrapper::ColumnInt(stmt, 4);
 
     sprite_configs.push_back(sprite_config);
   }
-
-  // Finalize the statement and close the database
-  sqlite3_finalize(stmt);
-  sqlite3_close(db);
 
   return sprite_configs;
 };
@@ -317,6 +284,7 @@ absl::StatusOr<uint16_t> Db::InsertSpriteFrame(uint16_t sprite_id,
                                                const SpriteFrame& sprite_frame) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string statement = absl::StrFormat(
@@ -329,14 +297,9 @@ absl::StatusOr<uint16_t> Db::InsertSpriteFrame(uint16_t sprite_id,
       sprite_frame.texture_offset_y, sprite_frame.render_w, sprite_frame.render_h,
       sprite_frame.render_offset_x, sprite_frame.render_offset_y);
 
-  int return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return absl::AbortedError("Failed to insert sprite frame.");
-  }
+  RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to insert sprite frame."));
 
-  uint16_t sprite_frame_id = sqlite3_last_insert_rowid(db);
-  sqlite3_close(db);
+  uint16_t sprite_frame_id = SqliteWrapper::LastInsertRowId(db);
 
   return sprite_frame_id;
 }
@@ -344,17 +307,13 @@ absl::StatusOr<uint16_t> Db::InsertSpriteFrame(uint16_t sprite_id,
 absl::Status Db::DeleteSpriteFrame(uint16_t sprite_frame_id) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the statement to delete the sprite frame
   const std::string statement = absl::StrFormat("DELETE FROM SpriteFrameConfig WHERE id = %d",
                                                 static_cast<int>(sprite_frame_id));
 
-  int return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
-  sqlite3_close(db);
-
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to delete sprite frame.");
-  }
+  RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to delete sprite frame."));
 
   return absl::OkStatus();
 }
@@ -364,6 +323,7 @@ absl::StatusOr<SpriteFrame> Db::GetSpriteFrame(uint16_t sprite_frame_id) {
 
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string query = absl::StrFormat(
@@ -382,31 +342,25 @@ absl::StatusOr<SpriteFrame> Db::GetSpriteFrame(uint16_t sprite_frame_id) {
       "FROM SpriteFrameConfig WHERE id = %d",
       sprite_frame_id);
 
-  sqlite3_stmt* stmt;
-  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return absl::AbortedError("Failed to prepare statement.");
-  }
+  ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
+  absl::Cleanup stmt_finalizer =
+      absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
 
   // Fetch the sprite frame
-  if (sqlite3_step(stmt) == SQLITE_ROW) {
-    sprite_frame.texture_x = sqlite3_column_int(stmt, 0);
-    sprite_frame.texture_y = sqlite3_column_int(stmt, 1);
-    sprite_frame.texture_w = sqlite3_column_int(stmt, 2);
-    sprite_frame.texture_h = sqlite3_column_int(stmt, 3);
-    sprite_frame.texture_offset_x = sqlite3_column_int(stmt, 4);
-    sprite_frame.texture_offset_y = sqlite3_column_int(stmt, 5);
-    sprite_frame.render_w = sqlite3_column_int(stmt, 6);
-    sprite_frame.render_h = sqlite3_column_int(stmt, 7);
-    sprite_frame.render_offset_x = sqlite3_column_int(stmt, 8);
-    sprite_frame.render_offset_y = sqlite3_column_int(stmt, 9);
-    sprite_frame.index = sqlite3_column_int(stmt, 10);
+  ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
+  if (step_result) {
+    sprite_frame.texture_x = SqliteWrapper::ColumnInt(stmt, 0);
+    sprite_frame.texture_y = SqliteWrapper::ColumnInt(stmt, 1);
+    sprite_frame.texture_w = SqliteWrapper::ColumnInt(stmt, 2);
+    sprite_frame.texture_h = SqliteWrapper::ColumnInt(stmt, 3);
+    sprite_frame.texture_offset_x = SqliteWrapper::ColumnInt(stmt, 4);
+    sprite_frame.texture_offset_y = SqliteWrapper::ColumnInt(stmt, 5);
+    sprite_frame.render_w = SqliteWrapper::ColumnInt(stmt, 6);
+    sprite_frame.render_h = SqliteWrapper::ColumnInt(stmt, 7);
+    sprite_frame.render_offset_x = SqliteWrapper::ColumnInt(stmt, 8);
+    sprite_frame.render_offset_y = SqliteWrapper::ColumnInt(stmt, 9);
+    sprite_frame.index = SqliteWrapper::ColumnInt(stmt, 10);
   }
-
-  // Finalize the statement and close the database
-  sqlite3_finalize(stmt);
-  sqlite3_close(db);
 
   return sprite_frame;
 }
@@ -416,6 +370,7 @@ absl::StatusOr<std::vector<SpriteFrame>> Db::GetSpriteFrames(uint16_t sprite_id)
 
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   std::string query = absl::StrFormat(
@@ -439,38 +394,31 @@ absl::StatusOr<std::vector<SpriteFrame>> Db::GetSpriteFrames(uint16_t sprite_id)
       "ORDER BY sprite_frame_index ASC",
       sprite_id);
 
-  sqlite3_stmt* stmt;
-  int return_code = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
-  if (return_code != SQLITE_OK) {
-    sqlite3_close(db);
-    return absl::AbortedError("Failed to prepare statement.");
-  }
-
-  LOG(INFO) << __func__ << ": " << sqlite3_column_count(stmt);
-  LOG(INFO) << __func__ << ": " << absl::StrFormat("sprite_id = %d", sprite_id);
+  ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
+  absl::Cleanup stmt_finalizer =
+      absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
 
   // Fetch the sprite frames
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
+  while (true) {
+    ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
+    if (!step_result) break;
+
     SpriteFrame sprite_frame;
-    sprite_frame.id = sqlite3_column_int(stmt, 0);
-    sprite_frame.texture_x = sqlite3_column_int(stmt, 1);
-    sprite_frame.texture_y = sqlite3_column_int(stmt, 2);
-    sprite_frame.texture_w = sqlite3_column_int(stmt, 3);
-    sprite_frame.texture_h = sqlite3_column_int(stmt, 4);
-    sprite_frame.texture_offset_x = sqlite3_column_int(stmt, 5);
-    sprite_frame.texture_offset_y = sqlite3_column_int(stmt, 6);
-    sprite_frame.render_w = sqlite3_column_int(stmt, 7);
-    sprite_frame.render_h = sqlite3_column_int(stmt, 8);
-    sprite_frame.render_offset_x = sqlite3_column_int(stmt, 9);
-    sprite_frame.render_offset_y = sqlite3_column_int(stmt, 10);
-    sprite_frame.index = sqlite3_column_int(stmt, 11);
+    sprite_frame.id = SqliteWrapper::ColumnInt(stmt, 0);
+    sprite_frame.texture_x = SqliteWrapper::ColumnInt(stmt, 1);
+    sprite_frame.texture_y = SqliteWrapper::ColumnInt(stmt, 2);
+    sprite_frame.texture_w = SqliteWrapper::ColumnInt(stmt, 3);
+    sprite_frame.texture_h = SqliteWrapper::ColumnInt(stmt, 4);
+    sprite_frame.texture_offset_x = SqliteWrapper::ColumnInt(stmt, 5);
+    sprite_frame.texture_offset_y = SqliteWrapper::ColumnInt(stmt, 6);
+    sprite_frame.render_w = SqliteWrapper::ColumnInt(stmt, 7);
+    sprite_frame.render_h = SqliteWrapper::ColumnInt(stmt, 8);
+    sprite_frame.render_offset_x = SqliteWrapper::ColumnInt(stmt, 9);
+    sprite_frame.render_offset_y = SqliteWrapper::ColumnInt(stmt, 10);
+    sprite_frame.index = SqliteWrapper::ColumnInt(stmt, 11);
 
     sprite_frames.push_back(sprite_frame);
   }
-
-  // Finalize the statement and close the database
-  sqlite3_finalize(stmt);
-  sqlite3_close(db);
 
   return sprite_frames;
 }
@@ -478,6 +426,7 @@ absl::StatusOr<std::vector<SpriteFrame>> Db::GetSpriteFrames(uint16_t sprite_id)
 absl::Status Db::UpdateSprite(const SpriteConfig& config) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string statement = absl::StrFormat(
@@ -486,12 +435,7 @@ absl::Status Db::UpdateSprite(const SpriteConfig& config) {
       config.type, config.type_name.c_str(), config.texture_path.c_str(), config.ticks_per_sprite,
       config.id);
 
-  int return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
-  sqlite3_close(db);
-
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to update sprite.");
-  }
+  RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to update sprite."));
 
   return absl::OkStatus();
 }
@@ -499,6 +443,7 @@ absl::Status Db::UpdateSprite(const SpriteConfig& config) {
 absl::Status Db::UpdateSpriteFrame(const SpriteFrame& frame) {
   // Open the database
   ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
   const std::string statement = absl::StrFormat(
@@ -512,12 +457,7 @@ absl::Status Db::UpdateSpriteFrame(const SpriteFrame& frame) {
       frame.texture_offset_y, frame.render_w, frame.render_h, frame.render_offset_x,
       frame.render_offset_y, frame.index, frame.id);
 
-  int return_code = sqlite3_exec(db, statement.c_str(), nullptr, nullptr, nullptr);
-  sqlite3_close(db);
-
-  if (return_code != SQLITE_OK) {
-    return absl::AbortedError("Failed to update sprite frame.");
-  }
+  RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to update sprite frame."));
 
   return absl::OkStatus();
 }

@@ -13,6 +13,7 @@ class Db : public DbInterface {
  public:
   struct Options {
     const std::string db_path;
+    const std::string migration_path;
   };
   static absl::StatusOr<std::unique_ptr<Db>> Create(const Options& options);
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
@@ -20,5 +21,12 @@
   lhs = std::move(*statusor);
 
 #define ASSIGN_OR_RETURN(lhs, rexpr) \
-  ASSIGN_OR_RETURN_IMPL(             \
-      STATUS_MACROS_CONCAT_NAME(_status_or_value, __COUNTER__), lhs, rexpr);
+  ASSIGN_OR_RETURN_IMPL(STATUS_MACROS_CONCAT_NAME(_status_or_value, __COUNTER__), lhs, rexpr);
+
+#define LOG_IF_ERROR(expr)               \
+  do {                                   \
+    const absl::Status _status = (expr); \
+    if (!_status.ok()) {                 \
+      LOG(ERROR) << _status;             \
+    }                                    \
+  } while (0)

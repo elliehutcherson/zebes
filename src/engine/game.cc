@@ -32,9 +32,8 @@ absl::Status Game::Init() {
   }
 
   LOG(INFO) << "Zebes: Initializing window...";
-  window_ = SDL_CreateWindow(config_.window.title.c_str(), config_.window.xpos,
-                             config_.window.ypos, config_.window.width,
-                             config_.window.height, config_.window.flags);
+  window_ = SDL_CreateWindow(config_.window.title.c_str(), config_.window.xpos, config_.window.ypos,
+                             config_.window.width, config_.window.height, config_.window.flags);
   if (window_ == nullptr) {
     return absl::AbortedError("Failed to create window.");
   }
@@ -44,8 +43,7 @@ absl::Status Game::Init() {
 
   LOG(INFO) << "Zebes: Initializing font library...";
   if (TTF_Init() != 0) {
-    return absl::InternalError(
-        absl::StrFormat("SDL_ttf could not initialize! %s", TTF_GetError()));
+    return absl::InternalError(absl::StrFormat("SDL_ttf could not initialize! %s", TTF_GetError()));
   }
 
   LOG(INFO) << "Zebes: Initializing renderer...";
@@ -63,7 +61,7 @@ absl::Status Game::Init() {
   ASSIGN_OR_RETURN(camera_, Camera::Create(camera_options));
 
   LOG(INFO) << "Zebes: Initializing database...";
-  Db::Options db_options = {.db_path = kZebesDatabasePath};
+  Db::Options db_options = {.db_path = kZebesDatabasePath, .migration_path = kZebesMigrationsPath};
   ASSIGN_OR_RETURN(db_, Db::Create(db_options));
 
   LOG(INFO) << "Zebes: Initializing sprite manager...";
@@ -73,23 +71,18 @@ absl::Status Game::Init() {
       .camera = camera_.get(),
       .db = db_.get(),
   };
-  ASSIGN_OR_RETURN(sprite_manager_,
-                   SpriteManager::Create(sprite_manager_options));
+  ASSIGN_OR_RETURN(sprite_manager_, SpriteManager::Create(sprite_manager_options));
 
   LOG(INFO) << "Zebes: Initializing collision manager...";
-  ASSIGN_OR_RETURN(collision_manager_,
-                   CollisionManager::Create(&config_, camera_.get()));
+  ASSIGN_OR_RETURN(collision_manager_, CollisionManager::Create(&config_, camera_.get()));
 
   LOG(INFO) << "Zebes: Initializing controller...";
   ASSIGN_OR_RETURN(
       controller_,
-      Controller::Create({.save_config = [](const GameConfig &config) {
-        SaveConfig(config);
-      }}));
+      Controller::Create({.save_config = [](const GameConfig& config) { SaveConfig(config); }}));
 
   LOG(INFO) << "Zebes: Initializing api...";
-  Api::Options api_options = {.config = &config_,
-                              .db = db_.get()};
+  Api::Options api_options = {.config = &config_, .db = db_.get()};
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
   LOG(INFO) << "Zebes: Initializing hud...";
@@ -179,12 +172,10 @@ void Game::Clean() {
 
 bool Game::IsRunning() { return is_running_; }
 
-bool Game::AdvanceFrame() {
-  return !enable_frame_by_frame_ || advance_frame_by_frame_;
-}
+bool Game::AdvanceFrame() { return !enable_frame_by_frame_ || advance_frame_by_frame_; }
 
 void Game::GameUpdate() {
-  const ControllerState *controller_state = controller_->GetState();
+  const ControllerState* controller_state = controller_->GetState();
   if (controller_state->game_quit != KeyState::none) is_running_ = false;
   if (controller_state->enable_frame_by_frame == KeyState::down)
     enable_frame_by_frame_ = !enable_frame_by_frame_;
@@ -197,8 +188,7 @@ void Game::GameUpdate() {
 
 void Game::GameDelay() {
   frame_time_ = SDL_GetTicks64() - frame_start_;
-  if (config_.frame_delay > frame_time_)
-    SDL_Delay(config_.frame_delay - frame_time_);
+  if (config_.frame_delay > frame_time_) SDL_Delay(config_.frame_delay - frame_time_);
 }
 
 }  // namespace zebes

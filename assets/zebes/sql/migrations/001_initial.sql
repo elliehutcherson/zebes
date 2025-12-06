@@ -1,10 +1,11 @@
--- SQLite
-CREATE TABLE TextureConfig (
+-- Migration 001: Initial Schema
+
+CREATE TABLE IF NOT EXISTS TextureConfig (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     texture_path TEXT NOT NULL UNIQUE
 );
 
-CREATE TABLE SpriteConfig (
+CREATE TABLE IF NOT EXISTS SpriteConfig (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     type INTEGER NOT NULL,
     type_name TEXT NOT NULL,
@@ -12,7 +13,7 @@ CREATE TABLE SpriteConfig (
     ticks_per_sprite INTEGER NOT NULL
 );
 
-CREATE TABLE SpriteFrameConfig (
+CREATE TABLE IF NOT EXISTS SpriteFrameConfig (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sprite_config_id INTEGER NOT NULL,
     sprite_frame_index INTEGER NOT NULL,
@@ -26,5 +27,5 @@ CREATE TABLE SpriteFrameConfig (
     render_h INTEGER NOT NULL,
     render_offset_x INTEGER NOT NULL,
     render_offset_y INTEGER NOT NULL,
-    FOREIGN KEY (sprite_config_id) REFERENCES SpriteConfig(id)
+    FOREIGN KEY (sprite_config_id) REFERENCES SpriteConfig (id)
 );

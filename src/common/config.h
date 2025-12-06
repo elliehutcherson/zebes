@@ -17,6 +17,7 @@ inline constexpr float kDefaultGravity = 2.0;
 static const std::string kZebesConfigPath = "config.json";
 static const std::string kZebesAssetsPath = "assets/zebes";
 static const std::string kZebesDatabasePath = "assets/zebes/sql/zebes.db";
+static const std::string kZebesMigrationsPath = "assets/zebes/sql/migrations";
 static const std::string kHudFont = "Courier-Prime.ttf";
 
 namespace zebes {
@@ -34,9 +35,8 @@ struct WindowConfig {
   // Define to_json and from_json functions for serialization and
   // deserialization
   friend void to_json(nlohmann::json& j, const WindowConfig& s) {
-    j = nlohmann::json{{"title", s.title},   {"xpos", s.xpos},
-                       {"ypos", s.ypos},     {"width", s.width},
-                       {"height", s.height}, {"flags", s.flags}};
+    j = nlohmann::json{{"title", s.title}, {"xpos", s.xpos},     {"ypos", s.ypos},
+                       {"width", s.width}, {"height", s.height}, {"flags", s.flags}};
   }
 
   friend void from_json(const nlohmann::json& j, WindowConfig& s) {
@@ -58,10 +58,8 @@ struct BoundaryConfig {
   // Define to_json and from_json functions for serialization and
   // deserialization
   friend void to_json(nlohmann::json& j, const BoundaryConfig& s) {
-    j = nlohmann::json{{"x_min", s.x_min},
-                       {"x_max", s.x_max},
-                       {"y_min", s.y_min},
-                       {"y_max", s.y_max}};
+    j = nlohmann::json{
+        {"x_min", s.x_min}, {"x_max", s.x_max}, {"y_min", s.y_min}, {"y_max", s.y_max}};
   }
 
   friend void from_json(const nlohmann::json& j, BoundaryConfig& s) {
@@ -110,8 +108,7 @@ struct CollisionConfig {
   // Define to_json and from_json functions for serialization and
   // deserialization.
   friend void to_json(nlohmann::json& j, const CollisionConfig& s) {
-    j = nlohmann::json{{"area_width", s.area_width},
-                       {"area_height", s.area_height}};
+    j = nlohmann::json{{"area_width", s.area_width}, {"area_height", s.area_height}};
   }
 
   friend void from_json(const nlohmann::json& j, CollisionConfig& s) {
@@ -126,21 +123,14 @@ struct PathConfig {
 
   PathConfig(absl::string_view execute_path);
   std::string execute() const { return execute_; }
-  std::string config() const {
-    return absl::StrFormat("%s/%s", execute_, kZebesConfigPath);
+  std::string config() const { return absl::StrFormat("%s/%s", execute_, kZebesConfigPath); }
+  std::string assets() const { return absl::StrFormat("%s/%s", execute_, relative_assets); }
+  std::string hud_font() const { return absl::StrFormat("%s/%s", assets(), relative_hud_font); }
+  std::string database() const { return absl::StrFormat("%s/%s", execute_, kZebesDatabasePath); }
+  std::string migrations() const {
+    return absl::StrFormat("%s/%s", execute_, kZebesMigrationsPath);
   }
-  std::string assets() const {
-    return absl::StrFormat("%s/%s", execute_, relative_assets);
-  }
-  std::string hud_font() const {
-    return absl::StrFormat("%s/%s", assets(), relative_hud_font);
-  }
-  std::string database() const {
-    return absl::StrFormat("%s/%s", execute_, kZebesDatabasePath);
-  }
-  std::string top() const {
-    return absl::StrFormat("%s/%s", execute_, "../..");
-  }
+  std::string top() const { return absl::StrFormat("%s/%s", execute_, "../.."); }
 
   // Define to_json and from_json functions for serialization and
   // deserialization.
@@ -169,8 +159,7 @@ class GameConfig {
   // Get the path of the executable.
   static std::string GetDefaultConfigPath();
   // Create the game config.
-  static absl::StatusOr<GameConfig> Create(
-      std::optional<std::string> path = std::nullopt);
+  static absl::StatusOr<GameConfig> Create(std::optional<std::string> path = std::nullopt);
   // Destructor, nothing special should happen so make it default.
   ~GameConfig() { LOG(INFO) << "GameConfig destroyed"; }
 
