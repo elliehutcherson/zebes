@@ -16,7 +16,6 @@
 #include "engine/collision_manager.h"
 #include "engine/controller.h"
 #include "engine/sprite_manager.h"
-#include "hud/hud.h"
 
 namespace zebes {
 
@@ -40,11 +39,6 @@ absl::Status Game::Init() {
   SDL_GetWindowSize(window_, &config_.window.width, &config_.window.height);
   LOG(INFO) << "window width: " << config_.window.width
             << " window height: " << config_.window.height;
-
-  LOG(INFO) << "Zebes: Initializing font library...";
-  if (TTF_Init() != 0) {
-    return absl::InternalError(absl::StrFormat("SDL_ttf could not initialize! %s", TTF_GetError()));
-  }
 
   LOG(INFO) << "Zebes: Initializing renderer...";
   renderer_ = SDL_CreateRenderer(window_, -1, 0);
@@ -90,17 +84,6 @@ absl::Status Game::Init() {
   Api::Options api_options = {.config = &config_, .db = db_.get()};
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
-  LOG(INFO) << "Zebes: Initializing hud...";
-  Hud::Options hud_options = {.config = &config_,
-                              .focus = focus_,
-                              .controller = controller_.get(),
-                              .sprite_manager = sprite_manager_.get(),
-                              .api = api_.get(),
-                              .window = window_,
-                              .renderer = renderer_};
-
-  ASSIGN_OR_RETURN(hud_, Hud::Create(std::move(hud_options)));
-
   LOG(INFO) << "Zebes: Initialization done...";
   is_running_ = true;
   return absl::OkStatus();
@@ -123,14 +106,13 @@ absl::Status Game::Run() {
 
 void Game::PrePipeline() { frame_start_ = SDL_GetTicks64(); }
 
-void Game::InjectEvents() { hud_->InjectEvents(); }
+void Game::InjectEvents() { LOG(INFO) << __func__; }
 
 void Game::HandleEvents() {
   controller_->HandleInternalEvents();
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     // ImGui_ImplSDL2_ProcessEvent(&event);
-    hud_->HandleEvent(event);
     controller_->HandleEvent(&event);
   }
 }
@@ -139,7 +121,6 @@ void Game::Update() {
   controller_->Update();
   GameUpdate();
   if (AdvanceFrame()) {
-    hud_->Update();
     focus_->Update(controller_->GetState());
     collision_manager_->Update();
     camera_->Update(focus_->x_center(), focus_->y_center());
@@ -152,7 +133,6 @@ void Game::Render() {
   if (config_.mode == GameConfig::Mode::kCreatorMode) {
     camera_->RenderGrid();
   }
-  hud_->Render();
   SDL_RenderPresent(renderer_);
 }
 

@@ -12,7 +12,6 @@
 #include "engine/focus.h"
 #include "engine/focus_lite.h"
 #include "engine/sprite_manager.h"
-#include "hud/hud.h"
 #include "imgui.h"
 
 namespace zebes {
@@ -59,10 +58,10 @@ class Game {
   bool enable_frame_by_frame_ = false;
   bool advance_frame_by_frame_ = false;
 
-  SDL_Window *window_;
-  SDL_Renderer *renderer_;
+  SDL_Window* window_;
+  SDL_Renderer* renderer_;
   SDL_GLContext gl_context_;
-  ImGuiContext *imgui_context_;
+  ImGuiContext* imgui_context_;
   ImGuiIO imgui_io_;
 
   std::unique_ptr<FocusLite> focus_lite_;
@@ -71,11 +70,10 @@ class Game {
   std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<CollisionManager> collision_manager_;
   std::unique_ptr<Api> api_;
-  std::unique_ptr<Hud> hud_;
   std::unique_ptr<Controller> controller_;
 
   // Focus pointer to update the camera.
-  Focus *focus_;
+  Focus* focus_;
 };
 
 }  // namespace zebes
