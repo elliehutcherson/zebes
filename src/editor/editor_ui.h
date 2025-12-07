@@ -6,7 +6,9 @@
 #include "SDL.h"
 #include "api/api.h"
 #include "editor/animator.h"
+#include "editor/sdl_wrapper.h"
 #include "imgui.h"
+#include "objects/sprite_interface.h"
 #include "objects/texture.h"
 
 namespace zebes {
@@ -19,8 +21,7 @@ class EditorUi {
   // Render all editor UI windows
   void Render(Api* api);
 
-  // Set renderer for creating textures
-  void SetRenderer(SDL_Renderer* renderer) { renderer_ = renderer; }
+  void SetSdlWrapper(SdlWrapper* sdl) { sdl_wrapper_ = sdl; }
 
  private:
   // Render texture import window
@@ -39,10 +40,22 @@ class EditorUi {
   void RenderSpriteList(Api* api);
 
   /**
+   * @brief Renders the inspector section for the selected sprite.
+   * @param api Pointer to the API for data fetching.
+   */
+  void RenderSpriteInspector(Api* api);
+
+  /**
    * @brief Renders the horizontal list of sprite frames for the selected sprite.
    * @param api Pointer to the API for saving changes.
    */
   void RenderSpriteFrameList(Api* api);
+
+  /**
+   * @brief Saves the changes made to the sprite frames.
+   * @param api Pointer to the API.
+   */
+  void SaveSpriteFrames(Api* api);
 
   /**
    * @brief Renders a single sprite frame item in the horizontal list.
@@ -61,6 +74,19 @@ class EditorUi {
    * @param sprite_id The ID of the sprite to load texture for.
    */
   void LoadSpriteTexture(int sprite_id);
+
+  /**
+   * @brief Refreshes the list of sprites from the API.
+   * @param api Pointer to the API.
+   */
+  void RefreshSpriteList(Api* api);
+
+  /**
+   * @brief Selects a sprite for editing.
+   * @param sprite_id The ID of the sprite to select.
+   * @param api Pointer to the API.
+   */
+  void SelectSprite(int sprite_id, Api* api);
 
   // Load texture for preview
   // Load texture for preview
@@ -82,7 +108,7 @@ class EditorUi {
   int sprite_h_input_;
 
   // Texture preview state
-  SDL_Renderer* renderer_ = nullptr;
+  SdlWrapper* sdl_wrapper_ = nullptr;
   SDL_Texture* preview_texture_ = nullptr;
   std::vector<Texture> texture_list_;
   float texture_preview_zoom_ = 1.0f;
@@ -106,6 +132,7 @@ class EditorUi {
   // Config editor state
   GameConfig local_config_;
   bool config_loaded_ = false;
+  std::string window_title_buffer_;
 
   // Animation state
   std::unique_ptr<Animator> animator_;

@@ -8,6 +8,7 @@
 #include "common/config.h"
 #include "db/db.h"
 #include "editor/editor_ui.h"
+#include "editor/sdl_wrapper.h"
 
 namespace zebes {
 
@@ -43,8 +44,7 @@ class EditorEngine {
   void RenderFrame();
 
   // SDL state
-  SDL_Window* window_;
-  SDL_Renderer* renderer_;
+  std::unique_ptr<SdlWrapper> sdl_;
 
   // Zebes state
   GameConfig config_;

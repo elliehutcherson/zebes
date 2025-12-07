@@ -8,6 +8,7 @@
 #include "absl/strings/str_cat.h"
 #include "imgui.h"
 #include "objects/sprite_interface.h"
+#include "objects/texture.h"
 
 namespace zebes {
 
@@ -55,7 +56,6 @@ void EditorUi::Render(Api* api) {
 
 void EditorUi::RenderTextureImport(Api* api) {
   // Tabs handle visibility
-
   ImGui::InputText("Texture Path", texture_path_buffer_.data(), texture_path_buffer_.size());
   ImGui::SameLine();
   if (ImGui::Button("Open")) {
@@ -127,51 +127,53 @@ void EditorUi::RenderTextureImport(Api* api) {
   }
 
   // Preview
-  if (preview_texture_) {
-    ImGui::Separator();
-    ImGui::Text("Texture Preview");
+  if (!preview_texture_) {
+    return;
+  }
 
-    // Zoom controls
-    if (ImGui::Button("-")) {
-      texture_preview_zoom_ *= 0.8f;
+  ImGui::Separator();
+  ImGui::Text("Texture Preview");
+
+  // Zoom controls
+  if (ImGui::Button("-")) {
+    texture_preview_zoom_ *= 0.8f;
+    if (texture_preview_zoom_ < 0.1f) texture_preview_zoom_ = 0.1f;
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("+")) {
+    texture_preview_zoom_ *= 1.25f;
+    if (texture_preview_zoom_ > 10.0f) texture_preview_zoom_ = 10.0f;
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Reset Zoom")) {
+    texture_preview_zoom_ = 1.0f;
+  }
+  ImGui::SameLine();
+  ImGui::Text("Zoom: %.1fx", texture_preview_zoom_);
+
+  int w, h;
+  SDL_QueryTexture(preview_texture_, nullptr, nullptr, &w, &h);
+  float aspect = (float)w / (float)h;
+  float preview_w = 200.0f * texture_preview_zoom_;
+  float preview_h = preview_w / aspect;
+
+  ImGui::Text("Size: %dx%d", w, h);
+
+  // Display the image with zoom applied
+  ImGui::BeginChild("PreviewRegion", ImVec2(0, 400), true, ImGuiWindowFlags_HorizontalScrollbar);
+
+  // Mouse wheel zoom when hovering over preview
+  if (ImGui::IsWindowHovered()) {
+    float wheel = ImGui::GetIO().MouseWheel;
+    if (wheel != 0.0f) {
+      texture_preview_zoom_ *= (1.0f + wheel * 0.1f);
       if (texture_preview_zoom_ < 0.1f) texture_preview_zoom_ = 0.1f;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("+")) {
-      texture_preview_zoom_ *= 1.25f;
       if (texture_preview_zoom_ > 10.0f) texture_preview_zoom_ = 10.0f;
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Reset Zoom")) {
-      texture_preview_zoom_ = 1.0f;
-    }
-    ImGui::SameLine();
-    ImGui::Text("Zoom: %.1fx", texture_preview_zoom_);
-
-    int w, h;
-    SDL_QueryTexture(preview_texture_, nullptr, nullptr, &w, &h);
-    float aspect = (float)w / (float)h;
-    float preview_w = 200.0f * texture_preview_zoom_;
-    float preview_h = preview_w / aspect;
-
-    ImGui::Text("Size: %dx%d", w, h);
-
-    // Display the image with zoom applied
-    ImGui::BeginChild("PreviewRegion", ImVec2(0, 400), true, ImGuiWindowFlags_HorizontalScrollbar);
-
-    // Mouse wheel zoom when hovering over preview
-    if (ImGui::IsWindowHovered()) {
-      float wheel = ImGui::GetIO().MouseWheel;
-      if (wheel != 0.0f) {
-        texture_preview_zoom_ *= (1.0f + wheel * 0.1f);
-        if (texture_preview_zoom_ < 0.1f) texture_preview_zoom_ = 0.1f;
-        if (texture_preview_zoom_ > 10.0f) texture_preview_zoom_ = 10.0f;
-      }
-    }
-
-    ImGui::Image(reinterpret_cast<ImTextureID>(preview_texture_), ImVec2(preview_w, preview_h));
-    ImGui::EndChild();
   }
+
+  ImGui::Image(reinterpret_cast<ImTextureID>(preview_texture_), ImVec2(preview_w, preview_h));
+  ImGui::EndChild();
 }
 
 void EditorUi::RenderSpriteCreation(Api* api) {
@@ -187,27 +189,17 @@ void EditorUi::RenderSpriteList(Api* api) {
   ImGui::Text("Existing Sprites");
 
   // Use columns for list and inspector
-  ImGui::Columns(2, "SpriteListSplit");
-
-  auto refresh_sprites = [&]() {
-    absl::StatusOr<std::vector<SpriteConfig>> sprites = api->GetAllSprites();
-    if (sprites.ok()) {
-      sprite_list_ = *sprites;
-      LOG(INFO) << "Loaded " << sprite_list_.size() << " sprites.";
-    } else {
-      LOG(ERROR) << "Failed to get sprites: " << sprites.status();
-    }
-  };
+  ImGui::Columns(2, "SpriteListSplit", false);
 
   // Auto-refresh once
   static bool initial_sprite_load = false;
   if (!initial_sprite_load) {
-    refresh_sprites();
+    RefreshSpriteList(api);
     initial_sprite_load = true;
   }
 
   if (ImGui::Button("Refresh Sprite List")) {
-    refresh_sprites();
+    RefreshSpriteList(api);
   }
   ImGui::SameLine();
   if (ImGui::Button("Create New Sprite")) {
@@ -222,215 +214,36 @@ void EditorUi::RenderSpriteList(Api* api) {
     active_sprite_frame_index_ = -1;
   }
 
-  auto select_sprite = [&](int sprite_id) {
-    is_creating_new_sprite_ = false;
-    selected_sprite_id_ = sprite_id;
-    // Find config and setup editing buffer
-    for (const auto& s : sprite_list_) {
-      if (s.id == sprite_id) {
-        selected_sprite_config_ = s;
-        edit_type_name_buffer_ = s.type_name;
-        // Ensure buffer has enough space for editing
-        if (edit_type_name_buffer_.size() < 256) {
-          edit_type_name_buffer_.resize(256, '\0');
-        }
-        break;
-      }
-    }
-
-    absl::StatusOr<std::vector<SpriteFrame>> frames = api->GetSpriteFrames(sprite_id);
-    if (frames.ok()) {
-      current_sprite_frames_ = *frames;
-      original_sprite_frames_ = *frames;  // Store original state
-    } else {
-      LOG(ERROR) << "Failed to get sprite frames: " << frames.status();
-      current_sprite_frames_.clear();
-      original_sprite_frames_.clear();
-    }
-    LoadSpriteTexture(sprite_id);
-    active_sprite_frame_index_ = -1;  // Reset active selection
-
-    // Update config with loaded frames so animator has them
-    selected_sprite_config_.sprite_frames = current_sprite_frames_;
-
-    // Reset animator
-    animator_->SetSpriteConfig(selected_sprite_config_);
-    is_playing_animation_ = false;
-    animation_timer_ = 0.0;
-  };
+  // Define a consistent height for both panels using 1-frame lag layout
+  static float section_height = 300.0f;  // Default start height
 
   // List sprites
-  if (ImGui::BeginListBox("##Sprites",
-                          ImVec2(-FLT_MIN, 5 * ImGui::GetTextLineHeightWithSpacing()))) {
-    for (const SpriteConfig& sprite : sprite_list_) {
-      std::string label = absl::StrCat(sprite.id, ": ", sprite.type_name);
-      bool is_selected = (selected_sprite_id_ == sprite.id && !is_creating_new_sprite_);
+  // Minus 20 because the list would otherwise be longer than the sprite inspector
+  // Using BeginChild with border=false to remove the "box" look
+  ImGui::BeginChild("##Sprites", ImVec2(0, section_height - 20), false);
+  for (const SpriteConfig& sprite : sprite_list_) {
+    std::string label = absl::StrCat(sprite.id, ": ", sprite.type_name);
+    bool is_selected = (selected_sprite_id_ == sprite.id && !is_creating_new_sprite_);
 
-      if (ImGui::Selectable(label.c_str(), is_selected)) {
-        select_sprite(sprite.id);
-      }
-      if (is_selected) {
-        ImGui::SetItemDefaultFocus();
-      }
+    if (ImGui::Selectable(label.c_str(), is_selected)) {
+      SelectSprite(sprite.id, api);
     }
-    ImGui::EndListBox();
+    if (is_selected) {
+      ImGui::SetItemDefaultFocus();
+    }
   }
+  ImGui::EndChild();
 
   ImGui::NextColumn();
 
-  // Inspector
-  if (selected_sprite_id_ != 0 || is_creating_new_sprite_) {
-    ImGui::Text(is_creating_new_sprite_ ? "Inspector: New Sprite" : "Inspector: Sprite %d",
-                is_creating_new_sprite_ ? 0 : selected_sprite_id_);
-    ImGui::Separator();
+  // Draw Inspector and measure its height
+  float start_y = ImGui::GetCursorPosY();
+  RenderSpriteInspector(api);
+  float end_y = ImGui::GetCursorPosY();
 
-    ImGui::BeginDisabled(true);
-    int id = selected_sprite_config_.id;
-    if (is_creating_new_sprite_) {
-      // ID is auto-assigned
-      ImGui::Text("ID: <Auto>");
-    } else {
-      ImGui::InputInt("ID", &id);
-    }
-    ImGui::EndDisabled();
-
-    // Texture Dropdown
-    bool disable_texture = !is_creating_new_sprite_;
-    if (disable_texture) ImGui::BeginDisabled(true);
-
-    if (ImGui::BeginCombo("Texture", selected_sprite_config_.texture_path.c_str())) {
-      for (const Texture& texture : texture_list_) {
-        bool is_selected = (selected_sprite_config_.texture_path == texture.path);
-        if (ImGui::Selectable(texture.path.c_str(), is_selected)) {
-          selected_sprite_config_.texture_path = texture.path;
-          if (!is_creating_new_sprite_) {
-            // Load texture if changed (though likely disabled)
-            LoadSpriteTexture(selected_sprite_config_.id);
-          }
-        }
-        if (is_selected) ImGui::SetItemDefaultFocus();
-      }
-      ImGui::EndCombo();
-    }
-    if (disable_texture) ImGui::EndDisabled();
-
-    // Editable
-    int type = selected_sprite_config_.type;
-    if (ImGui::InputInt("Type", &type)) {
-      selected_sprite_config_.type = static_cast<uint16_t>(type);
-    }
-
-    if (ImGui::InputText("Type Name", edit_type_name_buffer_.data(),
-                         edit_type_name_buffer_.size())) {
-      // Handled by buffer
-    }
-
-    if (is_creating_new_sprite_) {
-      if (ImGui::Button("Create Sprite")) {
-        selected_sprite_config_.type_name = edit_type_name_buffer_.c_str();
-        // Validate
-        if (selected_sprite_config_.texture_path.empty()) {
-          LOG(ERROR) << "Texture path cannot be empty.";
-        } else {
-          auto result = api->UpsertSprite(selected_sprite_config_);
-          if (result.ok()) {
-            LOG(INFO) << "Created new sprite: " << *result;
-            is_creating_new_sprite_ = false;
-            refresh_sprites();
-            select_sprite(*result);
-          } else {
-            LOG(ERROR) << "Failed to create sprite: " << result.status();
-          }
-        }
-      }
-    } else {
-      if (ImGui::Button("Save Sprite Config")) {
-        // Update config from buffer
-        selected_sprite_config_.type_name = edit_type_name_buffer_.c_str();
-
-        auto status = api->UpdateSprite(selected_sprite_config_);
-        if (status.ok()) {
-          LOG(INFO) << "Updated sprite config.";
-          refresh_sprites();  // Refresh list to show new name
-        } else {
-          LOG(ERROR) << "Failed to update sprite: " << status;
-        }
-      }
-
-      ImGui::SameLine();
-      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-      if (ImGui::Button("Delete Sprite")) {
-        absl::Status status = api->DeleteSprite(selected_sprite_id_);
-        if (status.ok()) {
-          LOG(INFO) << "Deleted sprite " << selected_sprite_id_;
-          selected_sprite_id_ = 0;
-          refresh_sprites();
-          current_sprite_frames_.clear();
-          original_sprite_frames_.clear();
-          active_sprite_frame_index_ = -1;
-        } else {
-          LOG(ERROR) << "Failed to delete sprite: " << status;
-        }
-      }
-      ImGui::PopStyleColor();
-    }
-
-    ImGui::Separator();
-    ImGui::Text("Animation Preview");
-
-    // Play/Pause Control
-    if (ImGui::Button(is_playing_animation_ ? "Pause" : "Play")) {
-      is_playing_animation_ = !is_playing_animation_;
-    }
-
-    // Animation Logic
-    if (is_playing_animation_) {
-      // Assuming target FPS from config or default 60
-      int target_fps = local_config_.fps > 0 ? local_config_.fps : 60;
-      double tick_duration = 1.0 / target_fps;
-
-      animation_timer_ += ImGui::GetIO().DeltaTime;
-      while (animation_timer_ >= tick_duration) {
-        animator_->Update();
-        animation_timer_ -= tick_duration;
-      }
-    }
-
-    // Render Animated Frame
-    auto frame_or = animator_->GetCurrentFrame();
-    if (frame_or.ok()) {
-      SpriteFrame frame = *frame_or;
-
-      // Calculate UVs
-      int tex_w = 0, tex_h = 0;
-      if (sprite_texture_) {
-        SDL_QueryTexture(sprite_texture_, nullptr, nullptr, &tex_w, &tex_h);
-      }
-
-      if (tex_w > 0 && tex_h > 0) {
-        ImVec2 uv0(static_cast<float>(frame.texture_x) / tex_w,
-                   static_cast<float>(frame.texture_y) / tex_h);
-        ImVec2 uv1(static_cast<float>(frame.texture_x + frame.texture_w) / tex_w,
-                   static_cast<float>(frame.texture_y + frame.texture_h) / tex_h);
-
-        ImGui::Image((ImTextureID)sprite_texture_, ImVec2(frame.render_w, frame.render_h), uv0,
-                     uv1);
-      } else {
-        ImGui::Text("Invalid texture dimensions.");
-      }
-
-      ImGui::Text("Frame Index: %d", frame.index);  // Debug info
-    } else {
-      if (is_playing_animation_) {
-        ImGui::Text("Animation Error: %s", frame_or.status().ToString().c_str());
-      } else {
-        ImGui::Text("Press Play to start animation.");
-      }
-    }
-
-  } else {
-    ImGui::Text("Select a sprite to edit or Create New.");
-  }
+  // Update height for next frame (clamped to a minimum)
+  float content_height = end_y - start_y;
+  section_height = std::max(content_height, 200.0f);
 
   ImGui::Columns(1);
 }
@@ -454,55 +267,7 @@ void EditorUi::RenderSpriteFrameList(Api* api) {
   ImGui::SameLine();
 
   if (ImGui::Button("Save Changes")) {
-    // 1. Identify deleted frames
-    for (const auto& original : original_sprite_frames_) {
-      bool found = false;
-      for (const auto& current : current_sprite_frames_) {
-        if (current.id == original.id) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        LOG(INFO) << "Deleting SpriteFrame ID: " << original.id;
-        auto status = api->DeleteSpriteFrame(original.id);
-        if (!status.ok()) {
-          LOG(ERROR) << "Failed to delete SpriteFrame " << original.id << ": " << status;
-        }
-      }
-    }
-
-    // 2. Insert or Update current frames
-    for (int i = 0; i < current_sprite_frames_.size(); ++i) {
-      SpriteFrame& frame = current_sprite_frames_[i];
-      frame.index = i;  // Update index based on current order
-
-      if (frame.id == 0) {
-        // New frame
-        LOG(INFO) << "Inserting new SpriteFrame at index " << i;
-        auto result = api->InsertSpriteFrame(selected_sprite_id_, frame);
-        if (result.ok()) {
-          frame.id = *result;
-        } else {
-          LOG(ERROR) << "Failed to insert SpriteFrame: " << result.status();
-        }
-      } else {
-        // Update existing
-        // LOG(INFO) << "Updating SpriteFrame ID: " << frame.id << " at index " << i;
-        auto result = api->UpdateSpriteFrame(frame);
-        if (!result.ok()) {
-          LOG(ERROR) << "Failed to update SpriteFrame: " << result;
-        }
-      }
-    }
-
-    LOG(INFO) << "Saved changes for sprite " << selected_sprite_id_;
-    // Refresh original state
-    original_sprite_frames_ = current_sprite_frames_;
-
-    // Update config and animator
-    selected_sprite_config_.sprite_frames = current_sprite_frames_;
-    animator_->SetSpriteConfig(selected_sprite_config_);
+    SaveSpriteFrames(api);
   }
 
   ImGui::SameLine();
@@ -526,6 +291,7 @@ void EditorUi::RenderSpriteFrameList(Api* api) {
 }
 
 void EditorUi::RenderSpriteFrameItem(size_t index, SpriteFrame& frame) {
+  float start_x = ImGui::GetCursorPosX();
   ImGui::BeginGroup();
 
   ImGui::PushID(static_cast<int>(index));
@@ -604,7 +370,7 @@ void EditorUi::RenderSpriteFrameItem(size_t index, SpriteFrame& frame) {
   // Editable fields with validation
   ImGui::PushItemWidth(80);
 
-  auto Clamp = [](int& val, int min, int max) {
+  auto clamp = [](int& val, int min, int max) {
     if (val < min) val = min;
     if (val > max) val = max;
   };
@@ -614,51 +380,89 @@ void EditorUi::RenderSpriteFrameItem(size_t index, SpriteFrame& frame) {
 
   ImGui::AlignTextToFramePadding();
   ImGui::Text("X:");
-  ImGui::SameLine(label_offset);
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
   if (ImGui::InputInt("##tx", &frame.texture_x)) {
-    Clamp(frame.texture_x, 0, tex_w > 0 ? tex_w - frame.texture_w : 0);
+    clamp(frame.texture_x, 0, tex_w > 0 ? tex_w - frame.texture_w : 0);
   }
 
   ImGui::AlignTextToFramePadding();
   ImGui::Text("Y:");
-  ImGui::SameLine(label_offset);
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
   if (ImGui::InputInt("##ty", &frame.texture_y)) {
-    Clamp(frame.texture_y, 0, tex_h > 0 ? tex_h - frame.texture_h : 0);
+    clamp(frame.texture_y, 0, tex_h > 0 ? tex_h - frame.texture_h : 0);
   }
 
   ImGui::AlignTextToFramePadding();
   ImGui::Text("W:");
-  ImGui::SameLine(label_offset);
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
   if (ImGui::InputInt("##tw", &frame.texture_w)) {
-    Clamp(frame.texture_w, 0, tex_w > 0 ? tex_w - frame.texture_x : 0);
+    clamp(frame.texture_w, 0, tex_w > 0 ? tex_w - frame.texture_x : 0);
   }
 
   ImGui::AlignTextToFramePadding();
   ImGui::Text("H:");
-  ImGui::SameLine(label_offset);
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
   if (ImGui::InputInt("##th", &frame.texture_h)) {
-    Clamp(frame.texture_h, 0, tex_h > 0 ? tex_h - frame.texture_y : 0);
+    clamp(frame.texture_h, 0, tex_h > 0 ? tex_h - frame.texture_y : 0);
   }
 
   // Render Offsets
   ImGui::Text("Render:");
   ImGui::AlignTextToFramePadding();
-  ImGui::Text("X:");
-  ImGui::SameLine(label_offset);
+  ImGui::Text("Offset X:");
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
   ImGui::InputInt("##rox", &frame.render_offset_x);
 
   ImGui::AlignTextToFramePadding();
-  ImGui::Text("Y:");
-  ImGui::SameLine(label_offset);
+  ImGui::Text("Offset Y:");
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
   ImGui::InputInt("##roy", &frame.render_offset_y);
+
+  // Render Size
+  ImGui::AlignTextToFramePadding();
+  ImGui::Text("H:");
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
+  ImGui::InputInt("##rh", &frame.render_h);
+
+  ImGui::AlignTextToFramePadding();
+  ImGui::Text("W:");
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
+  ImGui::InputInt("##rw", &frame.render_w);
 
   // Frames per cycle
   ImGui::AlignTextToFramePadding();
   ImGui::Text("Duration:");
-  ImGui::SameLine(label_offset);
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
   if (ImGui::InputInt("##fpc", &frame.frames_per_cycle)) {
     if (frame.frames_per_cycle < 1) frame.frames_per_cycle = 1;
   }
+
+  // Scale Tool
+  ImGui::Separator();
+  ImGui::AlignTextToFramePadding();
+  ImGui::Text("Scale:");
+  static int render_scale_input = 2;
+  ImGui::SameLine();
+  ImGui::SetCursorPosX(start_x + label_offset);
+  if (ImGui::InputInt("##scale", &render_scale_input)) {
+    if (render_scale_input < 1) render_scale_input = 1;
+  }
+
+  ImGui::Indent(label_offset);
+  if (ImGui::Button("Apply Scale")) {
+    frame.render_w = frame.texture_w * render_scale_input;
+    frame.render_h = frame.texture_h * render_scale_input;
+  }
+  ImGui::Unindent(label_offset);
 
   ImGui::PopItemWidth();
   ImGui::PopID();
@@ -750,37 +554,41 @@ void EditorUi::RenderFullTextureView() {
 void EditorUi::LoadSpriteTexture(int sprite_id) {
   // Load texture
   if (sprite_texture_) {
-    SDL_DestroyTexture(sprite_texture_);
+    if (sdl_wrapper_) sdl_wrapper_->DestroyTexture(sprite_texture_);
     sprite_texture_ = nullptr;
   }
 
   // Find the sprite config to get the path
   std::string path;
-  for (const auto& s : sprite_list_) {
+  for (const SpriteConfig& s : sprite_list_) {
     if (s.id == sprite_id) {
       path = s.texture_path;
       break;
     }
   }
 
-  if (!path.empty() && renderer_) {
-    if (std::filesystem::exists(path)) {
-      SDL_Surface* surface = IMG_Load(path.c_str());
-      if (surface) {
-        sprite_texture_ = SDL_CreateTextureFromSurface(renderer_, surface);
-        SDL_FreeSurface(surface);
-      } else {
-        LOG(ERROR) << "Failed to load sprite texture: " << IMG_GetError();
-      }
-    }
+  if (path.empty() || sdl_wrapper_ == nullptr) {
+    return;
   }
+
+  if (!std::filesystem::exists(path)) {
+    LOG(ERROR) << "Texture path does not exist: " << path;
+    return;
+  }
+
+  absl::StatusOr<SDL_Texture*> texture_or_err = sdl_wrapper_->CreateTexture(path);
+  if (!texture_or_err.ok()) {
+    LOG(ERROR) << "Failed to load sprite texture: " << texture_or_err.status();
+    return;
+  }
+  sprite_texture_ = *texture_or_err;
 }
 
 void EditorUi::LoadTexturePreview(const std::string& path) {
-  if (!renderer_) return;
+  if (!sdl_wrapper_) return;
 
-  if (preview_texture_) {
-    SDL_DestroyTexture(preview_texture_);
+  if (preview_texture_ != nullptr) {
+    if (sdl_wrapper_) sdl_wrapper_->DestroyTexture(preview_texture_);
     preview_texture_ = nullptr;
   }
 
@@ -790,14 +598,12 @@ void EditorUi::LoadTexturePreview(const std::string& path) {
     return;
   }
 
-  SDL_Surface* surface = IMG_Load(path.c_str());
-  if (!surface) {
-    LOG(ERROR) << "Failed to load texture surface: " << IMG_GetError();
+  absl::StatusOr<SDL_Texture*> texture_or_err = sdl_wrapper_->CreateTexture(path);
+  if (!texture_or_err.ok()) {
+    LOG(ERROR) << "Failed to load texture preview: " << texture_or_err.status();
     return;
   }
-
-  preview_texture_ = SDL_CreateTextureFromSurface(renderer_, surface);
-  SDL_FreeSurface(surface);
+  preview_texture_ = *texture_or_err;
 
   if (!preview_texture_) {
     LOG(ERROR) << "Failed to create texture from surface: " << SDL_GetError();
@@ -819,8 +625,13 @@ struct InputBuffer {
 void EditorUi::RenderConfigEditor(Api* api) {
   if (!config_loaded_) {
     const GameConfig* current = api->GetConfig();
-    if (current) {
+    if (current != nullptr) {
       local_config_ = *current;
+      window_title_buffer_ = local_config_.window.title;
+      // Ensure buffer has extra capacity for editing
+      if (window_title_buffer_.capacity() < 256) {
+        window_title_buffer_.resize(256, '\0');
+      }
       config_loaded_ = true;
     } else {
       ImGui::TextColored(ImVec4(1, 0, 0, 1), "Failed to load configuration.");
@@ -829,6 +640,8 @@ void EditorUi::RenderConfigEditor(Api* api) {
   }
 
   if (ImGui::Button("Save Config")) {
+    // Update title from buffer before saving
+    local_config_.window.title = window_title_buffer_.c_str();  // Truncates at null terminator
     absl::Status status = api->SaveConfig(local_config_);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to save config: " << status;
@@ -856,10 +669,44 @@ void EditorUi::RenderConfigEditor(Api* api) {
   }
 
   if (ImGui::CollapsingHeader("Window Settings")) {
+    ImGui::InputText("Title", window_title_buffer_.data(), window_title_buffer_.size());
     ImGui::InputInt("Width", &local_config_.window.width);
     ImGui::InputInt("Height", &local_config_.window.height);
-    // Note: String input would require persistent buffers for proper editing, omitting for brevity
-    // unless explicitly requested to change title dynamically.
+
+    // Flags
+    bool fullscreen = (local_config_.window.flags & SDL_WINDOW_FULLSCREEN_DESKTOP);
+    if (ImGui::Checkbox("Fullscreen", &fullscreen)) {
+      if (fullscreen)
+        local_config_.window.flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+      else
+        local_config_.window.flags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+      if (sdl_wrapper_) {
+        absl::Status s = sdl_wrapper_->SetWindowFullscreen(fullscreen);
+        if (!s.ok()) LOG(ERROR) << "Failed to set fullscreen: " << s;
+      }
+    }
+
+    bool resizable = (local_config_.window.flags & SDL_WINDOW_RESIZABLE);
+    if (ImGui::Checkbox("Resizable", &resizable)) {
+      if (resizable)
+        local_config_.window.flags |= SDL_WINDOW_RESIZABLE;
+      else
+        local_config_.window.flags &= ~SDL_WINDOW_RESIZABLE;
+
+      if (sdl_wrapper_) {
+        absl::Status s = sdl_wrapper_->SetWindowResizable(resizable);
+        if (!s.ok()) LOG(ERROR) << "Failed to set resizable: " << s;
+      }
+    }
+
+    bool high_dpi = (local_config_.window.flags & SDL_WINDOW_ALLOW_HIGHDPI);
+    if (ImGui::Checkbox("High DPI", &high_dpi)) {
+      if (high_dpi)
+        local_config_.window.flags |= SDL_WINDOW_ALLOW_HIGHDPI;
+      else
+        local_config_.window.flags &= ~SDL_WINDOW_ALLOW_HIGHDPI;
+    }
   }
 
   if (ImGui::CollapsingHeader("Boundaries")) {
@@ -906,6 +753,278 @@ void EditorUi::RefreshTextures(Api* api) {
   } else {
     LOG(ERROR) << "Failed to refresh textures: " << textures.status();
   }
+}
+
+void EditorUi::RefreshSpriteList(Api* api) {
+  absl::StatusOr<std::vector<SpriteConfig>> sprites = api->GetAllSprites();
+  if (sprites.ok()) {
+    sprite_list_ = *sprites;
+    LOG(INFO) << "Loaded " << sprite_list_.size() << " sprites.";
+  } else {
+    LOG(ERROR) << "Failed to get sprites: " << sprites.status();
+  }
+}
+
+void EditorUi::SelectSprite(int sprite_id, Api* api) {
+  is_creating_new_sprite_ = false;
+  selected_sprite_id_ = sprite_id;
+  // Find config and setup editing buffer
+  for (const SpriteConfig& s : sprite_list_) {
+    if (s.id == sprite_id) {
+      selected_sprite_config_ = s;
+      edit_type_name_buffer_ = s.type_name;
+      // Ensure buffer has enough space for editing
+      if (edit_type_name_buffer_.size() < 256) {
+        edit_type_name_buffer_.resize(256, '\0');
+      }
+      break;
+    }
+  }
+
+  absl::StatusOr<std::vector<SpriteFrame>> frames = api->GetSpriteFrames(sprite_id);
+  if (frames.ok()) {
+    current_sprite_frames_ = *frames;
+    original_sprite_frames_ = *frames;  // Store original state
+  } else {
+    LOG(ERROR) << "Failed to get sprite frames: " << frames.status();
+    current_sprite_frames_.clear();
+    original_sprite_frames_.clear();
+  }
+  LoadSpriteTexture(sprite_id);
+  active_sprite_frame_index_ = -1;  // Reset active selection
+
+  // Update config with loaded frames so animator has them
+  selected_sprite_config_.sprite_frames = current_sprite_frames_;
+
+  // Reset animator
+  animator_->SetSpriteConfig(selected_sprite_config_);
+  is_playing_animation_ = false;
+  animation_timer_ = 0.0;
+}
+
+void EditorUi::RenderSpriteInspector(Api* api) {
+  if (selected_sprite_id_ == 0 && !is_creating_new_sprite_) {
+    ImGui::Text("Select a sprite to edit or Create New.");
+    return;
+  }
+
+  ImGui::Text(is_creating_new_sprite_ ? "Inspector: New Sprite" : "Inspector: Sprite %d",
+              is_creating_new_sprite_ ? 0 : selected_sprite_id_);
+  ImGui::Separator();
+
+  ImGui::BeginDisabled(true);
+  int id = selected_sprite_config_.id;
+  if (is_creating_new_sprite_) {
+    // ID is auto-assigned
+    ImGui::Text("ID: <Auto>");
+  } else {
+    ImGui::InputInt("ID", &id);
+  }
+  ImGui::EndDisabled();
+
+  // Texture Dropdown
+  bool disable_texture = !is_creating_new_sprite_;
+  if (!is_creating_new_sprite_) ImGui::BeginDisabled();
+
+  if (ImGui::BeginCombo("Texture", selected_sprite_config_.texture_path.c_str())) {
+    for (const Texture& texture : texture_list_) {
+      bool is_selected = (selected_sprite_config_.texture_path == texture.path);
+
+      // No need to LoadSpriteTexture here.
+      if (ImGui::Selectable(texture.path.c_str(), is_selected)) {
+        selected_sprite_config_.texture_path = texture.path;
+      }
+
+      if (is_selected) ImGui::SetItemDefaultFocus();
+    }
+    ImGui::EndCombo();
+  }
+
+  // 3. Pop the disabled state
+  if (!is_creating_new_sprite_) ImGui::EndDisabled();
+
+  // Editable
+  int type = selected_sprite_config_.type;
+  if (ImGui::InputInt("Type", &type)) {
+    selected_sprite_config_.type = static_cast<uint16_t>(type);
+  }
+
+  if (ImGui::InputText("Type Name", edit_type_name_buffer_.data(), edit_type_name_buffer_.size())) {
+    // Handled by buffer
+  }
+
+  // Below the methods for upserting, updating and deleting sprites are defined.
+  auto upsert_sprite = [&]() {
+    selected_sprite_config_.type_name = edit_type_name_buffer_.c_str();
+    if (selected_sprite_config_.texture_path.empty()) {
+      LOG(ERROR) << "Texture path cannot be empty.";
+      return;
+    }
+
+    absl::StatusOr<uint16_t> sprite_id = api->UpsertSprite(selected_sprite_config_);
+    if (!sprite_id.ok()) {
+      LOG(ERROR) << "Failed to create sprite: " << sprite_id.status();
+      return;
+    }
+
+    LOG(INFO) << "Created new sprite: " << *sprite_id;
+    is_creating_new_sprite_ = false;
+    RefreshSpriteList(api);
+    SelectSprite(*sprite_id, api);
+  };
+
+  auto update_sprite = [&]() {
+    // Update config from buffer
+    selected_sprite_config_.type_name = edit_type_name_buffer_.c_str();
+
+    absl::Status status = api->UpdateSprite(selected_sprite_config_);
+    if (!status.ok()) {
+      LOG(ERROR) << "Failed to update sprite: " << status;
+      return;
+    }
+
+    LOG(INFO) << "Updated sprite config.";
+    RefreshSpriteList(api);  // Refresh list to show new name
+  };
+
+  auto delete_sprite = [&]() {
+    absl::Status status = api->DeleteSprite(selected_sprite_id_);
+    if (!status.ok()) {
+      LOG(ERROR) << "Failed to delete sprite: " << status;
+      return;
+    }
+
+    LOG(INFO) << "Deleted sprite " << selected_sprite_id_;
+    selected_sprite_id_ = 0;
+    RefreshSpriteList(api);
+    current_sprite_frames_.clear();
+    original_sprite_frames_.clear();
+    active_sprite_frame_index_ = -1;
+  };
+
+  if (is_creating_new_sprite_ && ImGui::Button("Create Sprite")) {
+    upsert_sprite();
+  } else if (ImGui::Button("Save Sprite Config")) {
+    update_sprite();
+  }
+
+  ImGui::SameLine();
+  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+  if (ImGui::Button("Delete Sprite")) {
+    delete_sprite();
+  }
+  ImGui::PopStyleColor();
+
+  // Custom separator that respects column width
+  {
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    float w = ImGui::GetContentRegionAvail().x;
+    ImGui::GetWindowDrawList()->AddLine(p, ImVec2(p.x + w, p.y),
+                                        ImGui::GetColorU32(ImGuiCol_Separator));
+    ImGui::Dummy(ImVec2(0.0f, 4.0f));  // Spacing
+  }
+  ImGui::Text("Animation Preview");
+
+  // Play/Pause Control
+  if (ImGui::Button(is_playing_animation_ ? "Pause" : "Play")) {
+    is_playing_animation_ = !is_playing_animation_;
+  }
+
+  // Animation Logic
+  if (is_playing_animation_) {
+    // Assuming target FPS from config or default 60
+    int target_fps = local_config_.fps > 0 ? local_config_.fps : 60;
+    double tick_duration = 1.0 / target_fps;
+
+    animation_timer_ += ImGui::GetIO().DeltaTime;
+    while (animation_timer_ >= tick_duration) {
+      animator_->Update();
+      animation_timer_ -= tick_duration;
+    }
+  }
+
+  // Render Animated Frame
+  absl::StatusOr<SpriteFrame> frame = animator_->GetCurrentFrame();
+  if (!frame.ok()) {
+    if (is_playing_animation_) {
+      ImGui::Text("Animation Error: %s", frame.status().ToString().c_str());
+    } else {
+      ImGui::Text("Press Play to start animation.");
+    }
+    return;
+  }
+
+  // Calculate UVs
+  int tex_w = 0, tex_h = 0;
+  if (sprite_texture_) {
+    SDL_QueryTexture(sprite_texture_, nullptr, nullptr, &tex_w, &tex_h);
+  }
+
+  if (tex_w > 0 && tex_h > 0) {
+    ImVec2 uv0(static_cast<float>(frame->texture_x) / tex_w,
+               static_cast<float>(frame->texture_y) / tex_h);
+    ImVec2 uv1(static_cast<float>(frame->texture_x + frame->texture_w) / tex_w,
+               static_cast<float>(frame->texture_y + frame->texture_h) / tex_h);
+
+    ImGui::Image((ImTextureID)sprite_texture_, ImVec2(frame->render_w, frame->render_h), uv0, uv1);
+  } else {
+    ImGui::Text("Invalid texture dimensions.");
+  }
+
+  ImGui::Text("Frame Index: %d", frame->index);  // Debug info
+}
+
+void EditorUi::SaveSpriteFrames(Api* api) {
+  // 1. Identify deleted frames
+  for (const SpriteFrame& original : original_sprite_frames_) {
+    bool found = false;
+    for (const SpriteFrame& current : current_sprite_frames_) {
+      if (found = (current.id == original.id); found) {
+        break;
+      }
+    }
+    if (found) continue;
+
+    LOG(INFO) << "Deleting SpriteFrame ID: " << original.id;
+    absl::Status status = api->DeleteSpriteFrame(original.id);
+    if (!status.ok()) {
+      LOG(ERROR) << "Failed to delete SpriteFrame " << original.id << ": " << status;
+    }
+  }
+
+  // 2. Insert or Update current frames
+  for (int i = 0; i < current_sprite_frames_.size(); ++i) {
+    SpriteFrame& frame = current_sprite_frames_[i];
+    frame.index = i;  // Update index based on current order
+
+    if (frame.id == 0) {
+      // New frame
+      LOG(INFO) << "Inserting new SpriteFrame at index " << i;
+      absl::StatusOr<uint16_t> frame_id = api->InsertSpriteFrame(selected_sprite_id_, frame);
+      if (frame_id.ok()) {
+        frame.id = *frame_id;
+      } else {
+        LOG(ERROR) << "Failed to insert SpriteFrame: " << frame_id.status();
+      }
+
+      continue;
+    }
+
+    // Update existing
+    // LOG(INFO) << "Updating SpriteFrame ID: " << frame.id << " at index " << i;
+    absl::Status status = api->UpdateSpriteFrame(frame);
+    if (!status.ok()) {
+      LOG(ERROR) << "Failed to update SpriteFrame: " << status;
+    }
+  }
+
+  LOG(INFO) << "Saved changes for sprite " << selected_sprite_id_;
+  // Refresh original state
+  original_sprite_frames_ = current_sprite_frames_;
+
+  // Update config and animator
+  selected_sprite_config_.sprite_frames = current_sprite_frames_;
+  animator_->SetSpriteConfig(selected_sprite_config_);
 }
 
 }  // namespace zebes

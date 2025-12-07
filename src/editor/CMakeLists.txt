@@ -3,6 +3,7 @@ add_executable(zebes_editor
   editor_engine.cc
   editor_ui.cc
   animator.cc
+  sdl_wrapper.cc
 )
 
 set_target_properties(zebes_editor PROPERTIES

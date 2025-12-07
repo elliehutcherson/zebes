@@ -28,7 +28,7 @@ struct WindowConfig {
   uint32_t ypos = SDL_WINDOWPOS_CENTERED;
   int width = 1400;
   int height = 640;
-  uint32_t flags = SDL_WINDOW_FULLSCREEN_DESKTOP;
+  uint32_t flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 
   bool full_screen() const { return flags & SDL_WINDOW_FULLSCREEN_DESKTOP; }
 
