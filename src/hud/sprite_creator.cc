@@ -123,7 +123,6 @@ void HudSpriteCreator::RenderSpriteCollapse(ImDrawList* draw_list, HudSprite& sp
 
   ImGui::InputText(sprite.label_type_name.c_str(), sprite.hud_config.type_name.data(),
                    sizeof(sprite.hud_config.type_name));
-  ImGui::InputInt(sprite.label_ticks_per_sprite.c_str(), &sprite.hud_config.ticks_per_sprite);
 
   std::string apply_label = absl::StrCat("Apply##", sprite.unique_name);
   if (ImGui::Button(apply_label.c_str())) {
@@ -194,13 +193,6 @@ void HudSpriteCreator::RenderEditor() {
   int temp_sprite_id = editting_state_.sprite_id;
   ImGui::InputInt("Sprite ID", &temp_sprite_id);
   ImGui::EndDisabled();
-
-  // Render ticks per sprite, this is a setting specific to the entire sprite.
-  ImGui::SetNextItemWidth(150.0f);
-  int temp_ticks_per_sprite = editting_state_.ticks_per_sprite;
-  if (ImGui::InputInt("Ticks Per Sprite", &temp_ticks_per_sprite)) {
-    editting_state_.ticks_per_sprite = std::clamp(temp_ticks_per_sprite, 0, 100);
-  }
 
   // Render textbox to get user defined numerical id for this sprite.
   ImGui::SetNextItemWidth(150.0f);

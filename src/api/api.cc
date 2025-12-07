@@ -3,7 +3,6 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
-#include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "common/status_macros.h"
 
@@ -20,6 +19,11 @@ absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
 }
 
 Api::Api(const Options& options) : config_(options.config), db_(options.db) {}
+
+absl::Status Api::SaveConfig(const GameConfig& config) {
+  LOG(INFO) << "SaveConfig in the api....";
+  return GameConfig::Save(config);
+}
 
 absl::StatusOr<std::string> Api::CreateTexture(const std::string& texture_path) {
   // Validate input

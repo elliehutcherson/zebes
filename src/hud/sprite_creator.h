@@ -32,7 +32,7 @@ class HudSpriteCreator {
     const std::string unique_name = absl::StrCat("##Sprite", sprite_id);
     const std::string label_main = absl::StrCat("Sprite ", unique_name);
     const std::string label_sprite_id = absl::StrCat("Sprite ID", unique_name);
-    const std::string label_ticks_per_sprite = absl::StrCat("Ticks Per Sprite", unique_name);
+
     const std::string label_type_name = absl::StrCat("Type Name", unique_name);
   };
 
@@ -53,7 +53,7 @@ class HudSpriteCreator {
 
   struct EdittingState {
     uint16_t sprite_id = 0;
-    uint16_t ticks_per_sprite = 0;
+
     uint16_t type = 0;
     std::string type_name;
     bool interactable = false;

@@ -16,7 +16,7 @@ class SpriteObjectInterface : virtual public ObjectInterface {
  public:
   virtual ~SpriteObjectInterface() = default;
   // Add sprite.
-  virtual absl::Status AddSprite(const SpriteInterface *sprite) = 0;
+  virtual absl::Status AddSprite(const SpriteInterface* sprite) = 0;
 
   virtual absl::Status RemoveSprite(uint16_t sprite_id) = 0;
   virtual absl::Status RemoveSpriteByType(uint16_t sprite_type) = 0;
@@ -24,7 +24,7 @@ class SpriteObjectInterface : virtual public ObjectInterface {
   virtual absl::Status SetActiveSprite(uint16_t sprite_id) = 0;
   virtual absl::Status SetActiveSpriteByType(uint16_t sprite_type) = 0;
 
-  virtual const SpriteInterface *GetActiveSprite() const = 0;
+  virtual const SpriteInterface* GetActiveSprite() const = 0;
 
   // Get number of ticks for the active sprite.
   virtual uint8_t GetActiveSpriteTicks() const = 0;
@@ -45,13 +45,12 @@ class SpriteObjectInterface : virtual public ObjectInterface {
 class SpriteObject : public Object, virtual public SpriteObjectInterface {
  public:
   // Factory method for creating sprite object.
-  static absl::StatusOr<std::unique_ptr<SpriteObject>> Create(
-      ObjectOptions &options);
+  static absl::StatusOr<std::unique_ptr<SpriteObject>> Create(ObjectOptions& options);
 
   // Default destructor.
   ~SpriteObject() = default;
 
-  absl::Status AddSprite(const SpriteInterface *profile) override;
+  absl::Status AddSprite(const SpriteInterface* profile) override;
 
   absl::Status RemoveSprite(uint16_t sprite_id) override;
   absl::Status RemoveSpriteByType(uint16_t sprite_type) override;
@@ -61,7 +60,7 @@ class SpriteObject : public Object, virtual public SpriteObjectInterface {
   absl::Status SetActiveSpriteByType(uint16_t sprite_type) override;
 
   // Get the active sprite.
-  const SpriteInterface *GetActiveSprite() const override;
+  const SpriteInterface* GetActiveSprite() const override;
 
   // Get number of ticks for the active sprite.
   uint8_t GetActiveSpriteTicks() const override;
@@ -80,14 +79,15 @@ class SpriteObject : public Object, virtual public SpriteObjectInterface {
 
  protected:
   // Use the factory method instead.
-  SpriteObject(ObjectOptions &options);
+  SpriteObject(ObjectOptions& options);
 
  private:
+  uint16_t active_sprite_frame_index_ = 0;
   uint8_t active_sprite_ticks_ = 0;
   uint64_t active_sprite_cycles_ = 0;
   uint16_t active_sprite_id_ = 0;
   uint16_t default_sprite_id_ = 0;
-  absl::flat_hash_map<uint16_t, const SpriteInterface *> sprites_;
+  absl::flat_hash_map<uint16_t, const SpriteInterface*> sprites_;
 };
 
 }  // namespace zebes

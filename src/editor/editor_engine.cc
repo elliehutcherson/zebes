@@ -1,6 +1,7 @@
 #include "editor/editor_engine.h"
 
 #include "SDL.h"
+#include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "common/config.h"
@@ -11,7 +12,14 @@
 
 namespace zebes {
 
-EditorEngine::EditorEngine() : window_(nullptr), renderer_(nullptr) {}
+absl::StatusOr<std::unique_ptr<EditorEngine>> EditorEngine::Create() {
+  ASSIGN_OR_RETURN(GameConfig config, GameConfig::Create());
+  auto engine = absl::WrapUnique(new EditorEngine(std::move(config)));
+  RETURN_IF_ERROR(engine->Init());
+  return engine;
+}
+
+EditorEngine::EditorEngine(GameConfig config) : config_(std::move(config)) {}
 
 absl::Status EditorEngine::Init() {
   // Initialize SDL
@@ -33,16 +41,13 @@ absl::Status EditorEngine::Init() {
     return absl::InternalError("Failed to create SDL renderer");
   }
 
-  // Initialize GameConfig
-  ASSIGN_OR_RETURN(config_, GameConfig::Create());
-
   // Create DB
-  Db::Options db_options = {.db_path = config_->paths.database(),
-                            .migration_path = config_->paths.migrations()};
+  Db::Options db_options = {.db_path = config_.paths.database(),
+                            .migration_path = config_.paths.migrations()};
   ASSIGN_OR_RETURN(db_, Db::Create(db_options));
 
   // Create API
-  Api::Options api_options = {.config = &(*config_), .db = db_.get()};
+  Api::Options api_options = {.config = &config_, .db = db_.get()};
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
   // Setup Dear ImGui context
@@ -61,7 +66,7 @@ absl::Status EditorEngine::Init() {
   ImGui_ImplSDLRenderer2_Init(renderer_);
 
   // Create UI
-  ui_ = std::make_unique<EditorUI>();
+  ui_ = std::make_unique<EditorUi>();
   ui_->SetRenderer(renderer_);
 
   LOG(INFO) << "Editor engine initialized successfully";

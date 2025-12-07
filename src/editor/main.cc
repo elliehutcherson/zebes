@@ -1,27 +1,30 @@
+#include "absl/cleanup/cleanup.h"
 #include "absl/flags/parse.h"
+#include "absl/log/globals.h"
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
+#include "common/status_macros.h"
 #include "editor/editor_engine.h"
+
+absl::Status Run() {
+  ASSIGN_OR_RETURN(auto engine, zebes::EditorEngine::Create());
+
+  absl::Cleanup shutdown = [&]() { engine->Shutdown(); };
+  RETURN_IF_ERROR(engine->Run());
+
+  return absl::OkStatus();
+}
 
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
+  absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
   absl::InitializeLog();
 
-  zebes::EditorEngine engine;
-
-  auto init_status = engine.Init();
-  if (!init_status.ok()) {
-    LOG(ERROR) << "Failed to initialize editor: " << init_status;
+  absl::Status result = Run();
+  if (!result.ok()) {
+    LOG(ERROR) << "Editor run failed: " << result;
     return -1;
   }
 
-  auto run_status = engine.Run();
-  if (!run_status.ok()) {
-    LOG(ERROR) << "Editor run failed: " << run_status;
-    engine.Shutdown();
-    return -1;
-  }
-
-  engine.Shutdown();
   return 0;
 }

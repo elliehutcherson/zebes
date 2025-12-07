@@ -50,6 +50,16 @@ class Db : public DbInterface {
 
   absl::Status UpdateSpriteFrame(const SpriteFrame& sprite_frame) override;
 
+  struct AppliedMigration {
+    int version;
+    std::string applied_at;
+  };
+
+  /**
+   * @brief Returns list of applied migrations from schema table
+   */
+  absl::StatusOr<std::vector<AppliedMigration>> GetAppliedMigrations();
+
  private:
   Db(const Options& options);
 

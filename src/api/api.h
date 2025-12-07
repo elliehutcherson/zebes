@@ -22,6 +22,12 @@ class Api {
   Api(const Options& options);
   ~Api() = default;
 
+  // Get reading access to the config
+  const GameConfig* GetConfig() const { return config_; }
+
+  // Save the config to disk
+  absl::Status SaveConfig(const GameConfig& config);
+
   absl::StatusOr<std::string> CreateTexture(const std::string& texture_path);
 
   absl::Status DeleteTexture(const std::string& texture_path);

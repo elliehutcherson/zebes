@@ -77,9 +77,14 @@ absl::Status Game::Init() {
   ASSIGN_OR_RETURN(collision_manager_, CollisionManager::Create(&config_, camera_.get()));
 
   LOG(INFO) << "Zebes: Initializing controller...";
-  ASSIGN_OR_RETURN(
-      controller_,
-      Controller::Create({.save_config = [](const GameConfig& config) { SaveConfig(config); }}));
+  auto save_config = [this](const GameConfig& config) {
+    if (api_ == nullptr) {
+      LOG(ERROR) << "Cannot save config: API not initialized";
+      return;
+    }
+    LOG_IF_ERROR(api_->SaveConfig(config));
+  };
+  ASSIGN_OR_RETURN(controller_, Controller::Create({.save_config = save_config}));
 
   LOG(INFO) << "Zebes: Initializing api...";
   Api::Options api_options = {.config = &config_, .db = db_.get()};

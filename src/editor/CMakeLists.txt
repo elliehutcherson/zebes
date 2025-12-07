@@ -2,6 +2,7 @@ add_executable(zebes_editor
   main.cc
   editor_engine.cc
   editor_ui.cc
+  animator.cc
 )
 
 set_target_properties(zebes_editor PROPERTIES
@@ -35,3 +36,5 @@ target_link_libraries(zebes_editor
   object
   db
 )
+target_compile_definitions(zebes_editor PUBLIC ABSL_MIN_LOG_LEVEL=0)
+add_dependencies(zebes_editor copy_assets)

@@ -17,20 +17,20 @@ namespace zebes {
 absl::StatusOr<std::unique_ptr<Db>> Db::Create(const Options& options) {
   // Check that the database can be opened.
   LOG(INFO) << "Attempting to open database at: " << options.db_path;
-  ASSIGN_OR_RETURN(sqlite3 * db, SqliteWrapper::Open(options.db_path));
+  // Create the Db object first, which will open the database.
+  std::unique_ptr<Db> wrapper(new Db(options));
+  ASSIGN_OR_RETURN(sqlite3 * db, wrapper->OpenDb());
   absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Perform migration
   if (!options.migration_path.empty()) {
-    absl::StatusOr<int> status = MigrationManager::Migrate(db, options.migration_path);
-    if (!status.ok()) {
-      return status.status();
-    }
+    RETURN_IF_ERROR(
+        MigrationManager::Migrate(db, options.db_path, options.migration_path).status());
   } else {
     LOG(WARNING) << "No migration path provided, skipping migrations.";
   }
 
-  return std::unique_ptr<Db>(new Db(options));
+  return wrapper;
 }
 
 Db::Db(const Options& options) : db_path_(options.db_path) {}
@@ -46,10 +46,7 @@ absl::StatusOr<uint16_t> Db::InsertTexture(const std::string& path) {
   const std::string statement =
       absl::StrFormat("INSERT INTO TextureConfig(texture_path) VALUES('%s')", path);
 
-  absl::Status status = SqliteWrapper::Execute(db, statement, "Failed to insert texture.");
-  if (!status.ok()) {
-    return status;
-  }
+  RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to insert texture."));
 
   uint16_t texture_id = SqliteWrapper::LastInsertRowId(db);
   return texture_id;
@@ -64,8 +61,9 @@ absl::Status Db::DeleteTexture(const std::string& path) {
   const std::string statement =
       absl::StrFormat("DELETE FROM TextureConfig WHERE texture_path = '%s'", path);
 
-  absl::Status status = SqliteWrapper::Execute(db, statement, "Failed to delete texture.");
-  return status;
+  RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to delete texture."));
+
+  return absl::OkStatus();
 }
 
 absl::StatusOr<bool> Db::TextureExists(const std::string& path) {
@@ -77,26 +75,15 @@ absl::StatusOr<bool> Db::TextureExists(const std::string& path) {
   const std::string query =
       absl::StrFormat("SELECT COUNT(*) FROM TextureConfig WHERE texture_path = '%s'", path);
 
-  auto stmt_or = SqliteWrapper::Prepare(db, query);
-  if (!stmt_or.ok()) {
-    return stmt_or.status();
-  }
-  sqlite3_stmt* stmt = *stmt_or;
+  ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
   absl::Cleanup stmt_finalizer =
       absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
 
   // Fetch the result
-  bool exists = false;
-  auto step_or = SqliteWrapper::Step(stmt);
-  if (!step_or.ok()) {
-    return step_or.status();
-  }
+  ASSIGN_OR_RETURN(bool step, SqliteWrapper::Step(stmt));
+  if (!step) return false;
 
-  if (*step_or) {
-    exists = SqliteWrapper::ColumnInt(stmt, 0) > 0;
-  }
-
-  return exists;
+  return SqliteWrapper::ColumnInt(stmt, 0) > 0;
 }
 
 absl::StatusOr<std::vector<std::string>> Db::GetAllTexturePaths() {
@@ -113,8 +100,8 @@ absl::StatusOr<std::vector<std::string>> Db::GetAllTexturePaths() {
 
   std::vector<std::string> texture_paths;
   while (true) {
-    ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
-    if (!step_result) break;
+    ASSIGN_OR_RETURN(bool step, SqliteWrapper::Step(stmt));
+    if (!step) break;
 
     texture_paths.emplace_back(SqliteWrapper::ColumnText(stmt, 0));
   }
@@ -177,12 +164,11 @@ absl::StatusOr<uint16_t> Db::InsertSprite(const SpriteConfig& sprite_config) {
   absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
 
   // Prepare the query
+  // Prepare the query
   const std::string statement = absl::StrFormat(
-      "INSERT INTO SpriteConfig(type, type_name, texture_path, "
-      "ticks_per_sprite) "
-      "VALUES(%d, '%s', '%s', %d)",
-      sprite_config.type, sprite_config.type_name, sprite_config.texture_path,
-      sprite_config.ticks_per_sprite);
+      "INSERT INTO SpriteConfig(type, type_name, texture_path) "
+      "VALUES(%d, '%s', '%s')",
+      sprite_config.type, sprite_config.type_name, sprite_config.texture_path);
 
   RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to insert sprite."));
 
@@ -220,7 +206,7 @@ absl::StatusOr<SpriteConfig> Db::GetSprite(uint16_t sprite_id) {
 
   // Prepare the query
   const std::string query = absl::StrFormat(
-      "SELECT id, type, type_name, texture_path, ticks_per_sprite "
+      "SELECT id, type, type_name, texture_path "
       "FROM SpriteConfig WHERE id = %d",
       static_cast<int>(sprite_id));
 
@@ -240,7 +226,6 @@ absl::StatusOr<SpriteConfig> Db::GetSprite(uint16_t sprite_id) {
     // Usually std::string assignment works.
     sprite_config.type_name = SqliteWrapper::ColumnText(stmt, 2);
     sprite_config.texture_path = SqliteWrapper::ColumnText(stmt, 3);
-    sprite_config.ticks_per_sprite = SqliteWrapper::ColumnInt(stmt, 4);
   }
 
   return sprite_config;
@@ -255,7 +240,7 @@ absl::StatusOr<std::vector<SpriteConfig>> Db::GetAllSprites() {
 
   // Prepare the query
   const std::string query =
-      "SELECT id, type, type_name, texture_path, ticks_per_sprite "
+      "SELECT id, type, type_name, texture_path "
       "FROM SpriteConfig";
 
   ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
@@ -272,7 +257,6 @@ absl::StatusOr<std::vector<SpriteConfig>> Db::GetAllSprites() {
     sprite_config.type = SqliteWrapper::ColumnInt(stmt, 1);
     sprite_config.type_name = SqliteWrapper::ColumnText(stmt, 2);
     sprite_config.texture_path = SqliteWrapper::ColumnText(stmt, 3);
-    sprite_config.ticks_per_sprite = SqliteWrapper::ColumnInt(stmt, 4);
 
     sprite_configs.push_back(sprite_config);
   }
@@ -290,12 +274,12 @@ absl::StatusOr<uint16_t> Db::InsertSpriteFrame(uint16_t sprite_id,
   const std::string statement = absl::StrFormat(
       "INSERT INTO SpriteFrameConfig(sprite_config_id, sprite_frame_index, texture_x, texture_y, "
       "texture_w, texture_h, texture_offset_x, texture_offset_y, render_w, "
-      "render_h, render_offset_x, render_offset_y) "
-      "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
+      "render_h, render_offset_x, render_offset_y, frames_per_cycle) "
+      "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
       sprite_id, sprite_frame.index, sprite_frame.texture_x, sprite_frame.texture_y,
       sprite_frame.texture_w, sprite_frame.texture_h, sprite_frame.texture_offset_x,
       sprite_frame.texture_offset_y, sprite_frame.render_w, sprite_frame.render_h,
-      sprite_frame.render_offset_x, sprite_frame.render_offset_y);
+      sprite_frame.render_offset_x, sprite_frame.render_offset_y, sprite_frame.frames_per_cycle);
 
   RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to insert sprite frame."));
 
@@ -338,7 +322,8 @@ absl::StatusOr<SpriteFrame> Db::GetSpriteFrame(uint16_t sprite_frame_id) {
       "render_h, "
       "render_offset_x, "
       "render_offset_y, "
-      "sprite_frame_index "
+      "sprite_frame_index, "
+      "frames_per_cycle "
       "FROM SpriteFrameConfig WHERE id = %d",
       sprite_frame_id);
 
@@ -360,6 +345,7 @@ absl::StatusOr<SpriteFrame> Db::GetSpriteFrame(uint16_t sprite_frame_id) {
     sprite_frame.render_offset_x = SqliteWrapper::ColumnInt(stmt, 8);
     sprite_frame.render_offset_y = SqliteWrapper::ColumnInt(stmt, 9);
     sprite_frame.index = SqliteWrapper::ColumnInt(stmt, 10);
+    sprite_frame.frames_per_cycle = SqliteWrapper::ColumnInt(stmt, 11);
   }
 
   return sprite_frame;
@@ -386,7 +372,8 @@ absl::StatusOr<std::vector<SpriteFrame>> Db::GetSpriteFrames(uint16_t sprite_id)
       "render_h, "
       "render_offset_x, "
       "render_offset_y, "
-      "sprite_frame_index "
+      "sprite_frame_index, "
+      "frames_per_cycle "
       "FROM SpriteFrameConfig "
       "INNER JOIN SpriteConfig ON "
       "SpriteFrameConfig.sprite_config_id = SpriteConfig.id "
@@ -416,6 +403,7 @@ absl::StatusOr<std::vector<SpriteFrame>> Db::GetSpriteFrames(uint16_t sprite_id)
     sprite_frame.render_offset_x = SqliteWrapper::ColumnInt(stmt, 9);
     sprite_frame.render_offset_y = SqliteWrapper::ColumnInt(stmt, 10);
     sprite_frame.index = SqliteWrapper::ColumnInt(stmt, 11);
+    sprite_frame.frames_per_cycle = SqliteWrapper::ColumnInt(stmt, 12);
 
     sprite_frames.push_back(sprite_frame);
   }
@@ -430,10 +418,9 @@ absl::Status Db::UpdateSprite(const SpriteConfig& config) {
 
   // Prepare the query
   const std::string statement = absl::StrFormat(
-      "UPDATE SpriteConfig SET type=%d, type_name='%s', texture_path='%s', "
-      "ticks_per_sprite=%d WHERE id=%d",
-      config.type, config.type_name.c_str(), config.texture_path.c_str(), config.ticks_per_sprite,
-      config.id);
+      "UPDATE SpriteConfig SET type=%d, type_name='%s', texture_path='%s' "
+      "WHERE id=%d",
+      config.type, config.type_name.c_str(), config.texture_path.c_str(), config.id);
 
   RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to update sprite."));
 
@@ -451,15 +438,53 @@ absl::Status Db::UpdateSpriteFrame(const SpriteFrame& frame) {
       "texture_x=%d, texture_y=%d, texture_w=%d, texture_h=%d, "
       "texture_offset_x=%d, texture_offset_y=%d, "
       "render_w=%d, render_h=%d, render_offset_x=%d, render_offset_y=%d, "
-      "sprite_frame_index=%d "
+      "sprite_frame_index=%d, frames_per_cycle=%d "
       "WHERE id=%d",
       frame.texture_x, frame.texture_y, frame.texture_w, frame.texture_h, frame.texture_offset_x,
       frame.texture_offset_y, frame.render_w, frame.render_h, frame.render_offset_x,
-      frame.render_offset_y, frame.index, frame.id);
+      frame.render_offset_y, frame.index, frame.frames_per_cycle, frame.id);
 
   RETURN_IF_ERROR(SqliteWrapper::Execute(db, statement, "Failed to update sprite frame."));
 
   return absl::OkStatus();
+}
+
+absl::StatusOr<std::vector<Db::AppliedMigration>> Db::GetAppliedMigrations() {
+  ASSIGN_OR_RETURN(sqlite3 * db, OpenDb());
+  absl::Cleanup db_closer = absl::MakeCleanup([db] { LOG_IF_ERROR(SqliteWrapper::Close(db)); });
+
+  // Check if table exists
+  {
+    const std::string check_query =
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='SchemaMigrations'";
+    ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, check_query));
+    absl::Cleanup stmt_finalizer =
+        absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
+    ASSIGN_OR_RETURN(bool exists, SqliteWrapper::Step(stmt));
+    if (!exists) {
+      // Table doesn't exist, return empty list
+      return std::vector<Db::AppliedMigration>();
+    }
+  }
+
+  const std::string query = "SELECT version, applied_at FROM SchemaMigrations ORDER BY version ASC";
+  ASSIGN_OR_RETURN(sqlite3_stmt * stmt, SqliteWrapper::Prepare(db, query));
+  absl::Cleanup stmt_finalizer =
+      absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
+
+  std::vector<Db::AppliedMigration> migrations;
+  while (true) {
+    ASSIGN_OR_RETURN(bool step, SqliteWrapper::Step(stmt));
+    if (!step) break;
+
+    Db::AppliedMigration m;
+    m.version = SqliteWrapper::ColumnInt(stmt, 0);
+    // applied_at might be text or something else, assuming text based on schema (TIMESTAMP usually
+    // text in SQLite)
+    m.applied_at = SqliteWrapper::ColumnText(stmt, 1);
+    migrations.push_back(m);
+  }
+  return migrations;
 }
 
 }  // namespace zebes

@@ -118,6 +118,9 @@ struct SpriteFrame {
   // The offset from the upper most point of the hitbox
   // at the scale of the destination render.
   int render_offset_y = 0;
+
+  // The number of game ticks this frame should be displayed for.
+  int frames_per_cycle = 1;
 };
 
 struct SpriteConfig {
@@ -132,9 +135,6 @@ struct SpriteConfig {
 
   // Path from the binary to the png file.
   std::string texture_path;
-
-  // Ticks each sub sprite is rendered per sprite cycle.
-  int ticks_per_sprite = 0;
 
   // Per texture and sprite config, there are multiple sprite frames
   // containing the config for each animation.

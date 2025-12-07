@@ -5,15 +5,16 @@
 
 #include "SDL.h"
 #include "api/api.h"
+#include "editor/animator.h"
 #include "imgui.h"
 #include "objects/texture.h"
 
 namespace zebes {
 
-class EditorUI {
+class EditorUi {
  public:
-  EditorUI();
-  ~EditorUI() = default;
+  EditorUi();
+  ~EditorUi() = default;
 
   // Render all editor UI windows
   void Render(Api* api);
@@ -27,6 +28,9 @@ class EditorUI {
 
   // Render sprite creation window
   void RenderSpriteCreation(Api* api);
+
+  // Render game config editor
+  void RenderConfigEditor(Api* api);
 
   /**
    * @brief Renders the list of existing sprites and handles selection.
@@ -59,7 +63,10 @@ class EditorUI {
   void LoadSpriteTexture(int sprite_id);
 
   // Load texture for preview
+  // Load texture for preview
   void LoadTexturePreview(const std::string& path);
+
+  void RefreshTextures(Api* api);
 
   // UI state buffers
   std::string texture_path_buffer_;
@@ -83,6 +90,9 @@ class EditorUI {
   // Sprite list state
   std::vector<SpriteConfig> sprite_list_;
   int selected_sprite_id_ = 0;
+  bool is_creating_new_sprite_ = false;
+  SpriteConfig selected_sprite_config_;
+  std::string edit_type_name_buffer_;
   std::vector<SpriteFrame> current_sprite_frames_;
   std::vector<SpriteFrame> original_sprite_frames_;
   SDL_Texture* sprite_texture_ = nullptr;
@@ -92,6 +102,15 @@ class EditorUI {
   bool is_dragging_rect_ = false;
   ImVec2 drag_start_ = {0, 0};
   float full_texture_zoom_ = 1.0f;
+
+  // Config editor state
+  GameConfig local_config_;
+  bool config_loaded_ = false;
+
+  // Animation state
+  std::unique_ptr<Animator> animator_;
+  bool is_playing_animation_ = false;
+  double animation_timer_ = 0.0;
 };
 
 }  // namespace zebes

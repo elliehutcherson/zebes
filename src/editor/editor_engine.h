@@ -13,8 +13,16 @@ namespace zebes {
 
 class EditorEngine {
  public:
-  EditorEngine();
+  static absl::StatusOr<std::unique_ptr<EditorEngine>> Create();
+
   ~EditorEngine() = default;
+  // DELETE Copy Constructor (keep this deleted to prevent expensive copies)
+  EditorEngine(const EditorEngine&) = delete;
+  EditorEngine& operator=(const EditorEngine&) = delete;
+
+  // ADD Move Constructor
+  EditorEngine(EditorEngine&& other) = default;
+  EditorEngine& operator=(EditorEngine&& other) = default;
 
   // Initialize SDL, ImGui, and Zebes components
   absl::Status Init();
@@ -26,6 +34,8 @@ class EditorEngine {
   void Shutdown();
 
  private:
+  explicit EditorEngine(GameConfig config);
+
   // Process SDL events
   void HandleEvents(bool* done);
 
@@ -37,12 +47,12 @@ class EditorEngine {
   SDL_Renderer* renderer_;
 
   // Zebes state
-  std::optional<GameConfig> config_;
+  GameConfig config_;
   std::unique_ptr<Db> db_;
   std::unique_ptr<Api> api_;
 
   // Editor UI
-  std::unique_ptr<EditorUI> ui_;
+  std::unique_ptr<EditorUi> ui_;
 };
 
 }  // namespace zebes

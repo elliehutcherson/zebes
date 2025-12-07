@@ -14,8 +14,8 @@ inline constexpr int kNoTile = 0;
 inline constexpr float kDefaultGravity = 2.0;
 
 // File Paths
-static const std::string kZebesConfigPath = "config.json";
 static const std::string kZebesAssetsPath = "assets/zebes";
+static const std::string kZebesConfigPath = "assets/zebes/config.json";
 static const std::string kZebesDatabasePath = "assets/zebes/sql/zebes.db";
 static const std::string kZebesMigrationsPath = "assets/zebes/sql/migrations";
 static const std::string kHudFont = "Courier-Prime.ttf";
@@ -121,7 +121,7 @@ struct PathConfig {
   std::string relative_assets = kZebesAssetsPath;
   std::string relative_hud_font = kHudFont;
 
-  PathConfig(absl::string_view execute_path);
+  explicit PathConfig(absl::string_view execute_path) : execute_(execute_path){};
   std::string execute() const { return execute_; }
   std::string config() const { return absl::StrFormat("%s/%s", execute_, kZebesConfigPath); }
   std::string assets() const { return absl::StrFormat("%s/%s", execute_, relative_assets); }
@@ -154,13 +154,15 @@ struct PathConfig {
 class GameConfig {
  public:
   enum Mode { kPlayerMode = 0, kCreatorMode = 1 };
-  // Get the path of the executable.
-  static std::string GetExecPath();
-  // Get the path of the executable.
-  static std::string GetDefaultConfigPath();
-  // Create the game config.
-  static absl::StatusOr<GameConfig> Create(std::optional<std::string> path = std::nullopt);
-  // Destructor, nothing special should happen so make it default.
+
+  // Load the game config.
+  static absl::StatusOr<GameConfig> Load(const std::string& path);
+  // Save the game config.
+  static absl::Status Save(const GameConfig& config);
+  // Create the game config (load or default).
+  static absl::StatusOr<GameConfig> Create();
+
+  explicit GameConfig();
   ~GameConfig() { LOG(INFO) << "GameConfig destroyed"; }
 
   WindowConfig window;
@@ -226,13 +228,6 @@ class GameConfig {
     j.at("enable_tile_hitbox_render").get_to(s.enable_tile_hitbox_render);
     j.at("enable_hud_render").get_to(s.enable_hud_render);
   }
-
- private:
-  static absl::StatusOr<GameConfig> LoadConfig(const std::string& path);
-  // Constructor, probably should be private.
-  GameConfig();
 };
-
-void SaveConfig(const GameConfig& config);
 
 }  // namespace zebes

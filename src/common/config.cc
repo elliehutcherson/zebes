@@ -2,6 +2,8 @@
 
 #include <fstream>
 
+#include "absl/flags/flag.h"
+#include "absl/flags/internal/flag.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
@@ -12,12 +14,11 @@
 #include <filesystem>
 #endif
 
+ABSL_FLAG(std::string, config_path, "", "Path to the config file");
+
 namespace zebes {
 
-PathConfig::PathConfig(absl::string_view execute_path)
-    : execute_(execute_path){};
-
-std::string GameConfig::GetExecPath() {
+std::string GetExecPath() {
   std::string path;
 #if __APPLE__
   char buf[PATH_MAX];
@@ -33,25 +34,9 @@ std::string GameConfig::GetExecPath() {
   return absl::StrJoin(paths, "/");
 }
 
-std::string GameConfig::GetDefaultConfigPath() {
-  return absl::StrCat(GetExecPath(), "/config.json");
-}
+GameConfig::GameConfig() : paths(GetExecPath()) {}
 
-absl::StatusOr<GameConfig> GameConfig::Create(std::optional<std::string> path) {
-  if (path.has_value()) {
-    return GameConfig::LoadConfig(*path);
-  }
-  WindowConfig window_config;
-  PathConfig path_config(GetExecPath());
-  GameConfig config;
-  config.window = window_config;
-  config.paths = path_config;
-  return config;
-}
-
-GameConfig::GameConfig() : paths(PathConfig(GetExecPath())) {}
-
-absl::StatusOr<GameConfig> GameConfig::LoadConfig(const std::string &path) {
+absl::StatusOr<GameConfig> GameConfig::Load(const std::string& path) {
   LOG(INFO) << __func__ << ": "
             << "Importing config from path: " << path;
 
@@ -76,25 +61,58 @@ absl::StatusOr<GameConfig> GameConfig::LoadConfig(const std::string &path) {
   return config;
 }
 
-
-void SaveConfig(const GameConfig& config) {
+absl::Status GameConfig::Save(const GameConfig& config) {
   nlohmann::json j;
   to_json(j, config);
 
   std::ofstream file(config.paths.config());
   if (file.fail() || !file.is_open()) {
-    LOG(ERROR) << __func__ << ": "
-               << "Failed to open file for writing: "
-               << config.paths.config();
-    return;
+    std::string error_msg =
+        absl::StrCat("Failed to open file for writing: ", config.paths.config());
+    LOG(ERROR) << __func__ << ": " << error_msg;
+    return absl::InternalError(error_msg);
   }
 
   file << j.dump(2);
   file.close();
 
   LOG(INFO) << __func__ << ": "
-            << "Successfully saved config to: "
-            << config.paths.config();
+            << "Successfully saved config to: " << config.paths.config();
+  return absl::OkStatus();
+}
+
+absl::StatusOr<GameConfig> GameConfig::Create() {
+  const std::string exec_path = GetExecPath();
+  std::string config_path = absl::StrFormat("%s/%s", exec_path, kZebesConfigPath);
+  if (!absl::GetFlag(FLAGS_config_path).empty()) {
+    config_path = absl::StrFormat("%s/%s", exec_path, absl::GetFlag(FLAGS_config_path));
+  }
+
+  absl::StatusOr<GameConfig> config = Load(config_path);
+  if (config.ok()) {
+    LOG(INFO) << "Successfully loaded config from: " << config_path;
+    return *config;
+  }
+
+  if (!absl::GetFlag(FLAGS_config_path).empty()) {
+    LOG(ERROR) << "Failed to load config from: " << config_path;
+    return config.status();
+  }
+
+  LOG(INFO) << "No config file found, loading default";
+  GameConfig fresh_config;
+  if (!absl::GetFlag(FLAGS_config_path).empty()) {
+    fresh_config.paths.relative_assets = absl::GetFlag(FLAGS_config_path);
+  }
+
+  absl::Status save_result = Save(fresh_config);
+  if (!save_result.ok()) {
+    LOG(ERROR) << "Failed to save config to: " << fresh_config.paths.config();
+    return save_result;
+  }
+
+  LOG(INFO) << "Successfully saved config to: " << fresh_config.paths.config();
+  return fresh_config;
 }
 
 }  // namespace zebes

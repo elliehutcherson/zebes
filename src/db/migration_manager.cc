@@ -25,17 +25,29 @@ using Path = std::filesystem::path;
 
 }  // namespace
 
-absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& migration_dir) {
-  // 1. Create SchemaMigrations table if not exists
-  RETURN_IF_ERROR(SqliteWrapper::Execute(db,
-                                         "CREATE TABLE IF NOT EXISTS SchemaMigrations ("
-                                         "version INTEGER PRIMARY KEY, "
-                                         "applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-                                         "Failed to create SchemaMigrations table."));
-
-  // 2. Get current version
-  int current_version = 0;
+absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& db_path,
+                                              const std::string& migration_dir) {
+  // 1. Check if SchemaMigrations table exists
+  bool schema_migrations_exists = false;
   {
+    ASSIGN_OR_RETURN(
+        sqlite3_stmt * stmt,
+        SqliteWrapper::Prepare(
+            db, "SELECT name FROM sqlite_master WHERE type='table' AND name='SchemaMigrations'"));
+    absl::Cleanup stmt_finalizer =
+        absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
+    ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
+    if (step_result) {
+      schema_migrations_exists = true;
+    }
+  }
+
+  int current_version = -1;
+
+  if (!schema_migrations_exists) {
+    LOG(INFO) << "New database detected. Starting at version -1.";
+  } else {
+    // Table exists, get version
     ASSIGN_OR_RETURN(sqlite3_stmt * stmt,
                      SqliteWrapper::Prepare(db, "SELECT MAX(version) FROM SchemaMigrations"));
 
@@ -49,6 +61,7 @@ absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& mi
       current_version = SqliteWrapper::ColumnInt(stmt, 0);
     }
   }
+
   LOG(INFO) << "Current database schema version: " << current_version;
 
   // 3. Find migration files
@@ -63,6 +76,7 @@ absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& mi
   std::vector<MigrationFile> migrations;
 
   for (const DirectoryEntry& entry : DirectoryIterator(migration_dir)) {
+    // ... existing logic to find migrations ...
     if (!entry.is_regular_file() || entry.path().extension() != ".sql") {
       continue;
     }
@@ -87,6 +101,20 @@ absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& mi
       migrations.push_back({version, entry.path()});
     }
   }
+
+  // Backup if there are migrations to apply
+  if (!migrations.empty() && std::filesystem::exists(db_path)) {
+    std::string backup_path = absl::StrFormat("%s.%d_backup.db", db_path, current_version);
+    std::error_code ec;
+    std::filesystem::copy_file(db_path, backup_path,
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    if (ec) {
+      return absl::InternalError(
+          absl::StrFormat("Failed to backup database to %s: %s", backup_path, ec.message()));
+    }
+    LOG(INFO) << "Database backed up to: " << backup_path;
+  }
+  LOG(INFO) << "Found " << migrations.size() << " migrations to apply.";
 
   // Sort by version
   std::sort(migrations.begin(), migrations.end(),
