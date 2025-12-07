@@ -39,6 +39,9 @@ absl::Status EditorEngine::Init() {
   Api::Options api_options = {.config = &config_, .db = db_.get()};
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
+  // Create UI
+  ASSIGN_OR_RETURN(ui_, EditorUi::Create(sdl_.get(), api_.get()));
+
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -53,10 +56,6 @@ absl::Status EditorEngine::Init() {
   // Setup Platform/Renderer backends
   ImGui_ImplSDL2_InitForSDLRenderer(sdl_->GetWindow(), sdl_->GetRenderer());
   ImGui_ImplSDLRenderer2_Init(sdl_->GetRenderer());
-
-  // Create UI
-  ui_ = std::make_unique<EditorUi>();
-  ui_->SetSdlWrapper(sdl_.get());
 
   LOG(INFO) << "Editor engine initialized successfully";
   return absl::OkStatus();
@@ -92,7 +91,7 @@ void EditorEngine::RenderFrame() {
   ImGui::NewFrame();
 
   // Render UI
-  ui_->Render(api_.get());
+  ui_->Render();
 
   // Rendering
   ImGui::Render();

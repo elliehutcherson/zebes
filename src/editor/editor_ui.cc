@@ -5,15 +5,30 @@
 #include "ImGuiFileDialog.h"
 #include "SDL_image.h"
 #include "absl/log/log.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
+#include "api/api.h"
+#include "editor/sdl_wrapper.h"
 #include "imgui.h"
 #include "objects/sprite_interface.h"
 #include "objects/texture.h"
 
 namespace zebes {
 
-EditorUi::EditorUi()
-    : texture_path_buffer_(256, '\0'),
+absl::StatusOr<std::unique_ptr<EditorUi>> EditorUi::Create(SdlWrapper* sdl, Api* api) {
+  if (sdl == nullptr) {
+    return absl::InvalidArgumentError("SDL wrapper is null");
+  }
+  if (api == nullptr) {
+    return absl::InvalidArgumentError("API is null");
+  }
+  return absl::WrapUnique(new EditorUi(sdl, api));
+}
+
+EditorUi::EditorUi(SdlWrapper* sdl, Api* api)
+    : sdl_(sdl),
+      api_(api),
+      texture_path_buffer_(256, '\0'),
       sprite_path_buffer_(256, '\0'),
       selected_texture_id_(0),
       sprite_id_input_(0),
@@ -24,7 +39,7 @@ EditorUi::EditorUi()
       sprite_h_input_(0),
       animator_(std::make_unique<Animator>()) {}
 
-void EditorUi::Render(Api* api) {
+void EditorUi::Render() {
   // Set up fullscreen window
   ImGuiViewport* viewport = ImGui::GetMainViewport();
   ImGui::SetNextWindowPos(viewport->Pos);
@@ -37,15 +52,15 @@ void EditorUi::Render(Api* api) {
 
   if (ImGui::BeginTabBar("MainTabs")) {
     if (ImGui::BeginTabItem("Texture Editor")) {
-      RenderTextureImport(api);
+      RenderTextureImport();
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Sprite Editor")) {
-      RenderSpriteCreation(api);
+      RenderSpriteCreation();
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Config Editor")) {
-      RenderConfigEditor(api);
+      RenderConfigEditor();
       ImGui::EndTabItem();
     }
     ImGui::EndTabBar();
@@ -54,7 +69,7 @@ void EditorUi::Render(Api* api) {
   ImGui::End();
 }
 
-void EditorUi::RenderTextureImport(Api* api) {
+void EditorUi::RenderTextureImport() {
   // Tabs handle visibility
   ImGui::InputText("Texture Path", texture_path_buffer_.data(), texture_path_buffer_.size());
   ImGui::SameLine();
@@ -83,14 +98,13 @@ void EditorUi::RenderTextureImport(Api* api) {
   if (ImGui::Button("Import Texture")) {
     std::string path = texture_path_buffer_.c_str();
     LOG(INFO) << "Importing texture from: " << path;
-    auto result = api->CreateTexture(path);
+    absl::StatusOr<std::string> result = api_->CreateTexture(path);
     if (!result.ok()) {
       LOG(ERROR) << "Failed to create texture: " << result.status();
     } else {
       LOG(INFO) << "Texture created: " << *result;
-      LOG(INFO) << "Texture created: " << *result;
       // Refresh list after import
-      RefreshTextures(api);
+      RefreshTextures();
     }
   }
 
@@ -99,12 +113,12 @@ void EditorUi::RenderTextureImport(Api* api) {
 
   // Refresh list if empty (or add a refresh button)
   if (texture_list_.empty() && ImGui::Button("Refresh List")) {
-    RefreshTextures(api);
+    RefreshTextures();
   }
 
   // Auto-refresh on first load
   if (texture_list_.empty()) {
-    RefreshTextures(api);
+    RefreshTextures();
   }
 
   // List textures
@@ -151,7 +165,7 @@ void EditorUi::RenderTextureImport(Api* api) {
   ImGui::SameLine();
   ImGui::Text("Zoom: %.1fx", texture_preview_zoom_);
 
-  int w, h;
+  int w = 0, h = 0;
   SDL_QueryTexture(preview_texture_, nullptr, nullptr, &w, &h);
   float aspect = (float)w / (float)h;
   float preview_w = 200.0f * texture_preview_zoom_;
@@ -176,15 +190,14 @@ void EditorUi::RenderTextureImport(Api* api) {
   ImGui::EndChild();
 }
 
-void EditorUi::RenderSpriteCreation(Api* api) {
+void EditorUi::RenderSpriteCreation() {
   // Tabs handle visibility
-  // Refactored to put creation logic inside RenderSpriteList
-  RenderSpriteList(api);
-  RenderSpriteFrameList(api);
+  RenderSpriteList();
+  RenderSpriteFrameList();
   RenderFullTextureView();
 }
 
-void EditorUi::RenderSpriteList(Api* api) {
+void EditorUi::RenderSpriteList() {
   // Sprite List Section
   ImGui::Text("Existing Sprites");
 
@@ -194,12 +207,12 @@ void EditorUi::RenderSpriteList(Api* api) {
   // Auto-refresh once
   static bool initial_sprite_load = false;
   if (!initial_sprite_load) {
-    RefreshSpriteList(api);
+    RefreshSpriteList();
     initial_sprite_load = true;
   }
 
   if (ImGui::Button("Refresh Sprite List")) {
-    RefreshSpriteList(api);
+    RefreshSpriteList();
   }
   ImGui::SameLine();
   if (ImGui::Button("Create New Sprite")) {
@@ -226,7 +239,7 @@ void EditorUi::RenderSpriteList(Api* api) {
     bool is_selected = (selected_sprite_id_ == sprite.id && !is_creating_new_sprite_);
 
     if (ImGui::Selectable(label.c_str(), is_selected)) {
-      SelectSprite(sprite.id, api);
+      SelectSprite(sprite.id);
     }
     if (is_selected) {
       ImGui::SetItemDefaultFocus();
@@ -238,7 +251,7 @@ void EditorUi::RenderSpriteList(Api* api) {
 
   // Draw Inspector and measure its height
   float start_y = ImGui::GetCursorPosY();
-  RenderSpriteInspector(api);
+  RenderSpriteInspector();
   float end_y = ImGui::GetCursorPosY();
 
   // Update height for next frame (clamped to a minimum)
@@ -248,7 +261,7 @@ void EditorUi::RenderSpriteList(Api* api) {
   ImGui::Columns(1);
 }
 
-void EditorUi::RenderSpriteFrameList(Api* api) {
+void EditorUi::RenderSpriteFrameList() {
   if (selected_sprite_id_ == 0) return;
 
   ImGui::Separator();
@@ -267,7 +280,7 @@ void EditorUi::RenderSpriteFrameList(Api* api) {
   ImGui::SameLine();
 
   if (ImGui::Button("Save Changes")) {
-    SaveSpriteFrames(api);
+    SaveSpriteFrames();
   }
 
   ImGui::SameLine();
@@ -554,7 +567,7 @@ void EditorUi::RenderFullTextureView() {
 void EditorUi::LoadSpriteTexture(int sprite_id) {
   // Load texture
   if (sprite_texture_) {
-    if (sdl_wrapper_) sdl_wrapper_->DestroyTexture(sprite_texture_);
+    if (sdl_wrapper_) sdl_->DestroyTexture(sprite_texture_);
     sprite_texture_ = nullptr;
   }
 
@@ -567,7 +580,7 @@ void EditorUi::LoadSpriteTexture(int sprite_id) {
     }
   }
 
-  if (path.empty() || sdl_wrapper_ == nullptr) {
+  if (path.empty()) {
     return;
   }
 
@@ -576,7 +589,7 @@ void EditorUi::LoadSpriteTexture(int sprite_id) {
     return;
   }
 
-  absl::StatusOr<SDL_Texture*> texture_or_err = sdl_wrapper_->CreateTexture(path);
+  absl::StatusOr<SDL_Texture*> texture_or_err = sdl_->CreateTexture(path);
   if (!texture_or_err.ok()) {
     LOG(ERROR) << "Failed to load sprite texture: " << texture_or_err.status();
     return;
@@ -585,10 +598,8 @@ void EditorUi::LoadSpriteTexture(int sprite_id) {
 }
 
 void EditorUi::LoadTexturePreview(const std::string& path) {
-  if (!sdl_wrapper_) return;
-
   if (preview_texture_ != nullptr) {
-    if (sdl_wrapper_) sdl_wrapper_->DestroyTexture(preview_texture_);
+    sdl_->DestroyTexture(preview_texture_);
     preview_texture_ = nullptr;
   }
 
@@ -598,16 +609,12 @@ void EditorUi::LoadTexturePreview(const std::string& path) {
     return;
   }
 
-  absl::StatusOr<SDL_Texture*> texture_or_err = sdl_wrapper_->CreateTexture(path);
-  if (!texture_or_err.ok()) {
-    LOG(ERROR) << "Failed to load texture preview: " << texture_or_err.status();
+  absl::StatusOr<SDL_Texture*> texture = sdl_->CreateTexture(path);
+  if (!texture.ok()) {
+    LOG(ERROR) << "Failed to load texture preview: " << texture.status();
     return;
   }
-  preview_texture_ = *texture_or_err;
-
-  if (!preview_texture_) {
-    LOG(ERROR) << "Failed to create texture from surface: " << SDL_GetError();
-  }
+  preview_texture_ = *texture;
 }
 
 // Helper buffer for strings
@@ -622,9 +629,9 @@ struct InputBuffer {
   }
 };
 
-void EditorUi::RenderConfigEditor(Api* api) {
+void EditorUi::RenderConfigEditor() {
   if (!config_loaded_) {
-    const GameConfig* current = api->GetConfig();
+    const GameConfig* current = api_->GetConfig();
     if (current != nullptr) {
       local_config_ = *current;
       window_title_buffer_ = local_config_.window.title;
@@ -642,7 +649,7 @@ void EditorUi::RenderConfigEditor(Api* api) {
   if (ImGui::Button("Save Config")) {
     // Update title from buffer before saving
     local_config_.window.title = window_title_buffer_.c_str();  // Truncates at null terminator
-    absl::Status status = api->SaveConfig(local_config_);
+    absl::Status status = api_->SaveConfig(local_config_);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to save config: " << status;
     }
@@ -681,8 +688,8 @@ void EditorUi::RenderConfigEditor(Api* api) {
       else
         local_config_.window.flags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-      if (sdl_wrapper_) {
-        absl::Status s = sdl_wrapper_->SetWindowFullscreen(fullscreen);
+      if (sdl_) {
+        absl::Status s = sdl_->SetWindowFullscreen(fullscreen);
         if (!s.ok()) LOG(ERROR) << "Failed to set fullscreen: " << s;
       }
     }
@@ -694,8 +701,8 @@ void EditorUi::RenderConfigEditor(Api* api) {
       else
         local_config_.window.flags &= ~SDL_WINDOW_RESIZABLE;
 
-      if (sdl_wrapper_) {
-        absl::Status s = sdl_wrapper_->SetWindowResizable(resizable);
+      if (sdl_) {
+        absl::Status s = sdl_->SetWindowResizable(resizable);
         if (!s.ok()) LOG(ERROR) << "Failed to set resizable: " << s;
       }
     }
@@ -745,8 +752,8 @@ void EditorUi::RenderConfigEditor(Api* api) {
   ImGui::EndChild();
 }
 
-void EditorUi::RefreshTextures(Api* api) {
-  auto textures = api->GetAllTextures();
+void EditorUi::RefreshTextures() {
+  auto textures = api_->GetAllTextures();
   if (textures.ok()) {
     texture_list_ = *textures;
     // Optional: Log success if needed, but usually redundant for every refresh
@@ -755,8 +762,8 @@ void EditorUi::RefreshTextures(Api* api) {
   }
 }
 
-void EditorUi::RefreshSpriteList(Api* api) {
-  absl::StatusOr<std::vector<SpriteConfig>> sprites = api->GetAllSprites();
+void EditorUi::RefreshSpriteList() {
+  absl::StatusOr<std::vector<SpriteConfig>> sprites = api_->GetAllSprites();
   if (sprites.ok()) {
     sprite_list_ = *sprites;
     LOG(INFO) << "Loaded " << sprite_list_.size() << " sprites.";
@@ -765,7 +772,7 @@ void EditorUi::RefreshSpriteList(Api* api) {
   }
 }
 
-void EditorUi::SelectSprite(int sprite_id, Api* api) {
+void EditorUi::SelectSprite(int sprite_id) {
   is_creating_new_sprite_ = false;
   selected_sprite_id_ = sprite_id;
   // Find config and setup editing buffer
@@ -781,7 +788,7 @@ void EditorUi::SelectSprite(int sprite_id, Api* api) {
     }
   }
 
-  absl::StatusOr<std::vector<SpriteFrame>> frames = api->GetSpriteFrames(sprite_id);
+  absl::StatusOr<std::vector<SpriteFrame>> frames = api_->GetSpriteFrames(sprite_id);
   if (frames.ok()) {
     current_sprite_frames_ = *frames;
     original_sprite_frames_ = *frames;  // Store original state
@@ -802,7 +809,7 @@ void EditorUi::SelectSprite(int sprite_id, Api* api) {
   animation_timer_ = 0.0;
 }
 
-void EditorUi::RenderSpriteInspector(Api* api) {
+void EditorUi::RenderSpriteInspector() {
   if (selected_sprite_id_ == 0 && !is_creating_new_sprite_) {
     ImGui::Text("Select a sprite to edit or Create New.");
     return;
@@ -861,7 +868,7 @@ void EditorUi::RenderSpriteInspector(Api* api) {
       return;
     }
 
-    absl::StatusOr<uint16_t> sprite_id = api->UpsertSprite(selected_sprite_config_);
+    absl::StatusOr<uint16_t> sprite_id = api_->UpsertSprite(selected_sprite_config_);
     if (!sprite_id.ok()) {
       LOG(ERROR) << "Failed to create sprite: " << sprite_id.status();
       return;
@@ -869,26 +876,26 @@ void EditorUi::RenderSpriteInspector(Api* api) {
 
     LOG(INFO) << "Created new sprite: " << *sprite_id;
     is_creating_new_sprite_ = false;
-    RefreshSpriteList(api);
-    SelectSprite(*sprite_id, api);
+    RefreshSpriteList();
+    SelectSprite(*sprite_id);
   };
 
   auto update_sprite = [&]() {
     // Update config from buffer
     selected_sprite_config_.type_name = edit_type_name_buffer_.c_str();
 
-    absl::Status status = api->UpdateSprite(selected_sprite_config_);
+    absl::Status status = api_->UpdateSprite(selected_sprite_config_);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to update sprite: " << status;
       return;
     }
 
     LOG(INFO) << "Updated sprite config.";
-    RefreshSpriteList(api);  // Refresh list to show new name
+    RefreshSpriteList();  // Refresh list to show new name
   };
 
   auto delete_sprite = [&]() {
-    absl::Status status = api->DeleteSprite(selected_sprite_id_);
+    absl::Status status = api_->DeleteSprite(selected_sprite_id_);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to delete sprite: " << status;
       return;
@@ -896,7 +903,7 @@ void EditorUi::RenderSpriteInspector(Api* api) {
 
     LOG(INFO) << "Deleted sprite " << selected_sprite_id_;
     selected_sprite_id_ = 0;
-    RefreshSpriteList(api);
+    RefreshSpriteList();
     current_sprite_frames_.clear();
     original_sprite_frames_.clear();
     active_sprite_frame_index_ = -1;
@@ -974,7 +981,7 @@ void EditorUi::RenderSpriteInspector(Api* api) {
   ImGui::Text("Frame Index: %d", frame->index);  // Debug info
 }
 
-void EditorUi::SaveSpriteFrames(Api* api) {
+void EditorUi::SaveSpriteFrames() {
   // 1. Identify deleted frames
   for (const SpriteFrame& original : original_sprite_frames_) {
     bool found = false;
@@ -986,7 +993,7 @@ void EditorUi::SaveSpriteFrames(Api* api) {
     if (found) continue;
 
     LOG(INFO) << "Deleting SpriteFrame ID: " << original.id;
-    absl::Status status = api->DeleteSpriteFrame(original.id);
+    absl::Status status = api_->DeleteSpriteFrame(original.id);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to delete SpriteFrame " << original.id << ": " << status;
     }
@@ -1000,7 +1007,7 @@ void EditorUi::SaveSpriteFrames(Api* api) {
     if (frame.id == 0) {
       // New frame
       LOG(INFO) << "Inserting new SpriteFrame at index " << i;
-      absl::StatusOr<uint16_t> frame_id = api->InsertSpriteFrame(selected_sprite_id_, frame);
+      absl::StatusOr<uint16_t> frame_id = api_->InsertSpriteFrame(selected_sprite_id_, frame);
       if (frame_id.ok()) {
         frame.id = *frame_id;
       } else {
@@ -1012,7 +1019,7 @@ void EditorUi::SaveSpriteFrames(Api* api) {
 
     // Update existing
     // LOG(INFO) << "Updating SpriteFrame ID: " << frame.id << " at index " << i;
-    absl::Status status = api->UpdateSpriteFrame(frame);
+    absl::Status status = api_->UpdateSpriteFrame(frame);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to update SpriteFrame: " << status;
     }

@@ -15,47 +15,42 @@ namespace zebes {
 
 class EditorUi {
  public:
-  EditorUi();
+  static absl::StatusOr<std::unique_ptr<EditorUi>> Create(SdlWrapper* sdl, Api* api);
   ~EditorUi() = default;
 
   // Render all editor UI windows
-  void Render(Api* api);
-
-  void SetSdlWrapper(SdlWrapper* sdl) { sdl_wrapper_ = sdl; }
+  void Render();
 
  private:
+  explicit EditorUi(SdlWrapper* sdl, Api* api);
   // Render texture import window
-  void RenderTextureImport(Api* api);
+  void RenderTextureImport();
 
   // Render sprite creation window
-  void RenderSpriteCreation(Api* api);
+  void RenderSpriteCreation();
 
   // Render game config editor
-  void RenderConfigEditor(Api* api);
+  void RenderConfigEditor();
 
   /**
    * @brief Renders the list of existing sprites and handles selection.
-   * @param api Pointer to the API for data fetching.
    */
-  void RenderSpriteList(Api* api);
+  void RenderSpriteList();
 
   /**
    * @brief Renders the inspector section for the selected sprite.
-   * @param api Pointer to the API for data fetching.
    */
-  void RenderSpriteInspector(Api* api);
+  void RenderSpriteInspector();
 
   /**
    * @brief Renders the horizontal list of sprite frames for the selected sprite.
-   * @param api Pointer to the API for saving changes.
    */
-  void RenderSpriteFrameList(Api* api);
+  void RenderSpriteFrameList();
 
   /**
    * @brief Saves the changes made to the sprite frames.
-   * @param api Pointer to the API.
    */
-  void SaveSpriteFrames(Api* api);
+  void SaveSpriteFrames();
 
   /**
    * @brief Renders a single sprite frame item in the horizontal list.
@@ -77,22 +72,23 @@ class EditorUi {
 
   /**
    * @brief Refreshes the list of sprites from the API.
-   * @param api Pointer to the API.
    */
-  void RefreshSpriteList(Api* api);
+  void RefreshSpriteList();
 
   /**
    * @brief Selects a sprite for editing.
    * @param sprite_id The ID of the sprite to select.
-   * @param api Pointer to the API.
    */
-  void SelectSprite(int sprite_id, Api* api);
+  void SelectSprite(int sprite_id);
 
-  // Load texture for preview
   // Load texture for preview
   void LoadTexturePreview(const std::string& path);
 
-  void RefreshTextures(Api* api);
+  void RefreshTextures();
+
+  // Resources aquired at construction
+  SdlWrapper* sdl_;
+  Api* api_;
 
   // UI state buffers
   std::string texture_path_buffer_;
