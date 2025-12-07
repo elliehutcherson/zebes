@@ -25,7 +25,6 @@ target_link_libraries(zebes_editor
   ${IMGUI_LIBRARIES}
   ${SQLITE3_LIBRARIES}
   nlohmann_json::nlohmann_json
-  cereal::cereal
   api
   logging
   vector

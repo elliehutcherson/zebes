@@ -19,7 +19,6 @@ target_link_libraries(${PROJECT_NAME} SDL2main SDL2-static SDL2_image SDL2_ttf)
 target_link_libraries(${PROJECT_NAME} ${IMGUI_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} ${SQLITE3_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} nlohmann_json::nlohmann_json)
-target_link_libraries(${PROJECT_NAME} cereal::cereal)
 
 target_link_libraries(${PROJECT_NAME} api)
 target_link_libraries(${PROJECT_NAME} logging)
