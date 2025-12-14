@@ -1,51 +1,33 @@
 #pragma once
 
 #include <cstdint>
-
-#include "SDL_render.h"
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "objects/sprite_interface.h"
+#include <string>
+#include <vector>
 
 namespace zebes {
 
-class Sprite : public SpriteInterface {
- public:
-  struct Options {
-    SpriteConfig config;
-    SDL_Renderer* renderer;
-  };
+struct SpriteFrame {
+  int index = 0;
+  int texture_x = 0;
+  int texture_y = 0;
+  int texture_w = 0;
+  int texture_h = 0;
+  int render_w = 0;
+  int render_h = 0;
+  int frames_per_cycle = 0;
+};
 
-  // Create fully initialized sprite.
-  static absl::StatusOr<std::unique_ptr<Sprite>> Create(Options options);
-
-  ~Sprite() = default;
-
-  SDL_Texture* GetTexture() const override;
-
-  SDL_Texture* GetTextureCopy(int index) const override;
-
-  const SDL_Rect* GetSource(int index) const override;
-
-  uint16_t GetId() const override;
-
-  uint16_t GetType() const override;
-
-  const SpriteConfig* GetConfig() const override;
-
-  const SpriteFrame* GetSpriteFrame(int index) const override;
-
- private:
-  // Contructor, use Create method instead.
-  Sprite(SpriteConfig sprite_config);
-
-  // Load the texture.
-  absl::Status Init(SDL_Renderer* renderer);
-
-  SpriteConfig sprite_config_;
-  SDL_Texture* texture_;
-  std::vector<SDL_Rect> sources_;
-  std::vector<SDL_Texture*> textures_copies_;
+struct Sprite {
+  // Guid
+  std::string id;
+  // Name of the sprite
+  std::string name;
+  // Guid of the texture
+  std::string texture_id;
+  // Sprite frames
+  std::vector<SpriteFrame> frames;
+  // Pointer to the sdl texture
+  void* sdl_texture = nullptr;
 };
 
 }  // namespace zebes

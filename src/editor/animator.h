@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "objects/sprite_interface.h"
+#include "objects/sprite.h"
 
 namespace zebes {
 
@@ -14,7 +14,7 @@ class Animator {
   ~Animator() = default;
 
   // Set the sprite config and reset animation state.
-  void SetSpriteConfig(const SpriteConfig& config);
+  void SetSprite(const Sprite& sprite);
 
   // Advance the animation by one tick.
   void Update();
@@ -27,7 +27,7 @@ class Animator {
   bool IsActive() const;
 
  private:
-  std::optional<SpriteConfig> config_;
+  std::optional<Sprite> sprite_;
   int current_frame_index_ = 0;
   int tick_counter_ = 0;
 };

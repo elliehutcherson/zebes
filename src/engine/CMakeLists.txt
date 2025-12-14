@@ -1,77 +1,16 @@
-add_library(camera_interface INTERFACE camera_interface.h)
-target_link_libraries(camera_interface INTERFACE vector)
-target_link_libraries(camera_interface INTERFACE absl::strings)
-target_link_libraries(camera_interface INTERFACE absl::status)
-target_link_libraries(camera_interface INTERFACE SDL2-static SDL2_image SDL2_ttf)
+add_executable(zebes_editor 
+  main.cc
+)
 
-add_library(camera camera.cc)
-target_link_libraries(camera config)
-target_link_libraries(camera vector)
-target_link_libraries(camera camera_interface)
-target_link_libraries(camera absl::strings)
-target_link_libraries(camera absl::status)
-target_link_libraries(camera absl::statusor)
-target_link_libraries(camera SDL2-static SDL2_image SDL2_ttf)
-
-add_library(collision_manager collision_manager.cc)
-target_link_libraries(collision_manager config)
-target_link_libraries(collision_manager object)
-target_link_libraries(collision_manager polygon)
-target_link_libraries(collision_manager vector)
-target_link_libraries(collision_manager camera_interface)
-target_link_libraries(collision_manager absl::flat_hash_map)
-target_link_libraries(collision_manager absl::flat_hash_set)
-target_link_libraries(collision_manager absl::log)
-target_link_libraries(collision_manager absl::status)
-target_link_libraries(collision_manager absl::strings)
-
-add_library(controller controller.cc)
-target_link_libraries(controller config)
-target_link_libraries(controller vector)
-target_link_libraries(controller absl::status)
-target_link_libraries(controller absl::statusor)
-target_link_libraries(controller SDL2-static SDL2_image SDL2_ttf)
-
-add_library(focus INTERFACE focus.h)
-target_link_libraries(focus INTERFACE controller)
-
-add_library(focus_lite focus_lite.cc)
-target_link_libraries(focus_lite config)
-target_link_libraries(focus_lite controller)
-target_link_libraries(focus_lite focus)
-target_link_libraries(focus_lite absl::strings)
-
-add_library(sprite_manager sprite_manager.cc)
-target_link_libraries(sprite_manager camera)
-target_link_libraries(sprite_manager config)
-target_link_libraries(sprite_manager object_interface)
-target_link_libraries(sprite_manager sprite_object)
-target_link_libraries(sprite_manager mobile_object)
-target_link_libraries(sprite_manager sprite_interface)
-target_link_libraries(sprite_manager absl::flat_hash_set)
-target_link_libraries(sprite_manager absl::flat_hash_map)
-target_link_libraries(sprite_manager absl::log)
-target_link_libraries(sprite_manager absl::strings)
-target_link_libraries(sprite_manager absl::status)
-target_link_libraries(sprite_manager absl::statusor)
-target_link_libraries(sprite_manager SDL2-static SDL2_image SDL2_ttf)
-target_link_libraries(sprite_manager ${SQLITE3_LIBRARIES})
-
-add_library(engine game.cc)
-target_link_libraries(engine api)
-target_link_libraries(engine camera)
-target_link_libraries(engine config)
-target_link_libraries(engine collision_manager)
-target_link_libraries(engine controller)
-target_link_libraries(engine db)
-target_link_libraries(engine focus)
-target_link_libraries(engine focus_lite)
-target_link_libraries(engine object)
-target_link_libraries(engine sprite)
-target_link_libraries(engine sprite_interface)
-target_link_libraries(engine sprite_manager)
-target_link_libraries(engine status_macros)
-target_link_libraries(engine absl::log)
-target_link_libraries(engine absl::status)
-target_link_libraries(engine SDL2-static SDL2_image SDL2_ttf)
-target_link_libraries(engine ${IMGUI_LIBRARIES})
+target_link_libraries(zebes_editor
+  absl::base
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::strings
+  absl::str_format
+)
+target_compile_definitions(zebes_engine PUBLIC ABSL_MIN_LOG_LEVEL=0)
+add_dependencies(zebes_engine copy_assets)

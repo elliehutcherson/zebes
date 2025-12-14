@@ -6,9 +6,10 @@
 #include "absl/status/status.h"
 #include "api/api.h"
 #include "common/config.h"
-#include "db/db.h"
+#include "common/sdl_wrapper.h"
 #include "editor/editor_ui.h"
-#include "editor/sdl_wrapper.h"
+#include "resources/sprite_manager.h"
+#include "resources/texture_manager.h"
 
 namespace zebes {
 
@@ -48,7 +49,8 @@ class EditorEngine {
 
   // Zebes state
   GameConfig config_;
-  std::unique_ptr<Db> db_;
+  std::unique_ptr<TextureManager> texture_manager_;
+  std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<Api> api_;
 
   // Editor UI

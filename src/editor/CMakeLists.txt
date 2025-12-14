@@ -1,13 +1,12 @@
-add_executable(zebes_editor 
+add_executable(zebes_editor
   main.cc
   editor_engine.cc
   editor_ui.cc
+  editor_engine.cc
   animator.cc
-  sdl_wrapper.cc
-)
-
-set_target_properties(zebes_editor PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/..
+  texture_editor.cc
+  config_editor.cc
+  sprite_editor.cc
 )
 
 target_link_libraries(zebes_editor
@@ -28,13 +27,11 @@ target_link_libraries(zebes_editor
   nlohmann_json::nlohmann_json
   api
   logging
-  vector
-  polygon
   config
   sprite
-  sprite
-  object
-  db
+  texture_manager
+  sprite_manager
+  sdl_wrapper
 )
 target_compile_definitions(zebes_editor PUBLIC ABSL_MIN_LOG_LEVEL=0)
 add_dependencies(zebes_editor copy_assets)

@@ -9,5 +9,7 @@ target_link_libraries(api
   absl::time
   common
   status_macros
-  sprite_interface
+  sprite
+  sprite_manager
+  texture_manager
 )

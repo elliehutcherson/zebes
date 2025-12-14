@@ -14,11 +14,10 @@ inline constexpr int kNoTile = 0;
 inline constexpr float kDefaultGravity = 2.0;
 
 // File Paths
-static const std::string kZebesAssetsPath = "assets/zebes";
-static const std::string kZebesConfigPath = "assets/zebes/config.json";
-static const std::string kZebesDatabasePath = "assets/zebes/sql/zebes.db";
-static const std::string kZebesMigrationsPath = "assets/zebes/sql/migrations";
-static const std::string kHudFont = "Courier-Prime.ttf";
+static const std::string kZebesAssetsPath = "assets";
+static const std::string kZebesConfigPath = "assets/config.json";
+static const std::string kZebesDatabasePath = "assets/sql/zebes.db";
+static const std::string kZebesMigrationsPath = "assets/sql/migrations";
 
 namespace zebes {
 
@@ -119,13 +118,11 @@ struct CollisionConfig {
 
 struct PathConfig {
   std::string relative_assets = kZebesAssetsPath;
-  std::string relative_hud_font = kHudFont;
 
   explicit PathConfig(absl::string_view execute_path) : execute_(execute_path){};
   std::string execute() const { return execute_; }
   std::string config() const { return absl::StrFormat("%s/%s", execute_, kZebesConfigPath); }
   std::string assets() const { return absl::StrFormat("%s/%s", execute_, relative_assets); }
-  std::string hud_font() const { return absl::StrFormat("%s/%s", assets(), relative_hud_font); }
   std::string database() const { return absl::StrFormat("%s/%s", execute_, kZebesDatabasePath); }
   std::string migrations() const {
     return absl::StrFormat("%s/%s", execute_, kZebesMigrationsPath);
@@ -137,13 +134,11 @@ struct PathConfig {
   friend void to_json(nlohmann::json& j, const PathConfig& s) {
     j = nlohmann::json{
         {"relative_assets", s.relative_assets},
-        {"relative_hud_font", s.relative_hud_font},
     };
   }
 
   friend void from_json(const nlohmann::json& j, PathConfig& s) {
     j.at("relative_assets").get_to(s.relative_assets);
-    j.at("relative_hud_font").get_to(s.relative_hud_font);
   }
 
  private:
@@ -153,8 +148,6 @@ struct PathConfig {
 
 class GameConfig {
  public:
-  enum Mode { kPlayerMode = 0, kCreatorMode = 1 };
-
   // Load the game config.
   static absl::StatusOr<GameConfig> Load(const std::string& path);
   // Save the game config.
@@ -171,42 +164,17 @@ class GameConfig {
   TileConfig tiles;
   CollisionConfig collisions;
 
-  Mode mode = Mode::kPlayerMode;
   int fps = 60;
   int frame_delay = 1000 / fps;
-
-  float gravity = kDefaultGravity;
-
-  float player_starting_x = 10;
-  float player_starting_y = 10;
-  float player_hitbox_w = 32;
-  float player_hitbox_h = 32;
-
-  // Flags
-  bool enable_player_hitbox_render = true;
-  bool enable_tile_hitbox_render = true;
-  bool enable_hud_render = true;
 
   // Define to_json and from_json functions for serialization and
   // deserialization.
   friend void to_json(nlohmann::json& j, const GameConfig& s) {
     j = nlohmann::json{
-        {"window", s.window},
-        {"paths", s.paths},
-        {"boundaries", s.boundaries},
-        {"tiles", s.tiles},
-        {"collisions", s.collisions},
-        {"mode", s.mode},
-        {"fps", s.fps},
+        {"window", s.window},           {"paths", s.paths},
+        {"boundaries", s.boundaries},   {"tiles", s.tiles},
+        {"collisions", s.collisions},   {"fps", s.fps},
         {"frame_delay", s.frame_delay},
-        {"gravity", s.gravity},
-        {"player_starting_x", s.player_starting_x},
-        {"player_starting_y", s.player_starting_y},
-        {"player_hitbox_w", s.player_hitbox_w},
-        {"player_hitbox_h", s.player_hitbox_h},
-        {"enable_player_hitbox_render", s.enable_player_hitbox_render},
-        {"enable_tile_hitbox_render", s.enable_tile_hitbox_render},
-        {"enable_hud_render", s.enable_hud_render},
     };
   }
 
@@ -216,17 +184,8 @@ class GameConfig {
     j.at("boundaries").get_to(s.boundaries);
     j.at("tiles").get_to(s.tiles);
     j.at("collisions").get_to(s.collisions);
-    j.at("mode").get_to(s.mode);
     j.at("fps").get_to(s.fps);
     j.at("frame_delay").get_to(s.frame_delay);
-    j.at("gravity").get_to(s.gravity);
-    j.at("player_starting_x").get_to(s.player_starting_x);
-    j.at("player_starting_y").get_to(s.player_starting_y);
-    j.at("player_hitbox_w").get_to(s.player_hitbox_w);
-    j.at("player_hitbox_h").get_to(s.player_hitbox_h);
-    j.at("enable_player_hitbox_render").get_to(s.enable_player_hitbox_render);
-    j.at("enable_tile_hitbox_render").get_to(s.enable_tile_hitbox_render);
-    j.at("enable_hud_render").get_to(s.enable_hud_render);
   }
 };
 

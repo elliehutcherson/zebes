@@ -1,0 +1,32 @@
+{
+  "boundaries": {
+    "x_max": 3000,
+    "x_min": 0,
+    "y_max": 1000,
+    "y_min": 0
+  },
+  "collisions": {
+    "area_height": 256.0,
+    "area_width": 256.0
+  },
+  "fps": 60,
+  "frame_delay": 16,
+  "paths": {
+    "relative_assets": "assets"
+  },
+  "tiles": {
+    "scale": 2,
+    "size_x": 200,
+    "size_y": 100,
+    "source_height": 16,
+    "source_width": 16
+  },
+  "window": {
+    "flags": 8224,
+    "height": 640,
+    "title": "Zebes",
+    "width": 1400,
+    "xpos": 805240832,
+    "ypos": 805240832
+  }
+}

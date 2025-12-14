@@ -5,10 +5,12 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "common/config.h"
+#include "common/sdl_wrapper.h"
 #include "common/status_macros.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include "resources/texture_manager.h"
 
 namespace zebes {
 
@@ -30,13 +32,19 @@ absl::Status EditorEngine::Init() {
   // Create SDL Wrapper (Window & Renderer)
   ASSIGN_OR_RETURN(sdl_, SdlWrapper::Create(config_.window));
 
-  // Create DB
-  Db::Options db_options = {.db_path = config_.paths.database(),
-                            .migration_path = config_.paths.migrations()};
-  ASSIGN_OR_RETURN(db_, Db::Create(db_options));
+  // Create Texture Manager
+  ASSIGN_OR_RETURN(texture_manager_, TextureManager::Create(sdl_.get(), config_.paths.assets()));
+  RETURN_IF_ERROR(texture_manager_->LoadAllTextures());
+
+  // Create Sprite Manager
+  ASSIGN_OR_RETURN(sprite_manager_,
+                   SpriteManager::Create(texture_manager_.get(), config_.paths.assets()));
+  RETURN_IF_ERROR(sprite_manager_->LoadAllSprites());
 
   // Create API
-  Api::Options api_options = {.config = &config_, .db = db_.get()};
+  Api::Options api_options = {.config = &config_,
+                              .texture_manager = texture_manager_.get(),
+                              .sprite_manager = sprite_manager_.get()};
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
   // Create UI
@@ -109,6 +117,11 @@ void EditorEngine::Shutdown() {
   ImGui_ImplSDLRenderer2_Shutdown();
   ImGui_ImplSDL2_Shutdown();
   ImGui::DestroyContext();
+
+  ui_.reset();
+  api_.reset();
+  sprite_manager_.reset();
+  texture_manager_.reset();
 
   sdl_.reset();  // Unique ptr will destroy Wrapper which destroys window/renderer
 

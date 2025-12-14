@@ -1,0 +1,17 @@
+{
+  "frames": [
+    {
+      "index": 0,
+      "frames_per_cycle": 32,
+      "render_h": 16,
+      "render_w": 16,
+      "texture_h": 16,
+      "texture_w": 16,
+      "texture_x": 16,
+      "texture_y": 16
+    }
+  ],
+  "id": "10",
+  "name": "kGrassCornerUpRight",
+  "texture_id": "10"
+}

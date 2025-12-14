@@ -4,6 +4,8 @@
 #include <string>
 
 struct Texture {
-  uint16_t id;
+  std::string id;
+  std::string name;
   std::string path;
+  void* sdl_texture = nullptr;
 };

@@ -10,10 +10,10 @@
 #include "engine/config.h"
 #include "engine/controller.h"
 #include "engine/focus.h"
-#include "engine/sprite_interface.h"
 #include "engine/sprite_manager.h"
 #include "engine/sprite_object.h"
 #include "imgui.h"
+#include "objects/sprite_interface.h"
 
 namespace zebes {
 
@@ -61,7 +61,7 @@ class Hud {
   struct HudSprite {
     uint16_t sprite_id;
     std::unique_ptr<SpriteObject> sprite_object;
-    SpriteConfig hud_config = *sprite_object->GetActiveSprite()->GetConfig();
+    SpriteMeta hud_meta = *sprite_object->GetActiveSprite()->GetMeta();
 
     bool visible = false;
     bool paused = false;

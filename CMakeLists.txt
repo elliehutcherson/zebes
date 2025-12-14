@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 cmake_minimum_required(VERSION 3.10)
 project(zebes VERSION 0.1.0)
@@ -25,30 +26,21 @@ if(EXISTS ${LOC_PATH})
   message(FATAL_ERROR "You cannot build in a source directory.")
 endif()
 
-# ## Copy assets to build directory
+# ## Symlink assets to build directory
 
-# Determine the copy script path
-set(COPY_SCRIPT "${PROJECT_SOURCE_DIR}/cmake/copy_assets.cmake")
-
-# Target for src/assets
 add_custom_target(copy_assets
-  COMMAND ${CMAKE_COMMAND} 
-    -DACTION_SRC=${CMAKE_CURRENT_LIST_DIR}/assets
-    -DACTION_DEST=${CMAKE_CURRENT_BINARY_DIR}/src
-    -DCOPY_TEXTURES=${COPY_TEXTURES}
-    -P ${COPY_SCRIPT}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin
+    COMMAND ${CMAKE_COMMAND} -E create_symlink 
+            ${CMAKE_SOURCE_DIR}/assets 
+            ${CMAKE_BINARY_DIR}/bin/assets
+    COMMENT "Symlinking assets to build/bin/assets"
 )
-add_dependencies(copy_assets ${PROJECT_NAME})
 
-# Target for tests/assets
-add_custom_target(copy_assets_tests
-  COMMAND ${CMAKE_COMMAND} 
-    -DACTION_SRC=${CMAKE_CURRENT_LIST_DIR}/assets
-    -DACTION_DEST=${CMAKE_CURRENT_BINARY_DIR}/tests
-    -DCOPY_TEXTURES=${COPY_TEXTURES}
-    -P ${COPY_SCRIPT}
-)
-add_dependencies(copy_assets_tests ${PROJECT_NAME})
+# 2. Make the test target a "dummy" alias 
+# This ensures that 'db_test' waits for 'copy_assets' to finish, 
+# but doesn't run a second command.
+add_custom_target(copy_assets_tests)
+add_dependencies(copy_assets_tests copy_assets)
 
 enable_testing()
 
@@ -57,13 +49,8 @@ enable_testing()
 # When linking SDL_image, cmake can not find the target SDL_image-static, you must use SDL_image.
 set(BUILD_SHARED_LIBS FALSE)
 set(SDL2IMAGE_INSTALL OFF)
-set(SDL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/SDL/include/SDL2)
-
-# there is no include directory? SDL_image.h is in the main folder.
-set(SDLIMAGE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/SDL_image)
-
-# there is no include directory? SDL_ttf.h is in the main folder.
-set(SDLTTF_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/SDL_ttf)
+set(SDL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include/SDL/include)
+set(SDLIMAGE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include/SDL_image)
 
 # TESTONLY: When added, this target will only be built if both
 # BUILD_TESTING=ON and ABSL_BUILD_TESTING=ON.
@@ -91,7 +78,7 @@ include_directories(${SDLIMAGE_INCLUDE_DIRS})
 include_directories(${SDLTTF_INCLUDE_DIRS})
 include_directories(include/googletest)
 include_directories(include/abseil-cpp)
-include_directories(include/nlohmann)
+include_directories(include/nlohmann/include)
 
 include_directories(src)
 add_subdirectory(src)
