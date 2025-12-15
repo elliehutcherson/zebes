@@ -174,7 +174,7 @@ absl::Status TextureManager::SaveTexture(const Texture& texture) {
   json["name"] = texture.name;
   json["path"] = texture.path;
 
-  std::string filename = absl::StrCat(texture.id, ".json");
+  std::string filename = absl::StrCat(texture.name, "-", texture.id, ".json");
   std::string absolute_path = GetDefinitionsPath(filename);
 
   std::ofstream file(absolute_path);
@@ -196,10 +196,19 @@ absl::Status TextureManager::UpdateTexture(const Texture& texture) {
     return absl::InvalidArgumentError(absl::StrCat("Texture name too long: ", texture.name,
                                                    ". Max length is ", kMaxTextureNameLength));
   }
+
+  std::string old_name = it->second->name;
   it->second->name = texture.name;
   // Note: path and id are generally immutable for an existing texture reference in this context,
   // or at least we don't want to change the file path here without reloading.
   // For now, only name is mutable via this method.
+
+  // Rename file if name changed
+  if (old_name != texture.name) {
+    std::string old_filename = absl::StrCat(old_name, "-", texture.id, ".json");
+    std::string new_filename = absl::StrCat(texture.name, "-", texture.id, ".json");
+    std::filesystem::rename(GetDefinitionsPath(old_filename), GetDefinitionsPath(new_filename));
+  }
 
   // Save to disk
   return SaveTexture(*it->second);
@@ -223,7 +232,7 @@ absl::Status TextureManager::DeleteTexture(const std::string& id) {
   }
 
   // Remove JSON file
-  std::string filename = absl::StrCat(id, ".json");
+  std::string filename = absl::StrCat(it->second->name, "-", id, ".json");
   std::string absolute_path = GetDefinitionsPath(filename);
   std::filesystem::remove(absolute_path);
 

@@ -1,9 +1,6 @@
 #include "editor/sprite_editor.h"
 
-#include <algorithm>
-
 #include "SDL_render.h"
-#include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -71,9 +68,9 @@ void SpriteEditor::SelectSprite(const std::string& sprite_id) {
   active_frame_index_ = -1;  // Reset active selection
 
   // Reset animator
-  // animator_->SetSprite(sprite_); // Animator also needs update potentially?
-  // is_playing_animation_ = false;
-  // animation_timer_ = 0.0;
+  animator_->SetSprite(sprite_);  // Animator also needs update potentially?
+  is_playing_animation_ = false;
+  animation_timer_ = 0.0;
 }
 
 // Below the methods for upserting, updating and deleting sprites are defined.
@@ -147,7 +144,6 @@ void SpriteEditor::RenderSpriteSelection() {
           ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
     ImGui::TableSetupColumn("Sprite List", ImGuiTableColumnFlags_WidthFixed, 250.0f);
     ImGui::TableSetupColumn("Sprite Details", ImGuiTableColumnFlags_WidthStretch);
-    // ImGui::TableHeadersRow(); // Optional headers
 
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
@@ -361,7 +357,9 @@ void SpriteEditor::RenderSpriteFrameList() {
   }
 
   // Horizontal scroll area
-  ImGui::BeginChild("SpriteFramesList", ImVec2(0, 360), true, ImGuiWindowFlags_HorizontalScrollbar);
+  ImGui::BeginChild("SpriteFramesList", ImVec2(0, 0),
+                    ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY,
+                    ImGuiWindowFlags_HorizontalScrollbar);
 
   for (int i = 0; i < sprite_.frames.size(); ++i) {
     RenderSpriteFrameItem(i, sprite_.frames[i]);
@@ -472,9 +470,6 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   RenderIntField("H:", &frame.texture_h, 0, tex_h > 0 ? tex_h - frame.texture_y : 0);
 
   ImGui::Text("Render:");
-  // Render offsets removed from SpriteFrame
-  // RenderIntField("Offset X:", &frame.render_offset_x, -1000, 1000);
-  // RenderIntField("Offset Y:", &frame.render_offset_y, -1000, 1000);
   RenderIntField("Render W:", &frame.render_w, 1, 10000);
   RenderIntField("Render H:", &frame.render_h, 1, 10000);
 

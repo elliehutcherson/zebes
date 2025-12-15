@@ -154,7 +154,8 @@ absl::StatusOr<std::string> SpriteManager::CreateSprite(Sprite sprite) {
   RETURN_IF_ERROR(SaveSprite(sprite));
 
   // Load it (creates the Sprite object)
-  std::string filename = absl::StrCat(sprite.id, ".json");
+  // Load it (creates the Sprite object)
+  std::string filename = absl::StrCat(sprite.name, "-", sprite.id, ".json");
   ASSIGN_OR_RETURN(Sprite * loaded_sprite, LoadSprite(filename));
 
   return loaded_sprite->id;
@@ -171,7 +172,7 @@ absl::Status SpriteManager::SaveSprite(Sprite sprite) {
 
   nlohmann::json json = ToJson(sprite);
 
-  std::string filename = absl::StrCat(sprite.id, ".json");
+  std::string filename = absl::StrCat(sprite.name, "-", sprite.id, ".json");
   std::string definitions_path = GetDefinitionsPath(filename);
 
   std::ofstream file(definitions_path);
@@ -200,7 +201,8 @@ absl::Status SpriteManager::DeleteSprite(const std::string& id) {
   if (it == sprites_.end()) return absl::NotFoundError("Sprite not found");
 
   // Remove JSON file
-  std::string filename = absl::StrCat(id, ".json");
+  // Remove JSON file
+  std::string filename = absl::StrCat(it->second->name, "-", id, ".json");
   std::filesystem::remove(GetDefinitionsPath(filename));
 
   sprites_.erase(it);

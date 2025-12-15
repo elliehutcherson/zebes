@@ -71,7 +71,7 @@ TEST_F(TextureManagerTest, CreateAndGetTexture) {
   EXPECT_EQ((*tex)->name, "test");
 
   // Verify JSON exists in definitions path
-  std::string json_path = test_dir_ + "/definitions/textures/" + *id + ".json";
+  std::string json_path = test_dir_ + "/definitions/textures/test-" + *id + ".json";
   ASSERT_TRUE(std::filesystem::exists(json_path));
 }
 
@@ -127,6 +127,13 @@ TEST_F(TextureManagerTest, UpdateTexture) {
   auto reloaded = manager_->GetTexture(*id);
   ASSERT_TRUE(reloaded.ok());
   EXPECT_EQ((*reloaded)->name, "New Name");
+
+  // Check file was renamed
+  // Old name "update", New name "New Name"
+  EXPECT_FALSE(
+      std::filesystem::exists(test_dir_ + "/definitions/textures/update-" + *id + ".json"));
+  EXPECT_TRUE(
+      std::filesystem::exists(test_dir_ + "/definitions/textures/New Name-" + *id + ".json"));
 }
 
 TEST_F(TextureManagerTest, DeleteTexture) {
@@ -140,7 +147,7 @@ TEST_F(TextureManagerTest, DeleteTexture) {
   ASSERT_TRUE(id.ok());
 
   // Check exists
-  ASSERT_TRUE(std::filesystem::exists(test_dir_ + "/definitions/textures/" + *id + ".json"));
+  ASSERT_TRUE(std::filesystem::exists(test_dir_ + "/definitions/textures/del-" + *id + ".json"));
 
   // Delete
   auto status = manager_->DeleteTexture(*id);
@@ -151,7 +158,7 @@ TEST_F(TextureManagerTest, DeleteTexture) {
   EXPECT_FALSE(tex.ok());
 
   // Check removed from disk
-  EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/definitions/textures/" + *id + ".json"));
+  EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/definitions/textures/del-" + *id + ".json"));
 }
 
 TEST_F(TextureManagerTest, CreateTextureWithCopy) {

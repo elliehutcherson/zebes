@@ -1,0 +1,17 @@
+{
+    "frames": [
+        {
+            "index": 0,
+            "frames_per_cycle": 32,
+            "render_h": 16,
+            "render_w": 16,
+            "texture_h": 16,
+            "texture_w": 16,
+            "texture_x": 48,
+            "texture_y": 16
+        }
+    ],
+    "id": "b495643c-aab1-4b5c-9060-33180d0003be",
+    "name": "kGrass1Right",
+    "texture_id": "94b3b3ed-a8e7-47d4-a632-b6b6c92870cd"
+}
