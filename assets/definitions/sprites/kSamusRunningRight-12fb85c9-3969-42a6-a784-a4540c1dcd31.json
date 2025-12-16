@@ -1,5 +1,106 @@
 {
-    "frames": [],
+    "frames": [
+        {
+            "frames_per_cycle": 4,
+            "index": 0,
+            "render_h": 88,
+            "render_w": 42,
+            "texture_h": 44,
+            "texture_w": 21,
+            "texture_x": 0,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 1,
+            "render_h": 88,
+            "render_w": 50,
+            "texture_h": 44,
+            "texture_w": 25,
+            "texture_x": 20,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 2,
+            "render_h": 88,
+            "render_w": 60,
+            "texture_h": 44,
+            "texture_w": 30,
+            "texture_x": 46,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 3,
+            "render_h": 88,
+            "render_w": 72,
+            "texture_h": 44,
+            "texture_w": 36,
+            "texture_x": 77,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 4,
+            "render_h": 88,
+            "render_w": 68,
+            "texture_h": 44,
+            "texture_w": 34,
+            "texture_x": 113,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 5,
+            "render_h": 86,
+            "render_w": 46,
+            "texture_h": 43,
+            "texture_w": 23,
+            "texture_x": 146,
+            "texture_y": 1
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 6,
+            "render_h": 88,
+            "render_w": 46,
+            "texture_h": 44,
+            "texture_w": 23,
+            "texture_x": 169,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 7,
+            "render_h": 88,
+            "render_w": 62,
+            "texture_h": 44,
+            "texture_w": 31,
+            "texture_x": 193,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 8,
+            "render_h": 88,
+            "render_w": 72,
+            "texture_h": 44,
+            "texture_w": 36,
+            "texture_x": 224,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 9,
+            "render_h": 88,
+            "render_w": 66,
+            "texture_h": 44,
+            "texture_w": 33,
+            "texture_x": 261,
+            "texture_y": 0
+        }
+    ],
     "id": "12fb85c9-3969-42a6-a784-a4540c1dcd31",
     "name": "kSamusRunningRight",
     "texture_id": "55cede02-9d6f-4dea-8586-f9e06428dda2"

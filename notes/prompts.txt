@@ -1,0 +1,1 @@
+Remember to follow the google style guide, the less indentation the better. Please focus on clean maintainable code. If there is an issues below the API (outside of the UI), we should add a test case. 

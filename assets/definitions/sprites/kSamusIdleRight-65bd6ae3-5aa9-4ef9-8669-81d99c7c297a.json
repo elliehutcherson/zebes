@@ -1,5 +1,46 @@
 {
-    "frames": [],
+    "frames": [
+        {
+            "frames_per_cycle": 4,
+            "index": 0,
+            "render_h": 88,
+            "render_w": 56,
+            "texture_h": 44,
+            "texture_w": 28,
+            "texture_x": 0,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 1,
+            "render_h": 88,
+            "render_w": 56,
+            "texture_h": 44,
+            "texture_w": 28,
+            "texture_x": 28,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 2,
+            "render_h": 88,
+            "render_w": 56,
+            "texture_h": 44,
+            "texture_w": 28,
+            "texture_x": 56,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 3,
+            "render_h": 88,
+            "render_w": 56,
+            "texture_h": 44,
+            "texture_w": 28,
+            "texture_x": 84,
+            "texture_y": 0
+        }
+    ],
     "id": "65bd6ae3-5aa9-4ef9-8669-81d99c7c297a",
     "name": "kSamusIdleRight",
     "texture_id": "0e2695ca-10f0-4ff1-b31c-60420f72429b"

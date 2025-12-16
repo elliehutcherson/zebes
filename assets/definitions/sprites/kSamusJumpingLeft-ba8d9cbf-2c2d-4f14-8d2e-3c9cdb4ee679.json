@@ -1,0 +1,27 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 4,
+            "index": 0,
+            "render_h": 80,
+            "render_w": 46,
+            "texture_h": 40,
+            "texture_w": 23,
+            "texture_x": 0,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 1,
+            "render_h": 82,
+            "render_w": 48,
+            "texture_h": 41,
+            "texture_w": 24,
+            "texture_x": 23,
+            "texture_y": 0
+        }
+    ],
+    "id": "ba8d9cbf-2c2d-4f14-8d2e-3c9cdb4ee679",
+    "name": "kSamusJumpingLeft",
+    "texture_id": "ec794926-7aa3-41e3-822e-c22e7e1b0388"
+}

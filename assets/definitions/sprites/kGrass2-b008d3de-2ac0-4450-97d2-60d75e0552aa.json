@@ -1,5 +1,16 @@
 {
-    "frames": [],
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "render_h": 32,
+            "render_w": 32,
+            "texture_h": 16,
+            "texture_w": 16,
+            "texture_x": 48,
+            "texture_y": 16
+        }
+    ],
     "id": "b008d3de-2ac0-4450-97d2-60d75e0552aa",
     "name": "kGrass2",
     "texture_id": "dfe2596b-f2e1-403e-adb5-fe8da22502bf"

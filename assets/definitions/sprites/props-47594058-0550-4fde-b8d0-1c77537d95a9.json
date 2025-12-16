@@ -1,0 +1,17 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "render_h": 188,
+            "render_w": 216,
+            "texture_h": 94,
+            "texture_w": 108,
+            "texture_x": 120,
+            "texture_y": 34
+        }
+    ],
+    "id": "47594058-0550-4fde-b8d0-1c77537d95a9",
+    "name": "props",
+    "texture_id": "00197256-4cfb-404e-8e2c-3d0a025a1ee6"
+}

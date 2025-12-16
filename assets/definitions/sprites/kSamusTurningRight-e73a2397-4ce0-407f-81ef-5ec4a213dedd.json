@@ -1,5 +1,36 @@
 {
-    "frames": [],
+    "frames": [
+        {
+            "frames_per_cycle": 4,
+            "index": 0,
+            "render_h": 92,
+            "render_w": 50,
+            "texture_h": 46,
+            "texture_w": 25,
+            "texture_x": 0,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 1,
+            "render_h": 92,
+            "render_w": 52,
+            "texture_h": 46,
+            "texture_w": 26,
+            "texture_x": 25,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 2,
+            "render_h": 92,
+            "render_w": 46,
+            "texture_h": 46,
+            "texture_w": 23,
+            "texture_x": 51,
+            "texture_y": 0
+        }
+    ],
     "id": "e73a2397-4ce0-407f-81ef-5ec4a213dedd",
     "name": "kSamusTurningRight",
     "texture_id": "277ab7a2-b5ad-47ab-af38-ad1ad54d44b8"

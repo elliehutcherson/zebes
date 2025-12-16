@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ImGuiFileDialog.h"
+#include "SDL_render.h"
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
@@ -46,6 +47,9 @@ class SpriteEditor {
   void RenderSpriteFrameList();
   void RenderSpriteFrameItem(int index, SpriteFrame& frame);
 
+  SDL_Texture* SdlTexture() { return reinterpret_cast<SDL_Texture*>(sprite_.sdl_texture); }
+  ImTextureID ImTextureId() { return (ImTextureID)(SdlTexture()); }
+
   Api* api_;
   SdlWrapper* sdl_;
 
@@ -62,7 +66,6 @@ class SpriteEditor {
 
   // Texture preview state
   SdlWrapper* sdl_wrapper_ = nullptr;
-  SDL_Texture* preview_texture_ = nullptr;
   std::vector<Texture> texture_list_;
 
   // Sprite list state
@@ -70,7 +73,6 @@ class SpriteEditor {
   bool new_sprite_ = false;
   Sprite sprite_;
   std::string edit_name_buffer_;
-  SDL_Texture* sprite_texture_ = nullptr;
 
   // Animation state
   std::unique_ptr<Animator> animator_ = std::make_unique<Animator>();

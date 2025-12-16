@@ -28,12 +28,12 @@ SpriteEditor::SpriteEditor(Api* api, SdlWrapper* sdl) : api_(api), sdl_(sdl) {
 void SpriteEditor::LoadSpriteTexture(const std::string& texture_id) {
   absl::StatusOr<Texture*> texture = api_->GetTexture(texture_id);
   if (!texture.ok()) {
-    sprite_texture_ = nullptr;
+    sprite_.sdl_texture = nullptr;
     LOG(ERROR) << "Failed to load sprite texture: " << texture.status();
     return;
   }
 
-  sprite_texture_ = static_cast<SDL_Texture*>((*texture)->sdl_texture);
+  sprite_.sdl_texture = (*texture)->sdl_texture;
 }
 
 void SpriteEditor::RefreshSpriteList() {
@@ -44,12 +44,23 @@ void SpriteEditor::RefreshSpriteList() {
 
   sprite_list_ = sprites;
   LOG(INFO) << "Loaded " << sprite_list_.size() << " sprites.";
+
+  absl::StatusOr<std::vector<Texture>> textures = api_->GetAllTextures();
+  if (!textures.ok()) {
+    LOG(ERROR) << "Failed to load textures: " << textures.status();
+    texture_list_.clear();
+  } else {
+    texture_list_ = *textures;
+    LOG(INFO) << "Loaded " << texture_list_.size() << " textures.";
+  }
 }
 
 void SpriteEditor::SelectSprite(const std::string& sprite_id) {
+  LOG(INFO) << __func__ << ": " << sprite_id;
   new_sprite_ = false;
 
   // Find config and setup editing buffer
+  bool found = false;
   for (const Sprite& s : sprite_list_) {
     if (s.id != sprite_id) continue;
 
@@ -61,7 +72,13 @@ void SpriteEditor::SelectSprite(const std::string& sprite_id) {
     }
     // Deep copy frames
     original_frames_ = s.frames;
+    found = true;
     break;
+  }
+
+  if (!found) {
+    LOG(ERROR) << "Selected sprite not found in list: " << sprite_id;
+    return;
   }
   LoadSpriteTexture(sprite_.texture_id);
 
@@ -73,7 +90,6 @@ void SpriteEditor::SelectSprite(const std::string& sprite_id) {
   animation_timer_ = 0.0;
 }
 
-// Below the methods for upserting, updating and deleting sprites are defined.
 // Below the methods for upserting, updating and deleting sprites are defined.
 void SpriteEditor::UpsertSprite(const std::string& sprite_id) {
   sprite_.name = edit_name_buffer_.c_str();
@@ -260,7 +276,7 @@ void SpriteEditor::RenderSpriteMeta() {
   // Allow the user to create, update or delete sprite
   if (new_sprite_ && ImGui::Button("Create Sprite")) {
     UpsertSprite(sprite_.id);
-  } else if (ImGui::Button("Save Sprite Config")) {
+  } else if (!new_sprite_ && ImGui::Button("Save Sprite Config")) {
     UpdateSprite(sprite_.id);
   }
   ImGui::SameLine();
@@ -292,6 +308,12 @@ void SpriteEditor::RenderSpriteAnimation() {
     }
   }
 
+  // Handle empty frames gracefully
+  if (sprite_.frames.empty()) {
+    ImGui::TextDisabled("No frames to animate.");
+    return;
+  }
+
   // Render Animated Frame
   absl::StatusOr<SpriteFrame> frame = animator_->GetCurrentFrame();
   if (!frame.ok()) {
@@ -305,8 +327,8 @@ void SpriteEditor::RenderSpriteAnimation() {
 
   // Calculate UVs
   int tex_w = 0, tex_h = 0;
-  if (sprite_texture_ != nullptr) {
-    SDL_QueryTexture(sprite_texture_, nullptr, nullptr, &tex_w, &tex_h);
+  if (sprite_.sdl_texture != nullptr) {
+    SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
   }
 
   if (tex_w > 0 && tex_h > 0) {
@@ -315,7 +337,7 @@ void SpriteEditor::RenderSpriteAnimation() {
     ImVec2 uv1(static_cast<float>(frame->texture_x + frame->texture_w) / tex_w,
                static_cast<float>(frame->texture_y + frame->texture_h) / tex_h);
 
-    ImGui::Image((ImTextureID)sprite_texture_, ImVec2(frame->render_w, frame->render_h), uv0, uv1);
+    ImGui::Image(ImTextureId(), ImVec2(frame->render_w, frame->render_h), uv0, uv1);
   } else {
     ImGui::Text("Invalid texture dimensions.");
   }
@@ -324,10 +346,12 @@ void SpriteEditor::RenderSpriteAnimation() {
 }
 
 void SpriteEditor::RenderSpriteFrameList() {
-  if (sprite_.id.empty()) return;
+  if (sprite_.id.empty() && !new_sprite_) return;
 
   ImGui::Separator();
-  ImGui::Text("Sprite Frames for ID: %s", sprite_.id.c_str());
+  std::string header_text = new_sprite_ ? "Sprite Frames (New Sprite)"
+                                        : absl::StrCat("Sprite Frames for ID: ", sprite_.id);
+  ImGui::Text("%s", header_text.c_str());
 
   // Controls
   if (ImGui::Button("Add Frame")) {
@@ -336,34 +360,41 @@ void SpriteEditor::RenderSpriteFrameList() {
     new_frame.texture_h = 32;
     new_frame.render_w = 32;
     new_frame.render_h = 32;
+    new_frame.texture_x = 0;
+    new_frame.texture_y = 0;
     sprite_.frames.push_back(new_frame);
     active_frame_index_ = static_cast<int>(sprite_.frames.size()) - 1;
   }
-  ImGui::SameLine();
+  if (!new_sprite_) {
+    ImGui::SameLine();
+    if (ImGui::Button("Save Changes")) {
+      SaveSpriteFrames();
+    }
 
-  if (ImGui::Button("Save Changes")) {
-    SaveSpriteFrames();
-  }
-
-  ImGui::SameLine();
-  if (ImGui::Button("Reset Changes")) {
-    sprite_.frames = original_frames_;
-    active_frame_index_ = -1;
-  }
-
-  if (sprite_.frames.empty()) {
-    ImGui::TextDisabled("No frames found.");
-    return;
+    ImGui::SameLine();
+    if (ImGui::Button("Reset Changes")) {
+      sprite_.frames = original_frames_;
+      active_frame_index_ = -1;
+    }
   }
 
   // Horizontal scroll area
-  ImGui::BeginChild("SpriteFramesList", ImVec2(0, 0),
-                    ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY,
-                    ImGuiWindowFlags_HorizontalScrollbar);
+  float min_height = sprite_.frames.empty() ? 0.0f : 400.0f;
+  ImGui::BeginChild("SpriteFramesList", ImVec2(0, min_height));
 
-  for (int i = 0; i < sprite_.frames.size(); ++i) {
-    RenderSpriteFrameItem(i, sprite_.frames[i]);
+  if (sprite_.frames.empty()) {
+    ImGui::TextDisabled("No frames found.");
+  } else {
+    for (int i = 0; i < sprite_.frames.size(); ++i) {
+      RenderSpriteFrameItem(i, sprite_.frames[i]);
+      if (i < sprite_.frames.size() - 1) {
+        ImGui::SameLine();
+        ImGui::Dummy(ImVec2(10, 0));
+        ImGui::SameLine();
+      }
+    }
   }
+
   ImGui::EndChild();
 }
 
@@ -425,8 +456,10 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
 
   // Preview Image
   int tex_w = 0, tex_h = 0;
-  if (sprite_texture_ != nullptr) {
-    SDL_QueryTexture(sprite_texture_, nullptr, nullptr, &tex_w, &tex_h);
+  if (sprite_.sdl_texture != nullptr) {
+    SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
+    if (tex_w < frame.texture_w) frame.texture_w = tex_w;
+    if (tex_h < frame.texture_h) frame.texture_h = tex_h;
 
     // Calculate UVs
     ImVec2 uv0((float)frame.texture_x / tex_w, (float)frame.texture_y / tex_h);
@@ -438,8 +471,8 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
     float aspect = (frame.texture_h > 0) ? (float)frame.texture_w / frame.texture_h : 1.0f;
     float display_w = display_h * aspect;
 
-    ImGui::Image((ImTextureID)sprite_texture_, ImVec2(display_w, display_h), uv0, uv1,
-                 ImVec4(1, 1, 1, 1), ImVec4(1, 1, 1, 0.5f));
+    ImGui::Image(ImTextureId(), ImVec2(display_w, display_h), uv0, uv1, ImVec4(1, 1, 1, 1),
+                 ImVec4(1, 1, 1, 0.5f));
   } else {
     ImGui::Button("No Texture", ImVec2(100, 100));
   }
@@ -497,14 +530,10 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   ImGui::PopItemWidth();
   ImGui::PopID();
   ImGui::EndGroup();
-
-  ImGui::SameLine();
-  ImGui::Dummy(ImVec2(10, 0));
-  ImGui::SameLine();
 }
 
 void SpriteEditor::RenderFullTextureView() {
-  if (sprite_texture_ == nullptr) return;
+  if (sprite_.sdl_texture == nullptr) return;
 
   ImGui::Separator();
   ImGui::Text("Full Texture (Interact to Edit)");
@@ -517,7 +546,7 @@ void SpriteEditor::RenderFullTextureView() {
   ImGui::Text("Zoom: %.1fx", full_texture_zoom_);
 
   int tex_w, tex_h;
-  SDL_QueryTexture(sprite_texture_, nullptr, nullptr, &tex_w, &tex_h);
+  SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
 
   ImVec2 canvas_size = ImVec2((float)tex_w * full_texture_zoom_, (float)tex_h * full_texture_zoom_);
 
@@ -525,7 +554,7 @@ void SpriteEditor::RenderFullTextureView() {
                     ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoMove);
 
   ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
-  ImGui::Image((ImTextureID)sprite_texture_, canvas_size);
+  ImGui::Image(ImTextureId(), canvas_size);
 
   // Early return if no active frame allows us to skip interaction logic
   if (active_frame_index_ < 0 || active_frame_index_ >= (int)sprite_.frames.size()) {
