@@ -5,12 +5,12 @@
 #include <string>
 #include <vector>
 
-#include "ImGuiFileDialog.h"
 #include "SDL_render.h"
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
 #include "editor/animator.h"
+#include "imgui.h"
 #include "objects/sprite.h"
 #include "objects/texture.h"
 

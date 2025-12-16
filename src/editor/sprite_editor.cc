@@ -56,7 +56,6 @@ void SpriteEditor::RefreshSpriteList() {
 }
 
 void SpriteEditor::SelectSprite(const std::string& sprite_id) {
-  LOG(INFO) << __func__ << ": " << sprite_id;
   new_sprite_ = false;
 
   // Find config and setup editing buffer
