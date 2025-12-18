@@ -29,11 +29,11 @@ endif()
 # ## Symlink assets to build directory
 
 add_custom_target(copy_assets
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin
-    COMMAND ${CMAKE_COMMAND} -E create_symlink 
-            ${CMAKE_SOURCE_DIR}/assets 
-            ${CMAKE_BINARY_DIR}/bin/assets
-    COMMENT "Symlinking assets to build/bin/assets"
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin
+  COMMAND ${CMAKE_COMMAND} -E create_symlink
+  ${CMAKE_SOURCE_DIR}/assets
+  ${CMAKE_BINARY_DIR}/bin/assets
+  COMMENT "Symlinking assets to build/bin/assets"
 )
 
 # 2. Make the test target a "dummy" alias 
@@ -77,6 +77,8 @@ include_directories(${SDL_INCLUDE_DIRS})
 include_directories(${SDLIMAGE_INCLUDE_DIRS})
 include_directories(${SDLTTF_INCLUDE_DIRS})
 include_directories(include/googletest)
+include_directories(include/googletest/googlemock/include)
+include_directories(include/googletest/googletest/include)
 include_directories(include/abseil-cpp)
 include_directories(include/nlohmann/include)
 

@@ -15,7 +15,7 @@ class ColliderManager {
  public:
   static absl::StatusOr<std::unique_ptr<ColliderManager>> Create(std::string root_path);
 
-  ~ColliderManager() = default;
+  virtual ~ColliderManager() = default;
 
   /**
    * @brief Registers a collider metadata and loads the collider from disk.
@@ -23,12 +23,12 @@ class ColliderManager {
    * @param path_json The path to the json file.
    * @return A pointer to the loaded Collider object, or an error status.
    */
-  absl::StatusOr<Collider*> LoadCollider(const std::string& path_json);
+  virtual absl::StatusOr<Collider*> LoadCollider(const std::string& path_json);
 
   /**
    * @brief Scans the collider directory and loads all found colliders.
    */
-  absl::Status LoadAllColliders();
+  virtual absl::Status LoadAllColliders();
 
   /**
    * @brief Creates a new collider, generating a GUID and JSON metadata.
@@ -36,12 +36,12 @@ class ColliderManager {
    * @param collider The metadata for the new collider. ID will be generated.
    * @return The ID of the created collider.
    */
-  absl::StatusOr<std::string> CreateCollider(Collider collider);
+  virtual absl::StatusOr<std::string> CreateCollider(Collider collider);
 
   /**
    * @brief Updates an existing collider with new metadata and saves it.
    */
-  absl::Status SaveCollider(Collider collider);
+  virtual absl::Status SaveCollider(Collider collider);
 
   /**
    * @brief Retrieves a loaded collider by its ID.
@@ -49,19 +49,19 @@ class ColliderManager {
    * @param id The ID of the collider to retrieve.
    * @return A reference to the Collider object, or an error if not found/loaded.
    */
-  absl::StatusOr<Collider*> GetCollider(const std::string& id);
+  virtual absl::StatusOr<Collider*> GetCollider(const std::string& id);
 
   /**
    * @brief Deletes a collider by its ID, removing the JSON file.
    */
-  absl::Status DeleteCollider(const std::string& id);
+  virtual absl::Status DeleteCollider(const std::string& id);
 
   /**
    * @brief Returns metadata for all loaded colliders.
    */
-  std::vector<Collider> GetAllColliders() const;
+  virtual std::vector<Collider> GetAllColliders() const;
 
- private:
+ protected:
   explicit ColliderManager(std::string root_path);
 
   std::string GetDefinitionsPath(const std::string relative_path);

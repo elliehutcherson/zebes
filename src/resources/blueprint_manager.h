@@ -15,7 +15,7 @@ class BlueprintManager {
  public:
   static absl::StatusOr<std::unique_ptr<BlueprintManager>> Create(std::string root_path);
 
-  ~BlueprintManager() = default;
+  virtual ~BlueprintManager() = default;
 
   /**
    * @brief Registers a blueprint metadata and loads the blueprint from disk.
@@ -23,12 +23,12 @@ class BlueprintManager {
    * @param path_json The path to the json file.
    * @return A pointer to the loaded Blueprint object, or an error status.
    */
-  absl::StatusOr<Blueprint*> LoadBlueprint(const std::string& path_json);
+  virtual absl::StatusOr<Blueprint*> LoadBlueprint(const std::string& path_json);
 
   /**
    * @brief Scans the blueprint directory and loads all found blueprints.
    */
-  absl::Status LoadAllBlueprints();
+  virtual absl::Status LoadAllBlueprints();
 
   /**
    * @brief Creates a new blueprint, generating a GUID and JSON metadata.
@@ -36,12 +36,12 @@ class BlueprintManager {
    * @param blueprint The metadata for the new blueprint. ID will be generated if empty.
    * @return The ID of the created blueprint.
    */
-  absl::StatusOr<std::string> CreateBlueprint(Blueprint blueprint);
+  virtual absl::StatusOr<std::string> CreateBlueprint(Blueprint blueprint);
 
   /**
    * @brief Updates an existing blueprint with new metadata and saves it.
    */
-  absl::Status SaveBlueprint(Blueprint blueprint);
+  virtual absl::Status SaveBlueprint(Blueprint blueprint);
 
   /**
    * @brief Retrieves a loaded blueprint by its ID.
@@ -49,19 +49,29 @@ class BlueprintManager {
    * @param id The ID of the blueprint to retrieve.
    * @return A reference to the Blueprint object, or an error if not found/loaded.
    */
-  absl::StatusOr<Blueprint*> GetBlueprint(const std::string& id);
+  virtual absl::StatusOr<Blueprint*> GetBlueprint(const std::string& id);
 
   /**
    * @brief Deletes a blueprint by its ID, removing the JSON file.
    */
-  absl::Status DeleteBlueprint(const std::string& id);
+  virtual absl::Status DeleteBlueprint(const std::string& id);
 
   /**
    * @brief Returns metadata for all loaded blueprints.
    */
-  std::vector<Blueprint> GetAllBlueprints() const;
+  virtual std::vector<Blueprint> GetAllBlueprints() const;
 
- private:
+  /**
+   * @brief Checks if a sprite is used by any blueprint.
+   */
+  virtual bool IsSpriteUsed(const std::string& sprite_id) const;
+
+  /**
+   * @brief Checks if a collider is used by any blueprint.
+   */
+  virtual bool IsColliderUsed(const std::string& collider_id) const;
+
+ protected:
   explicit BlueprintManager(std::string root_path);
 
   std::string GetDefinitionsPath(const std::string relative_path);

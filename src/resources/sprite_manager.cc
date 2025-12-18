@@ -218,4 +218,13 @@ std::vector<Sprite> SpriteManager::GetAllSprites() const {
   return sprites;
 }
 
+bool SpriteManager::IsTextureUsed(const std::string& texture_id) const {
+  for (const auto& [id, sprite] : sprites_) {
+    if (sprite->texture_id == texture_id) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace zebes

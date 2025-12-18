@@ -18,7 +18,7 @@ class TextureManager {
   static absl::StatusOr<std::unique_ptr<TextureManager>> Create(SdlWrapper* sdl,
                                                                 std::string root_path);
 
-  ~TextureManager();
+  virtual ~TextureManager();
 
   /**
    * @brief Registers a texture metadata and loads the texture from disk.
@@ -26,12 +26,12 @@ class TextureManager {
    * @param meta The metadata of the texture to load (id and path).
    * @return A pointer to the loaded Texture object, or an error status.
    */
-  absl::StatusOr<Texture*> LoadTexture(const std::string& path_json);
+  virtual absl::StatusOr<Texture*> LoadTexture(const std::string& path_json);
 
   /**
    * @brief Scans the texture directory and loads all found textures.
    */
-  absl::Status LoadAllTextures();
+  virtual absl::Status LoadAllTextures();
 
   /**
    * @brief Creates a new texture from an image file, generating a GUID and JSON metadata.
@@ -39,7 +39,7 @@ class TextureManager {
    * @param Texture Contains path to the source image file and other meta data.
    * @return The ID of the created texture.
    */
-  absl::StatusOr<std::string> CreateTexture(Texture texture);
+  virtual absl::StatusOr<std::string> CreateTexture(Texture texture);
 
   /**
    * @brief Retrieves a loaded texture by its ID.
@@ -47,24 +47,24 @@ class TextureManager {
    * @param id The ID of the texture to retrieve.
    * @return A reference to the Texture object, or an error if not found/loaded.
    */
-  absl::StatusOr<Texture*> GetTexture(const std::string& id);
+  virtual absl::StatusOr<Texture*> GetTexture(const std::string& id);
 
   /**
    * @brief Deletes a texture by its ID, freeing resources and removing the JSON file.
    */
-  absl::Status DeleteTexture(const std::string& id);
+  virtual absl::Status DeleteTexture(const std::string& id);
 
   /**
    * @brief Returns metadata for all loaded textures.
    */
-  std::vector<Texture> GetAllTextures() const;
+  virtual std::vector<Texture> GetAllTextures() const;
 
   /**
    * @brief Updates the metadata of an existing texture.
    */
-  absl::Status UpdateTexture(const Texture& texture);
+  virtual absl::Status UpdateTexture(const Texture& texture);
 
- private:
+ protected:
   explicit TextureManager(SdlWrapper* sdl, std::string root_path);
 
   absl::Status SaveTexture(const Texture& texture);

@@ -17,7 +17,7 @@ class SpriteManager {
   static absl::StatusOr<std::unique_ptr<SpriteManager>> Create(TextureManager* texture_manager,
                                                                std::string root_path);
 
-  ~SpriteManager() = default;
+  virtual ~SpriteManager() = default;
 
   /**
    * @brief Registers a sprite metadata and loads the sprite from disk.
@@ -25,12 +25,12 @@ class SpriteManager {
    * @param path_json The path to the json file.
    * @return A pointer to the loaded Sprite object, or an error status.
    */
-  absl::StatusOr<Sprite*> LoadSprite(const std::string& path_json);
+  virtual absl::StatusOr<Sprite*> LoadSprite(const std::string& path_json);
 
   /**
    * @brief Scans the sprite directory and loads all found sprites.
    */
-  absl::Status LoadAllSprites();
+  virtual absl::Status LoadAllSprites();
 
   /**
    * @brief Creates a new sprite, generating a GUID and JSON metadata.
@@ -38,12 +38,12 @@ class SpriteManager {
    * @param meta The metadata for the new sprite. ID will be generated.
    * @return The ID of the created sprite.
    */
-  absl::StatusOr<std::string> CreateSprite(Sprite sprite);
+  virtual absl::StatusOr<std::string> CreateSprite(Sprite sprite);
 
   /**
    * @brief Updates an existing sprite with new metadata and saves it.
    */
-  absl::Status SaveSprite(Sprite sprite);
+  virtual absl::Status SaveSprite(Sprite sprite);
 
   /**
    * @brief Retrieves a loaded sprite by its ID.
@@ -51,19 +51,27 @@ class SpriteManager {
    * @param id The ID of the sprite to retrieve.
    * @return A reference to the Sprite object, or an error if not found/loaded.
    */
-  absl::StatusOr<Sprite*> GetSprite(const std::string& id);
+  virtual absl::StatusOr<Sprite*> GetSprite(const std::string& id);
 
   /**
    * @brief Deletes a sprite by its ID, removing the JSON file.
    */
-  absl::Status DeleteSprite(const std::string& id);
+  virtual absl::Status DeleteSprite(const std::string& id);
+
+  /**
+   * @brief Checks if any sprite is using the given texture ID.
+   *
+   * @param texture_id The ID of the texture to check.
+   * @return true if the texture is used by any sprite, false otherwise.
+   */
+  virtual bool IsTextureUsed(const std::string& texture_id) const;
 
   /**
    * @brief Returns metadata for all loaded sprites.
    */
-  std::vector<Sprite> GetAllSprites() const;
+  virtual std::vector<Sprite> GetAllSprites() const;
 
- private:
+ protected:
   explicit SpriteManager(TextureManager* tm, std::string root_path);
 
   std::string GetDefinitionsPath(const std::string relative_path);
