@@ -41,10 +41,15 @@ absl::Status EditorEngine::Init() {
                    SpriteManager::Create(texture_manager_.get(), config_.paths.assets()));
   RETURN_IF_ERROR(sprite_manager_->LoadAllSprites());
 
+  // Create Collider Manager
+  ASSIGN_OR_RETURN(collider_manager_, ColliderManager::Create(config_.paths.assets()));
+  RETURN_IF_ERROR(collider_manager_->LoadAllColliders());
+
   // Create API
   Api::Options api_options = {.config = &config_,
                               .texture_manager = texture_manager_.get(),
-                              .sprite_manager = sprite_manager_.get()};
+                              .sprite_manager = sprite_manager_.get(),
+                              .collider_manager = collider_manager_.get()};
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
   // Create UI
@@ -122,6 +127,7 @@ void EditorEngine::Shutdown() {
   api_.reset();
   sprite_manager_.reset();
   texture_manager_.reset();
+  collider_manager_.reset();
 
   sdl_.reset();  // Unique ptr will destroy Wrapper which destroys window/renderer
 

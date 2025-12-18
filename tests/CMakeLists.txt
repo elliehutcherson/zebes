@@ -13,3 +13,13 @@ target_link_libraries(sprite_manager_test sprite_manager)
 target_link_libraries(sprite_manager_test texture_manager)
 target_link_libraries(sprite_manager_test macros)
 target_link_libraries(sprite_manager_test gtest_main)
+
+add_executable(collider_manager_test collider_manager_test.cc)
+target_link_libraries(collider_manager_test collider_manager)
+target_link_libraries(collider_manager_test macros)
+target_link_libraries(collider_manager_test gtest_main)
+
+add_executable(blueprint_manager_test blueprint_manager_test.cc)
+target_link_libraries(blueprint_manager_test blueprint_manager)
+target_link_libraries(blueprint_manager_test macros)
+target_link_libraries(blueprint_manager_test gtest_main)

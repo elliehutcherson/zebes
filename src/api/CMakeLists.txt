@@ -12,4 +12,5 @@ target_link_libraries(api
   sprite
   sprite_manager
   texture_manager
+  collider_manager
 )

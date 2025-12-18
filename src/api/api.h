@@ -5,6 +5,7 @@
 #include "absl/status/statusor.h"
 #include "common/config.h"
 #include "objects/texture.h"
+#include "resources/collider_manager.h"
 #include "resources/sprite_manager.h"
 #include "resources/texture_manager.h"
 
@@ -16,6 +17,7 @@ class Api {
     const GameConfig* config;
     TextureManager* texture_manager;
     SpriteManager* sprite_manager;
+    ColliderManager* collider_manager;
   };
 
   static absl::StatusOr<std::unique_ptr<Api>> Create(const Options& options);
@@ -41,10 +43,17 @@ class Api {
   std::vector<Sprite> GetAllSprites();
   absl::StatusOr<Sprite*> GetSprite(const std::string& sprite_id);
 
+  absl::StatusOr<std::string> CreateCollider(Collider collider);
+  absl::Status UpdateCollider(Collider collider);
+  absl::Status DeleteCollider(const std::string& collider_id);
+  std::vector<Collider> GetAllColliders();
+  absl::StatusOr<Collider*> GetCollider(const std::string& collider_id);
+
  private:
   const GameConfig& config_;
   TextureManager* texture_manager_;
   SpriteManager* sprite_manager_;
+  ColliderManager* collider_manager_;
 };
 
 }  // namespace zebes
