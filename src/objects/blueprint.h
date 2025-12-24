@@ -7,6 +7,7 @@ namespace zebes {
 
 struct Blueprint {
   std::string id;
+  std::string name;
   // Order is required, the index of the state will be used to find the id sprite_id or collider_id.
   std::set<std::string> states;
   std::map<int, std::string> collider_ids;

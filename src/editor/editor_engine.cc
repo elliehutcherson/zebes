@@ -10,6 +10,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include "resources/blueprint_manager.h"
 #include "resources/texture_manager.h"
 
 namespace zebes {
@@ -45,11 +46,18 @@ absl::Status EditorEngine::Init() {
   ASSIGN_OR_RETURN(collider_manager_, ColliderManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(collider_manager_->LoadAllColliders());
 
+  // Create Blueprint Manager
+  ASSIGN_OR_RETURN(blueprint_manager_, BlueprintManager::Create(config_.paths.assets()));
+  RETURN_IF_ERROR(blueprint_manager_->LoadAllBlueprints());
+
   // Create API
-  Api::Options api_options = {.config = &config_,
-                              .texture_manager = texture_manager_.get(),
-                              .sprite_manager = sprite_manager_.get(),
-                              .collider_manager = collider_manager_.get()};
+  Api::Options api_options = {
+      .config = &config_,
+      .texture_manager = texture_manager_.get(),
+      .sprite_manager = sprite_manager_.get(),
+      .collider_manager = collider_manager_.get(),
+      .blueprint_manager = blueprint_manager_.get(),
+  };
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
   // Create UI

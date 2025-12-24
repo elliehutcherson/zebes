@@ -14,6 +14,8 @@ struct SpriteFrame {
   int render_w = 0;
   int render_h = 0;
   int frames_per_cycle = 0;
+  int offset_x = 0;
+  int offset_y = 0;
 };
 
 struct Sprite {

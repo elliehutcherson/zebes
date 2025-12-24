@@ -8,6 +8,7 @@
 #include "common/config.h"
 #include "common/sdl_wrapper.h"
 #include "editor/editor_ui.h"
+#include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
 #include "resources/sprite_manager.h"
 #include "resources/texture_manager.h"
@@ -53,6 +54,7 @@ class EditorEngine {
   std::unique_ptr<TextureManager> texture_manager_;
   std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<ColliderManager> collider_manager_;
+  std::unique_ptr<BlueprintManager> blueprint_manager_;
   std::unique_ptr<Api> api_;
 
   // Editor UI

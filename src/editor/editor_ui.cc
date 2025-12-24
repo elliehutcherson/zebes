@@ -1,13 +1,7 @@
 #include "editor/editor_ui.h"
 
-#include <filesystem>
-
-#include "ImGuiFileDialog.h"
-#include "SDL_image.h"
-#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
 #include "common/status_macros.h"
@@ -15,7 +9,6 @@
 #include "editor/sprite_editor.h"
 #include "editor/texture_editor.h"
 #include "imgui.h"
-#include "objects/texture.h"
 
 namespace zebes {
 
@@ -35,9 +28,10 @@ EditorUi::EditorUi(SdlWrapper* sdl, Api* api)
     : sdl_(sdl), api_(api), sprite_path_buffer_(256, '\0') {}
 
 absl::Status EditorUi::Init() {
-  ASSIGN_OR_RETURN(texture_importer_, TextureEditor::Create(api_, sdl_));
+  ASSIGN_OR_RETURN(texture_editor_, TextureEditor::Create(api_, sdl_));
   ASSIGN_OR_RETURN(config_editor_, ConfigEditor::Create(api_, sdl_));
   ASSIGN_OR_RETURN(sprite_editor_, SpriteEditor::Create(api_, sdl_));
+  ASSIGN_OR_RETURN(blueprint_editor_, BlueprintEditor::Create(api_));
   return absl::OkStatus();
 }
 
@@ -54,11 +48,15 @@ void EditorUi::Render() {
 
   if (ImGui::BeginTabBar("MainTabs")) {
     if (ImGui::BeginTabItem("Texture Editor")) {
-      texture_importer_->Render();
+      texture_editor_->Render();
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Sprite Editor")) {
       sprite_editor_->Render();
+      ImGui::EndTabItem();
+    }
+    if (ImGui::BeginTabItem("Blueprint Editor")) {
+      blueprint_editor_->Render();
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Config Editor")) {

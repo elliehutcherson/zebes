@@ -22,6 +22,7 @@ constexpr char kDefinitionsPath[] = "definitions/blueprints";
 void ToJson(nlohmann::json& j, const Blueprint& blueprint) {
   j = nlohmann::json{
       {"id", blueprint.id},
+      {"name", blueprint.name},
       {"states", blueprint.states},
       {"collider_ids", blueprint.collider_ids},
       {"sprite_ids", blueprint.sprite_ids},
@@ -32,6 +33,7 @@ absl::StatusOr<Blueprint> GetBlueprintFromJson(const nlohmann::json& j) {
   Blueprint blueprint;
   try {
     j.at("id").get_to(blueprint.id);
+    j.at("name").get_to(blueprint.name);
     j.at("states").get_to(blueprint.states);
 
     // Nlohmann json can map json objects to std::map
@@ -122,6 +124,9 @@ absl::Status BlueprintManager::SaveBlueprint(Blueprint blueprint) {
   if (blueprint.id.empty()) {
     return absl::InvalidArgumentError("Blueprint must have an ID to be saved.");
   }
+  if (blueprint.name.empty()) {
+    return absl::InvalidArgumentError("Blueprint must have a name to be saved.");
+  }
 
   // VALIDATION: Ensure keys in maps are valid indices for states
   size_t states_count = blueprint.states.size();
@@ -143,7 +148,7 @@ absl::Status BlueprintManager::SaveBlueprint(Blueprint blueprint) {
   nlohmann::json json;
   ToJson(json, blueprint);
 
-  std::string filename = absl::StrCat(blueprint.id, ".json");
+  std::string filename = absl::StrCat(blueprint.name, "-", blueprint.id, ".json");
   std::string definitions_path = GetDefinitionsPath(filename);
 
   // Ensure directory exists
@@ -175,7 +180,11 @@ absl::Status BlueprintManager::DeleteBlueprint(const std::string& id) {
   if (it == blueprints_.end()) return absl::NotFoundError("Blueprint not found");
 
   // Remove JSON file
-  std::string filename = absl::StrCat(id, ".json");
+  // Remove JSON file
+  // We need to know the name to reconstruct filename, or search for it.
+  // Since we have the blueprint in memory, we can use it.
+  const auto& blueprint = it->second;
+  std::string filename = absl::StrCat(blueprint->name, "-", id, ".json");
   std::filesystem::remove(GetDefinitionsPath(filename));
 
   blueprints_.erase(it);

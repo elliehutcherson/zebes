@@ -269,5 +269,49 @@ TEST_F(SpriteManagerTest, LoadPartialSpriteFrame) {
   EXPECT_FALSE(sprite_or.ok());
 }
 
+TEST_F(SpriteManagerTest, SaveAndLoadSpriteWithOffsets) {
+  Sprite sprite;
+  sprite.name = "OffsetSprite";
+
+  std::string tex_path = test_dir_ + "/textures/off.png";
+  std::ofstream f(tex_path);
+
+  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
+  ASSERT_TRUE(tex_id_or.ok());
+  sprite.texture_id = *tex_id_or;
+
+  // Add frames with offsets
+  SpriteFrame frame1;
+  frame1.index = 0;
+  frame1.texture_x = 0;
+  frame1.texture_y = 0;
+  frame1.texture_w = 32;
+  frame1.texture_h = 32;
+  frame1.offset_x = 10;
+  frame1.offset_y = -5;
+
+  sprite.frames.push_back(frame1);
+
+  auto id_or = manager_->CreateSprite(sprite);
+  ASSERT_TRUE(id_or.ok());
+  std::string id = *id_or;
+
+  // Reload using a new manager to simulate restart
+  auto sm2_or = SpriteManager::Create(texture_manager_.get(), test_dir_);
+  ASSERT_TRUE(sm2_or.ok());
+  auto sm2 = std::move(*sm2_or);
+
+  ASSERT_TRUE(sm2->LoadAllSprites().ok());
+  auto loaded_or = sm2->GetSprite(id);
+  ASSERT_TRUE(loaded_or.ok());
+  Sprite* loaded = *loaded_or;
+
+  EXPECT_EQ(loaded->frames.size(), 1);
+  if (loaded->frames.size() >= 1) {
+    EXPECT_EQ(loaded->frames[0].offset_x, 10);
+    EXPECT_EQ(loaded->frames[0].offset_y, -5);
+  }
+}
+
 }  // namespace
 }  // namespace zebes

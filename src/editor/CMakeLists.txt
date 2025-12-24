@@ -4,6 +4,7 @@ add_executable(zebes_editor
   editor_ui.cc
   editor_engine.cc
   animator.cc
+  blueprint_editor.cc
   texture_editor.cc
   config_editor.cc
   sprite_editor.cc

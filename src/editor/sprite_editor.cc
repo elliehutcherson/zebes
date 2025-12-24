@@ -378,7 +378,7 @@ void SpriteEditor::RenderSpriteFrameList() {
   }
 
   // Horizontal scroll area
-  float min_height = sprite_.frames.empty() ? 0.0f : 400.0f;
+  float min_height = sprite_.frames.empty() ? 0.0f : 550.0f;
   ImGui::BeginChild("SpriteFramesList", ImVec2(0, min_height));
 
   if (sprite_.frames.empty()) {
@@ -504,6 +504,10 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   ImGui::Text("Render:");
   RenderIntField("Render W:", &frame.render_w, 1, 10000);
   RenderIntField("Render H:", &frame.render_h, 1, 10000);
+
+  ImGui::Text("Offsets:");
+  RenderIntField("Offset X:", &frame.offset_x, -10000, 10000);
+  RenderIntField("Offset Y:", &frame.offset_y, -10000, 10000);
 
   ImGui::Text("Anim:");
   RenderIntField("Duration:", &frame.frames_per_cycle, 1, 1000);

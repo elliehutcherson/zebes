@@ -25,6 +25,7 @@ void ToJson(nlohmann::json& j, const SpriteFrame& frame) {
       {"texture_y", frame.texture_y}, {"texture_w", frame.texture_w},
       {"texture_h", frame.texture_h}, {"render_w", frame.render_w},
       {"render_h", frame.render_h},   {"frames_per_cycle", frame.frames_per_cycle},
+      {"offset_x", frame.offset_x},   {"offset_y", frame.offset_y},
   };
 }
 
@@ -38,6 +39,9 @@ absl::Status GetSpriteFrameFromJson(const nlohmann::json& j, SpriteFrame& frame)
     j.at("render_w").get_to(frame.render_w);
     j.at("render_h").get_to(frame.render_h);
     j.at("frames_per_cycle").get_to(frame.frames_per_cycle);
+    // Optional fields for backward compatibility
+    frame.offset_x = j.value("offset_x", 0);
+    frame.offset_y = j.value("offset_y", 0);
   } catch (const nlohmann::json::exception& e) {
     return absl::InternalError(absl::StrCat("JSON parsing error for SpriteFrame: ", e.what()));
   }

@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "SDL.h"
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
 #include "editor/animator.h"
+#include "editor/blueprint_editor.h"
 #include "editor/config_editor.h"
 #include "editor/sprite_editor.h"
 #include "editor/texture_editor.h"
@@ -83,17 +83,15 @@ class EditorUi {
    */
   void SelectSprite(const std::string& sprite_id);
 
-  // Load texture for preview
-  void LoadTexturePreview(const std::string& path);
-
   void RefreshTextures();
 
   // Resources aquired at construction
   SdlWrapper* sdl_;
   Api* api_;
-  std::unique_ptr<TextureEditor> texture_importer_;
+  std::unique_ptr<TextureEditor> texture_editor_;
   std::unique_ptr<ConfigEditor> config_editor_;
   std::unique_ptr<SpriteEditor> sprite_editor_;
+  std::unique_ptr<BlueprintEditor> blueprint_editor_;
 
   // UI state buffers
   std::string sprite_path_buffer_;
@@ -105,8 +103,6 @@ class EditorUi {
   int sprite_h_input_;
 
   // Texture preview state
-  SdlWrapper* sdl_wrapper_ = nullptr;
-  SDL_Texture* preview_texture_ = nullptr;
   std::vector<Texture> texture_list_;
 
   // Sprite list state
