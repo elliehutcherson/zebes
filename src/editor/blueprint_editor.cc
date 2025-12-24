@@ -470,17 +470,112 @@ void BlueprintEditor::RenderCanvas(ImVec2 canvas_sz, ImVec2 canvas_p0) {
     canvas_offset_.y += ImGui::GetIO().MouseDelta.y;
   }
 
-  ImVec2 origin(canvas_p0.x + canvas_offset_.x, canvas_p0.y + canvas_offset_.y);
+  ImVec2 center_offset(canvas_sz.x * 0.5f, canvas_sz.y * 0.5f);
+  ImVec2 origin(canvas_p0.x + canvas_offset_.x + center_offset.x,
+                canvas_p0.y + canvas_offset_.y + center_offset.y);
 
   // Coordinate conversion helpers
   auto WorldToScreen = [&](const Vec& v) -> ImVec2 {
     return ImVec2(origin.x + (float)v.x * canvas_zoom_, origin.y + (float)v.y * canvas_zoom_);
   };
 
-  // Draw Canvas Bounds
-  ImVec2 world_min = WorldToScreen({0, 0});
-  ImVec2 world_max = WorldToScreen({(double)canvas_width_, (double)canvas_height_});
-  draw_list->AddRect(world_min, world_max, IM_COL32(100, 100, 100, 255));
+  auto ScreenToWorld = [&](const ImVec2& p) -> Vec {
+    return Vec((p.x - origin.x) / canvas_zoom_, (p.y - origin.y) / canvas_zoom_);
+  };
+
+  // Draw Grid/Axis/Rulers
+  // ---------------------------------------------------------
+
+  // Draw Origin Axis Lines (X and Y)
+  // X Axis (Horizontal)
+  draw_list->AddLine(ImVec2(canvas_p0.x, origin.y), ImVec2(canvas_p0.x + canvas_sz.x, origin.y),
+                     IM_COL32(100, 100, 100, 100));
+  // Y Axis (Vertical)
+  draw_list->AddLine(ImVec2(origin.x, canvas_p0.y), ImVec2(origin.x, canvas_p0.y + canvas_sz.y),
+                     IM_COL32(100, 100, 100, 100));
+
+  // Rulers
+  const float ruler_thickness = 20.0f;
+  ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
+  ImU32 ruler_tick_color = IM_COL32(180, 180, 180, 255);
+  ImU32 mouse_indicator_color = IM_COL32(255, 50, 50, 255);
+
+  // Top Ruler (X-axis)
+  draw_list->AddRectFilled(
+      canvas_p0, ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + ruler_thickness), ruler_bg_color);
+
+  // Left Ruler (Y-axis)
+  draw_list->AddRectFilled(
+      canvas_p0, ImVec2(canvas_p0.x + ruler_thickness, canvas_p0.y + canvas_sz.y), ruler_bg_color);
+
+  // Draw Ticks for Top Ruler
+  float step = 50.0f * canvas_zoom_;
+  while (step < 50.0f) step *= 2.0f;  // Prevent too dense ticks
+  while (step > 150.0f) step /= 2.0f;
+
+  float start_x = fmod(origin.x - canvas_p0.x, step);
+  if (start_x < 0) start_x += step;
+
+  for (float x = start_x; x < canvas_sz.x; x += step) {
+    ImVec2 p1(canvas_p0.x + x, canvas_p0.y);
+    ImVec2 p2(canvas_p0.x + x, canvas_p0.y + ruler_thickness * 0.5f);
+    draw_list->AddLine(p1, p2, ruler_tick_color);
+
+    // Label
+    double world_x = (x - (origin.x - canvas_p0.x)) / canvas_zoom_;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.0f", world_x);
+    draw_list->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
+  }
+
+  // Draw Ticks for Left Ruler
+  float start_y = fmod(origin.y - canvas_p0.y, step);
+  if (start_y < 0) start_y += step;
+
+  for (float y = start_y; y < canvas_sz.y; y += step) {
+    ImVec2 p1(canvas_p0.x, canvas_p0.y + y);
+    ImVec2 p2(canvas_p0.x + ruler_thickness * 0.5f, canvas_p0.y + y);
+    draw_list->AddLine(p1, p2, ruler_tick_color);
+
+    // Label
+    double world_y = (y - (origin.y - canvas_p0.y)) / canvas_zoom_;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.0f", world_y);
+    draw_list->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
+  }
+
+  // Mouse Indicator on Rulers
+  if (is_hovered || is_active) {
+    ImVec2 mouse_pos = ImGui::GetMousePos();
+
+    // X-Axis Indicator
+    if (mouse_pos.x >= canvas_p0.x && mouse_pos.x <= canvas_p0.x + canvas_sz.x) {
+      draw_list->AddLine(ImVec2(mouse_pos.x, canvas_p0.y),
+                         ImVec2(mouse_pos.x, canvas_p0.y + ruler_thickness), mouse_indicator_color,
+                         2.0f);
+
+      double world_val_x = (mouse_pos.x - origin.x) / canvas_zoom_;
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%.0f", world_val_x);
+      ImVec2 txt_sz = ImGui::CalcTextSize(buf);
+      draw_list->AddText(ImVec2(mouse_pos.x - txt_sz.x * 0.5f, canvas_p0.y + ruler_thickness),
+                         mouse_indicator_color, buf);
+    }
+
+    // Y-Axis Indicator
+    if (mouse_pos.y >= canvas_p0.y && mouse_pos.y <= canvas_p0.y + canvas_sz.y) {
+      draw_list->AddLine(ImVec2(canvas_p0.x, mouse_pos.y),
+                         ImVec2(canvas_p0.x + ruler_thickness, mouse_pos.y), mouse_indicator_color,
+                         2.0f);
+
+      double world_val_y = (mouse_pos.y - origin.y) / canvas_zoom_;
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%.0f", world_val_y);
+      // Draw lightly offset to not clip
+      draw_list->AddText(ImVec2(canvas_p0.x + ruler_thickness, mouse_pos.y - 6),
+                         mouse_indicator_color, buf);
+    }
+  }
 
   // Draw Sprite
   std::vector<Sprite> sprites = api_->GetAllSprites();
@@ -488,8 +583,10 @@ void BlueprintEditor::RenderCanvas(ImVec2 canvas_sz, ImVec2 canvas_p0) {
     Sprite& sprite = sprites[selected_sprite_index_];
     if (!sprite.frames.empty()) {
       SpriteFrame& frame = sprite.frames[0];
-      ImVec2 p1 = WorldToScreen({0, 0});
-      ImVec2 p2 = WorldToScreen({(double)frame.render_w, (double)frame.render_h});
+      // Use offset from frame
+      ImVec2 p1 = WorldToScreen({(double)frame.offset_x, (double)frame.offset_y});
+      ImVec2 p2 = WorldToScreen(
+          {(double)frame.offset_x + frame.render_w, (double)frame.offset_y + frame.render_h});
       draw_list->AddRect(p1, p2, IM_COL32(100, 200, 100, 100));  // Green tint
     }
   }
