@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "SDL_render.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "imgui.h"
@@ -42,7 +43,7 @@ void BlueprintEditor::SelectBlueprint(const std::string& blueprint_id) {
 }
 
 void BlueprintEditor::Render() {
-  if (!ImGui::BeginTable("BlueprintEditorTable", 2,
+  if (!ImGui::BeginTable("BlueprintEditorTable", 3,
                          ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable,
                          ImGui::GetContentRegionAvail())) {
     return;
@@ -51,6 +52,7 @@ void BlueprintEditor::Render() {
   // Left Column: Controls & List
   ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthFixed, 250.0f);
   ImGui::TableSetupColumn("Editor", ImGuiTableColumnFlags_WidthStretch);
+  ImGui::TableSetupColumn("Sprite Details", ImGuiTableColumnFlags_WidthFixed, 300.0f);
   ImGui::TableHeadersRow();
 
   ImGui::TableNextRow();
@@ -67,6 +69,9 @@ void BlueprintEditor::Render() {
   // Right Column: Editor / Placeholder
   ImGui::TableNextColumn();
   RenderEditor();
+
+  ImGui::TableNextColumn();
+  RenderSpriteDetails();
 
   ImGui::EndTable();
 }
@@ -148,7 +153,12 @@ void BlueprintEditor::RenderCreator() {
     selected_polygon_index_ = -1;
     selected_vertex_index_ = -1;
     canvas_zoom_ = 1.0f;
+    canvas_zoom_ = 1.0f;
     canvas_offset_ = {0, 0};
+    // Reset sprite editing state
+    selected_frame_index_ = 0;
+    original_sprite_ = Sprite();
+    editing_sprite_ = Sprite();
   }
 }
 
@@ -201,6 +211,10 @@ void BlueprintEditor::RenderCreateState() {
       bool is_selected = (selected_sprite_index_ == i);
       if (ImGui::Selectable(sprite_names[i], is_selected)) {
         selected_sprite_index_ = i;
+        // Initialize editing state
+        original_sprite_ = sprites[i];
+        editing_sprite_ = sprites[i];
+        selected_frame_index_ = 0;
       }
       if (is_selected) {
         ImGui::SetItemDefaultFocus();
@@ -484,105 +498,12 @@ void BlueprintEditor::RenderCanvas(ImVec2 canvas_sz, ImVec2 canvas_p0) {
   };
 
   // Draw Grid/Axis/Rulers
-  // ---------------------------------------------------------
-
-  // Draw Origin Axis Lines (X and Y)
-  // X Axis (Horizontal)
-  draw_list->AddLine(ImVec2(canvas_p0.x, origin.y), ImVec2(canvas_p0.x + canvas_sz.x, origin.y),
-                     IM_COL32(100, 100, 100, 100));
-  // Y Axis (Vertical)
-  draw_list->AddLine(ImVec2(origin.x, canvas_p0.y), ImVec2(origin.x, canvas_p0.y + canvas_sz.y),
-                     IM_COL32(100, 100, 100, 100));
-
-  // Rulers
-  const float ruler_thickness = 20.0f;
-  ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
-  ImU32 ruler_tick_color = IM_COL32(180, 180, 180, 255);
-  ImU32 mouse_indicator_color = IM_COL32(255, 50, 50, 255);
-
-  // Top Ruler (X-axis)
-  draw_list->AddRectFilled(
-      canvas_p0, ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + ruler_thickness), ruler_bg_color);
-
-  // Left Ruler (Y-axis)
-  draw_list->AddRectFilled(
-      canvas_p0, ImVec2(canvas_p0.x + ruler_thickness, canvas_p0.y + canvas_sz.y), ruler_bg_color);
-
-  // Draw Ticks for Top Ruler
-  float step = 50.0f * canvas_zoom_;
-  while (step < 50.0f) step *= 2.0f;  // Prevent too dense ticks
-  while (step > 150.0f) step /= 2.0f;
-
-  float start_x = fmod(origin.x - canvas_p0.x, step);
-  if (start_x < 0) start_x += step;
-
-  for (float x = start_x; x < canvas_sz.x; x += step) {
-    ImVec2 p1(canvas_p0.x + x, canvas_p0.y);
-    ImVec2 p2(canvas_p0.x + x, canvas_p0.y + ruler_thickness * 0.5f);
-    draw_list->AddLine(p1, p2, ruler_tick_color);
-
-    // Label
-    double world_x = (x - (origin.x - canvas_p0.x)) / canvas_zoom_;
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.0f", world_x);
-    draw_list->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
-  }
-
-  // Draw Ticks for Left Ruler
-  float start_y = fmod(origin.y - canvas_p0.y, step);
-  if (start_y < 0) start_y += step;
-
-  for (float y = start_y; y < canvas_sz.y; y += step) {
-    ImVec2 p1(canvas_p0.x, canvas_p0.y + y);
-    ImVec2 p2(canvas_p0.x + ruler_thickness * 0.5f, canvas_p0.y + y);
-    draw_list->AddLine(p1, p2, ruler_tick_color);
-
-    // Label
-    double world_y = (y - (origin.y - canvas_p0.y)) / canvas_zoom_;
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.0f", world_y);
-    draw_list->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
-  }
-
-  // Mouse Indicator on Rulers
-  if (is_hovered || is_active) {
-    ImVec2 mouse_pos = ImGui::GetMousePos();
-
-    // X-Axis Indicator
-    if (mouse_pos.x >= canvas_p0.x && mouse_pos.x <= canvas_p0.x + canvas_sz.x) {
-      draw_list->AddLine(ImVec2(mouse_pos.x, canvas_p0.y),
-                         ImVec2(mouse_pos.x, canvas_p0.y + ruler_thickness), mouse_indicator_color,
-                         2.0f);
-
-      double world_val_x = (mouse_pos.x - origin.x) / canvas_zoom_;
-      char buf[32];
-      snprintf(buf, sizeof(buf), "%.0f", world_val_x);
-      ImVec2 txt_sz = ImGui::CalcTextSize(buf);
-      draw_list->AddText(ImVec2(mouse_pos.x - txt_sz.x * 0.5f, canvas_p0.y + ruler_thickness),
-                         mouse_indicator_color, buf);
-    }
-
-    // Y-Axis Indicator
-    if (mouse_pos.y >= canvas_p0.y && mouse_pos.y <= canvas_p0.y + canvas_sz.y) {
-      draw_list->AddLine(ImVec2(canvas_p0.x, mouse_pos.y),
-                         ImVec2(canvas_p0.x + ruler_thickness, mouse_pos.y), mouse_indicator_color,
-                         2.0f);
-
-      double world_val_y = (mouse_pos.y - origin.y) / canvas_zoom_;
-      char buf[32];
-      snprintf(buf, sizeof(buf), "%.0f", world_val_y);
-      // Draw lightly offset to not clip
-      draw_list->AddText(ImVec2(canvas_p0.x + ruler_thickness, mouse_pos.y - 6),
-                         mouse_indicator_color, buf);
-    }
-  }
+  RenderRulers(draw_list, canvas_p0, canvas_sz, origin);
 
   // Draw Sprite
-  std::vector<Sprite> sprites = api_->GetAllSprites();
-  if (selected_sprite_index_ >= 0 && selected_sprite_index_ < sprites.size()) {
-    Sprite& sprite = sprites[selected_sprite_index_];
-    if (!sprite.frames.empty()) {
-      SpriteFrame& frame = sprite.frames[0];
+  if (selected_sprite_index_ >= 0 && !editing_sprite_.id.empty()) {
+    if (selected_frame_index_ >= 0 && selected_frame_index_ < editing_sprite_.frames.size()) {
+      const SpriteFrame& frame = editing_sprite_.frames[selected_frame_index_];
       // Use offset from frame
       ImVec2 p1 = WorldToScreen({(double)frame.offset_x, (double)frame.offset_y});
       ImVec2 p2 = WorldToScreen(
@@ -647,6 +568,222 @@ void BlueprintEditor::RenderCanvas(ImVec2 canvas_sz, ImVec2 canvas_p0) {
   }
 
   ImGui::EndChild();
+}
+
+void BlueprintEditor::RenderRulers(ImDrawList* draw_list, ImVec2 canvas_p0, ImVec2 canvas_sz,
+                                   ImVec2 origin) {
+  // Draw Origin Axis Lines (X and Y)
+  // X Axis (Horizontal)
+  draw_list->AddLine(ImVec2(canvas_p0.x, origin.y), ImVec2(canvas_p0.x + canvas_sz.x, origin.y),
+                     IM_COL32(100, 100, 100, 100));
+  // Y Axis (Vertical)
+  draw_list->AddLine(ImVec2(origin.x, canvas_p0.y), ImVec2(origin.x, canvas_p0.y + canvas_sz.y),
+                     IM_COL32(100, 100, 100, 100));
+
+  // Rulers
+  const float ruler_thickness = 20.0f;
+  ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
+  ImU32 ruler_tick_color = IM_COL32(180, 180, 180, 255);
+  ImU32 mouse_indicator_color = IM_COL32(255, 50, 50, 255);
+
+  // Top Ruler (X-axis)
+  draw_list->AddRectFilled(
+      canvas_p0, ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + ruler_thickness), ruler_bg_color);
+
+  // Left Ruler (Y-axis)
+  draw_list->AddRectFilled(
+      canvas_p0, ImVec2(canvas_p0.x + ruler_thickness, canvas_p0.y + canvas_sz.y), ruler_bg_color);
+
+  // Draw Ticks for Top Ruler
+  float step = 50.0f * canvas_zoom_;
+  while (step < 50.0f) step *= 2.0f;  // Prevent too dense ticks
+  while (step > 150.0f) step /= 2.0f;
+
+  float start_x = fmod(origin.x - canvas_p0.x, step);
+  if (start_x < 0) start_x += step;
+
+  for (float x = start_x; x < canvas_sz.x; x += step) {
+    ImVec2 p1(canvas_p0.x + x, canvas_p0.y);
+    ImVec2 p2(canvas_p0.x + x, canvas_p0.y + ruler_thickness * 0.5f);
+    draw_list->AddLine(p1, p2, ruler_tick_color);
+
+    // Label
+    double world_x = (x - (origin.x - canvas_p0.x)) / canvas_zoom_;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.0f", world_x);
+    draw_list->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
+  }
+
+  // Draw Ticks for Left Ruler
+  float start_y = fmod(origin.y - canvas_p0.y, step);
+  if (start_y < 0) start_y += step;
+
+  for (float y = start_y; y < canvas_sz.y; y += step) {
+    ImVec2 p1(canvas_p0.x, canvas_p0.y + y);
+    ImVec2 p2(canvas_p0.x + ruler_thickness * 0.5f, canvas_p0.y + y);
+    draw_list->AddLine(p1, p2, ruler_tick_color);
+
+    // Label
+    double world_y = (y - (origin.y - canvas_p0.y)) / canvas_zoom_;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.0f", world_y);
+    draw_list->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
+  }
+
+  // Mouse Indicator on Rulers
+  ImVec2 mouse_pos = ImGui::GetMousePos();
+  bool mouse_in_canvas = mouse_pos.x >= canvas_p0.x && mouse_pos.x <= canvas_p0.x + canvas_sz.x &&
+                         mouse_pos.y >= canvas_p0.y && mouse_pos.y <= canvas_p0.y + canvas_sz.y;
+
+  if (mouse_in_canvas) {
+    // X-Axis Indicator
+    if (mouse_pos.x >= canvas_p0.x && mouse_pos.x <= canvas_p0.x + canvas_sz.x) {
+      draw_list->AddLine(ImVec2(mouse_pos.x, canvas_p0.y),
+                         ImVec2(mouse_pos.x, canvas_p0.y + ruler_thickness), mouse_indicator_color,
+                         2.0f);
+
+      double world_val_x = (mouse_pos.x - origin.x) / canvas_zoom_;
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%.0f", world_val_x);
+      ImVec2 txt_sz = ImGui::CalcTextSize(buf);
+      draw_list->AddText(ImVec2(mouse_pos.x - txt_sz.x * 0.5f, canvas_p0.y + ruler_thickness),
+                         mouse_indicator_color, buf);
+    }
+
+    // Y-Axis Indicator
+    if (mouse_pos.y >= canvas_p0.y && mouse_pos.y <= canvas_p0.y + canvas_sz.y) {
+      draw_list->AddLine(ImVec2(canvas_p0.x, mouse_pos.y),
+                         ImVec2(canvas_p0.x + ruler_thickness, mouse_pos.y), mouse_indicator_color,
+                         2.0f);
+
+      double world_val_y = (mouse_pos.y - origin.y) / canvas_zoom_;
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%.0f", world_val_y);
+      // Draw lightly offset to not clip
+      draw_list->AddText(ImVec2(canvas_p0.x + ruler_thickness, mouse_pos.y - 6),
+                         mouse_indicator_color, buf);
+    }
+  }
+}
+
+void BlueprintEditor::RenderSpriteDetails() {
+  if (mode_ != Mode::kCreateState || selected_sprite_index_ < 0) {
+    ImGui::TextDisabled("No sprite selected");
+    return;
+  }
+
+  ImGui::Text("Sprite Details");
+  ImGui::Separator();
+
+  // Read-only fields
+  ImGui::BeginDisabled();
+  ImGui::InputText("Name", (char*)editing_sprite_.name.c_str(), editing_sprite_.name.size(),
+                   ImGuiInputTextFlags_ReadOnly);
+  ImGui::InputText("ID", (char*)editing_sprite_.id.c_str(), editing_sprite_.id.size(),
+                   ImGuiInputTextFlags_ReadOnly);
+  ImGui::EndDisabled();
+
+  ImGui::Separator();
+  ImGui::Text("Frames");
+
+  if (editing_sprite_.frames.empty()) {
+    ImGui::TextDisabled("No frames available");
+    return;
+  }
+
+  if (selected_frame_index_ < 0 || selected_frame_index_ > editing_sprite_.frames.size()) {
+    ImGui::TextDisabled("Selected frame index is out of bounds!");
+    return;
+  }
+  SpriteFrame& frame = editing_sprite_.frames[selected_frame_index_];
+
+  // Render Frame Preview
+  absl::StatusOr<Texture*> texture = api_->GetTexture(editing_sprite_.texture_id);
+  if (!texture.ok()) {
+    ImGui::TextDisabled("Texture not available...");
+    return;
+  }
+  editing_sprite_.sdl_texture = (*texture)->sdl_texture;
+
+  int tex_w = 0, tex_h = 0;
+  SDL_QueryTexture((SDL_Texture*)editing_sprite_.sdl_texture, nullptr, nullptr, &tex_w, &tex_h);
+  if (tex_w > 0 && tex_h > 0) {
+    // Calculate UVs
+    ImVec2 uv0((float)frame.texture_x / tex_w, (float)frame.texture_y / tex_h);
+    ImVec2 uv1((float)(frame.texture_x + frame.texture_w) / tex_w,
+               (float)(frame.texture_y + frame.texture_h) / tex_h);
+
+    // Fixed display size height, maintain aspect ratio
+    float display_h = 100.0f;
+    float aspect = (frame.texture_h > 0) ? (float)frame.texture_w / frame.texture_h : 1.0f;
+    float display_w = display_h * aspect;
+
+    ImGui::Image((ImTextureID)editing_sprite_.sdl_texture, ImVec2(display_w, display_h), uv0, uv1);
+  }
+
+  // Frame selection list
+  if (ImGui::BeginListBox("##FrameList", ImVec2(-FLT_MIN, 200))) {
+    for (int i = 0; i < editing_sprite_.frames.size(); ++i) {
+      std::string label = "Frame " + std::to_string(i);
+      bool is_selected = (selected_frame_index_ == i);
+      if (ImGui::Selectable(label.c_str(), is_selected)) {
+        selected_frame_index_ = i;
+      }
+      if (is_selected) {
+        ImGui::SetItemDefaultFocus();
+      }
+    }
+    ImGui::EndListBox();
+  }
+
+  // Selected frame details
+  ImGui::Separator();
+  ImGui::Text("Frame %d Settings", selected_frame_index_);
+
+  ImGui::BeginDisabled();
+  int texture_rect[4] = {frame.texture_x, frame.texture_y, frame.texture_w, frame.texture_h};
+  ImGui::InputInt4("Texture Rect", texture_rect);
+  int render_size[2] = {frame.render_w, frame.render_h};
+  ImGui::InputInt2("Render Size", render_size);
+  ImGui::EndDisabled();
+
+  // Editable Offsets
+  bool changed = false;
+  changed |= ImGui::InputInt("Offset X", &frame.offset_x);
+  changed |= ImGui::InputInt("Offset Y", &frame.offset_y);
+
+  // Save Button
+  ImGui::Separator();
+  bool can_save = IsSpriteDirty();
+  if (!can_save) ImGui::BeginDisabled();
+
+  if (ImGui::Button("Save Changes")) {
+    absl::Status status = api_->UpdateSprite(editing_sprite_);
+    if (status.ok()) {
+      original_sprite_ = editing_sprite_;
+      // Refresh sprite in API cache if needed, though UpdateSprite typically handles persistence.
+      // We might need to refresh the global sprite list if RenderCreateState relies on it,
+      // but editing_sprite_ is our local copy.
+    } else {
+      LOG(ERROR) << "Failed to update sprite: " << status;
+    }
+  }
+
+  if (!can_save) ImGui::EndDisabled();
+}
+
+bool BlueprintEditor::IsSpriteDirty() const {
+  if (editing_sprite_.id != original_sprite_.id) return false;  // Should not happen for same sprite
+  if (editing_sprite_.frames.size() != original_sprite_.frames.size()) return true;
+
+  for (size_t i = 0; i < editing_sprite_.frames.size(); ++i) {
+    const auto& f1 = editing_sprite_.frames[i];
+    const auto& f2 = original_sprite_.frames[i];
+    if (f1.offset_x != f2.offset_x || f1.offset_y != f2.offset_y) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace zebes

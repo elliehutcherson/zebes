@@ -63,6 +63,11 @@ class BlueprintEditor {
   int selected_polygon_index_ = -1;
   int selected_vertex_index_ = -1;
 
+  // Sprite editing state
+  Sprite original_sprite_;
+  Sprite editing_sprite_;
+  int selected_frame_index_ = 0;
+
   // Canvas state
   int canvas_width_ = 800;
   int canvas_height_ = 600;
@@ -78,6 +83,11 @@ class BlueprintEditor {
   // Sub-renderers to reduce complexity
   void RenderCanvas(ImVec2 canvas_sz, ImVec2 canvas_p0);
   void RenderColliderPanel();
+  void RenderSpriteDetails();
+  void RenderRulers(ImDrawList* draw_list, ImVec2 canvas_p0, ImVec2 canvas_sz, ImVec2 origin);
+
+  // Helper functions
+  bool IsSpriteDirty() const;
 
   // Helper functions
   void CreateNewCollider();
