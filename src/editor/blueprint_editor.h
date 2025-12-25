@@ -6,6 +6,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "editor/animator.h"
 #include "imgui.h"
 #include "objects/blueprint.h"
 #include "objects/collider.h"
@@ -31,6 +32,7 @@ class BlueprintEditor {
   void DeleteBlueprint();
 
   Api* api_;
+  std::unique_ptr<Animator> animator_;
 
   // UI state
   enum class Mode {
@@ -67,32 +69,80 @@ class BlueprintEditor {
   Sprite original_sprite_;
   Sprite editing_sprite_;
   int selected_frame_index_ = 0;
+  std::vector<Sprite> sprite_cache_;
+  bool is_playing_animation_ = false;
+  double animation_timer_ = 0.0;
 
   // Canvas state
-  int canvas_width_ = 800;
-  int canvas_height_ = 600;
   float canvas_zoom_ = 1.0f;
   Vec canvas_offset_ = {0, 0};
   bool is_dragging_ = false;
+  bool is_dragging_sprite_ = false;
+  // Origin position for coordinate conversion, cached each frame
+  ImVec2 origin_ = {0, 0};
 
+  // Snapping state
+  bool snap_to_grid_ = true;
+  double drag_accumulator_x_ = 0;
+  double drag_accumulator_y_ = 0;
+
+  // Renders the list of blueprints and control buttons (Create, Edit, Delete).
   void RenderControls();
+
+  // Renders the view for creating a new blueprint.
   void RenderCreator();
+
+  // Renders the view for creating a new state within a blueprint.
   void RenderCreateState();
+
+  // Renders the main editor area (placeholder or details).
   void RenderEditor();
 
   // Sub-renderers to reduce complexity
   void RenderCanvas(ImVec2 canvas_sz, ImVec2 canvas_p0);
+  void RenderSpriteOnCanvas(ImDrawList* draw_list, bool is_active_input);
+  void RenderPolygonsOnCanvas(ImDrawList* draw_list, bool is_active_input);
+  void HandleCanvasInteraction(const ImVec2& canvas_sz, const ImVec2& canvas_p0, bool is_hovered,
+                               bool is_active);
+
+  // Renders the sprite selection dropdown.
+  void RenderSpriteSelector();
+
+  // Renders the list of polygons for the current collider.
+  void RenderPolygonList();
+
+  // Renders the panel for editing collider properties.
   void RenderColliderPanel();
+
+  // Renders the details of the selected sprite.
   void RenderSpriteDetails();
+
+  // Renders the rulers on the canvas.
   void RenderRulers(ImDrawList* draw_list, ImVec2 canvas_p0, ImVec2 canvas_sz, ImVec2 origin);
 
+  // Updates the animation state if playing.
+  void UpdateAnimation();
+
+  // Applies drag movement to value with optional snapping, using accumulator.
+  void ApplyDrag(double& val, double& accumulator, double delta, bool snap);
+
   // Helper functions
+  // Checks if the editing sprite has unsaved changes compared to the original.
   bool IsSpriteDirty() const;
+
+  // Refreshes the local cache of sprites from the API.
+  void RefreshSpriteList();
 
   // Helper functions
   void CreateNewCollider();
   void SaveCurrentCollider();
   void LoadCollider(const std::string& id);
+
+  // Converts a world coordinate to a screen coordinate based on current zoom and pan.
+  ImVec2 WorldToScreen(const Vec& v) const;
+
+  // Converts a screen coordinate to a world coordinate based on current zoom and pan.
+  Vec ScreenToWorld(const ImVec2& p) const;
 };
 
 }  // namespace zebes

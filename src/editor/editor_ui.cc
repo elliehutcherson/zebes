@@ -66,7 +66,17 @@ void EditorUi::Render() {
     ImGui::EndTabBar();
   }
 
-  ImGui::End();
+  ImGui::End();  // End of the "Zebes Editor" background window
+
+  // Show debug state.
+  if (ImGui::IsKeyPressed(ImGuiKey_F1)) {
+    show_debug_metrics_ = !show_debug_metrics_;  // Toggle on F1 press
+  }
+  // This ensures the metrics window floats *over* the editor,
+  // regardless of which tab is open.
+  if (show_debug_metrics_) {
+    ImGui::ShowMetricsWindow(&show_debug_metrics_);
+  }
 }
 
 }  // namespace zebes

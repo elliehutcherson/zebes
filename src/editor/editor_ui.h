@@ -125,6 +125,9 @@ class EditorUi {
   std::unique_ptr<Animator> animator_;
   bool is_playing_animation_ = false;
   double animation_timer_ = 0.0;
+
+  // Debug state
+  bool show_debug_metrics_ = false;
 };
 
 }  // namespace zebes
