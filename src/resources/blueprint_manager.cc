@@ -24,10 +24,17 @@ void ToJson(nlohmann::json& j, const Blueprint& blueprint) {
   j = nlohmann::json{
       {"id", blueprint.id},
       {"name", blueprint.name},
-      {"states", blueprint.states},
-      {"collider_ids", blueprint.collider_ids},
-      {"sprite_ids", blueprint.sprite_ids},
   };
+
+  std::vector<nlohmann::json> states_json;
+  for (const auto& state : blueprint.states) {
+    states_json.push_back({
+        {"name", state.name},
+        {"collider_id", state.collider_id},
+        {"sprite_id", state.sprite_id},
+    });
+  }
+  j["states"] = states_json;
 }
 
 absl::StatusOr<Blueprint> GetBlueprintFromJson(const nlohmann::json& j) {
@@ -35,21 +42,23 @@ absl::StatusOr<Blueprint> GetBlueprintFromJson(const nlohmann::json& j) {
   try {
     j.at("id").get_to(blueprint.id);
     j.at("name").get_to(blueprint.name);
-    j.at("states").get_to(blueprint.states);
+    if (!j.contains("states")) return blueprint;
 
-    // Nlohmann json can map json objects to std::map
-    // However, keys in json are strings, while our map keys are int.
-    // Nlohmann handles this conversion automatically for std::map<int, ...>
-    if (j.contains("collider_ids")) {
-      j.at("collider_ids").get_to(blueprint.collider_ids);
+    for (const auto& state_json : j["states"]) {
+      Blueprint::State state;
+      state_json.at("name").get_to(state.name);
+      if (state_json.contains("collider_id")) {
+        state_json.at("collider_id").get_to(state.collider_id);
+      }
+      if (state_json.contains("sprite_id")) {
+        state_json.at("sprite_id").get_to(state.sprite_id);
+      }
+      blueprint.states.push_back(state);
     }
-    if (j.contains("sprite_ids")) {
-      j.at("sprite_ids").get_to(blueprint.sprite_ids);
-    }
-
   } catch (const nlohmann::json::exception& e) {
     return absl::InternalError(absl::StrCat("JSON parsing error for Blueprint: ", e.what()));
   }
+
   return blueprint;
 }
 
@@ -107,9 +116,8 @@ absl::Status BlueprintManager::LoadAllBlueprints() {
 }
 
 absl::StatusOr<std::string> BlueprintManager::CreateBlueprint(Blueprint blueprint) {
-  if (blueprint.id.empty()) {
-    blueprint.id = GenerateGuid();
-  }
+  // The id should always be generated. Never allow an id to be passed in.
+  blueprint.id = GenerateGuid();
 
   RETURN_IF_ERROR(SaveBlueprint(blueprint));
 
@@ -129,19 +137,10 @@ absl::Status BlueprintManager::SaveBlueprint(Blueprint blueprint) {
   }
 
   // VALIDATION: Ensure keys in maps are valid indices for states
-  size_t states_count = blueprint.states.size();
-  for (const auto& [key, val] : blueprint.collider_ids) {
-    if (key < 0) return absl::InvalidArgumentError("Negative index in collider_ids");
-    if (static_cast<size_t>(key) >= states_count) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Collider ID key ", key, " is out of bounds for states size ", states_count));
-    }
-  }
-  for (const auto& [key, val] : blueprint.sprite_ids) {
-    if (key < 0) return absl::InvalidArgumentError("Negative index in sprite_ids");
-    if (static_cast<size_t>(key) >= states_count) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Sprite ID key ", key, " is out of bounds for states size ", states_count));
+  // VALIDATION: Ensure states have names?
+  for (const auto& state : blueprint.states) {
+    if (state.name.empty()) {
+      return absl::InvalidArgumentError("All blueprint states must have a name.");
     }
   }
 
@@ -186,7 +185,6 @@ absl::Status BlueprintManager::DeleteBlueprint(const std::string& id) {
   if (it == blueprints_.end()) return absl::NotFoundError("Blueprint not found");
 
   // Remove JSON file
-  // Remove JSON file
   // We need to know the name to reconstruct filename, or search for it.
   // Since we have the blueprint in memory, we can use it.
   const auto& blueprint = it->second;
@@ -208,8 +206,8 @@ std::vector<Blueprint> BlueprintManager::GetAllBlueprints() const {
 
 bool BlueprintManager::IsSpriteUsed(const std::string& sprite_id) const {
   for (const auto& [id, blueprint] : blueprints_) {
-    for (const auto& [index, s_id] : blueprint->sprite_ids) {
-      if (s_id == sprite_id) return true;
+    for (const auto& state : blueprint->states) {
+      if (state.sprite_id == sprite_id) return true;
     }
   }
   return false;
@@ -217,8 +215,8 @@ bool BlueprintManager::IsSpriteUsed(const std::string& sprite_id) const {
 
 bool BlueprintManager::IsColliderUsed(const std::string& collider_id) const {
   for (const auto& [id, blueprint] : blueprints_) {
-    for (const auto& [index, c_id] : blueprint->collider_ids) {
-      if (c_id == collider_id) return true;
+    for (const auto& state : blueprint->states) {
+      if (state.collider_id == collider_id) return true;
     }
   }
   return false;

@@ -1,1 +1,20 @@
-Remember to follow the google style guide, the less indentation the better. Please focus on clean maintainable code. If there is an issues below the API (outside of the UI), we should add a test case. 
+Role: Act as a Senior C++ Engineer.
+
+Coding Standards & Style:
+
+    Style Guide: Strictly adhere to the Google C++ Style Guide.
+
+    RAII & Safety: Enforce RAII principles. Assume all resources are fully initialized upon construction. Use references (T& or const T&) instead of pointers whenever possible to guarantee non-null values. Do not clutter code with null checks unless a parameter is explicitly optional.
+
+    Statelessness: Mark functions as static whenever they do not modify instance state.
+
+    Maintainability: Prioritize readability. Code should be self-documenting, but include thorough comments for public interfaces and complex logic.
+
+Control Flow & Structure:
+
+    Guard Clauses: Return early (return; or return status;) on errors or edge cases. Do not use else after a return.
+
+    Nesting: Maximize code flatness. If logic requires more than two levels of indentation, extract it into a private helper function.
+
+Task:
+Make sure that every resource manager does not allow the user to pass in an id. It must always be generated on creation. Please update tests to validate this behavior. 

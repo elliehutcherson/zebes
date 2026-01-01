@@ -1,32 +1,42 @@
 #pragma once
 
-#include <map>
-#include <set>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace zebes {
 
 struct Blueprint {
+  struct State {
+    std::string name;
+    std::string collider_id;
+    std::string sprite_id;
+  };
+
   std::string id;
   std::string name;
-  // Order is required, the index of the state will be used to find the id sprite_id or collider_id.
-  std::set<std::string> states;
-  std::map<int, std::string> collider_ids;
-  std::map<int, std::string> sprite_ids;
+  std::vector<State> states;
 
-  std::optional<std::string> collider_id(int state_index) {
-    auto it = collider_ids.find(state_index);
-    if (it == collider_ids.end()) {
+  std::optional<std::string> collider_id(int index) {
+    if (index < 0 || index >= states.size()) {
       return std::nullopt;
     }
-    return it->second;
+    const State& state = states[index];
+    if (state.collider_id.empty()) {
+      return std::nullopt;
+    }
+    return state.collider_id;
   }
 
-  std::optional<std::string> sprite_id(int state_index) {
-    auto it = sprite_ids.find(state_index);
-    if (it == sprite_ids.end()) {
+  std::optional<std::string> sprite_id(int index) {
+    if (index < 0 || index >= states.size()) {
       return std::nullopt;
     }
-    return it->second;
+    const State& state = states[index];
+    if (state.sprite_id.empty()) {
+      return std::nullopt;
+    }
+    return state.sprite_id;
   }
 };
 

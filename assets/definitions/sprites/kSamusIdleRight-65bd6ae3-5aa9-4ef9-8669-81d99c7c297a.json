@@ -3,6 +3,8 @@
         {
             "frames_per_cycle": 4,
             "index": 0,
+            "offset_x": -28,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 56,
             "texture_h": 44,
@@ -13,6 +15,8 @@
         {
             "frames_per_cycle": 4,
             "index": 1,
+            "offset_x": -28,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 56,
             "texture_h": 44,
@@ -23,6 +27,8 @@
         {
             "frames_per_cycle": 4,
             "index": 2,
+            "offset_x": -28,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 56,
             "texture_h": 44,
@@ -33,6 +39,8 @@
         {
             "frames_per_cycle": 4,
             "index": 3,
+            "offset_x": -28,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 56,
             "texture_h": 44,

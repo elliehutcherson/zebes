@@ -46,14 +46,14 @@ class BlueprintPanel {
 
   int RenderStateList();
 
-  bool RenderStateDetails(const std::string& s, int index, int* selected_index);
+  bool RenderStateDetails(const std::string& name, int index, int* selected_index);
 
   void ConfirmState(Op op);
 
   BlueprintPanelMode mode_ = kBlueprintPanelList;
   std::vector<Blueprint> blueprint_cache_;
 
-  int blueprint_index_ = 0;
+  int blueprint_index_ = -1;
   std::optional<Blueprint> editting_blueprint_;
   int state_index_ = -1;
 

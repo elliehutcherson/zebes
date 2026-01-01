@@ -63,9 +63,11 @@ void BlueprintPanel::RenderList() {
   ImGui::SameLine();
   ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
   if (ImGui::Button("Delete") && blueprint_index_ > -1) {
-    mode_ = kBlueprintPanelEdit;
+    mode_ = kBlueprintPanelList;
     editting_blueprint_ = blueprint_cache_[blueprint_index_];
     ConfirmState(Op::kBlueprintDelete);
+    blueprint_index_ = -1;
+    editting_blueprint_.reset();
   }
   ImGui::PopStyleColor();
 
@@ -115,16 +117,16 @@ int BlueprintPanel::RenderStateList() {
   ImGui::Text("States");
   ImGui::SameLine();
   if (ImGui::Button("Add State")) {
-    editting_blueprint_->states.insert("new state");
+    editting_blueprint_->states.push_back({.name = "new state"});
   }
 
   if (!editting_blueprint_.has_value()) return -1;
 
   int i = 0;
   int selected_index = -1;
-  std::erase_if(editting_blueprint_->states, [&](const std::string& s) -> bool {
+  std::erase_if(editting_blueprint_->states, [&](const Blueprint::State& state) -> bool {
     ImGui::PushID(i);
-    bool deleted = RenderStateDetails(s, i, &selected_index);
+    bool deleted = RenderStateDetails(state.name, i, &selected_index);
     ImGui::PopID();
     ++i;
     return deleted;
@@ -132,8 +134,9 @@ int BlueprintPanel::RenderStateList() {
   return selected_index;
 }
 
-bool BlueprintPanel::RenderStateDetails(const std::string& s, int index, int* selected_index) {
-  ImGui::Text("%s", s.c_str());
+// Returns true if deleted.
+bool BlueprintPanel::RenderStateDetails(const std::string& name, int index, int* selected_index) {
+  ImGui::Text("%s", name.c_str());
   ImGui::SameLine();
   if (ImGui::Button("Edit")) {
     *selected_index = index;

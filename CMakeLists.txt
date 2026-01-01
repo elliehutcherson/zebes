@@ -1,3 +1,7 @@
+# 1. First
+cmake_minimum_required(VERSION 3.10)
+
+# 2. Set Compilers (Must be before project)
 # https://stackoverflow.com/questions/45933732/how-to-specify-a-compiler-in-cmake
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(CMAKE_C_COMPILER /Library/Developer/CommandLineTools/usr/bin/clang)
@@ -7,17 +11,17 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(CMAKE_CXX_COMPILER /usr/bin/clang++)
 endif()
 
+# 3. Project definition
+project(zebes VERSION 0.1.0)
+
+# 4. Enable testing once
+enable_testing()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-cmake_minimum_required(VERSION 3.10)
-project(zebes VERSION 0.1.0)
-
-# I'm not sure when this was added, or when it is required, but I'm keeping it here for reference.
-# enable_language(OBJC)
 
 # ## Require out-of-source builds
 file(TO_CMAKE_PATH ${PROJECT_BINARY_DIR}/CMakeLists.txt LOC_PATH)
@@ -27,7 +31,6 @@ if(EXISTS ${LOC_PATH})
 endif()
 
 # ## Symlink assets to build directory
-
 add_custom_target(copy_assets
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin
   COMMAND ${CMAKE_COMMAND} -E create_symlink

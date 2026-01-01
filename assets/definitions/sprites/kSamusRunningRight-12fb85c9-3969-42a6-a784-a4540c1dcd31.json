@@ -3,6 +3,8 @@
         {
             "frames_per_cycle": 4,
             "index": 0,
+            "offset_x": -20,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 42,
             "texture_h": 44,
@@ -13,6 +15,8 @@
         {
             "frames_per_cycle": 4,
             "index": 1,
+            "offset_x": -28,
+            "offset_y": -87,
             "render_h": 88,
             "render_w": 50,
             "texture_h": 44,
@@ -23,6 +27,8 @@
         {
             "frames_per_cycle": 4,
             "index": 2,
+            "offset_x": -32,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 60,
             "texture_h": 44,
@@ -33,6 +39,8 @@
         {
             "frames_per_cycle": 4,
             "index": 3,
+            "offset_x": -36,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 72,
             "texture_h": 44,
@@ -43,6 +51,8 @@
         {
             "frames_per_cycle": 4,
             "index": 4,
+            "offset_x": -35,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 68,
             "texture_h": 44,
@@ -53,6 +63,8 @@
         {
             "frames_per_cycle": 4,
             "index": 5,
+            "offset_x": -22,
+            "offset_y": -86,
             "render_h": 86,
             "render_w": 46,
             "texture_h": 43,
@@ -63,6 +75,8 @@
         {
             "frames_per_cycle": 4,
             "index": 6,
+            "offset_x": -23,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 46,
             "texture_h": 44,
@@ -73,6 +87,8 @@
         {
             "frames_per_cycle": 4,
             "index": 7,
+            "offset_x": -30,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 62,
             "texture_h": 44,
@@ -83,6 +99,8 @@
         {
             "frames_per_cycle": 4,
             "index": 8,
+            "offset_x": -35,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 72,
             "texture_h": 44,
@@ -93,6 +111,8 @@
         {
             "frames_per_cycle": 4,
             "index": 9,
+            "offset_x": -33,
+            "offset_y": -88,
             "render_h": 88,
             "render_w": 66,
             "texture_h": 44,

@@ -1,7 +1,5 @@
 #include "editor/blueprint_state_panel.h"
 
-#include <iterator>
-
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -24,7 +22,7 @@ void BlueprintStatePanel::SetState(Blueprint* blueprint, int index) {
   index_ = index;
 
   if (blueprint_ && index_ >= 0 && index_ < blueprint_->states.size()) {
-    current_name_ = *std::next(blueprint_->states.begin(), index_);
+    current_name_ = blueprint_->states[index].name;
   } else {
     current_name_.clear();
   }
@@ -44,20 +42,13 @@ void BlueprintStatePanel::Render() {
   ImGui::InputInt("Index", &index_);
   ImGui::EndDisabled();
 
-  ImGui::InputText("Name", &current_name_);
+  if (ImGui::InputText("Name", &blueprint_->states[index_].name)) {
+    current_name_ = blueprint_->states[index_].name;
+  }
 
   ImGui::BeginDisabled();
-  std::string sprite_id;
-  if (blueprint_->sprite_ids.find(index_) != blueprint_->sprite_ids.end()) {
-    sprite_id = blueprint_->sprite_ids[index_];
-  }
-  ImGui::InputText("Sprite ID", &sprite_id);
-
-  std::string collider_id;
-  if (blueprint_->collider_ids.find(index_) != blueprint_->collider_ids.end()) {
-    collider_id = blueprint_->collider_ids[index_];
-  }
-  ImGui::InputText("Collider ID", &collider_id);
+  ImGui::InputText("Sprite ID", &blueprint_->states[index_].sprite_id);
+  ImGui::InputText("Collider ID", &blueprint_->states[index_].collider_id);
   ImGui::EndDisabled();
 
   if (ImGui::Button("Save")) {
@@ -70,22 +61,13 @@ void BlueprintStatePanel::ConfirmState() {
     return;
   }
 
-  // Get current state name to remove
-  auto it = std::next(blueprint_->states.begin(), index_);
-  std::string old_name = *it;
-
-  if (old_name == current_name_) {
-    return;  // No change
-  }
-
-  blueprint_->states.erase(it);
-  blueprint_->states.insert(current_name_);
-
+  // Name is already updated in Render via pointer binding.
+  // Just trigger an API update.
   absl::Status status = api_->UpdateBlueprint(*blueprint_);
   if (!status.ok()) {
     LOG(ERROR) << "Failed to save blueprint state: " << status.message();
   } else {
-    LOG(INFO) << "Updated blueprint state: " << old_name << " -> " << current_name_;
+    LOG(INFO) << "Updated blueprint state: " << blueprint_->states[index_].name;
   }
 }
 

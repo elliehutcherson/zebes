@@ -192,11 +192,11 @@ void BlueprintEditor::UpdateStateCollider(const ColliderResult& collider_result)
   }
 
   if (collider_result.type == ColliderResult::Type::kAttach) {
-    bp->collider_ids[state_index] = collider_result.collider_id;
+    bp->states[state_index].collider_id = collider_result.collider_id;
     canvas_collider_ = CanvasCollider(&canvas_);
     canvas_collider_->SetCollider(collider_panel_->GetCollider());
   } else if (collider_result.type == ColliderResult::Type::kDetach) {
-    bp->collider_ids.erase(state_index);
+    bp->states[state_index].collider_id.clear();
     canvas_collider_.reset();
   }
 }
@@ -214,7 +214,7 @@ void BlueprintEditor::UpdateStateSprite(const SpriteResult& sprite_result) {
   }
 
   if (sprite_result.type == SpriteResult::Type::kAttach) {
-    bp->sprite_ids[state_index] = sprite_result.id;
+    bp->states[state_index].sprite_id = sprite_result.id;
     canvas_sprite_ = CanvasSprite(&canvas_);
     // We already know GetSprite() is not null because we just attached it.
     // However, for safety we can check.
@@ -222,7 +222,7 @@ void BlueprintEditor::UpdateStateSprite(const SpriteResult& sprite_result) {
       canvas_sprite_->SetSprite(*sprite);
     }
   } else if (sprite_result.type == SpriteResult::Type::kDetach) {
-    bp->sprite_ids.erase(state_index);
+    bp->states[state_index].sprite_id.clear();
     canvas_sprite_.reset();
   }
 }

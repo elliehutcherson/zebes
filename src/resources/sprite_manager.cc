@@ -151,10 +151,8 @@ absl::Status SpriteManager::LoadAllSprites() {
 }
 
 absl::StatusOr<std::string> SpriteManager::CreateSprite(Sprite sprite) {
-  // Generate ID if empty
-  if (sprite.id.empty()) {
-    sprite.id = GenerateGuid();
-  }
+  // The id should always be generated. Never allow an id to be passed in.
+  sprite.id = GenerateGuid();
 
   RETURN_IF_ERROR(SaveSprite(sprite));
 

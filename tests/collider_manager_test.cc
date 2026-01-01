@@ -38,7 +38,6 @@ class ColliderManagerTest : public ::testing::Test {
 
 TEST_F(ColliderManagerTest, CreateAndGetCollider) {
   Collider collider;
-  collider.id = "test-collider";
   collider.name = "TestCollider";
 
   Polygon poly1;
@@ -94,7 +93,7 @@ TEST_F(ColliderManagerTest, LoadAllColliders) {
 
 TEST_F(ColliderManagerTest, UpdateCollider) {
   Collider collider;
-  collider.id = "update-test";
+  // collider.id = "update-test"; // ID is generated
   collider.name = "UpdateTest";
 
   auto id_or = manager_->CreateCollider(collider);
@@ -118,7 +117,7 @@ TEST_F(ColliderManagerTest, UpdateCollider) {
 
 TEST_F(ColliderManagerTest, DeleteCollider) {
   Collider collider;
-  collider.id = "delete-test";
+  // collider.id = "delete-test"; // ID is generated
   collider.name = "DeleteTest";
 
   auto id_or = manager_->CreateCollider(collider);
@@ -156,7 +155,7 @@ TEST_F(ColliderManagerTest, LoadInvalidJsonMissingName) {
 
 TEST_F(ColliderManagerTest, RenameCollider) {
   Collider collider;
-  collider.id = "rename-test";  // Will be ignored
+  // collider.id = "rename-test";  // Will be ignored
   collider.name = "OldName";
 
   auto id_or = manager_->CreateCollider(collider);
