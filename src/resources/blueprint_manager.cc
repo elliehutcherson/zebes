@@ -10,6 +10,7 @@
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
+#include "resources/resource_utils.h"
 
 namespace zebes {
 namespace {
@@ -106,7 +107,6 @@ absl::Status BlueprintManager::LoadAllBlueprints() {
 }
 
 absl::StatusOr<std::string> BlueprintManager::CreateBlueprint(Blueprint blueprint) {
-  // Generate ID if empty
   if (blueprint.id.empty()) {
     blueprint.id = GenerateGuid();
   }
@@ -114,7 +114,7 @@ absl::StatusOr<std::string> BlueprintManager::CreateBlueprint(Blueprint blueprin
   RETURN_IF_ERROR(SaveBlueprint(blueprint));
 
   // Load it
-  std::string filename = absl::StrCat(blueprint.id, ".json");
+  std::string filename = absl::StrCat(blueprint.name, "-", blueprint.id, ".json");
   ASSIGN_OR_RETURN(Blueprint * loaded_blueprint, LoadBlueprint(filename));
 
   return loaded_blueprint->id;
@@ -143,6 +143,12 @@ absl::Status BlueprintManager::SaveBlueprint(Blueprint blueprint) {
       return absl::InvalidArgumentError(
           absl::StrCat("Sprite ID key ", key, " is out of bounds for states size ", states_count));
     }
+  }
+
+  // Handle Renaming: If the name has changed, delete the old file.
+  auto it = blueprints_.find(blueprint.id);
+  if (it != blueprints_.end()) {
+    RemoveOldFileIfExists(blueprint.id, it->second->name, blueprint.name, definitions_path_);
   }
 
   nlohmann::json json;

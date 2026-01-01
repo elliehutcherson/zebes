@@ -8,6 +8,7 @@
 #include "common/common.h"
 #include "common/sdl_wrapper.h"
 #include "common/utils.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -123,7 +124,7 @@ TEST_F(TextureManagerTest, UpdateTexture) {
   EXPECT_EQ((*tex)->name, "New Name");
 
   // Reload to check persistence
-  manager_->LoadAllTextures();
+  EXPECT_OK(manager_->LoadAllTextures());
   auto reloaded = manager_->GetTexture(*id);
   ASSERT_TRUE(reloaded.ok());
   EXPECT_EQ((*reloaded)->name, "New Name");
@@ -219,6 +220,33 @@ TEST_F(TextureManagerTest, UpdateTextureNameTooLong) {
   auto status = manager_->UpdateTexture(new_data);
   EXPECT_FALSE(status.ok());
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST_F(TextureManagerTest, RenameTexture) {
+  std::string img_path = test_dir_ + "/textures/rename.png";
+  {
+    std::ofstream f(img_path);
+    f << "dummy";
+  }
+
+  auto id = manager_->CreateTexture(
+      {.path = std::filesystem::absolute(img_path).string(), .name = "OldName"});
+  ASSERT_TRUE(id.ok());
+
+  std::string old_file = test_dir_ + "/definitions/textures/OldName-" + *id + ".json";
+  ASSERT_TRUE(std::filesystem::exists(old_file));
+
+  // Rename
+  auto tex = manager_->GetTexture(*id);
+  ASSERT_TRUE(tex.ok());
+
+  Texture new_tex = **tex;
+  new_tex.name = "NewName";
+  ASSERT_TRUE(manager_->UpdateTexture(new_tex).ok());
+
+  std::string new_file = test_dir_ + "/definitions/textures/NewName-" + *id + ".json";
+  EXPECT_TRUE(std::filesystem::exists(new_file));
+  EXPECT_FALSE(std::filesystem::exists(old_file));
 }
 
 }  // namespace

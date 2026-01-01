@@ -1,13 +1,14 @@
 #include "editor/blueprint_editor.h"
 
-#include <algorithm>
-#include <cmath>
-#include <vector>
+#include <memory>
 
-#include "SDL_render.h"
-#include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "common/status_macros.h"
 #include "editor/animator.h"
+#include "editor/blueprint_panel.h"
+#include "editor/canvas_collider.h"
+#include "editor/collider_panel.h"
+#include "editor/sprite_panel.h"
 #include "imgui.h"
 
 namespace zebes {
@@ -16,944 +17,214 @@ absl::StatusOr<std::unique_ptr<BlueprintEditor>> BlueprintEditor::Create(Api* ap
   if (api == nullptr) {
     return absl::InvalidArgumentError("Api must not be null");
   }
-  return std::unique_ptr<BlueprintEditor>(new BlueprintEditor(api));
+
+  auto ret = std::unique_ptr<BlueprintEditor>(new BlueprintEditor(api));
+  RETURN_IF_ERROR(ret->Init());
+  return ret;
 }
 
 // Constructor: Initializes the editor and refreshes caches.
-BlueprintEditor::BlueprintEditor(Api* api) : api_(api) {
+BlueprintEditor::BlueprintEditor(Api* api) : api_(api), canvas_({.snap_grid = true}) {}
+
+absl::Status BlueprintEditor::Init() {
   animator_ = std::make_unique<Animator>();
-  RefreshBlueprintList();
-  RefreshSpriteList();
+
+  // Initialize panels
+  ASSIGN_OR_RETURN(blueprint_panel_, BlueprintPanel::Create(api_));
+  ASSIGN_OR_RETURN(blueprint_state_panel_, BlueprintStatePanel::Create(api_));
+  ASSIGN_OR_RETURN(collider_panel_, ColliderPanel::Create(api_));
+  ASSIGN_OR_RETURN(sprite_panel_, SpritePanel::Create(api_));
+  return absl::OkStatus();
 }
 
-// Refreshes the list of blueprints from the API and sorts them by name.
-void BlueprintEditor::RefreshBlueprintList() {
-  blueprint_cache_ = api_->GetAllBlueprints();
-  // Sort by name
-  std::sort(blueprint_cache_.begin(), blueprint_cache_.end(),
-            [](const Blueprint& a, const Blueprint& b) { return a.name < b.name; });
-}
-
-// Refreshes the list of sprites from the API and sorts them by name.
-void BlueprintEditor::RefreshSpriteList() {
-  sprite_cache_ = api_->GetAllSprites();
-  // Sort by name
-  std::sort(sprite_cache_.begin(), sprite_cache_.end(),
-            [](const Sprite& a, const Sprite& b) { return a.name < b.name; });
-}
-
-// Selects a blueprint by ID and loads it into the editor.
-void BlueprintEditor::SelectBlueprint(const std::string& blueprint_id) {
-  selected_blueprint_id_ = blueprint_id;
-  absl::StatusOr<Blueprint*> blueprint = api_->GetBlueprint(blueprint_id);
-  if (!blueprint.ok()) {
-    LOG(ERROR) << "Failed to select blueprint: " << blueprint.status();
-    selected_blueprint_id_ = "";
-  }
-
-  selected_blueprint_ = **blueprint;
-  name_buffer_ = selected_blueprint_.name;
-  // ensure buffer size
-  if (name_buffer_.size() < 256) {
-    name_buffer_.resize(256, '\0');
-  }
+void BlueprintEditor::ExitBlueprintStateMode() {
+  LOG(INFO) << __func__;
+  blueprint_state_panel_->Reset();
+  collider_panel_->Clear();
+  sprite_panel_->Reset();
+  canvas_.Reset();
+  mode_ = Mode::kBlueprint;
+  canvas_collider_.reset();
+  canvas_sprite_.reset();
+  sprite_panel_->SetAttachedSprite(std::nullopt);
 }
 
 void BlueprintEditor::Render() {
-  if (!ImGui::BeginTable("BlueprintEditorTable", 3,
-                         ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable,
-                         ImGui::GetContentRegionAvail())) {
+  if (!ImGui::BeginTable(/*str_id=*/"BlueprintEditorTable", /*columns=*/3,
+                         /*flags=*/ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable,
+                         /*outer_size=*/ImGui::GetContentRegionAvail())) {
     return;
   }
 
-  // Left Column: Controls & List
-  ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthFixed, 250.0f);
-  ImGui::TableSetupColumn("Editor", ImGuiTableColumnFlags_WidthStretch);
-  ImGui::TableSetupColumn("Sprite Details", ImGuiTableColumnFlags_WidthFixed, 300.0f);
+  // Column Setup
+  ImGui::TableSetupColumn(/*label=*/"Controls", /*flags=*/ImGuiTableColumnFlags_WidthFixed,
+                          /*init_width_or_weight=*/250.0f);
+  ImGui::TableSetupColumn(/*label=*/"Editor", /*flags=*/ImGuiTableColumnFlags_WidthStretch);
+  ImGui::TableSetupColumn(/*label=*/"Sprite Details", /*flags=*/ImGuiTableColumnFlags_WidthFixed,
+                          /*init_width_or_weight=*/300.0f);
   ImGui::TableHeadersRow();
 
   ImGui::TableNextRow();
-  ImGui::TableNextColumn();
 
-  if (mode_ == Mode::kCreate) {
-    RenderCreator();
-  } else if (mode_ == Mode::kCreateState) {
-    RenderCreateState();
-  } else {
-    RenderControls();
-  }
-
-  // Right Column: Editor / Placeholder
+  // 1. Controls Column
   ImGui::TableNextColumn();
-  RenderEditor();
+  RenderLeftPanel();
 
+  // 2. Editor Column (The Canvas)
   ImGui::TableNextColumn();
-  RenderSpriteDetails();
+  RenderCanvas();
+
+  // 3. Details Column
+  ImGui::TableNextColumn();
+  RenderRightPanel();
 
   ImGui::EndTable();
 }
 
-void BlueprintEditor::RenderControls() {
-  // Buttons
-  if (ImGui::Button("Create")) {
-    mode_ = Mode::kCreate;
-    creation_blueprint_ = Blueprint();
-    creation_blueprint_.name = "New Blueprint";
+void BlueprintEditor::RenderLeftPanel() {
+  if (mode_ == Mode::kBlueprint) {
+    int state_index = blueprint_panel_->Render();
+    if (state_index == -1) return;
 
-    // Reset buffers
-    name_buffer_ = creation_blueprint_.name;
-    // ensure buffer size
-    if (name_buffer_.size() < 256) {
-      name_buffer_.resize(256, '\0');
-    }
-
-    pending_states_.clear();
-
-    // Clear selection so we don't edit the old one while creating (optional semantics)
-    selected_blueprint_id_ = "";
-  }
-  ImGui::SameLine();
-
-  // Edit button - Update the current selection
-  if (ImGui::Button("Edit") && !selected_blueprint_id_.empty()) {
-    UpdateBlueprint();
-  }
-
-  ImGui::SameLine();
-  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-  if (ImGui::Button("Delete") && !selected_blueprint_id_.empty()) {
-    DeleteBlueprint();
-  }
-  ImGui::PopStyleColor();
-
-  if (ImGui::BeginListBox("Blueprints", ImVec2(-FLT_MIN, -FLT_MIN))) {
-    for (const Blueprint& bp : blueprint_cache_) {
-      bool is_selected = (selected_blueprint_id_ == bp.id);
-      if (ImGui::Selectable(bp.name.c_str(), is_selected)) {
-        SelectBlueprint(bp.id);
-      }
-
-      if (is_selected) ImGui::SetItemDefaultFocus();
-    }
-    ImGui::EndListBox();
-  }
-}
-
-void BlueprintEditor::RenderCreator() {
-  if (ImGui::ArrowButton("Back", ImGuiDir_Left)) {
-    mode_ = Mode::kList;
-  }
-  ImGui::SameLine();
-  // "In this new create column, we should have a save button."
-  if (ImGui::Button("Save")) {
-    CreateBlueprint();
-  }
-
-  // "Then we need to have an input for id, which will be disabled"
-  ImGui::BeginDisabled();
-  ImGui::InputText("ID", (char*)"<Auto-Generated>", 17, ImGuiInputTextFlags_ReadOnly);
-  ImGui::EndDisabled();
-
-  // "and an input for name"
-  ImGui::InputText("Name", name_buffer_.data(), name_buffer_.size());
-
-  // "Below this we should have a button that says create state"
-  if (ImGui::Button("Create State")) {
-    mode_ = Mode::kCreateState;
-    state_name_buffer_.clear();
-    state_name_buffer_.resize(256, '\0');
-    state_name_buffer_.clear();
-    state_name_buffer_.resize(256, '\0');
-    selected_sprite_index_ = -1;
-    current_buffer_collider_id_.clear();
-    current_collider_ = Collider();
-    selected_polygon_index_ = -1;
-    selected_vertex_index_ = -1;
-    canvas_zoom_ = 1.0f;
-    canvas_zoom_ = 1.0f;
-    canvas_offset_ = {0, 0};
-    // Reset sprite editing state
-    selected_frame_index_ = 0;
-    original_sprite_ = Sprite();
-    editing_sprite_ = Sprite();
-  }
-}
-
-void BlueprintEditor::RenderCreateState() {
-  if (ImGui::ArrowButton("Back", ImGuiDir_Left)) {
-    mode_ = Mode::kCreate;
-  }
-  ImGui::SameLine();
-
-  // Save button for the STATE
-  if (ImGui::Button("Save")) {
-    std::string state_name = state_name_buffer_.c_str();
-    if (state_name.empty()) {
+    Blueprint* bp = blueprint_panel_->GetBlueprint();
+    if (bp == nullptr) {
+      LOG(ERROR) << "Blueprint is null!!!!";
       return;
     }
 
-    PendingState new_state;
-    new_state.name = state_name;
+    mode_ = Mode::kBlueprintState;
 
-    // Get sprite ID if selected
-    if (selected_sprite_index_ >= 0 && selected_sprite_index_ < sprite_cache_.size()) {
-      new_state.sprite_id = sprite_cache_[selected_sprite_index_].id;
+    blueprint_state_panel_->SetState(bp, state_index);
+    std::optional<std::string> collider_id = bp->collider_id(state_index);
+    if (collider_id.has_value()) {
+      collider_panel_->SetCollider(*collider_id);
+      canvas_collider_ = CanvasCollider(&canvas_);
+      canvas_collider_->SetCollider(collider_panel_->GetCollider());
     }
-    new_state.collider_id = current_buffer_collider_id_;
 
-    pending_states_.push_back(new_state);
-    mode_ = Mode::kCreate;
-  }
-
-  // Name input
-  ImGui::InputText("State Name", state_name_buffer_.data(), state_name_buffer_.size());
-
-  // Dropdown for sprites
-  RenderSpriteSelector();
-
-  // Attach collider button
-  ImGui::Separator();
-  ImGui::Text("Collider");
-  RenderColliderPanel();
-}
-
-void BlueprintEditor::RenderEditor() {
-  if (selected_blueprint_id_.empty() && mode_ == Mode::kList) {
-    ImGui::Text("Select a blue print to get started");
-  } else if (mode_ == Mode::kList) {
-    ImGui::Text("Selected Blueprint: %s (%s)", selected_blueprint_.name.c_str(),
-                selected_blueprint_.id.c_str());
-
-    ImGui::Separator();
-    ImGui::Text("Edit Name:");
-    ImGui::InputText("Name", name_buffer_.data(), name_buffer_.size());
-  } else if (mode_ == Mode::kCreateState) {
-    ImGui::Text("State Canvas");
-
-    ImVec2 canvas_p0 = ImGui::GetCursorScreenPos();
-    ImVec2 canvas_sz = ImGui::GetContentRegionAvail();
-    if (canvas_sz.x < 50.0f) canvas_sz.x = 50.0f;
-    if (canvas_sz.y < 50.0f) canvas_sz.y = 50.0f;
-
-    RenderCanvas(canvas_sz, canvas_p0);
-  } else {
-    ImGui::Text("Creating new blueprint...");
-  }
-}
-
-void BlueprintEditor::CreateBlueprint() {
-  Blueprint new_bp;
-  new_bp.name = name_buffer_.c_str();
-  if (new_bp.name.empty()) {
-    new_bp.name = "New Blueprint";
-  }
-
-  // Populate states from pending_states_
-  // IMPORTANT: We must ensure alphabetical order in the 'states' set,
-  // and match the indices in sprite_ids map.
-
-  // First, insert all names into the set to establish order
-  for (const PendingState& ps : pending_states_) {
-    new_bp.states.insert(ps.name);
-  }
-
-  // Now iterate the sorted set and populate sprite_ids based on the pending state data
-  int index = 0;
-  for (const std::string& state_name : new_bp.states) {
-    // Find the corresponding pending state
-    auto it = std::find_if(pending_states_.begin(), pending_states_.end(),
-                           [&state_name](const PendingState& ps) { return ps.name == state_name; });
-
-    if (it != pending_states_.end() && !it->sprite_id.empty()) {
-      new_bp.sprite_ids[index] = it->sprite_id;
+    std::optional<std::string> sprite_id = bp->sprite_id(state_index);
+    if (sprite_id.has_value()) {
+      sprite_panel_->SetSprite(*sprite_id);
+      sprite_panel_->SetAttachedSprite(*sprite_id);
+      canvas_sprite_ = CanvasSprite(&canvas_);
+      if (auto* sprite = sprite_panel_->GetSprite()) {
+        canvas_sprite_->SetSprite(*sprite);
+      }
     }
-    if (it != pending_states_.end() && !it->collider_id.empty()) {
-      new_bp.collider_ids[index] = it->collider_id;
-    }
-    index++;
   }
-  absl::StatusOr<std::string> id = api_->CreateBlueprint(new_bp);
-  if (id.ok()) {
-    RefreshBlueprintList();
-    SelectBlueprint(*id);
-    mode_ = Mode::kList;
-  } else {
-    LOG(ERROR) << "Failed to create blueprint: " << id.status();
-  }
-}
 
-void BlueprintEditor::UpdateBlueprint() {
-  selected_blueprint_.name = name_buffer_.c_str();
-  absl::Status status = api_->UpdateBlueprint(selected_blueprint_);
-  if (status.ok()) {
-    RefreshBlueprintList();
-    // Re-select to ensure name update in list if needed (though cache is refreshed)
-    // SelectBlueprint(selected_blueprint_.id); // redundant if refreshing cache
-  } else {
-    LOG(ERROR) << "Failed to update blueprint: " << status;
-  }
-}
-
-void BlueprintEditor::DeleteBlueprint() {
-  absl::Status status = api_->DeleteBlueprint(selected_blueprint_id_);
-  if (status.ok()) {
-    RefreshBlueprintList();
-    selected_blueprint_id_ = "";
-  } else {
-    LOG(ERROR) << "Failed to delete blueprint: " << status;
-  }
-  // Cleanup or clear state if needed
-  RefreshBlueprintList();
-  selected_blueprint_id_ = "";
-}
-
-void BlueprintEditor::CreateNewCollider() {
-  Collider new_collider;
-  absl::StatusOr<std::string> id = api_->CreateCollider(new_collider);
-  if (id.ok()) {
-    current_buffer_collider_id_ = *id;
-    // Fetch it back to be sure? or just set it.
-    new_collider.id = *id;
-    current_collider_ = new_collider;
-    LOG(INFO) << "Created new collider: " << *id;
-  } else {
-    LOG(ERROR) << "Failed to create collider: " << id.status();
-  }
-}
-
-void BlueprintEditor::SaveCurrentCollider() {
-  if (current_buffer_collider_id_.empty()) return;
-  current_collider_.id = current_buffer_collider_id_;
-  absl::Status status = api_->UpdateCollider(current_collider_);
-  if (!status.ok()) {
-    LOG(ERROR) << "Failed to update collider: " << status;
-  }
-}
-
-void BlueprintEditor::LoadCollider(const std::string& id) {
-  auto collider = api_->GetCollider(id);
-  if (collider.ok()) {
-    current_collider_ = **collider;
-    current_buffer_collider_id_ = id;
-  } else {
-    LOG(ERROR) << "Failed to load collider " << id << ": " << collider.status();
-    current_buffer_collider_id_ = "";
-  }
-}
-
-void BlueprintEditor::RenderColliderPanel() {
-  if (current_buffer_collider_id_.empty()) {
-    if (ImGui::Button("Create New Collider")) {
-      CreateNewCollider();
-    }
+  if (mode_ == Mode::kBlueprintState && ImGui::Button("Back")) {
+    ExitBlueprintStateMode();
     return;
   }
 
-  ImGui::Text("ID: %s", current_buffer_collider_id_.c_str());
-  ImGui::SameLine();
-  if (ImGui::Button("Detach")) {
-    current_buffer_collider_id_.clear();
-    current_collider_ = Collider();
-    selected_polygon_index_ = -1;
-    selected_vertex_index_ = -1;
+  blueprint_state_panel_->Render();
+  ImGui::Spacing();
+  ImGui::Spacing();
+  ImGui::Spacing();
+  ColliderResult collider_result = collider_panel_->Render();
+  UpdateStateCollider(collider_result);
+}
+
+void BlueprintEditor::RenderRightPanel() {
+  if (mode_ == Mode::kBlueprint) {
+    ImGui::Text("Select Blueprint State to view sprites.");
     return;
   }
 
-  // Canvas Settings
-  ImGui::Separator();
-  ImGui::Text("Canvas Settings");
-  ImGui::DragFloat("Zoom", &canvas_zoom_, 0.1f, 0.1f, 10.0f);
-  ImGui::SameLine();
-  ImGui::Checkbox("Snap", &snap_to_grid_);
-
-  // Polygon Management
-  ImGui::Separator();
-  RenderPolygonList();
+  SpriteResult sprite_result = sprite_panel_->Render();
+  UpdateStateSprite(sprite_result);
 }
 
-// Renders the sprite selector dropdown.
-void BlueprintEditor::RenderSpriteSelector() {
-  // We need a vector of const char* for ImGui
-  std::vector<const char*> sprite_names;
-  sprite_names.reserve(sprite_cache_.size());
-  for (const Sprite& sprite : sprite_cache_) {
-    sprite_names.push_back(sprite.name.c_str());
-  }
-
-  const char* current_item =
-      (selected_sprite_index_ >= 0 && selected_sprite_index_ < sprite_cache_.size())
-          ? sprite_names[selected_sprite_index_]
-          : "None";
-
-  if (ImGui::BeginCombo("Sprite", current_item)) {
-    for (int i = 0; i < sprite_names.size(); i++) {
-      bool is_selected = (selected_sprite_index_ == i);
-      if (ImGui::Selectable(sprite_names[i], is_selected)) {
-        selected_sprite_index_ = i;
-        // Initialize editing state
-        original_sprite_ = sprite_cache_[i];
-        editing_sprite_ = sprite_cache_[i];
-        selected_frame_index_ = 0;
-      }
-      if (is_selected) {
-        ImGui::SetItemDefaultFocus();
-      }
-    }
-    ImGui::EndCombo();
-  }
-}
-
-// Renders the list of polygons for the current collider.
-void BlueprintEditor::RenderPolygonList() {
-  ImGui::Text("Polygons");
-  if (ImGui::Button("Add Polygon")) {
-    Polygon poly;
-    // Default triangle
-    poly.push_back({0, 0});
-    poly.push_back({50, 0});
-    poly.push_back({0, 50});
-    current_collider_.polygons.push_back(poly);
-    selected_polygon_index_ = current_collider_.polygons.size() - 1;
-    SaveCurrentCollider();
-  }
-
-  for (int i = 0; i < current_collider_.polygons.size(); ++i) {
-    std::string label = "Polygon " + std::to_string(i);
-    // Selectable returns true on click
-    if (ImGui::Selectable(label.c_str(), selected_polygon_index_ == i)) {
-      selected_polygon_index_ = i;
-      selected_vertex_index_ = -1;
-    }
-
-    // Only render details if selected
-    if (selected_polygon_index_ != i) continue;
-
-    ImGui::Indent();
-    if (ImGui::Button("Delete Polygon")) {
-      current_collider_.polygons.erase(current_collider_.polygons.begin() + i);
-      if (selected_polygon_index_ >= current_collider_.polygons.size()) {
-        selected_polygon_index_ = -1;
-      }
-      SaveCurrentCollider();
-      ImGui::Unindent();
-      // Break to avoid accessing invalid iterator/index this frame
-      return;
-    }
-
-    // Vertex List
-    ImGui::Text("Vertices");
-    Polygon& poly = current_collider_.polygons[i];
-    for (int v = 0; v < poly.size(); ++v) {
-      ImGui::PushID(v);
-      std::string v_label = "V" + std::to_string(v);
-      if (ImGui::Selectable(v_label.c_str(), selected_vertex_index_ == v, ImGuiSelectableFlags_None,
-                            ImVec2(30, 0))) {
-        selected_vertex_index_ = v;
-      }
-      ImGui::SameLine();
-      float val[2] = {(float)poly[v].x, (float)poly[v].y};
-      if (ImGui::DragFloat2("", val, 1.0f)) {
-        poly[v].x = val[0];
-        poly[v].y = val[1];
-        SaveCurrentCollider();
-      }
-      ImGui::SameLine();
-      if (ImGui::Button("X") && poly.size() > 3) {
-        poly.erase(poly.begin() + v);
-        if (selected_vertex_index_ >= poly.size()) selected_vertex_index_ = -1;
-        SaveCurrentCollider();
-      }
-      ImGui::PopID();
-    }
-    if (ImGui::Button("Add Vertex")) {
-      poly.push_back({0, 0});
-      SaveCurrentCollider();
-    }
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Canvas & Interaction
-// -----------------------------------------------------------------------------
-
-// Converts a world coordinate to a screen coordinate based on current zoom and pan.
-ImVec2 BlueprintEditor::WorldToScreen(const Vec& v) const {
-  return ImVec2(origin_.x + (float)v.x * canvas_zoom_, origin_.y + (float)v.y * canvas_zoom_);
-}
-
-// Converts a screen coordinate to a world coordinate based on current zoom and pan.
-Vec BlueprintEditor::ScreenToWorld(const ImVec2& p) const {
-  return Vec{(p.x - origin_.x) / canvas_zoom_, (p.y - origin_.y) / canvas_zoom_};
-}
-
-void BlueprintEditor::HandleCanvasInteraction(const ImVec2& canvas_sz, const ImVec2& canvas_p0,
-                                              bool is_hovered, bool is_active) {
-  // Zoom
-  if (is_hovered && ImGui::GetIO().MouseWheel != 0.0f) {
-    canvas_zoom_ += ImGui::GetIO().MouseWheel * 0.1f;
-    // Clamp zoom
-    if (canvas_zoom_ < 0.1f) canvas_zoom_ = 0.1f;
-    if (canvas_zoom_ > 10.0f) canvas_zoom_ = 10.0f;
-  }
-
-  // Panning (Middle Mouse or Space+Left)
-  if (is_active &&
-      (ImGui::IsMouseDragging(ImGuiMouseButton_Middle) ||
-       (ImGui::IsKeyDown(ImGuiKey_Space) && ImGui::IsMouseDragging(ImGuiMouseButton_Left)))) {
-    canvas_offset_.x += ImGui::GetIO().MouseDelta.x;
-    canvas_offset_.y += ImGui::GetIO().MouseDelta.y;
-  }
-}
-
-void BlueprintEditor::RenderCanvas(ImVec2 canvas_sz, ImVec2 canvas_p0) {
-  ImGui::BeginChild("Canvas", canvas_sz, true,
-                    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
-
-  ImDrawList* draw_list = ImGui::GetWindowDrawList();
-
-  // Draw Background
-  draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y),
-                           IM_COL32(50, 50, 50, 255));
-  draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y),
-                     IM_COL32(255, 255, 255, 255));
-
-  // Inputs
-  ImGui::SetCursorPos(ImVec2(0, 0));
-  ImGui::InvisibleButton("CanvasInput", canvas_sz,
-                         ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight |
-                             ImGuiButtonFlags_MouseButtonMiddle);
-  bool is_hovered = ImGui::IsItemHovered();
-  bool is_active = ImGui::IsItemActive();
-
-  // Handle Interaction
-  HandleCanvasInteraction(canvas_sz, canvas_p0, is_hovered, is_active);
-
-  // Calculate Origin
-  ImVec2 center_offset(canvas_sz.x * 0.5f, canvas_sz.y * 0.5f);
-  origin_ = ImVec2(canvas_p0.x + canvas_offset_.x + center_offset.x,
-                   canvas_p0.y + canvas_offset_.y + center_offset.y);
-
-  UpdateAnimation();
-
-  // Draw Grid/Axis/Rulers
-  RenderRulers(draw_list, canvas_p0, canvas_sz, origin_);
-
-  // Draw Sprite
-  RenderSpriteOnCanvas(draw_list, is_active);
-
-  // Draw Colliders
-  RenderPolygonsOnCanvas(draw_list, is_active);
-
-  ImGui::EndChild();
-}
-
-void BlueprintEditor::UpdateAnimation() {
-  if (!is_playing_animation_) return;
-
-  constexpr int kTargetFps = 60;
-  constexpr double kTickDuration = 1.0 / kTargetFps;
-  animation_timer_ += ImGui::GetIO().DeltaTime;
-  while (animation_timer_ >= kTickDuration) {
-    animator_->Update();
-    animation_timer_ -= kTickDuration;
-  }
-}
-
-void BlueprintEditor::RenderPolygonsOnCanvas(ImDrawList* draw_list, bool is_active_input) {
-  for (int i = 0; i < current_collider_.polygons.size(); ++i) {
-    Polygon& poly = current_collider_.polygons[i];
-    if (poly.empty()) continue;
-
-    std::vector<ImVec2> points;
-    for (const auto& v : poly) {
-      points.push_back(WorldToScreen(v));
-    }
-
-    ImU32 color =
-        (selected_polygon_index_ == i) ? IM_COL32(255, 0, 0, 255) : IM_COL32(200, 200, 200, 255);
-
-    // Draw Polygon
-    for (size_t k = 0; k < points.size(); ++k) {
-      draw_list->AddLine(points[k], points[(k + 1) % points.size()], color, 2.0f);
-    }
-
-    // Draw Vertices and Handle Interaction
-    for (size_t k = 0; k < points.size(); ++k) {
-      ImVec2 p = points[k];
-      draw_list->AddCircleFilled(p, 4.0f, color);
-
-      // Interaction: Vertex Dragging
-      ImVec2 mouse_pos = ImGui::GetMousePos();
-      float dist_sq =
-          (mouse_pos.x - p.x) * (mouse_pos.x - p.x) + (mouse_pos.y - p.y) * (mouse_pos.y - p.y);
-      bool near_vertex = dist_sq < 64.0f;  // 8px radius
-
-      if (near_vertex && is_active_input && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-        selected_polygon_index_ = i;
-        selected_vertex_index_ = k;
-        is_dragging_ = true;
-        is_dragging_sprite_ = false;
-        // Reset accumulators
-        drag_accumulator_x_ = 0;
-        drag_accumulator_y_ = 0;
-      }
-    }
-  }
-
-  // Handle Dragging
-  if (is_dragging_ && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-    if (selected_polygon_index_ >= 0 &&
-        selected_polygon_index_ < current_collider_.polygons.size()) {
-      Polygon& poly = current_collider_.polygons[selected_polygon_index_];
-      if (selected_vertex_index_ >= 0 && selected_vertex_index_ < poly.size()) {
-        Vec& v = poly[selected_vertex_index_];
-        double dx = ImGui::GetIO().MouseDelta.x / canvas_zoom_;
-        double dy = ImGui::GetIO().MouseDelta.y / canvas_zoom_;
-
-        ApplyDrag(v.x, drag_accumulator_x_, dx, snap_to_grid_);
-        ApplyDrag(v.y, drag_accumulator_y_, dy, snap_to_grid_);
-      }
-    }
-  }
-
-  if (is_dragging_ && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-    is_dragging_ = false;
-    SaveCurrentCollider();
-  }
-}
-
-void BlueprintEditor::RenderRulers(ImDrawList* draw_list, ImVec2 canvas_p0, ImVec2 canvas_sz,
-                                   ImVec2 origin) {
-  // Draw Origin Axis Lines (X and Y)
-  // X Axis (Horizontal)
-  draw_list->AddLine(ImVec2(canvas_p0.x, origin.y), ImVec2(canvas_p0.x + canvas_sz.x, origin.y),
-                     IM_COL32(100, 100, 100, 100));
-  // Y Axis (Vertical)
-  draw_list->AddLine(ImVec2(origin.x, canvas_p0.y), ImVec2(origin.x, canvas_p0.y + canvas_sz.y),
-                     IM_COL32(100, 100, 100, 100));
-
-  // Rulers
-  const float ruler_thickness = 20.0f;
-  ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
-  ImU32 ruler_tick_color = IM_COL32(180, 180, 180, 255);
-  ImU32 mouse_indicator_color = IM_COL32(255, 50, 50, 255);
-
-  // Top Ruler (X-axis)
-  draw_list->AddRectFilled(
-      canvas_p0, ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + ruler_thickness), ruler_bg_color);
-
-  // Left Ruler (Y-axis)
-  draw_list->AddRectFilled(
-      canvas_p0, ImVec2(canvas_p0.x + ruler_thickness, canvas_p0.y + canvas_sz.y), ruler_bg_color);
-
-  // Draw Ticks for Top Ruler
-  float step = 50.0f * canvas_zoom_;
-  while (step < 50.0f) step *= 2.0f;  // Prevent too dense ticks
-  while (step > 150.0f) step /= 2.0f;
-
-  float start_x = fmod(origin.x - canvas_p0.x, step);
-  if (start_x < 0) start_x += step;
-
-  for (float x = start_x; x < canvas_sz.x; x += step) {
-    ImVec2 p1(canvas_p0.x + x, canvas_p0.y);
-    ImVec2 p2(canvas_p0.x + x, canvas_p0.y + ruler_thickness * 0.5f);
-    draw_list->AddLine(p1, p2, ruler_tick_color);
-
-    // Label
-    double world_x = (x - (origin.x - canvas_p0.x)) / canvas_zoom_;
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.0f", world_x);
-    draw_list->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
-  }
-
-  // Draw Ticks for Left Ruler
-  float start_y = fmod(origin.y - canvas_p0.y, step);
-  if (start_y < 0) start_y += step;
-
-  for (float y = start_y; y < canvas_sz.y; y += step) {
-    ImVec2 p1(canvas_p0.x, canvas_p0.y + y);
-    ImVec2 p2(canvas_p0.x + ruler_thickness * 0.5f, canvas_p0.y + y);
-    draw_list->AddLine(p1, p2, ruler_tick_color);
-
-    // Label
-    double world_y = (y - (origin.y - canvas_p0.y)) / canvas_zoom_;
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.0f", world_y);
-    draw_list->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
-  }
-
-  // Mouse Indicator on Rulers
-  ImVec2 mouse_pos = ImGui::GetMousePos();
-  bool mouse_in_canvas = mouse_pos.x >= canvas_p0.x && mouse_pos.x <= canvas_p0.x + canvas_sz.x &&
-                         mouse_pos.y >= canvas_p0.y && mouse_pos.y <= canvas_p0.y + canvas_sz.y;
-
-  if (mouse_in_canvas) {
-    // X-Axis Indicator
-    if (mouse_pos.x >= canvas_p0.x && mouse_pos.x <= canvas_p0.x + canvas_sz.x) {
-      draw_list->AddLine(ImVec2(mouse_pos.x, canvas_p0.y),
-                         ImVec2(mouse_pos.x, canvas_p0.y + ruler_thickness), mouse_indicator_color,
-                         2.0f);
-
-      double world_val_x = (mouse_pos.x - origin.x) / canvas_zoom_;
-      char buf[32];
-      snprintf(buf, sizeof(buf), "%.0f", world_val_x);
-      ImVec2 txt_sz = ImGui::CalcTextSize(buf);
-      draw_list->AddText(ImVec2(mouse_pos.x - txt_sz.x * 0.5f, canvas_p0.y + ruler_thickness),
-                         mouse_indicator_color, buf);
-    }
-
-    // Y-Axis Indicator
-    if (mouse_pos.y >= canvas_p0.y && mouse_pos.y <= canvas_p0.y + canvas_sz.y) {
-      draw_list->AddLine(ImVec2(canvas_p0.x, mouse_pos.y),
-                         ImVec2(canvas_p0.x + ruler_thickness, mouse_pos.y), mouse_indicator_color,
-                         2.0f);
-
-      double world_val_y = (mouse_pos.y - origin.y) / canvas_zoom_;
-      char buf[32];
-      snprintf(buf, sizeof(buf), "%.0f", world_val_y);
-      // Draw lightly offset to not clip
-      draw_list->AddText(ImVec2(canvas_p0.x + ruler_thickness, mouse_pos.y - 6),
-                         mouse_indicator_color, buf);
-    }
-  }
-}
-
-void BlueprintEditor::RenderSpriteDetails() {
-  if (mode_ != Mode::kCreateState || selected_sprite_index_ < 0) {
-    ImGui::TextDisabled("No sprite selected");
+void BlueprintEditor::RenderCanvas() {
+  if (mode_ == Mode::kBlueprint) {
+    ImGui::Text("Select Blueprint State to view canvas.");
     return;
   }
 
-  ImGui::Text("Sprite Details");
-  ImGui::Separator();
+  ImVec2 size = ImGui::GetContentRegionAvail();
+  // New Canvas API: Begin takes the size and handles background/child window
+  canvas_.Begin("StateCanvas", size);
 
-  // Read-only fields
-  ImGui::BeginDisabled();
-  ImGui::InputText("Name", (char*)editing_sprite_.name.c_str(), editing_sprite_.name.size(),
-                   ImGuiInputTextFlags_ReadOnly);
-  ImGui::InputText("ID", (char*)editing_sprite_.id.c_str(), editing_sprite_.id.size(),
-                   ImGuiInputTextFlags_ReadOnly);
-  ImGui::EndDisabled();
+  // Handles pan (MMB) and Zoom (Wheel) automatically
+  canvas_.HandleInput();
 
-  ImGui::Separator();
-  ImGui::Text("Frames");
+  // Rulers & Grid
+  canvas_.DrawGrid();
 
-  if (editing_sprite_.frames.empty()) {
-    ImGui::TextDisabled("No frames available");
-    return;
-  }
-
-  if (selected_frame_index_ < 0 || selected_frame_index_ >= editing_sprite_.frames.size()) {
-    ImGui::TextDisabled("Selected frame index is out of bounds!");
-    return;
-  }
-  SpriteFrame& frame = editing_sprite_.frames[selected_frame_index_];
-
-  // Render Frame Preview
-  absl::StatusOr<Texture*> texture = api_->GetTexture(editing_sprite_.texture_id);
-  if (!texture.ok()) {
-    ImGui::TextDisabled("Texture not available...");
-  } else {
-    editing_sprite_.sdl_texture = (*texture)->sdl_texture;
-
-    int tex_w = 0, tex_h = 0;
-    SDL_QueryTexture((SDL_Texture*)editing_sprite_.sdl_texture, nullptr, nullptr, &tex_w, &tex_h);
-    if (tex_w > 0 && tex_h > 0) {
-      // Calculate UVs
-      ImVec2 uv0((float)frame.texture_x / tex_w, (float)frame.texture_y / tex_h);
-      ImVec2 uv1((float)(frame.texture_x + frame.texture_w) / tex_w,
-                 (float)(frame.texture_y + frame.texture_h) / tex_h);
-
-      // Fixed display size height, maintain aspect ratio
-      float display_h = 100.0f;
-      float aspect = (frame.texture_h > 0) ? (float)frame.texture_w / frame.texture_h : 1.0f;
-      float display_w = display_h * aspect;
-
-      ImGui::Image((ImTextureID)editing_sprite_.sdl_texture, ImVec2(display_w, display_h), uv0,
-                   uv1);
+  // Sync Sprite Logic
+  if (canvas_sprite_.has_value()) {
+    // 1. Sync Panel -> Canvas (Source of Truth)
+    if (auto* sprite = sprite_panel_->GetSprite()) {
+      canvas_sprite_->SetSprite(*sprite);
     }
-  }
 
-  // Frame selection list
-  if (ImGui::BeginListBox("##FrameList", ImVec2(-FLT_MIN, 200))) {
-    for (int i = 0; i < editing_sprite_.frames.size(); ++i) {
-      std::string label = "Frame " + std::to_string(i);
-      bool is_selected = (selected_frame_index_ == i);
-      if (ImGui::Selectable(label.c_str(), is_selected)) {
-        selected_frame_index_ = i;
-      }
-      if (is_selected) {
-        ImGui::SetItemDefaultFocus();
+    // 2. Render & Handle Input
+    auto status_or = canvas_sprite_->Render(sprite_panel_->GetFrameIndex(), /*input_allowed=*/true);
+    LOG_IF_ERROR(status_or.status());
+
+    // 3. Sync Canvas -> Panel if modified (Drag)
+    if (status_or.ok() && status_or.value()) {
+      if (auto* sprite = sprite_panel_->GetSprite()) {
+        *sprite = canvas_sprite_->GetSprite();
       }
     }
-    ImGui::EndListBox();
   }
 
-  // Selected frame details
-  ImGui::Separator();
-  ImGui::Text("Frame %d Settings", selected_frame_index_);
-
-  ImGui::BeginDisabled();
-  int texture_rect[4] = {frame.texture_x, frame.texture_y, frame.texture_w, frame.texture_h};
-  ImGui::InputInt4("Texture Rect", texture_rect);
-  int render_size[2] = {frame.render_w, frame.render_h};
-  ImGui::InputInt2("Render Size", render_size);
-  ImGui::EndDisabled();
-
-  // Editable Offsets
-  bool changed = false;
-  changed |= ImGui::InputInt("Offset X", &frame.offset_x);
-  changed |= ImGui::InputInt("Offset Y", &frame.offset_y);
-
-  // Read-only Duration
-  ImGui::BeginDisabled();
-  ImGui::InputInt("Duration", &frame.frames_per_cycle);
-  ImGui::EndDisabled();
-
-  // Animation Controls
-  ImGui::Separator();
-  if (ImGui::Button(is_playing_animation_ ? "Stop Animation" : "Animate")) {
-    is_playing_animation_ = !is_playing_animation_;
-    if (is_playing_animation_) {
-      animator_->SetSprite(editing_sprite_);
-    }
+  // Draw objects
+  if (canvas_collider_.has_value()) {
+    LOG_IF_ERROR(canvas_collider_->Render(/*input_allowed=*/true).status());
   }
 
-  // Save Button
-  ImGui::Separator();
-  bool can_save = IsSpriteDirty();
-  if (!can_save) ImGui::BeginDisabled();
-
-  if (ImGui::Button("Save Changes")) {
-    absl::Status status = api_->UpdateSprite(editing_sprite_);
-    if (status.ok()) {
-      original_sprite_ = editing_sprite_;
-    } else {
-      LOG(ERROR) << "Failed to update sprite: " << status;
-    }
-  }
-
-  if (!can_save) ImGui::EndDisabled();
+  canvas_.End();
 }
 
-bool BlueprintEditor::IsSpriteDirty() const {
-  if (editing_sprite_.id != original_sprite_.id) return false;  // Should not happen for same sprite
-  if (editing_sprite_.frames.size() != original_sprite_.frames.size()) return true;
+void BlueprintEditor::UpdateStateCollider(const ColliderResult& collider_result) {
+  if (collider_result.type == ColliderResult::Type::kNone) return;
 
-  for (size_t i = 0; i < editing_sprite_.frames.size(); ++i) {
-    const SpriteFrame& f1 = editing_sprite_.frames[i];
-    const SpriteFrame& f2 = original_sprite_.frames[i];
-    // offset_x and offset_y are the only editable fields here
-    if (f1.offset_x != f2.offset_x || f1.offset_y != f2.offset_y) {
-      return true;
-    }
+  Blueprint* bp = blueprint_panel_->GetBlueprint();
+  if (bp == nullptr) {
+    LOG(ERROR) << "Attempted to update state with bad blueprint!!!";
   }
-  return false;
+  int state_index = blueprint_state_panel_->GetStateIndex();
+  if (state_index == -1) {
+    LOG(ERROR) << "Attempted to udpate state with bad state index!!!";
+  }
+
+  if (collider_result.type == ColliderResult::Type::kAttach) {
+    bp->collider_ids[state_index] = collider_result.collider_id;
+    canvas_collider_ = CanvasCollider(&canvas_);
+    canvas_collider_->SetCollider(collider_panel_->GetCollider());
+  } else if (collider_result.type == ColliderResult::Type::kDetach) {
+    bp->collider_ids.erase(state_index);
+    canvas_collider_.reset();
+  }
 }
 
-void BlueprintEditor::RenderSpriteOnCanvas(ImDrawList* draw_list, bool is_active_input) {
-  if (selected_sprite_index_ < 0 || editing_sprite_.id.empty()) return;
-  if (selected_frame_index_ < 0 || selected_frame_index_ >= editing_sprite_.frames.size()) return;
+void BlueprintEditor::UpdateStateSprite(const SpriteResult& sprite_result) {
+  if (sprite_result.type == SpriteResult::Type::kNone) return;
 
-  SpriteFrame frame;
-  if (is_playing_animation_) {
-    absl::StatusOr<SpriteFrame> anim_frame = animator_->GetCurrentFrame();
-    if (!anim_frame.ok()) return;
-
-    frame = *anim_frame;
-  } else {
-    frame = editing_sprite_.frames[selected_frame_index_];
+  Blueprint* bp = blueprint_panel_->GetBlueprint();
+  if (bp == nullptr) {
+    LOG(ERROR) << "Attempted to update state with bad blueprint!!!";
+  }
+  int state_index = blueprint_state_panel_->GetStateIndex();
+  if (state_index == -1) {
+    LOG(ERROR) << "Attempted to udpate state with bad state index!!!";
   }
 
-  ImVec2 p1 = WorldToScreen({(double)frame.offset_x, (double)frame.offset_y});
-  ImVec2 p2 = WorldToScreen(
-      {(double)frame.offset_x + frame.render_w, (double)frame.offset_y + frame.render_h});
-
-  // Render Image
-  if (editing_sprite_.sdl_texture != nullptr) {
-    int tex_w = 0, tex_h = 0;
-    SDL_QueryTexture((SDL_Texture*)editing_sprite_.sdl_texture, nullptr, nullptr, &tex_w, &tex_h);
-
-    if (tex_w > 0 && tex_h > 0) {
-      ImVec2 uv0((float)frame.texture_x / tex_w, (float)frame.texture_y / tex_h);
-      ImVec2 uv1((float)(frame.texture_x + frame.texture_w) / tex_w,
-                 (float)(frame.texture_y + frame.texture_h) / tex_h);
-
-      draw_list->AddImage((ImTextureID)editing_sprite_.sdl_texture, p1, p2, uv0, uv1);
+  if (sprite_result.type == SpriteResult::Type::kAttach) {
+    bp->sprite_ids[state_index] = sprite_result.id;
+    canvas_sprite_ = CanvasSprite(&canvas_);
+    // We already know GetSprite() is not null because we just attached it.
+    // However, for safety we can check.
+    if (auto* sprite = sprite_panel_->GetSprite()) {
+      canvas_sprite_->SetSprite(*sprite);
     }
-  }
-
-  // Draw Green Rect (Debug/Selection)
-  draw_list->AddRect(p1, p2, IM_COL32(100, 200, 100, 255));
-
-  // Handle Dragging
-  // Priority: If we are dragging a collider vertex, don't drag sprite.
-  // If `is_dragging_` is true (collider drag), we skip.
-  if (is_dragging_) return;
-
-  ImVec2 mouse_pos = ImGui::GetMousePos();
-  bool is_hovered =
-      mouse_pos.x >= p1.x && mouse_pos.x <= p2.x && mouse_pos.y >= p1.y && mouse_pos.y <= p2.y;
-
-  if (is_hovered && is_active_input && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-    is_dragging_sprite_ = true;
-    // Reset accumulators
-    drag_accumulator_x_ = 0;
-    drag_accumulator_y_ = 0;
-  }
-
-  if (is_dragging_sprite_ && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-    double dx = ImGui::GetIO().MouseDelta.x / canvas_zoom_;
-    double dy = ImGui::GetIO().MouseDelta.y / canvas_zoom_;
-
-    // Sprites are integer-based, so we must always use snap behavior (latching)
-    // to preserve drag accumulator for slow moves.
-    double x = (double)frame.offset_x;
-    double y = (double)frame.offset_y;
-
-    ApplyDrag(x, drag_accumulator_x_, dx, true);
-    ApplyDrag(y, drag_accumulator_y_, dy, true);
-
-    frame.offset_x = (int)x;
-    frame.offset_y = (int)y;
-
-    // IMPORTANT: If we are not animating, we need to write back to the source frame
-    // because 'frame' is a local copy or reference depending on how we obtained it.
-    // If it's a reference to editing_sprite_.frames[...], it updates automatically.
-    // But if it's a copy (from animator or fallback), we shouldn't update it if it's from animator.
-    // Usually we only allow editing when NOT animating.
-
-    if (!is_playing_animation_ && selected_frame_index_ >= 0 &&
-        selected_frame_index_ < editing_sprite_.frames.size()) {
-      editing_sprite_.frames[selected_frame_index_].offset_x = frame.offset_x;
-      editing_sprite_.frames[selected_frame_index_].offset_y = frame.offset_y;
-    }
-  }
-
-  if (is_dragging_sprite_ && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-    is_dragging_sprite_ = false;
+  } else if (sprite_result.type == SpriteResult::Type::kDetach) {
+    bp->sprite_ids.erase(state_index);
+    canvas_sprite_.reset();
   }
 }
 
 }  // namespace zebes
-
-void zebes::BlueprintEditor::ApplyDrag(double& val, double& accumulator, double delta, bool snap) {
-  static constexpr double kDragThreshold = 1e-4;
-
-  accumulator += delta;
-  if (!snap) {
-    // Free movement
-    val += accumulator;
-    accumulator = 0;
-    return;
-  }
-
-  // Snap to nearest integer
-  double target = std::round(val + accumulator);
-  double diff = target - val;
-  // Apply if there is significant change
-  if (std::abs(diff) > kDragThreshold) {
-    val += diff;
-    accumulator -= diff;
-  }
-}

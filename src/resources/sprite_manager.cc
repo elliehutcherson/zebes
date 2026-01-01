@@ -10,6 +10,7 @@
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
 #include "objects/sprite.h"
+#include "resources/resource_utils.h"
 #include "resources/texture_manager.h"
 
 namespace zebes {
@@ -175,6 +176,12 @@ absl::Status SpriteManager::SaveSprite(Sprite sprite) {
   sprite.sdl_texture = texture->sdl_texture;
 
   nlohmann::json json = ToJson(sprite);
+
+  // Handle Renaming: If the name has changed, delete the old file.
+  auto it = sprites_.find(sprite.id);
+  if (it != sprites_.end()) {
+    RemoveOldFileIfExists(sprite.id, it->second->name, sprite.name, definitions_path_);
+  }
 
   std::string filename = absl::StrCat(sprite.name, "-", sprite.id, ".json");
   std::string definitions_path = GetDefinitionsPath(filename);

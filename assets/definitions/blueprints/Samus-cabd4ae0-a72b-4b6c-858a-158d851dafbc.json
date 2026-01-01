@@ -1,0 +1,37 @@
+{
+    "collider_ids": [
+        [
+            0,
+            "a3b28033-fafa-402b-a6df-c4ab5bd20a82"
+        ],
+        [
+            1,
+            "a3b28033-fafa-402b-a6df-c4ab5bd20a82"
+        ],
+        [
+            2,
+            "24175b8e-ee59-43bc-922a-3fdfca3b7165"
+        ]
+    ],
+    "id": "cabd4ae0-a72b-4b6c-858a-158d851dafbc",
+    "name": "Samus",
+    "sprite_ids": [
+        [
+            0,
+            "11f2dee4-0ca7-4132-baf6-0ca5dd67784b"
+        ],
+        [
+            1,
+            "47594058-0550-4fde-b8d0-1c77537d95a9"
+        ],
+        [
+            2,
+            "b008d3de-2ac0-4450-97d2-60d75e0552aa"
+        ]
+    ],
+    "states": [
+        "SamusRunningLeft",
+        "Tree",
+        "new state n"
+    ]
+}

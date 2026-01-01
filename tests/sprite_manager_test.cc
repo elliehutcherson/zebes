@@ -313,5 +313,32 @@ TEST_F(SpriteManagerTest, SaveAndLoadSpriteWithOffsets) {
   }
 }
 
+TEST_F(SpriteManagerTest, RenameSprite) {
+  Sprite sprite;
+  sprite.name = "OldName";
+
+  std::string tex_path = test_dir_ + "/textures/rename.png";
+  std::ofstream f(tex_path);
+  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
+  ASSERT_TRUE(tex_id_or.ok());
+  sprite.texture_id = *tex_id_or;
+
+  auto id_or = manager_->CreateSprite(sprite);
+  ASSERT_TRUE(id_or.ok());
+  std::string id = *id_or;
+
+  std::string old_file = test_dir_ + "/definitions/sprites/OldName-" + id + ".json";
+  ASSERT_TRUE(std::filesystem::exists(old_file));
+
+  // Rename
+  sprite.id = id;
+  sprite.name = "NewName";
+  ASSERT_TRUE(manager_->SaveSprite(sprite).ok());
+
+  std::string new_file = test_dir_ + "/definitions/sprites/NewName-" + id + ".json";
+  EXPECT_TRUE(std::filesystem::exists(new_file));
+  EXPECT_FALSE(std::filesystem::exists(old_file));
+}
+
 }  // namespace
 }  // namespace zebes

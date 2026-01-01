@@ -4,13 +4,13 @@
 #include <fstream>
 #include <vector>
 
-#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
 #include "objects/vec.h"
+#include "resources/resource_utils.h"
 
 namespace zebes {
 namespace {
@@ -41,6 +41,7 @@ void ToJson(nlohmann::json& j, const Collider& collider) {
 
   j = nlohmann::json{
       {"id", collider.id},
+      {"name", collider.name},
       {"polygons", polygons_json},
   };
 }
@@ -49,6 +50,7 @@ absl::StatusOr<Collider> GetColliderFromJson(const nlohmann::json& j) {
   Collider collider;
   try {
     j.at("id").get_to(collider.id);
+    j.at("name").get_to(collider.name);
 
     if (j.contains("polygons")) {
       for (const auto& poly_json : j["polygons"]) {
@@ -119,15 +121,12 @@ absl::Status ColliderManager::LoadAllColliders() {
 }
 
 absl::StatusOr<std::string> ColliderManager::CreateCollider(Collider collider) {
-  // Generate ID if empty
-  if (collider.id.empty()) {
-    collider.id = GenerateGuid();
-  }
-
+  // Generate ID
+  collider.id = GenerateGuid();
   RETURN_IF_ERROR(SaveCollider(collider));
 
   // Load it
-  std::string filename = absl::StrCat(collider.id, ".json");
+  std::string filename = absl::StrCat(collider.name, "-", collider.id, ".json");
   ASSIGN_OR_RETURN(Collider * loaded_collider, LoadCollider(filename));
 
   return loaded_collider->id;
@@ -141,7 +140,13 @@ absl::Status ColliderManager::SaveCollider(Collider collider) {
   nlohmann::json json;
   ToJson(json, collider);
 
-  std::string filename = absl::StrCat(collider.id, ".json");
+  // Handle Renaming: If the name has changed, delete the old file.
+  auto it = colliders_.find(collider.id);
+  if (it != colliders_.end()) {
+    RemoveOldFileIfExists(collider.id, it->second->name, collider.name, definitions_path_);
+  }
+
+  std::string filename = absl::StrCat(collider.name, "-", collider.id, ".json");
   std::string definitions_path = GetDefinitionsPath(filename);
 
   // Ensure directory exists
@@ -173,7 +178,8 @@ absl::Status ColliderManager::DeleteCollider(const std::string& id) {
   if (it == colliders_.end()) return absl::NotFoundError("Collider not found");
 
   // Remove JSON file
-  std::string filename = absl::StrCat(id, ".json");
+  // Remove JSON file
+  std::string filename = absl::StrCat(it->second->name, "-", id, ".json");
   std::filesystem::remove(GetDefinitionsPath(filename));
 
   colliders_.erase(it);
