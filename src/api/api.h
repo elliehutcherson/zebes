@@ -25,37 +25,46 @@ class Api {
   static absl::StatusOr<std::unique_ptr<Api>> Create(const Options& options);
 
   Api(const Options& options);
-  ~Api() = default;
+  virtual ~Api() = default;
 
   // Get reading access to the config
   const GameConfig* GetConfig() const { return &config_; }
 
   // Save the config to disk
-  absl::Status SaveConfig(const GameConfig& config);
+  virtual absl::Status SaveConfig(const GameConfig& config);
 
-  absl::StatusOr<std::string> CreateTexture(Texture texture);
-  absl::Status DeleteTexture(const std::string& texture_id);
-  absl::StatusOr<std::vector<Texture>> GetAllTextures();
-  absl::Status UpdateTexture(const Texture& texture);
-  absl::StatusOr<Texture*> GetTexture(const std::string& sprite_id);
+  virtual absl::StatusOr<std::string> CreateTexture(Texture texture);
+  virtual absl::Status DeleteTexture(const std::string& texture_id);
+  virtual absl::StatusOr<std::vector<Texture>> GetAllTextures();
+  virtual absl::Status UpdateTexture(const Texture& texture);
+  virtual absl::StatusOr<Texture*> GetTexture(const std::string& sprite_id);
 
-  absl::StatusOr<std::string> CreateSprite(Sprite sprite);
-  absl::Status UpdateSprite(Sprite sprite);
-  absl::Status DeleteSprite(const std::string& sprite_id);
-  std::vector<Sprite> GetAllSprites();
-  absl::StatusOr<Sprite*> GetSprite(const std::string& sprite_id);
+  virtual absl::StatusOr<std::string> CreateSprite(Sprite sprite);
+  virtual absl::Status UpdateSprite(Sprite sprite);
+  virtual absl::Status DeleteSprite(const std::string& sprite_id);
+  virtual std::vector<Sprite> GetAllSprites();
+  virtual absl::StatusOr<Sprite*> GetSprite(const std::string& sprite_id);
 
-  absl::StatusOr<std::string> CreateCollider(Collider collider);
-  absl::Status UpdateCollider(Collider collider);
-  absl::Status DeleteCollider(const std::string& collider_id);
-  std::vector<Collider> GetAllColliders();
-  absl::StatusOr<Collider*> GetCollider(const std::string& collider_id);
+  virtual absl::StatusOr<std::string> CreateCollider(Collider collider);
+  virtual absl::Status UpdateCollider(Collider collider);
+  virtual absl::Status DeleteCollider(const std::string& collider_id);
+  virtual std::vector<Collider> GetAllColliders();
+  virtual absl::StatusOr<Collider*> GetCollider(const std::string& collider_id);
 
-  absl::StatusOr<std::string> CreateBlueprint(Blueprint blueprint);
-  absl::Status UpdateBlueprint(Blueprint blueprint);
-  absl::Status DeleteBlueprint(const std::string& blueprint_id);
-  std::vector<Blueprint> GetAllBlueprints();
-  absl::StatusOr<Blueprint*> GetBlueprint(const std::string& blueprint_id);
+  virtual absl::StatusOr<std::string> CreateBlueprint(Blueprint blueprint);
+  virtual absl::Status UpdateBlueprint(Blueprint blueprint);
+  virtual absl::Status DeleteBlueprint(const std::string& blueprint_id);
+  virtual std::vector<Blueprint> GetAllBlueprints();
+  virtual absl::StatusOr<Blueprint*> GetBlueprint(const std::string& blueprint_id);
+
+ protected:
+  // Allow default construction for mocks
+  Api()
+      : config_(*(new GameConfig())),
+        texture_manager_(nullptr),
+        sprite_manager_(nullptr),
+        collider_manager_(nullptr),
+        blueprint_manager_(nullptr) {}
 
  private:
   const GameConfig& config_;

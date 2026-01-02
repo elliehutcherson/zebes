@@ -1,0 +1,11 @@
+{
+    "id": "6a584584-3193-4821-bc8e-82b21dbcda7a",
+    "name": "Grass2",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Grass2",
+            "sprite_id": "b008d3de-2ac0-4450-97d2-60d75e0552aa"
+        }
+    ]
+}

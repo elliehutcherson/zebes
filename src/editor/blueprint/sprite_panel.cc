@@ -1,4 +1,4 @@
-#include "editor/sprite_panel.h"
+#include "editor/blueprint/sprite_panel.h"
 
 #include <algorithm>
 
@@ -40,22 +40,51 @@ Sprite* SpritePanel::GetSprite() {
 int SpritePanel::GetFrameIndex() const { return current_frame_index_; }
 
 void SpritePanel::SetSprite(const std::string& id) {
-  for (int i = 0; i < sprite_cache_.size(); ++i) {
-    if (sprite_cache_[i].id != id) continue;
-
-    sprite_index_ = i;
-    editting_sprite_ = sprite_cache_[i];
-    current_frame_index_ = 0;
+  // Fetch the authoritative sprite data from the API
+  absl::StatusOr<Sprite*> sprite_or = api_->GetSprite(id);
+  if (!sprite_or.ok()) {
+    LOG(ERROR) << "Failed to fetch sprite: " << sprite_or.status().message();
+    sprite_index_ = -1;
+    editting_sprite_ = std::nullopt;
     return;
   }
-  // If not found, deselect
+
+  editting_sprite_ = **sprite_or;
+
+  // Update internal index for list consistency (optional, but good for UI)
   sprite_index_ = -1;
-  editting_sprite_ = std::nullopt;
-  LOG(ERROR) << "No sprite found!!";
+  for (int i = 0; i < sprite_cache_.size(); ++i) {
+    if (sprite_cache_[i].id == id) {
+      sprite_index_ = i;
+      // Also update the cache entry to match strict consistency if needed,
+      // but editting_sprite_ being fresh is the most important part.
+      sprite_cache_[i] = *editting_sprite_;
+      break;
+    }
+  }
+
+  current_frame_index_ = 0;
 }
 
 void SpritePanel::SetAttachedSprite(const std::optional<std::string>& id) {
   attached_sprite_id_ = id;
+  if (!id.has_value()) {
+    canvas_sprite_.reset();
+    return;
+  }
+
+  // We enforce that the sprite must be loaded and currently editing.
+  if (!editting_sprite_.has_value()) {
+    LOG(FATAL) << "Attempted to attach sprite " << *id
+               << " but no sprite is currently being edited!";
+  }
+
+  if (editting_sprite_->id != *id) {
+    LOG(FATAL) << "Attached sprite must be the currently editing sprite! Expected: " << *id
+               << ", Got: " << editting_sprite_->id;
+  }
+
+  canvas_sprite_ = std::make_unique<CanvasSprite>(&(*editting_sprite_));
 }
 
 bool SpritePanel::IsAttached() const {
@@ -70,6 +99,7 @@ void SpritePanel::Reset() {
   editting_sprite_ = std::nullopt;
   attached_sprite_id_ = std::nullopt;
   current_frame_index_ = 0;
+  canvas_sprite_.reset();
 }
 
 SpriteResult SpritePanel::Render() {

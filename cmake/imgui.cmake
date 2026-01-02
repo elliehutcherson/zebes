@@ -23,17 +23,33 @@ set(IMGUI_FILE_DIALOG_HEADERS
   ${IMGUI_FILE_DIALOG_DIR}/ImGuiFileDialog.h
   ${IMGUI_FILE_DIALOG_DIR}/ImGuiFileDialogConfig.h)
 
-add_library(imgui STATIC
+# Common source lists defined above
+set(IMGUI_ALL_SOURCES
   ${IMGUI_SOURCES}
   ${IMGUI_BACKEND_HEADERS} ${IMGUI_BACKEND_SOURCES}
   ${IMGUI_STDLIB_HEADERS} ${IMGUI_STDLIB_SOURCES}
-  ${IMGUI_FILE_DIALOG_HEADERS} ${IMGUI_FILE_DIALOG_SOURCES})
+  ${IMGUI_FILE_DIALOG_HEADERS} ${IMGUI_FILE_DIALOG_SOURCES}
+)
 
-target_include_directories(imgui PUBLIC
+# 1. Interface Library (Headers & Includes)
+add_library(imgui_headers INTERFACE)
+target_include_directories(imgui_headers INTERFACE
   ${IMGUI_INCLUDE_DIR}
   ${IMGUI_BACKENDS_DIR}
-  ${IMGUI_FILE_DIALOG_DIR})
+  ${IMGUI_FILE_DIALOG_DIR}
+)
 
-target_link_libraries(imgui SDL2-static)
+# 2. Clean Implementation (No Test Engine)
+add_library(imgui_clean STATIC ${IMGUI_ALL_SOURCES})
+target_link_libraries(imgui_clean PUBLIC imgui_headers SDL2-static)
 
+# 3. Tested Implementation (With Test Engine Hooks)
+add_library(imgui_tested STATIC ${IMGUI_ALL_SOURCES})
+target_link_libraries(imgui_tested PUBLIC imgui_headers SDL2-static)
+target_compile_definitions(imgui_tested PUBLIC IMGUI_ENABLE_TEST_ENGINE)
+
+# Default 'imgui' alias points to clean version
+add_library(imgui ALIAS imgui_clean)
+
+# For compatibility, though we should prefer explicit targets
 set(IMGUI_LIBRARIES imgui)

@@ -7,6 +7,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "editor/canvas_sprite.h"
 #include "imgui.h"
 #include "objects/sprite.h"
 
@@ -34,6 +35,8 @@ class SpritePanel {
   // Returns the currently selected sprite, or nullptr if none.
   Sprite* GetSprite();
 
+  CanvasSprite* GetCanvasSprite() { return canvas_sprite_.get(); }
+
   // Returns the current frame index being edited/viewed.
   int GetFrameIndex() const;
 
@@ -43,6 +46,9 @@ class SpritePanel {
   // Sets the currently attached sprite ID for the active blueprint state.
   // This determines whether the "Attach" or "Detach" button is shown.
   void SetAttachedSprite(const std::optional<std::string>& id);
+
+  // Helper to check if the current sprite is attached.
+  bool IsAttached() const;
 
  private:
   SpritePanel(Api* api);
@@ -66,9 +72,6 @@ class SpritePanel {
   // Confirms changes to the sprite (update).
   void ConfirmState();
 
-  // Helper to check if the current sprite is attached.
-  bool IsAttached() const;
-
   std::vector<Sprite> sprite_cache_;
   int sprite_index_ = -1;
   std::optional<Sprite> editting_sprite_;
@@ -77,6 +80,8 @@ class SpritePanel {
 
   // Outside dependencies
   Api* api_;
+
+  std::unique_ptr<CanvasSprite> canvas_sprite_;
 };
 
 }  // namespace zebes

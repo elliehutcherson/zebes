@@ -19,7 +19,7 @@ class BlueprintStatePanel {
   void Render();
 
   // Sets the state to be edited.
-  void SetState(Blueprint* blueprint, int index);
+  void SetState(Blueprint& blueprint, int index);
 
   int GetStateIndex() { return index_; }
 
@@ -28,9 +28,6 @@ class BlueprintStatePanel {
 
  private:
   BlueprintStatePanel(Api* api);
-
-  // Confirms changes to the state.
-  void ConfirmState();
 
   Api* api_;
   Blueprint* blueprint_ = nullptr;

@@ -43,3 +43,5 @@ target_link_libraries(api_validation_test
   absl::flags_parse
 )
 gtest_discover_tests(api_validation_test) # <--- REGISTERS THE TEST
+
+add_subdirectory(editor)

@@ -17,4 +17,4 @@ Control Flow & Structure:
     Nesting: Maximize code flatness. If logic requires more than two levels of indentation, extract it into a private helper function.
 
 Task:
-Make sure that every resource manager does not allow the user to pass in an id. It must always be generated on creation. Please update tests to validate this behavior. 
+We should remove the sprite_panel_test or change it to use the new test framework we have with imgui_test_engine.

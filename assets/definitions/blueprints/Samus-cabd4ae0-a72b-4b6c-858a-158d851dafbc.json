@@ -21,6 +21,16 @@
             "collider_id": "a3b28033-fafa-402b-a6df-c4ab5bd20a82",
             "name": "SamusRunningRight",
             "sprite_id": "12fb85c9-3969-42a6-a784-a4540c1dcd31"
+        },
+        {
+            "collider_id": "a3b28033-fafa-402b-a6df-c4ab5bd20a82",
+            "name": "SamusTurningLeft",
+            "sprite_id": "5cff1697-37cd-4a49-8087-f5d2e636ed59"
+        },
+        {
+            "collider_id": "a3b28033-fafa-402b-a6df-c4ab5bd20a82",
+            "name": "SamusTurningRight",
+            "sprite_id": "e73a2397-4ce0-407f-81ef-5ec4a213dedd"
         }
     ]
 }

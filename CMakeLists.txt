@@ -66,6 +66,7 @@ set(ABSL_LOCAL_GOOGLETEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/googletest)
 # ## All custom find cmake files live in the cmake directory
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 include(${CMAKE_MODULE_PATH}/imgui.cmake)
+include(${CMAKE_MODULE_PATH}/imgui_test_engine.cmake)
 include(${CMAKE_MODULE_PATH}/sqlite3.cmake)
 
 # ## Add all of the subdirectories

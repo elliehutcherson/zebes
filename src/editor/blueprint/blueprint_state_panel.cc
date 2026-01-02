@@ -1,6 +1,5 @@
-#include "editor/blueprint_state_panel.h"
+#include "editor/blueprint/blueprint_state_panel.h"
 
-#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "imgui.h"
@@ -17,18 +16,21 @@ absl::StatusOr<std::unique_ptr<BlueprintStatePanel>> BlueprintStatePanel::Create
 
 BlueprintStatePanel::BlueprintStatePanel(Api* api) : api_(api) {}
 
-void BlueprintStatePanel::SetState(Blueprint* blueprint, int index) {
-  blueprint_ = blueprint;
+void BlueprintStatePanel::SetState(Blueprint& blueprint, int index) {
+  blueprint_ = &blueprint;
   index_ = index;
 
-  if (blueprint_ && index_ >= 0 && index_ < blueprint_->states.size()) {
+  if (index_ >= 0 && index_ < blueprint_->states.size()) {
     current_name_ = blueprint_->states[index].name;
   } else {
     current_name_.clear();
   }
 }
 
-void BlueprintStatePanel::Reset() { SetState(nullptr, -1); }
+void BlueprintStatePanel::Reset() {
+  blueprint_ = nullptr;
+  index_ = -1;
+}
 
 void BlueprintStatePanel::Render() {
   if (blueprint_ == nullptr || index_ < 0 || index_ >= blueprint_->states.size()) {
@@ -50,25 +52,6 @@ void BlueprintStatePanel::Render() {
   ImGui::InputText("Sprite ID", &blueprint_->states[index_].sprite_id);
   ImGui::InputText("Collider ID", &blueprint_->states[index_].collider_id);
   ImGui::EndDisabled();
-
-  if (ImGui::Button("Save")) {
-    ConfirmState();
-  }
-}
-
-void BlueprintStatePanel::ConfirmState() {
-  if (blueprint_ == nullptr || index_ < 0 || index_ >= blueprint_->states.size()) {
-    return;
-  }
-
-  // Name is already updated in Render via pointer binding.
-  // Just trigger an API update.
-  absl::Status status = api_->UpdateBlueprint(*blueprint_);
-  if (!status.ok()) {
-    LOG(ERROR) << "Failed to save blueprint state: " << status.message();
-  } else {
-    LOG(INFO) << "Updated blueprint state: " << blueprint_->states[index_].name;
-  }
 }
 
 }  // namespace zebes

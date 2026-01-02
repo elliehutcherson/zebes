@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-
 #include "editor/animator.h"
 #include "editor/canvas.h"
 #include "objects/sprite.h"
@@ -11,20 +9,15 @@ namespace zebes {
 // Handles rendering and interacting with a sprite on the editor canvas.
 class CanvasSprite {
  public:
-  CanvasSprite(Canvas* canvas) : canvas_(canvas) {}
+  CanvasSprite(Sprite* sprite) : sprite_(sprite) {}
 
   // Renders the sprite and handles input.
   // Returns true if the sprite was modified (dragged).
-  absl::StatusOr<bool> Render(int frame_index, bool input_allowed);
+  absl::StatusOr<bool> Render(Canvas* canvas, int frame_index, bool input_allowed);
 
   void SetIsAnimating(bool is_animating);
 
-  void SetSprite(Sprite sprite);
-
-  Sprite GetSprite() { return *sprite_; }
-
   void Clear() {
-    sprite_ = std::nullopt;
     is_animating_ = false;
     is_dragging_ = false;
     drag_acc_x_ = 0.0;
@@ -38,8 +31,7 @@ class CanvasSprite {
   // Updates the animation ticks.
   void UpdateAnimation();
 
-  Canvas* canvas_ = nullptr;
-  std::optional<Sprite> sprite_ = std::nullopt;
+  Sprite* sprite_ = nullptr;
   Animator animator_;
 
   // Dragging state

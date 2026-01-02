@@ -5,15 +5,15 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/animator.h"
-#include "editor/blueprint_panel.h"
-#include "editor/blueprint_state_panel.h"
+#include "editor/blueprint/blueprint_panel.h"
+#include "editor/blueprint/blueprint_state_panel.h"
+#include "editor/blueprint/collider_panel.h"
+#include "editor/blueprint/sprite_panel.h"
 #include "editor/canvas.h"
-#include "editor/canvas_collider.h"
-#include "editor/canvas_sprite.h"
-#include "editor/collider_panel.h"
-#include "editor/sprite_panel.h"
 
 namespace zebes {
+
+class BlueprintEditorReproTest;
 
 class BlueprintEditor {
  public:
@@ -23,7 +23,12 @@ class BlueprintEditor {
 
   void Render();
 
+  // Saves the current blueprint state.
+  // This is exposed for testing purposes and for the UI.
+  void SaveBlueprint();
+
  private:
+  friend class BlueprintEditorReproTest;
   // UI state
   enum class Mode {
     kBlueprint,
@@ -37,6 +42,11 @@ class BlueprintEditor {
   void RenderCanvas();
   void RenderRightPanel();
 
+  // Mode specific rendering helpers
+  void RenderBlueprintListMode();
+  void RenderBlueprintStateMode();
+
+  void EnterBlueprintStateMode(Blueprint& bp, int state_index);
   void ExitBlueprintStateMode();
 
   void UpdateStateCollider(const ColliderResult& collider_result);
@@ -45,8 +55,6 @@ class BlueprintEditor {
   Api* api_;
   std::unique_ptr<Animator> animator_;
   Canvas canvas_;
-  std::optional<CanvasSprite> canvas_sprite_;
-  std::optional<CanvasCollider> canvas_collider_;
 
   std::unique_ptr<BlueprintPanel> blueprint_panel_;
   std::unique_ptr<BlueprintStatePanel> blueprint_state_panel_;

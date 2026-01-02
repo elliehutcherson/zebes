@@ -2,6 +2,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "editor/canvas_collider.h"
 #include "objects/collider.h"
 
 namespace zebes {
@@ -34,6 +35,8 @@ class ColliderPanel {
     }
     return &*editting_collider_;
   }
+
+  CanvasCollider* GetCanvasCollider() { return canvas_collider_.get(); }
 
   void SetCollider(const std::string& id);
 
@@ -75,6 +78,8 @@ class ColliderPanel {
 
   // Outside dependencies
   Api* api_;
+
+  std::unique_ptr<CanvasCollider> canvas_collider_;
 };
 
 }  // namespace zebes

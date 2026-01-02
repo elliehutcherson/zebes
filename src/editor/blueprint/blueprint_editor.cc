@@ -1,14 +1,14 @@
-#include "editor/blueprint_editor.h"
+#include "editor/blueprint/blueprint_editor.h"
 
 #include <memory>
 
 #include "absl/status/status.h"
 #include "common/status_macros.h"
 #include "editor/animator.h"
-#include "editor/blueprint_panel.h"
-#include "editor/canvas_collider.h"
-#include "editor/collider_panel.h"
-#include "editor/sprite_panel.h"
+#include "editor/blueprint/blueprint_panel.h"
+#include "editor/blueprint/collider_panel.h"
+#include "editor/blueprint/sprite_panel.h"
+#include "editor/canvas.h"
 #include "imgui.h"
 
 namespace zebes {
@@ -40,13 +40,13 @@ absl::Status BlueprintEditor::Init() {
 void BlueprintEditor::ExitBlueprintStateMode() {
   LOG(INFO) << __func__;
   blueprint_state_panel_->Reset();
+
+  // Clean up panels
   collider_panel_->Clear();
   sprite_panel_->Reset();
+
   canvas_.Reset();
   mode_ = Mode::kBlueprint;
-  canvas_collider_.reset();
-  canvas_sprite_.reset();
-  sprite_panel_->SetAttachedSprite(std::nullopt);
 }
 
 void BlueprintEditor::Render() {
@@ -83,45 +83,62 @@ void BlueprintEditor::Render() {
 
 void BlueprintEditor::RenderLeftPanel() {
   if (mode_ == Mode::kBlueprint) {
-    int state_index = blueprint_panel_->Render();
-    if (state_index == -1) return;
+    RenderBlueprintListMode();
+  } else {
+    RenderBlueprintStateMode();
+  }
+}
 
-    Blueprint* bp = blueprint_panel_->GetBlueprint();
-    if (bp == nullptr) {
-      LOG(ERROR) << "Blueprint is null!!!!";
-      return;
-    }
+void BlueprintEditor::RenderBlueprintListMode() {
+  int state_index = blueprint_panel_->Render();
+  if (state_index == -1) return;
 
-    mode_ = Mode::kBlueprintState;
-
-    blueprint_state_panel_->SetState(bp, state_index);
-    std::optional<std::string> collider_id = bp->collider_id(state_index);
-    if (collider_id.has_value()) {
-      collider_panel_->SetCollider(*collider_id);
-      canvas_collider_ = CanvasCollider(&canvas_);
-      canvas_collider_->SetCollider(collider_panel_->GetCollider());
-    }
-
-    std::optional<std::string> sprite_id = bp->sprite_id(state_index);
-    if (sprite_id.has_value()) {
-      sprite_panel_->SetSprite(*sprite_id);
-      sprite_panel_->SetAttachedSprite(*sprite_id);
-      canvas_sprite_ = CanvasSprite(&canvas_);
-      if (auto* sprite = sprite_panel_->GetSprite()) {
-        canvas_sprite_->SetSprite(*sprite);
-      }
-    }
+  Blueprint* bp = blueprint_panel_->GetBlueprint();
+  if (bp == nullptr) {
+    LOG(FATAL) << "Blueprint is null!!!!";
+    return;
   }
 
-  if (mode_ == Mode::kBlueprintState && ImGui::Button("Back")) {
+  EnterBlueprintStateMode(*bp, state_index);
+}
+
+void BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_index) {
+  mode_ = Mode::kBlueprintState;
+
+  blueprint_state_panel_->SetState(bp, state_index);
+
+  // Set Collider
+  std::optional<std::string> collider_id = bp.collider_id(state_index);
+  if (collider_id.has_value()) {
+    collider_panel_->SetCollider(*collider_id);
+    // CanvasCollider is managed by ColliderPanel
+  }
+
+  // Set Sprite
+  std::optional<std::string> sprite_id = bp.sprite_id(state_index);
+  if (sprite_id.has_value()) {
+    sprite_panel_->SetSprite(*sprite_id);
+    sprite_panel_->SetAttachedSprite(*sprite_id);
+  }
+}
+
+void BlueprintEditor::RenderBlueprintStateMode() {
+  if (ImGui::Button("Back")) {
     ExitBlueprintStateMode();
     return;
+  }
+
+  ImGui::SameLine();
+  ImGui::SameLine();
+  if (ImGui::Button("Save")) {
+    SaveBlueprint();
   }
 
   blueprint_state_panel_->Render();
   ImGui::Spacing();
   ImGui::Spacing();
   ImGui::Spacing();
+
   ColliderResult collider_result = collider_panel_->Render();
   UpdateStateCollider(collider_result);
 }
@@ -153,27 +170,15 @@ void BlueprintEditor::RenderCanvas() {
   canvas_.DrawGrid();
 
   // Sync Sprite Logic
-  if (canvas_sprite_.has_value()) {
-    // 1. Sync Panel -> Canvas (Source of Truth)
-    if (auto* sprite = sprite_panel_->GetSprite()) {
-      canvas_sprite_->SetSprite(*sprite);
-    }
-
-    // 2. Render & Handle Input
-    auto status_or = canvas_sprite_->Render(sprite_panel_->GetFrameIndex(), /*input_allowed=*/true);
-    LOG_IF_ERROR(status_or.status());
-
-    // 3. Sync Canvas -> Panel if modified (Drag)
-    if (status_or.ok() && status_or.value()) {
-      if (auto* sprite = sprite_panel_->GetSprite()) {
-        *sprite = canvas_sprite_->GetSprite();
-      }
-    }
+  if (auto* sprite = sprite_panel_->GetCanvasSprite()) {
+    absl::StatusOr<bool> drag =
+        sprite->Render(&canvas_, sprite_panel_->GetFrameIndex(), /*input_allowed=*/true);
+    LOG_IF_ERROR(drag.status());
   }
 
   // Draw objects
-  if (canvas_collider_.has_value()) {
-    LOG_IF_ERROR(canvas_collider_->Render(/*input_allowed=*/true).status());
+  if (auto* collider = collider_panel_->GetCanvasCollider()) {
+    LOG_IF_ERROR(collider->Render(&canvas_, /*input_allowed=*/true).status());
   }
 
   canvas_.End();
@@ -184,20 +189,21 @@ void BlueprintEditor::UpdateStateCollider(const ColliderResult& collider_result)
 
   Blueprint* bp = blueprint_panel_->GetBlueprint();
   if (bp == nullptr) {
-    LOG(ERROR) << "Attempted to update state with bad blueprint!!!";
+    LOG(FATAL) << "Attempted to update state with bad blueprint!!!";
+    return;
   }
+
   int state_index = blueprint_state_panel_->GetStateIndex();
   if (state_index == -1) {
     LOG(ERROR) << "Attempted to udpate state with bad state index!!!";
+    return;
   }
 
   if (collider_result.type == ColliderResult::Type::kAttach) {
     bp->states[state_index].collider_id = collider_result.collider_id;
-    canvas_collider_ = CanvasCollider(&canvas_);
-    canvas_collider_->SetCollider(collider_panel_->GetCollider());
+    // ColliderPanel manages CanvasCollider creation internally upon attachment/SetCollider
   } else if (collider_result.type == ColliderResult::Type::kDetach) {
     bp->states[state_index].collider_id.clear();
-    canvas_collider_.reset();
   }
 }
 
@@ -206,25 +212,40 @@ void BlueprintEditor::UpdateStateSprite(const SpriteResult& sprite_result) {
 
   Blueprint* bp = blueprint_panel_->GetBlueprint();
   if (bp == nullptr) {
-    LOG(ERROR) << "Attempted to update state with bad blueprint!!!";
+    LOG(FATAL) << "Attempted to update state with bad blueprint!!!";
+    return;
   }
+
   int state_index = blueprint_state_panel_->GetStateIndex();
   if (state_index == -1) {
     LOG(ERROR) << "Attempted to udpate state with bad state index!!!";
+    return;
   }
 
   if (sprite_result.type == SpriteResult::Type::kAttach) {
     bp->states[state_index].sprite_id = sprite_result.id;
-    canvas_sprite_ = CanvasSprite(&canvas_);
-    // We already know GetSprite() is not null because we just attached it.
-    // However, for safety we can check.
-    if (auto* sprite = sprite_panel_->GetSprite()) {
-      canvas_sprite_->SetSprite(*sprite);
-    }
+
+    // Ensure the panel creates the CanvasSprite
+    sprite_panel_->SetAttachedSprite(sprite_result.id);
+
   } else if (sprite_result.type == SpriteResult::Type::kDetach) {
     bp->states[state_index].sprite_id.clear();
-    canvas_sprite_.reset();
+    sprite_panel_->SetAttachedSprite(std::nullopt);
   }
 }
 
+void BlueprintEditor::SaveBlueprint() {
+  Blueprint* bp = blueprint_panel_->GetBlueprint();
+  if (!bp) {
+    LOG(FATAL) << "Blueprint is null in state mode!!!";
+  }
+  absl::Status status = api_->UpdateBlueprint(*bp);
+  if (status.ok()) {
+    LOG(INFO) << "Saved blueprint: " << bp->name;
+    // FIX: Refresh the cache so the panel has the updated data.
+    blueprint_panel_->RefreshBlueprintCache();
+  } else {
+    LOG(ERROR) << "Failed to save: " << status.message();
+  }
+}
 }  // namespace zebes

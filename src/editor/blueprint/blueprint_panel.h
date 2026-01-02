@@ -6,6 +6,8 @@
 
 namespace zebes {
 
+class BlueprintEditorReproTest;
+
 class BlueprintPanel {
  public:
   // Creates a new ColliderPanel instance.
@@ -24,6 +26,9 @@ class BlueprintPanel {
   // Returns the currently selected collider, or nullptr if none.
   Blueprint* GetBlueprint();
 
+  // Refreshes the local cache of colliders from the API.
+  void RefreshBlueprintCache();
+
  private:
   enum BlueprintPanelMode {
     kBlueprintPanelList,  // Display list of blueprints
@@ -34,9 +39,6 @@ class BlueprintPanel {
   enum Op { kBlueprintCreate, kBlueprintUpdate, kBlueprintDelete };
 
   BlueprintPanel(Api* api);
-
-  // Refreshes the local cache of colliders from the API.
-  void RefreshBlueprintCache();
 
   // Renders the list of colliders and CRUD buttons.
   void RenderList();
@@ -59,6 +61,8 @@ class BlueprintPanel {
 
   // Outside dependencies
   Api* api_ = nullptr;
+
+  friend class BlueprintEditorReproTest;
 };
 
 }  // namespace zebes

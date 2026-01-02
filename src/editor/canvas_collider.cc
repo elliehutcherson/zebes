@@ -4,12 +4,12 @@
 
 namespace zebes {
 
-absl::StatusOr<bool> CanvasCollider::Render(bool input_allowed) {
+absl::StatusOr<bool> CanvasCollider::Render(Canvas* canvas, bool input_allowed) {
   if (collider_ == nullptr) {
     return absl::FailedPreconditionError("collider is null.");
   }
 
-  ImDrawList* draw_list = canvas_->GetDrawList();
+  ImDrawList* draw_list = canvas->GetDrawList();
 
   for (int i = 0; i < collider_->polygons.size(); ++i) {
     Polygon& poly = collider_->polygons[i];
@@ -18,7 +18,7 @@ absl::StatusOr<bool> CanvasCollider::Render(bool input_allowed) {
     std::vector<ImVec2> points;
     for (const Vec& v : poly) {
       // --- COORD CONVERSION VIA CANVAS ---
-      points.push_back(canvas_->WorldToScreen(v));
+      points.push_back(canvas->WorldToScreen(v));
     }
 
     ImU32 color =
@@ -53,11 +53,11 @@ absl::StatusOr<bool> CanvasCollider::Render(bool input_allowed) {
     Vec& v = poly[drag_vertex_index_];
 
     // --- ZOOM COMPENSATION VIA CANVAS ---
-    double dx = ImGui::GetIO().MouseDelta.x / canvas_->GetZoom();
-    double dy = ImGui::GetIO().MouseDelta.y / canvas_->GetZoom();
+    double dx = ImGui::GetIO().MouseDelta.x / canvas->GetZoom();
+    double dy = ImGui::GetIO().MouseDelta.y / canvas->GetZoom();
 
-    ApplyDrag(v.x, drag_acc_x_, dx, canvas_->GetSnap());
-    ApplyDrag(v.y, drag_acc_y_, dy, canvas_->GetSnap());
+    ApplyDrag(v.x, drag_acc_x_, dx, canvas->GetSnap());
+    ApplyDrag(v.y, drag_acc_y_, dy, canvas->GetSnap());
   }
 
   if (is_dragging_ && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {

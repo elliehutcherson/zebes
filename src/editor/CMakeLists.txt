@@ -14,43 +14,6 @@ target_link_libraries(editor_animator
   sprite
 )
 
-# Collider Panel 
-add_library(collider_panel collider_panel.cc)
-target_link_libraries(collider_panel
-  editor_utils
-  ${IMGUI_LIBRARIES}
-  absl::status
-  collider
-)
-
-# Sprite Panel
-add_library(sprite_panel sprite_panel.cc)
-target_link_libraries(sprite_panel
-  editor_utils
-  ${IMGUI_LIBRARIES}
-  absl::status
-  sprite
-)
-
-# Blueprint Panel
-add_library(blueprint_panel blueprint_panel.cc)
-target_link_libraries(blueprint_panel
-  editor_utils
-  ${IMGUI_LIBRARIES}
-  absl::status
-  blueprint_manager # Assuming blueprint object/manager availability, or api
-  api
-)
-
-# Blueprint State Panel
-add_library(blueprint_state_panel blueprint_state_panel.cc)
-target_link_libraries(blueprint_state_panel
-  editor_utils
-  ${IMGUI_LIBRARIES}
-  absl::status
-  api
-)
-
 # Canvas Elements
 add_library(canvas_elements
   canvas_collider.cc
@@ -80,6 +43,9 @@ target_link_libraries(editor_texture
   SDL2-static
 )
 
+# Blueprint Components
+add_subdirectory(blueprint)
+
 # Sprite Editor
 add_library(editor_sprite sprite_editor.cc)
 target_link_libraries(editor_sprite
@@ -89,22 +55,6 @@ target_link_libraries(editor_sprite
   absl::status
 )
 
-# Blueprint Editor
-add_library(editor_blueprint blueprint_editor.cc)
-target_link_libraries(editor_blueprint
-  editor_animator
-  editor_canvas
-  blueprint_panel
-  blueprint_state_panel
-  collider_panel
-  sprite_panel
-  canvas_elements
-  api
-  ${IMGUI_LIBRARIES}
-  absl::status
-  absl::log
-  SDL2-static
-)
 
 # Config Editor
 add_library(editor_config config_editor.cc)
@@ -117,7 +67,7 @@ target_link_libraries(editor_config
 # Editor UI
 add_library(editor_ui editor_ui.cc)
 target_link_libraries(editor_ui
-  editor_blueprint
+  blueprint_editor
   editor_config
   editor_sprite
   editor_texture

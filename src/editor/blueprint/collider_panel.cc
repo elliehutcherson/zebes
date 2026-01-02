@@ -1,4 +1,4 @@
-#include "editor/collider_panel.h"
+#include "editor/blueprint/collider_panel.h"
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
@@ -26,6 +26,7 @@ void ColliderPanel::Clear() {
   collider_index_ = -1;
   attached_id_.reset();
   editting_collider_.reset();
+  canvas_collider_.reset();
   mode_ = kColliderPanelList;
 }
 
@@ -46,6 +47,7 @@ void ColliderPanel::SetCollider(const std::string& id) {
     editting_collider_ = collider_cache_[i];
     attached_id_ = id;
     mode_ = Mode::kColliderPanelEdit;
+    canvas_collider_ = std::make_unique<CanvasCollider>(&(*editting_collider_));
     return;
   }
 
@@ -154,6 +156,7 @@ ColliderResult ColliderPanel::RenderDetails() {
       result = {ColliderResult::Type::kAttach, editting_collider_->id};
       attached_id_ = editting_collider_->id;
       mode_ = kColliderPanelEdit;
+      canvas_collider_ = std::make_unique<CanvasCollider>(&(*editting_collider_));
     }
   }
   ImGui::SameLine();

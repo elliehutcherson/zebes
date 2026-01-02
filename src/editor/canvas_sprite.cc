@@ -8,8 +8,8 @@
 
 namespace zebes {
 
-absl::StatusOr<bool> CanvasSprite::Render(int frame_index, bool input_allowed) {
-  if (!sprite_.has_value()) {
+absl::StatusOr<bool> CanvasSprite::Render(Canvas* canvas, int frame_index, bool input_allowed) {
+  if (sprite_ == nullptr) {
     return absl::InvalidArgumentError("Sprite is null");
   }
   if (frame_index < 0 || frame_index >= sprite_->frames.size()) {
@@ -34,11 +34,11 @@ absl::StatusOr<bool> CanvasSprite::Render(int frame_index, bool input_allowed) {
   }
 
   // 2. Coordinate Conversion (World -> Screen)
-  ImVec2 p1 = canvas_->WorldToScreen({(double)frame_ptr->offset_x, (double)frame_ptr->offset_y});
-  ImVec2 p2 = canvas_->WorldToScreen({(double)frame_ptr->offset_x + frame_ptr->render_w,
-                                      (double)frame_ptr->offset_y + frame_ptr->render_h});
+  ImVec2 p1 = canvas->WorldToScreen({(double)frame_ptr->offset_x, (double)frame_ptr->offset_y});
+  ImVec2 p2 = canvas->WorldToScreen({(double)frame_ptr->offset_x + frame_ptr->render_w,
+                                     (double)frame_ptr->offset_y + frame_ptr->render_h});
 
-  ImDrawList* draw_list = canvas_->GetDrawList();
+  ImDrawList* draw_list = canvas->GetDrawList();
 
   // 3. Render Texture
   int tex_w = 0, tex_h = 0;
@@ -95,8 +95,8 @@ absl::StatusOr<bool> CanvasSprite::Render(int frame_index, bool input_allowed) {
   // During Drag
   if (is_dragging_ && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
     // Convert mouse delta to world space delta
-    double dx = ImGui::GetIO().MouseDelta.x / canvas_->GetZoom();
-    double dy = ImGui::GetIO().MouseDelta.y / canvas_->GetZoom();
+    double dx = ImGui::GetIO().MouseDelta.x / canvas->GetZoom();
+    double dy = ImGui::GetIO().MouseDelta.y / canvas->GetZoom();
 
     // Use a temp copy to calculate new positions using double precision
     double x = (double)frame_ptr->offset_x;
@@ -150,10 +150,5 @@ void CanvasSprite::UpdateAnimation() {
 }
 
 void CanvasSprite::SetIsAnimating(bool is_animating) { is_animating_ = is_animating; }
-
-void CanvasSprite::SetSprite(Sprite sprite) {
-  sprite_ = std::move(sprite);
-  animator_.SetSprite(*sprite_);
-}
 
 }  // namespace zebes

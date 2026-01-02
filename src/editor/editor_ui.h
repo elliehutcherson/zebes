@@ -7,7 +7,7 @@
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
 #include "editor/animator.h"
-#include "editor/blueprint_editor.h"
+#include "editor/blueprint/blueprint_editor.h"
 #include "editor/config_editor.h"
 #include "editor/sprite_editor.h"
 #include "editor/texture_editor.h"

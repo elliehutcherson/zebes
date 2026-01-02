@@ -3,6 +3,8 @@
         {
             "frames_per_cycle": 4,
             "index": 0,
+            "offset_x": -23,
+            "offset_y": -92,
             "render_h": 92,
             "render_w": 46,
             "texture_h": 46,
@@ -13,6 +15,8 @@
         {
             "frames_per_cycle": 4,
             "index": 1,
+            "offset_x": -27,
+            "offset_y": -92,
             "render_h": 92,
             "render_w": 52,
             "texture_h": 46,
@@ -23,6 +27,8 @@
         {
             "frames_per_cycle": 4,
             "index": 2,
+            "offset_x": -24,
+            "offset_y": -92,
             "render_h": 92,
             "render_w": 48,
             "texture_h": 46,
