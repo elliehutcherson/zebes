@@ -1,24 +1,18 @@
 #include "editor/canvas_collider.h"
 
-#include "absl/status/status.h"
-
 namespace zebes {
 
-absl::StatusOr<bool> CanvasCollider::Render(Canvas* canvas, bool input_allowed) {
-  if (collider_ == nullptr) {
-    return absl::FailedPreconditionError("collider is null.");
-  }
+absl::StatusOr<bool> CanvasCollider::Render(Canvas& canvas, bool input_allowed) {
+  ImDrawList* draw_list = canvas.GetDrawList();
 
-  ImDrawList* draw_list = canvas->GetDrawList();
-
-  for (int i = 0; i < collider_->polygons.size(); ++i) {
-    Polygon& poly = collider_->polygons[i];
+  for (int i = 0; i < collider_.polygons.size(); ++i) {
+    Polygon& poly = collider_.polygons[i];
     if (poly.empty()) continue;
 
     std::vector<ImVec2> points;
     for (const Vec& v : poly) {
       // --- COORD CONVERSION VIA CANVAS ---
-      points.push_back(canvas->WorldToScreen(v));
+      points.push_back(canvas.WorldToScreen(v));
     }
 
     ImU32 color =
@@ -49,15 +43,15 @@ absl::StatusOr<bool> CanvasCollider::Render(Canvas* canvas, bool input_allowed) 
   }
 
   if (is_dragging_ && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-    Polygon& poly = collider_->polygons[drag_polygon_index_];
+    Polygon& poly = collider_.polygons[drag_polygon_index_];
     Vec& v = poly[drag_vertex_index_];
 
     // --- ZOOM COMPENSATION VIA CANVAS ---
-    double dx = ImGui::GetIO().MouseDelta.x / canvas->GetZoom();
-    double dy = ImGui::GetIO().MouseDelta.y / canvas->GetZoom();
+    double dx = ImGui::GetIO().MouseDelta.x / canvas.GetZoom();
+    double dy = ImGui::GetIO().MouseDelta.y / canvas.GetZoom();
 
-    ApplyDrag(v.x, drag_acc_x_, dx, canvas->GetSnap());
-    ApplyDrag(v.y, drag_acc_y_, dy, canvas->GetSnap());
+    ApplyDrag(v.x, drag_acc_x_, dx, canvas.GetSnap());
+    ApplyDrag(v.y, drag_acc_y_, dy, canvas.GetSnap());
   }
 
   if (is_dragging_ && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {

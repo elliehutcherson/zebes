@@ -1,9 +1,12 @@
 #include "editor/blueprint/collider_panel.h"
 
+#include <memory>
+
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "editor/canvas_collider.h"
 #include "editor/editor_utils.h"
 #include "imgui.h"
 #include "misc/cpp/imgui_stdlib.h"
@@ -47,7 +50,7 @@ void ColliderPanel::SetCollider(const std::string& id) {
     editting_collider_ = collider_cache_[i];
     attached_id_ = id;
     mode_ = Mode::kColliderPanelEdit;
-    canvas_collider_ = std::make_unique<CanvasCollider>(&(*editting_collider_));
+    canvas_collider_ = std::make_unique<CanvasCollider>(*editting_collider_);
     return;
   }
 
@@ -93,6 +96,7 @@ ColliderResult ColliderPanel::RenderList() {
     mode_ = Mode::kColliderPanelEdit;
     editting_collider_ = collider_cache_[collider_index_];
     attached_id_ = editting_collider_->id;
+    canvas_collider_ = std::make_unique<CanvasCollider>(*editting_collider_);
     result = {ColliderResult::Type::kAttach, attached_id_.value()};
   }
   ImGui::SameLine();
@@ -100,6 +104,7 @@ ColliderResult ColliderPanel::RenderList() {
   ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
   if (ImGui::Button("Delete") && collider_index_ > -1) {
     mode_ = Mode::kColliderPanelList;
+    canvas_collider_.reset();
     editting_collider_ = collider_cache_[collider_index_];
     ConfirmState(Op::kColliderDelete);
     editting_collider_.reset();
@@ -156,7 +161,7 @@ ColliderResult ColliderPanel::RenderDetails() {
       result = {ColliderResult::Type::kAttach, editting_collider_->id};
       attached_id_ = editting_collider_->id;
       mode_ = kColliderPanelEdit;
-      canvas_collider_ = std::make_unique<CanvasCollider>(&(*editting_collider_));
+      canvas_collider_ = std::make_unique<CanvasCollider>(*editting_collider_);
     }
   }
   ImGui::SameLine();
@@ -166,6 +171,7 @@ ColliderResult ColliderPanel::RenderDetails() {
   if (ImGui::Button("Detach", ImVec2(button_width, 0))) {
     result = {ColliderResult::Type::kDetach};
     attached_id_.reset();
+    canvas_collider_.reset();
     editting_collider_.reset();
     mode_ = kColliderPanelList;
   }

@@ -61,8 +61,6 @@ class BlueprintPanel {
 
   // Outside dependencies
   Api* api_ = nullptr;
-
-  friend class BlueprintEditorReproTest;
 };
 
 }  // namespace zebes

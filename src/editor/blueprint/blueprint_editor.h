@@ -28,7 +28,6 @@ class BlueprintEditor {
   void SaveBlueprint();
 
  private:
-  friend class BlueprintEditorReproTest;
   // UI state
   enum class Mode {
     kBlueprint,

@@ -178,7 +178,9 @@ void BlueprintEditor::RenderCanvas() {
 
   // Draw objects
   if (auto* collider = collider_panel_->GetCanvasCollider()) {
-    LOG_IF_ERROR(collider->Render(&canvas_, /*input_allowed=*/true).status());
+    LOG_IF_ERROR(collider->Render(canvas_, /*input_allowed=*/true).status());
+  } else {
+    LOG(INFO) << "Collider is null!!!";
   }
 
   canvas_.End();
@@ -248,4 +250,5 @@ void BlueprintEditor::SaveBlueprint() {
     LOG(ERROR) << "Failed to save: " << status.message();
   }
 }
+
 }  // namespace zebes

@@ -9,10 +9,10 @@ namespace zebes {
 // Handles rendering and interacting with a sprite on the editor canvas.
 class CanvasCollider {
  public:
-  explicit CanvasCollider(Collider* collider) : collider_(collider) {}
+  explicit CanvasCollider(Collider& collider) : collider_(collider) {}
 
   // Returns true if the collider was modified (dragged).
-  absl::StatusOr<bool> Render(Canvas* canvas, bool input_allowed);
+  absl::StatusOr<bool> Render(Canvas& canvas, bool input_allowed);
 
   void ResetDragIndex() {
     drag_polygon_index_ = -1;
@@ -29,7 +29,7 @@ class CanvasCollider {
   // Helper for smooth dragging
   void ApplyDrag(double& val, double& accumulator, double delta, bool snap);
 
-  Collider* collider_;
+  Collider& collider_;
 
   // Dragging state
   bool is_dragging_ = false;

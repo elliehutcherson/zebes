@@ -1,0 +1,11 @@
+{
+    "id": "2062da82-6036-47c9-8373-58579ef3a42b",
+    "name": "Dirt",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Dirt",
+            "sprite_id": "f122dd5d-cde5-4bfb-a09c-5ec7c210c97c"
+        }
+    ]
+}
