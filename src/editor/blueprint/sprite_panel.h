@@ -34,6 +34,14 @@ class SpritePanel {
   absl::Status Attach(const std::string& id);
   void Detach();
 
+  // Test helpers
+  // Test helpers
+  struct Counters {
+    int render_list = 0;
+    int render_details = 0;
+  };
+  const Counters& GetCounters() const { return counters_; }
+
  private:
   SpritePanel(Api* api);
 
@@ -60,6 +68,7 @@ class SpritePanel {
 
   int sprite_index_ = -1;
   int frame_index_ = 0;
+  Counters counters_;
   std::vector<Sprite> sprite_cache_;
   std::optional<Sprite> editting_sprite_;
   std::unique_ptr<CanvasSprite> canvas_sprite_;

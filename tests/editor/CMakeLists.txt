@@ -18,17 +18,15 @@ target_link_libraries(sanity_test
 add_test(NAME sanity_test COMMAND sanity_test)
 
 
-# --- Blueprint Editor Test ---
-add_executable(blueprint_editor_test blueprint_editor_test.cc)
-target_link_libraries(blueprint_editor_test
+# --- Sprite Panel Test ---
+add_executable(sprite_panel_test sprite_panel_test.cc)
+target_link_libraries(sprite_panel_test
   editor_test_main
-  blueprint_editor
-  blueprint_manager
+  sprite_panel
   api
-  macros
   gmock
   absl::flags
   absl::flags_parse
 )
-target_include_directories(blueprint_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
-add_test(NAME blueprint_editor_test COMMAND blueprint_editor_test)
+target_include_directories(sprite_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME sprite_panel_test COMMAND sprite_panel_test)

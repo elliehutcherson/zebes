@@ -17,6 +17,10 @@ Control Flow & Structure:
     Nesting: Maximize code flatness. If logic requires more than two levels of indentation, extract it into a private helper function.
 
 Task:
-Looks like we have some tests failing. Please fix these tests. Make sure to look at imgui_testing_guide for help. Once you find what's wrong, you should probably add any helpful tips you uncover while trougleshooting this if you find anything new.
-	 35 - blueprint_editor_test (Failed)
-	 36 - sprite_panel_test (SEGFAULT)
+I have simplified the sprite panel greatly. I need you to create a unit test for the following flows:
+attach without valid id returns error
+attach with valid id returns success
+attach and render causes renderdetails
+attach -> render -> detach 
+
+You should probably not rely on logs, but potentially expose counters if you want to check that something actually happened. 

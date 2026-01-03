@@ -66,6 +66,7 @@ absl::StatusOr<SpriteResult> SpritePanel::Render() {
 }
 
 absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
+  counters_.render_list++;
   SpriteResult result;
 
   const float button_width = CalculateButtonWidth(/*num_buttons=*/2);
@@ -96,6 +97,7 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
 }
 
 absl::StatusOr<SpriteResult> SpritePanel::RenderDetails() {
+  counters_.render_details++;
   SpriteResult result;
 
   ImGui::Text("ID: %s", editting_sprite_->id.c_str());

@@ -31,6 +31,9 @@ target_link_libraries(sprite_panel
   ${IMGUI_LIBRARIES}
   absl::status
   sprite
+  canvas_elements
+  editor_animator
+  editor_canvas
 )
 
 add_library(blueprint_editor blueprint_editor.cc)
