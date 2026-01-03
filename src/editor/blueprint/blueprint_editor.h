@@ -37,16 +37,16 @@ class BlueprintEditor {
   explicit BlueprintEditor(Api* api);
   absl::Status Init();
 
-  void RenderLeftPanel();
-  void RenderCanvas();
-  void RenderRightPanel();
+  absl::Status RenderLeftPanel();
+  absl::Status RenderCanvas();
+  absl::Status RenderRightPanel();
 
   // Mode specific rendering helpers
-  void RenderBlueprintListMode();
-  void RenderBlueprintStateMode();
+  absl::Status RenderBlueprintListMode();
+  absl::Status RenderBlueprintStateMode();
 
-  void EnterBlueprintStateMode(Blueprint& bp, int state_index);
-  void ExitBlueprintStateMode();
+  absl::Status EnterBlueprintStateMode(Blueprint& bp, int state_index);
+  absl::Status ExitBlueprintStateMode();
 
   void UpdateStateCollider(const ColliderResult& collider_result);
   void UpdateStateSprite(const SpriteResult& sprite_result);

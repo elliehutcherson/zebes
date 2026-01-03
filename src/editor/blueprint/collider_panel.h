@@ -8,7 +8,7 @@
 namespace zebes {
 
 struct ColliderResult {
-  enum class Type : uint8_t { kNone, kAttach, kDetach };
+  enum Type : uint8_t { kNone = 0, kAttach = 1, kDetach = 2 };
   Type type = Type::kNone;
   std::string collider_id;
 };
@@ -23,42 +23,29 @@ class ColliderPanel {
 
   // Renders the collider panel UI.
   // This is the main entry point for the panel's rendering logic.
-  ColliderResult Render();
-
-  // Clears any internal state if necessary.
-  void Clear();
-
-  // Returns the currently selected collider, or nullptr if none.
-  Collider* GetCollider() {
-    if (!editting_collider_.has_value()) {
-      return nullptr;
-    }
-    return &*editting_collider_;
-  }
+  absl::StatusOr<ColliderResult> Render();
 
   CanvasCollider* GetCanvasCollider() { return canvas_collider_.get(); }
 
-  void SetCollider(const std::string& id);
+  absl::Status Attach(const std::string& id);
+
+  void Detach();
 
  private:
-  enum Mode {
-    kColliderPanelList,  // Display list of colliders
-    kColliderPanelNew,   // Create a new collider
-    kColliderPanelEdit,  // Edit an existing collider
-  };
-
-  enum Op { kColliderCreate, kColliderUpdate, kColliderDelete, kColliderReset };
+  enum Op : uint8_t { kColliderCreate, kColliderUpdate, kColliderDelete, kColliderReset };
 
   ColliderPanel(Api* api);
+
+  absl::Status Attach(int i);
 
   // Refreshes the local cache of colliders from the API.
   void RefreshColliderCache();
 
   // Renders the list of colliders and CRUD buttons.
-  ColliderResult RenderList();
+  absl::StatusOr<ColliderResult> RenderList();
 
   // Renders the details view for creating or editing a collider.
-  ColliderResult RenderDetails();
+  absl::StatusOr<ColliderResult> RenderDetails();
 
   // Renders the list of polygons for the current collider.
   void RenderPolygonList();
@@ -67,19 +54,15 @@ class ColliderPanel {
   // Returns true if polygon was deleted.
   bool RenderPolygonDetails(Polygon& poly, int index);
 
-  void ConfirmState(Op op);
+  absl::Status ConfirmState(Op op);
 
-  Mode mode_ = kColliderPanelList;
+  int selected_index_ = -1;
   std::vector<Collider> collider_cache_;
-
-  int collider_index_ = 0;
-  std::optional<std::string> attached_id_;
   std::optional<Collider> editting_collider_;
+  std::unique_ptr<CanvasCollider> canvas_collider_;
 
   // Outside dependencies
   Api* api_;
-
-  std::unique_ptr<CanvasCollider> canvas_collider_;
 };
 
 }  // namespace zebes

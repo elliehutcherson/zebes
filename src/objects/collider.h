@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "vec.h"
 
 namespace zebes {
@@ -14,6 +15,8 @@ struct Collider {
   // Points are offset from the transform position. For SAT (Separating Axis Theorem) collision, the
   // requirement is that the polygon is Convex (no internal angles > 180°).
   std::vector<Polygon> polygons;
+
+  std::string id_name() const { return absl::StrCat(id, "-", name); }
 };
 
 }  // namespace zebes

@@ -11,6 +11,7 @@ add_library(collider INTERFACE)
 target_include_directories(collider INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(collider INTERFACE
   vec
+  absl::strings
 )
 
 add_library(transform INTERFACE)

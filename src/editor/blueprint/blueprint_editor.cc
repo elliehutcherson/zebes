@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
 #include "editor/animator.h"
@@ -37,16 +38,17 @@ absl::Status BlueprintEditor::Init() {
   return absl::OkStatus();
 }
 
-void BlueprintEditor::ExitBlueprintStateMode() {
+absl::Status BlueprintEditor::ExitBlueprintStateMode() {
   LOG(INFO) << __func__;
   blueprint_state_panel_->Reset();
 
   // Clean up panels
-  collider_panel_->Clear();
+  collider_panel_->Detach();
   sprite_panel_->Reset();
 
   canvas_.Reset();
   mode_ = Mode::kBlueprint;
+  return absl::OkStatus();
 }
 
 void BlueprintEditor::Render() {
@@ -68,41 +70,46 @@ void BlueprintEditor::Render() {
 
   // 1. Controls Column
   ImGui::TableNextColumn();
-  RenderLeftPanel();
+  absl::Status result = RenderLeftPanel();
 
   // 2. Editor Column (The Canvas)
   ImGui::TableNextColumn();
-  RenderCanvas();
+  if (result.ok()) result = RenderCanvas();
 
   // 3. Details Column
   ImGui::TableNextColumn();
-  RenderRightPanel();
+  if (result.ok()) result = RenderRightPanel();
 
+  if (!result.ok()) {
+    LOG(ERROR) << "Failure while rendering blueprint editor: " << result;
+    LOG(INFO) << "Reseting bluprint editor...";
+    result = Init();
+    if (!result.ok()) LOG(FATAL) << "Unable to reset blueprint editor: " << result;
+  }
   ImGui::EndTable();
 }
 
-void BlueprintEditor::RenderLeftPanel() {
+absl::Status BlueprintEditor::RenderLeftPanel() {
   if (mode_ == Mode::kBlueprint) {
-    RenderBlueprintListMode();
-  } else {
-    RenderBlueprintStateMode();
+    return RenderBlueprintListMode();
   }
+
+  return RenderBlueprintStateMode();
 }
 
-void BlueprintEditor::RenderBlueprintListMode() {
+absl::Status BlueprintEditor::RenderBlueprintListMode() {
   int state_index = blueprint_panel_->Render();
-  if (state_index == -1) return;
+  if (state_index == -1) return absl::OkStatus();
 
   Blueprint* bp = blueprint_panel_->GetBlueprint();
   if (bp == nullptr) {
-    LOG(FATAL) << "Blueprint is null!!!!";
-    return;
+    return absl::InternalError("Blueprint is null!!!");
   }
 
-  EnterBlueprintStateMode(*bp, state_index);
+  return EnterBlueprintStateMode(*bp, state_index);
 }
 
-void BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_index) {
+absl::Status BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_index) {
   mode_ = Mode::kBlueprintState;
 
   blueprint_state_panel_->SetState(bp, state_index);
@@ -110,7 +117,8 @@ void BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_index) {
   // Set Collider
   std::optional<std::string> collider_id = bp.collider_id(state_index);
   if (collider_id.has_value()) {
-    collider_panel_->SetCollider(*collider_id);
+    LOG(INFO) << "Collider_id = " << *collider_id;
+    RETURN_IF_ERROR(collider_panel_->Attach(*collider_id));
     // CanvasCollider is managed by ColliderPanel
   }
 
@@ -120,12 +128,13 @@ void BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_index) {
     sprite_panel_->SetSprite(*sprite_id);
     sprite_panel_->SetAttachedSprite(*sprite_id);
   }
+
+  return absl::OkStatus();
 }
 
-void BlueprintEditor::RenderBlueprintStateMode() {
+absl::Status BlueprintEditor::RenderBlueprintStateMode() {
   if (ImGui::Button("Back")) {
-    ExitBlueprintStateMode();
-    return;
+    return ExitBlueprintStateMode();
   }
 
   ImGui::SameLine();
@@ -139,29 +148,33 @@ void BlueprintEditor::RenderBlueprintStateMode() {
   ImGui::Spacing();
   ImGui::Spacing();
 
-  ColliderResult collider_result = collider_panel_->Render();
+  ASSIGN_OR_RETURN(ColliderResult collider_result, collider_panel_->Render());
   UpdateStateCollider(collider_result);
+
+  return absl::OkStatus();
 }
 
-void BlueprintEditor::RenderRightPanel() {
+absl::Status BlueprintEditor::RenderRightPanel() {
   if (mode_ == Mode::kBlueprint) {
     ImGui::Text("Select Blueprint State to view sprites.");
-    return;
+    return absl::OkStatus();
   }
 
   SpriteResult sprite_result = sprite_panel_->Render();
   UpdateStateSprite(sprite_result);
+  return absl::OkStatus();
 }
 
-void BlueprintEditor::RenderCanvas() {
+absl::Status BlueprintEditor::RenderCanvas() {
   if (mode_ == Mode::kBlueprint) {
     ImGui::Text("Select Blueprint State to view canvas.");
-    return;
+    return absl::OkStatus();
   }
 
   ImVec2 size = ImGui::GetContentRegionAvail();
   // New Canvas API: Begin takes the size and handles background/child window
   canvas_.Begin("StateCanvas", size);
+  auto canvas_end = absl::MakeCleanup([&] { canvas_.End(); });
 
   // Handles pan (MMB) and Zoom (Wheel) automatically
   canvas_.HandleInput();
@@ -171,19 +184,16 @@ void BlueprintEditor::RenderCanvas() {
 
   // Sync Sprite Logic
   if (auto* sprite = sprite_panel_->GetCanvasSprite()) {
-    absl::StatusOr<bool> drag =
-        sprite->Render(&canvas_, sprite_panel_->GetFrameIndex(), /*input_allowed=*/true);
-    LOG_IF_ERROR(drag.status());
+    ASSIGN_OR_RETURN(bool drag, sprite->Render(&canvas_, sprite_panel_->GetFrameIndex(),
+                                               /*input_allowed=*/true));
   }
 
   // Draw objects
   if (auto* collider = collider_panel_->GetCanvasCollider()) {
-    LOG_IF_ERROR(collider->Render(canvas_, /*input_allowed=*/true).status());
-  } else {
-    LOG(INFO) << "Collider is null!!!";
+    RETURN_IF_ERROR(collider->Render(canvas_, /*input_allowed=*/true).status());
   }
 
-  canvas_.End();
+  return absl::OkStatus();
 }
 
 void BlueprintEditor::UpdateStateCollider(const ColliderResult& collider_result) {
