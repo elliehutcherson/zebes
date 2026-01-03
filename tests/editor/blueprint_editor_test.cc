@@ -8,6 +8,7 @@
 #include "imgui_te_ui.h"
 #include "test_main.h"
 #include "tests/api_mock.h"
+#include "tests/macros.h"
 
 namespace zebes {
 namespace {
@@ -49,7 +50,7 @@ class BlueprintEditorTestApp {
     editor_ = std::move(*editor_or);
   }
 
-  void Draw() { editor_->Render(); }
+  void Draw() { EXPECT_OK(editor_->Render()); }
 
   MockApi* api() { return api_.get(); }
   BlueprintEditor* editor() { return editor_.get(); }

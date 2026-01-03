@@ -21,7 +21,7 @@ class BlueprintEditor {
 
   ~BlueprintEditor() = default;
 
-  void Render();
+  absl::Status Render();
 
   // Saves the current blueprint state.
   // This is exposed for testing purposes and for the UI.

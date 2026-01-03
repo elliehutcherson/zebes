@@ -6,6 +6,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "common/status_macros.h"
 #include "editor/editor_utils.h"
 #include "imgui.h"
 
@@ -18,91 +19,43 @@ absl::StatusOr<std::unique_ptr<SpritePanel>> SpritePanel::Create(Api* api) {
   return absl::WrapUnique(new SpritePanel(api));
 }
 
-SpritePanel::SpritePanel(Api* api) : api_(api) { RefreshSpriteCache(); }
+SpritePanel::SpritePanel(Api* api) : api_(*api) { RefreshSpriteCache(); }
 
 void SpritePanel::RefreshSpriteCache() {
-  sprite_cache_ = api_->GetAllSprites();
+  sprite_cache_ = api_.GetAllSprites();
 
   std::sort(sprite_cache_.begin(), sprite_cache_.end(),
             [](const Sprite& a, const Sprite& b) { return a.name < b.name; });
 }
 
-Sprite* SpritePanel::GetSprite() {
-  if (editting_sprite_.has_value()) {
-    return &(*editting_sprite_);
-  }
-  if (sprite_index_ > -1 && sprite_index_ < sprite_cache_.size()) {
-    return &sprite_cache_[sprite_index_];
-  }
-  return nullptr;
+absl::Status SpritePanel::Attach(const std::string& id) {
+  Detach();
+  ASSIGN_OR_RETURN(Sprite * sprite, api_.GetSprite(id));
+  editting_sprite_ = *sprite;
+  canvas_sprite_ = std::make_unique<CanvasSprite>(*editting_sprite_);
+
+  return absl::OkStatus();
 }
 
-int SpritePanel::GetFrameIndex() const { return current_frame_index_; }
-
-void SpritePanel::SetSprite(const std::string& id) {
-  // Fetch the authoritative sprite data from the API
-  absl::StatusOr<Sprite*> sprite_or = api_->GetSprite(id);
-  if (!sprite_or.ok()) {
-    LOG(ERROR) << "Failed to fetch sprite: " << sprite_or.status().message();
-    sprite_index_ = -1;
-    editting_sprite_ = std::nullopt;
-    return;
+absl::Status SpritePanel::Attach(int i) {
+  Detach();
+  if (i < 0 || i >= sprite_cache_.size()) {
+    return absl::OutOfRangeError("Cannot attach sprite, index out of range!!!");
   }
+  editting_sprite_ = sprite_cache_[i];
+  canvas_sprite_ = std::make_unique<CanvasSprite>(*editting_sprite_);
 
-  editting_sprite_ = **sprite_or;
+  return absl::OkStatus();
+}
 
-  // Update internal index for list consistency (optional, but good for UI)
+void SpritePanel::Detach() {
+  frame_index_ = 0;
   sprite_index_ = -1;
-  for (int i = 0; i < sprite_cache_.size(); ++i) {
-    if (sprite_cache_[i].id == id) {
-      sprite_index_ = i;
-      // Also update the cache entry to match strict consistency if needed,
-      // but editting_sprite_ being fresh is the most important part.
-      sprite_cache_[i] = *editting_sprite_;
-      break;
-    }
-  }
-
-  current_frame_index_ = 0;
-}
-
-void SpritePanel::SetAttachedSprite(const std::optional<std::string>& id) {
-  attached_sprite_id_ = id;
-  if (!id.has_value()) {
-    canvas_sprite_.reset();
-    return;
-  }
-
-  // We enforce that the sprite must be loaded and currently editing.
-  if (!editting_sprite_.has_value()) {
-    LOG(FATAL) << "Attempted to attach sprite " << *id
-               << " but no sprite is currently being edited!";
-  }
-
-  if (editting_sprite_->id != *id) {
-    LOG(FATAL) << "Attached sprite must be the currently editing sprite! Expected: " << *id
-               << ", Got: " << editting_sprite_->id;
-  }
-
-  canvas_sprite_ = std::make_unique<CanvasSprite>(&(*editting_sprite_));
-}
-
-bool SpritePanel::IsAttached() const {
-  if (!editting_sprite_.has_value() || !attached_sprite_id_.has_value()) {
-    return false;
-  }
-  return editting_sprite_->id == *attached_sprite_id_;
-}
-
-void SpritePanel::Reset() {
-  sprite_index_ = -1;
-  editting_sprite_ = std::nullopt;
-  attached_sprite_id_ = std::nullopt;
-  current_frame_index_ = 0;
+  editting_sprite_.reset();
   canvas_sprite_.reset();
 }
 
-SpriteResult SpritePanel::Render() {
+absl::StatusOr<SpriteResult> SpritePanel::Render() {
   ImGui::PushID("SpritePanel");
   auto cleanup = absl::MakeCleanup([] { ImGui::PopID(); });
 
@@ -112,26 +65,19 @@ SpriteResult SpritePanel::Render() {
   return RenderList();
 }
 
-SpriteResult SpritePanel::RenderList() {
+absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
   SpriteResult result;
 
-  const int num_buttons = (sprite_index_ > -1) ? 2 : 1;
-  const float button_width = CalculateButtonWidth(num_buttons);
-
+  const float button_width = CalculateButtonWidth(/*num_buttons=*/2);
   if (ImGui::Button("Refresh", ImVec2(button_width, 0))) {
     RefreshSpriteCache();
   }
 
   // Attach button
-  if (sprite_index_ > -1) {
-    ImGui::SameLine();
-    if (ImGui::Button("Attach", ImVec2(-FLT_MIN, 0))) {
-      editting_sprite_ = sprite_cache_[sprite_index_];
-      current_frame_index_ = 0;
-      attached_sprite_id_ = editting_sprite_->id;
-      result.type = SpriteResult::Type::kAttach;
-      result.id = *attached_sprite_id_;
-    }
+  ImGui::SameLine();
+  if (ImGui::Button("Attach", ImVec2(-FLT_MIN, 0)) && sprite_index_ > -1) {
+    RETURN_IF_ERROR(Attach(sprite_index_));
+    result = {SpriteResult::Type::kAttach, editting_sprite_->id};
   }
 
   if (ImGui::BeginListBox("Sprites", ImVec2(-FLT_MIN, -FLT_MIN))) {
@@ -149,7 +95,7 @@ SpriteResult SpritePanel::RenderList() {
   return result;
 }
 
-SpriteResult SpritePanel::RenderDetails() {
+absl::StatusOr<SpriteResult> SpritePanel::RenderDetails() {
   SpriteResult result;
 
   ImGui::Text("ID: %s", editting_sprite_->id.c_str());
@@ -161,14 +107,10 @@ SpriteResult SpritePanel::RenderDetails() {
     ImGui::Text("No frames available.");
   } else {
     // Slider for frame selection
-    if (editting_sprite_->frames.size() > 1) {
-      ImGui::SliderInt("Frame", &current_frame_index_, 0,
-                       static_cast<int>(editting_sprite_->frames.size()) - 1);
-    }
+    ImGui::SliderInt("Frame", &frame_index_, /*v_min=*/0,
+                     /*v_max=*/editting_sprite_->frames.size() - 1);
 
-    if (current_frame_index_ >= 0 && current_frame_index_ < editting_sprite_->frames.size()) {
-      RenderFrameDetails(current_frame_index_);
-    }
+    RenderFrameDetails(frame_index_);
   }
 
   ImGui::Separator();
@@ -177,34 +119,32 @@ SpriteResult SpritePanel::RenderDetails() {
   float button_width = CalculateButtonWidth(/*num_buttons=*/2);
 
   if (ImGui::Button("Save", ImVec2(button_width, 0))) {
-    ConfirmState();
+    RETURN_IF_ERROR(ConfirmState());
   }
   ImGui::SameLine();
 
   ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
   if (ImGui::Button("Detach", ImVec2(button_width, 0))) {
+    Detach();
     result.type = SpriteResult::Type::kDetach;
-    editting_sprite_ = std::nullopt;
-    attached_sprite_id_ = std::nullopt;
   }
   ImGui::PopStyleColor();
 
   return result;
 }
 
-void SpritePanel::ConfirmState() {
-  if (!editting_sprite_.has_value()) {
-    return;
-  }
+absl::StatusOr<bool> SpritePanel::RenderCanvas(Canvas& canvas, bool input_allowed) {
+  if (!editting_sprite_.has_value()) return false;
 
-  absl::Status status = api_->UpdateSprite(*editting_sprite_);
-  if (!status.ok()) {
-    LOG(ERROR) << "Failed to save sprite: " << status.message();
-    return;
-  }
+  return canvas_sprite_->Render(canvas, frame_index_, input_allowed);
+}
+
+absl::Status SpritePanel::ConfirmState() {
+  RETURN_IF_ERROR(api_.UpdateSprite(*editting_sprite_));
+  RefreshSpriteCache();
 
   LOG(INFO) << "Saved sprite: " << editting_sprite_->name;
-  RefreshSpriteCache();
+  return absl::OkStatus();
 }
 
 std::pair<ImVec2, ImVec2> SpritePanel::GetFrameUVs(const SpriteFrame& frame, int tex_w,

@@ -28,6 +28,7 @@ absl::StatusOr<std::unique_ptr<BlueprintEditor>> BlueprintEditor::Create(Api* ap
 BlueprintEditor::BlueprintEditor(Api* api) : api_(api), canvas_({.snap_grid = true}) {}
 
 absl::Status BlueprintEditor::Init() {
+  mode_ = Mode::kBlueprint;
   animator_ = std::make_unique<Animator>();
 
   // Initialize panels
@@ -35,27 +36,27 @@ absl::Status BlueprintEditor::Init() {
   ASSIGN_OR_RETURN(blueprint_state_panel_, BlueprintStatePanel::Create(api_));
   ASSIGN_OR_RETURN(collider_panel_, ColliderPanel::Create(api_));
   ASSIGN_OR_RETURN(sprite_panel_, SpritePanel::Create(api_));
+
   return absl::OkStatus();
 }
 
 absl::Status BlueprintEditor::ExitBlueprintStateMode() {
-  LOG(INFO) << __func__;
   blueprint_state_panel_->Reset();
 
   // Clean up panels
   collider_panel_->Detach();
-  sprite_panel_->Reset();
+  sprite_panel_->Detach();
 
   canvas_.Reset();
   mode_ = Mode::kBlueprint;
   return absl::OkStatus();
 }
 
-void BlueprintEditor::Render() {
+absl::Status BlueprintEditor::Render() {
   if (!ImGui::BeginTable(/*str_id=*/"BlueprintEditorTable", /*columns=*/3,
                          /*flags=*/ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable,
                          /*outer_size=*/ImGui::GetContentRegionAvail())) {
-    return;
+    return absl::OkStatus();
   }
 
   // Column Setup
@@ -70,23 +71,18 @@ void BlueprintEditor::Render() {
 
   // 1. Controls Column
   ImGui::TableNextColumn();
-  absl::Status result = RenderLeftPanel();
+  RETURN_IF_ERROR(RenderLeftPanel());
 
   // 2. Editor Column (The Canvas)
   ImGui::TableNextColumn();
-  if (result.ok()) result = RenderCanvas();
+  RETURN_IF_ERROR(RenderCanvas());
 
   // 3. Details Column
   ImGui::TableNextColumn();
-  if (result.ok()) result = RenderRightPanel();
+  RETURN_IF_ERROR(RenderRightPanel());
 
-  if (!result.ok()) {
-    LOG(ERROR) << "Failure while rendering blueprint editor: " << result;
-    LOG(INFO) << "Reseting bluprint editor...";
-    result = Init();
-    if (!result.ok()) LOG(FATAL) << "Unable to reset blueprint editor: " << result;
-  }
   ImGui::EndTable();
+  return absl::OkStatus();
 }
 
 absl::Status BlueprintEditor::RenderLeftPanel() {
@@ -117,16 +113,13 @@ absl::Status BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_i
   // Set Collider
   std::optional<std::string> collider_id = bp.collider_id(state_index);
   if (collider_id.has_value()) {
-    LOG(INFO) << "Collider_id = " << *collider_id;
     RETURN_IF_ERROR(collider_panel_->Attach(*collider_id));
-    // CanvasCollider is managed by ColliderPanel
   }
 
   // Set Sprite
   std::optional<std::string> sprite_id = bp.sprite_id(state_index);
   if (sprite_id.has_value()) {
-    sprite_panel_->SetSprite(*sprite_id);
-    sprite_panel_->SetAttachedSprite(*sprite_id);
+    RETURN_IF_ERROR(sprite_panel_->Attach(*sprite_id));
   }
 
   return absl::OkStatus();
@@ -160,7 +153,7 @@ absl::Status BlueprintEditor::RenderRightPanel() {
     return absl::OkStatus();
   }
 
-  SpriteResult sprite_result = sprite_panel_->Render();
+  ASSIGN_OR_RETURN(SpriteResult sprite_result, sprite_panel_->Render());
   UpdateStateSprite(sprite_result);
   return absl::OkStatus();
 }
@@ -183,15 +176,10 @@ absl::Status BlueprintEditor::RenderCanvas() {
   canvas_.DrawGrid();
 
   // Sync Sprite Logic
-  if (auto* sprite = sprite_panel_->GetCanvasSprite()) {
-    ASSIGN_OR_RETURN(bool drag, sprite->Render(&canvas_, sprite_panel_->GetFrameIndex(),
-                                               /*input_allowed=*/true));
-  }
+  RETURN_IF_ERROR(sprite_panel_->RenderCanvas(canvas_, /*input_allowed=*/true).status());
 
   // Draw objects
-  if (auto* collider = collider_panel_->GetCanvasCollider()) {
-    RETURN_IF_ERROR(collider->Render(canvas_, /*input_allowed=*/true).status());
-  }
+  RETURN_IF_ERROR(collider_panel_->RenderCanvas(canvas_, /*input_allowed=*/true).status());
 
   return absl::OkStatus();
 }
@@ -236,13 +224,8 @@ void BlueprintEditor::UpdateStateSprite(const SpriteResult& sprite_result) {
 
   if (sprite_result.type == SpriteResult::Type::kAttach) {
     bp->states[state_index].sprite_id = sprite_result.id;
-
-    // Ensure the panel creates the CanvasSprite
-    sprite_panel_->SetAttachedSprite(sprite_result.id);
-
   } else if (sprite_result.type == SpriteResult::Type::kDetach) {
     bp->states[state_index].sprite_id.clear();
-    sprite_panel_->SetAttachedSprite(std::nullopt);
   }
 }
 

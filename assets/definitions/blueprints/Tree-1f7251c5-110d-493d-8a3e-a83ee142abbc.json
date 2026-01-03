@@ -1,0 +1,11 @@
+{
+    "id": "1f7251c5-110d-493d-8a3e-a83ee142abbc",
+    "name": "Tree",
+    "states": [
+        {
+            "collider_id": "a3043d13-3cb3-492c-8395-c34cc8efea93",
+            "name": "Tree",
+            "sprite_id": "47594058-0550-4fde-b8d0-1c77537d95a9"
+        }
+    ]
+}

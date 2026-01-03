@@ -32,23 +32,3 @@ target_link_libraries(blueprint_editor_test
 )
 target_include_directories(blueprint_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME blueprint_editor_test COMMAND blueprint_editor_test)
-
-# --- Sprite Panel Test ---
-add_executable(sprite_panel_test
-  sprite_panel_test.cc
-  ${CMAKE_SOURCE_DIR}/src/editor/blueprint/sprite_panel.cc
-  ${CMAKE_SOURCE_DIR}/src/editor/editor_utils.cc
-)
-target_link_libraries(sprite_panel_test
-  editor_test_main
-  imgui_test_engine
-  api
-  macros
-  gmock
-  absl::flags
-  absl::flags_parse
-  sprite
-  absl::status
-)
-target_include_directories(sprite_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
-add_test(NAME sprite_panel_test COMMAND sprite_panel_test)

@@ -27,40 +27,26 @@ class SpritePanel {
 
   // Renders the sprite panel UI.
   // This is the main entry point for the panel's rendering logic.
-  SpriteResult Render();
+  absl::StatusOr<SpriteResult> Render();
 
-  // Resets the panel state.
-  void Reset();
+  absl::StatusOr<bool> RenderCanvas(Canvas& canvas, bool input_allowed);
 
-  // Returns the currently selected sprite, or nullptr if none.
-  Sprite* GetSprite();
-
-  CanvasSprite* GetCanvasSprite() { return canvas_sprite_.get(); }
-
-  // Returns the current frame index being edited/viewed.
-  int GetFrameIndex() const;
-
-  // Sets the currently selected sprite by ID.
-  void SetSprite(const std::string& id);
-
-  // Sets the currently attached sprite ID for the active blueprint state.
-  // This determines whether the "Attach" or "Detach" button is shown.
-  void SetAttachedSprite(const std::optional<std::string>& id);
-
-  // Helper to check if the current sprite is attached.
-  bool IsAttached() const;
+  absl::Status Attach(const std::string& id);
+  void Detach();
 
  private:
   SpritePanel(Api* api);
+
+  absl::Status Attach(int i);
 
   // Refreshes the local cache of sprites from the API.
   void RefreshSpriteCache();
 
   // Renders the list of sprites.
-  SpriteResult RenderList();
+  absl::StatusOr<SpriteResult> RenderList();
 
   // Renders the details view for the selected sprite.
-  SpriteResult RenderDetails();
+  absl::StatusOr<SpriteResult> RenderDetails();
 
   // Renders the details of a specific frame.
   // Assumes frame_index is valid and sdl_texture is populated.
@@ -70,18 +56,16 @@ class SpritePanel {
   std::pair<ImVec2, ImVec2> GetFrameUVs(const SpriteFrame& frame, int tex_w, int tex_h) const;
 
   // Confirms changes to the sprite (update).
-  void ConfirmState();
+  absl::Status ConfirmState();
 
-  std::vector<Sprite> sprite_cache_;
   int sprite_index_ = -1;
+  int frame_index_ = 0;
+  std::vector<Sprite> sprite_cache_;
   std::optional<Sprite> editting_sprite_;
-  int current_frame_index_ = 0;
-  std::optional<std::string> attached_sprite_id_;
+  std::unique_ptr<CanvasSprite> canvas_sprite_;
 
   // Outside dependencies
-  Api* api_;
-
-  std::unique_ptr<CanvasSprite> canvas_sprite_;
+  Api& api_;
 };
 
 }  // namespace zebes

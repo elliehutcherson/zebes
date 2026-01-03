@@ -9,11 +9,11 @@ namespace zebes {
 // Handles rendering and interacting with a sprite on the editor canvas.
 class CanvasSprite {
  public:
-  CanvasSprite(Sprite* sprite) : sprite_(sprite) {}
+  CanvasSprite(Sprite& sprite) : sprite_(sprite) {}
 
   // Renders the sprite and handles input.
   // Returns true if the sprite was modified (dragged).
-  absl::StatusOr<bool> Render(Canvas* canvas, int frame_index, bool input_allowed);
+  absl::StatusOr<bool> Render(Canvas& canvas, int frame_index, bool input_allowed);
 
   void SetIsAnimating(bool is_animating);
 
@@ -31,7 +31,7 @@ class CanvasSprite {
   // Updates the animation ticks.
   void UpdateAnimation();
 
-  Sprite* sprite_ = nullptr;
+  Sprite& sprite_;
   Animator animator_;
 
   // Dragging state

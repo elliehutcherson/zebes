@@ -25,7 +25,7 @@ class ColliderPanel {
   // This is the main entry point for the panel's rendering logic.
   absl::StatusOr<ColliderResult> Render();
 
-  CanvasCollider* GetCanvasCollider() { return canvas_collider_.get(); }
+  absl::StatusOr<bool> RenderCanvas(Canvas& canvas, bool input_allowed);
 
   absl::Status Attach(const std::string& id);
 
@@ -62,7 +62,7 @@ class ColliderPanel {
   std::unique_ptr<CanvasCollider> canvas_collider_;
 
   // Outside dependencies
-  Api* api_;
+  Api& api_;
 };
 
 }  // namespace zebes

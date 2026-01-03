@@ -56,7 +56,14 @@ void EditorUi::Render() {
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Blueprint Editor")) {
-      blueprint_editor_->Render();
+      absl::Status result = blueprint_editor_->Render();
+      if (!result.ok()) {
+        LOG(ERROR) << "BlueprintEditor error: " << result;
+        result = Init();
+        if (!result.ok()) LOG(FATAL) << "UNABLE TO RECOVER FROM ERROR: " << result;
+        // TELL IMGUI THE FRAME IS OVER, BUT DO NOT RENDER IT
+        ImGui::EndFrame();
+      }
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Config Editor")) {
