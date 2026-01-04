@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
+
 namespace zebes {
 
 struct SpriteFrame {
@@ -29,6 +31,8 @@ struct Sprite {
   std::vector<SpriteFrame> frames;
   // Pointer to the sdl texture
   void* sdl_texture = nullptr;
+
+  std::string name_id() const { return absl::StrCat(name, ",", id); }
 };
 
 }  // namespace zebes

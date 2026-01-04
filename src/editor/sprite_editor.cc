@@ -199,7 +199,7 @@ void SpriteEditor::RenderSpriteList() {
   // Create list with fixed height
   ImGui::BeginChild("##Sprites", ImVec2(0, kSpriteListHeight), false);
   for (const Sprite& sprite : sprite_list_) {
-    std::string label = absl::StrCat(sprite.name, " (", sprite.id, ")");
+    std::string label = sprite.name_id();
     bool is_selected = (sprite_.id == sprite.id && !new_sprite_);
 
     if (ImGui::Selectable(label.c_str(), is_selected)) {

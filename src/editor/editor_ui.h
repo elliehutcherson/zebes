@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -9,6 +10,7 @@
 #include "editor/animator.h"
 #include "editor/blueprint/blueprint_editor.h"
 #include "editor/config_editor.h"
+#include "editor/level_editor/level_editor.h"
 #include "editor/sprite_editor.h"
 #include "editor/texture_editor.h"
 #include "imgui.h"
@@ -26,6 +28,15 @@ class EditorUi {
   void Render();
 
  private:
+  /**
+   * @brief Helper to render a tab with consistent error handling.
+   *
+   * @param name The name of the tab.
+   * @param render_fn The function to execute for rendering the tab content.
+   *        Should return absl::Status.
+   * @return true if the tab was rendered (BeginTabItem returned true).
+   */
+  bool RenderTab(const char* name, std::function<absl::Status()> render_fn);
   explicit EditorUi(SdlWrapper* sdl, Api* api);
 
   // Initialize owned objects.
@@ -92,6 +103,7 @@ class EditorUi {
   std::unique_ptr<ConfigEditor> config_editor_;
   std::unique_ptr<SpriteEditor> sprite_editor_;
   std::unique_ptr<BlueprintEditor> blueprint_editor_;
+  std::unique_ptr<LevelEditor> level_editor_;
 
   // UI state buffers
   std::string sprite_path_buffer_;

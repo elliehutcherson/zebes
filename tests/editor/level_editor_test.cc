@@ -2,10 +2,12 @@
 
 #include <memory>
 
+#include "common/status_macros.h"
 #include "imgui.h"
 #include "imgui_te_context.h"
 #include "imgui_te_engine.h"
 #include "tests/api_mock.h"
+#include "tests/editor/mock_level_panel.h"
 #include "tests/editor/test_main.h"
 
 namespace zebes {
@@ -13,12 +15,27 @@ namespace {
 
 using ::testing::NiceMock;
 
+using ::testing::_;
+using ::testing::Return;
+
 std::unique_ptr<MockApi> g_api;
 std::unique_ptr<LevelEditor> g_level_editor;
+MockLevelPanel* g_level_panel_mock = nullptr;
 
 void AppSetup() {
   g_api = std::make_unique<NiceMock<MockApi>>();
-  auto result = LevelEditor::Create(g_api.get());
+
+  auto mock_panel = std::make_unique<NiceMock<MockLevelPanel>>();
+  g_level_panel_mock = mock_panel.get();
+
+  // Setup default mock behavior
+  ON_CALL(*g_level_panel_mock, Render()).WillByDefault(Return(LevelResult{}));
+
+  LevelEditor::Options options;
+  options.api = g_api.get();
+  options.level_panel = std::move(mock_panel);
+
+  auto result = LevelEditor::Create(std::move(options));
   if (!result.ok()) {
     abort();
   }
@@ -34,7 +51,11 @@ void AppDraw() {
   if (g_level_editor) {
     ImGui::SetNextWindowSize(ImVec2(1024, 768), ImGuiCond_Appearing);
     ImGui::Begin("Test Window", nullptr, ImGuiWindowFlags_None);
-    g_level_editor->Render();
+
+    auto status = g_level_editor->Render();
+    if (!status.ok()) {
+      LOG(ERROR) << "LevelEditor::Render failed: " << status;
+    }
     ImGui::End();
   }
 }
@@ -54,9 +75,30 @@ void RegisterTests(ImGuiTestEngine* engine) {
     }
     IM_CHECK(viewport_found);
 
-    // Verify Add Level button exists
-    IM_CHECK(ctx->ItemExists("**/Add Level"));
+    // Verify MockLevelPanel::Render was called via checking if the mock behavior was triggered.
+    // Since we can't easily assert on the mock object inside the lambda without global access to
+    // the PROPER mock, and we're recreating the editor in AppSetup (which is called BEFORE
+    // TestFunc), we need to ensure we access the mock. But AppSetup creates the editor. We need to
+    // inject the mock. The AppSetup needs to use the global mocks.
   };
+
+  using ::testing::Invoke;
+
+  IM_REGISTER_TEST(engine, "level_editor", "mock_integration")->TestFunc =
+      [](ImGuiTestContext* ctx) {
+        // Program the mock to render a unique item
+        EXPECT_CALL(*g_level_panel_mock, Render())
+            .WillRepeatedly(Invoke([]() -> absl::StatusOr<LevelResult> {
+              ImGui::Button("MockLevelPanelContent");
+              return LevelResult{};
+            }));
+
+        ctx->SetRef("Test Window");
+        ctx->Yield();
+
+        // Verify that the LevelEditor called Render on our mock, and the mock drew its content.
+        IM_CHECK(ctx->ItemExists("**/MockLevelPanelContent"));
+      };
 }
 
 }  // namespace

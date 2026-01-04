@@ -2,10 +2,8 @@
 
 #include "ImGuiFileDialog.h"
 #include "SDL_render.h"
-#include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
 #include "common/common.h"
 #include "imgui.h"
 
@@ -136,7 +134,7 @@ void TextureEditor::RenderTextureList() {
                           ImVec2(-FLT_MIN, 10 * ImGui::GetTextLineHeightWithSpacing()))) {
     for (const Texture& texture : texture_list_) {
       bool is_selected = (!new_texture_ && selected_texture_.id == texture.id);
-      std::string label = absl::StrCat(texture.name, " (", texture.id, ")");
+      std::string label = texture.name_id();
       if (ImGui::Selectable(label.c_str(), is_selected)) {
         SelectTexture(texture);
       }

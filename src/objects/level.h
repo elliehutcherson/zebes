@@ -45,7 +45,7 @@ struct Level {
   // Parallax layers, background color, music track ID, etc.
   std::vector<ParallaxLayer> parallax_layers;
 
-  std::string id_name() const { return absl::StrCat(id, "-", name); }
+  std::string name_id() const { return absl::StrCat(name, ",", id); }
 
   // Returns a deep copy of the level.
   // Entities are cloned (deep copied), other data is copied by value.

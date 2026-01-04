@@ -75,7 +75,7 @@ void BlueprintPanel::RenderList() {
   if (ImGui::BeginListBox("Blueprints", ImVec2(-FLT_MIN, -FLT_MIN))) {
     for (int i = 0; i < blueprint_cache_.size(); ++i) {
       const bool is_selected = (blueprint_index_ == i);
-      if (ImGui::Selectable(blueprint_cache_[i].name.c_str(), is_selected)) {
+      if (ImGui::Selectable(blueprint_cache_[i].name_id().c_str(), is_selected)) {
         blueprint_index_ = i;
       }
 

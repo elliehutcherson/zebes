@@ -84,7 +84,7 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
   if (ImGui::BeginListBox("Sprites", ImVec2(-FLT_MIN, -FLT_MIN))) {
     for (int i = 0; i < sprite_cache_.size(); ++i) {
       const bool is_selected = (sprite_index_ == i);
-      if (ImGui::Selectable(sprite_cache_[i].name.c_str(), is_selected)) {
+      if (ImGui::Selectable(sprite_cache_[i].name_id().c_str(), is_selected)) {
         sprite_index_ = i;
       }
 

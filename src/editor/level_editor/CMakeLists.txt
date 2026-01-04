@@ -4,6 +4,7 @@ add_library(level_editor
 
 
 target_link_libraries(level_editor
+  level_panel
   api
   ${IMGUI_LIBRARIES}
   absl::status

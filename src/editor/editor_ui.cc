@@ -1,11 +1,13 @@
 #include "editor/editor_ui.h"
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
 #include "common/status_macros.h"
 #include "editor/config_editor.h"
+#include "editor/level_editor/level_editor.h"
 #include "editor/sprite_editor.h"
 #include "editor/texture_editor.h"
 #include "imgui.h"
@@ -32,6 +34,7 @@ absl::Status EditorUi::Init() {
   ASSIGN_OR_RETURN(config_editor_, ConfigEditor::Create(api_, sdl_));
   ASSIGN_OR_RETURN(sprite_editor_, SpriteEditor::Create(api_, sdl_));
   ASSIGN_OR_RETURN(blueprint_editor_, BlueprintEditor::Create(api_));
+  ASSIGN_OR_RETURN(level_editor_, LevelEditor::Create({.api = api_}));
   return absl::OkStatus();
 }
 
@@ -47,29 +50,20 @@ void EditorUi::Render() {
   ImGui::Begin("Zebes Editor", nullptr, window_flags);
 
   if (ImGui::BeginTabBar("MainTabs")) {
-    if (ImGui::BeginTabItem("Texture Editor")) {
+    RenderTab("Texture Editor", [this]() {
       texture_editor_->Render();
-      ImGui::EndTabItem();
-    }
-    if (ImGui::BeginTabItem("Sprite Editor")) {
+      return absl::OkStatus();
+    });
+    RenderTab("Sprite Editor", [this]() {
       sprite_editor_->Render();
-      ImGui::EndTabItem();
-    }
-    if (ImGui::BeginTabItem("Blueprint Editor")) {
-      absl::Status result = blueprint_editor_->Render();
-      if (!result.ok()) {
-        LOG(ERROR) << "BlueprintEditor error: " << result;
-        result = Init();
-        if (!result.ok()) LOG(FATAL) << "UNABLE TO RECOVER FROM ERROR: " << result;
-        // TELL IMGUI THE FRAME IS OVER, BUT DO NOT RENDER IT
-        ImGui::EndFrame();
-      }
-      ImGui::EndTabItem();
-    }
-    if (ImGui::BeginTabItem("Config Editor")) {
+      return absl::OkStatus();
+    });
+    RenderTab("Blueprint Editor", [this]() { return blueprint_editor_->Render(); });
+    RenderTab("Level Editor", [this]() { return level_editor_->Render(); });
+    RenderTab("Config Editor", [this]() {
       config_editor_->Render();
-      ImGui::EndTabItem();
-    }
+      return absl::OkStatus();
+    });
     ImGui::EndTabBar();
   }
 
@@ -84,6 +78,27 @@ void EditorUi::Render() {
   if (show_debug_metrics_) {
     ImGui::ShowMetricsWindow(&show_debug_metrics_);
   }
+}
+
+bool EditorUi::RenderTab(const char* name, std::function<absl::Status()> render_fn) {
+  if (!ImGui::BeginTabItem(name)) return false;
+  auto table_end = absl::MakeCleanup([&] { ImGui::EndTabItem(); });
+
+  absl::Status status = render_fn();
+  if (!status.ok()) {
+    LOG(ERROR) << name << " Render error: " << status;
+
+    // Attempt to recover
+    status = Init();
+    if (!status.ok()) {
+      LOG(FATAL) << "UNABLE TO RECOVER FROM " << name << " ERROR: " << status;
+    }
+
+    // TELL IMGUI THE FRAME IS OVER, BUT DO NOT RENDER IT
+    ImGui::EndFrame();
+  }
+  ImGui::EndTabItem();
+  return true;
 }
 
 }  // namespace zebes

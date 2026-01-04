@@ -22,5 +22,10 @@ Control Flow & Structure:
 
     Nesting: Maximize code flatness. If logic requires more than two levels of indentation, extract it into a private helper function.
 
+Building:
+
+    Note that we are using cmake. See scripts/build_and_test.sh
+  
+
 Task: 
-Let's create an extremely basic unit test for level_panel. This should follow the sanity_test and level_editor_test as an example. Please reference imgui_testing_guide. If you find helpful insights while creating this test, make sure to update the testing guide. You really should try something extremely basic to start with, and then you can expand your coverage slightly. Doucment your code throughly.
+I've made a mistake. I want all objects that have an id and name fields to have a name_id() function that uses absl::StrCat to return name, ",", id. Can you update all uses of id_name? 

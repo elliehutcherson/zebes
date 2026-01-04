@@ -1,20 +1,33 @@
 #include "editor/level_editor/level_editor.h"
 
 #include "absl/memory/memory.h"
+#include "absl/status/status.h"
+#include "common/status_macros.h"
 #include "imgui.h"
 
 namespace zebes {
 
-absl::StatusOr<std::unique_ptr<LevelEditor>> LevelEditor::Create(Api* api) {
-  if (api == nullptr) {
+absl::StatusOr<std::unique_ptr<LevelEditor>> LevelEditor::Create(Options options) {
+  if (options.api == nullptr) {
     return absl::InvalidArgumentError("Api must not be null");
   }
-  return absl::WrapUnique(new LevelEditor(api));
+  auto editor = absl::WrapUnique(new LevelEditor(options.api));
+  RETURN_IF_ERROR(editor->Init(std::move(options)));
+  return editor;
 }
 
 LevelEditor::LevelEditor(Api* api) : api_(api) {}
 
-void LevelEditor::Render() {
+absl::Status LevelEditor::Init(Options options) {
+  if (options.level_panel) {
+    level_panel_ = std::move(options.level_panel);
+  } else {
+    ASSIGN_OR_RETURN(level_panel_, LevelPanel::Create(api_));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status LevelEditor::Render() {
   // Use a table with 3 columns for the layout: Left (List), Center (Viewport), Right (Details).
   // Stretch sizing allows the viewport to take the majority of the available space.
   if (ImGui::BeginTable("LevelEditorLayout", 3,
@@ -40,19 +53,18 @@ void LevelEditor::Render() {
 
     ImGui::EndTable();
   }
+  return absl::OkStatus();
 }
 
 void LevelEditor::RenderLeft() {
-  ImGui::Text("Level List");
-  ImGui::Separator();
-  ImGui::PushID("LevelListPanel");
-  // TODO(ellie): Replace placeholder text with actual level list from API.
-  ImGui::TextDisabled("(Placeholder: List of levels)");
-
-  if (ImGui::Button("Add Level")) {
-    // TODO(ellie): Implement level creation logic.
+  if (!level_panel_) {
+    return;
   }
-  ImGui::PopID();
+  absl::StatusOr<LevelResult> result = level_panel_->Render();
+  if (!result.ok()) {
+  }
+  // TODO(ellie): handle result (Attach/Detach) if needed by Editor.
+  // For now LevelPanel handles its own state (list vs detail).
 }
 
 void LevelEditor::RenderCenter() {

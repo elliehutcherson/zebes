@@ -103,7 +103,7 @@ absl::StatusOr<ColliderResult> ColliderPanel::RenderList() {
       const bool is_selected = (selected_index_ == i);
       const Collider& collider = collider_cache_[i];
 
-      if (ImGui::Selectable(collider.id_name().c_str(), is_selected)) selected_index_ = i;
+      if (ImGui::Selectable(collider.name_id().c_str(), is_selected)) selected_index_ = i;
 
       // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
       if (is_selected) ImGui::SetItemDefaultFocus();
