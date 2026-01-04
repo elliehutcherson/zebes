@@ -88,6 +88,8 @@ target_link_libraries(editor_engine
   sprite_manager
   collider_manager
   sdl_wrapper
+  imgui_wrapper
+  input_manager
   config
   ${IMGUI_LIBRARIES}
   ${SQLITE3_LIBRARIES}

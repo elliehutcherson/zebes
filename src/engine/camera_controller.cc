@@ -2,7 +2,6 @@
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "engine/input_manager.h"
 #include "objects/camera.h"
 
 namespace zebes {
@@ -31,6 +30,8 @@ CameraController::CameraController(Options options)
   input_manager_.BindAction("ZoomIn", SDL_SCANCODE_E);
   input_manager_.BindAction("ZoomOut", SDL_SCANCODE_Q);
 }
+
+void CameraController::SetCamera(Camera& camera) { camera_ = camera; }
 
 void CameraController::Update(double delta_time) {
   Vec movement = {0, 0};

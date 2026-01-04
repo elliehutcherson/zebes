@@ -16,6 +16,7 @@
 namespace zebes {
 
 class SdlWrapper;
+class ImGuiWrapper;
 
 class InputManager : public IInputManager {
  public:
@@ -26,6 +27,10 @@ class InputManager : public IInputManager {
     // SdlWrapper dependency. Must not be null.
     // The InputManager does not own this dependency.
     SdlWrapper* sdl_wrapper = nullptr;
+
+    // Optional ImGuiWrapper dependency.
+    // If provided, InputManager will delegate event processing to it.
+    ImGuiWrapper* imgui_wrapper = nullptr;
   };
 
   // Factory function
@@ -52,9 +57,10 @@ class InputManager : public IInputManager {
 
  private:
   // Private constructor
-  explicit InputManager(SdlWrapper& sdl_wrapper);
+  InputManager(SdlWrapper& sdl_wrapper, ImGuiWrapper* imgui_wrapper);
 
   SdlWrapper& sdl_wrapper_;
+  ImGuiWrapper* imgui_wrapper_;
   absl::flat_hash_map<std::string, std::vector<SDL_Scancode>> action_bindings_;
   std::vector<uint8_t> curr_keyboard_state_;
   std::vector<uint8_t> prev_keyboard_state_;

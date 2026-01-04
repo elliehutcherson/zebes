@@ -5,8 +5,10 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "common/config.h"
+#include "common/imgui_wrapper.h"
 #include "common/sdl_wrapper.h"
 #include "common/status_macros.h"
+#include "engine/input_manager.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
@@ -50,6 +52,13 @@ absl::Status EditorEngine::Init() {
   ASSIGN_OR_RETURN(blueprint_manager_, BlueprintManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(blueprint_manager_->LoadAllBlueprints());
 
+  // Create ImGui Wrapper
+  imgui_wrapper_ = ImGuiWrapper::Create();
+
+  // Create Input Manager
+  ASSIGN_OR_RETURN(input_manager_, InputManager::Create({.sdl_wrapper = sdl_.get(),
+                                                         .imgui_wrapper = imgui_wrapper_.get()}));
+
   // Create API
   Api::Options api_options = {
       .config = &config_,
@@ -92,16 +101,9 @@ absl::Status EditorEngine::Run() {
 }
 
 void EditorEngine::HandleEvents(bool* done) {
-  SDL_Event event;
-  while (SDL_PollEvent(&event)) {
-    ImGui_ImplSDL2_ProcessEvent(&event);
-    if (event.type == SDL_QUIT) {
-      *done = true;
-    }
-    if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE &&
-        event.window.windowID == SDL_GetWindowID(sdl_->GetWindow())) {
-      *done = true;
-    }
+  input_manager_->Update();
+  if (input_manager_->QuitRequested()) {
+    *done = true;
   }
 }
 

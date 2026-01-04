@@ -11,6 +11,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/imgui_wrapper.h"
 #include "common/sdl_wrapper.h"
 
 namespace zebes {
@@ -21,10 +22,12 @@ absl::StatusOr<std::unique_ptr<InputManager>> InputManager::Create(Options optio
   }
   // We use 'new' and wrap it because std::make_unique cannot access
   // the private constructor.
-  return std::unique_ptr<InputManager>(new InputManager(*options.sdl_wrapper));
+  return std::unique_ptr<InputManager>(
+      new InputManager(*options.sdl_wrapper, options.imgui_wrapper));
 }
 
-InputManager::InputManager(SdlWrapper& sdl_wrapper) : sdl_wrapper_(sdl_wrapper) {
+InputManager::InputManager(SdlWrapper& sdl_wrapper, ImGuiWrapper* imgui_wrapper)
+    : sdl_wrapper_(sdl_wrapper), imgui_wrapper_(imgui_wrapper) {
   curr_keyboard_state_.resize(SDL_NUM_SCANCODES, 0);
   prev_keyboard_state_.resize(SDL_NUM_SCANCODES, 0);
 }
@@ -40,7 +43,12 @@ void InputManager::Update() {
   // 2. Poll SDL Events using the injected wrapper
   SDL_Event event;
   while (sdl_wrapper_.PollEvent(&event)) {
+    if (imgui_wrapper_) {
+      imgui_wrapper_->ProcessEvent(&event);
+    }
     if (event.type == SDL_QUIT) {
+      quit_requested_ = true;
+    } else if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
       quit_requested_ = true;
     }
     // Handle other events here

@@ -21,6 +21,8 @@ class CameraController {
 
   void Update(double delta_time);
 
+  void SetCamera(Camera& camera);
+
  private:
   CameraController(Options options);
 

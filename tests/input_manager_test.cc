@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "SDL_scancode.h"
+#include "common/mock_imgui_wrapper.h"
 #include "common/mock_sdl_wrapper.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -18,7 +19,10 @@ using ::testing::Return;
 
 class InputManagerTest : public ::testing::Test {
  protected:
-  void SetUp() override { mock_sdl_ = std::make_unique<MockSdlWrapper>(); }
+  void SetUp() override {
+    mock_sdl_ = std::make_unique<MockSdlWrapper>();
+    mock_imgui_ = std::make_unique<MockImGuiWrapper>();
+  }
 
   void CreateManager() {
     InputManager::Options options;
@@ -29,6 +33,7 @@ class InputManagerTest : public ::testing::Test {
   }
 
   std::unique_ptr<MockSdlWrapper> mock_sdl_;
+  std::unique_ptr<MockImGuiWrapper> mock_imgui_;
   std::unique_ptr<InputManager> input_manager_;
 };
 
@@ -113,6 +118,56 @@ TEST_F(InputManagerTest, ActionJustPressedLogic) {
   input_manager_->Update();
   EXPECT_FALSE(input_manager_->IsActionActive("fire"));
   EXPECT_FALSE(input_manager_->IsActionJustPressed("fire"));
+}
+
+TEST_F(InputManagerTest, ImGuiEventProcessing) {
+  // Create manager with both mocks
+  InputManager::Options options;
+  options.sdl_wrapper = mock_sdl_.get();
+  options.imgui_wrapper = mock_imgui_.get();
+
+  auto manager_or = InputManager::Create(std::move(options));
+  ASSERT_TRUE(manager_or.ok());
+  input_manager_ = std::move(manager_or.value());
+
+  std::vector<uint8_t> mock_state(SDL_NUM_SCANCODES, 0);
+
+  // Expect event polling and pass-through to ImGui
+  EXPECT_CALL(*mock_sdl_, PollEvent(_))
+      .WillOnce([](SDL_Event* event) {
+        event->type = SDL_MOUSEBUTTONDOWN;
+        return 1;  // Returns true (1 event)
+      })
+      .WillOnce(Return(0));  // Done
+
+  EXPECT_CALL(*mock_sdl_, GetKeyboardState(_)).WillRepeatedly(Return(mock_state.data()));
+
+  // VERIFY: ImGuiWrapper::ProcessEvent is called
+  EXPECT_CALL(*mock_imgui_, ProcessEvent(_)).Times(1);
+
+  input_manager_->Update();
+}
+
+TEST_F(InputManagerTest, WindowCloseRequest) {
+  InputManager::Options options;
+  options.sdl_wrapper = mock_sdl_.get();
+  auto manager_or = InputManager::Create(std::move(options));
+  input_manager_ = std::move(manager_or.value());
+
+  std::vector<uint8_t> mock_state(SDL_NUM_SCANCODES, 0);
+
+  EXPECT_CALL(*mock_sdl_, PollEvent(_))
+      .WillOnce([](SDL_Event* event) {
+        event->type = SDL_WINDOWEVENT;
+        event->window.event = SDL_WINDOWEVENT_CLOSE;
+        return 1;
+      })
+      .WillOnce(Return(0));
+
+  EXPECT_CALL(*mock_sdl_, GetKeyboardState(_)).WillRepeatedly(Return(mock_state.data()));
+
+  input_manager_->Update();
+  EXPECT_TRUE(input_manager_->QuitRequested());
 }
 
 }  // namespace
