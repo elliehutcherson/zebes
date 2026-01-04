@@ -39,6 +39,13 @@ class MockApi : public Api {
   MOCK_METHOD(absl::Status, DeleteBlueprint, (const std::string&), (override));
   MOCK_METHOD(std::vector<Blueprint>, GetAllBlueprints, (), (override));
   MOCK_METHOD(absl::StatusOr<Blueprint*>, GetBlueprint, (const std::string&), (override));
+
+  // Levels
+  MOCK_METHOD(absl::StatusOr<std::string>, CreateLevel, (Level), (override));
+  MOCK_METHOD(absl::Status, UpdateLevel, (Level), (override));
+  MOCK_METHOD(absl::Status, DeleteLevel, (const std::string&), (override));
+  MOCK_METHOD(std::vector<Level>, GetAllLevels, (), (override));
+  MOCK_METHOD(absl::StatusOr<Level*>, GetLevel, (const std::string&), (override));
 };
 
 }  // namespace zebes

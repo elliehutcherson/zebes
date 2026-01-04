@@ -53,4 +53,14 @@ add_executable(camera_controller_test engine/camera_controller_test.cc)
 target_link_libraries(camera_controller_test camera_controller sdl_wrapper macros gtest_main gmock)
 gtest_discover_tests(camera_controller_test)
 
+# --- Level Manager ---
+add_executable(level_manager_test level_manager_test.cc)
+target_link_libraries(level_manager_test level_manager macros gtest_main gmock)
+gtest_discover_tests(level_manager_test)
+
+# --- Level Object ---
+add_executable(level_test level_test.cc)
+target_link_libraries(level_test level macros gtest_main)
+gtest_discover_tests(level_test)
+
 add_subdirectory(editor)

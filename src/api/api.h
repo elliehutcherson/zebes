@@ -7,6 +7,7 @@
 #include "objects/texture.h"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
+#include "resources/level_manager.h"
 #include "resources/sprite_manager.h"
 #include "resources/texture_manager.h"
 
@@ -20,6 +21,7 @@ class Api {
     SpriteManager* sprite_manager;
     ColliderManager* collider_manager;
     BlueprintManager* blueprint_manager;
+    LevelManager* level_manager;
   };
 
   static absl::StatusOr<std::unique_ptr<Api>> Create(const Options& options);
@@ -57,6 +59,12 @@ class Api {
   virtual std::vector<Blueprint> GetAllBlueprints();
   virtual absl::StatusOr<Blueprint*> GetBlueprint(const std::string& blueprint_id);
 
+  virtual absl::StatusOr<std::string> CreateLevel(Level level);
+  virtual absl::Status UpdateLevel(Level level);
+  virtual absl::Status DeleteLevel(const std::string& level_id);
+  virtual std::vector<Level> GetAllLevels();
+  virtual absl::StatusOr<Level*> GetLevel(const std::string& level_id);
+
  protected:
   // Allow default construction for mocks
   Api()
@@ -64,7 +72,8 @@ class Api {
         texture_manager_(nullptr),
         sprite_manager_(nullptr),
         collider_manager_(nullptr),
-        blueprint_manager_(nullptr) {}
+        blueprint_manager_(nullptr),
+        level_manager_(nullptr) {}
 
  private:
   const GameConfig& config_;
@@ -72,6 +81,7 @@ class Api {
   SpriteManager* sprite_manager_;
   ColliderManager* collider_manager_;
   BlueprintManager* blueprint_manager_;
+  LevelManager* level_manager_;
 };
 
 }  // namespace zebes

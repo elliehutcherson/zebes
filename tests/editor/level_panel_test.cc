@@ -1,4 +1,4 @@
-#include "editor/level_editor/level_editor.h"
+#include "editor/level_editor/level_panel.h"
 
 #include <memory>
 
@@ -14,48 +14,44 @@ namespace {
 using ::testing::NiceMock;
 
 std::unique_ptr<MockApi> g_api;
-std::unique_ptr<LevelEditor> g_level_editor;
+std::unique_ptr<LevelPanel> g_level_panel;
 
 void AppSetup() {
   g_api = std::make_unique<NiceMock<MockApi>>();
-  auto result = LevelEditor::Create(g_api.get());
+  auto result = LevelPanel::Create(g_api.get());
   if (!result.ok()) {
     abort();
   }
-  g_level_editor = std::move(result.value());
+  g_level_panel = std::move(result.value());
 }
 
 void AppShutdown() {
-  g_level_editor.reset();
+  g_level_panel.reset();
   g_api.reset();
 }
 
 void AppDraw() {
-  if (g_level_editor) {
+  if (g_level_panel) {
     ImGui::SetNextWindowSize(ImVec2(1024, 768), ImGuiCond_Appearing);
     ImGui::Begin("Test Window", nullptr, ImGuiWindowFlags_None);
-    g_level_editor->Render();
+    g_level_panel->Render();
     ImGui::End();
   }
 }
 
 // Register ImGui Test Engine tests.
 void RegisterTests(ImGuiTestEngine* engine) {
-  IM_REGISTER_TEST(engine, "level_editor", "basic_render")->TestFunc = [](ImGuiTestContext* ctx) {
+  IM_REGISTER_TEST(engine, "level_panel", "basic_render")->TestFunc = [](ImGuiTestContext* ctx) {
     ctx->SetRef("Test Window");
 
-    // Verify LevelViewport window exists
-    bool viewport_found = false;
-    for (int i = 0; i < ctx->UiContext->Windows.Size; ++i) {
-      if (strstr(ctx->UiContext->Windows[i]->Name, "LevelViewport") != nullptr) {
-        viewport_found = true;
-        break;
-      }
-    }
-    IM_CHECK(viewport_found);
+    // Verify Create button exists (nested under LevelPanel ID)
+    IM_CHECK(ctx->ItemExists("**/Create"));
 
-    // Verify Add Level button exists
-    IM_CHECK(ctx->ItemExists("**/Add Level"));
+    // Verify Attach button exists
+    IM_CHECK(ctx->ItemExists("**/Attach"));
+
+    // Verify Delete button exists
+    IM_CHECK(ctx->ItemExists("**/Delete"));
   };
 }
 

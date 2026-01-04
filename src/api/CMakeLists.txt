@@ -14,4 +14,5 @@ target_link_libraries(api
   texture_manager
   collider_manager
   blueprint_manager
+  level_manager
 )

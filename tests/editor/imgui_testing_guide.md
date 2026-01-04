@@ -80,3 +80,17 @@ If a test fails or can't find an item:
 *   **Missing Resources**: Tests often run without real assets (textures, fonts). Ensure your UI code handles null pointers (e.g. missing `SDL_Texture*`) gracefully. If a widget depends on a texture to render itself, consider adding a fallback visualization (e.g. a placeholder rectangle) so that the widget is still interactable and testable.
 *   **Fail Fast**: Use `LOG(FATAL)` or `CHECK` macros for invariants that should never be violated (like null pointers for required resources). This makes bugs easier to catch than silent returns.
 
+## 7. Finding Child Windows
+Child windows created with `ImGui::BeginChild` are technically windows, not simple items. `ctx->ItemExists("**/ChildWindowName")` often fails to find them because they are not strictly items in the current window scope. The most robust way to verify their existence is to iterate through `ctx->UiContext->Windows` and check for a substring match in the window name, as shown in Section 2.
+
+
+## 8. Dealing with ID Scopes (`PushID`)
+
+If your component uses `ImGui::PushID("SomeScope")`, all items within that scope will have modified IDs (e.g. `Window/SomeScope/Button`).
+*   **Exact Path**: You can use the full ID path if known: `ctx->ItemExists("WindowName/ScopeName/ButtonID")`.
+*   **Wildcards**: Use `**/` to match items regardless of their nesting depth: `ctx->ItemExists("**/ButtonID")`. This is often more robust against layout refactoring.
+
+## 9. Verifying Text
+`ctx->ItemExists("Some Text")` will **fail** for `ImGui::Text("Some Text")` because plain text does not have an ID.
+*   **Static Text**: It is hard to verify plain text existance with standard `ItemExists`.
+*   **Buttons/Selectables**: These have IDs derived from their label. You can check for their existence: `ctx->ItemExists("My Button")`.

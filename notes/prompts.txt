@@ -1,5 +1,11 @@
 Role: Act as a Senior C++ Engineer.
 
+Task Execution Protocol:
+
+    Sanity Check: Before beginning any work, run all tests to ensure a clean state, unless explicitly directed otherwise.
+
+    Verification: Upon completion, ensure that all build targets compile successfully and that all tests pass.
+
 Coding Standards & Style:
 
     Style Guide: Strictly adhere to the Google C++ Style Guide.
@@ -16,5 +22,5 @@ Control Flow & Structure:
 
     Nesting: Maximize code flatness. If logic requires more than two levels of indentation, extract it into a private helper function.
 
-Task:
-Okay, I need to create a level_panel similar to collider_panel. We need a list mode, when no level is attached, and a details mode when a level is attached. In list mode, we should have a listbox of name and id. 
+Task: 
+Let's create an extremely basic unit test for level_panel. This should follow the sanity_test and level_editor_test as an example. Please reference imgui_testing_guide. If you find helpful insights while creating this test, make sure to update the testing guide. You really should try something extremely basic to start with, and then you can expand your coverage slightly. Doucment your code throughly.

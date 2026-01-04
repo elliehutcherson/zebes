@@ -13,6 +13,7 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
 #include "resources/blueprint_manager.h"
+#include "resources/level_manager.h"
 #include "resources/texture_manager.h"
 
 namespace zebes {
@@ -52,6 +53,13 @@ absl::Status EditorEngine::Init() {
   ASSIGN_OR_RETURN(blueprint_manager_, BlueprintManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(blueprint_manager_->LoadAllBlueprints());
 
+  // Create Level Manager
+  ASSIGN_OR_RETURN(
+      level_manager_,
+      LevelManager::Create(sprite_manager_.get(), collider_manager_.get(), config_.paths.assets()));
+
+  RETURN_IF_ERROR(level_manager_->LoadAllLevels());
+
   // Create ImGui Wrapper
   imgui_wrapper_ = ImGuiWrapper::Create();
 
@@ -66,6 +74,7 @@ absl::Status EditorEngine::Init() {
       .sprite_manager = sprite_manager_.get(),
       .collider_manager = collider_manager_.get(),
       .blueprint_manager = blueprint_manager_.get(),
+      .level_manager = level_manager_.get(),
   };
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
@@ -138,6 +147,7 @@ void EditorEngine::Shutdown() {
   sprite_manager_.reset();
   texture_manager_.reset();
   collider_manager_.reset();
+  level_manager_.reset();
 
   sdl_.reset();  // Unique ptr will destroy Wrapper which destroys window/renderer
 

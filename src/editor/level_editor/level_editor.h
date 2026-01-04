@@ -16,7 +16,7 @@ class LevelEditor {
   // Returns an error if the API pointer is null.
   static absl::StatusOr<std::unique_ptr<LevelEditor>> Create(Api* api);
 
-  ~LevelEditor();
+  ~LevelEditor() = default;
 
   // Renders the main Level Editor UI.
   // This uses a 3-column layout:

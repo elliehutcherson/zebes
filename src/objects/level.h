@@ -1,8 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
+#include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/strings/str_cat.h"
+#include "objects/camera.h"
 #include "objects/entity.h"
 
 namespace zebes {
@@ -23,21 +27,49 @@ struct ParallaxLayer {
 struct Level {
   std::string id;
   std::string name;
-  // 1. TILE DATA (The World)
+  // Not part of the definition, but a runtime component.
+  Camera camera;
+  // TILE DATA (The World)
   // Stored in chunks for memory efficiency
   absl::flat_hash_map<int64_t, TileChunk> tile_chunks;
 
-  // 2. ENTITY DATA (The Population)
+  // ENTITY DATA (The Population)
   // The Level OWNS the entities. using unique_ptr ensures auto-cleanup.
   std::vector<std::unique_ptr<Entity>> entities;
 
-  // 3. SPATIAL LOOKUP (Optimization)
+  // SPATIAL LOOKUP (Optimization)
   // A separate map to find entities by ID without looping through the vector
   std::unordered_map<uint64_t, Entity*> entity_lookup;
 
-  // 4. ENVIRONMENT
+  // ENVIRONMENT
   // Parallax layers, background color, music track ID, etc.
   std::vector<ParallaxLayer> parallax_layers;
+
+  std::string id_name() const { return absl::StrCat(id, "-", name); }
+
+  // Returns a deep copy of the level.
+  // Entities are cloned (deep copied), other data is copied by value.
+  Level GetCopy() const {
+    Level copy = {
+        .id = id,
+        .name = name,
+        .camera = camera,
+        .tile_chunks = tile_chunks,
+        .parallax_layers = parallax_layers,
+    };
+
+    // Reserve entity space
+    copy.entities.reserve(entities.size());
+
+    // Deep copy entities
+    for (const std::unique_ptr<Entity>& entity : entities) {
+      if (!entity) continue;
+
+      copy.AddEntity(std::make_unique<Entity>(*entity));
+    }
+
+    return copy;
+  }
 
   // Helper to spawn entities
   void AddEntity(std::unique_ptr<Entity> e) {

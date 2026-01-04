@@ -14,8 +14,6 @@ absl::StatusOr<std::unique_ptr<LevelEditor>> LevelEditor::Create(Api* api) {
 
 LevelEditor::LevelEditor(Api* api) : api_(api) {}
 
-LevelEditor::~LevelEditor() {}
-
 void LevelEditor::Render() {
   // Use a table with 3 columns for the layout: Left (List), Center (Viewport), Right (Details).
   // Stretch sizing allows the viewport to take the majority of the available space.

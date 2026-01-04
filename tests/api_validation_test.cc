@@ -3,6 +3,7 @@
 #include "collider_manager_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "level_manager_mock.h"
 #include "macros.h"
 #include "sprite_manager_mock.h"
 #include "texture_manager_mock.h"
@@ -22,6 +23,7 @@ class ApiValidationTest : public ::testing::Test {
         .sprite_manager = &sprite_manager_,
         .collider_manager = &collider_manager_,
         .blueprint_manager = &blueprint_manager_,
+        .level_manager = &level_manager_,
     };
 
     ASSERT_OK_AND_ASSIGN(api_, Api::Create(options));
@@ -32,6 +34,7 @@ class ApiValidationTest : public ::testing::Test {
   SpriteManagerMock sprite_manager_;
   ColliderManagerMock collider_manager_;
   BlueprintManagerMock blueprint_manager_;
+  LevelManagerMock level_manager_;
   std::unique_ptr<Api> api_;
 };
 

@@ -119,7 +119,7 @@ struct CollisionConfig {
 struct PathConfig {
   std::string relative_assets = kZebesAssetsPath;
 
-  explicit PathConfig(absl::string_view execute_path) : execute_(execute_path){};
+  explicit PathConfig(absl::string_view execute_path) : execute_(execute_path) {};
   std::string execute() const { return execute_; }
   std::string config() const { return absl::StrFormat("%s/%s", execute_, kZebesConfigPath); }
   std::string assets() const { return absl::StrFormat("%s/%s", execute_, relative_assets); }

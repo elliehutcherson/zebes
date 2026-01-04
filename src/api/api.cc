@@ -21,8 +21,8 @@ absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
   if (options.collider_manager == nullptr) {
     return absl::InvalidArgumentError("ColliderManager is null.");
   }
-  if (options.blueprint_manager == nullptr) {
-    return absl::InvalidArgumentError("BlueprintManager is null.");
+  if (options.level_manager == nullptr) {
+    return absl::InvalidArgumentError("LevelManager is null.");
   }
   return std::unique_ptr<Api>(new Api(options));
 }
@@ -32,7 +32,8 @@ Api::Api(const Options& options)
       texture_manager_(options.texture_manager),
       sprite_manager_(options.sprite_manager),
       collider_manager_(options.collider_manager),
-      blueprint_manager_(options.blueprint_manager) {}
+      blueprint_manager_(options.blueprint_manager),
+      level_manager_(options.level_manager) {}
 
 absl::Status Api::SaveConfig(const GameConfig& config) {
   LOG(INFO) << "SaveConfig in the api....";
@@ -119,6 +120,22 @@ std::vector<Blueprint> Api::GetAllBlueprints() { return blueprint_manager_->GetA
 
 absl::StatusOr<Blueprint*> Api::GetBlueprint(const std::string& blueprint_id) {
   return blueprint_manager_->GetBlueprint(blueprint_id);
+}
+
+absl::StatusOr<std::string> Api::CreateLevel(Level level) {
+  return level_manager_->CreateLevel(std::move(level));
+}
+
+absl::Status Api::UpdateLevel(Level level) { return level_manager_->SaveLevel(std::move(level)); }
+
+absl::Status Api::DeleteLevel(const std::string& level_id) {
+  return level_manager_->DeleteLevel(level_id);
+}
+
+std::vector<Level> Api::GetAllLevels() { return level_manager_->GetAllLevels(); }
+
+absl::StatusOr<Level*> Api::GetLevel(const std::string& level_id) {
+  return level_manager_->GetLevel(level_id);
 }
 
 }  // namespace zebes

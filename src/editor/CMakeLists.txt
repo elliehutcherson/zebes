@@ -56,6 +56,7 @@ target_link_libraries(editor_sprite
 )
 
 
+
 # Config Editor
 add_library(editor_config config_editor.cc)
 target_link_libraries(editor_config
@@ -64,6 +65,10 @@ target_link_libraries(editor_config
   absl::status
 )
 
+# Level Editor
+add_subdirectory(level_editor)
+
+
 # Editor UI
 add_library(editor_ui editor_ui.cc)
 target_link_libraries(editor_ui
@@ -71,6 +76,7 @@ target_link_libraries(editor_ui
   editor_config
   editor_sprite
   editor_texture
+  level_editor
   api
   sdl_wrapper
   absl::memory
@@ -87,6 +93,7 @@ target_link_libraries(editor_engine
   texture_manager
   sprite_manager
   collider_manager
+  level_manager
   sdl_wrapper
   imgui_wrapper
   input_manager
