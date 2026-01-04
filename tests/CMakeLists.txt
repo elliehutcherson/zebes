@@ -44,4 +44,13 @@ target_link_libraries(api_validation_test
 )
 gtest_discover_tests(api_validation_test) # <--- REGISTERS THE TEST
 
+add_executable(input_manager_test input_manager_test.cc)
+target_link_libraries(input_manager_test input_manager sdl_wrapper macros gtest_main gmock)
+gtest_discover_tests(input_manager_test)
+
+# --- Camera Controller ---
+add_executable(camera_controller_test engine/camera_controller_test.cc)
+target_link_libraries(camera_controller_test camera_controller sdl_wrapper macros gtest_main gmock)
+gtest_discover_tests(camera_controller_test)
+
 add_subdirectory(editor)

@@ -20,6 +20,10 @@ class SdlWrapper {
   absl::Status SetWindowResizable(bool resizable);
   absl::Status SetWindowTitle(const std::string& title);
 
+  // Input & Events
+  virtual int PollEvent(SDL_Event* event);
+  virtual const uint8_t* GetKeyboardState(int* numkeys);
+
   // Texture Management
   virtual absl::StatusOr<SDL_Texture*> CreateTexture(const std::string& path);
   virtual void DestroyTexture(SDL_Texture* texture);

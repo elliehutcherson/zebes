@@ -21,6 +21,8 @@ struct ParallaxLayer {
 };
 
 struct Level {
+  std::string id;
+  std::string name;
   // 1. TILE DATA (The World)
   // Stored in chunks for memory efficiency
   absl::flat_hash_map<int64_t, TileChunk> tile_chunks;

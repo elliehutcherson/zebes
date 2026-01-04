@@ -90,4 +90,8 @@ absl::Status SdlWrapper::SetWindowTitle(const std::string& title) {
   return absl::OkStatus();
 }
 
+int SdlWrapper::PollEvent(SDL_Event* event) { return SDL_PollEvent(event); }
+
+const uint8_t* SdlWrapper::GetKeyboardState(int* numkeys) { return SDL_GetKeyboardState(numkeys); }
+
 }  // namespace zebes

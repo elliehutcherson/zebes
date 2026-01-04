@@ -17,10 +17,4 @@ Control Flow & Structure:
     Nesting: Maximize code flatness. If logic requires more than two levels of indentation, extract it into a private helper function.
 
 Task:
-I have simplified the sprite panel greatly. I need you to create a unit test for the following flows:
-attach without valid id returns error
-attach with valid id returns success
-attach and render causes renderdetails
-attach -> render -> detach 
-
-You should probably not rely on logs, but potentially expose counters if you want to check that something actually happened. 
+Okay, I need to create a level_panel similar to collider_panel. We need a list mode, when no level is attached, and a details mode when a level is attached. In list mode, we should have a listbox of name and id. 
