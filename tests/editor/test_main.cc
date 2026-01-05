@@ -49,7 +49,7 @@ int RunTestApp(int argc, char** argv, TestRegistrationCallback register_tests,
   ImGuiTestEngineIO& test_io = ImGuiTestEngine_GetIO(engine);
   // TODO: Make these configurable?
   test_io.ConfigVerboseLevel = ImGuiTestVerboseLevel_Info;
-  test_io.ConfigVerboseLevelOnError = ImGuiTestVerboseLevel_Debug;
+  test_io.ConfigVerboseLevelOnError = ImGuiTestVerboseLevel_Info;
   test_io.ConfigRunSpeed = ImGuiTestRunSpeed_Fast;
   test_io.ScreenCaptureFunc = NULL;
   test_io.ScreenCaptureUserData = NULL;

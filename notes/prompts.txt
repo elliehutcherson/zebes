@@ -28,4 +28,4 @@ Building:
   
 
 Task: 
-I've made a mistake. I want all objects that have an id and name fields to have a name_id() function that uses absl::StrCat to return name, ",", id. Can you update all uses of id_name? 
+We should add a back button to the level panel. This should only be rendered on details. When back is called, we should call detach and emit a detach event. We should write a test case for this behavior. When you write this test case, be really careful. Instead of relying on viewing elements within the ui, I would probably try and look at counters. Make sure to read the imgui_testing_guide. If you run into issues, you should document your findings in the guide. Make incremental changes in your test, because these are really difficult.

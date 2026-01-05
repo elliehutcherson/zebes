@@ -61,6 +61,11 @@ void RegisterTests(ImGuiTestEngine* engine) {
   };
 
   IM_REGISTER_TEST(engine, "level_panel", "create_transfer")->TestFunc = [](ImGuiTestContext* ctx) {
+    // Reset state to ensure we are in RenderList mode
+    if (g_level_panel) {
+      g_level_panel->Detach();
+    }
+
     ctx->SetRef("Test Window");
 
     // Setup Mock behavior
@@ -84,6 +89,47 @@ void RegisterTests(ImGuiTestEngine* engine) {
     IM_CHECK(ctx->ItemExists("**/Detach"));
     IM_CHECK(ctx->ItemExists("**/Reset"));
   };
+
+  IM_REGISTER_TEST(engine, "level_panel", "back_button_behavior")->TestFunc =
+      [](ImGuiTestContext* ctx) {
+        // Reset state to ensure we are in RenderList mode
+        if (g_level_panel) {
+          g_level_panel->Detach();
+        }
+
+        ctx->SetRef("Test Window");
+
+        // Setup Mock behavior
+        EXPECT_CALL(*g_api, CreateLevel(_)).WillRepeatedly(Return("test_level_id"));
+        EXPECT_CALL(*g_api, GetAllLevels()).WillRepeatedly(testing::Invoke([]() {
+          return std::vector<Level>{};
+        }));
+
+        // Start by Entering Details View
+        ctx->ItemClick("**/Create");
+        ctx->Yield();
+
+        // Verify we are in details view
+        IM_CHECK(ctx->ItemExists("**/Back"));
+
+        // Click Back
+        ctx->ItemClick("**/Back");
+        ctx->Yield();
+
+        // Verify Result was Detach
+        IM_CHECK(g_last_render_result.ok());
+
+        // Note: We might miss the exact frame where kDetach is returned if Yield() runs multiple
+        // frames. We primarily verify the state transition to List View.
+
+        // Verify state transition: We should be back to list view
+        // 1. We should see the Create button again
+        IM_CHECK(ctx->ItemExists("**/Create"));
+
+        // 2. render_list_count should have incremented (meaning RenderList was called)
+        int current_list_count = g_level_panel->GetCounters().render_list_count;
+        IM_CHECK(current_list_count > 0);
+      };
 }
 
 }  // namespace

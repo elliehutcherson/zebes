@@ -85,19 +85,18 @@ bool EditorUi::RenderTab(const char* name, std::function<absl::Status()> render_
   auto table_end = absl::MakeCleanup([&] { ImGui::EndTabItem(); });
 
   absl::Status status = render_fn();
+  if (status.ok()) return true;
+
+  LOG(ERROR) << name << " Render error: " << status;
+
+  // Attempt to recover
+  status = Init();
   if (!status.ok()) {
-    LOG(ERROR) << name << " Render error: " << status;
-
-    // Attempt to recover
-    status = Init();
-    if (!status.ok()) {
-      LOG(FATAL) << "UNABLE TO RECOVER FROM " << name << " ERROR: " << status;
-    }
-
-    // TELL IMGUI THE FRAME IS OVER, BUT DO NOT RENDER IT
-    ImGui::EndFrame();
+    LOG(FATAL) << "UNABLE TO RECOVER FROM " << name << " ERROR: " << status;
   }
-  ImGui::EndTabItem();
+
+  // TELL IMGUI THE FRAME IS OVER, BUT DO NOT RENDER IT
+  ImGui::EndFrame();
   return true;
 }
 

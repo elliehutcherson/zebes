@@ -119,6 +119,14 @@ absl::StatusOr<LevelResult> LevelPanel::RenderDetails() {
   counters_.render_details_count++;
   LevelResult result;
 
+  // Back Button
+  if (ImGui::Button("Back")) {
+    Detach();
+    result = {LevelResult::Type::kDetach};
+    return result;
+  }
+  ImGui::SameLine();
+
   // Header information
   ImGui::Text("ID: %s", editting_level_->id.c_str());
   ImGui::InputText("Name", &editting_level_->name);
