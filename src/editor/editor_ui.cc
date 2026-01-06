@@ -6,10 +6,10 @@
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
 #include "common/status_macros.h"
-#include "editor/config_editor.h"
+#include "editor/config_editor/config_editor.h"
 #include "editor/level_editor/level_editor.h"
-#include "editor/sprite_editor.h"
-#include "editor/texture_editor.h"
+#include "editor/sprite_editor/sprite_editor.h"
+#include "editor/texture_editor/texture_editor.h"
 #include "imgui.h"
 
 namespace zebes {

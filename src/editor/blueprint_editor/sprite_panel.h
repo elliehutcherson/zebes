@@ -7,7 +7,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
-#include "editor/canvas_sprite.h"
+#include "editor/canvas/canvas_sprite.h"
 #include "imgui.h"
 #include "objects/sprite.h"
 

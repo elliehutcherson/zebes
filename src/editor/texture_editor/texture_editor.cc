@@ -1,4 +1,4 @@
-#include "editor/texture_editor.h"
+#include "editor/texture_editor/texture_editor.h"
 
 #include "ImGuiFileDialog.h"
 #include "SDL_render.h"

@@ -28,4 +28,4 @@ Building:
   
 
 Task: 
-Need to upate name_id to have a hyphen instead of a comma.
+Can we update the editor folder? Let's move all of the tab specific things into their respective folders. That means config_editor stuff goes into a config_editor folder. blueprint folder should be renamed to blueprint_editor. We should have  a canvas folder for all of the canvas objects.

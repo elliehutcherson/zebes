@@ -1,4 +1,4 @@
-#include "editor/config_editor.h"
+#include "editor/config_editor/config_editor.h"
 
 #include "SDL_render.h"
 #include "absl/cleanup/cleanup.h"

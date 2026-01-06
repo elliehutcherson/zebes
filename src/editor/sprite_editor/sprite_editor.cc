@@ -1,4 +1,4 @@
-#include "editor/sprite_editor.h"
+#include "editor/sprite_editor/sprite_editor.h"
 
 #include "SDL_render.h"
 #include "absl/log/log.h"

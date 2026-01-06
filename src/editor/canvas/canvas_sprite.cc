@@ -1,4 +1,4 @@
-#include "editor/canvas_sprite.h"
+#include "editor/canvas/canvas_sprite.h"
 
 #include <cmath>
 

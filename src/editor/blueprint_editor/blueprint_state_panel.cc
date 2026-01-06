@@ -1,4 +1,4 @@
-#include "editor/blueprint/blueprint_state_panel.h"
+#include "editor/blueprint_editor/blueprint_state_panel.h"
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"

@@ -1,4 +1,4 @@
-#include "editor/canvas_collider.h"
+#include "editor/canvas/canvas_collider.h"
 
 namespace zebes {
 

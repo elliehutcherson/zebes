@@ -5,11 +5,11 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/animator.h"
-#include "editor/blueprint/blueprint_panel.h"
-#include "editor/blueprint/blueprint_state_panel.h"
-#include "editor/blueprint/collider_panel.h"
-#include "editor/blueprint/sprite_panel.h"
-#include "editor/canvas.h"
+#include "editor/blueprint_editor/blueprint_panel.h"
+#include "editor/blueprint_editor/blueprint_state_panel.h"
+#include "editor/blueprint_editor/collider_panel.h"
+#include "editor/blueprint_editor/sprite_panel.h"
+#include "editor/canvas/canvas.h"
 
 namespace zebes {
 

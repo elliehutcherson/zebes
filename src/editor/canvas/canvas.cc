@@ -1,4 +1,4 @@
-#include "editor/canvas.h"
+#include "editor/canvas/canvas.h"
 
 #include <cmath>
 #include <cstdio>

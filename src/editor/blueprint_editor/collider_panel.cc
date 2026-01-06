@@ -1,4 +1,4 @@
-#include "editor/blueprint/collider_panel.h"
+#include "editor/blueprint_editor/collider_panel.h"
 
 #include <memory>
 
@@ -7,7 +7,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
-#include "editor/canvas_collider.h"
+#include "editor/canvas/canvas_collider.h"
 #include "editor/editor_utils.h"
 #include "imgui.h"
 #include "misc/cpp/imgui_stdlib.h"

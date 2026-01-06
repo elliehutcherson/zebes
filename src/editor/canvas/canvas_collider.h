@@ -1,7 +1,7 @@
 #pragma once
 
 #include "absl/status/statusor.h"
-#include "editor/canvas.h"
+#include "editor/canvas/canvas.h"
 #include "objects/collider.h"
 
 namespace zebes {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "editor/animator.h"
-#include "editor/canvas.h"
+#include "editor/canvas/canvas.h"
 #include "objects/sprite.h"
 
 namespace zebes {

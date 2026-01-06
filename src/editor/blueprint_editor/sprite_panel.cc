@@ -1,4 +1,4 @@
-#include "editor/blueprint/sprite_panel.h"
+#include "editor/blueprint_editor/sprite_panel.h"
 
 #include <algorithm>
 

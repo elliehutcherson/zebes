@@ -16,8 +16,8 @@ target_link_libraries(editor_animator
 
 # Canvas Elements
 add_library(canvas_elements
-  canvas_collider.cc
-  canvas_sprite.cc
+  canvas/canvas_collider.cc
+  canvas/canvas_sprite.cc
 )
 target_link_libraries(canvas_elements
   editor_utils
@@ -28,14 +28,14 @@ target_link_libraries(canvas_elements
 )
 
 # Canvas
-add_library(editor_canvas canvas.cc)
+add_library(editor_canvas canvas/canvas.cc)
 target_link_libraries(editor_canvas
   canvas_elements
   ${IMGUI_LIBRARIES}
 )
 
 # Texture Editor
-add_library(editor_texture texture_editor.cc)
+add_library(editor_texture texture_editor/texture_editor.cc)
 target_link_libraries(editor_texture
   api
   ${IMGUI_LIBRARIES}
@@ -44,10 +44,10 @@ target_link_libraries(editor_texture
 )
 
 # Blueprint Components
-add_subdirectory(blueprint)
+add_subdirectory(blueprint_editor)
 
 # Sprite Editor
-add_library(editor_sprite sprite_editor.cc)
+add_library(editor_sprite sprite_editor/sprite_editor.cc)
 target_link_libraries(editor_sprite
   sprite_panel
   api
@@ -58,7 +58,7 @@ target_link_libraries(editor_sprite
 
 
 # Config Editor
-add_library(editor_config config_editor.cc)
+add_library(editor_config config_editor/config_editor.cc)
 target_link_libraries(editor_config
   api
   ${IMGUI_LIBRARIES}

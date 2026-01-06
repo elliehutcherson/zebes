@@ -1,4 +1,4 @@
-#include "editor/blueprint/blueprint_editor.h"
+#include "editor/blueprint_editor/blueprint_editor.h"
 
 #include <memory>
 
@@ -6,10 +6,10 @@
 #include "absl/status/status.h"
 #include "common/status_macros.h"
 #include "editor/animator.h"
-#include "editor/blueprint/blueprint_panel.h"
-#include "editor/blueprint/collider_panel.h"
-#include "editor/blueprint/sprite_panel.h"
-#include "editor/canvas.h"
+#include "editor/blueprint_editor/blueprint_panel.h"
+#include "editor/blueprint_editor/collider_panel.h"
+#include "editor/blueprint_editor/sprite_panel.h"
+#include "editor/canvas/canvas.h"
 #include "imgui.h"
 
 namespace zebes {

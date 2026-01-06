@@ -2,7 +2,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
-#include "editor/canvas_collider.h"
+#include "editor/canvas/canvas_collider.h"
 #include "objects/collider.h"
 
 namespace zebes {
