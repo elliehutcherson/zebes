@@ -25,6 +25,8 @@ cmake --build "${BUILD_DIR}" -j$(nproc)
 # --output-on-failure helps you immediately see why a test failed.
 echo "[3/3] Running Tests..."
 ctest --test-dir "${BUILD_DIR}" --output-on-failure
+echo "Running build_cleaner integration test..."
+python3 tests/build_cleaner_test.py
 
 echo "=========================================="
 echo "  SUCCESS: All targets built & tests passed."

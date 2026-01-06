@@ -1,4 +1,3 @@
-
 import argparse
 import subprocess
 import sys
@@ -6,6 +5,7 @@ import re
 import os
 import shutil
 from pathlib import Path
+import concurrent.futures
 
 # ANSI color codes
 GREEN = '\033[92m'
@@ -134,7 +134,8 @@ def verify_and_apply_fixes(file_path, unused_lines, build_dir, dry_run=False):
         content = lines[idx]
         if "#include" not in content:
             continue
-        if re.search(r'//|/\*', content):
+        # Check if the line is already commented out
+        if re.match(r'^\s*(//|/\*)', content):
             log_info(f"Skipping line {line_num} (commented): {content.strip()}")
             continue
         candidates.append((line_num, idx, content))
@@ -147,9 +148,40 @@ def verify_and_apply_fixes(file_path, unused_lines, build_dir, dry_run=False):
             print(f"{YELLOW}[Dry Run] Would check removal of: {c[2].strip()} (Line {c[0]}){RESET}")
         return len(candidates)
 
-    log_info(f"Verifying {len(candidates)} candidates only for {file_path}...")
+    log_info(f"Verifying {len(candidates)} candidates for {file_path}...")
+    
+    # Attempt batch removal first
+    if len(candidates) > 1:
+        print(f"Attempting file-batch removal of {len(candidates)} includes... ", end='', flush=True)
+        # Apply all removals
+        for line_num, idx, content in candidates:
+             lines[idx] = "// " + content
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.writelines(lines)
+            
+        if run_build(build_dir):
+            print(f"{GREEN}File-batch removal PASS.{RESET}")
+            # All good, mark all for deletion
+            for line_num, idx, content in candidates:
+                lines[idx] = ""
+            confirmed_removals = len(candidates)
+            # Finish up
+            final_output = [l for l in lines if l != ""]
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.writelines(final_output)
+            except Exception as e:
+                log_error(f"Failed to write final changes to {file_path}: {e}")
+            return confirmed_removals
+        else:
+            print(f"{RED}File-batch removal FAIL. Fallback to sequential.{RESET}")
+            # Revert to clean state
+            lines = list(original_lines)
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
 
-    # We process one by one to correct build failures.
+    # We process one by one to correct build failures if batch failed or only 1 candidate.
     # Optimization: One by one is safe.
     
     for line_num, idx, content in candidates:
@@ -195,14 +227,89 @@ def verify_and_apply_fixes(file_path, unused_lines, build_dir, dry_run=False):
 
     return confirmed_removals
 
-def process_file(file_path, clang_tidy_cmd, build_dir, extra_args, dry_run=False, verbose=False):
+def scan_file(file_path, clang_tidy_cmd, build_dir, extra_args, verbose):
     log_info(f"Scanning {file_path}...")
     output = run_clang_tidy_check(file_path, clang_tidy_cmd, build_dir, extra_args)
     if verbose:
         print(output)
-        
     unused_lines = parse_unused_includes(output)
-    return verify_and_apply_fixes(file_path, unused_lines, build_dir, dry_run)
+    return file_path, unused_lines
+
+def apply_global_batch(all_candidates, build_dir):
+    """
+    Tries to apply all fixes at once.
+    all_candidates: list of (file_path, unused_lines_list)
+    """
+    # Back up everything first? No, we rely on reversion.
+    # We need to read all files, apply comments, save.
+    
+    modified_files = {} # path -> original_lines
+    
+    log_info(f"Attempting global batch removal of unused includes from {len(all_candidates)} files...")
+    
+    try:
+        for file_path, unused_lines in all_candidates:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            modified_files[file_path] = list(lines) # Copy actual logic lines
+            
+            # Apply comments (reversed order usually safest but we have line numbers)
+            # unused_lines is sorted descending.
+            for line_num in unused_lines:
+                if line_num < 1 or line_num > len(lines): continue
+                idx = line_num - 1
+                if "#include" in lines[idx] and not re.match(r'^\s*(//|/\*)', lines[idx]):
+                    lines[idx] = "// " + lines[idx]
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
+        
+        # Build
+        if run_build(build_dir):
+            print(f"{GREEN}Global batch removal PASS.{RESET}")
+            # Apply permanent deletions
+            count = 0
+            for file_path, unused_lines in all_candidates:
+                 # Read current (commented)
+                 with open(file_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                 
+                 # Remove lines that were commented
+                 # unused_lines is sorted desc
+                 files_removed = 0
+                 for line_num in unused_lines:
+                     if line_num < 1 or line_num > len(lines): continue
+                     idx = line_num - 1
+                     if lines[idx].strip().startswith("// #include"):
+                         lines[idx] = ""
+                         files_removed += 1
+                 
+                 final_output = [l for l in lines if l != ""]
+                 with open(file_path, 'w', encoding='utf-8') as f:
+                     f.writelines(final_output)
+                 count += files_removed
+            return count
+        else:
+             print(f"{RED}Global batch removal FAIL.{RESET}")
+             return -1
+             
+    except Exception as e:
+        log_error(f"Global batch failed with exception: {e}")
+        return -1
+    finally:
+        # If we failed (returned -1 or exception), we must revert ALL files to original state
+        if 'count' not in locals(): # If we didn't succeed
+            # Revert all files
+            log_info("Reverting global batch changes...")
+            for file_path, original_lines in modified_files.items():
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.writelines(original_lines)
+                except Exception as e:
+                    log_error(f"Failed to revert {file_path}: {e}")
+            
+    return -1
 
 def main():
     parser = argparse.ArgumentParser(description='Remove unused includes using clang-tidy and build verification.')
@@ -239,21 +346,62 @@ def main():
             sys.exit(1)
         log_info("Initial build passed.")
 
-    total_removed = 0
+    # 1. Collect all files
+    files_to_scan = []
     if target_path.is_file():
-        total_removed += process_file(str(target_path), clang_tidy_cmd, args.build_dir, extra_args, args.dry_run, args.verbose)
+        files_to_scan.append(str(target_path))
     else:
         for root, dirs, files in os.walk(target_path):
+            files.sort()
             for file in files:
                 if file.endswith('.cc') or file.endswith('.cpp'):
                      if file.startswith('.'): continue
-                     file_path = os.path.join(root, file)
-                     total_removed += process_file(file_path, clang_tidy_cmd, args.build_dir, extra_args, args.dry_run, args.verbose)
+                     files_to_scan.append(os.path.join(root, file))
+
+    log_info(f"Can parallel scan {len(files_to_scan)} files.")
+
+    # 2. Parallel Scan
+    results = [] # list of (file, unused_lines)
+    # Using ProcessPoolExecutor for parallel processing
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        # Submit all tasks
+        futures = {executor.submit(scan_file, f, clang_tidy_cmd, args.build_dir, extra_args, args.verbose): f for f in files_to_scan}
+        
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                f_path, unused = future.result()
+                if unused:
+                     results.append((f_path, unused))
+            except Exception as e:
+                log_error(f"Scanning failed for {futures[future]}: {e}")
+
+    total_candidates = sum(len(u) for f, u in results)
+    if total_candidates == 0:
+        print(f"\n{GREEN}No unused includes found.{RESET}")
+        return
 
     if args.dry_run:
-        print(f"\n{GREEN}Dry run complete. Found potential removals.{RESET}")
+        print(f"\n{GREEN}Dry run complete. Found {total_candidates} potential removals across {len(results)} files.{RESET}")
+        for f, unused in results:
+             print(f"{f}: {len(unused)} unused")
+        return
+
+    # 3. Global Batch Attempt
+    total_removed = 0
+    
+    # Only try global batch if we have multiple files or many candidates?
+    # Actually always try it, it's one build.
+    global_res = apply_global_batch(results, args.build_dir)
+    
+    if global_res >= 0:
+        total_removed = global_res
     else:
-        print(f"\n{GREEN}Cleanup complete. Removed {total_removed} includes.{RESET}")
+        # 4. Fallback to sequential/per-file
+        log_info("Falling back to per-file verification...")
+        for f_path, unused in results:
+            total_removed += verify_and_apply_fixes(f_path, unused, args.build_dir, args.dry_run)
+
+    print(f"\n{GREEN}Cleanup complete. Removed {total_removed} includes.{RESET}")
 
 if __name__ == "__main__":
     main()
