@@ -130,6 +130,48 @@ void RegisterTests(ImGuiTestEngine* engine) {
         int current_list_count = g_level_panel->GetCounters().render_list_count;
         IM_CHECK(current_list_count > 0);
       };
+
+  IM_REGISTER_TEST(engine, "level_panel", "edit_fields")->TestFunc = [](ImGuiTestContext* ctx) {
+    // Reset state
+    if (g_level_panel) {
+      g_level_panel->Detach();
+    }
+    ctx->SetRef("Test Window");
+
+    // Setup Mock
+    EXPECT_CALL(*g_api, CreateLevel(_)).WillRepeatedly(Return("test_level_id"));
+    EXPECT_CALL(*g_api, GetAllLevels()).WillRepeatedly(testing::Invoke([]() {
+      return std::vector<Level>{};
+    }));
+
+    // Enter Details View
+    ctx->ItemClick("**/Create");
+    ctx->Yield();
+
+    // Verify Fields Exist
+    IM_CHECK(ctx->ItemExists("**/Width"));
+    IM_CHECK(ctx->ItemExists("**/Height"));
+    IM_CHECK(ctx->ItemExists("**/Spawn X"));
+    IM_CHECK(ctx->ItemExists("**/Spawn Y"));
+
+    // Modify Fields
+    ctx->ItemInputValue("**/Width", 100.0f);
+    ctx->ItemInputValue("**/Height", 200.0f);
+    ctx->ItemInputValue("**/Spawn X", 50.0f);
+    ctx->ItemInputValue("**/Spawn Y", 60.0f);
+
+    // Mock UpdateLevel expectation
+    EXPECT_CALL(*g_api, UpdateLevel(_)).WillOnce(testing::Invoke([](const Level& level) {
+      EXPECT_NEAR(level.width, 100.0, 1e-5);
+      EXPECT_NEAR(level.height, 200.0, 1e-5);
+      EXPECT_NEAR(level.spawn_point.x, 50.0, 1e-5);
+      EXPECT_NEAR(level.spawn_point.y, 60.0, 1e-5);
+      return absl::OkStatus();
+    }));
+
+    // Save
+    ctx->ItemClick("**/Save");
+  };
 }
 
 }  // namespace

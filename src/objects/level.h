@@ -19,6 +19,7 @@ struct TileChunk {
 
 // Definition of Parallax Layer (Visuals)
 struct ParallaxLayer {
+  std::string name;
   std::string texture_id;
   Vec scroll_factor;
   bool repeat_x = false;

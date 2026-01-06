@@ -65,3 +65,18 @@ target_link_libraries(level_panel_test
 target_include_directories(level_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME level_panel_test COMMAND level_panel_test)
 
+
+# --- Parallax Panel Test ---
+add_executable(parallax_panel_test parallax_panel_test.cc)
+target_link_libraries(parallax_panel_test
+  editor_test_main
+  parallax_panel
+  imgui_tested
+  imgui_test_engine
+  SDL2-static
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(parallax_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME parallax_panel_test COMMAND parallax_panel_test)
+

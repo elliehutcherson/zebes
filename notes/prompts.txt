@@ -28,4 +28,4 @@ Building:
   
 
 Task: 
-My build_cleaner script doesn't work. I know the IDE sees unused includes correctly, but the script does not see it correctly. 
+Okay now I need you to create a paralax panel. It will take in a reference to a level object. It will list all paralax objects by their name. There will be a create button, edit button, and a delete button above the list. Please look at the collider panel as an example. 

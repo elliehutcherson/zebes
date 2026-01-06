@@ -131,6 +131,18 @@ absl::StatusOr<LevelResult> LevelPanel::RenderDetails() {
   ImGui::Text("ID: %s", editting_level_->id.c_str());
   ImGui::InputText("Name", &editting_level_->name);
 
+  // Boundaries
+  ImGui::Separator();
+  ImGui::Text("Boundaries");
+  ImGui::InputDouble("Width", &editting_level_->width);
+  ImGui::InputDouble("Height", &editting_level_->height);
+
+  // Spawn Point
+  ImGui::Separator();
+  ImGui::Text("Spawn Point");
+  ImGui::InputDouble("Spawn X", &editting_level_->spawn_point.x);
+  ImGui::InputDouble("Spawn Y", &editting_level_->spawn_point.y);
+
   // Save and Reset Buttons
   ImGui::Separator();
 

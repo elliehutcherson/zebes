@@ -26,3 +26,16 @@ target_link_libraries(level_panel
   absl::memory
   absl::strings
 )
+
+add_library(parallax_panel
+  parallax_panel.cc
+)
+
+target_link_libraries(parallax_panel
+  level
+  status_macros
+  ${IMGUI_LIBRARIES}
+  absl::status
+  absl::cleanup
+  absl::strings
+)
