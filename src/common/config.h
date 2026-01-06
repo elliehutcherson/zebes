@@ -48,74 +48,6 @@ struct WindowConfig {
   }
 };
 
-struct BoundaryConfig {
-  int x_min = 0;
-  int x_max = 3000;
-  int y_min = 0;
-  int y_max = 1000;
-
-  // Define to_json and from_json functions for serialization and
-  // deserialization
-  friend void to_json(nlohmann::json& j, const BoundaryConfig& s) {
-    j = nlohmann::json{
-        {"x_min", s.x_min}, {"x_max", s.x_max}, {"y_min", s.y_min}, {"y_max", s.y_max}};
-  }
-
-  friend void from_json(const nlohmann::json& j, BoundaryConfig& s) {
-    j.at("x_min").get_to(s.x_min);
-    j.at("x_max").get_to(s.x_max);
-    j.at("y_min").get_to(s.y_min);
-    j.at("y_max").get_to(s.y_max);
-  }
-};
-
-struct TileConfig {
-  int scale = 2;
-  int source_width = 16;
-  int source_height = 16;
-  int size_x = 200;
-  int size_y = 100;
-  int render_width() const { return source_width * scale; }
-  int render_height() const { return source_height * scale; }
-
-  // Define to_json and from_json functions for serialization and
-  // deserialization
-  friend void to_json(nlohmann::json& j, const TileConfig& s) {
-    j = nlohmann::json{
-        {"scale", s.scale},
-        {"source_width", s.source_width},
-        {"source_height", s.source_height},
-        {"size_x", s.size_x},
-        {"size_y", s.size_y},
-    };
-  }
-
-  friend void from_json(const nlohmann::json& j, TileConfig& s) {
-    j.at("scale").get_to(s.scale);
-    j.at("source_width").get_to(s.source_width);
-    j.at("source_height").get_to(s.source_height);
-    j.at("size_x").get_to(s.size_x);
-    j.at("size_y").get_to(s.size_y);
-  }
-};
-
-struct CollisionConfig {
-  // Used to assign objects to an area.
-  float area_width = 256;
-  float area_height = 256;
-
-  // Define to_json and from_json functions for serialization and
-  // deserialization.
-  friend void to_json(nlohmann::json& j, const CollisionConfig& s) {
-    j = nlohmann::json{{"area_width", s.area_width}, {"area_height", s.area_height}};
-  }
-
-  friend void from_json(const nlohmann::json& j, CollisionConfig& s) {
-    j.at("area_width").get_to(s.area_width);
-    j.at("area_height").get_to(s.area_height);
-  }
-};
-
 struct PathConfig {
   std::string relative_assets = kZebesAssetsPath;
 
@@ -146,44 +78,39 @@ struct PathConfig {
   std::string execute_;
 };
 
-class GameConfig {
+class EngineConfig {
  public:
   // Load the game config.
-  static absl::StatusOr<GameConfig> Load(const std::string& path);
+  static absl::StatusOr<EngineConfig> Load(const std::string& path);
   // Save the game config.
-  static absl::Status Save(const GameConfig& config);
+  static absl::Status Save(const EngineConfig& config);
   // Create the game config (load or default).
-  static absl::StatusOr<GameConfig> Create();
+  static absl::StatusOr<EngineConfig> Create();
 
-  explicit GameConfig();
-  ~GameConfig() { LOG(INFO) << "GameConfig destroyed"; }
+  explicit EngineConfig();
+  ~EngineConfig() { LOG(INFO) << "EngineConfig destroyed"; }
 
   WindowConfig window;
   PathConfig paths;
-  BoundaryConfig boundaries;
-  TileConfig tiles;
-  CollisionConfig collisions;
 
   int fps = 60;
   int frame_delay = 1000 / fps;
 
   // Define to_json and from_json functions for serialization and
   // deserialization.
-  friend void to_json(nlohmann::json& j, const GameConfig& s) {
+  friend void to_json(nlohmann::json& j, const EngineConfig& s) {
     j = nlohmann::json{
-        {"window", s.window},           {"paths", s.paths},
-        {"boundaries", s.boundaries},   {"tiles", s.tiles},
-        {"collisions", s.collisions},   {"fps", s.fps},
+        {"window", s.window},
+        {"paths", s.paths},
+        {"fps", s.fps},
         {"frame_delay", s.frame_delay},
     };
   }
 
-  friend void from_json(const nlohmann::json& j, GameConfig& s) {
+  friend void from_json(const nlohmann::json& j, EngineConfig& s) {
     j.at("window").get_to(s.window);
     j.at("paths").get_to(s.paths);
-    j.at("boundaries").get_to(s.boundaries);
-    j.at("tiles").get_to(s.tiles);
-    j.at("collisions").get_to(s.collisions);
+
     j.at("fps").get_to(s.fps);
     j.at("frame_delay").get_to(s.frame_delay);
   }

@@ -34,9 +34,9 @@ std::string GetExecPath() {
   return absl::StrJoin(paths, "/");
 }
 
-GameConfig::GameConfig() : paths(GetExecPath()) {}
+EngineConfig::EngineConfig() : paths(GetExecPath()) {}
 
-absl::StatusOr<GameConfig> GameConfig::Load(const std::string& path) {
+absl::StatusOr<EngineConfig> EngineConfig::Load(const std::string& path) {
   LOG(INFO) << __func__ << ": "
             << "Importing config from path: " << path;
 
@@ -52,7 +52,7 @@ absl::StatusOr<GameConfig> GameConfig::Load(const std::string& path) {
   nlohmann::json j;
   j = nlohmann::json::parse(file_contents.str());
 
-  GameConfig config;
+  EngineConfig config;
   nlohmann::from_json(j, config);
 
   LOG(INFO) << __func__ << ": "
@@ -61,7 +61,7 @@ absl::StatusOr<GameConfig> GameConfig::Load(const std::string& path) {
   return config;
 }
 
-absl::Status GameConfig::Save(const GameConfig& config) {
+absl::Status EngineConfig::Save(const EngineConfig& config) {
   nlohmann::json j;
   to_json(j, config);
 
@@ -81,14 +81,14 @@ absl::Status GameConfig::Save(const GameConfig& config) {
   return absl::OkStatus();
 }
 
-absl::StatusOr<GameConfig> GameConfig::Create() {
+absl::StatusOr<EngineConfig> EngineConfig::Create() {
   const std::string exec_path = GetExecPath();
   std::string config_path = absl::StrFormat("%s/%s", exec_path, kZebesConfigPath);
   if (!absl::GetFlag(FLAGS_config_path).empty()) {
     config_path = absl::StrFormat("%s/%s", exec_path, absl::GetFlag(FLAGS_config_path));
   }
 
-  absl::StatusOr<GameConfig> config = Load(config_path);
+  absl::StatusOr<EngineConfig> config = Load(config_path);
   if (config.ok()) {
     LOG(INFO) << "Successfully loaded config from: " << config_path;
     return *config;
@@ -100,7 +100,7 @@ absl::StatusOr<GameConfig> GameConfig::Create() {
   }
 
   LOG(INFO) << "No config file found, loading default";
-  GameConfig fresh_config;
+  EngineConfig fresh_config;
   if (!absl::GetFlag(FLAGS_config_path).empty()) {
     fresh_config.paths.relative_assets = absl::GetFlag(FLAGS_config_path);
   }

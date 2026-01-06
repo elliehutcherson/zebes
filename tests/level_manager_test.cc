@@ -62,6 +62,9 @@ TEST_F(LevelManagerTest, CreateAndGetLevel) {
 TEST_F(LevelManagerTest, SerializationTest) {
   Level level;
   level.name = "Complex Level";
+  level.width = 320;
+  level.height = 320;
+  level.spawn_point = {100, 200};
 
   // Add Parallax
   ParallaxLayer layer;
@@ -95,6 +98,11 @@ TEST_F(LevelManagerTest, SerializationTest) {
   Level* loaded = loaded_or.value();
 
   EXPECT_EQ(loaded->name, "Complex Level");
+  EXPECT_EQ(loaded->width, 320);
+  EXPECT_EQ(loaded->height, 320);
+  EXPECT_EQ(loaded->spawn_point.x, 100);
+  EXPECT_EQ(loaded->spawn_point.y, 200);
+
   ASSERT_EQ(loaded->parallax_layers.size(), 1);
   EXPECT_EQ(loaded->parallax_layers[0].texture_id, "tex1");
   EXPECT_TRUE(loaded->parallax_layers[0].repeat_x);
@@ -116,6 +124,18 @@ TEST_F(LevelManagerTest, DeleteLevel) {
 
   ASSERT_TRUE(manager_->DeleteLevel(id).ok());
   EXPECT_FALSE(manager_->GetLevel(id).ok());
+}
+
+TEST_F(LevelManagerTest, ValidationTest) {
+  Level level;
+  level.name = "Invalid";
+  level.width = 17;  // Not multiple of 16
+  level.height = 16;
+
+  auto status_or = manager_->CreateLevel(std::move(level));
+  EXPECT_FALSE(status_or.ok());
+  EXPECT_THAT(status_or.status().message(),
+              ::testing::HasSubstr("Level boundaries must be multiples of tile size"));
 }
 
 }  // namespace

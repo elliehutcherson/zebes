@@ -32,7 +32,7 @@ struct Sprite {
   // Pointer to the sdl texture
   void* sdl_texture = nullptr;
 
-  std::string name_id() const { return absl::StrCat(name, ",", id); }
+  std::string name_id() const { return absl::StrCat(name, "-", id); }
 };
 
 }  // namespace zebes

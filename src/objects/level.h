@@ -29,6 +29,14 @@ struct Level {
   std::string name;
   // Not part of the definition, but a runtime component.
   Camera camera;
+
+  // BOUNDARIES
+  double width = 0;
+  double height = 0;
+
+  // GAMEPLAY
+  Vec spawn_point;  // Where to start
+
   // TILE DATA (The World)
   // Stored in chunks for memory efficiency
   absl::flat_hash_map<int64_t, TileChunk> tile_chunks;
@@ -45,7 +53,7 @@ struct Level {
   // Parallax layers, background color, music track ID, etc.
   std::vector<ParallaxLayer> parallax_layers;
 
-  std::string name_id() const { return absl::StrCat(name, ",", id); }
+  std::string name_id() const { return absl::StrCat(name, "-", id); }
 
   // Returns a deep copy of the level.
   // Entities are cloned (deep copied), other data is copied by value.

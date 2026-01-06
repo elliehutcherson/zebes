@@ -10,7 +10,7 @@ namespace zebes {
 
 absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
   if (options.config == nullptr) {
-    return absl::InvalidArgumentError("GameConfig is null.");
+    return absl::InvalidArgumentError("EngineConfig is null.");
   }
   if (options.texture_manager == nullptr) {
     return absl::InvalidArgumentError("TextureManager is null.");
@@ -35,9 +35,9 @@ Api::Api(const Options& options)
       blueprint_manager_(options.blueprint_manager),
       level_manager_(options.level_manager) {}
 
-absl::Status Api::SaveConfig(const GameConfig& config) {
+absl::Status Api::SaveConfig(const EngineConfig& config) {
   LOG(INFO) << "SaveConfig in the api....";
-  return GameConfig::Save(config);
+  return EngineConfig::Save(config);
 }
 
 absl::StatusOr<std::string> Api::CreateTexture(Texture texture) {

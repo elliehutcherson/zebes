@@ -41,7 +41,7 @@ class EditorEngine {
   void Shutdown();
 
  private:
-  explicit EditorEngine(GameConfig config);
+  explicit EditorEngine(EngineConfig config);
 
   // Process SDL events
   void HandleEvents(bool* done);
@@ -53,7 +53,7 @@ class EditorEngine {
   std::unique_ptr<SdlWrapper> sdl_;
 
   // Zebes state
-  GameConfig config_;
+  EngineConfig config_;
   std::unique_ptr<TextureManager> texture_manager_;
   std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<ColliderManager> collider_manager_;

@@ -20,7 +20,7 @@ class ConfigEditor {
 
   void Render();
 
-  const GameConfig& GetEditorConfig() const { return local_config_; }
+  const EngineConfig& GetEditorConfig() const { return local_config_; }
 
  private:
   ConfigEditor(Api* api, SdlWrapper* sdl);
@@ -29,8 +29,8 @@ class ConfigEditor {
   SdlWrapper* sdl_;
 
   // Config editor state
-  const GameConfig& current_config_;
-  GameConfig local_config_;
+  const EngineConfig& current_config_;
+  EngineConfig local_config_;
   std::string window_title_buffer_;
 };
 

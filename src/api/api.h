@@ -16,7 +16,7 @@ namespace zebes {
 class Api {
  public:
   struct Options {
-    const GameConfig* config;
+    const EngineConfig* config;
     TextureManager* texture_manager;
     SpriteManager* sprite_manager;
     ColliderManager* collider_manager;
@@ -30,10 +30,10 @@ class Api {
   virtual ~Api() = default;
 
   // Get reading access to the config
-  const GameConfig* GetConfig() const { return &config_; }
+  const EngineConfig* GetConfig() const { return &config_; }
 
   // Save the config to disk
-  virtual absl::Status SaveConfig(const GameConfig& config);
+  virtual absl::Status SaveConfig(const EngineConfig& config);
 
   virtual absl::StatusOr<std::string> CreateTexture(Texture texture);
   virtual absl::Status DeleteTexture(const std::string& texture_id);
@@ -68,7 +68,7 @@ class Api {
  protected:
   // Allow default construction for mocks
   Api()
-      : config_(*(new GameConfig())),
+      : config_(*(new EngineConfig())),
         texture_manager_(nullptr),
         sprite_manager_(nullptr),
         collider_manager_(nullptr),
@@ -76,7 +76,7 @@ class Api {
         level_manager_(nullptr) {}
 
  private:
-  const GameConfig& config_;
+  const EngineConfig& config_;
   TextureManager* texture_manager_;
   SpriteManager* sprite_manager_;
   ColliderManager* collider_manager_;

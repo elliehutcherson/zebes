@@ -10,5 +10,5 @@ struct Texture {
   std::string path;
   void* sdl_texture = nullptr;
 
-  std::string name_id() const { return absl::StrCat(name, ",", id); }
+  std::string name_id() const { return absl::StrCat(name, "-", id); }
 };

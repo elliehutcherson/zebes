@@ -29,7 +29,7 @@ class ApiValidationTest : public ::testing::Test {
     ASSERT_OK_AND_ASSIGN(api_, Api::Create(options));
   }
 
-  GameConfig config_;
+  EngineConfig config_;
   TextureManagerMock texture_manager_;
   SpriteManagerMock sprite_manager_;
   ColliderManagerMock collider_manager_;

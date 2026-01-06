@@ -19,7 +19,7 @@ struct Blueprint {
   std::string name;
   std::vector<State> states;
 
-  std::string name_id() const { return absl::StrCat(name, ",", id); }
+  std::string name_id() const { return absl::StrCat(name, "-", id); }
 
   std::optional<std::string> collider_id(int index) {
     if (index < 0 || index >= states.size()) {

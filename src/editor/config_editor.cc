@@ -88,26 +88,6 @@ void ConfigEditor::Render() {
     }
   }
 
-  if (ImGui::CollapsingHeader("Boundaries")) {
-    ImGui::InputInt("Min X", &local_config_.boundaries.x_min);
-    ImGui::InputInt("Max X", &local_config_.boundaries.x_max);
-    ImGui::InputInt("Min Y", &local_config_.boundaries.y_min);
-    ImGui::InputInt("Max Y", &local_config_.boundaries.y_max);
-  }
-
-  if (ImGui::CollapsingHeader("Tiles")) {
-    ImGui::InputInt("Scale", &local_config_.tiles.scale);
-    ImGui::InputInt("Source Width", &local_config_.tiles.source_width);
-    ImGui::InputInt("Source Height", &local_config_.tiles.source_height);
-    ImGui::InputInt("Size X", &local_config_.tiles.size_x);
-    ImGui::InputInt("Size Y", &local_config_.tiles.size_y);
-  }
-
-  if (ImGui::CollapsingHeader("Collision")) {
-    ImGui::InputFloat("Area Width", &local_config_.collisions.area_width);
-    ImGui::InputFloat("Area Height", &local_config_.collisions.area_height);
-  }
-
   ImGui::EndChild();
 }
 

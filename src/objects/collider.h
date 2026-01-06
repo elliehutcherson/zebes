@@ -16,7 +16,7 @@ struct Collider {
   // requirement is that the polygon is Convex (no internal angles > 180°).
   std::vector<Polygon> polygons;
 
-  std::string name_id() const { return absl::StrCat(name, ",", id); }
+  std::string name_id() const { return absl::StrCat(name, "-", id); }
 };
 
 }  // namespace zebes

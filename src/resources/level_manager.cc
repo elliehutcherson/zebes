@@ -107,6 +107,9 @@ nlohmann::json ToJson(const Level& level) {
   nlohmann::json j;
   j["id"] = level.id;
   j["name"] = level.name;
+  j["width"] = level.width;
+  j["height"] = level.height;
+  j["spawn_point"] = {{"x", level.spawn_point.x}, {"y", level.spawn_point.y}};
 
   // Parallax
   std::vector<nlohmann::json> parallax_json;
@@ -144,6 +147,20 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& s
   Level level;
   j.at("id").get_to(level.id);
   j.at("name").get_to(level.name);
+  level.width = j.value("width", 0.0);
+  level.height = j.value("height", 0.0);
+  if (j.contains("spawn_point")) {
+    level.spawn_point.x = j["spawn_point"].value("x", 0.0);
+    level.spawn_point.y = j["spawn_point"].value("y", 0.0);
+  }
+
+  // Validation
+  constexpr int kTileSize = 16;
+  if (static_cast<int>(level.width) % kTileSize != 0 ||
+      static_cast<int>(level.height) % kTileSize != 0) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Level boundaries must be multiples of tile size (", kTileSize, ")"));
+  }
 
   if (j.contains("parallax_layers")) {
     for (const nlohmann::json& item : j["parallax_layers"]) {

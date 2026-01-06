@@ -2,6 +2,12 @@
     "entities": [],
     "id": "9af42904-279b-4521-95a7-9274e53ba856",
     "name": "level_0",
+    "width": 800,
+    "height": 640,
+    "spawn_point": {
+        "x": 0.0,
+        "y": 0.0
+    },
     "parallax_layers": [],
     "tile_chunks": []
 }

@@ -10,7 +10,7 @@ class MockApi : public Api {
   MockApi() : Api() {}
 
   // Config
-  MOCK_METHOD(absl::Status, SaveConfig, (const GameConfig&), (override));
+  MOCK_METHOD(absl::Status, SaveConfig, (const EngineConfig&), (override));
 
   // Textures
   MOCK_METHOD(absl::StatusOr<std::string>, CreateTexture, (Texture), (override));

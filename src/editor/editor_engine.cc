@@ -19,13 +19,13 @@
 namespace zebes {
 
 absl::StatusOr<std::unique_ptr<EditorEngine>> EditorEngine::Create() {
-  ASSIGN_OR_RETURN(GameConfig config, GameConfig::Create());
+  ASSIGN_OR_RETURN(EngineConfig config, EngineConfig::Create());
   auto engine = absl::WrapUnique(new EditorEngine(std::move(config)));
   RETURN_IF_ERROR(engine->Init());
   return engine;
 }
 
-EditorEngine::EditorEngine(GameConfig config) : config_(std::move(config)) {}
+EditorEngine::EditorEngine(EngineConfig config) : config_(std::move(config)) {}
 
 absl::Status EditorEngine::Init() {
   // Initialize SDL
