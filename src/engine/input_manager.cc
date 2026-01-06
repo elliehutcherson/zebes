@@ -1,12 +1,9 @@
 #include "engine/input_manager.h"
 
 #include <cstring>
-#include <functional>
 #include <memory>
-#include <string>
 #include <vector>
 
-#include "SDL.h"
 #include "SDL_scancode.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"

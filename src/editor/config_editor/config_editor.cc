@@ -1,10 +1,7 @@
 #include "editor/config_editor/config_editor.h"
 
-#include "SDL_render.h"
-#include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
 #include "common/sdl_wrapper.h"
 #include "imgui.h"
 
