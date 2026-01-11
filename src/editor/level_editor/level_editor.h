@@ -1,13 +1,11 @@
 #pragma once
 
 #include <memory>
-#include <string>
-#include <vector>
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
-#include "common/sdl_wrapper.h"
-#include "editor/level_editor/level_panel.h"
+#include "editor/level_editor/level_panel_interface.h"
+#include "editor/level_editor/parallax_panel.h"
 
 namespace zebes {
 
@@ -15,7 +13,8 @@ class LevelEditor {
  public:
   struct Options {
     Api* api = nullptr;
-    std::unique_ptr<ILevelPanel> level_panel;
+    std::unique_ptr<LevelPanelInterface> level_panel;
+    std::unique_ptr<ParallaxPanel> parallax_panel;
   };
 
   // Creates a new instance of the LevelEditor.
@@ -37,7 +36,7 @@ class LevelEditor {
   absl::Status Init(Options options);
 
   // Renders the level list and management controls.
-  void RenderLeft();
+  absl::Status RenderLeft();
 
   // Renders the main editing viewport.
   void RenderCenter();
@@ -46,7 +45,11 @@ class LevelEditor {
   void RenderRight();
 
   Api* api_;
-  std::unique_ptr<ILevelPanel> level_panel_;
+  std::unique_ptr<LevelPanelInterface> level_panel_;
+  std::unique_ptr<ParallaxPanel> parallax_panel_;
+
+  // State
+  std::optional<Level> editting_level_;
 };
 
 }  // namespace zebes

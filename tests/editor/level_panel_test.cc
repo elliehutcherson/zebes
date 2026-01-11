@@ -1,31 +1,43 @@
 #include "editor/level_editor/level_panel.h"
 
 #include <memory>
+#include <optional>
 
 #include "imgui.h"
 #include "imgui_te_context.h"
 #include "imgui_te_engine.h"
+#include "objects/level.h"
 #include "tests/api_mock.h"
 #include "tests/editor/test_main.h"
 
 namespace zebes {
 namespace {
 
-using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
 
 std::unique_ptr<MockApi> g_api;
 std::unique_ptr<LevelPanel> g_level_panel;
+std::optional<Level> g_level;
 absl::StatusOr<LevelResult> g_last_render_result;
 
 void AppSetup() {
   g_api = std::make_unique<NiceMock<MockApi>>();
-  auto result = LevelPanel::Create(g_api.get());
-  if (!result.ok()) {
+  ON_CALL(*g_api, GetAllLevels()).WillByDefault([]() {
+    std::vector<Level> levels;
+    levels.push_back(Level{.name = "Level 1"});
+    levels.push_back(Level{.name = "Level 2"});
+    return levels;
+  });
+  g_level = std::nullopt;
+
+  LevelPanel::Options options;
+  options.api = g_api.get();
+  auto panel_or = LevelPanel::Create(options);
+  if (!panel_or.ok()) {
     abort();
   }
-  g_level_panel = std::move(result.value());
+  g_level_panel = std::move(*panel_or);
 }
 
 void AppShutdown() {
@@ -35,142 +47,111 @@ void AppShutdown() {
 
 void AppDraw() {
   if (g_level_panel) {
-    ImGui::SetNextWindowSize(ImVec2(1024, 768), ImGuiCond_Appearing);
-    ImGui::Begin("Test Window", nullptr, ImGuiWindowFlags_None);
-    g_last_render_result = g_level_panel->Render();
-    ImGui::End();
+    g_last_render_result = g_level_panel->Render(g_level);
   }
 }
 
 // Register ImGui Test Engine tests.
 void RegisterTests(ImGuiTestEngine* engine) {
   IM_REGISTER_TEST(engine, "level_panel", "basic_render")->TestFunc = [](ImGuiTestContext* ctx) {
-    ctx->SetRef("Test Window");
+    ctx->SetRef(kAppWindowName);
 
-    // Verify Create button exists (nested under LevelPanel ID)
+    // Initial state: Level is null, so Create/Edit/Delete buttons should be visible
     IM_CHECK(ctx->ItemExists("**/Create"));
-
-    // Verify Attach button exists
-    IM_CHECK(ctx->ItemExists("**/Attach"));
-
-    // Verify Delete button exists
+    IM_CHECK(ctx->ItemExists("**/Edit"));
     IM_CHECK(ctx->ItemExists("**/Delete"));
 
     // Ensure Render returns OK
     IM_CHECK(g_last_render_result.ok());
   };
 
-  IM_REGISTER_TEST(engine, "level_panel", "create_transfer")->TestFunc = [](ImGuiTestContext* ctx) {
-    // Reset state to ensure we are in RenderList mode
-    if (g_level_panel) {
-      g_level_panel->Detach();
-    }
+  IM_REGISTER_TEST(engine, "level_panel", "create_click")->TestFunc = [](ImGuiTestContext* ctx) {
+    // Reset state (simulating a fresh start or ensure we are on list view)
+    g_level = std::nullopt;
+    ctx->SetRef(kAppWindowName);
 
-    ctx->SetRef("Test Window");
+    // Verify initial counters
+    auto initial_counters = g_level_panel->GetCounters();
 
-    // Setup Mock behavior
-    EXPECT_CALL(*g_api, CreateLevel(_)).WillRepeatedly(Return("test_level_id"));
-    // Use Invoke to return a fresh move-only vector each time
-    EXPECT_CALL(*g_api, GetAllLevels()).WillRepeatedly(testing::Invoke([]() {
-      return std::vector<Level>{};
-    }));
-
-    // Perform Click
+    // Click Create
     ctx->ItemClick("**/Create");
 
-    // Wait for frame to process
-    ctx->Yield();
+    // Check that we clicked Create via counters
+    auto new_counters = g_level_panel->GetCounters();
+    IM_CHECK_EQ(new_counters.create, initial_counters.create + 1);
 
-    // Verify Render returned OK
-    IM_CHECK(g_last_render_result.ok());
-
-    // Verify we are now in Details View (Check for Save/Detach/Reset buttons)
-    IM_CHECK(ctx->ItemExists("**/Save"));
-    IM_CHECK(ctx->ItemExists("**/Detach"));
-    IM_CHECK(ctx->ItemExists("**/Reset"));
+    // Level should be created and view switched (though checking counters is the main goal)
+    IM_CHECK(g_level.has_value());
   };
 
-  IM_REGISTER_TEST(engine, "level_panel", "back_button_behavior")->TestFunc =
-      [](ImGuiTestContext* ctx) {
-        // Reset state to ensure we are in RenderList mode
-        if (g_level_panel) {
-          g_level_panel->Detach();
-        }
+  IM_REGISTER_TEST(engine, "level_panel", "edit_click")->TestFunc = [](ImGuiTestContext* ctx) {
+    g_level = std::nullopt;
+    ctx->SetRef(kAppWindowName);
 
-        ctx->SetRef("Test Window");
+    auto initial_counters = g_level_panel->GetCounters();
 
-        // Setup Mock behavior
-        EXPECT_CALL(*g_api, CreateLevel(_)).WillRepeatedly(Return("test_level_id"));
-        EXPECT_CALL(*g_api, GetAllLevels()).WillRepeatedly(testing::Invoke([]() {
-          return std::vector<Level>{};
-        }));
+    // Ensure we have a selection (default is 0)
+    IM_CHECK_EQ(g_level_panel->TestOnly_GetSelectedIndex(), 0);
 
-        // Start by Entering Details View
-        ctx->ItemClick("**/Create");
-        ctx->Yield();
+    ctx->ItemClick("**/Edit");
 
-        // Verify we are in details view
-        IM_CHECK(ctx->ItemExists("**/Back"));
+    auto new_counters = g_level_panel->GetCounters();
+    IM_CHECK_EQ(new_counters.edit, initial_counters.edit + 1);
 
-        // Click Back
-        ctx->ItemClick("**/Back");
-        ctx->Yield();
+    // Verify that clicking Edit opened the level (g_level is populated)
+    IM_CHECK(g_level.has_value());
+    IM_CHECK_STR_EQ(g_level->name.c_str(), "Level 1");
+  };
 
-        // Verify Result was Detach
-        IM_CHECK(g_last_render_result.ok());
+  IM_REGISTER_TEST(engine, "level_panel", "delete_click")->TestFunc = [](ImGuiTestContext* ctx) {
+    g_level = std::nullopt;
+    ctx->SetRef(kAppWindowName);
 
-        // Note: We might miss the exact frame where kDetach is returned if Yield() runs multiple
-        // frames. We primarily verify the state transition to List View.
+    auto initial_counters = g_level_panel->GetCounters();
 
-        // Verify state transition: We should be back to list view
-        // 1. We should see the Create button again
-        IM_CHECK(ctx->ItemExists("**/Create"));
+    ctx->ItemClick("**/Delete");
 
-        // 2. render_list_count should have incremented (meaning RenderList was called)
-        int current_list_count = g_level_panel->GetCounters().render_list_count;
-        IM_CHECK(current_list_count > 0);
-      };
+    auto new_counters = g_level_panel->GetCounters();
+    IM_CHECK_EQ(new_counters.del, initial_counters.del + 1);
+  };
 
-  IM_REGISTER_TEST(engine, "level_panel", "edit_fields")->TestFunc = [](ImGuiTestContext* ctx) {
-    // Reset state
-    if (g_level_panel) {
-      g_level_panel->Detach();
-    }
-    ctx->SetRef("Test Window");
+  IM_REGISTER_TEST(engine, "level_panel", "select_level")->TestFunc = [](ImGuiTestContext* ctx) {
+    g_level = std::nullopt;
+    ctx->SetRef(kAppWindowName);
 
-    // Setup Mock
-    EXPECT_CALL(*g_api, CreateLevel(_)).WillRepeatedly(Return("test_level_id"));
-    EXPECT_CALL(*g_api, GetAllLevels()).WillRepeatedly(testing::Invoke([]() {
-      return std::vector<Level>{};
-    }));
+    // Initial state: Level 1 selected (index 0)
+    IM_CHECK_EQ(g_level_panel->TestOnly_GetSelectedIndex(), 0);
 
-    // Enter Details View
-    ctx->ItemClick("**/Create");
-    ctx->Yield();
+    // Select Level 2
+    ctx->ItemClick("**/Level 2");
 
-    // Verify Fields Exist
-    IM_CHECK(ctx->ItemExists("**/Width"));
-    IM_CHECK(ctx->ItemExists("**/Height"));
-    IM_CHECK(ctx->ItemExists("**/Spawn X"));
-    IM_CHECK(ctx->ItemExists("**/Spawn Y"));
+    IM_CHECK_EQ(g_level_panel->TestOnly_GetSelectedIndex(), 1);
 
-    // Modify Fields
-    ctx->ItemInputValue("**/Width", 100.0f);
-    ctx->ItemInputValue("**/Height", 200.0f);
-    ctx->ItemInputValue("**/Spawn X", 50.0f);
-    ctx->ItemInputValue("**/Spawn Y", 60.0f);
+    // Check that selecting a new level DOES NOT auto-open it
+    IM_CHECK(!g_level.has_value());
+  };
 
-    // Mock UpdateLevel expectation
-    EXPECT_CALL(*g_api, UpdateLevel(_)).WillOnce(testing::Invoke([](const Level& level) {
-      EXPECT_NEAR(level.width, 100.0, 1e-5);
-      EXPECT_NEAR(level.height, 200.0, 1e-5);
-      EXPECT_NEAR(level.spawn_point.x, 50.0, 1e-5);
-      EXPECT_NEAR(level.spawn_point.y, 60.0, 1e-5);
-      return absl::OkStatus();
-    }));
+  IM_REGISTER_TEST(engine, "level_panel", "back_click")->TestFunc = [](ImGuiTestContext* ctx) {
+    g_level = Level{.id = "test_level", .name = "Test Level"};
+    ctx->SetRef(kAppWindowName);
 
-    // Save
+    auto initial_counters = g_level_panel->GetCounters();
+    ctx->ItemClick("**/Back");
+
+    auto new_counters = g_level_panel->GetCounters();
+    IM_CHECK_EQ(new_counters.back, initial_counters.back + 1);
+    IM_CHECK(!g_level.has_value());
+  };
+
+  IM_REGISTER_TEST(engine, "level_panel", "save_click")->TestFunc = [](ImGuiTestContext* ctx) {
+    g_level = Level{.id = "test_level", .name = "Test Level"};
+    ctx->SetRef(kAppWindowName);
+
+    auto initial_counters = g_level_panel->GetCounters();
     ctx->ItemClick("**/Save");
+
+    auto new_counters = g_level_panel->GetCounters();
+    IM_CHECK_EQ(new_counters.save, initial_counters.save + 1);
   };
 }
 

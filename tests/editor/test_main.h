@@ -5,6 +5,9 @@
 
 struct ImGuiTestEngine;
 
+// Name of the main application window that tests should reference
+constexpr char kAppWindowName[] = "App Window";
+
 // Callback type for registering tests.
 using TestRegistrationCallback = std::function<void(ImGuiTestEngine*)>;
 

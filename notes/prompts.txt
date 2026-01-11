@@ -28,4 +28,4 @@ Building:
   
 
 Task: 
-Okay now I need you to create a paralax panel. It will take in a reference to a level object. It will list all paralax objects by their name. There will be a create button, edit button, and a delete button above the list. Please look at the collider panel as an example. 
+We are using abseil and want to check for status error. You should use absl log, not sdl log. Please expand your types and don't use auto. With that in mind refactor panel viewer.

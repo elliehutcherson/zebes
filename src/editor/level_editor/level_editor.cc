@@ -3,6 +3,7 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
+#include "editor/level_editor/level_panel.h"
 #include "imgui.h"
 
 namespace zebes {
@@ -22,7 +23,14 @@ absl::Status LevelEditor::Init(Options options) {
   if (options.level_panel) {
     level_panel_ = std::move(options.level_panel);
   } else {
-    ASSIGN_OR_RETURN(level_panel_, LevelPanel::Create(api_));
+    ASSIGN_OR_RETURN(level_panel_, LevelPanel::Create({
+                                       .api = api_,
+                                   }));
+  }
+  if (options.parallax_panel) {
+    parallax_panel_ = std::move(options.parallax_panel);
+  } else {
+    ASSIGN_OR_RETURN(parallax_panel_, ParallaxPanel::Create({.api = api_}));
   }
   return absl::OkStatus();
 }
@@ -41,7 +49,7 @@ absl::Status LevelEditor::Render() {
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
-    RenderLeft();
+    RETURN_IF_ERROR(RenderLeft());
 
     ImGui::TableNextColumn();
 
@@ -56,15 +64,31 @@ absl::Status LevelEditor::Render() {
   return absl::OkStatus();
 }
 
-void LevelEditor::RenderLeft() {
-  if (!level_panel_) {
-    return;
+absl::Status LevelEditor::RenderLeft() {
+  if (!editting_level_.has_value()) {
+    ASSIGN_OR_RETURN(LevelResult result, level_panel_->Render(editting_level_));
+    return absl::OkStatus();
   }
-  absl::StatusOr<LevelResult> result = level_panel_->Render();
-  if (!result.ok()) {
+
+  const float height = ImGui::GetContentRegionAvail().y * 0.5f;
+
+  if (ImGui::BeginChild("LevelPanel", ImVec2(0, height))) {
+    ASSIGN_OR_RETURN(LevelResult result, level_panel_->Render(editting_level_));
   }
-  // TODO(ellie): handle result (Attach/Detach) if needed by Editor.
-  // For now LevelPanel handles its own state (list vs detail).
+  ImGui::EndChild();
+
+  if (!editting_level_.has_value()) {
+    return absl::OkStatus();
+  }
+
+  ImGui::Separator();
+
+  if (ImGui::BeginChild("ParallaxPanel", ImVec2(0, 0))) {
+    ASSIGN_OR_RETURN(auto unused, parallax_panel_->Render(*editting_level_));
+  }
+  ImGui::EndChild();
+
+  return absl::OkStatus();
 }
 
 void LevelEditor::RenderCenter() {

@@ -5,6 +5,7 @@ add_library(level_editor
 
 target_link_libraries(level_editor
   level_panel
+  parallax_panel
   api
   ${IMGUI_LIBRARIES}
   absl::status
@@ -33,6 +34,7 @@ add_library(parallax_panel
 
 target_link_libraries(parallax_panel
   level
+  api
   status_macros
   ${IMGUI_LIBRARIES}
   absl::status

@@ -1,0 +1,411 @@
+/usr/local/bin/cmake -S/Users/ellie/Projects/zebes -B/Users/ellie/Projects/zebes/build --check-build-system CMakeFiles/Makefile.cmake 0
+/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/Makefile2 test_panel_test
+/usr/local/bin/cmake -S/Users/ellie/Projects/zebes -B/Users/ellie/Projects/zebes/build --check-build-system CMakeFiles/Makefile.cmake 0
+/usr/local/bin/cmake -E cmake_progress_start /Users/ellie/Projects/zebes/build/CMakeFiles 71
+/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/Makefile2 tests/editor/CMakeFiles/test_panel_test.dir/all
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/profiling/CMakeFiles/absl_exponential_biased.dir/build.make include/abseil-cpp/absl/profiling/CMakeFiles/absl_exponential_biased.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/profiling /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/profiling /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/profiling/CMakeFiles/absl_exponential_biased.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/profiling/CMakeFiles/absl_exponential_biased.dir/build.make include/abseil-cpp/absl/profiling/CMakeFiles/absl_exponential_biased.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/profiling/CMakeFiles/absl_exponential_biased.dir/build'.
+[  1%] Built target absl_exponential_biased
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_log_severity.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_log_severity.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base/CMakeFiles/absl_log_severity.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_log_severity.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_log_severity.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/base/CMakeFiles/absl_log_severity.dir/build'.
+[  2%] Built target absl_log_severity
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_raw_logging_internal.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_raw_logging_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base/CMakeFiles/absl_raw_logging_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_raw_logging_internal.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_raw_logging_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/base/CMakeFiles/absl_raw_logging_internal.dir/build'.
+[  2%] Built target absl_raw_logging_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_throw_delegate.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_throw_delegate.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base/CMakeFiles/absl_throw_delegate.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_throw_delegate.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_throw_delegate.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/base/CMakeFiles/absl_throw_delegate.dir/build'.
+[  2%] Built target absl_throw_delegate
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_spinlock_wait.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_spinlock_wait.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base/CMakeFiles/absl_spinlock_wait.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_spinlock_wait.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_spinlock_wait.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/base/CMakeFiles/absl_spinlock_wait.dir/build'.
+[  2%] Built target absl_spinlock_wait
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_base.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_base.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base/CMakeFiles/absl_base.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_base.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_base.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/base/CMakeFiles/absl_base.dir/build'.
+[  2%] Built target absl_base
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_string_view.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_string_view.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings/CMakeFiles/absl_string_view.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_string_view.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_string_view.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/strings/CMakeFiles/absl_string_view.dir/build'.
+[  4%] Built target absl_string_view
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/numeric/CMakeFiles/absl_int128.dir/build.make include/abseil-cpp/absl/numeric/CMakeFiles/absl_int128.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/numeric /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/numeric /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/numeric/CMakeFiles/absl_int128.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/numeric/CMakeFiles/absl_int128.dir/build.make include/abseil-cpp/absl/numeric/CMakeFiles/absl_int128.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/numeric/CMakeFiles/absl_int128.dir/build'.
+[  4%] Built target absl_int128
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_strings_internal.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_strings_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings/CMakeFiles/absl_strings_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_strings_internal.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_strings_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/strings/CMakeFiles/absl_strings_internal.dir/build'.
+[  4%] Built target absl_strings_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_strings.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_strings.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings/CMakeFiles/absl_strings.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_strings.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_strings.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/strings/CMakeFiles/absl_strings.dir/build'.
+[  7%] Built target absl_strings
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_str_format_internal.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_str_format_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings/CMakeFiles/absl_str_format_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_str_format_internal.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_str_format_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/strings/CMakeFiles/absl_str_format_internal.dir/build'.
+[  8%] Built target absl_str_format_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cpu_detect.dir/build.make include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cpu_detect.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/crc /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/crc /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cpu_detect.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cpu_detect.dir/build.make include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cpu_detect.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cpu_detect.dir/build'.
+[  8%] Built target absl_crc_cpu_detect
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_internal.dir/build.make include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/crc /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/crc /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_internal.dir/build.make include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_internal.dir/build'.
+[  8%] Built target absl_crc_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/crc/CMakeFiles/absl_crc32c.dir/build.make include/abseil-cpp/absl/crc/CMakeFiles/absl_crc32c.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/crc /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/crc /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/crc/CMakeFiles/absl_crc32c.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/crc/CMakeFiles/absl_crc32c.dir/build.make include/abseil-cpp/absl/crc/CMakeFiles/absl_crc32c.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/crc/CMakeFiles/absl_crc32c.dir/build'.
+[  8%] Built target absl_crc32c
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cord_state.dir/build.make include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cord_state.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/crc /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/crc /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cord_state.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cord_state.dir/build.make include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cord_state.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/crc/CMakeFiles/absl_crc_cord_state.dir/build'.
+[  9%] Built target absl_crc_cord_state
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_debugging_internal.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_debugging_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging/CMakeFiles/absl_debugging_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_debugging_internal.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_debugging_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/debugging/CMakeFiles/absl_debugging_internal.dir/build'.
+[ 11%] Built target absl_debugging_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cord_internal.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cord_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings/CMakeFiles/absl_cord_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cord_internal.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cord_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/strings/CMakeFiles/absl_cord_internal.dir/build'.
+[ 12%] Built target absl_cord_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_functions.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_functions.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_functions.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_functions.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_functions.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_functions.dir/build'.
+[ 14%] Built target absl_cordz_functions
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_malloc_internal.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_malloc_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base/CMakeFiles/absl_malloc_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_malloc_internal.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_malloc_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/base/CMakeFiles/absl_malloc_internal.dir/build'.
+[ 14%] Built target absl_malloc_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/synchronization/CMakeFiles/absl_graphcycles_internal.dir/build.make include/abseil-cpp/absl/synchronization/CMakeFiles/absl_graphcycles_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/synchronization /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/synchronization /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/synchronization/CMakeFiles/absl_graphcycles_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/synchronization/CMakeFiles/absl_graphcycles_internal.dir/build.make include/abseil-cpp/absl/synchronization/CMakeFiles/absl_graphcycles_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/synchronization/CMakeFiles/absl_graphcycles_internal.dir/build'.
+[ 14%] Built target absl_graphcycles_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/time/CMakeFiles/absl_civil_time.dir/build.make include/abseil-cpp/absl/time/CMakeFiles/absl_civil_time.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/time /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/time /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/time/CMakeFiles/absl_civil_time.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/time/CMakeFiles/absl_civil_time.dir/build.make include/abseil-cpp/absl/time/CMakeFiles/absl_civil_time.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/time/CMakeFiles/absl_civil_time.dir/build'.
+[ 14%] Built target absl_civil_time
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/time/CMakeFiles/absl_time_zone.dir/build.make include/abseil-cpp/absl/time/CMakeFiles/absl_time_zone.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/time /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/time /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/time/CMakeFiles/absl_time_zone.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/time/CMakeFiles/absl_time_zone.dir/build.make include/abseil-cpp/absl/time/CMakeFiles/absl_time_zone.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/time/CMakeFiles/absl_time_zone.dir/build'.
+[ 15%] Built target absl_time_zone
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/time/CMakeFiles/absl_time.dir/build.make include/abseil-cpp/absl/time/CMakeFiles/absl_time.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/time /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/time /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/time/CMakeFiles/absl_time.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/time/CMakeFiles/absl_time.dir/build.make include/abseil-cpp/absl/time/CMakeFiles/absl_time.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/time/CMakeFiles/absl_time.dir/build'.
+[ 16%] Built target absl_time
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/synchronization/CMakeFiles/absl_kernel_timeout_internal.dir/build.make include/abseil-cpp/absl/synchronization/CMakeFiles/absl_kernel_timeout_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/synchronization /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/synchronization /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/synchronization/CMakeFiles/absl_kernel_timeout_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/synchronization/CMakeFiles/absl_kernel_timeout_internal.dir/build.make include/abseil-cpp/absl/synchronization/CMakeFiles/absl_kernel_timeout_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/synchronization/CMakeFiles/absl_kernel_timeout_internal.dir/build'.
+[ 16%] Built target absl_kernel_timeout_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_tracing_internal.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_tracing_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base/CMakeFiles/absl_tracing_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_tracing_internal.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_tracing_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/base/CMakeFiles/absl_tracing_internal.dir/build'.
+[ 16%] Built target absl_tracing_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_stacktrace.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_stacktrace.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging/CMakeFiles/absl_stacktrace.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_stacktrace.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_stacktrace.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/debugging/CMakeFiles/absl_stacktrace.dir/build'.
+[ 16%] Built target absl_stacktrace
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_utf8_for_code_point.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_utf8_for_code_point.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging/CMakeFiles/absl_utf8_for_code_point.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_utf8_for_code_point.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_utf8_for_code_point.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/debugging/CMakeFiles/absl_utf8_for_code_point.dir/build'.
+[ 18%] Built target absl_utf8_for_code_point
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_decode_rust_punycode.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_decode_rust_punycode.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging/CMakeFiles/absl_decode_rust_punycode.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_decode_rust_punycode.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_decode_rust_punycode.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/debugging/CMakeFiles/absl_decode_rust_punycode.dir/build'.
+[ 18%] Built target absl_decode_rust_punycode
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_rust.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_rust.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_rust.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_rust.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_rust.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_rust.dir/build'.
+[ 19%] Built target absl_demangle_rust
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_internal.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_internal.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/debugging/CMakeFiles/absl_demangle_internal.dir/build'.
+[ 19%] Built target absl_demangle_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_symbolize.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_symbolize.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging/CMakeFiles/absl_symbolize.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_symbolize.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_symbolize.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/debugging/CMakeFiles/absl_symbolize.dir/build'.
+[ 21%] Built target absl_symbolize
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/synchronization/CMakeFiles/absl_synchronization.dir/build.make include/abseil-cpp/absl/synchronization/CMakeFiles/absl_synchronization.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/synchronization /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/synchronization /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/synchronization/CMakeFiles/absl_synchronization.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/synchronization/CMakeFiles/absl_synchronization.dir/build.make include/abseil-cpp/absl/synchronization/CMakeFiles/absl_synchronization.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/synchronization/CMakeFiles/absl_synchronization.dir/build'.
+[ 23%] Built target absl_synchronization
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_handle.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_handle.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_handle.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_handle.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_handle.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_handle.dir/build'.
+[ 23%] Built target absl_cordz_handle
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_info.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_info.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_info.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_info.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_info.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/strings/CMakeFiles/absl_cordz_info.dir/build'.
+[ 23%] Built target absl_cordz_info
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/types/CMakeFiles/absl_bad_optional_access.dir/build.make include/abseil-cpp/absl/types/CMakeFiles/absl_bad_optional_access.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/types /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/types /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/types/CMakeFiles/absl_bad_optional_access.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/types/CMakeFiles/absl_bad_optional_access.dir/build.make include/abseil-cpp/absl/types/CMakeFiles/absl_bad_optional_access.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/types/CMakeFiles/absl_bad_optional_access.dir/build'.
+[ 23%] Built target absl_bad_optional_access
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cord.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cord.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/strings/CMakeFiles/absl_cord.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/strings/CMakeFiles/absl_cord.dir/build.make include/abseil-cpp/absl/strings/CMakeFiles/absl_cord.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/strings/CMakeFiles/absl_cord.dir/build'.
+[ 23%] Built target absl_cord
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_strerror.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_strerror.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/base/CMakeFiles/absl_strerror.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/base/CMakeFiles/absl_strerror.dir/build.make include/abseil-cpp/absl/base/CMakeFiles/absl_strerror.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/base/CMakeFiles/absl_strerror.dir/build'.
+[ 23%] Built target absl_strerror
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_leak_check.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_leak_check.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging/CMakeFiles/absl_leak_check.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_leak_check.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_leak_check.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/debugging/CMakeFiles/absl_leak_check.dir/build'.
+[ 25%] Built target absl_leak_check
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/status/CMakeFiles/absl_status.dir/build.make include/abseil-cpp/absl/status/CMakeFiles/absl_status.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/status /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/status /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/status/CMakeFiles/absl_status.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/status/CMakeFiles/absl_status.dir/build.make include/abseil-cpp/absl/status/CMakeFiles/absl_status.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/status/CMakeFiles/absl_status.dir/build'.
+[ 26%] Built target absl_status
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/types/CMakeFiles/absl_bad_variant_access.dir/build.make include/abseil-cpp/absl/types/CMakeFiles/absl_bad_variant_access.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/types /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/types /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/types/CMakeFiles/absl_bad_variant_access.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/types/CMakeFiles/absl_bad_variant_access.dir/build.make include/abseil-cpp/absl/types/CMakeFiles/absl_bad_variant_access.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/types/CMakeFiles/absl_bad_variant_access.dir/build'.
+[ 28%] Built target absl_bad_variant_access
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/status/CMakeFiles/absl_statusor.dir/build.make include/abseil-cpp/absl/status/CMakeFiles/absl_statusor.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/status /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/status /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/status/CMakeFiles/absl_statusor.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/status/CMakeFiles/absl_statusor.dir/build.make include/abseil-cpp/absl/status/CMakeFiles/absl_statusor.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/status/CMakeFiles/absl_statusor.dir/build'.
+[ 28%] Built target absl_statusor
+/Library/Developer/CommandLineTools/usr/bin/make  -f src/common/CMakeFiles/status_macros.dir/build.make src/common/CMakeFiles/status_macros.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/src/common /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/src/common /Users/ellie/Projects/zebes/build/src/common/CMakeFiles/status_macros.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f src/common/CMakeFiles/status_macros.dir/build.make src/common/CMakeFiles/status_macros.dir/build
+make[3]: Nothing to be done for `src/common/CMakeFiles/status_macros.dir/build'.
+[ 28%] Built target status_macros
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/SDL/CMakeFiles/sdl_headers_copy.dir/build.make include/SDL/CMakeFiles/sdl_headers_copy.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/SDL /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/SDL /Users/ellie/Projects/zebes/build/include/SDL/CMakeFiles/sdl_headers_copy.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/SDL/CMakeFiles/sdl_headers_copy.dir/build.make include/SDL/CMakeFiles/sdl_headers_copy.dir/build
+make[3]: Nothing to be done for `include/SDL/CMakeFiles/sdl_headers_copy.dir/build'.
+[ 42%] Built target sdl_headers_copy
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/SDL/CMakeFiles/SDL2-static.dir/build.make include/SDL/CMakeFiles/SDL2-static.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/SDL /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/SDL /Users/ellie/Projects/zebes/build/include/SDL/CMakeFiles/SDL2-static.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/SDL/CMakeFiles/SDL2-static.dir/build.make include/SDL/CMakeFiles/SDL2-static.dir/build
+make[3]: Nothing to be done for `include/SDL/CMakeFiles/SDL2-static.dir/build'.
+[ 78%] Built target SDL2-static
+/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/imgui_clean.dir/build.make CMakeFiles/imgui_clean.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/CMakeFiles/imgui_clean.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/imgui_clean.dir/build.make CMakeFiles/imgui_clean.dir/build
+make[3]: Nothing to be done for `CMakeFiles/imgui_clean.dir/build'.
+[ 81%] Built target imgui_clean
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/container/CMakeFiles/absl_hashtablez_sampler.dir/build.make include/abseil-cpp/absl/container/CMakeFiles/absl_hashtablez_sampler.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/container /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/container /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/container/CMakeFiles/absl_hashtablez_sampler.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/container/CMakeFiles/absl_hashtablez_sampler.dir/build.make include/abseil-cpp/absl/container/CMakeFiles/absl_hashtablez_sampler.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/container/CMakeFiles/absl_hashtablez_sampler.dir/build'.
+[ 83%] Built target absl_hashtablez_sampler
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/hash/CMakeFiles/absl_city.dir/build.make include/abseil-cpp/absl/hash/CMakeFiles/absl_city.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/hash /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/hash /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/hash/CMakeFiles/absl_city.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/hash/CMakeFiles/absl_city.dir/build.make include/abseil-cpp/absl/hash/CMakeFiles/absl_city.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/hash/CMakeFiles/absl_city.dir/build'.
+[ 84%] Built target absl_city
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/hash/CMakeFiles/absl_low_level_hash.dir/build.make include/abseil-cpp/absl/hash/CMakeFiles/absl_low_level_hash.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/hash /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/hash /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/hash/CMakeFiles/absl_low_level_hash.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/hash/CMakeFiles/absl_low_level_hash.dir/build.make include/abseil-cpp/absl/hash/CMakeFiles/absl_low_level_hash.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/hash/CMakeFiles/absl_low_level_hash.dir/build'.
+[ 84%] Built target absl_low_level_hash
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/hash/CMakeFiles/absl_hash.dir/build.make include/abseil-cpp/absl/hash/CMakeFiles/absl_hash.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/hash /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/hash /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/hash/CMakeFiles/absl_hash.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/hash/CMakeFiles/absl_hash.dir/build.make include/abseil-cpp/absl/hash/CMakeFiles/absl_hash.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/hash/CMakeFiles/absl_hash.dir/build'.
+[ 84%] Built target absl_hash
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/container/CMakeFiles/absl_raw_hash_set.dir/build.make include/abseil-cpp/absl/container/CMakeFiles/absl_raw_hash_set.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/container /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/container /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/container/CMakeFiles/absl_raw_hash_set.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/container/CMakeFiles/absl_raw_hash_set.dir/build.make include/abseil-cpp/absl/container/CMakeFiles/absl_raw_hash_set.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/container/CMakeFiles/absl_raw_hash_set.dir/build'.
+[ 85%] Built target absl_raw_hash_set
+/Library/Developer/CommandLineTools/usr/bin/make  -f src/editor/level_editor/CMakeFiles/test_panel.dir/build.make src/editor/level_editor/CMakeFiles/test_panel.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/src/editor/level_editor /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/src/editor/level_editor /Users/ellie/Projects/zebes/build/src/editor/level_editor/CMakeFiles/test_panel.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f src/editor/level_editor/CMakeFiles/test_panel.dir/build.make src/editor/level_editor/CMakeFiles/test_panel.dir/build
+make[3]: Nothing to be done for `src/editor/level_editor/CMakeFiles/test_panel.dir/build'.
+[ 85%] Built target test_panel
+/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/imgui_tested.dir/build.make CMakeFiles/imgui_tested.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/CMakeFiles/imgui_tested.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/imgui_tested.dir/build.make CMakeFiles/imgui_tested.dir/build
+make[3]: Nothing to be done for `CMakeFiles/imgui_tested.dir/build'.
+[ 88%] Built target imgui_tested
+/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/imgui_test_engine.dir/build.make CMakeFiles/imgui_test_engine.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/CMakeFiles/imgui_test_engine.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/imgui_test_engine.dir/build.make CMakeFiles/imgui_test_engine.dir/build
+make[3]: Nothing to be done for `CMakeFiles/imgui_test_engine.dir/build'.
+[ 90%] Built target imgui_test_engine
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_examine_stack.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_examine_stack.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/debugging/CMakeFiles/absl_examine_stack.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/debugging/CMakeFiles/absl_examine_stack.dir/build.make include/abseil-cpp/absl/debugging/CMakeFiles/absl_examine_stack.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/debugging/CMakeFiles/absl_examine_stack.dir/build'.
+[ 90%] Built target absl_examine_stack
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_program_name.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_program_name.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_program_name.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_program_name.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_program_name.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_program_name.dir/build'.
+[ 90%] Built target absl_flags_program_name
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_config.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_config.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_config.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_config.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_config.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_config.dir/build'.
+[ 91%] Built target absl_flags_config
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_marshalling.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_marshalling.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_marshalling.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_marshalling.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_marshalling.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_marshalling.dir/build'.
+[ 91%] Built target absl_flags_marshalling
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag_internal.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag_internal.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag_internal.dir/build'.
+[ 91%] Built target absl_flags_commandlineflag_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_commandlineflag.dir/build'.
+[ 91%] Built target absl_flags_commandlineflag
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_private_handle_accessor.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_private_handle_accessor.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_private_handle_accessor.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_private_handle_accessor.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_private_handle_accessor.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_private_handle_accessor.dir/build'.
+[ 92%] Built target absl_flags_private_handle_accessor
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_reflection.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_reflection.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_reflection.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_reflection.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_reflection.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_reflection.dir/build'.
+[ 92%] Built target absl_flags_reflection
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_internal.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_internal.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_internal.dir/build'.
+[ 92%] Built target absl_flags_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage_internal.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage_internal.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage_internal.dir/build'.
+[ 92%] Built target absl_flags_usage_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_usage.dir/build'.
+[ 94%] Built target absl_flags_usage
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_parse.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_parse.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_parse.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_parse.dir/build.make include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_parse.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/flags/CMakeFiles/absl_flags_parse.dir/build'.
+[ 94%] Built target absl_flags_parse
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_conditions.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_conditions.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_conditions.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_conditions.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_conditions.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_conditions.dir/build'.
+[ 94%] Built target absl_log_internal_conditions
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_globals.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_globals.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_globals.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_globals.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_globals.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_globals.dir/build'.
+[ 94%] Built target absl_log_internal_globals
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_format.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_format.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_format.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_format.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_format.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_format.dir/build'.
+[ 94%] Built target absl_log_internal_format
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_proto.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_proto.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_proto.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_proto.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_proto.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_proto.dir/build'.
+[ 94%] Built target absl_log_internal_proto
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_fnmatch.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_fnmatch.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_fnmatch.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_fnmatch.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_fnmatch.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_fnmatch.dir/build'.
+[ 95%] Built target absl_log_internal_fnmatch
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_vlog_config_internal.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_vlog_config_internal.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_vlog_config_internal.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_vlog_config_internal.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_vlog_config_internal.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_vlog_config_internal.dir/build'.
+[ 95%] Built target absl_vlog_config_internal
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_globals.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_globals.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_globals.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_globals.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_globals.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_globals.dir/build'.
+[ 97%] Built target absl_log_globals
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_entry.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_entry.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_entry.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_entry.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_entry.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_entry.dir/build'.
+[ 97%] Built target absl_log_entry
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_sink.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_sink.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_sink.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_sink.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_sink.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_sink.dir/build'.
+[ 97%] Built target absl_log_sink
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_log_sink_set.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_log_sink_set.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_log_sink_set.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_log_sink_set.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_log_sink_set.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_log_sink_set.dir/build'.
+[ 98%] Built target absl_log_internal_log_sink_set
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_nullguard.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_nullguard.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_nullguard.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_nullguard.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_nullguard.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_nullguard.dir/build'.
+[ 98%] Built target absl_log_internal_nullguard
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_message.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_message.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log /Users/ellie/Projects/zebes/build/include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_message.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_message.dir/build.make include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_message.dir/build
+make[3]: Nothing to be done for `include/abseil-cpp/absl/log/CMakeFiles/absl_log_internal_message.dir/build'.
+[ 98%] Built target absl_log_internal_message
+/Library/Developer/CommandLineTools/usr/bin/make  -f tests/editor/CMakeFiles/editor_test_main.dir/build.make tests/editor/CMakeFiles/editor_test_main.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/tests/editor /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/tests/editor /Users/ellie/Projects/zebes/build/tests/editor/CMakeFiles/editor_test_main.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f tests/editor/CMakeFiles/editor_test_main.dir/build.make tests/editor/CMakeFiles/editor_test_main.dir/build
+make[3]: Nothing to be done for `tests/editor/CMakeFiles/editor_test_main.dir/build'.
+[ 98%] Built target editor_test_main
+/Library/Developer/CommandLineTools/usr/bin/make  -f tests/editor/CMakeFiles/test_panel_test.dir/build.make tests/editor/CMakeFiles/test_panel_test.dir/depend
+cd /Users/ellie/Projects/zebes/build && /usr/local/bin/cmake -E cmake_depends "Unix Makefiles" /Users/ellie/Projects/zebes /Users/ellie/Projects/zebes/tests/editor /Users/ellie/Projects/zebes/build /Users/ellie/Projects/zebes/build/tests/editor /Users/ellie/Projects/zebes/build/tests/editor/CMakeFiles/test_panel_test.dir/DependInfo.cmake "--color="
+/Library/Developer/CommandLineTools/usr/bin/make  -f tests/editor/CMakeFiles/test_panel_test.dir/build.make tests/editor/CMakeFiles/test_panel_test.dir/build
+[ 98%] Linking CXX executable ../../bin/tests/test_panel_test
+cd /Users/ellie/Projects/zebes/build/tests/editor && /usr/local/bin/cmake -E cmake_link_script CMakeFiles/test_panel_test.dir/link.txt --verbose=1
+/usr/bin/clang++ -g -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/test_panel_test.dir/test_panel_test.cc.o -o ../../bin/tests/test_panel_test  libeditor_test_main.a ../../src/editor/level_editor/libtest_panel.a ../../libimgui_tested.a ../../libimgui_test_engine.a ../../include/SDL/libSDL2d.a ../../include/abseil-cpp/absl/flags/libabsl_flags_parse.a ../../libimgui_tested.a ../../include/abseil-cpp/absl/flags/libabsl_flags_usage.a ../../include/abseil-cpp/absl/flags/libabsl_flags_usage_internal.a ../../include/abseil-cpp/absl/flags/libabsl_flags_internal.a ../../include/abseil-cpp/absl/flags/libabsl_flags_marshalling.a ../../include/abseil-cpp/absl/flags/libabsl_flags_reflection.a ../../include/abseil-cpp/absl/flags/libabsl_flags_config.a ../../include/abseil-cpp/absl/flags/libabsl_flags_private_handle_accessor.a ../../include/abseil-cpp/absl/flags/libabsl_flags_commandlineflag.a ../../include/abseil-cpp/absl/flags/libabsl_flags_commandlineflag_internal.a ../../include/abseil-cpp/absl/flags/libabsl_flags_program_name.a ../../include/abseil-cpp/absl/log/libabsl_log_internal_conditions.a ../../include/abseil-cpp/absl/log/libabsl_log_internal_message.a ../../include/abseil-cpp/absl/debugging/libabsl_examine_stack.a ../../include/abseil-cpp/absl/log/libabsl_log_internal_format.a ../../include/abseil-cpp/absl/log/libabsl_log_internal_proto.a ../../include/abseil-cpp/absl/log/libabsl_log_internal_nullguard.a ../../include/abseil-cpp/absl/log/libabsl_log_internal_log_sink_set.a ../../include/abseil-cpp/absl/log/libabsl_log_internal_globals.a ../../include/abseil-cpp/absl/log/libabsl_log_globals.a ../../include/abseil-cpp/absl/log/libabsl_log_sink.a ../../include/abseil-cpp/absl/log/libabsl_log_entry.a ../../include/abseil-cpp/absl/log/libabsl_vlog_config_internal.a ../../include/abseil-cpp/absl/log/libabsl_log_internal_fnmatch.a ../../include/abseil-cpp/absl/container/libabsl_raw_hash_set.a ../../include/abseil-cpp/absl/hash/libabsl_hash.a ../../include/abseil-cpp/absl/hash/libabsl_city.a ../../include/abseil-cpp/absl/hash/libabsl_low_level_hash.a ../../include/abseil-cpp/absl/container/libabsl_hashtablez_sampler.a ../../include/abseil-cpp/absl/status/libabsl_statusor.a ../../include/abseil-cpp/absl/types/libabsl_bad_variant_access.a ../../libimgui_clean.a ../../include/SDL/libSDL2d.a -lm -framework CoreVideo -framework Cocoa -framework IOKit -framework ForceFeedback -framework Carbon -framework CoreAudio -framework AudioToolbox -framework AVFoundation -framework Foundation -Xlinker -weak_framework -Xlinker GameController -Xlinker -weak_framework -Xlinker Metal -Xlinker -weak_framework -Xlinker QuartzCore -Xlinker -weak_framework -Xlinker CoreHaptics ../../include/abseil-cpp/absl/status/libabsl_status.a ../../include/abseil-cpp/absl/strings/libabsl_cord.a ../../include/abseil-cpp/absl/strings/libabsl_cordz_info.a ../../include/abseil-cpp/absl/strings/libabsl_cord_internal.a ../../include/abseil-cpp/absl/strings/libabsl_cordz_functions.a ../../include/abseil-cpp/absl/profiling/libabsl_exponential_biased.a ../../include/abseil-cpp/absl/strings/libabsl_cordz_handle.a ../../include/abseil-cpp/absl/synchronization/libabsl_synchronization.a ../../include/abseil-cpp/absl/synchronization/libabsl_graphcycles_internal.a ../../include/abseil-cpp/absl/synchronization/libabsl_kernel_timeout_internal.a ../../include/abseil-cpp/absl/base/libabsl_tracing_internal.a ../../include/abseil-cpp/absl/time/libabsl_time.a ../../include/abseil-cpp/absl/time/libabsl_civil_time.a ../../include/abseil-cpp/absl/time/libabsl_time_zone.a -Wl,-framework,CoreFoundation ../../include/abseil-cpp/absl/crc/libabsl_crc_cord_state.a ../../include/abseil-cpp/absl/crc/libabsl_crc32c.a ../../include/abseil-cpp/absl/crc/libabsl_crc_internal.a ../../include/abseil-cpp/absl/crc/libabsl_crc_cpu_detect.a ../../include/abseil-cpp/absl/debugging/libabsl_leak_check.a ../../include/abseil-cpp/absl/types/libabsl_bad_optional_access.a ../../include/abseil-cpp/absl/debugging/libabsl_stacktrace.a ../../include/abseil-cpp/absl/strings/libabsl_str_format_internal.ld: warning: ignoring duplicate libraries: '../../include/SDL/libSDL2d.a', '../../libimgui_tested.a'
+Undefined symbols for architecture x86_64:
+  "zebes::TestPanel::TestPanel()", referenced from:
+      std::__1::unique_ptr<zebes::TestPanel, std::__1::default_delete<zebes::TestPanel>> std::__1::make_unique[abi:ne200100]<zebes::TestPanel, 0>() in test_panel_test.cc.o
+ld: symbol(s) not found for architecture x86_64
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+a ../../include/abseil-cpp/absl/base/libabsl_strerror.a ../../include/abseil-cpp/absl/debugging/libabsl_symbolize.a ../../include/abseil-cpp/absl/strings/libabsl_strings.a ../../include/abseil-cpp/absl/strings/libabsl_strings_internal.a ../../include/abseil-cpp/absl/strings/libabsl_string_view.a ../../include/abseil-cpp/absl/numeric/libabsl_int128.a ../../include/abseil-cpp/absl/base/libabsl_throw_delegate.a ../../include/abseil-cpp/absl/base/libabsl_malloc_internal.a ../../include/abseil-cpp/absl/base/libabsl_base.a ../../include/abseil-cpp/absl/base/libabsl_spinlock_wait.a ../../include/abseil-cpp/absl/debugging/libabsl_debugging_internal.a ../../include/abseil-cpp/absl/base/libabsl_raw_logging_internal.a ../../include/abseil-cpp/absl/base/libabsl_log_severity.a ../../include/abseil-cpp/absl/debugging/libabsl_demangle_internal.a ../../include/abseil-cpp/absl/debugging/libabsl_demangle_rust.a ../../include/abseil-cpp/absl/debugging/libabsl_decode_rust_punycode.a ../../include/abseil-cpp/absl/debugging/libabsl_utf8_for_code_point.a
+make[3]: *** [bin/tests/test_panel_test] Error 1
+make[2]: *** [tests/editor/CMakeFiles/test_panel_test.dir/all] Error 2
+make[1]: *** [tests/editor/CMakeFiles/test_panel_test.dir/rule] Error 2
+make: *** [test_panel_test] Error 2

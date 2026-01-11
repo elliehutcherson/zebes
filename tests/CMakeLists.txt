@@ -64,3 +64,5 @@ target_link_libraries(level_test level macros gtest_main)
 gtest_discover_tests(level_test)
 
 add_subdirectory(editor)
+add_subdirectory(tools)
+

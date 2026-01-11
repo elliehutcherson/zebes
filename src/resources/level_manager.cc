@@ -132,9 +132,9 @@ nlohmann::json ToJson(const Level& level) {
 
   // Entities
   std::vector<nlohmann::json> entities_json;
-  for (const std::unique_ptr<Entity>& entity : level.entities) {
+  for (const auto& [id, entity] : level.entities) {
     nlohmann::json entity_j;
-    ToJson(entity_j, *entity);
+    ToJson(entity_j, entity);
     entities_json.push_back(entity_j);
   }
   j["entities"] = entities_json;
@@ -181,8 +181,8 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& s
 
   if (j.contains("entities")) {
     for (const nlohmann::json& item : j["entities"]) {
-      auto entity = std::make_unique<Entity>();
-      RETURN_IF_ERROR(FromJson(item, *entity, sm, cm));
+      Entity entity;
+      RETURN_IF_ERROR(FromJson(item, entity, sm, cm));
       level.AddEntity(std::move(entity));
     }
   }
@@ -323,7 +323,7 @@ std::vector<Level> LevelManager::GetAllLevels() const {
   std::vector<Level> levels;
   levels.reserve(levels_.size());
   for (const auto& [id, level_ptr] : levels_) {
-    levels.push_back(level_ptr->GetCopy());
+    levels.push_back(*level_ptr);
   }
   return levels;
 }

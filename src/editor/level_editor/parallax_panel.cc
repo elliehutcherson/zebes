@@ -1,12 +1,28 @@
 #include "editor/level_editor/parallax_panel.h"
 
 #include "absl/cleanup/cleanup.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "api/api.h"
 #include "common/status_macros.h"
 #include "imgui.h"
 #include "misc/cpp/imgui_stdlib.h"
+#include "objects/level.h"
+#include "objects/texture.h"
 
 namespace zebes {
+
+absl::StatusOr<std::unique_ptr<ParallaxPanel>> ParallaxPanel::Create(Options options) {
+  if (options.api == nullptr) {
+    return absl::InvalidArgumentError("API can not be null.");
+  }
+
+  auto ret = absl::WrapUnique(new ParallaxPanel(std::move(options)));
+  RETURN_IF_ERROR(ret->RefreshTextureCache());
+  return ret;
+}
+
+ParallaxPanel::ParallaxPanel(Options options) : api_(*options.api) {}
 
 absl::StatusOr<ParallaxResult> ParallaxPanel::Render(Level& level) {
   ImGui::PushID("ParallaxPanel");
@@ -26,29 +42,20 @@ absl::StatusOr<ParallaxResult> ParallaxPanel::RenderList(Level& level) {
   ParallaxResult result;
 
   if (ImGui::Button("Create")) {
-    editing_layer_ = ParallaxLayer{
-        .name = absl::StrCat("Layer ", level.parallax_layers.size()),
-        .texture_id = "",
-        .scroll_factor = {1.0, 1.0},
-    };
-    selected_index_ = -1;
+    ASSIGN_OR_RETURN(result, HandleOp(level, Op::kLayerCreate));
   }
   ImGui::SameLine();
 
-  if (ImGui::Button("Edit") && selected_index_ >= 0 &&
-      selected_index_ < level.parallax_layers.size()) {
-    editing_layer_ = level.parallax_layers[selected_index_];
+  if (ImGui::Button("Edit")) {
+    ASSIGN_OR_RETURN(result, HandleOp(level, Op::kLayerEdit));
   }
   ImGui::SameLine();
 
   {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
     auto cleanup = absl::MakeCleanup([] { ImGui::PopStyleColor(); });
-    if (ImGui::Button("Delete") && selected_index_ >= 0 &&
-        selected_index_ < level.parallax_layers.size()) {
-      RETURN_IF_ERROR(ConfirmState(level, Op::kLayerDelete));
-      result.type = ParallaxResult::kChanged;
-      selected_index_ = -1;
+    if (ImGui::Button("Delete")) {
+      ASSIGN_OR_RETURN(result, HandleOp(level, Op::kLayerDelete));
     }
   }
 
@@ -56,7 +63,7 @@ absl::StatusOr<ParallaxResult> ParallaxPanel::RenderList(Level& level) {
   if (ImGui::BeginListBox("Layers", ImVec2(-FLT_MIN, -FLT_MIN))) {
     for (int i = 0; i < level.parallax_layers.size(); ++i) {
       const bool is_selected = (selected_index_ == i);
-      const auto& layer = level.parallax_layers[i];
+      const ParallaxLayer& layer = level.parallax_layers[i];
 
       if (ImGui::Selectable(layer.name.c_str(), is_selected)) {
         selected_index_ = i;
@@ -76,7 +83,21 @@ absl::StatusOr<ParallaxResult> ParallaxPanel::RenderDetails(Level& level) {
   ParallaxResult result;
 
   ImGui::InputText("Name", &editing_layer_->name);
-  ImGui::InputText("Texture ID", &editing_layer_->texture_id);
+
+  // Texture Selection
+  if (ImGui::BeginListBox("Texture ID")) {
+    for (const Texture& texture : texture_cache_) {
+      bool is_selected = (editing_layer_->texture_id == texture.id);
+      if (ImGui::Selectable(texture.name_id().c_str(), is_selected)) {
+        editing_layer_->texture_id = texture.id;
+      }
+      if (is_selected) {
+        ImGui::SetItemDefaultFocus();
+      }
+    }
+    ImGui::EndListBox();
+  }
+
   ImGui::Checkbox("Repeat X", &editing_layer_->repeat_x);
 
   ImGui::Text("Scroll Factor");
@@ -87,10 +108,8 @@ absl::StatusOr<ParallaxResult> ParallaxPanel::RenderDetails(Level& level) {
 
   if (ImGui::Button("Save")) {
     // Determine if we are updating existing or creating new
-    Op op = (selected_index_ >= 0) ? Op::kLayerUpdate : Op::kLayerCreate;
-    RETURN_IF_ERROR(ConfirmState(level, op));
-    result.type = ParallaxResult::kChanged;
-    editing_layer_.reset();
+    Op op = Op::kLayerUpdate;
+    ASSIGN_OR_RETURN(result, HandleOp(level, op));
   }
   ImGui::SameLine();
 
@@ -100,30 +119,61 @@ absl::StatusOr<ParallaxResult> ParallaxPanel::RenderDetails(Level& level) {
 
   return result;
 }
+absl::StatusOr<ParallaxResult> ParallaxPanel::HandleOp(Level& level, Op op) {
+  ParallaxResult result;
+  if (op != Op::kLayerCreate && selected_index_ < 0) {
+    return result;
+  }
 
-absl::Status ParallaxPanel::ConfirmState(Level& level, Op op) {
-  if (op != Op::kLayerDelete && !editing_layer_.has_value()) {
-    return absl::InternalError("No editing layer present");
+  if (op != Op::kLayerCreate && selected_index_ > level.parallax_layers.size()) {
+    return absl::InternalError("Selected index is out of range!");
   }
 
   switch (op) {
     case Op::kLayerCreate:
+      editing_layer_ = ParallaxLayer{
+          .name = absl::StrCat("Layer ", level.parallax_layers.size()),
+          .texture_id = "",
+          .scroll_factor = {1.0, 1.0},
+      };
+
       level.parallax_layers.push_back(*editing_layer_);
       // Select the new layer
       selected_index_ = level.parallax_layers.size() - 1;
+      // Enter edit mode immediately
+      result.type = ParallaxResult::kChanged;
+      break;
+    case Op::kLayerEdit:
+      editing_layer_ = level.parallax_layers[selected_index_];
       break;
     case Op::kLayerUpdate:
-      if (selected_index_ >= 0 && selected_index_ < level.parallax_layers.size()) {
-        level.parallax_layers[selected_index_] = *editing_layer_;
+      if (editing_layer_->name.empty()) {
+        return absl::InvalidArgumentError("Layer name cannot be empty");
       }
+      if (editing_layer_->texture_id.empty()) {
+        return absl::InvalidArgumentError("Layer texture must be selected");
+      }
+      level.parallax_layers[selected_index_] = *editing_layer_;
+      result.type = ParallaxResult::kChanged;
+      editing_layer_.reset();
       break;
     case Op::kLayerDelete:
-      if (selected_index_ >= 0 && selected_index_ < level.parallax_layers.size()) {
-        level.parallax_layers.erase(level.parallax_layers.begin() + selected_index_);
-      }
+      level.parallax_layers.erase(level.parallax_layers.begin() + selected_index_);
+      selected_index_ = -1;
+      result.type = ParallaxResult::kChanged;
       break;
   }
 
+  return result;
+}
+
+absl::Status ParallaxPanel::RefreshTextureCache() {
+  ASSIGN_OR_RETURN(texture_cache_, api_.GetAllTextures());
+
+  std::sort(texture_cache_.begin(), texture_cache_.end(),
+            [](const Texture& a, const Texture& b) { return a.name < b.name; });
+
+  LOG(INFO) << "Loaded " << texture_cache_.size() << " textures.";
   return absl::OkStatus();
 }
 

@@ -86,7 +86,7 @@ TEST_F(LevelManagerTest, SerializationTest) {
   entity->body.velocity = {1, 0};
   entity->body.is_static = true;
 
-  level.AddEntity(std::move(entity));
+  level.AddEntity(std::move(*entity));
 
   // Save/Create
   auto id_or = manager_->CreateLevel(std::move(level));
@@ -111,10 +111,11 @@ TEST_F(LevelManagerTest, SerializationTest) {
   EXPECT_EQ(loaded->tile_chunks[100].tiles[0], 1);
 
   ASSERT_EQ(loaded->entities.size(), 1);
-  EXPECT_EQ(loaded->entities[0]->id, 123);
-  EXPECT_EQ(loaded->entities[0]->transform.position.x, 10);
-  EXPECT_EQ(loaded->entities[0]->body.velocity.x, 1);
-  EXPECT_TRUE(loaded->entities[0]->body.is_static);
+  const Entity& loaded_entity = loaded->entities.at(123);
+  EXPECT_EQ(loaded_entity.id, 123);
+  EXPECT_EQ(loaded_entity.transform.position.x, 10);
+  EXPECT_EQ(loaded_entity.body.velocity.x, 1);
+  EXPECT_TRUE(loaded_entity.body.is_static);
 }
 
 TEST_F(LevelManagerTest, DeleteLevel) {

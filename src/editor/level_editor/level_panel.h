@@ -2,73 +2,59 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "editor/level_editor/level_panel_interface.h"
 #include "objects/level.h"
 
 namespace zebes {
 
-struct LevelResult {
-  enum Type : uint8_t { kNone = 0, kAttach = 1, kDetach = 2 };
-  Type type = Type::kNone;
-  std::string level_id;
-};
-
 struct LevelCounters {
-  int render_list_count = 0;
-  int render_details_count = 0;
+  int render_list = 0;
+  int render_details = 0;
+  int create = 0;
+  int edit = 0;
+  int del = 0;
+  int save = 0;
+  int back = 0;
 };
 
-class ILevelPanel {
+class LevelPanel : public LevelPanelInterface {
  public:
-  virtual ~ILevelPanel() = default;
+  struct Options {
+    Api* api;
+  };
 
-  virtual absl::StatusOr<LevelResult> Render() = 0;
-  virtual absl::Status Attach(const std::string& id) = 0;
-  virtual void Detach() = 0;
-  virtual const LevelCounters& GetCounters() const = 0;
-};
+  static absl::StatusOr<std::unique_ptr<LevelPanel>> Create(Options options);
+  ~LevelPanel() = default;
 
-class LevelPanel : public ILevelPanel {
- public:
-  // Creates a new LevelPanel instance.
-  // Returns an error if the API pointer is null.
-  static absl::StatusOr<std::unique_ptr<LevelPanel>> Create(Api* api);
+  enum Op : uint8_t { kLevelCreate, kLevelEdit, kLevelSave, kLevelDelete, kLevelBack };
 
   // Renders the level panel UI.
-  // This is the main entry point for the panel's rendering logic. This will return "kAttach" or
-  // "kDetach" when the user attaches or detaches a valid level.
-  absl::StatusOr<LevelResult> Render() override;
+  // Returns kChanged if the level was modified.
+  absl::StatusOr<LevelResult> Render(std::optional<Level>& level) override;
 
-  absl::Status Attach(const std::string& id) override;
+  absl::StatusOr<LevelResult> HandleOp(std::optional<Level>& level, Op op);
 
-  void Detach() override;
+  const LevelCounters& GetCounters() const { return counters_; }
 
-  const LevelCounters& GetCounters() const override { return counters_; }
+  void TestOnlySetSelectedIndex(int index) { selected_index_ = index; }
+  int TestOnly_GetSelectedIndex() const { return selected_index_; }
 
  private:
-  enum Op : uint8_t { kLevelCreate, kLevelUpdate, kLevelDelete, kLevelReset };
+  explicit LevelPanel(Options options);
 
-  LevelPanel(Api* api);
+  // Renders the list of level layers and CRUD buttons.
+  absl::StatusOr<LevelResult> RenderList(std::optional<Level>& level);
 
-  absl::Status Attach(int i);
+  // Renders the details view for creating or editing a layer.
+  absl::StatusOr<LevelResult> RenderDetails(std::optional<Level>& level);
 
-  // Refreshes the local cache of levels from the API.
   void RefreshLevelCache();
 
-  // Renders the list of levels and CRUD buttons.
-  absl::StatusOr<LevelResult> RenderList();
-
-  // Renders the details view for creating or editing a level.
-  absl::StatusOr<LevelResult> RenderDetails();
-
-  absl::Status ConfirmState(Op op);
-
-  int selected_index_ = -1;
-  std::vector<Level> level_cache_;
-  std::optional<Level> editting_level_;
-  LevelCounters counters_;
-
-  // Outside dependencies
   Api& api_;
+
+  int selected_index_ = 0;
+  std::vector<Level> level_cache_;
+  LevelCounters counters_;
 };
 
 }  // namespace zebes

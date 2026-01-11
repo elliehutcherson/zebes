@@ -7,12 +7,17 @@ target_link_libraries(editor_test_main
   imgui_tested
   imgui_test_engine
   SDL2-static
+  absl::flags
+  absl::flags_parse
+  absl::log
 )
 
 # --- Sanity Test ---
 add_executable(sanity_test sanity_test.cc)
 target_link_libraries(sanity_test
   editor_test_main
+  absl::flags
+  absl::flags_parse
 )
 
 add_test(NAME sanity_test COMMAND sanity_test)
@@ -49,23 +54,6 @@ target_include_directories(level_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME level_editor_test COMMAND level_editor_test)
 
 
-# --- Level Panel Test ---
-add_executable(level_panel_test level_panel_test.cc)
-target_link_libraries(level_panel_test
-  editor_test_main
-  level_panel
-  api
-  gmock
-  imgui_tested
-  imgui_test_engine
-  SDL2-static
-  absl::flags
-  absl::flags_parse
-)
-target_include_directories(level_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
-add_test(NAME level_panel_test COMMAND level_panel_test)
-
-
 # --- Parallax Panel Test ---
 add_executable(parallax_panel_test parallax_panel_test.cc)
 target_link_libraries(parallax_panel_test
@@ -76,7 +64,57 @@ target_link_libraries(parallax_panel_test
   SDL2-static
   absl::flags
   absl::flags_parse
+  gmock
 )
 target_include_directories(parallax_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_panel_test COMMAND parallax_panel_test)
+
+# --- Parallax Panel Unit Test ---
+add_executable(parallax_panel_validation_test parallax_panel_validation_test.cc)
+target_link_libraries(parallax_panel_validation_test
+  gtest_main
+  gmock
+  api
+  parallax_panel
+  imgui_tested
+  imgui_test_engine
+  SDL2-static
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(parallax_panel_validation_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME parallax_panel_validation_test COMMAND parallax_panel_validation_test)
+
+
+# --- Level Panel Unit Test ---
+add_executable(level_panel_validation_test level_panel_validation_test.cc)
+target_link_libraries(level_panel_validation_test
+  gtest_main
+  gmock
+  level_panel
+  imgui_tested
+  imgui_test_engine
+  SDL2-static
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(level_panel_validation_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME level_panel_validation_test COMMAND level_panel_validation_test)
+
+
+# --- Level Panel Test ---
+add_executable(level_panel_test level_panel_test.cc)
+target_link_libraries(level_panel_test
+  editor_test_main
+  level_panel
+  imgui_tested
+  imgui_test_engine
+  SDL2-static
+  absl::flags
+  absl::flags_parse
+  gmock
+  api
+)
+target_include_directories(level_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME level_panel_test COMMAND level_panel_test)
 
