@@ -3,6 +3,7 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
+#include "editor/imgui_scoped.h"
 #include "editor/level_editor/level_panel.h"
 #include "imgui.h"
 
@@ -72,10 +73,9 @@ absl::Status LevelEditor::RenderLeft() {
 
   const float height = ImGui::GetContentRegionAvail().y * 0.5f;
 
-  if (ImGui::BeginChild("LevelPanel", ImVec2(0, height))) {
+  if (auto level_child = ScopedChild("LevelPanel", ImVec2(0, height)); level_child) {
     ASSIGN_OR_RETURN(LevelResult result, level_panel_->Render(editting_level_));
   }
-  ImGui::EndChild();
 
   if (!editting_level_.has_value()) {
     return absl::OkStatus();
@@ -83,10 +83,9 @@ absl::Status LevelEditor::RenderLeft() {
 
   ImGui::Separator();
 
-  if (ImGui::BeginChild("ParallaxPanel", ImVec2(0, 0))) {
-    ASSIGN_OR_RETURN(auto unused, parallax_panel_->Render(*editting_level_));
+  if (auto parallax_child = ScopedChild("ParallaxPanel", ImVec2(0, 0)); parallax_child) {
+    ASSIGN_OR_RETURN(ParallaxResult unused, parallax_panel_->Render(*editting_level_));
   }
-  ImGui::EndChild();
 
   return absl::OkStatus();
 }
@@ -94,11 +93,37 @@ absl::Status LevelEditor::RenderLeft() {
 void LevelEditor::RenderCenter() {
   ImGui::Text("Viewport");
   ImGui::Separator();
+
+  auto tab_default = []() {
+    if (auto tab_item = ScopedTabItem("Viewport"); tab_item) {
+      // TODO(ellie): Render the selected level's tilemap and entities here.
+      ImGui::TextDisabled("(Placeholder: Level Viewport)");
+    }
+  };
+
+  auto tab_parallax = [this]() {
+    if (!parallax_panel_->GetEditingLayer().has_value()) return;
+
+    std::string tab_name = "Parallax Layer";
+
+    if (auto tab_item = ScopedTabItem(tab_name.c_str()); tab_item) {
+      std::optional<std::string> texture = parallax_panel_->GetTexture();
+
+      if (!texture.has_value()) {
+        ImGui::Text("No texture selected...");
+      } else {
+        ImGui::Text("Texture ID: %s", texture->c_str());
+      }
+    }
+  };
+
   // Using a child window for the viewport to clip content if needed and handle scrolling.
-  ImGui::BeginChild("LevelViewport", ImVec2(0, 0), true);
-  // TODO(ellie): Render the selected level's tilemap and entities here.
-  ImGui::TextDisabled("(Placeholder: Level Viewport)");
-  ImGui::EndChild();
+  if (auto view_child = ScopedChild("LevelViewport", ImVec2(0, 0), true); view_child) {
+    if (auto view_tab = ScopedTabBar("ViewportTabs"); view_tab) {
+      tab_default();
+      tab_parallax();
+    }
+  }
 }
 
 void LevelEditor::RenderRight() {

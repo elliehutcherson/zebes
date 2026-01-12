@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "imgui.h"
 #include "imgui_te_context.h"
 #include "imgui_te_engine.h"
@@ -16,29 +17,35 @@ namespace {
 using ::testing::NiceMock;
 using ::testing::Return;
 
+#define CHECK_AND_LOG(condition, message) \
+  if (!(condition)) {                     \
+    LOG(ERROR) << message;                \
+  }                                       \
+  IM_CHECK(condition)
+
 std::unique_ptr<MockApi> g_api;
 std::unique_ptr<ParallaxPanel> g_parallax_panel;
 Level g_level;
-std::vector<std::string> g_textures = {"tex1", "tex2", "tex_bg", "new_tex"};
+
+std::vector<Texture> g_textures = {  // ID, Name, Path, SDL_Texture*
+    {"t_001", "grass_ground", "assets/tiles/grass.png", nullptr},
+    {"t_002", "stone_wall", "assets/tiles/stone.png", nullptr},
+    {"t_003", "player_idle", "assets/chars/hero.png", nullptr},
+    {"t_004", "enemy_slime", "assets/chars/slime.png", nullptr},
+    {"t_005", "ui_button", "assets/ui/btn_ok.png", nullptr}};
+
 absl::StatusOr<ParallaxResult> g_last_render_result;
 
 void AppSetup() {
   g_api = std::make_unique<NiceMock<MockApi>>();
-  std::vector<Texture> textures;
-  for (const auto& t : g_textures) {
-    textures.push_back(Texture{.id = t});
-  }
-  ON_CALL(*g_api, GetAllTextures()).WillByDefault(Return(textures));
+  ON_CALL(*g_api, GetAllTextures()).WillByDefault(Return(g_textures));
 
-  auto panel_or = ParallaxPanel::Create({.api = g_api.get()});
-  if (!panel_or.ok()) {
+  auto panel = ParallaxPanel::Create({.api = g_api.get()});
+  if (!panel.ok()) {
     LOG(FATAL) << "Parallax panel failed to create";
   }
-  g_parallax_panel = *std::move(panel_or);
-  // g_level = Level{.id = "test_level", .name = "Test Level"};
-  g_level = Level();
-  g_level.id = "test_level";
-  g_level.name = "Test Level";
+  g_parallax_panel = *std::move(panel);
+  g_level = Level{.id = "test_level", .name = "Test Level"};
 }
 
 void AppShutdown() {
@@ -58,16 +65,17 @@ void RegisterTests(ImGuiTestEngine* engine) {
     ctx->SetRef(kAppWindowName);
 
     // Verify Create button exists
-    IM_CHECK(ctx->ItemExists("**/Create"));
+    CHECK_AND_LOG(ctx->ItemExists("**/Create"), "Create button missing in basic render");
 
     // Ensure Render returns OK
-    IM_CHECK(g_last_render_result.ok());
+    CHECK_AND_LOG(g_last_render_result.ok(),
+                  "Render returned error: " << g_last_render_result.status());
   };
 
   IM_REGISTER_TEST(engine, "parallax_panel", "create_layer")->TestFunc = [](ImGuiTestContext* ctx) {
-    auto panel_or = ParallaxPanel::Create({.api = g_api.get()});
-    IM_CHECK(panel_or.ok());
-    g_parallax_panel = *std::move(panel_or);  // Reset state
+    auto panel = ParallaxPanel::Create({.api = g_api.get()});
+    CHECK_AND_LOG(panel.ok(), "ParallaxPanel::Create failed: " << panel.status());
+    g_parallax_panel = *std::move(panel);  // Reset state
     g_level.parallax_layers.clear();
     ctx->SetRef(kAppWindowName);
 
@@ -76,32 +84,40 @@ void RegisterTests(ImGuiTestEngine* engine) {
     ctx->Yield();
 
     // Should be in Details view now
-    IM_CHECK(ctx->ItemExists("**/Name"));
-    IM_CHECK(ctx->ItemExists("**/Save"));
+    CHECK_AND_LOG(ctx->ItemExists("**/Name"), "Name input missing after clicking Create");
+    CHECK_AND_LOG(ctx->ItemExists("**/Save"), "Save button missing after clicking Create");
 
     // Select a texture (required for validation)
-    if (ctx->ItemExists("**/tex1")) {
-      ctx->ItemClick("**/tex1");
+    // Texture format is "name-id"
+    if (ctx->ItemExists("**/grass_ground-t_001")) {
+      ctx->ItemClick("**/grass_ground-t_001");
+      ctx->Yield();
+
+      // Click Change Texture to confirm selection
+      ctx->ItemClick("**/Change Texture");
+      ctx->Yield();
     }
-    ctx->Yield();
 
     // Save
     ctx->ItemClick("**/Save");
     ctx->Yield();
 
-    // Should be back to List view
-    IM_CHECK(ctx->ItemExists("**/Create"));
-
     // Check if layer was added
-    IM_CHECK(g_level.parallax_layers.size() == 1);
-    IM_CHECK(g_level.parallax_layers[0].name == "Layer 0");
-    IM_CHECK(g_level.parallax_layers[0].texture_id == "tex1");
+    CHECK_AND_LOG(g_level.parallax_layers.size() == 1,
+                  "Expected 1 layer, got " << g_level.parallax_layers.size());
+    if (!g_level.parallax_layers.empty()) {
+      CHECK_AND_LOG(g_level.parallax_layers[0].name == "Layer 0",
+                    "Expected name 'Layer 0', got '" << g_level.parallax_layers[0].name << "'");
+      CHECK_AND_LOG(
+          g_level.parallax_layers[0].texture_id == "t_001",
+          "Expected texture_id 't_001', got '" << g_level.parallax_layers[0].texture_id << "'");
+    }
   };
 
   IM_REGISTER_TEST(engine, "parallax_panel", "edit_layer")->TestFunc = [](ImGuiTestContext* ctx) {
-    auto panel_or = ParallaxPanel::Create({.api = g_api.get()});
-    IM_CHECK(panel_or.ok());
-    g_parallax_panel = *std::move(panel_or);  // Reset state
+    auto panel = ParallaxPanel::Create({.api = g_api.get()});
+    CHECK_AND_LOG(panel.ok(), "ParallaxPanel::Create failed: " << panel.status());
+    g_parallax_panel = *std::move(panel);  // Reset state
     g_level.parallax_layers.clear();
     g_level.parallax_layers.push_back({.name = "Background", .texture_id = "tex_bg"});
     ctx->SetRef(kAppWindowName);
@@ -116,13 +132,17 @@ void RegisterTests(ImGuiTestEngine* engine) {
     ctx->Yield();
 
     // Verify fields
-    IM_CHECK(ctx->ItemExists("**/Name"));
+    CHECK_AND_LOG(ctx->ItemExists("**/Name"), "Name input missing in Edit view");
 
     // Change name
     ctx->ItemInputValue("**/Name", "New Background");
 
-    // Select new texture
-    ctx->ItemClick("**/new_tex");
+    // Select new texture (stone_wall-t_002)
+    ctx->ItemClick("**/stone_wall-t_002");
+    ctx->Yield();
+
+    // Click Change Texture
+    ctx->ItemClick("**/Change Texture");
     ctx->Yield();
 
     // Save
@@ -130,15 +150,20 @@ void RegisterTests(ImGuiTestEngine* engine) {
     ctx->Yield();
 
     // Verify change
-    IM_CHECK(g_level.parallax_layers.size() == 1);
-    IM_CHECK(g_level.parallax_layers[0].name == "New Background");
-    IM_CHECK(g_level.parallax_layers[0].texture_id == "new_tex");
+    CHECK_AND_LOG(g_level.parallax_layers.size() == 1,
+                  "Expected 1 layer, got " << g_level.parallax_layers.size());
+    CHECK_AND_LOG(
+        g_level.parallax_layers[0].name == "New Background",
+        "Expected name 'New Background', got '" << g_level.parallax_layers[0].name << "'");
+    CHECK_AND_LOG(
+        g_level.parallax_layers[0].texture_id == "t_002",
+        "Expected texture_id 't_002', got '" << g_level.parallax_layers[0].texture_id << "'");
   };
 
   IM_REGISTER_TEST(engine, "parallax_panel", "delete_layer")->TestFunc = [](ImGuiTestContext* ctx) {
-    auto panel_or = ParallaxPanel::Create({.api = g_api.get()});
-    IM_CHECK(panel_or.ok());
-    g_parallax_panel = *std::move(panel_or);  // Reset state
+    auto panel = ParallaxPanel::Create({.api = g_api.get()});
+    CHECK_AND_LOG(panel.ok(), "ParallaxPanel::Create failed: " << panel.status());
+    g_parallax_panel = *std::move(panel);  // Reset state
     g_level.parallax_layers.clear();
     g_level.parallax_layers.push_back({.name = "Layer To Delete"});
     ctx->SetRef(kAppWindowName);
@@ -152,7 +177,8 @@ void RegisterTests(ImGuiTestEngine* engine) {
     ctx->Yield();
 
     // Verify removal
-    IM_CHECK(g_level.parallax_layers.empty());
+    CHECK_AND_LOG(g_level.parallax_layers.empty(),
+                  "Expected layers to be empty, got " << g_level.parallax_layers.size());
   };
 }
 

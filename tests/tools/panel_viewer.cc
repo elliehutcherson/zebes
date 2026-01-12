@@ -71,8 +71,6 @@ absl::Status Run() {
 
     // Rendering
     ImGui::Render();
-    // Rendering
-    ImGui::Render();
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
@@ -107,7 +105,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  LOG(INFO) << "Panel View halting gracefully.";
+  LOG(INFO) << "Panel View saying goodbye =)";
 
   return 0;
 }

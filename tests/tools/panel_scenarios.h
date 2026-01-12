@@ -12,6 +12,8 @@
 
 // Project Headers
 #include "editor/level_editor/level_panel.h"
+#include "editor/level_editor/parallax_panel.h"
+#include "objects/texture.h"
 #include "tests/api_mock.h"
 
 namespace zebes {
@@ -29,21 +31,10 @@ class IPanelScenario {
   virtual const char* GetTitle() const = 0;
 };
 
-class LevelPanelScenario : public IPanelScenario {
+class BasePanelScenario : public IPanelScenario {
  public:
-  static absl::StatusOr<std::unique_ptr<LevelPanelScenario>> Create() {
-    auto scenario = std::unique_ptr<LevelPanelScenario>(new LevelPanelScenario());
-
-    // 2. Create the Panel
-    ASSIGN_OR_RETURN(scenario->panel_, LevelPanel::Create({.api = scenario->api_.get()}));
-
-    return scenario;
-  }
-
   void Render() override {
-    if (!panel_) return;
-
-    // NEW CODE: Force the ImGui window to match the SDL window size/pos
+    // Force the ImGui window to match the SDL window size/pos
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 
@@ -55,27 +46,42 @@ class LevelPanelScenario : public IPanelScenario {
     // Push style to remove rounded corners (looks better when fullscreen)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 
-    if (ImGui::Begin("Mock Level Editor", nullptr, window_flags)) {
-      absl::StatusOr<LevelResult> result = panel_->Render(editing_level_);
-      if (!result.ok()) LOG(ERROR) << result.status();
+    if (ImGui::Begin(GetTitle(), nullptr, window_flags)) {
+      absl::Status status = RenderContent();
+      if (!status.ok()) LOG(ERROR) << status;
     }
     ImGui::End();
 
-    ImGui::PopStyleVar();  // Don't forget to pop the style var!
+    ImGui::PopStyleVar();
+  }
+
+ protected:
+  virtual absl::Status RenderContent() = 0;
+};
+
+class LevelPanelScenario : public BasePanelScenario {
+ public:
+  static absl::StatusOr<std::unique_ptr<LevelPanelScenario>> Create() {
+    auto scenario = std::unique_ptr<LevelPanelScenario>(new LevelPanelScenario());
+
+    // 2. Create the Panel
+    ASSIGN_OR_RETURN(scenario->panel_, LevelPanel::Create({.api = scenario->api_.get()}));
+
+    return scenario;
   }
 
   const char* GetTitle() const override { return "Level Panel Viewer"; }
 
+ protected:
+  absl::Status RenderContent() override {
+    if (!panel_) return absl::OkStatus();
+    return panel_->Render(editing_level_).status();
+  }
+
  private:
   LevelPanelScenario() {
     // Setup default mock behavior to prevent crashes
-    ON_CALL(*api_, GetAllLevels).WillByDefault([this]() {
-      std::vector<Level> levels;
-      // for (const Level& l : dummy_levels_) {
-      //   levels.push_back(l.GetCopy());
-      // }
-      return levels;
-    });
+    ON_CALL(*api_, GetAllLevels).WillByDefault([this]() { return dummy_levels_; });
   }
 
   std::unique_ptr<zebes::MockApi> api_ = std::make_unique<NiceMock<MockApi>>();
@@ -84,9 +90,55 @@ class LevelPanelScenario : public IPanelScenario {
   std::vector<zebes::Level> dummy_levels_;
 };
 
+class ParallaxPanelScenario : public BasePanelScenario {
+ public:
+  static absl::StatusOr<std::unique_ptr<ParallaxPanelScenario>> Create() {
+    auto scenario = std::unique_ptr<ParallaxPanelScenario>(new ParallaxPanelScenario());
+
+    // Create the Panel
+    ASSIGN_OR_RETURN(scenario->panel_, ParallaxPanel::Create({.api = scenario->api_.get()}));
+
+    // Setup dummy data
+    scenario->editing_level_ = Level();
+    scenario->editing_level_->parallax_layers = {
+        {"Background", "sky.png", {0.1f, 0.1f}, true},
+        {"Midground", "mountains.png", {0.5f, 0.5f}, false},
+        {"Foreground", "trees.png", {1.0f, 1.0f}, true},
+    };
+    scenario->dummy_textures_ = DummyTextures();
+
+    return scenario;
+  }
+
+  const char* GetTitle() const override { return "Parallax Panel Viewer"; }
+
+ protected:
+  absl::Status RenderContent() override {
+    if (!panel_) return absl::OkStatus();
+    return panel_->Render(*editing_level_).status();
+  }
+
+ private:
+  ParallaxPanelScenario() {
+    // Setup default mock behavior to prevent crashes
+    ON_CALL(*api_, GetAllTextures).WillByDefault([this]() { return dummy_textures_; });
+  }
+
+  std::unique_ptr<zebes::MockApi> api_ = std::make_unique<NiceMock<MockApi>>();
+  std::unique_ptr<zebes::ParallaxPanel> panel_;
+  std::optional<zebes::Level> editing_level_;
+  std::vector<Texture> dummy_textures_ = DummyTextures();
+};
+
 inline absl::StatusOr<std::unique_ptr<IPanelScenario>> CreateScenario(absl::string_view flag) {
   if (flag == "level_panel") {
     ASSIGN_OR_RETURN(std::unique_ptr<LevelPanelScenario> scenario, LevelPanelScenario::Create());
+    return scenario;
+  }
+
+  if (flag == "parallax_panel") {
+    ASSIGN_OR_RETURN(std::unique_ptr<ParallaxPanelScenario> scenario,
+                     ParallaxPanelScenario::Create());
     return scenario;
   }
 

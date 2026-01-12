@@ -117,4 +117,3 @@ target_link_libraries(level_panel_test
 )
 target_include_directories(level_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME level_panel_test COMMAND level_panel_test)
-

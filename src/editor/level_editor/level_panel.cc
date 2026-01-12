@@ -73,9 +73,7 @@ absl::StatusOr<LevelResult> LevelPanel::RenderList(std::optional<Level>& level) 
 
 absl::StatusOr<LevelResult> LevelPanel::RenderDetails(std::optional<Level>& level) {
   LevelResult result;
-  if (!level.has_value()) {
-    return result;
-  }
+  // At this point we known that level is not null.
   Level& lvl = *level;
 
   if (ImGui::Button("Back")) {

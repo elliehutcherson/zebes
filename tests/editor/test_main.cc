@@ -6,6 +6,7 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/log/log.h"
+#include "absl/strings/str_format.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
@@ -16,6 +17,9 @@
 // Define the interactive flag
 ABSL_FLAG(bool, interactive, false,
           "If true, splits screen 50/50 and enables mouse control for debugging.");
+
+// Flag to control ImGui logging
+ABSL_FLAG(bool, imgui_verbose, true, "If true, enables ImGui Test Engine logging to TTY.");
 
 namespace {
 
@@ -76,6 +80,7 @@ void InitTestEngine(TestContext* ctx) {
   test_io.ConfigRunSpeed = ImGuiTestRunSpeed_Fast;
   test_io.ScreenCaptureFunc = nullptr;
   test_io.ScreenCaptureUserData = nullptr;
+  test_io.ConfigLogToTTY = absl::GetFlag(FLAGS_imgui_verbose);
 
   ImGuiTestEngine_Start(ctx->engine, ImGui::GetCurrentContext());
 }
@@ -210,8 +215,8 @@ int RunTestApp(int argc, char** argv, TestRegistrationCallback register_tests,
   ImGuiTestEngine_GetResultSummary(ctx.engine, &summary);
   int test_failures = summary.CountTested - summary.CountSuccess;
 
-  printf("Tests: %d/%d passed (%d failed)\n", summary.CountSuccess, summary.CountTested,
-         test_failures);
+  LOG(INFO) << absl::StrFormat("Tests: %d/%d passed (%d failed)\n", summary.CountSuccess,
+                               summary.CountTested, test_failures);
 
   // 6. Shutdown
   if (app_shutdown) app_shutdown();

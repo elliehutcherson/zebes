@@ -4,11 +4,13 @@
 #include <fstream>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
+#include "objects/level.h"
 #include "resources/resource_utils.h"
 
 namespace zebes {
@@ -24,6 +26,7 @@ void FromJson(const nlohmann::json& j, TileChunk& chunk) { j.at("tiles").get_to(
 // Helper for ParallaxLayer
 void ToJson(nlohmann::json& j, const ParallaxLayer& layer) {
   j = nlohmann::json{
+      {"name", layer.name},
       {"texture_id", layer.texture_id},
       {"scroll_factor_x", layer.scroll_factor.x},
       {"scroll_factor_y", layer.scroll_factor.y},
@@ -32,6 +35,7 @@ void ToJson(nlohmann::json& j, const ParallaxLayer& layer) {
 }
 
 void FromJson(const nlohmann::json& j, ParallaxLayer& layer) {
+  layer.name = j.value("name", "");
   j.at("texture_id").get_to(layer.texture_id);
   j.at("scroll_factor_x").get_to(layer.scroll_factor.x);
   j.at("scroll_factor_y").get_to(layer.scroll_factor.y);
@@ -163,10 +167,27 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& s
   }
 
   if (j.contains("parallax_layers")) {
+    absl::flat_hash_set<std::string> existing_names;
+    int index = 0;
     for (const nlohmann::json& item : j["parallax_layers"]) {
       ParallaxLayer layer;
       FromJson(item, layer);
+
+      if (layer.name.empty()) {
+        layer.name = absl::StrCat("Layer ", index);
+      }
+
+      std::string unique_name = layer.name;
+      int duplicate_count = 1;
+      while (existing_names.contains(unique_name)) {
+        unique_name = absl::StrCat(layer.name, " (", duplicate_count, ")");
+        duplicate_count++;
+      }
+      layer.name = unique_name;
+      existing_names.insert(layer.name);
+
       level.parallax_layers.push_back(layer);
+      index++;
     }
   }
 
@@ -247,14 +268,21 @@ absl::Status LevelManager::LoadAllLevels() {
 }
 
 absl::StatusOr<std::string> LevelManager::CreateLevel(Level level) {
+  if (level.name.empty()) {
+    return absl::InvalidArgumentError("Levels must have a non-empty name.");
+  }
+
+  // Check for uniqueness across ALL levels
+  for (const auto& [id, existing_level] : levels_) {
+    if (existing_level->name == level.name) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Level name '", level.name, "' already exists."));
+    }
+  }
+
   // FORCE ID GENERATION
   level.id = GenerateGuid();
 
-  // Save the level (requires copy because SaveLevel takes const ref but here we have an object we
-  // want to save) Actually, SaveLevel handles serialization. We should save the level we just
-  // modified. BUT we want to reload it?
-
-  // Wait, if we use SaveLevel which takes `const Level&`, we can just pass `level`.
   RETURN_IF_ERROR(SaveLevel(level));
 
   // Reload to ensure it's in memory properly
@@ -267,6 +295,32 @@ absl::StatusOr<std::string> LevelManager::CreateLevel(Level level) {
 absl::Status LevelManager::SaveLevel(const Level& level) {
   if (level.id.empty()) {
     return absl::InvalidArgumentError("Level must have an ID to be saved.");
+  }
+
+  // 1. Validate Level Name
+  if (level.name.empty()) {
+    return absl::InvalidArgumentError("Level name cannot be empty.");
+  }
+
+  // 2. Validate Level Name Uniqueness
+  for (const auto& [id, existing_level] : levels_) {
+    if (id != level.id && existing_level->name == level.name) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Level name '", level.name, "' is already taken by another level."));
+    }
+  }
+
+  // 3. Validate Parallax Layers
+  absl::flat_hash_set<std::string> layer_names;
+  for (const ParallaxLayer& layer : level.parallax_layers) {
+    if (layer.name.empty()) {
+      return absl::InvalidArgumentError("Parallax layer name cannot be empty.");
+    }
+    if (layer_names.contains(layer.name)) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Duplicate parallax layer name found: '", layer.name, "'"));
+    }
+    layer_names.insert(layer.name);
   }
 
   nlohmann::json json = ToJson(level);

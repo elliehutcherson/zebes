@@ -1,12 +1,12 @@
 #include "api/api.h"
-#include "blueprint_manager_mock.h"
-#include "collider_manager_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "level_manager_mock.h"
 #include "macros.h"
-#include "sprite_manager_mock.h"
-#include "texture_manager_mock.h"
+#include "resources/blueprint_manager_mock.h"
+#include "resources/collider_manager_mock.h"
+#include "resources/level_manager_mock.h"
+#include "resources/sprite_manager_mock.h"
+#include "resources/texture_manager_mock.h"
 
 namespace zebes {
 namespace {

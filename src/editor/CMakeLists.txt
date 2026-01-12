@@ -1,5 +1,11 @@
 # Editor Component Libraries
 
+# ImGui Scoped
+add_library(imgui_scoped INTERFACE imgui_scoped.h)
+target_link_libraries(imgui_scoped INTERFACE
+  ${IMGUI_LIBRARIES}
+)
+
 # Editor Utils
 add_library(editor_utils editor_utils.cc)
 target_link_libraries(editor_utils

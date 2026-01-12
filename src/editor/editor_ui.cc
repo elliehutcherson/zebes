@@ -1,3 +1,4 @@
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include "editor/editor_ui.h"
 
 #include "absl/cleanup/cleanup.h"
@@ -11,6 +12,7 @@
 #include "editor/sprite_editor/sprite_editor.h"
 #include "editor/texture_editor/texture_editor.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 
 namespace zebes {
 
@@ -89,14 +91,36 @@ bool EditorUi::RenderTab(const char* name, std::function<absl::Status()> render_
 
   LOG(ERROR) << name << " Render error: " << status;
 
+  // ImGui stack recovery
+  ImGuiContext* g = ImGui::GetCurrentContext();
+
+  // Close any unclosed child windows
+  while (g->CurrentWindow != g->CurrentWindowStack[0].Window) {
+    LOG(WARNING) << "Recovering unclosed window: " << g->CurrentWindow->Name;
+
+    // Check what type of window it is by its flags
+    if (g->CurrentWindow->Flags & ImGuiWindowFlags_ChildWindow) {
+      ImGui::EndChild();
+    } else {
+      ImGui::End();
+    }
+  }
+
+  // Close any unclosed popup stacks
+  while (g->OpenPopupStack.Size > 0) {
+    LOG(WARNING) << "Recovering unclosed popup";
+    ImGui::EndPopup();
+  }
+
+  // Close any unclosed tab bars (more complex - ImGui doesn't expose this easily)
+  // This is harder to detect reliably...
+
   // Attempt to recover
   status = Init();
   if (!status.ok()) {
     LOG(FATAL) << "UNABLE TO RECOVER FROM " << name << " ERROR: " << status;
   }
 
-  // TELL IMGUI THE FRAME IS OVER, BUT DO NOT RENDER IT
-  ImGui::EndFrame();
   return true;
 }
 
