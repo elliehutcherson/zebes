@@ -9,6 +9,7 @@
 #include "common/imgui_wrapper.h"
 #include "common/sdl_wrapper.h"
 #include "editor/editor_ui.h"
+#include "editor/gui.h"
 #include "engine/input_manager.h"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
@@ -64,6 +65,7 @@ class EditorEngine {
   std::unique_ptr<Api> api_;
 
   // Editor UI
+  std::unique_ptr<Gui> gui_;
   std::unique_ptr<EditorUi> ui_;
 };
 

@@ -1,20 +1,21 @@
 {
-  "entities": [],
-  "height": 640.0,
-  "id": "9af42904-279b-4521-95a7-9274e53ba856",
-  "name": "level_0",
-  "parallax_layers": [
-    {
-      "repeat_x": false,
-      "scroll_factor_x": 1.0,
-      "scroll_factor_y": 1.0,
-      "texture_id": ""
-    }
-  ],
-  "spawn_point": {
-    "x": 0.0,
-    "y": 0.0
-  },
-  "tile_chunks": [],
-  "width": 800.0
+    "entities": [],
+    "height": 640.0,
+    "id": "9af42904-279b-4521-95a7-9274e53ba856",
+    "name": "level_0",
+    "parallax_layers": [
+        {
+            "name": "Layer 0",
+            "repeat_x": false,
+            "scroll_factor_x": 1.0,
+            "scroll_factor_y": 1.0,
+            "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
+        }
+    ],
+    "spawn_point": {
+        "x": 0.0,
+        "y": 0.0
+    },
+    "tile_chunks": [],
+    "width": 800.0
 }

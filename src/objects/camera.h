@@ -29,7 +29,7 @@ struct Camera {
 
     // 3. Offset to center of screen (since 0,0 is top-left in SDL)
     screen_pos.x = rel_x + (viewport_width / 2.0);
-    screen_pos.y = rel_x + (viewport_height / 2.0);
+    screen_pos.y = rel_y + (viewport_height / 2.0);
 
     return screen_pos;
   }

@@ -10,6 +10,7 @@
 #include "editor/animator.h"
 #include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
+#include "editor/gui_interface.h"
 #include "editor/level_editor/level_editor.h"
 #include "editor/sprite_editor/sprite_editor.h"
 #include "editor/texture_editor/texture_editor.h"
@@ -21,7 +22,8 @@ namespace zebes {
 
 class EditorUi {
  public:
-  static absl::StatusOr<std::unique_ptr<EditorUi>> Create(SdlWrapper* sdl, Api* api);
+  static absl::StatusOr<std::unique_ptr<EditorUi>> Create(SdlWrapper* sdl, Api* api,
+                                                          GuiInterface* gui);
   ~EditorUi() = default;
 
   // Render all editor UI windows
@@ -37,7 +39,7 @@ class EditorUi {
    * @return true if the tab was rendered (BeginTabItem returned true).
    */
   bool RenderTab(const char* name, std::function<absl::Status()> render_fn);
-  explicit EditorUi(SdlWrapper* sdl, Api* api);
+  explicit EditorUi(SdlWrapper* sdl, Api* api, GuiInterface* gui);
 
   // Initialize owned objects.
   absl::Status Init();
@@ -99,6 +101,7 @@ class EditorUi {
   // Resources aquired at construction
   SdlWrapper* sdl_;
   Api* api_;
+  GuiInterface* gui_;
   std::unique_ptr<TextureEditor> texture_editor_;
   std::unique_ptr<ConfigEditor> config_editor_;
   std::unique_ptr<SpriteEditor> sprite_editor_;

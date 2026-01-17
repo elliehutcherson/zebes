@@ -2,6 +2,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "editor/gui_interface.h"
 #include "objects/blueprint.h"
 
 namespace zebes {
@@ -12,7 +13,7 @@ class BlueprintPanel {
  public:
   // Creates a new ColliderPanel instance.
   // Returns an error if the API pointer is null.
-  static absl::StatusOr<std::unique_ptr<BlueprintPanel>> Create(Api* api);
+  static absl::StatusOr<std::unique_ptr<BlueprintPanel>> Create(Api* api, GuiInterface* gui);
 
   // Renders the collider panel UI.
   // This is the main entry point for the panel's rendering logic.
@@ -38,7 +39,7 @@ class BlueprintPanel {
 
   enum Op { kBlueprintCreate, kBlueprintUpdate, kBlueprintDelete };
 
-  BlueprintPanel(Api* api);
+  BlueprintPanel(Api* api, GuiInterface* gui);
 
   // Renders the list of colliders and CRUD buttons.
   void RenderList();
@@ -61,6 +62,7 @@ class BlueprintPanel {
 
   // Outside dependencies
   Api* api_ = nullptr;
+  GuiInterface* gui_ = nullptr;
 };
 
 }  // namespace zebes

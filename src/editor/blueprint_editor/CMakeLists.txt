@@ -7,6 +7,7 @@ target_link_libraries(blueprint_panel
   absl::status
   blueprint_manager
   api
+  gui_interface
 )
 
 add_library(blueprint_state_panel blueprint_state_panel.cc)
@@ -15,6 +16,7 @@ target_link_libraries(blueprint_state_panel
   ${IMGUI_LIBRARIES}
   absl::status
   api
+  gui_interface
 )
 
 add_library(collider_panel collider_panel.cc)
@@ -23,6 +25,7 @@ target_link_libraries(collider_panel
   ${IMGUI_LIBRARIES}
   absl::status
   collider
+  gui_interface
 )
 
 add_library(sprite_panel sprite_panel.cc)
@@ -34,6 +37,7 @@ target_link_libraries(sprite_panel
   canvas_elements
   editor_animator
   editor_canvas
+  gui_interface
 )
 
 add_library(blueprint_editor blueprint_editor.cc)
@@ -50,4 +54,5 @@ target_link_libraries(blueprint_editor
   absl::status
   absl::log
   SDL2-static
+  gui_interface
 )

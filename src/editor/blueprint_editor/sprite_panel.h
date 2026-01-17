@@ -8,6 +8,7 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/canvas/canvas_sprite.h"
+#include "editor/gui_interface.h"
 #include "imgui.h"
 #include "objects/sprite.h"
 
@@ -23,7 +24,7 @@ class SpritePanel {
  public:
   // Creates a new SpritePanel instance.
   // Returns an error if the API pointer is null.
-  static absl::StatusOr<std::unique_ptr<SpritePanel>> Create(Api* api);
+  static absl::StatusOr<std::unique_ptr<SpritePanel>> Create(Api* api, GuiInterface* gui);
 
   // Renders the sprite panel UI.
   // This is the main entry point for the panel's rendering logic.
@@ -43,7 +44,7 @@ class SpritePanel {
   const Counters& GetCounters() const { return counters_; }
 
  private:
-  SpritePanel(Api* api);
+  SpritePanel(Api* api, GuiInterface* gui);
 
   absl::Status Attach(int i);
 
@@ -75,6 +76,7 @@ class SpritePanel {
 
   // Outside dependencies
   Api& api_;
+  GuiInterface* gui_;
 };
 
 }  // namespace zebes

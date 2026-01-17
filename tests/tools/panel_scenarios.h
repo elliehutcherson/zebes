@@ -11,6 +11,7 @@
 #include "imgui.h"
 
 // Project Headers
+#include "editor/gui.h"
 #include "editor/level_editor/level_panel.h"
 #include "editor/level_editor/parallax_panel.h"
 #include "objects/texture.h"
@@ -65,7 +66,8 @@ class LevelPanelScenario : public BasePanelScenario {
     auto scenario = std::unique_ptr<LevelPanelScenario>(new LevelPanelScenario());
 
     // 2. Create the Panel
-    ASSIGN_OR_RETURN(scenario->panel_, LevelPanel::Create({.api = scenario->api_.get()}));
+    ASSIGN_OR_RETURN(scenario->panel_,
+                     LevelPanel::Create({.api = scenario->api_.get(), .gui = &scenario->gui_}));
 
     return scenario;
   }
@@ -85,6 +87,7 @@ class LevelPanelScenario : public BasePanelScenario {
   }
 
   std::unique_ptr<zebes::MockApi> api_ = std::make_unique<NiceMock<MockApi>>();
+  Gui gui_;
   std::unique_ptr<zebes::LevelPanel> panel_;
   std::optional<zebes::Level> editing_level_;
   std::vector<zebes::Level> dummy_levels_;
@@ -96,7 +99,8 @@ class ParallaxPanelScenario : public BasePanelScenario {
     auto scenario = std::unique_ptr<ParallaxPanelScenario>(new ParallaxPanelScenario());
 
     // Create the Panel
-    ASSIGN_OR_RETURN(scenario->panel_, ParallaxPanel::Create({.api = scenario->api_.get()}));
+    ASSIGN_OR_RETURN(scenario->panel_,
+                     ParallaxPanel::Create({.api = scenario->api_.get(), .gui = &scenario->gui_}));
 
     // Setup dummy data
     scenario->editing_level_ = Level();
@@ -125,6 +129,7 @@ class ParallaxPanelScenario : public BasePanelScenario {
   }
 
   std::unique_ptr<zebes::MockApi> api_ = std::make_unique<NiceMock<MockApi>>();
+  Gui gui_;
   std::unique_ptr<zebes::ParallaxPanel> panel_;
   std::optional<zebes::Level> editing_level_;
   std::vector<Texture> dummy_textures_ = DummyTextures();

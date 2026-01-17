@@ -10,6 +10,8 @@
 #include "editor/blueprint_editor/collider_panel.h"
 #include "editor/blueprint_editor/sprite_panel.h"
 #include "editor/canvas/canvas.h"
+#include "editor/gui_interface.h"
+#include "objects/camera.h"
 
 namespace zebes {
 
@@ -17,7 +19,7 @@ class BlueprintEditorReproTest;
 
 class BlueprintEditor {
  public:
-  static absl::StatusOr<std::unique_ptr<BlueprintEditor>> Create(Api* api);
+  static absl::StatusOr<std::unique_ptr<BlueprintEditor>> Create(Api* api, GuiInterface* gui);
 
   ~BlueprintEditor() = default;
 
@@ -34,7 +36,7 @@ class BlueprintEditor {
     kBlueprintState,
   };
 
-  explicit BlueprintEditor(Api* api);
+  explicit BlueprintEditor(Api* api, GuiInterface* gui);
   absl::Status Init();
 
   absl::Status RenderLeftPanel();
@@ -52,8 +54,10 @@ class BlueprintEditor {
   void UpdateStateSprite(const SpriteResult& sprite_result);
 
   Api* api_;
+  GuiInterface* gui_;
   std::unique_ptr<Animator> animator_;
   Canvas canvas_;
+  Camera camera_;
 
   std::unique_ptr<BlueprintPanel> blueprint_panel_;
   std::unique_ptr<BlueprintStatePanel> blueprint_state_panel_;

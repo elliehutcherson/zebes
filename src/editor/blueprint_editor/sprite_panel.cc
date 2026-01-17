@@ -3,23 +3,29 @@
 #include <algorithm>
 
 #include "SDL_render.h"
-#include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
 #include "editor/editor_utils.h"
+#include "editor/gui_interface.h"
+#include "editor/imgui_scoped.h"
 #include "imgui.h"
 
 namespace zebes {
 
-absl::StatusOr<std::unique_ptr<SpritePanel>> SpritePanel::Create(Api* api) {
+absl::StatusOr<std::unique_ptr<SpritePanel>> SpritePanel::Create(Api* api, GuiInterface* gui) {
   if (api == nullptr) {
     return absl::InvalidArgumentError("API can not be null.");
   }
-  return absl::WrapUnique(new SpritePanel(api));
+  if (gui == nullptr) {
+    return absl::InvalidArgumentError("GUI can not be null.");
+  }
+  return absl::WrapUnique(new SpritePanel(api, gui));
 }
 
-SpritePanel::SpritePanel(Api* api) : api_(*api) { RefreshSpriteCache(); }
+SpritePanel::SpritePanel(Api* api, GuiInterface* gui) : api_(*api), gui_(gui) {
+  RefreshSpriteCache();
+}
 
 void SpritePanel::RefreshSpriteCache() {
   sprite_cache_ = api_.GetAllSprites();
@@ -56,8 +62,7 @@ void SpritePanel::Detach() {
 }
 
 absl::StatusOr<SpriteResult> SpritePanel::Render() {
-  ImGui::PushID("SpritePanel");
-  auto cleanup = absl::MakeCleanup([] { ImGui::PopID(); });
+  ScopedId id(gui_, "SpritePanel");
 
   if (editting_sprite_.has_value()) {
     return RenderDetails();
@@ -70,27 +75,25 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
   SpriteResult result;
 
   const float button_width = CalculateButtonWidth(/*num_buttons=*/2);
-  if (ImGui::Button("Refresh", ImVec2(button_width, 0))) {
+  if (gui_->Button("Refresh", ImVec2(button_width, 0))) {
     RefreshSpriteCache();
   }
 
   // Attach button
-  ImGui::SameLine();
-  if (ImGui::Button("Attach", ImVec2(-FLT_MIN, 0)) && sprite_index_ > -1) {
+  gui_->SameLine();
+  if (gui_->Button("Attach", ImVec2(-FLT_MIN, 0)) && sprite_index_ > -1) {
     RETURN_IF_ERROR(Attach(sprite_index_));
     result = {SpriteResult::Type::kAttach, editting_sprite_->id};
   }
-
-  if (ImGui::BeginListBox("Sprites", ImVec2(-FLT_MIN, -FLT_MIN))) {
+  if (ScopedListBox list_box(gui_, "Sprites", ImVec2(-FLT_MIN, -FLT_MIN)); list_box) {
     for (int i = 0; i < sprite_cache_.size(); ++i) {
       const bool is_selected = (sprite_index_ == i);
-      if (ImGui::Selectable(sprite_cache_[i].name_id().c_str(), is_selected)) {
+      if (gui_->Selectable(sprite_cache_[i].name_id().c_str(), is_selected)) {
         sprite_index_ = i;
       }
 
       if (is_selected) ImGui::SetItemDefaultFocus();
     }
-    ImGui::EndListBox();
   }
 
   return result;
@@ -100,37 +103,38 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderDetails() {
   counters_.render_details++;
   SpriteResult result;
 
-  ImGui::Text("ID: %s", editting_sprite_->id.c_str());
-  ImGui::Text("Name: %s", editting_sprite_->name.c_str());
+  gui_->Text("ID: %s", editting_sprite_->id.c_str());
+  gui_->Text("Name: %s", editting_sprite_->name.c_str());
 
-  ImGui::Separator();
+  gui_->Separator();
 
   if (editting_sprite_->frames.empty()) {
-    ImGui::Text("No frames available.");
+    gui_->Text("No frames available.");
   } else {
     // Slider for frame selection
-    ImGui::SliderInt("Frame", &frame_index_, /*v_min=*/0,
-                     /*v_max=*/editting_sprite_->frames.size() - 1);
+    gui_->SliderInt("Frame", &frame_index_, /*v_min=*/0,
+                    /*v_max=*/editting_sprite_->frames.size() - 1);
 
     RenderFrameDetails(frame_index_);
   }
 
-  ImGui::Separator();
+  gui_->Separator();
 
   // Action Buttons
   float button_width = CalculateButtonWidth(/*num_buttons=*/2);
 
-  if (ImGui::Button("Save", ImVec2(button_width, 0))) {
+  if (gui_->Button("Save", ImVec2(button_width, 0))) {
     RETURN_IF_ERROR(ConfirmState());
   }
-  ImGui::SameLine();
+  gui_->SameLine();
 
-  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
-  if (ImGui::Button("Detach", ImVec2(button_width, 0))) {
-    Detach();
-    result.type = SpriteResult::Type::kDetach;
+  {
+    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
+    if (gui_->Button("Detach", ImVec2(button_width, 0))) {
+      Detach();
+      result.type = SpriteResult::Type::kDetach;
+    }
   }
-  ImGui::PopStyleColor();
 
   return result;
 }
@@ -159,7 +163,7 @@ std::pair<ImVec2, ImVec2> SpritePanel::GetFrameUVs(const SpriteFrame& frame, int
 
 void SpritePanel::RenderFrameDetails(int frame_index) {
   if (!editting_sprite_->sdl_texture) {
-    ImGui::TextColored(ImVec4(1, 0, 0, 1), "Texture not loaded");
+    gui_->TextColored(ImVec4(1, 0, 0, 1), "Texture not loaded");
     return;
   }
 
@@ -171,33 +175,34 @@ void SpritePanel::RenderFrameDetails(int frame_index) {
 
   std::pair<ImVec2, ImVec2> uvs = GetFrameUVs(frame, tex_w, tex_h);
 
-  float avail_width = ImGui::GetContentRegionAvail().x;
+  float avail_width = gui_->GetContentRegionAvail().x;
   float scale = 1.0f;
   if (frame.texture_w > avail_width) {
     scale = avail_width / frame.texture_w;
   }
 
   ImVec2 size((float)frame.texture_w * scale, (float)frame.texture_h * scale);
-  ImGui::Image((ImTextureID)editting_sprite_->sdl_texture, size, uvs.first, uvs.second);
+  gui_->Image((ImTextureID)editting_sprite_->sdl_texture, size, uvs.first, uvs.second);
 
-  ImGui::Separator();
-  ImGui::Text("Frame Details");
+  gui_->Separator();
+  gui_->Text("Frame Details");
 
   // Editable fields
-  ImGui::InputInt("Offset X", &frame.offset_x);
-  ImGui::InputInt("Offset Y", &frame.offset_y);
+  gui_->InputInt("Offset X", &frame.offset_x);
+  gui_->InputInt("Offset Y", &frame.offset_y);
 
   // Read-only fields
-  ImGui::BeginDisabled();
-  ImGui::InputInt("Index", &frame.index);
-  ImGui::InputInt("Texture X", &frame.texture_x);
-  ImGui::InputInt("Texture Y", &frame.texture_y);
-  ImGui::InputInt("Texture W", &frame.texture_w);
-  ImGui::InputInt("Texture H", &frame.texture_h);
-  ImGui::InputInt("Render W", &frame.render_w);
-  ImGui::InputInt("Render H", &frame.render_h);
-  ImGui::InputInt("Frames Per Cycle", &frame.frames_per_cycle);
-  ImGui::EndDisabled();
+  {
+    ScopedDisabled disabled(gui_, true);
+    gui_->InputInt("Index", &frame.index);
+    gui_->InputInt("Texture X", &frame.texture_x);
+    gui_->InputInt("Texture Y", &frame.texture_y);
+    gui_->InputInt("Texture W", &frame.texture_w);
+    gui_->InputInt("Texture H", &frame.texture_h);
+    gui_->InputInt("Render W", &frame.render_w);
+    gui_->InputInt("Render H", &frame.render_h);
+    gui_->InputInt("Frames Per Cycle", &frame.frames_per_cycle);
+  }
 }
 
 }  // namespace zebes

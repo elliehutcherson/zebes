@@ -5,23 +5,31 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/sdl_wrapper.h"
+#include "editor/gui_interface.h"
+#include "editor/imgui_scoped.h"
 #include "imgui.h"
+#include "objects/level.h"
 
 namespace zebes {
 
 constexpr float kSpriteListHeight = 300.0f;
 
-absl::StatusOr<std::unique_ptr<SpriteEditor>> SpriteEditor::Create(Api* api, SdlWrapper* sdl) {
+absl::StatusOr<std::unique_ptr<SpriteEditor>> SpriteEditor::Create(Api* api, SdlWrapper* sdl,
+                                                                   GuiInterface* gui) {
   if (api == nullptr) {
     return absl::InvalidArgumentError("Api must not be null");
   }
   if (sdl == nullptr) {
     return absl::InvalidArgumentError("SdlWrapper must not be null");
   }
-  return std::unique_ptr<SpriteEditor>(new SpriteEditor(api, sdl));
+  if (gui == nullptr) {
+    return absl::InvalidArgumentError("GUI must not be null");
+  }
+  return std::unique_ptr<SpriteEditor>(new SpriteEditor(api, sdl, gui));
 }
 
-SpriteEditor::SpriteEditor(Api* api, SdlWrapper* sdl) : api_(api), sdl_(sdl) {
+SpriteEditor::SpriteEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui)
+    : api_(api), sdl_(sdl), gui_(gui) {
   RefreshSpriteList();
 }
 
@@ -154,38 +162,34 @@ void SpriteEditor::Render() {
 
 void SpriteEditor::RenderSpriteSelection() {
   // Use tables for list and inspector
-  if (ImGui::BeginTable(
-          "SpriteListSplit", 2,
-          ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-    ImGui::TableSetupColumn("Sprite List", ImGuiTableColumnFlags_WidthFixed, 250.0f);
-    ImGui::TableSetupColumn("Sprite Details", ImGuiTableColumnFlags_WidthStretch);
+  auto table_flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
+  ScopedTable table(gui_, "SpriteListSplit", 2, table_flags);
+  gui_->TableSetupColumn("Sprite List", ImGuiTableColumnFlags_WidthFixed, 250.0f);
+  gui_->TableSetupColumn("Sprite Details", ImGuiTableColumnFlags_WidthStretch);
 
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
+  gui_->TableNextRow();
+  gui_->TableNextColumn();
 
-    // Column 1: Sprite List
-    RenderSpriteList();
+  // Column 1: Sprite List
+  RenderSpriteList();
 
-    ImGui::TableNextColumn();
+  gui_->TableNextColumn();
 
-    // Column 2: Inspector (Meta + Animation)
-    RenderSpriteMeta();
-    ImGui::Separator();
-    RenderSpriteAnimation();
-
-    ImGui::EndTable();
-  }
+  // Column 2: Inspector (Meta + Animation)
+  RenderSpriteMeta();
+  gui_->Separator();
+  RenderSpriteAnimation();
 }
 
 void SpriteEditor::RenderSpriteList() {
-  ImGui::Text("Existing Sprites");
+  gui_->Text("Existing Sprites");
 
   // Auto-refresh once
-  if (ImGui::Button("Refresh Sprite List")) {
+  if (gui_->Button("Refresh Sprite List")) {
     RefreshSpriteList();
   }
-  ImGui::SameLine();
-  if (ImGui::Button("Create New Sprite")) {
+  gui_->SameLine();
+  if (gui_->Button("Create New Sprite")) {
     new_sprite_ = true;
     // Clear/Init buffers
     sprite_ = {};
@@ -197,43 +201,42 @@ void SpriteEditor::RenderSpriteList() {
   }
 
   // Create list with fixed height
-  ImGui::BeginChild("##Sprites", ImVec2(0, kSpriteListHeight), false);
+  ScopedChild child(gui_, "##Sprites", ImVec2(0, kSpriteListHeight), false);
   for (const Sprite& sprite : sprite_list_) {
     std::string label = sprite.name_id();
     bool is_selected = (sprite_.id == sprite.id && !new_sprite_);
 
-    if (ImGui::Selectable(label.c_str(), is_selected)) {
+    if (gui_->Selectable(label.c_str(), is_selected)) {
       SelectSprite(sprite.id);
     }
     if (is_selected) {
       ImGui::SetItemDefaultFocus();
     }
   }
-  ImGui::EndChild();
 }
 
 void SpriteEditor::RenderSpriteMeta() {
   if (sprite_.id.empty() && !new_sprite_) {
-    ImGui::Text("Select a sprite to edit or Create New.");
+    gui_->Text("Select a sprite to edit or Create New.");
     return;
   }
 
   // Title
   std::string title = new_sprite_ ? "NewSprite" : absl::StrCat("Sprite: ", sprite_.id);
-  ImGui::Text("%s", title.c_str());
-  ImGui::Separator();
+  gui_->Text("%s", title.c_str());
+  gui_->Separator();
 
   // ID is auto-assigned
-  ImGui::BeginDisabled(true);
-
-  if (new_sprite_) {
-    ImGui::Text("ID: <Auto>");
-  } else {
-    // Read-only ID
-    ImGui::InputText("ID", const_cast<char*>(sprite_.id.c_str()), sprite_.id.size(),
-                     ImGuiInputTextFlags_ReadOnly);
+  {
+    ScopedDisabled disabled(gui_, true);
+    if (new_sprite_) {
+      gui_->Text("ID: <Auto>");
+    } else {
+      // Read-only ID
+      gui_->InputText("ID", const_cast<char*>(sprite_.id.c_str()), sprite_.id.size(),
+                      ImGuiInputTextFlags_ReadOnly);
+    }
   }
-  ImGui::EndDisabled();
 
   // Texture Dropdown
   // Find current texture path from ID for display
@@ -247,50 +250,51 @@ void SpriteEditor::RenderSpriteMeta() {
     }
   }
 
-  if (!new_sprite_) ImGui::BeginDisabled();
-  if (ImGui::BeginCombo("Texture", current_tex_path.c_str())) {
+  {
+    ScopedDisabled disabled(gui_, !new_sprite_);
+    ScopedCombo combo(gui_, "Texture", current_tex_path.c_str());
     for (const Texture& texture : texture_list_) {
       bool is_selected = (sprite_.texture_id == texture.id);
 
-      if (ImGui::Selectable(texture.path.c_str(), is_selected)) {
+      if (gui_->Selectable(texture.path.c_str(), is_selected)) {
         sprite_.texture_id = texture.id;
         LoadSpriteTexture(sprite_.texture_id);
       }
 
       if (is_selected) ImGui::SetItemDefaultFocus();
     }
-    ImGui::EndCombo();
   }
-  if (!new_sprite_) ImGui::EndDisabled();
 
   // Sprite Name
-  if (ImGui::InputText("Name", edit_name_buffer_.data(), edit_name_buffer_.size())) {
+  if (gui_->InputText("Name", edit_name_buffer_.data(), edit_name_buffer_.size())) {
     // Handled by buffer
   }
 
-  ImGui::Spacing();
-  ImGui::Separator();
-  ImGui::Spacing();
+  gui_->Spacing();
+  gui_->Separator();
+  gui_->Spacing();
 
   // Allow the user to create, update or delete sprite
-  if (new_sprite_ && ImGui::Button("Create Sprite")) {
+  if (new_sprite_ && gui_->Button("Create Sprite")) {
     UpsertSprite(sprite_.id);
-  } else if (!new_sprite_ && ImGui::Button("Save Sprite Config")) {
+  } else if (!new_sprite_ && gui_->Button("Save Sprite Config")) {
     UpdateSprite(sprite_.id);
   }
-  ImGui::SameLine();
-  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-  if (ImGui::Button("Delete Sprite")) {
-    DeleteSprite(sprite_.id);
+  gui_->SameLine();
+
+  {
+    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    if (gui_->Button("Delete Sprite")) {
+      DeleteSprite(sprite_.id);
+    }
   }
-  ImGui::PopStyleColor();
 }
 
 void SpriteEditor::RenderSpriteAnimation() {
-  ImGui::Text("Animation Preview");
+  gui_->Text("Animation Preview");
 
   // Play/Pause Control
-  if (ImGui::Button(is_playing_animation_ ? "Pause" : "Play")) {
+  if (gui_->Button(is_playing_animation_ ? "Pause" : "Play")) {
     is_playing_animation_ = !is_playing_animation_;
   }
 
@@ -309,7 +313,7 @@ void SpriteEditor::RenderSpriteAnimation() {
 
   // Handle empty frames gracefully
   if (sprite_.frames.empty()) {
-    ImGui::TextDisabled("No frames to animate.");
+    gui_->TextDisabled("No frames to animate.");
     return;
   }
 
@@ -317,9 +321,9 @@ void SpriteEditor::RenderSpriteAnimation() {
   absl::StatusOr<SpriteFrame> frame = animator_->GetCurrentFrame();
   if (!frame.ok()) {
     if (is_playing_animation_) {
-      ImGui::Text("Animation Error: %s", frame.status().ToString().c_str());
+      gui_->Text("Animation Error: %s", frame.status().ToString().c_str());
     } else {
-      ImGui::Text("Press Play to start animation.");
+      gui_->Text("Press Play to start animation.");
     }
     return;
   }
@@ -336,24 +340,24 @@ void SpriteEditor::RenderSpriteAnimation() {
     ImVec2 uv1(static_cast<float>(frame->texture_x + frame->texture_w) / tex_w,
                static_cast<float>(frame->texture_y + frame->texture_h) / tex_h);
 
-    ImGui::Image(ImTextureId(), ImVec2(frame->render_w, frame->render_h), uv0, uv1);
+    gui_->Image(ImTextureId(), ImVec2(frame->render_w, frame->render_h), uv0, uv1);
   } else {
-    ImGui::Text("Invalid texture dimensions.");
+    gui_->Text("Invalid texture dimensions.");
   }
 
-  ImGui::Text("Frame Index: %d", frame->index);  // Debug info
+  gui_->Text("Frame Index: %d", frame->index);  // Debug info
 }
 
 void SpriteEditor::RenderSpriteFrameList() {
   if (sprite_.id.empty() && !new_sprite_) return;
 
-  ImGui::Separator();
+  gui_->Separator();
   std::string header_text = new_sprite_ ? "Sprite Frames (New Sprite)"
                                         : absl::StrCat("Sprite Frames for ID: ", sprite_.id);
-  ImGui::Text("%s", header_text.c_str());
+  gui_->Text("%s", header_text.c_str());
 
   // Controls
-  if (ImGui::Button("Add Frame")) {
+  if (gui_->Button("Add Frame")) {
     SpriteFrame new_frame;
     new_frame.texture_w = 32;  // Default size
     new_frame.texture_h = 32;
@@ -365,13 +369,13 @@ void SpriteEditor::RenderSpriteFrameList() {
     active_frame_index_ = static_cast<int>(sprite_.frames.size()) - 1;
   }
   if (!new_sprite_) {
-    ImGui::SameLine();
-    if (ImGui::Button("Save Changes")) {
+    gui_->SameLine();
+    if (gui_->Button("Save Changes")) {
       SaveSpriteFrames();
     }
 
-    ImGui::SameLine();
-    if (ImGui::Button("Reset Changes")) {
+    gui_->SameLine();
+    if (gui_->Button("Reset Changes")) {
       sprite_.frames = original_frames_;
       active_frame_index_ = -1;
     }
@@ -379,44 +383,41 @@ void SpriteEditor::RenderSpriteFrameList() {
 
   // Horizontal scroll area
   float min_height = sprite_.frames.empty() ? 0.0f : 550.0f;
-  ImGui::BeginChild("SpriteFramesList", ImVec2(0, min_height));
+  ScopedChild child(gui_, "SpriteFramesList", ImVec2(0, min_height));
 
   if (sprite_.frames.empty()) {
-    ImGui::TextDisabled("No frames found.");
+    gui_->TextDisabled("No frames found.");
   } else {
     for (int i = 0; i < sprite_.frames.size(); ++i) {
       RenderSpriteFrameItem(i, sprite_.frames[i]);
-      if (i < sprite_.frames.size() - 1) {
-        ImGui::SameLine();
-        ImGui::Dummy(ImVec2(10, 0));
-        ImGui::SameLine();
-      }
+      if (i >= sprite_.frames.size() - 1) break;
+
+      gui_->SameLine();
+      gui_->Dummy(ImVec2(10, 0));
+      gui_->SameLine();
     }
   }
-
-  ImGui::EndChild();
 }
 
 void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   float start_x = ImGui::GetCursorPosX();
-  ImGui::BeginGroup();
+  ScopedGroup group(gui_);
 
-  ImGui::PushID(index);
+  ScopedId id(gui_, index);
 
   // Header / Active Toggle
   bool is_active = (active_frame_index_ == index);
   if (is_active) {
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
-    if (ImGui::Button(absl::StrCat("Active ##", index).c_str())) {
+    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+    if (gui_->Button(absl::StrCat("Active ##", index).c_str())) {
       active_frame_index_ = -1;  // Deselect
     }
-    ImGui::PopStyleColor();
-  } else if (ImGui::Button(absl::StrCat("Edit ##", index).c_str())) {
+  } else if (gui_->Button(absl::StrCat("Edit ##", index).c_str())) {
     active_frame_index_ = index;
   }
 
-  ImGui::SameLine();
-  if (ImGui::Button("X")) {
+  gui_->SameLine();
+  if (gui_->Button("X")) {
     // Delete this frame
     if (active_frame_index_ == index)
       active_frame_index_ = -1;
@@ -424,15 +425,14 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
       active_frame_index_--;
 
     sprite_.frames.erase(sprite_.frames.begin() + index);
-    ImGui::PopID();
-    ImGui::EndGroup();
-    return;  // Stop rendering this item
+
+    return;  // Stop rendering this item (ScopedId/Group destructors called)
   }
 
   // Ordering buttons
   if (index > 0) {
-    ImGui::SameLine();
-    if (ImGui::ArrowButton("##up", ImGuiDir_Left)) {
+    gui_->SameLine();
+    if (gui_->ArrowButton("##up", ImGuiDir_Left)) {
       std::swap(sprite_.frames[index], sprite_.frames[index - 1]);
       if (active_frame_index_ == index)
         active_frame_index_ = index - 1;
@@ -441,8 +441,8 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
     }
   }
   if (index < sprite_.frames.size() - 1) {
-    ImGui::SameLine();
-    if (ImGui::ArrowButton("##down", ImGuiDir_Right)) {
+    gui_->SameLine();
+    if (gui_->ArrowButton("##down", ImGuiDir_Right)) {
       std::swap(sprite_.frames[index], sprite_.frames[index + 1]);
       if (active_frame_index_ == index)
         active_frame_index_ = index + 1;
@@ -451,7 +451,7 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
     }
   }
 
-  ImGui::Text("Frame %d", index);
+  gui_->Text("Frame %d", index);
 
   // Preview Image
   int tex_w = 0, tex_h = 0;
@@ -470,26 +470,26 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
     float aspect = (frame.texture_h > 0) ? (float)frame.texture_w / frame.texture_h : 1.0f;
     float display_w = display_h * aspect;
 
-    ImGui::Image(ImTextureId(), ImVec2(display_w, display_h), uv0, uv1, ImVec4(1, 1, 1, 1),
-                 ImVec4(1, 1, 1, 0.5f));
+    gui_->Image(ImTextureId(), ImVec2(display_w, display_h), uv0, uv1, ImVec4(1, 1, 1, 1),
+                ImVec4(1, 1, 1, 0.5f));
   } else {
-    ImGui::Button("No Texture", ImVec2(100, 100));
+    gui_->Button("No Texture", ImVec2(100, 100));
   }
 
   // Editable fields with validation
-  ImGui::PushItemWidth(80);
+  gui_->PushItemWidth(80);
 
   // Helper lambda for integer fields to reduce duplication
   auto RenderIntField = [&](const char* label, int* value, int min = 0, int max = 10000) {
-    ImGui::AlignTextToFramePadding();
-    ImGui::Text("%s", label);
-    ImGui::SameLine();
+    gui_->AlignTextToFramePadding();
+    gui_->Text("%s", label);
+    gui_->SameLine();
     // Offset for alignment
-    ImGui::SetCursorPosX(start_x + 80.0f);
+    gui_->SetCursorPosX(start_x + 80.0f);
     // Use label for unique ID if needed, but here we just need unique ID for InputInt
     // Using ## + label might conflict if same label used twice (e.g. W/H), so we rely on
     // pushID(index) Actually we need unique IDs per field.
-    if (ImGui::InputInt(absl::StrCat("##", label).c_str(), value)) {
+    if (gui_->InputInt(absl::StrCat("##", label).c_str(), value)) {
       if (*value < min) *value = min;
       if (*value > max) *value = max;
     }
@@ -501,67 +501,64 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   RenderIntField("W:", &frame.texture_w, 0, tex_w > 0 ? tex_w - frame.texture_x : 0);
   RenderIntField("H:", &frame.texture_h, 0, tex_h > 0 ? tex_h - frame.texture_y : 0);
 
-  ImGui::Text("Render:");
+  gui_->Text("Render:");
   RenderIntField("Render W:", &frame.render_w, 1, 10000);
   RenderIntField("Render H:", &frame.render_h, 1, 10000);
 
-  ImGui::Text("Offsets:");
+  gui_->Text("Offsets:");
   RenderIntField("Offset X:", &frame.offset_x, -10000, 10000);
   RenderIntField("Offset Y:", &frame.offset_y, -10000, 10000);
 
-  ImGui::Text("Anim:");
+  gui_->Text("Anim:");
   RenderIntField("Duration:", &frame.frames_per_cycle, 1, 1000);
 
   // Scale Tool
-  ImGui::Separator();
-  ImGui::AlignTextToFramePadding();
-  ImGui::Text("Scale:");
+  gui_->Separator();
+  gui_->AlignTextToFramePadding();
+  gui_->Text("Scale:");
   static int render_scale_input = 2;
-  ImGui::SameLine();
-  ImGui::SetCursorPosX(start_x + 80.0f);
-  if (ImGui::InputInt("##scale", &render_scale_input)) {
+  gui_->SameLine();
+  gui_->SetCursorPosX(start_x + 80.0f);
+  if (gui_->InputInt("##scale", &render_scale_input)) {
     if (render_scale_input < 1) render_scale_input = 1;
   }
 
-  ImGui::Indent(80.0f);
-  if (ImGui::Button("Apply Scale")) {
+  gui_->Indent(80.0f);
+  if (gui_->Button("Apply Scale")) {
     frame.render_w = frame.texture_w * render_scale_input;
     frame.render_h = frame.texture_h * render_scale_input;
   }
-  ImGui::Unindent(80.0f);
+  gui_->Unindent(80.0f);
 
-  ImGui::PopItemWidth();
-  ImGui::PopID();
-  ImGui::EndGroup();
+  gui_->PopItemWidth();
 }
 
 void SpriteEditor::RenderFullTextureView() {
   if (sprite_.sdl_texture == nullptr) return;
 
-  ImGui::Separator();
-  ImGui::Text("Full Texture (Interact to Edit)");
+  gui_->Separator();
+  gui_->Text("Full Texture (Interact to Edit)");
 
   // Zoom controls
-  if (ImGui::Button("-")) full_texture_zoom_ = std::max(0.1f, full_texture_zoom_ - 0.1f);
-  ImGui::SameLine();
-  if (ImGui::Button("+")) full_texture_zoom_ = std::min(5.0f, full_texture_zoom_ + 0.1f);
-  ImGui::SameLine();
-  ImGui::Text("Zoom: %.1fx", full_texture_zoom_);
+  if (gui_->Button("-")) full_texture_zoom_ = std::max(0.1f, full_texture_zoom_ - 0.1f);
+  gui_->SameLine();
+  if (gui_->Button("+")) full_texture_zoom_ = std::min(5.0f, full_texture_zoom_ + 0.1f);
+  gui_->SameLine();
+  gui_->Text("Zoom: %.1fx", full_texture_zoom_);
 
   int tex_w, tex_h;
   SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
 
   ImVec2 canvas_size = ImVec2((float)tex_w * full_texture_zoom_, (float)tex_h * full_texture_zoom_);
 
-  ImGui::BeginChild("FullTextureRegion", ImVec2(0, 400), true,
+  ScopedChild child(gui_, "FullTextureRegion", ImVec2(0, 400), true,
                     ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoMove);
 
   ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
-  ImGui::Image(ImTextureId(), canvas_size);
+  gui_->Image(ImTextureId(), canvas_size);
 
   // Early return if no active frame allows us to skip interaction logic
   if (active_frame_index_ < 0 || active_frame_index_ >= (int)sprite_.frames.size()) {
-    ImGui::EndChild();
     return;
   }
 
@@ -583,7 +580,6 @@ void SpriteEditor::RenderFullTextureView() {
   // Early return if not interacting
   if (!ImGui::IsItemActive() || !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
     is_dragging_rect_ = false;
-    ImGui::EndChild();
     return;
   }
 
@@ -616,8 +612,6 @@ void SpriteEditor::RenderFullTextureView() {
     active_frame.texture_w = std::abs(curr_x - start_x);
     active_frame.texture_h = std::abs(curr_y - start_y);
   }
-
-  ImGui::EndChild();
 }
 
 }  // namespace zebes

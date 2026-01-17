@@ -8,13 +8,15 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
+#include "editor/gui_interface.h"
 #include "objects/texture.h"
 
 namespace zebes {
 
 class TextureEditor {
  public:
-  static absl::StatusOr<std::unique_ptr<TextureEditor>> Create(Api* api, SdlWrapper* sdl);
+  static absl::StatusOr<std::unique_ptr<TextureEditor>> Create(Api* api, SdlWrapper* sdl,
+                                                               GuiInterface* gui);
 
   ~TextureEditor();
 
@@ -23,7 +25,7 @@ class TextureEditor {
   const std::vector<Texture>& GetTextureList() const { return texture_list_; }
 
  private:
-  TextureEditor(Api* api, SdlWrapper* sdl);
+  TextureEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui);
 
   void RenderImport();
   void RenderTextureList();
@@ -39,6 +41,7 @@ class TextureEditor {
 
   Api* api_;
   SdlWrapper* sdl_;
+  GuiInterface* gui_;
 
   // UI state buffers
   Texture selected_texture_;

@@ -2,6 +2,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "editor/gui_interface.h"
 #include "objects/level.h"
 #include "objects/texture.h"
 
@@ -31,6 +32,7 @@ class ParallaxPanel : public IParallaxPanel {
  public:
   struct Options {
     Api* api;
+    GuiInterface* gui = nullptr;
   };
 
   static absl::StatusOr<std::unique_ptr<ParallaxPanel>> Create(Options options);
@@ -50,6 +52,8 @@ class ParallaxPanel : public IParallaxPanel {
 
   absl::Status HandleOp(Level& level, Op op);
 
+  void Reset();
+
   std::optional<ParallaxLayer>& GetEditingLayer() { return editing_layer_; }
   int GetSelectedIndex() const { return selected_index_; }
   std::optional<std::string> GetTexture() const override;
@@ -68,11 +72,13 @@ class ParallaxPanel : public IParallaxPanel {
   absl::Status RefreshTextureCache();
 
   Api& api_;
+  GuiInterface* gui_;
   int selected_index_ = -1;
   int selected_texture_index_ = -1;
   std::optional<ParallaxLayer> editing_layer_;
   std::vector<Texture> texture_cache_;
   ParallaxCounters counters_;
+  std::string error_;
 };
 
 }  // namespace zebes

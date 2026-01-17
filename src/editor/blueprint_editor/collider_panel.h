@@ -3,6 +3,7 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/canvas/canvas_collider.h"
+#include "editor/gui_interface.h"
 #include "objects/collider.h"
 
 namespace zebes {
@@ -19,7 +20,7 @@ class ColliderPanel {
   // Returns an error if the API pointer is null.
   // If attach is true, an "Attach" button will be rendered. If clicked, "Render" will return
   // "kAttach" or "kDetach" when the user attaches or detaches a valid collider.
-  static absl::StatusOr<std::unique_ptr<ColliderPanel>> Create(Api* api);
+  static absl::StatusOr<std::unique_ptr<ColliderPanel>> Create(Api* api, GuiInterface* gui);
 
   // Renders the collider panel UI.
   // This is the main entry point for the panel's rendering logic.
@@ -34,7 +35,7 @@ class ColliderPanel {
  private:
   enum Op : uint8_t { kColliderCreate, kColliderUpdate, kColliderDelete, kColliderReset };
 
-  ColliderPanel(Api* api);
+  ColliderPanel(Api* api, GuiInterface* gui);
 
   absl::Status Attach(int i);
 
@@ -63,6 +64,7 @@ class ColliderPanel {
 
   // Outside dependencies
   Api& api_;
+  GuiInterface* gui_;
 };
 
 }  // namespace zebes

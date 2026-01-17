@@ -1,3 +1,4 @@
+#include "editor/gui.h"
 #include "editor/level_editor/parallax_panel.h"
 #include "gtest/gtest.h"
 #include "objects/level.h"
@@ -34,12 +35,13 @@ class ParallaxPanelValidationTest : public ::testing::Test {
                  {"t_005", "ui_button", "assets/ui/btn_ok.png", nullptr}};
 
     ON_CALL(*api_, GetAllTextures()).WillByDefault(Return(textures_));
-    auto panel = ParallaxPanel::Create({.api = api_.get()});
+    auto panel = ParallaxPanel::Create({.api = api_.get(), .gui = &gui_});
     ASSERT_TRUE(panel.ok());
     panel_ = *std::move(panel);
   }
 
   std::unique_ptr<MockApi> api_ = std::make_unique<NiceMock<MockApi>>();
+  Gui gui_;
   std::unique_ptr<ParallaxPanel> panel_;
   Level level_;
   std::vector<Texture> textures_;

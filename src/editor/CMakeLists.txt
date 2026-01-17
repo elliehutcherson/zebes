@@ -1,8 +1,27 @@
 # Editor Component Libraries
 
-# ImGui Scoped
-add_library(imgui_scoped INTERFACE imgui_scoped.h)
-target_link_libraries(imgui_scoped INTERFACE
+# Editor Component Libraries
+
+# Gui Interface
+add_library(gui_interface INTERFACE)
+target_link_libraries(gui_interface INTERFACE
+  absl::status
+  ${IMGUI_LIBRARIES}
+)
+
+
+# ImGui Scoped (and GuiInterface)
+add_library(imgui_scoped imgui_scoped.cc)
+target_link_libraries(imgui_scoped
+  gui_interface
+  ${IMGUI_LIBRARIES}
+)
+
+
+# Gui Implementation
+add_library(editor_gui gui.cc)
+target_link_libraries(editor_gui
+  imgui_scoped
   ${IMGUI_LIBRARIES}
 )
 
@@ -38,11 +57,13 @@ add_library(editor_canvas canvas/canvas.cc)
 target_link_libraries(editor_canvas
   canvas_elements
   ${IMGUI_LIBRARIES}
+  gui_interface
 )
 
 # Texture Editor
 add_library(editor_texture texture_editor/texture_editor.cc)
 target_link_libraries(editor_texture
+  gui_interface
   api
   ${IMGUI_LIBRARIES}
   absl::status
@@ -66,6 +87,7 @@ target_link_libraries(editor_sprite
 # Config Editor
 add_library(editor_config config_editor/config_editor.cc)
 target_link_libraries(editor_config
+  gui_interface
   api
   ${IMGUI_LIBRARIES}
   absl::status
@@ -79,6 +101,7 @@ add_subdirectory(level_editor)
 add_library(editor_ui editor_ui.cc)
 target_link_libraries(editor_ui
   blueprint_editor
+  editor_gui
   editor_config
   editor_sprite
   editor_texture
@@ -87,6 +110,7 @@ target_link_libraries(editor_ui
   sdl_wrapper
   absl::memory
   absl::status
+  gui_interface
   ${IMGUI_LIBRARIES}
 )
 
@@ -94,6 +118,7 @@ target_link_libraries(editor_ui
 add_library(editor_engine editor_engine.cc)
 target_link_libraries(editor_engine
   editor_ui
+  editor_gui
   api
   blueprint_manager
   texture_manager

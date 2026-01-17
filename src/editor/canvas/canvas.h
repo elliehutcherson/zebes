@@ -1,6 +1,8 @@
 #pragma once
 
+#include "editor/gui_interface.h"
 #include "imgui.h"
+#include "objects/camera.h"
 #include "objects/vec.h"
 
 namespace zebes {
@@ -8,17 +10,15 @@ namespace zebes {
 class Canvas {
  public:
   struct Options {
-    float zoom = 1.0f;
-    ImVec2 offset = {0, 0};
+    GuiInterface* gui = nullptr;
     bool snap_grid = false;
   };
 
-  explicit Canvas(Options options)
-      : zoom_(options.zoom), offset_(options.offset), snap_grid_(options.snap_grid) {}
+  explicit Canvas(Options options);
+  explicit Canvas(GuiInterface* gui);
 
-  void Begin(const char* id, const ImVec2& size);
+  void Begin(const char* id, const ImVec2& size, Camera& camera);
   void End();
-  void Reset();
 
   // The key coordinate math
   ImVec2 WorldToScreen(const Vec& v) const;
@@ -31,17 +31,16 @@ class Canvas {
   void HandleInput();
 
   // Getters for tools to use
-  float GetZoom() const { return zoom_; }
+  float GetZoom() const;
   bool GetSnap() const { return snap_grid_; }
   ImDrawList* GetDrawList() { return draw_list_; }
 
  private:
-  float zoom_ = 0.0;
-  ImVec2 offset_ = {0, 0};
+  GuiInterface* gui_;
   bool snap_grid_ = false;
 
-  ImVec2 origin_;  // Calculated every frame
-  ImVec2 p0_;      // Screen position of canvas top-left
+  Camera* camera_ = nullptr;
+  ImVec2 p0_;  // Screen position of canvas top-left
   ImDrawList* draw_list_ = nullptr;
 };
 

@@ -2,19 +2,23 @@
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "imgui.h"
-#include "misc/cpp/imgui_stdlib.h"
+#include "editor/gui_interface.h"
+#include "editor/imgui_scoped.h"
 
 namespace zebes {
 
-absl::StatusOr<std::unique_ptr<BlueprintStatePanel>> BlueprintStatePanel::Create(Api* api) {
+absl::StatusOr<std::unique_ptr<BlueprintStatePanel>> BlueprintStatePanel::Create(
+    Api* api, GuiInterface* gui) {
   if (api == nullptr) {
     return absl::InvalidArgumentError("API cannot be null");
   }
-  return absl::WrapUnique(new BlueprintStatePanel(api));
+  if (gui == nullptr) {
+    return absl::InvalidArgumentError("GUI cannot be null");
+  }
+  return absl::WrapUnique(new BlueprintStatePanel(api, gui));
 }
 
-BlueprintStatePanel::BlueprintStatePanel(Api* api) : api_(api) {}
+BlueprintStatePanel::BlueprintStatePanel(Api* api, GuiInterface* gui) : api_(api), gui_(gui) {}
 
 void BlueprintStatePanel::SetState(Blueprint& blueprint, int index) {
   blueprint_ = &blueprint;
@@ -37,21 +41,23 @@ void BlueprintStatePanel::Render() {
     return;
   }
 
-  ImGui::Separator();
-  ImGui::Text("Blueprint State");
+  gui_->Separator();
+  gui_->Text("Blueprint State");
 
-  ImGui::BeginDisabled();
-  ImGui::InputInt("Index", &index_);
-  ImGui::EndDisabled();
+  {
+    ScopedDisabled disabled(gui_, true);
+    gui_->InputInt("Index", &index_);
+  }
 
-  if (ImGui::InputText("Name", &blueprint_->states[index_].name)) {
+  if (gui_->InputText("Name", &blueprint_->states[index_].name)) {
     current_name_ = blueprint_->states[index_].name;
   }
 
-  ImGui::BeginDisabled();
-  ImGui::InputText("Sprite ID", &blueprint_->states[index_].sprite_id);
-  ImGui::InputText("Collider ID", &blueprint_->states[index_].collider_id);
-  ImGui::EndDisabled();
+  {
+    ScopedDisabled disabled(gui_, true);
+    gui_->InputText("Sprite ID", &blueprint_->states[index_].sprite_id);
+    gui_->InputText("Collider ID", &blueprint_->states[index_].collider_id);
+  }
 }
 
 }  // namespace zebes

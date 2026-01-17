@@ -1,6 +1,5 @@
 #include "editor/editor_engine.h"
 
-
 #include "SDL.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
@@ -79,7 +78,8 @@ absl::Status EditorEngine::Init() {
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
   // Create UI
-  ASSIGN_OR_RETURN(ui_, EditorUi::Create(sdl_.get(), api_.get()));
+  gui_ = std::make_unique<Gui>();
+  ASSIGN_OR_RETURN(ui_, EditorUi::Create(sdl_.get(), api_.get(), gui_.get()));
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();

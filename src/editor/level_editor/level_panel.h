@@ -2,6 +2,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "editor/gui_interface.h"
 #include "editor/level_editor/level_panel_interface.h"
 #include "objects/level.h"
 
@@ -21,6 +22,7 @@ class LevelPanel : public LevelPanelInterface {
  public:
   struct Options {
     Api* api;
+    GuiInterface* gui = nullptr;
   };
 
   static absl::StatusOr<std::unique_ptr<LevelPanel>> Create(Options options);
@@ -51,6 +53,7 @@ class LevelPanel : public LevelPanelInterface {
   void RefreshLevelCache();
 
   Api& api_;
+  GuiInterface* gui_;
 
   int selected_index_ = 0;
   std::vector<Level> level_cache_;

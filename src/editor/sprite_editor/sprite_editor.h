@@ -10,6 +10,7 @@
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
 #include "editor/animator.h"
+#include "editor/gui_interface.h"
 #include "imgui.h"
 #include "objects/sprite.h"
 #include "objects/texture.h"
@@ -18,14 +19,15 @@ namespace zebes {
 
 class SpriteEditor {
  public:
-  static absl::StatusOr<std::unique_ptr<SpriteEditor>> Create(Api* api, SdlWrapper* sdl);
+  static absl::StatusOr<std::unique_ptr<SpriteEditor>> Create(Api* api, SdlWrapper* sdl,
+                                                              GuiInterface* gui);
 
   ~SpriteEditor() = default;
 
   void Render();
 
  private:
-  SpriteEditor(Api* api, SdlWrapper* sdl);
+  SpriteEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui);
 
   // State manager methods that do no rendering
   void RefreshSpriteList();
@@ -52,6 +54,7 @@ class SpriteEditor {
 
   Api* api_;
   SdlWrapper* sdl_;
+  GuiInterface* gui_;
 
   // UI state buffers
   std::string path_buffer_;

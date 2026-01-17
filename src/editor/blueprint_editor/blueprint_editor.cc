@@ -10,32 +10,39 @@
 #include "editor/blueprint_editor/collider_panel.h"
 #include "editor/blueprint_editor/sprite_panel.h"
 #include "editor/canvas/canvas.h"
+#include "editor/gui_interface.h"
+#include "editor/imgui_scoped.h"
 #include "imgui.h"
 
 namespace zebes {
 
-absl::StatusOr<std::unique_ptr<BlueprintEditor>> BlueprintEditor::Create(Api* api) {
+absl::StatusOr<std::unique_ptr<BlueprintEditor>> BlueprintEditor::Create(Api* api,
+                                                                         GuiInterface* gui) {
   if (api == nullptr) {
     return absl::InvalidArgumentError("Api must not be null");
   }
+  if (gui == nullptr) {
+    return absl::InvalidArgumentError("GUI must not be null");
+  }
 
-  auto ret = std::unique_ptr<BlueprintEditor>(new BlueprintEditor(api));
+  auto ret = std::unique_ptr<BlueprintEditor>(new BlueprintEditor(api, gui));
   RETURN_IF_ERROR(ret->Init());
   return ret;
 }
 
 // Constructor: Initializes the editor and refreshes caches.
-BlueprintEditor::BlueprintEditor(Api* api) : api_(api), canvas_({.snap_grid = true}) {}
+BlueprintEditor::BlueprintEditor(Api* api, GuiInterface* gui)
+    : api_(api), gui_(gui), canvas_({.gui = gui, .snap_grid = true}) {}
 
 absl::Status BlueprintEditor::Init() {
   mode_ = Mode::kBlueprint;
   animator_ = std::make_unique<Animator>();
 
   // Initialize panels
-  ASSIGN_OR_RETURN(blueprint_panel_, BlueprintPanel::Create(api_));
-  ASSIGN_OR_RETURN(blueprint_state_panel_, BlueprintStatePanel::Create(api_));
-  ASSIGN_OR_RETURN(collider_panel_, ColliderPanel::Create(api_));
-  ASSIGN_OR_RETURN(sprite_panel_, SpritePanel::Create(api_));
+  ASSIGN_OR_RETURN(blueprint_panel_, BlueprintPanel::Create(api_, gui_));
+  ASSIGN_OR_RETURN(blueprint_state_panel_, BlueprintStatePanel::Create(api_, gui_));
+  ASSIGN_OR_RETURN(collider_panel_, ColliderPanel::Create(api_, gui_));
+  ASSIGN_OR_RETURN(sprite_panel_, SpritePanel::Create(api_, gui_));
 
   return absl::OkStatus();
 }
@@ -47,41 +54,42 @@ absl::Status BlueprintEditor::ExitBlueprintStateMode() {
   collider_panel_->Detach();
   sprite_panel_->Detach();
 
-  canvas_.Reset();
+  camera_ = {};
   mode_ = Mode::kBlueprint;
   return absl::OkStatus();
 }
 
 absl::Status BlueprintEditor::Render() {
-  if (!ImGui::BeginTable(/*str_id=*/"BlueprintEditorTable", /*columns=*/3,
-                         /*flags=*/ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable,
-                         /*outer_size=*/ImGui::GetContentRegionAvail())) {
+  ScopedTable table(gui_, /*str_id=*/"BlueprintEditorTable", /*columns=*/3,
+                    /*flags=*/ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable,
+                    /*outer_size=*/gui_->GetContentRegionAvail());
+  if (!table) {
     return absl::OkStatus();
   }
 
   // Column Setup
-  ImGui::TableSetupColumn(/*label=*/"Controls", /*flags=*/ImGuiTableColumnFlags_WidthFixed,
-                          /*init_width_or_weight=*/250.0f);
-  ImGui::TableSetupColumn(/*label=*/"Editor", /*flags=*/ImGuiTableColumnFlags_WidthStretch);
-  ImGui::TableSetupColumn(/*label=*/"Sprite Details", /*flags=*/ImGuiTableColumnFlags_WidthFixed,
-                          /*init_width_or_weight=*/300.0f);
-  ImGui::TableHeadersRow();
+  gui_->TableSetupColumn(/*label=*/"Controls", /*flags=*/ImGuiTableColumnFlags_WidthFixed,
+                         /*init_width_or_weight=*/250.0f);
+  gui_->TableSetupColumn(/*label=*/"Editor", /*flags=*/ImGuiTableColumnFlags_WidthStretch);
+  gui_->TableSetupColumn(/*label=*/"Sprite Details", /*flags=*/ImGuiTableColumnFlags_WidthFixed,
+                         /*init_width_or_weight=*/300.0f);
+  gui_->TableHeadersRow();
 
-  ImGui::TableNextRow();
+  gui_->TableNextRow();
 
   // 1. Controls Column
-  ImGui::TableNextColumn();
+  gui_->TableNextColumn();
   RETURN_IF_ERROR(RenderLeftPanel());
 
   // 2. Editor Column (The Canvas)
-  ImGui::TableNextColumn();
+  gui_->TableNextColumn();
   RETURN_IF_ERROR(RenderCanvas());
 
   // 3. Details Column
-  ImGui::TableNextColumn();
+  gui_->TableNextColumn();
   RETURN_IF_ERROR(RenderRightPanel());
 
-  ImGui::EndTable();
+  // ImGui::EndTable() handled by ScopedTable
   return absl::OkStatus();
 }
 
@@ -126,20 +134,19 @@ absl::Status BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_i
 }
 
 absl::Status BlueprintEditor::RenderBlueprintStateMode() {
-  if (ImGui::Button("Back")) {
+  if (gui_->Button("Back")) {
     return ExitBlueprintStateMode();
   }
 
-  ImGui::SameLine();
-  ImGui::SameLine();
-  if (ImGui::Button("Save")) {
+  gui_->SameLine();
+  if (gui_->Button("Save")) {
     SaveBlueprint();
   }
 
   blueprint_state_panel_->Render();
-  ImGui::Spacing();
-  ImGui::Spacing();
-  ImGui::Spacing();
+  gui_->Spacing();
+  gui_->Spacing();
+  gui_->Spacing();
 
   ASSIGN_OR_RETURN(ColliderResult collider_result, collider_panel_->Render());
   UpdateStateCollider(collider_result);
@@ -149,7 +156,7 @@ absl::Status BlueprintEditor::RenderBlueprintStateMode() {
 
 absl::Status BlueprintEditor::RenderRightPanel() {
   if (mode_ == Mode::kBlueprint) {
-    ImGui::Text("Select Blueprint State to view sprites.");
+    gui_->Text("Select Blueprint State to view sprites.");
     return absl::OkStatus();
   }
 
@@ -160,13 +167,13 @@ absl::Status BlueprintEditor::RenderRightPanel() {
 
 absl::Status BlueprintEditor::RenderCanvas() {
   if (mode_ == Mode::kBlueprint) {
-    ImGui::Text("Select Blueprint State to view canvas.");
+    gui_->Text("Select Blueprint State to view canvas.");
     return absl::OkStatus();
   }
 
-  ImVec2 size = ImGui::GetContentRegionAvail();
+  ImVec2 size = gui_->GetContentRegionAvail();
   // New Canvas API: Begin takes the size and handles background/child window
-  canvas_.Begin("StateCanvas", size);
+  canvas_.Begin("StateCanvas", size, camera_);
   auto canvas_end = absl::MakeCleanup([&] { canvas_.End(); });
 
   // Handles pan (MMB) and Zoom (Wheel) automatically

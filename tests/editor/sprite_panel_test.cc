@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "editor/gui.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "imgui.h"
@@ -25,7 +26,8 @@ void RegisterTests(ImGuiTestEngine* engine) {
       MockApi mock_api;
       EXPECT_CALL(mock_api, GetAllSprites()).WillRepeatedly(Return(std::vector<Sprite>{}));
 
-      auto panel_or_error = SpritePanel::Create(&mock_api);
+      Gui gui;
+      auto panel_or_error = SpritePanel::Create(&mock_api, &gui);
       IM_CHECK(panel_or_error.ok());
       auto panel = std::move(panel_or_error.value());
 
@@ -50,7 +52,8 @@ void RegisterTests(ImGuiTestEngine* engine) {
       MockApi mock_api;
       EXPECT_CALL(mock_api, GetAllSprites()).WillRepeatedly(Return(std::vector<Sprite>{}));
 
-      auto panel_or_error = SpritePanel::Create(&mock_api);
+      Gui gui;
+      auto panel_or_error = SpritePanel::Create(&mock_api, &gui);
       IM_CHECK(panel_or_error.ok());
       auto panel = std::move(panel_or_error.value());
 
@@ -72,7 +75,8 @@ void RegisterTests(ImGuiTestEngine* engine) {
       MockApi mock_api;
       EXPECT_CALL(mock_api, GetAllSprites()).WillRepeatedly(Return(std::vector<Sprite>{}));
 
-      auto panel_or_error = SpritePanel::Create(&mock_api);
+      Gui gui;
+      auto panel_or_error = SpritePanel::Create(&mock_api, &gui);
       IM_CHECK(panel_or_error.ok());
       auto panel = std::move(panel_or_error.value());
 
@@ -99,7 +103,8 @@ void RegisterTests(ImGuiTestEngine* engine) {
       MockApi mock_api;
       EXPECT_CALL(mock_api, GetAllSprites()).WillRepeatedly(Return(std::vector<Sprite>{}));
 
-      auto panel_or_error = SpritePanel::Create(&mock_api);
+      Gui gui;
+      auto panel_or_error = SpritePanel::Create(&mock_api, &gui);
       IM_CHECK(panel_or_error.ok());
       auto panel = std::move(panel_or_error.value());
 

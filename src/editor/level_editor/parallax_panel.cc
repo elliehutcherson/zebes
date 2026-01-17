@@ -2,14 +2,13 @@
 
 #include <optional>
 
-#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "api/api.h"
 #include "common/status_macros.h"
+#include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
 #include "imgui.h"
-#include "misc/cpp/imgui_stdlib.h"
 #include "objects/level.h"
 #include "objects/texture.h"
 
@@ -19,66 +18,75 @@ absl::StatusOr<std::unique_ptr<ParallaxPanel>> ParallaxPanel::Create(Options opt
   if (options.api == nullptr) {
     return absl::InvalidArgumentError("API can not be null.");
   }
+  if (options.gui == nullptr) {
+    return absl::InvalidArgumentError("Gui can not be null.");
+  }
 
   auto ret = absl::WrapUnique(new ParallaxPanel(std::move(options)));
   RETURN_IF_ERROR(ret->RefreshTextureCache());
   return ret;
 }
 
-ParallaxPanel::ParallaxPanel(Options options) : api_(*options.api) {}
+ParallaxPanel::ParallaxPanel(Options options) : api_(*options.api), gui_(options.gui) {}
+
+void ParallaxPanel::Reset() {
+  selected_index_ = -1;
+  selected_texture_index_ = -1;
+  editing_layer_.reset();
+  error_.clear();
+}
 
 absl::StatusOr<ParallaxResult> ParallaxPanel::Render(Level& level) {
-  ImGui::PushID("ParallaxPanel");
-  auto cleanup = absl::MakeCleanup([] { ImGui::PopID(); });
+  {
+    ScopedId scoped_id(gui_, "ParallaxPanel");
+    gui_->Text("Parallax Layers");
+    gui_->Separator();
 
-  ImGui::Text("Parallax Layers");
-  ImGui::Separator();
+    if (editing_layer_.has_value()) {
+      RETURN_IF_ERROR(RenderDetails(level));
+    } else {
+      RETURN_IF_ERROR(RenderList(level));
+    }
 
-  if (editing_layer_.has_value()) {
-    RETURN_IF_ERROR(RenderDetails(level));
-  } else {
-    RETURN_IF_ERROR(RenderList(level));
-  }
-
-  if (editing_layer_.has_value()) {
-    return ParallaxResult::kEdit;
+    if (editing_layer_.has_value()) {
+      return ParallaxResult::kEdit;
+    }
   }
   return ParallaxResult::kList;
 }
 
 absl::Status ParallaxPanel::RenderList(Level& level) {
   const float button_width =
-      (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2) / 3.0f;
-  if (ImGui::Button("Create", ImVec2(button_width, 0))) {
+      (gui_->GetContentRegionAvail().x - gui_->GetStyle().ItemSpacing.x * 2) / 3.0f;
+  if (gui_->Button("Create", ImVec2(button_width, 0))) {
     RETURN_IF_ERROR(HandleOp(level, Op::kParallaxCreate));
   }
-  ImGui::SameLine();
+  gui_->SameLine();
 
-  if (ImGui::Button("Edit", ImVec2(button_width, 0))) {
+  if (gui_->Button("Edit", ImVec2(button_width, 0))) {
     RETURN_IF_ERROR(HandleOp(level, Op::kParallaxEdit));
   }
-  ImGui::SameLine();
+  gui_->SameLine();
 
   {
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-    auto cleanup = absl::MakeCleanup([] { ImGui::PopStyleColor(); });
-    if (ImGui::Button("Delete", ImVec2(button_width, 0))) {
+    ScopedStyleColor color(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    if (gui_->Button("Delete", ImVec2(button_width, 0))) {
       RETURN_IF_ERROR(HandleOp(level, Op::kParallaxDelete));
     }
   }
 
   // List Box
-  if (auto listbox = ScopedListBox("Layers", ImVec2(-FLT_MIN, -FLT_MIN)); listbox) {
+  if (auto listbox = ScopedListBox(gui_, "##Layers", ImVec2(-FLT_MIN, -FLT_MIN)); listbox) {
     for (int i = 0; i < level.parallax_layers.size(); ++i) {
       const bool is_selected = (selected_index_ == i);
       const ParallaxLayer& layer = level.parallax_layers[i];
 
-      if (ImGui::Selectable(layer.name.c_str(), is_selected)) {
+      if (gui_->Selectable(layer.name.c_str(), is_selected)) {
         selected_index_ = i;
       }
 
       if (is_selected) {
-        ImGui::SetItemDefaultFocus();
+        gui_->SetItemDefaultFocus();
       }
     }
   }
@@ -87,53 +95,65 @@ absl::Status ParallaxPanel::RenderList(Level& level) {
 }
 
 absl::Status ParallaxPanel::RenderDetails(Level& level) {
-  if (ImGui::Button("Back", ImVec2(-FLT_MIN, 0))) {
+  if (gui_->Button("Back", ImVec2(-FLT_MIN, 0))) {
     RETURN_IF_ERROR(HandleOp(level, Op::kParallaxBack));
   }
 
-  ImGui::InputText("Name", &editing_layer_->name);
+  gui_->InputText("Name", &editing_layer_->name);
 
   // Read-only texture id
   std::string texture_id_copy = editing_layer_->texture_id;
-  ImGui::InputText("Texture ID", &texture_id_copy, ImGuiInputTextFlags_ReadOnly);
+  gui_->InputText("Texture ID", &texture_id_copy, ImGuiInputTextFlags_ReadOnly);
 
-  ImGui::Checkbox("Repeat X", &editing_layer_->repeat_x);
+  gui_->Checkbox("Repeat X", &editing_layer_->repeat_x);
 
-  ImGui::Text("Scroll Factor");
-  ImGui::InputDouble("X", &editing_layer_->scroll_factor.x);
-  ImGui::InputDouble("Y", &editing_layer_->scroll_factor.y);
+  gui_->Text("Scroll Factor");
+  gui_->InputDouble("X", &editing_layer_->scroll_factor.x);
+  gui_->InputDouble("Y", &editing_layer_->scroll_factor.y);
 
   // Texture Selection
-  ImGui::Text("Texture Cache");
-  if (auto list_box = ScopedListBox("##TextureCache", ImVec2(-FLT_MIN, 0)); list_box) {
+  gui_->Text("Texture Cache");
+  if (auto list_box = ScopedListBox(gui_, "##TextureCache", ImVec2(-FLT_MIN, 0)); list_box) {
     for (int i = 0; i < texture_cache_.size(); ++i) {
       const Texture& texture = texture_cache_[i];
       bool is_selected = (selected_texture_index_ == i);
-      if (ImGui::Selectable(texture.name_id().c_str(), is_selected)) {
+      if (gui_->Selectable(texture.name_id().c_str(), is_selected)) {
         selected_texture_index_ = i;
       }
       if (is_selected) {
-        ImGui::SetItemDefaultFocus();
+        gui_->SetItemDefaultFocus();
       }
     }
   }
 
   const float button_width =
-      (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2.0f;
-  if (ImGui::Button("Change Texture", ImVec2(button_width, 0))) {
+      (gui_->GetContentRegionAvail().x - gui_->GetStyle().ItemSpacing.x) / 2.0f;
+  if (gui_->Button("Change Texture", ImVec2(button_width, 0))) {
     RETURN_IF_ERROR(HandleOp(level, Op::kParallaxTexture));
   }
 
-  ImGui::SameLine();
+  gui_->SameLine();
 
-  if (ImGui::Button("Save", ImVec2(button_width, 0))) {
-    // Determine if we are updating existing or creating new
-    RETURN_IF_ERROR(HandleOp(level, Op::kParallaxSave));
+  if (gui_->Button("Save", ImVec2(button_width, 0))) {
+    absl::Status save_result = HandleOp(level, Op::kParallaxSave);
+    if (save_result.code() == absl::StatusCode::kInvalidArgument) {
+      error_ = save_result.message();
+    } else if (!save_result.ok()) {
+      return save_result;
+    }
+  }
+
+  if (!error_.empty()) {
+    ScopedStyleColor color(gui_, ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+    gui_->TextWrapped("%s", error_.c_str());
   }
 
   return absl::OkStatus();
 }
+
 absl::Status ParallaxPanel::HandleOp(Level& level, Op op) {
+  // Always clear the error on any new action.
+  error_.clear();
   if ((op != Op::kParallaxCreate && op != Op::kParallaxTexture) && selected_index_ < 0) {
     return absl::OkStatus();
   }

@@ -1,10 +1,10 @@
 #include "editor/level_editor/level_panel.h"
 
-#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
+#include "editor/gui_interface.h"
+#include "editor/imgui_scoped.h"
 #include "imgui.h"
-#include "misc/cpp/imgui_stdlib.h"
 #include "objects/level.h"
 
 namespace zebes {
@@ -15,17 +15,21 @@ absl::StatusOr<std::unique_ptr<LevelPanel>> LevelPanel::Create(Options options) 
   if (options.api == nullptr) {
     return absl::InvalidArgumentError("API can not be null.");
   }
+  if (options.gui == nullptr) {
+    return absl::InvalidArgumentError("Gui can not be null.");
+  }
   return absl::WrapUnique(new LevelPanel(std::move(options)));
 }
 
-LevelPanel::LevelPanel(Options options) : api_(*options.api) { RefreshLevelCache(); }
+LevelPanel::LevelPanel(Options options) : api_(*options.api), gui_(options.gui) {
+  RefreshLevelCache();
+}
 
 absl::StatusOr<LevelResult> LevelPanel::Render(std::optional<Level>& level) {
-  ImGui::PushID("LevelPanel");
-  auto cleanup = absl::MakeCleanup([] { ImGui::PopID(); });
+  ScopedId id(gui_, "LevelPanel");
 
-  ImGui::Text("Levels");
-  ImGui::Separator();
+  gui_->Text("Levels");
+  gui_->Separator();
 
   if (level.has_value()) {
     return RenderDetails(level);
@@ -37,35 +41,33 @@ absl::StatusOr<LevelResult> LevelPanel::Render(std::optional<Level>& level) {
 absl::StatusOr<LevelResult> LevelPanel::RenderList(std::optional<Level>& level) {
   LevelResult result;
 
-  if (ImGui::Button("Create")) {
+  if (gui_->Button("Create")) {
     ASSIGN_OR_RETURN(result, HandleOp(level, Op::kLevelCreate));
   }
-  ImGui::SameLine();
+  gui_->SameLine();
 
-  if (ImGui::Button("Edit")) {
+  if (gui_->Button("Edit")) {
     ASSIGN_OR_RETURN(result, HandleOp(level, Op::kLevelEdit));
   }
-  ImGui::SameLine();
+  gui_->SameLine();
 
   {
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-    auto cleanup = absl::MakeCleanup([] { ImGui::PopStyleColor(); });
-    if (ImGui::Button("Delete")) {
+    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    if (gui_->Button("Delete")) {
       ASSIGN_OR_RETURN(result, HandleOp(level, Op::kLevelDelete));
     }
   }
 
-  if (ImGui::BeginListBox("##Levels", ImVec2(-FLT_MIN, -FLT_MIN))) {
+  if (ScopedListBox list_box(gui_, "##Levels", ImVec2(-FLT_MIN, -FLT_MIN)); list_box) {
     for (int i = 0; i < level_cache_.size(); ++i) {
       const bool is_selected = (selected_index_ == i);
-      if (ImGui::Selectable(level_cache_[i].name.c_str(), is_selected)) {
+      if (gui_->Selectable(level_cache_[i].name.c_str(), is_selected)) {
         selected_index_ = i;
       }
 
       // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-      if (is_selected) ImGui::SetItemDefaultFocus();
+      if (is_selected) gui_->SetItemDefaultFocus();
     }
-    ImGui::EndListBox();
   }
 
   return result;
@@ -76,27 +78,27 @@ absl::StatusOr<LevelResult> LevelPanel::RenderDetails(std::optional<Level>& leve
   // At this point we known that level is not null.
   Level& lvl = *level;
 
-  if (ImGui::Button("Back")) {
+  if (gui_->Button("Back")) {
     ASSIGN_OR_RETURN(result, HandleOp(level, Op::kLevelBack));
   }
 
-  ImGui::SameLine();
-  if (ImGui::Button("Save")) {
+  gui_->SameLine();
+  if (gui_->Button("Save")) {
     ASSIGN_OR_RETURN(result, HandleOp(level, Op::kLevelSave));
   }
 
-  ImGui::Separator();
-  ImGui::Text("Details");
+  gui_->Separator();
+  gui_->Text("Details");
 
-  ImGui::InputText("ID", &lvl.id, ImGuiInputTextFlags_ReadOnly);
-  ImGui::InputText("Name", &lvl.name);
-  ImGui::InputDouble("Width", &lvl.width);
-  ImGui::InputDouble("Height", &lvl.height);
+  gui_->InputText("ID", &lvl.id, ImGuiInputTextFlags_ReadOnly);
+  gui_->InputText("Name", &lvl.name);
+  gui_->InputDouble("Width", &lvl.width);
+  gui_->InputDouble("Height", &lvl.height);
 
-  ImGui::Text("Spawn Point");
-  ImGui::InputDouble("X", &lvl.spawn_point.x);
-  ImGui::SameLine();
-  ImGui::InputDouble("Y", &lvl.spawn_point.y);
+  gui_->Text("Spawn Point");
+  gui_->InputDouble("X", &lvl.spawn_point.x);
+  gui_->SameLine();
+  gui_->InputDouble("Y", &lvl.spawn_point.y);
 
   return result;
 }
