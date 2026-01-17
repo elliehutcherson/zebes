@@ -163,7 +163,7 @@ void SpriteEditor::Render() {
 void SpriteEditor::RenderSpriteSelection() {
   // Use tables for list and inspector
   auto table_flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
-  ScopedTable table(gui_, "SpriteListSplit", 2, table_flags);
+  ScopedTable table = gui_->CreateScopedTable("SpriteListSplit", 2, table_flags);
   gui_->TableSetupColumn("Sprite List", ImGuiTableColumnFlags_WidthFixed, 250.0f);
   gui_->TableSetupColumn("Sprite Details", ImGuiTableColumnFlags_WidthStretch);
 
@@ -201,7 +201,7 @@ void SpriteEditor::RenderSpriteList() {
   }
 
   // Create list with fixed height
-  ScopedChild child(gui_, "##Sprites", ImVec2(0, kSpriteListHeight), false);
+  ScopedChild child = gui_->CreateScopedChild("##Sprites", ImVec2(0, kSpriteListHeight), false);
   for (const Sprite& sprite : sprite_list_) {
     std::string label = sprite.name_id();
     bool is_selected = (sprite_.id == sprite.id && !new_sprite_);
@@ -228,7 +228,7 @@ void SpriteEditor::RenderSpriteMeta() {
 
   // ID is auto-assigned
   {
-    ScopedDisabled disabled(gui_, true);
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
     if (new_sprite_) {
       gui_->Text("ID: <Auto>");
     } else {
@@ -251,8 +251,8 @@ void SpriteEditor::RenderSpriteMeta() {
   }
 
   {
-    ScopedDisabled disabled(gui_, !new_sprite_);
-    ScopedCombo combo(gui_, "Texture", current_tex_path.c_str());
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(!new_sprite_);
+    ScopedCombo combo = gui_->CreateScopedCombo("Texture", current_tex_path.c_str());
     for (const Texture& texture : texture_list_) {
       bool is_selected = (sprite_.texture_id == texture.id);
 
@@ -283,7 +283,8 @@ void SpriteEditor::RenderSpriteMeta() {
   gui_->SameLine();
 
   {
-    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
     if (gui_->Button("Delete Sprite")) {
       DeleteSprite(sprite_.id);
     }
@@ -383,7 +384,7 @@ void SpriteEditor::RenderSpriteFrameList() {
 
   // Horizontal scroll area
   float min_height = sprite_.frames.empty() ? 0.0f : 550.0f;
-  ScopedChild child(gui_, "SpriteFramesList", ImVec2(0, min_height));
+  ScopedChild child = gui_->CreateScopedChild("SpriteFramesList", ImVec2(0, min_height));
 
   if (sprite_.frames.empty()) {
     gui_->TextDisabled("No frames found.");
@@ -401,14 +402,14 @@ void SpriteEditor::RenderSpriteFrameList() {
 
 void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   float start_x = ImGui::GetCursorPosX();
-  ScopedGroup group(gui_);
-
-  ScopedId id(gui_, index);
+  ScopedGroup group = gui_->CreateScopedGroup();
+  ScopedId id = gui_->CreateScopedId(index);
 
   // Header / Active Toggle
   bool is_active = (active_frame_index_ == index);
   if (is_active) {
-    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
     if (gui_->Button(absl::StrCat("Active ##", index).c_str())) {
       active_frame_index_ = -1;  // Deselect
     }
@@ -551,8 +552,9 @@ void SpriteEditor::RenderFullTextureView() {
 
   ImVec2 canvas_size = ImVec2((float)tex_w * full_texture_zoom_, (float)tex_h * full_texture_zoom_);
 
-  ScopedChild child(gui_, "FullTextureRegion", ImVec2(0, 400), true,
-                    ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoMove);
+  ScopedChild child =
+      gui_->CreateScopedChild("FullTextureRegion", ImVec2(0, 400), true,
+                              ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoMove);
 
   ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
   gui_->Image(ImTextureId(), canvas_size);

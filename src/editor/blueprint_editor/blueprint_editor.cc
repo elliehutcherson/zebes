@@ -60,9 +60,9 @@ absl::Status BlueprintEditor::ExitBlueprintStateMode() {
 }
 
 absl::Status BlueprintEditor::Render() {
-  ScopedTable table(gui_, /*str_id=*/"BlueprintEditorTable", /*columns=*/3,
-                    /*flags=*/ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable,
-                    /*outer_size=*/gui_->GetContentRegionAvail());
+  ScopedTable table =
+      gui_->CreateScopedTable(/*str_id=*/"BlueprintEditorTable", /*columns=*/3,
+                              /*flags=*/ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders);
   if (!table) {
     return absl::OkStatus();
   }

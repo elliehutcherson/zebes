@@ -52,7 +52,7 @@ void ConfigEditor::Render() {
 
   gui_->Separator();
   {
-    ScopedChild child(gui_, "ConfigScrollRegion", ImVec2(0, 0), true);
+    ScopedChild child = gui_->CreateScopedChild("ConfigScrollRegion", ImVec2(0, 0), true);
 
     if (gui_->CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen)) {
       gui_->InputInt("Target FPS", &local_config_.fps);

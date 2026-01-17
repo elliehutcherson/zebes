@@ -78,7 +78,7 @@ void TextureEditor::SelectTexture(const Texture& texture) {
 void TextureEditor::Render() {
   // Use tables for list and inspector
   auto table_flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
-  if (ScopedTable table(gui_, "TextureEditorTable", 2, table_flags); table) {
+  if (ScopedTable table = gui_->CreateScopedTable("TextureEditorTable", 2, table_flags); table) {
     gui_->TableSetupColumn("Texture List", ImGuiTableColumnFlags_WidthStretch);
     gui_->TableSetupColumn("Details", ImGuiTableColumnFlags_WidthStretch);
 
@@ -134,8 +134,8 @@ void TextureEditor::RenderTextureList() {
   }
 
   // List textures
-  ScopedListBox list_box(gui_, "##Textures",
-                         ImVec2(-FLT_MIN, 10 * gui_->GetTextLineHeightWithSpacing()));
+  ScopedListBox list_box = gui_->CreateScopedListBox(
+      "##Textures", ImVec2(-FLT_MIN, 10 * gui_->GetTextLineHeightWithSpacing()));
   if (list_box) {
     for (const Texture& texture : texture_list_) {
       bool is_selected = (!new_texture_ && selected_texture_.id == texture.id);
@@ -253,8 +253,8 @@ void TextureEditor::RenderPreview() {
   gui_->Text("Texture Preview");
 
   // Display the image with zoom applied
-  ScopedChild child(gui_, "PreviewRegion", ImVec2(0, 400), true,
-                    ImGuiWindowFlags_HorizontalScrollbar);
+  ScopedChild child = gui_->CreateScopedChild("PreviewRegion", ImVec2(0, 400), true,
+                                              ImGuiWindowFlags_HorizontalScrollbar);
 
   if (selected_texture_.sdl_texture == nullptr) {
     gui_->TextDisabled("No texture loaded.");

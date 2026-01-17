@@ -45,7 +45,7 @@ void BlueprintStatePanel::Render() {
   gui_->Text("Blueprint State");
 
   {
-    ScopedDisabled disabled(gui_, true);
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
     gui_->InputInt("Index", &index_);
   }
 
@@ -54,7 +54,7 @@ void BlueprintStatePanel::Render() {
   }
 
   {
-    ScopedDisabled disabled(gui_, true);
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
     gui_->InputText("Sprite ID", &blueprint_->states[index_].sprite_id);
     gui_->InputText("Collider ID", &blueprint_->states[index_].collider_id);
   }

@@ -68,7 +68,7 @@ void ColliderPanel::RefreshColliderCache() {
 }
 
 absl::StatusOr<ColliderResult> ColliderPanel::Render() {
-  ScopedId id(gui_, "ColliderPanel");
+  ScopedId id = gui_->CreateScopedId("ColliderPanel");
 
   gui_->Text("Collider");
   gui_->Separator();
@@ -96,7 +96,8 @@ absl::StatusOr<ColliderResult> ColliderPanel::RenderList() {
   gui_->SameLine();
 
   {
-    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
     if (gui_->Button("Delete") && selected_index_ > -1) {
       RETURN_IF_ERROR(ConfirmState(Op::kColliderDelete));
       Detach();
@@ -104,7 +105,7 @@ absl::StatusOr<ColliderResult> ColliderPanel::RenderList() {
   }
 
   // List Box
-  if (ScopedListBox list_box(gui_, "Colliders", ImVec2(-FLT_MIN, -FLT_MIN)); list_box) {
+  if (auto lb = gui_->CreateScopedListBox("Colliders", ImVec2(-FLT_MIN, -FLT_MIN)); lb) {
     for (int i = 0; i < collider_cache_.size(); ++i) {
       const bool is_selected = (selected_index_ == i);
       const Collider& collider = collider_cache_[i];
@@ -143,7 +144,8 @@ absl::StatusOr<ColliderResult> ColliderPanel::RenderDetails() {
 
   // Detach Button (Orange)
   {
-    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
     if (gui_->Button("Detach", ImVec2(button_width, 0))) {
       Detach();
       result = {ColliderResult::Type::kDetach};
@@ -153,7 +155,8 @@ absl::StatusOr<ColliderResult> ColliderPanel::RenderDetails() {
 
   // Reset Button (Red)
   {
-    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
     if (gui_->Button("Reset", ImVec2(button_width, 0))) {
       RETURN_IF_ERROR(ConfirmState(Op::kColliderReset));
     }
@@ -177,7 +180,7 @@ void ColliderPanel::RenderPolygonList() {
 
   int i = 0;
   std::erase_if(editting_collider_->polygons, [&](Polygon& p) -> bool {
-    ScopedId id(gui_, i);
+    ScopedId id = gui_->CreateScopedId(i);
     bool deleted = RenderPolygonDetails(p, i);
 
     ++i;
@@ -197,7 +200,7 @@ bool ColliderPanel::RenderPolygonDetails(Polygon& poly, int index) {
   int i = 0;
   std::erase_if(poly, [&i, this](Vec& v) -> bool {
     bool deleted = false;
-    ScopedId id(gui_, i);
+    ScopedId id = gui_->CreateScopedId(i);
     ++i;
     // For each vertex we should be able to edit x and y.
     gui_->SetNextItemWidth(100);

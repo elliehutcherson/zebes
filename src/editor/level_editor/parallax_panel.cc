@@ -37,20 +37,18 @@ void ParallaxPanel::Reset() {
 }
 
 absl::StatusOr<ParallaxResult> ParallaxPanel::Render(Level& level) {
-  {
-    ScopedId scoped_id(gui_, "ParallaxPanel");
-    gui_->Text("Parallax Layers");
-    gui_->Separator();
+  ScopedId scoped_id = gui_->CreateScopedId("ParallaxPanel");
+  gui_->Text("Parallax Layers");
+  gui_->Separator();
 
-    if (editing_layer_.has_value()) {
-      RETURN_IF_ERROR(RenderDetails(level));
-    } else {
-      RETURN_IF_ERROR(RenderList(level));
-    }
+  if (editing_layer_.has_value()) {
+    RETURN_IF_ERROR(RenderDetails(level));
+  } else {
+    RETURN_IF_ERROR(RenderList(level));
+  }
 
-    if (editing_layer_.has_value()) {
-      return ParallaxResult::kEdit;
-    }
+  if (editing_layer_.has_value()) {
+    return ParallaxResult::kEdit;
   }
   return ParallaxResult::kList;
 }
@@ -69,7 +67,8 @@ absl::Status ParallaxPanel::RenderList(Level& level) {
   gui_->SameLine();
 
   {
-    ScopedStyleColor color(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    ScopedStyleColor color =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
     if (gui_->Button("Delete", ImVec2(button_width, 0))) {
       RETURN_IF_ERROR(HandleOp(level, Op::kParallaxDelete));
     }
@@ -144,7 +143,8 @@ absl::Status ParallaxPanel::RenderDetails(Level& level) {
   }
 
   if (!error_.empty()) {
-    ScopedStyleColor color(gui_, ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+    ScopedStyleColor color =
+        gui_->CreateScopedStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
     gui_->TextWrapped("%s", error_.c_str());
   }
 

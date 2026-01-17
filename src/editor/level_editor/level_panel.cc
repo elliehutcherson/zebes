@@ -26,7 +26,7 @@ LevelPanel::LevelPanel(Options options) : api_(*options.api), gui_(options.gui) 
 }
 
 absl::StatusOr<LevelResult> LevelPanel::Render(std::optional<Level>& level) {
-  ScopedId id(gui_, "LevelPanel");
+  ScopedId id = gui_->CreateScopedId("LevelPanel");
 
   gui_->Text("Levels");
   gui_->Separator();
@@ -52,13 +52,15 @@ absl::StatusOr<LevelResult> LevelPanel::RenderList(std::optional<Level>& level) 
   gui_->SameLine();
 
   {
-    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
     if (gui_->Button("Delete")) {
       ASSIGN_OR_RETURN(result, HandleOp(level, Op::kLevelDelete));
     }
   }
 
-  if (ScopedListBox list_box(gui_, "##Levels", ImVec2(-FLT_MIN, -FLT_MIN)); list_box) {
+  if (ScopedListBox list_box = gui_->CreateScopedListBox("##Levels", ImVec2(-FLT_MIN, -FLT_MIN));
+      list_box) {
     for (int i = 0; i < level_cache_.size(); ++i) {
       const bool is_selected = (selected_index_ == i);
       if (gui_->Selectable(level_cache_[i].name.c_str(), is_selected)) {

@@ -62,7 +62,7 @@ void SpritePanel::Detach() {
 }
 
 absl::StatusOr<SpriteResult> SpritePanel::Render() {
-  ScopedId id(gui_, "SpritePanel");
+  ScopedId id = gui_->CreateScopedId("SpritePanel");
 
   if (editting_sprite_.has_value()) {
     return RenderDetails();
@@ -85,7 +85,8 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
     RETURN_IF_ERROR(Attach(sprite_index_));
     result = {SpriteResult::Type::kAttach, editting_sprite_->id};
   }
-  if (ScopedListBox list_box(gui_, "Sprites", ImVec2(-FLT_MIN, -FLT_MIN)); list_box) {
+  if (ScopedListBox list_box = gui_->CreateScopedListBox("Sprites", ImVec2(-FLT_MIN, -FLT_MIN));
+      list_box) {
     for (int i = 0; i < sprite_cache_.size(); ++i) {
       const bool is_selected = (sprite_index_ == i);
       if (gui_->Selectable(sprite_cache_[i].name_id().c_str(), is_selected)) {
@@ -129,7 +130,8 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderDetails() {
   gui_->SameLine();
 
   {
-    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
     if (gui_->Button("Detach", ImVec2(button_width, 0))) {
       Detach();
       result.type = SpriteResult::Type::kDetach;
@@ -193,7 +195,7 @@ void SpritePanel::RenderFrameDetails(int frame_index) {
 
   // Read-only fields
   {
-    ScopedDisabled disabled(gui_, true);
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
     gui_->InputInt("Index", &frame.index);
     gui_->InputInt("Texture X", &frame.texture_x);
     gui_->InputInt("Texture Y", &frame.texture_y);

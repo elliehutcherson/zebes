@@ -69,7 +69,8 @@ void BlueprintPanel::RenderList() {
 
   gui_->SameLine();
   {
-    ScopedStyleColor style(gui_, ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
     if (gui_->Button("Delete") && blueprint_index_ > -1) {
       mode_ = kBlueprintPanelList;
       editting_blueprint_ = blueprint_cache_[blueprint_index_];
@@ -80,7 +81,8 @@ void BlueprintPanel::RenderList() {
   }
 
   // List Box
-  if (ScopedListBox list_box(gui_, "Blueprints", ImVec2(-FLT_MIN, -FLT_MIN)); list_box) {
+  if (auto list_box = gui_->CreateScopedListBox("Blueprints", ImVec2(-FLT_MIN, -FLT_MIN));
+      list_box) {
     for (int i = 0; i < blueprint_cache_.size(); ++i) {
       const bool is_selected = (blueprint_index_ == i);
       if (gui_->Selectable(blueprint_cache_[i].name_id().c_str(), is_selected)) {
@@ -132,7 +134,7 @@ int BlueprintPanel::RenderStateList() {
   int i = 0;
   int selected_index = -1;
   std::erase_if(editting_blueprint_->states, [&](const Blueprint::State& state) -> bool {
-    ScopedId id(gui_, i);
+    ScopedId id = gui_->CreateScopedId(i);
     bool deleted = RenderStateDetails(state.name, i, &selected_index);
 
     ++i;

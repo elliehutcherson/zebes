@@ -55,9 +55,9 @@ void EditorUi::Render() {
   ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
                                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
 
-  ScopedWindow window(gui_, "Zebes Editor", nullptr, window_flags);
+  ScopedWindow window = gui_->CreateScopedWindow("Zebes Editor", nullptr, window_flags);
 
-  if (ScopedTabBar tab_bar = ScopedTabBar(gui_, "MainTabs"); tab_bar) {
+  if (ScopedTabBar tab_bar = gui_->CreateScopedTabBar("MainTabs"); tab_bar) {
     RenderTab("Texture Editor", [this]() {
       texture_editor_->Render();
       return absl::OkStatus();
@@ -86,7 +86,7 @@ void EditorUi::Render() {
 }
 
 bool EditorUi::RenderTab(const char* name, std::function<absl::Status()> render_fn) {
-  ScopedTabItem tab(gui_, name);
+  ScopedTabItem tab = gui_->CreateScopedTabItem(name);
   if (!tab) return false;
 
   absl::Status status = render_fn();

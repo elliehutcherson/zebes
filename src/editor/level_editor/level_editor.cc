@@ -1,6 +1,5 @@
 #include "editor/level_editor/level_editor.h"
 
-#include "SDL_render.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
@@ -58,7 +57,7 @@ absl::Status LevelEditor::Init(Options options) {
 absl::Status LevelEditor::Render() {
   // Use a table with 3 columns for the layout: Left (List), Center (Viewport), Right (Details).
   // Stretch sizing allows the viewport to take the majority of the available space.
-  if (ScopedTable table(gui_, "LevelEditorLayout", 3, kTableFlags); table) {
+  if (ScopedTable table = gui_->CreateScopedTable("LevelEditorLayout", 3, kTableFlags); table) {
     // Setup columns with relative sizing
     gui_->TableSetupColumn("Level List", ImGuiTableColumnFlags_WidthStretch, 0.2f);
     gui_->TableSetupColumn("Viewport", ImGuiTableColumnFlags_WidthStretch, 0.6f);
