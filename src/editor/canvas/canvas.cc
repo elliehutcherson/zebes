@@ -3,19 +3,28 @@
 #include <cmath>
 #include <cstdio>
 
+#include "absl/log/log.h"
 #include "editor/gui_interface.h"
-#include "imgui.h"
 
 namespace zebes {
 
 Canvas::Canvas(Options options) : gui_(options.gui), snap_grid_(options.snap_grid) {}
-Canvas::Canvas(GuiInterface* gui) : gui_(gui) {}
+
+void Canvas::SetWorldBounds(Vec min, Vec max) {
+  world_min_ = min;
+  world_max_ = max;
+}
+
+float Canvas::GetZoom() const { return camera_ ? camera_->zoom : 1.0f; }
 
 void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   camera_ = &camera;
 
   // Prevent zero zoom
   if (camera_->zoom <= 0.001f) camera_->zoom = 1.0f;
+
+  // Enforce bounds immediately before rendering anything
+  ClampCamera();
 
   gui_->BeginChild(id, size, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
 
@@ -36,8 +45,6 @@ void Canvas::End() {
   camera_ = nullptr;
 }
 
-float Canvas::GetZoom() const { return camera_ ? camera_->zoom : 1.0f; }
-
 void Canvas::HandleInput() {
   if (!camera_) return;
 
@@ -50,35 +57,37 @@ void Canvas::HandleInput() {
                             ImGuiButtonFlags_MouseButtonMiddle);
 
   bool is_hovered = gui_->IsItemHovered();
-  bool is_active = gui_->IsItemActive();
 
-  // Handle Zoom
+  // 1. Handle Zoom (Mouse Wheel)
   if (is_hovered && gui_->GetIO().MouseWheel != 0.0f) {
     float zoom_speed = 0.1f;
     camera_->zoom += gui_->GetIO().MouseWheel * zoom_speed;
-    // Clamp zoom
-    if (camera_->zoom < 0.1f) camera_->zoom = 0.1f;
-    if (camera_->zoom > 10.0f) camera_->zoom = 10.0f;
   }
 
-  // Handle Panning (Middle Mouse or Space + Left Click)
-  bool panned = false;
-  if (is_active && ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) {
-    panned = true;
-  } else if (is_active && gui_->IsKeyPressed(ImGuiKey_Space) &&
-             ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-    // Wait, ImGui::IsMouseDragging isn't in GuiInterface?
-    // I need to check. If not, I should use ImGui:: or add it.
-    // Assuming keeping ImGui:: for pure input utilities if necessary, or better add to interface.
-    // IsMouseDragging is common.
-    // I'll leave ImGui::IsMouseDragging for now as I missed checking it.
-    // But I should replace it if possible.
-    panned = true;
-  }
+  // 2. Handle Panning (Keyboard: WASD / Arrows)
+  if (gui_->IsWindowFocused()) {
+    float base_speed = 500.0f;  // Pixels per second
+    float dt = gui_->GetIO().DeltaTime;
 
-  if (panned) {
-    camera_->position.x -= gui_->GetIO().MouseDelta.x / camera_->zoom;
-    camera_->position.y -= gui_->GetIO().MouseDelta.y / camera_->zoom;
+    // Scale speed by zoom so visual speed remains constant
+    float move_step = (base_speed * dt) / camera_->zoom;
+
+    if (gui_->IsKeyDown(ImGuiKey_UpArrow) || gui_->IsKeyDown(ImGuiKey_W)) {
+      LOG(INFO) << __func__ << ": up";
+      camera_->position.y -= move_step;
+    }
+    if (gui_->IsKeyDown(ImGuiKey_DownArrow) || gui_->IsKeyDown(ImGuiKey_S)) {
+      LOG(INFO) << __func__ << ": down";
+      camera_->position.y += move_step;
+    }
+    if (gui_->IsKeyDown(ImGuiKey_LeftArrow) || gui_->IsKeyDown(ImGuiKey_A)) {
+      LOG(INFO) << __func__ << ": left";
+      camera_->position.x -= move_step;
+    }
+    if (gui_->IsKeyDown(ImGuiKey_RightArrow) || gui_->IsKeyDown(ImGuiKey_D)) {
+      LOG(INFO) << __func__ << ": right";
+      camera_->position.x += move_step;
+    }
   }
 }
 
@@ -99,118 +108,165 @@ Vec Canvas::ScreenToWorld(const ImVec2& p) const {
 void Canvas::DrawGrid() {
   if (!draw_list_ || !camera_) return;
 
-  ImVec2 canvas_sz = gui_->GetIO().DisplaySize;  // Was GetWindowSize(), but inside Child window?
-  // Original was ImGui::GetWindowSize().
-  // gui_->GetIO().DisplaySize is screen size.
-  // I need ImGui::GetWindowSize(). I missed adding GetWindowSize to GuiInterface?
-  // Let's assume GetContentRegionAvail matches window size if full?
-  // GetWindowSize includes borders/padding.
-  // I should check if GetWindowSize is in GuiInterface.
-  // If not, I'll use ImGui::GetWindowSize() temporarily or add it.
-
-  // Actually, I'll use ImGui::GetWindowSize() for now to avoid blocking on adding method.
-  canvas_sz = ImGui::GetWindowSize();
-
-  // Calculate grid metrics based on camera
-  Vec origin_screen_local = camera_->WorldToScreen({0, 0});
-  ImVec2 origin_screen = ImVec2(p0_.x + origin_screen_local.x, p0_.y + origin_screen_local.y);
-
-  // 1. Draw Axis Lines
-  ImU32 axis_color = IM_COL32(100, 100, 100, 100);
-  // X Axis (where y=0)
-  draw_list_->AddLine(ImVec2(p0_.x, origin_screen.y), ImVec2(p0_.x + canvas_sz.x, origin_screen.y),
-                      axis_color);
-  // Y Axis (where x=0)
-  draw_list_->AddLine(ImVec2(origin_screen.x, p0_.y), ImVec2(origin_screen.x, p0_.y + canvas_sz.y),
-                      axis_color);
-
-  // 2. Draw Rulers
+  ImVec2 canvas_sz = gui_->GetWindowSize();
   const float ruler_thickness = 20.0f;
-  ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
-  ImU32 ruler_tick_color = IM_COL32(180, 180, 180, 255);
 
-  // Top Ruler (X-axis) background
-  draw_list_->AddRectFilled(p0_, ImVec2(p0_.x + canvas_sz.x, p0_.y + ruler_thickness),
-                            ruler_bg_color);
-
-  // Left Ruler (Y-axis) background
-  draw_list_->AddRectFilled(p0_, ImVec2(p0_.x + ruler_thickness, p0_.y + canvas_sz.y),
-                            ruler_bg_color);
-
-  // Calculate Grid Step
+  // 1. Calculate Grid Step based on Zoom
   float step = 50.0f * camera_->zoom;
   while (step < 50.0f) step *= 2.0f;
   while (step > 150.0f) step /= 2.0f;
 
-  // Draw X Ticks (Top Ruler)
-  // We need to find the first tick visible on screen.
-  // Visible world X range:
-  Vec tl_world = ScreenToWorld(p0_);
-
-  // Align to step size in world space? No, step is in screen pixels kind of.
-  // The 'step' logic above creates a pixel interval between 50 and 150.
-  // World space step:
+  // The actual step in world units
   double world_step = step / camera_->zoom;
 
-  // Start with a multiple of world_step just before tl_world.x
-  double start_world_x = floor(tl_world.x / world_step) * world_step;
+  // 2. Determine visible world range (top-left)
+  Vec tl_world = ScreenToWorld(p0_);
 
-  for (double wx = start_world_x;; wx += world_step) {
-    ImVec2 screen_pos = WorldToScreen({wx, 0});
-    if (screen_pos.x > p0_.x + canvas_sz.x) break;
-    if (screen_pos.x < p0_.x) continue;
+  // Snap start positions to the nearest grid step
+  double start_x = floor(tl_world.x / world_step) * world_step;
+  double start_y = floor(tl_world.y / world_step) * world_step;
 
-    ImVec2 p1(screen_pos.x, p0_.y);
-    ImVec2 p2(screen_pos.x, p0_.y + ruler_thickness * 0.5f);
-    draw_list_->AddLine(p1, p2, ruler_tick_color);
+  // 3. Draw Axis/Origin Crosshair (Thicker lines at 0,0)
+  Vec origin_screen_local = camera_->WorldToScreen({0, 0});
+  ImVec2 origin_screen = ImVec2(p0_.x + origin_screen_local.x, p0_.y + origin_screen_local.y);
+  ImU32 axis_color = IM_COL32(100, 100, 100, 255);
 
-    // Label
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.0f", wx);
-    draw_list_->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
+  // X Axis (Horizontal line where Y=0)
+  if (origin_screen.y > p0_.y && origin_screen.y < p0_.y + canvas_sz.y) {
+    draw_list_->AddLine(ImVec2(p0_.x, origin_screen.y),
+                        ImVec2(p0_.x + canvas_sz.x, origin_screen.y), axis_color, 2.0f);
+  }
+  // Y Axis (Vertical line where X=0)
+  if (origin_screen.x > p0_.x && origin_screen.x < p0_.x + canvas_sz.x) {
+    draw_list_->AddLine(ImVec2(origin_screen.x, p0_.y),
+                        ImVec2(origin_screen.x, p0_.y + canvas_sz.y), axis_color, 2.0f);
   }
 
-  // Draw Y Ticks (Left Ruler)
-  Vec tl_world_y = ScreenToWorld(p0_);  // Same as above
-  double start_world_y = floor(tl_world_y.y / world_step) * world_step;
+  // 4. Draw Ruler Backgrounds
+  ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
+  // Top Ruler (X)
+  draw_list_->AddRectFilled(p0_, ImVec2(p0_.x + canvas_sz.x, p0_.y + ruler_thickness),
+                            ruler_bg_color);
+  // Left Ruler (Y)
+  draw_list_->AddRectFilled(p0_, ImVec2(p0_.x + ruler_thickness, p0_.y + canvas_sz.y),
+                            ruler_bg_color);
 
-  for (double wy = start_world_y;; wy += world_step) {
-    ImVec2 screen_pos = WorldToScreen({0, wy});
-    if (screen_pos.y > p0_.y + canvas_sz.y) break;
-    if (screen_pos.y < p0_.y) continue;
+  // 5. Draw Ticks & Grid Lines using Member Helper
+  DrawRulerAndGrid(start_x, world_step, canvas_sz.x, true);
+  DrawRulerAndGrid(start_y, world_step, canvas_sz.y, false);
 
-    ImVec2 p1(p0_.x, screen_pos.y);
-    ImVec2 p2(p0_.x + ruler_thickness * 0.5f, screen_pos.y);
-    draw_list_->AddLine(p1, p2, ruler_tick_color);
-
-    // Label
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.0f", wy);
-    draw_list_->AddText(ImVec2(p1.x + 2, p1.y + 2), ruler_tick_color, buf);
-  }
-
-  // 3. Mouse Indicator (Red Line on Rulers)
-  ImVec2 mouse_pos = gui_->GetMousePos();
-  bool mouse_in_canvas =
-      gui_->IsItemHovered();  // Was IsWindowHovered, but we have InvisibleButton over canvas now?
-  // Wait, Render uses InvisibleButton. DrawGrid is called IN Begin so InvisibleButton is not yet
-  // submitted? HandleInput is called AFTER End. DrawGrid is called INSIDE Begin/End.
-  // IsWindowHovered works for the child window created in Begin.
-  mouse_in_canvas = ImGui::IsWindowHovered();  // Keep usage or gui_->IsWindowHovered() if added.
-  // IsWindowHovered is NOT in GuiInterface? Check.
-  // I likely missed it.
-
-  if (mouse_in_canvas) {
+  // 6. Mouse Indicators
+  if (gui_->IsWindowHovered()) {
+    ImVec2 mouse_pos = gui_->GetMousePos();
     ImU32 indicator_color = IM_COL32(255, 50, 50, 255);
 
-    // X-Axis Indicator
+    // Indicator on X Ruler
     draw_list_->AddLine(ImVec2(mouse_pos.x, p0_.y), ImVec2(mouse_pos.x, p0_.y + ruler_thickness),
                         indicator_color, 2.0f);
-
-    // Y-Axis Indicator
+    // Indicator on Y Ruler
     draw_list_->AddLine(ImVec2(p0_.x, mouse_pos.y), ImVec2(p0_.x + ruler_thickness, mouse_pos.y),
                         indicator_color, 2.0f);
   }
+}
+
+void Canvas::DrawRulerAndGrid(double start_val, double step, double max_dim, bool is_x_axis) {
+  const float ruler_thickness = 20.0f;
+  ImU32 ruler_tick_color = IM_COL32(180, 180, 180, 255);
+  ImU32 grid_color = IM_COL32(60, 60, 60, 100);
+
+  // Determine main axis start and cross axis start from class members
+  float p0_main = is_x_axis ? p0_.x : p0_.y;
+  float p0_cross = is_x_axis ? p0_.y : p0_.x;
+
+  for (double val = start_val;; val += step) {
+    // We only need the screen coordinate for the current axis.
+    // Construct a temporary world vec to pass to the transform.
+    Vec world_pt = is_x_axis ? Vec{val, 0} : Vec{0, val};
+    ImVec2 screen_pos = WorldToScreen(world_pt);
+
+    float pos_main = is_x_axis ? screen_pos.x : screen_pos.y;
+
+    // Check bounds
+    if (pos_main > p0_main + max_dim) break;
+    if (pos_main < p0_main) continue;
+
+    // 1. Draw Ruler Tick
+    ImVec2 tick_start, tick_end;
+    if (is_x_axis) {
+      tick_start = ImVec2(pos_main, p0_cross);
+      tick_end = ImVec2(pos_main, p0_cross + ruler_thickness * 0.5f);
+    } else {
+      tick_start = ImVec2(p0_cross, pos_main);
+      tick_end = ImVec2(p0_cross + ruler_thickness * 0.5f, pos_main);
+    }
+    draw_list_->AddLine(tick_start, tick_end, ruler_tick_color);
+
+    // 2. Draw Grid Line
+    ImVec2 grid_start = tick_start;
+    ImVec2 grid_end;
+    if (is_x_axis) {
+      grid_start.y += ruler_thickness;
+      grid_end = ImVec2(pos_main, p0_cross + 20000.0f);
+    } else {
+      grid_start.x += ruler_thickness;
+      grid_end = ImVec2(p0_cross + 20000.0f, pos_main);
+    }
+    draw_list_->AddLine(grid_start, grid_end, grid_color);
+
+    // 3. Draw Label
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.0f", val);
+    draw_list_->AddText(ImVec2(tick_start.x + 3, tick_start.y + 2), ruler_tick_color, buf);
+  }
+}
+
+void Canvas::ClampCamera() {
+  if (!camera_) return;
+
+  // 1. Apply Hard Limits (Sanity Check)
+  // We always want reasonable limits regardless of world size
+  if (camera_->zoom > 10.0f) camera_->zoom = 10.0f;
+  if (camera_->zoom < 0.1f) camera_->zoom = 0.1f;
+
+  if (!world_min_.has_value() || !world_max_.has_value()) return;
+
+  // 2. Apply World Boundary Constraints
+  double world_w = world_max_->x - world_min_->x;
+  double world_h = world_max_->y - world_min_->y;
+
+  // A. CLAMP ZOOM
+  // Ensure the viewport is never larger than the world.
+  if (world_w > 1.0 && world_h > 1.0) {
+    // Calculate the minimum zoom required to fill the screen
+    float min_zoom_x = (float)(camera_->viewport_width / world_w);
+    float min_zoom_y = (float)(camera_->viewport_height / world_h);
+
+    // We must satisfy the stricter of the two constraints
+    float min_required_zoom = std::max(min_zoom_x, min_zoom_y);
+
+    // If current zoom is too far out, snap it back in
+    if (camera_->zoom < min_required_zoom) {
+      camera_->zoom = min_required_zoom;
+    }
+  }
+
+  // B. CLAMP POSITION
+  // Now that zoom is valid/finalized, calculate the view radius
+  double view_half_w = (camera_->viewport_width / 2.0) / camera_->zoom;
+  double view_half_h = (camera_->viewport_height / 2.0) / camera_->zoom;
+
+  // Define the safe box for the center point
+  double min_x = world_min_->x + view_half_w;
+  double max_x = world_max_->x - view_half_w;
+  double min_y = world_min_->y + view_half_h;
+  double max_y = world_max_->y - view_half_h;
+
+  // Apply clamps (handling the case where min > max slightly gracefully)
+  if (camera_->position.x < min_x) camera_->position.x = min_x;
+  if (camera_->position.x > max_x) camera_->position.x = max_x;
+
+  if (camera_->position.y < min_y) camera_->position.y = min_y;
+  if (camera_->position.y > max_y) camera_->position.y = max_y;
 }
 
 }  // namespace zebes

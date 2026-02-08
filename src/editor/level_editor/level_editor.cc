@@ -1,5 +1,6 @@
 #include "editor/level_editor/level_editor.h"
 
+#include "absl/flags/flag.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
@@ -10,6 +11,9 @@
 #include "editor/level_editor/parallax_panel.h"
 #include "editor/level_editor/parallax_preview_tab.h"
 #include "imgui.h"
+
+ABSL_FLAG(bool, use_parallax_theme_panel, true,
+          "Use the new parallax theme panel instead of the legacy parallax panel.");
 
 namespace zebes {
 namespace {
@@ -47,6 +51,11 @@ absl::Status LevelEditor::Init(Options options) {
   } else {
     ASSIGN_OR_RETURN(parallax_panel_, ParallaxPanel::Create({.api = api_, .gui = gui_}));
   }
+  if (options.parallax_theme_panel) {
+    parallax_theme_panel_ = std::move(options.parallax_theme_panel);
+  } else {
+    ASSIGN_OR_RETURN(parallax_theme_panel_, ParallaxThemePanel::Create({.api = api_, .gui = gui_}));
+  }
 
   parallax_tab_ = std::make_unique<ParallaxPreviewTab>(*api_, gui_);
   viewport_tab_ = std::make_unique<ViewportTab>(*api_, gui_);
@@ -83,7 +92,7 @@ absl::Status LevelEditor::Render() {
 
 absl::Status LevelEditor::RenderLeft() {
   const float height =
-      gui_->GetContentRegionAvail().y * (editting_level_.has_value() ? 0.5f : 1.0f);
+      gui_->GetContentRegionAvail().y * (editting_level_.has_value() ? 0.3f : 1.0f);
 
   LevelResult lvl_result;
   if (auto level_child = ScopedChild(gui_, "LevelPanel", ImVec2(0, height)); level_child) {
@@ -97,8 +106,19 @@ absl::Status LevelEditor::RenderLeft() {
 
   gui_->Separator();
 
-  if (auto parallax_child = ScopedChild(gui_, "ParallaxPanel", ImVec2(0, 0)); parallax_child) {
-    ASSIGN_OR_RETURN(ParallaxResult unused, parallax_panel_->Render(*editting_level_));
+  // Split remaining height between existing parallax panel and new theme panel
+  const float remaining_height = gui_->GetContentRegionAvail().y;
+
+  if (absl::GetFlag(FLAGS_use_parallax_theme_panel)) {
+    if (auto theme_child = ScopedChild(gui_, "ParallaxThemePanel", ImVec2(0, remaining_height));
+        theme_child) {
+      ASSIGN_OR_RETURN(ParallaxThemeResult unused, parallax_theme_panel_->Render(*editting_level_));
+    }
+  } else {
+    if (auto parallax_child = ScopedChild(gui_, "ParallaxPanel", ImVec2(0, remaining_height));
+        parallax_child) {
+      ASSIGN_OR_RETURN(ParallaxResult unused, parallax_panel_->Render(*editting_level_));
+    }
   }
 
   return absl::OkStatus();
@@ -121,9 +141,16 @@ absl::Status LevelEditor::RenderCenter() {
 
   auto tab_parallax = [this]() -> absl::Status {
     std::optional<ParallaxLayer>& layer = parallax_panel_->GetEditingLayer();
-    if (!layer.has_value()) return absl::OkStatus();
-    std::optional<std::string> texture_id =
-        layer->texture_id.empty() ? std::nullopt : std::make_optional(layer->texture_id);
+    std::optional<std::string> texture_id;
+
+    if (layer.has_value() && !layer->texture_id.empty()) {
+      texture_id = layer->texture_id;
+    } else {
+      texture_id = parallax_theme_panel_->GetTexture();
+    }
+
+    if (!texture_id.has_value()) return absl::OkStatus();
+
     return parallax_tab_->Render(texture_id);
   };
 

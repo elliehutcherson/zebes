@@ -94,6 +94,8 @@ class GuiInterface {
                         ImGuiInputTextFlags flags = 0) = 0;
   virtual bool InputDouble(const char* label, double* v, double step = 0.0, double step_fast = 0.0,
                            const char* format = "%.6f", ImGuiInputTextFlags flags = 0) = 0;
+  virtual bool InputFloat(const char* label, float* v, float step = 0.0f, float step_fast = 0.0f,
+                          const char* format = "%.3f", ImGuiInputTextFlags flags = 0) = 0;
 
   virtual bool Selectable(const char* label, bool selected = false, ImGuiSelectableFlags flags = 0,
                           const ImVec2& size = ImVec2(0, 0)) = 0;
@@ -138,11 +140,17 @@ class GuiInterface {
   virtual bool IsItemHovered(ImGuiHoveredFlags flags = 0) = 0;
   virtual void SetItemDefaultFocus() = 0;
   virtual bool IsItemActive() = 0;
+  virtual bool IsItemDeactivatedAfterEdit() = 0;
+  virtual bool IsMouseDragging(ImGuiMouseButton button, float lock_threshold = -1.0f) = 0;
+  virtual ImVec2 GetWindowSize() const = 0;
+  virtual bool IsWindowHovered(ImGuiHoveredFlags flags = 0) = 0;
+  virtual bool IsWindowFocused(ImGuiFocusedFlags flags = 0) = 0;
 
   virtual bool CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0) = 0;
 
   // Scoped Object Creation
   virtual ImGuiViewport* GetMainViewport() = 0;
+  virtual bool IsKeyDown(ImGuiKey key) = 0;
   virtual bool IsKeyPressed(ImGuiKey key, bool repeat = true) = 0;
   virtual void ShowMetricsWindow(bool* p_open = nullptr) = 0;
 

@@ -12,10 +12,11 @@ class Canvas {
   struct Options {
     GuiInterface* gui = nullptr;
     bool snap_grid = false;
+    std::optional<Vec> world_min;
+    std::optional<Vec> world_max;
   };
 
   explicit Canvas(Options options);
-  explicit Canvas(GuiInterface* gui);
 
   void Begin(const char* id, const ImVec2& size, Camera& camera);
   void End();
@@ -35,13 +36,26 @@ class Canvas {
   bool GetSnap() const { return snap_grid_; }
   ImDrawList* GetDrawList() { return draw_list_; }
 
+  // Method to update bounds. Should be called this before Begin or when level changes.
+  void SetWorldBounds(Vec min, Vec max);
+
  private:
+  // Helper to draw ruler ticks and grid lines for a specific axis
+  void DrawRulerAndGrid(double start_val, double step, double max_dim, bool is_x_axis);
+
+  // Helper to force camera inside bounds
+  void ClampCamera();
+
   GuiInterface* gui_;
   bool snap_grid_ = false;
 
   Camera* camera_ = nullptr;
   ImVec2 p0_;  // Screen position of canvas top-left
   ImDrawList* draw_list_ = nullptr;
+
+  // Bounds State
+  std::optional<Vec> world_min_;
+  std::optional<Vec> world_max_;
 };
 
 }  // namespace zebes

@@ -73,6 +73,8 @@ class Gui : public GuiInterface {
                 ImGuiInputTextFlags flags = 0) override;
   bool InputDouble(const char* label, double* v, double step = 0.0, double step_fast = 0.0,
                    const char* format = "%.6f", ImGuiInputTextFlags flags = 0) override;
+  bool InputFloat(const char* label, float* v, float step = 0.0f, float step_fast = 0.0f,
+                  const char* format = "%.3f", ImGuiInputTextFlags flags = 0) override;
 
   bool Selectable(const char* label, bool selected = false, ImGuiSelectableFlags flags = 0,
                   const ImVec2& size = ImVec2(0, 0)) override;
@@ -114,10 +116,16 @@ class Gui : public GuiInterface {
   bool IsItemHovered(ImGuiHoveredFlags flags = 0) override;
   void SetItemDefaultFocus() override;
   bool IsItemActive() override;
+  bool IsItemDeactivatedAfterEdit() override;
+  bool IsMouseDragging(ImGuiMouseButton button, float lock_threshold = -1.0f) override;
+  ImVec2 GetWindowSize() const override;
+  bool IsWindowHovered(ImGuiHoveredFlags flags = 0) override;
+  bool IsWindowFocused(ImGuiFocusedFlags flags = 0) override;
 
   bool CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0) override;
 
   ImGuiViewport* GetMainViewport() override;
+  bool IsKeyDown(ImGuiKey key) override;
   bool IsKeyPressed(ImGuiKey key, bool repeat = true) override;
   void ShowMetricsWindow(bool* p_open = nullptr) override;
 

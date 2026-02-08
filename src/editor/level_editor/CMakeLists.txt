@@ -3,15 +3,33 @@ add_library(level_editor
 )
 
 
+add_library(parallax_zone_panel
+  parallax_zone_panel.cc
+)
+
+target_link_libraries(parallax_zone_panel
+  level
+  api
+  imgui_scoped
+  status_macros
+  ${IMGUI_LIBRARIES}
+  absl::status
+  absl::memory
+  gui_interface
+)
+
 target_link_libraries(level_editor
   level_panel
   parallax_panel
+  parallax_theme_panel
+  parallax_zone_panel
   parallax_preview_tab
   viewport_tab
   api
   ${IMGUI_LIBRARIES}
   absl::status
   absl::memory
+  absl::flags
   gui_interface
 )
 
@@ -43,6 +61,23 @@ target_link_libraries(parallax_panel
   absl::status
   absl::cleanup
   absl::strings
+  gui_interface
+)
+
+add_library(parallax_theme_panel
+  parallax_theme_panel.cc
+)
+
+target_link_libraries(parallax_theme_panel
+  level
+  api
+  imgui_scoped
+  status_macros
+  ${IMGUI_LIBRARIES}
+  absl::status
+  absl::memory
+  absl::strings
+  gui_interface
 )
 
 add_library(parallax_preview_tab
@@ -71,3 +106,4 @@ target_link_libraries(viewport_tab
   absl::status
   gui_interface
 )
+

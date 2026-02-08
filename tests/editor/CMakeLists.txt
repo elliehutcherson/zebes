@@ -12,6 +12,16 @@ target_link_libraries(editor_test_main
   absl::log
 )
 
+# --- Gui Mock ---
+add_library(gui_mock INTERFACE)
+target_include_directories(gui_mock INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gui_mock INTERFACE
+  gui_interface
+  imgui_scoped
+  gmock
+)
+
+
 # --- Sanity Test ---
 add_executable(sanity_test sanity_test.cc)
 target_link_libraries(sanity_test
@@ -54,3 +64,39 @@ target_link_libraries(parallax_panel_validation_test
 )
 target_include_directories(parallax_panel_validation_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_panel_validation_test COMMAND parallax_panel_validation_test)
+
+# --- Parallax Theme Panel Test ---
+add_executable(parallax_theme_panel_test parallax_theme_panel_test.cc)
+target_link_libraries(parallax_theme_panel_test
+  gtest_main
+  gmock
+  api
+  parallax_theme_panel
+  gui_mock
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(parallax_theme_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME parallax_theme_panel_test COMMAND parallax_theme_panel_test)
+
+# --- Parallax Zone Panel Test ---
+add_executable(parallax_zone_panel_test parallax_zone_panel_test.cc)
+target_link_libraries(parallax_zone_panel_test
+  gtest_main
+  gmock
+  api
+  parallax_zone_panel
+  gui_mock
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(parallax_zone_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME parallax_zone_panel_test COMMAND parallax_zone_panel_test)
+
+# --- Mock Gui Test ---
+add_executable(mock_gui_test mock_gui_test.cc)
+target_link_libraries(mock_gui_test
+  gtest_main
+  gui_mock
+)
+add_test(NAME mock_gui_test COMMAND mock_gui_test)

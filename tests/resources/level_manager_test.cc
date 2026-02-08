@@ -283,5 +283,65 @@ TEST_F(LevelManagerTest, ParallaxLayerPersistence) {
   EXPECT_FALSE(l2.repeat_x);
 }
 
+TEST_F(LevelManagerTest, ZonesAndThemesPersistence) {
+  Level level{
+      .name = "Theme Level",
+  };
+
+  ParallaxTheme theme;
+  theme.name = "Forest";
+  ParallaxLayer layer;
+  layer.name = "Trees";
+  layer.texture_id = "tex_trees";
+  theme.layers.push_back(layer);
+  level.themes["Forest"] = theme;
+
+  ParallaxZone zone;
+  zone.theme_id = "Forest";
+  zone.min_point = {0, 0};
+  zone.max_point = {100, 100};
+  zone.fade_length = {10, 10};
+  level.zones.push_back(zone);
+
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
+
+  // Reload
+  manager_ = nullptr;
+  ASSERT_OK_AND_ASSIGN(auto new_manager,
+                       LevelManager::Create(sm_.get(), cm_.get(), "test_data/level_manager_test"));
+  manager_ = std::move(new_manager);
+  ASSERT_OK(manager_->LoadAllLevels());
+
+  ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
+
+  ASSERT_EQ(loaded->themes.size(), 1);
+  ASSERT_TRUE(loaded->themes.contains("Forest"));
+  EXPECT_EQ(loaded->themes["Forest"].layers.size(), 1);
+  EXPECT_EQ(loaded->themes["Forest"].layers[0].name, "Trees");
+
+  ASSERT_EQ(loaded->zones.size(), 1);
+  EXPECT_EQ(loaded->zones[0].theme_id, "Forest");
+  EXPECT_EQ(loaded->zones[0].min_point.x, 0);
+  EXPECT_EQ(loaded->zones[0].max_point.x, 100);
+}
+
+TEST_F(LevelManagerTest, SaveLevel_EmptyThemeName_Fails) {
+  Level level{.name = "Bad Theme"};
+  ParallaxTheme theme;
+  theme.name = "";
+  level.themes[""] = theme;
+
+  EXPECT_FALSE(manager_->CreateLevel(std::move(level)).ok());
+}
+
+TEST_F(LevelManagerTest, SaveLevel_ZoneInvalidThemeId_Fails) {
+  Level level{.name = "Bad Zone"};
+  ParallaxZone zone;
+  zone.theme_id = "NonExistent";
+  level.zones.push_back(zone);
+
+  EXPECT_FALSE(manager_->CreateLevel(std::move(level)).ok());
+}
+
 }  // namespace
 }  // namespace zebes

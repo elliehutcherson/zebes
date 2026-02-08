@@ -167,6 +167,11 @@ bool Gui::InputDouble(const char* label, double* v, double step, double step_fas
   return ImGui::InputDouble(label, v, step, step_fast, format, flags);
 }
 
+bool Gui::InputFloat(const char* label, float* v, float step, float step_fast, const char* format,
+                     ImGuiInputTextFlags flags) {
+  return ImGui::InputFloat(label, v, step, step_fast, format, flags);
+}
+
 bool Gui::Selectable(const char* label, bool selected, ImGuiSelectableFlags flags,
                      const ImVec2& size) {
   return ImGui::Selectable(label, selected, flags, size);
@@ -243,14 +248,23 @@ bool Gui::IsItemHovered(ImGuiHoveredFlags flags) { return ImGui::IsItemHovered(f
 
 bool Gui::IsItemActive() { return ImGui::IsItemActive(); }
 
-void Gui::SetItemDefaultFocus() { ImGui::SetItemDefaultFocus(); }
+bool Gui::IsItemDeactivatedAfterEdit() { return ImGui::IsItemDeactivatedAfterEdit(); }
 
+bool Gui::IsMouseDragging(ImGuiMouseButton button, float lock_threshold) {
+  return ImGui::IsMouseDragging(button, lock_threshold);
+}
+
+ImVec2 Gui::GetWindowSize() const { return ImGui::GetWindowSize(); }
+bool Gui::IsWindowHovered(ImGuiHoveredFlags flags) { return ImGui::IsWindowHovered(flags); }
+bool Gui::IsWindowFocused(ImGuiFocusedFlags flags) { return ImGui::IsWindowFocused(flags); }
+void Gui::SetItemDefaultFocus() { ImGui::SetItemDefaultFocus(); }
 bool Gui::CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags) {
   return ImGui::CollapsingHeader(label, flags);
 }
 
 ImGuiViewport* Gui::GetMainViewport() { return ImGui::GetMainViewport(); }
 
+bool Gui::IsKeyDown(ImGuiKey key) { return ImGui::IsKeyDown(key); }
 bool Gui::IsKeyPressed(ImGuiKey key, bool repeat) { return ImGui::IsKeyPressed(key, repeat); }
 
 void Gui::ShowMetricsWindow(bool* p_open) { ImGui::ShowMetricsWindow(p_open); }

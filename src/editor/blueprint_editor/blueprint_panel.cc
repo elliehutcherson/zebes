@@ -81,8 +81,7 @@ void BlueprintPanel::RenderList() {
   }
 
   // List Box
-  if (auto list_box = gui_->CreateScopedListBox("Blueprints", ImVec2(-FLT_MIN, -FLT_MIN));
-      list_box) {
+  if (auto lb = gui_->CreateScopedListBox("Blueprints", ImVec2(-FLT_MIN, -FLT_MIN)); lb) {
     for (int i = 0; i < blueprint_cache_.size(); ++i) {
       const bool is_selected = (blueprint_index_ == i);
       if (gui_->Selectable(blueprint_cache_[i].name_id().c_str(), is_selected)) {
@@ -90,7 +89,7 @@ void BlueprintPanel::RenderList() {
       }
 
       // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-      if (is_selected) ImGui::SetItemDefaultFocus();
+      if (is_selected) gui_->SetItemDefaultFocus();
     }
   }
 }
@@ -112,7 +111,7 @@ int BlueprintPanel::RenderDetails() {
   // Button for editting states
   gui_->Separator();
 
-  float button_width = CalculateButtonWidth(/*num_buttons=*/1);
+  float button_width = CalculateButtonWidth(gui_, /*num_buttons=*/1);
   if (gui_->Button("Save", ImVec2(button_width, 0))) {
     Op op = mode_ == kBlueprintPanelEdit ? Op::kBlueprintUpdate : Op::kBlueprintCreate;
     ConfirmState(op);

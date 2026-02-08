@@ -7,7 +7,6 @@
 #include "common/common.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
-#include "imgui.h"
 
 namespace zebes {
 
@@ -144,7 +143,7 @@ void TextureEditor::RenderTextureList() {
         SelectTexture(texture);
       }
       if (is_selected) {
-        ImGui::SetItemDefaultFocus();
+        gui_->SetItemDefaultFocus();
       }
     }
   }
@@ -263,8 +262,8 @@ void TextureEditor::RenderPreview() {
 
   // Mouse wheel zoom when hovering over preview
   // Note: IsWindowHovered is not yet in GuiInterface, assuming ImGui::
-  if (ImGui::IsWindowHovered()) {
-    float wheel = ImGui::GetIO().MouseWheel;
+  if (gui_->IsWindowHovered()) {
+    float wheel = gui_->GetIO().MouseWheel;
     if (wheel != 0.0f) {
       zoom_ *= (1.0f + wheel * 0.1f);
       if (zoom_ < 0.1f) zoom_ = 0.1f;

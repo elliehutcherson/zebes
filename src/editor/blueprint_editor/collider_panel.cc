@@ -113,7 +113,7 @@ absl::StatusOr<ColliderResult> ColliderPanel::RenderList() {
       if (gui_->Selectable(collider.name_id().c_str(), is_selected)) selected_index_ = i;
 
       // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-      if (is_selected) ImGui::SetItemDefaultFocus();
+      if (is_selected) gui_->SetItemDefaultFocus();
     }
   }
 
@@ -134,7 +134,7 @@ absl::StatusOr<ColliderResult> ColliderPanel::RenderDetails() {
 
   // We always have Save, Reset, and Detach.
   // Calculate width based on available space and spacing.
-  float button_width = CalculateButtonWidth(/*num_buttons=*/3);
+  float button_width = CalculateButtonWidth(gui_, /*num_buttons=*/3);
 
   // Save Button
   if (gui_->Button("Save", ImVec2(button_width, 0))) {

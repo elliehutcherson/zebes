@@ -74,7 +74,7 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
   counters_.render_list++;
   SpriteResult result;
 
-  const float button_width = CalculateButtonWidth(/*num_buttons=*/2);
+  const float button_width = CalculateButtonWidth(gui_, /*num_buttons=*/2);
   if (gui_->Button("Refresh", ImVec2(button_width, 0))) {
     RefreshSpriteCache();
   }
@@ -85,15 +85,14 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
     RETURN_IF_ERROR(Attach(sprite_index_));
     result = {SpriteResult::Type::kAttach, editting_sprite_->id};
   }
-  if (ScopedListBox list_box = gui_->CreateScopedListBox("Sprites", ImVec2(-FLT_MIN, -FLT_MIN));
-      list_box) {
+  if (auto list_box = gui_->CreateScopedListBox("Sprites", ImVec2(-FLT_MIN, -FLT_MIN)); list_box) {
     for (int i = 0; i < sprite_cache_.size(); ++i) {
       const bool is_selected = (sprite_index_ == i);
       if (gui_->Selectable(sprite_cache_[i].name_id().c_str(), is_selected)) {
         sprite_index_ = i;
       }
 
-      if (is_selected) ImGui::SetItemDefaultFocus();
+      if (is_selected) gui_->SetItemDefaultFocus();
     }
   }
 
@@ -122,7 +121,7 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderDetails() {
   gui_->Separator();
 
   // Action Buttons
-  float button_width = CalculateButtonWidth(/*num_buttons=*/2);
+  float button_width = CalculateButtonWidth(gui_, /*num_buttons=*/2);
 
   if (gui_->Button("Save", ImVec2(button_width, 0))) {
     RETURN_IF_ERROR(ConfirmState());

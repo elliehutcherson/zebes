@@ -8,6 +8,7 @@
 #include "editor/level_editor/level_panel_interface.h"
 #include "editor/level_editor/parallax_panel.h"
 #include "editor/level_editor/parallax_preview_tab.h"
+#include "editor/level_editor/parallax_theme_panel.h"
 #include "editor/level_editor/viewport_tab.h"
 
 namespace zebes {
@@ -19,6 +20,7 @@ class LevelEditor {
     GuiInterface* gui = nullptr;
     std::unique_ptr<LevelPanelInterface> level_panel;
     std::unique_ptr<ParallaxPanel> parallax_panel;
+    std::unique_ptr<ParallaxThemePanel> parallax_theme_panel;
   };
 
   // Creates a new instance of the LevelEditor.
@@ -52,6 +54,7 @@ class LevelEditor {
   GuiInterface* gui_;
   std::unique_ptr<LevelPanelInterface> level_panel_;
   std::unique_ptr<ParallaxPanel> parallax_panel_;
+  std::unique_ptr<ParallaxThemePanel> parallax_theme_panel_;
 
   // Center Tabs
   std::unique_ptr<ParallaxPreviewTab> parallax_tab_;

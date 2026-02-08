@@ -40,6 +40,49 @@ void FromJson(const nlohmann::json& j, ParallaxLayer& layer) {
   j.at("scroll_factor_x").get_to(layer.scroll_factor.x);
   j.at("scroll_factor_y").get_to(layer.scroll_factor.y);
   layer.repeat_x = j.value("repeat_x", false);
+  layer.base_scale = j.value("base_scale", 1.0f);
+}
+
+// Helper for ParallaxTheme
+void ToJson(nlohmann::json& j, const ParallaxTheme& theme) {
+  j["name"] = theme.name;
+  std::vector<nlohmann::json> layers_json;
+  for (const auto& layer : theme.layers) {
+    nlohmann::json layer_j;
+    ToJson(layer_j, layer);
+    layers_json.push_back(layer_j);
+  }
+  j["layers"] = layers_json;
+}
+
+void FromJson(const nlohmann::json& j, ParallaxTheme& theme) {
+  j.at("name").get_to(theme.name);
+  if (j.contains("layers")) {
+    for (const auto& item : j["layers"]) {
+      ParallaxLayer layer;
+      FromJson(item, layer);
+      theme.layers.push_back(layer);
+    }
+  }
+}
+
+// Helper for ParallaxZone
+void ToJson(nlohmann::json& j, const ParallaxZone& zone) {
+  j = nlohmann::json{
+      {"theme_id", zone.theme_id},    {"min_x", zone.min_point.x}, {"min_y", zone.min_point.y},
+      {"max_x", zone.max_point.x},    {"max_y", zone.max_point.y}, {"fade_x", zone.fade_length.x},
+      {"fade_y", zone.fade_length.y},
+  };
+}
+
+void FromJson(const nlohmann::json& j, ParallaxZone& zone) {
+  j.at("theme_id").get_to(zone.theme_id);
+  zone.min_point.x = j.value("min_x", 0.0f);
+  zone.min_point.y = j.value("min_y", 0.0f);
+  zone.max_point.x = j.value("max_x", 0.0f);
+  zone.max_point.y = j.value("max_y", 0.0f);
+  zone.fade_length.x = j.value("fade_x", 0.0f);
+  zone.fade_length.y = j.value("fade_y", 0.0f);
 }
 
 void ToJson(nlohmann::json& j, const Entity& entity) {
@@ -124,6 +167,24 @@ nlohmann::json ToJson(const Level& level) {
   }
   j["parallax_layers"] = parallax_json;
 
+  // Themes
+  std::vector<nlohmann::json> themes_json;
+  for (const auto& [name, theme] : level.themes) {
+    nlohmann::json theme_j;
+    ToJson(theme_j, theme);
+    themes_json.push_back(theme_j);
+  }
+  j["themes"] = themes_json;
+
+  // Zones
+  std::vector<nlohmann::json> zones_json;
+  for (const auto& zone : level.zones) {
+    nlohmann::json zone_j;
+    ToJson(zone_j, zone);
+    zones_json.push_back(zone_j);
+  }
+  j["zones"] = zones_json;
+
   // Tile Chunks
   std::vector<nlohmann::json> chunks_json;
   for (const auto& [id, chunk] : level.tile_chunks) {
@@ -188,6 +249,24 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& s
 
       level.parallax_layers.push_back(layer);
       index++;
+    }
+  }
+
+  if (j.contains("themes")) {
+    for (const auto& item : j["themes"]) {
+      ParallaxTheme theme;
+      FromJson(item, theme);
+      if (!theme.name.empty()) {
+        level.themes[theme.name] = theme;
+      }
+    }
+  }
+
+  if (j.contains("zones")) {
+    for (const auto& item : j["zones"]) {
+      ParallaxZone zone;
+      FromJson(item, zone);
+      level.zones.push_back(zone);
     }
   }
 
@@ -323,6 +402,25 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
     layer_names.insert(layer.name);
   }
 
+  // 4. Validate Themes
+  for (const auto& [name, theme] : level.themes) {
+    if (name.empty()) {
+      return absl::InvalidArgumentError("Theme name cannot be empty.");
+    }
+    if (theme.name != name) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Theme map key '", name, "' does not match theme name '", theme.name, "'"));
+    }
+  }
+
+  // 5. Validate Zones
+  for (const auto& zone : level.zones) {
+    if (!level.themes.contains(zone.theme_id)) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Zone references non-existent theme: '", zone.theme_id, "'"));
+    }
+  }
+
   nlohmann::json json = ToJson(level);
 
   // Handle renaming
@@ -343,13 +441,8 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
   }
   file << json.dump(4);
 
-  // Update cache by re-parsing the json effectively (or just using LoadLevel logic manually)
-  // We can't move 'level' because it is const ref.
-  // We CANNOT copy 'level' because of unique_ptrs.
-  // We MUST reconstruct it.
-  // Since we already have the json, we can `GetLevelFromJson`.
-  ASSIGN_OR_RETURN(Level new_level_obj, GetLevelFromJson(json, sm_, cm_));
-  levels_[level.id] = std::make_unique<Level>(std::move(new_level_obj));
+  // Update cache with new level.
+  levels_[level.id] = std::make_unique<Level>(level);
 
   return absl::OkStatus();
 }

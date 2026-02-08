@@ -17,33 +17,38 @@ ViewportTab::ViewportTab(Api& api, GuiInterface* gui)
   camera_ = Camera{};
 }
 
-void ViewportTab::Reset() { camera_ = Camera{}; }
+void ViewportTab::Reset() { camera_ = {}; }
 
 absl::Status ViewportTab::Render(Level& level) {
   // Use a child window to contain the canvas and handle input clipping
-  if (auto child = ScopedChild(gui_, "ViewportCanvas", ImVec2(0, 0), false,
-                               ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
-    // Canvas fills the available space in the child
-    ImVec2 canvas_size = gui_->GetContentRegionAvail();
-    canvas_size.y -= 20;  // Leave room for status text or controls at bottom if needed
+  auto child = ScopedChild(gui_, "ViewportCanvas", ImVec2(0, 0), false,
+                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-    canvas_.Begin("LevelCanvas", canvas_size, camera_);
+  ImVec2 canvas_size = gui_->GetContentRegionAvail();
+  canvas_size.y -= 25;  // Leave slightly more room for the status bar
 
-    // 1. Render Background Elements
-    canvas_.DrawGrid();
-    RenderParallax(level);
-    RenderLevelBounds(level);
+  canvas_.SetWorldBounds({0, 0}, {level.width, level.height});
+  canvas_.Begin("LevelCanvas", canvas_size, camera_);
 
-    // TODO(ellie): Render Grid Tiles
-    // TODO(ellie): Render Entities
+  // 1. Render Scene Elements
+  RenderParallax(level);
+  canvas_.DrawGrid();
+  RenderLevelBounds(level);
 
-    canvas_.End();
-    canvas_.HandleInput();
+  // TODO: Render Entities, Tiles, etc.
 
-    // Debug/Status Overlay
-    gui_->Text("Zoom: %.2f | Offset: %.1f, %.1f | Mouse: %.1f, %.1f", canvas_.GetZoom(),
-               gui_->GetCursorPos().x, gui_->GetCursorPos().y, gui_->GetMousePos().x,
-               gui_->GetMousePos().y);
+  // 2. Handle Input (Keyboard Panning)
+  canvas_.HandleInput();
+  canvas_.End();
+
+  // 3. Status Bar / Debug Overlay
+  Vec mouse_world = canvas_.ScreenToWorld(gui_->GetMousePos());
+  gui_->Text("Cam: (%.0f, %.0f) | Zoom: %.2f | Mouse World: (%.0f, %.0f)", camera_.position.x,
+             camera_.position.y, canvas_.GetZoom(), mouse_world.x, mouse_world.y);
+
+  gui_->SameLine();
+  if (gui_->Button("Reset View")) {
+    Reset();
   }
 
   return absl::OkStatus();
@@ -53,67 +58,82 @@ void ViewportTab::RenderParallax(const Level& level) {
   ImDrawList* draw_list = canvas_.GetDrawList();
   if (!draw_list) return;
 
-  // We need to know the "camera" position in the canvas world.
-  // Canvas does not explicitly expose a "Camera Position", but we can infer the content's
-  // offset from the ScreenToWorld of the screen center, or just use `WorldToScreen` purely.
+  ImVec2 p_min = ImGui::GetWindowPos();
+  ImVec2 view_size = ImGui::GetWindowSize();
+  ImVec2 p_max = ImVec2(p_min.x + view_size.x, p_min.y + view_size.y);
 
-  // For parallax, we want to shift the texture based on where the "camera" is.
-  // In `Canvas`, panning changes the `offset_` which acts as the camera position.
+  // Center offset (half viewport size)
+  // This matches the logic in Camera::WorldToScreen so (0,0) is centered
+  double center_off_x = view_size.x / 2.0;
+  double center_off_y = view_size.y / 2.0;
 
-  // Since `Canvas::WorldToScreen` applies the transform:
-  // ScreenPos = (WorldPos * Zoom) + Offset + ScreenCenter
-  //
-  // We want to draw the background image such that it appears to move slower.
-  //
-  // A standard parallax approach:
-  // DrawPosition = LayerOrigin + (CameraPos * (1.0 - ScrollFactor))
-
-  // However, `Canvas` handles the main "Camera" transform automatically when we call WorldToScreen.
-  // So if we just draw at (0,0), it moves 1:1 with the camera.
-  // To simulate parallax, we must counteract the camera movement for background layers.
-  //
-  // If the Canvas Pan (Offset) matches the Camera position:
-  // ParallaxOffset = CanvasOffset * (1.0 - ScrollFactor)
-  //
-  // But `Canvas` internals for `offset_` might be screen-space relative.
-  // Let's look at `Canvas::WorldToScreen(Vec(0,0))` -> This gives us the screen position of the
-  // world origin.
-  //
-  // Let's stick to a simpler model first:
-  // For each layer, we draw a texture covering the whole level (repeatedly if needed).
-  Vec world_tl = canvas_.ScreenToWorld(gui_->GetCursorScreenPos());
-  ImVec2 cursor = gui_->GetCursorScreenPos();
-  ImVec2 avail = gui_->GetContentRegionAvail();
-  Vec world_br = canvas_.ScreenToWorld(ImVec2(cursor.x + avail.x, cursor.y + avail.y));
-
-  for (const auto& layer : level.parallax_layers) {
+  for (const ParallaxLayer& layer : level.parallax_layers) {
     if (layer.texture_id.empty()) continue;
 
     absl::StatusOr<Texture*> texture_or = api_.GetTexture(layer.texture_id);
     if (!texture_or.ok() || *texture_or == nullptr) continue;
     const Texture& texture = *(*texture_or);
 
-    // Skip if invalid texture
-    if (texture.sdl_texture == nullptr) continue;
-
-    // Basic implementation: Draw a single instance of the texture at (0,0) for now.
-    // TODO: Implement proper tiling/repeating based on `layer.repeat_x`.
-    // TODO: Implement proper parallax scrolling factor.
-
-    // For now, let's just draw it at the level bounds to visualize it exists.
-    // We'll trust the plan's formula in the next iteration or refinement.
-    //
-    // Render at (0,0) world coordinates standard for now.
-    Vec pos = {0, 0};
-
-    // Get dimensions
     int w = 0, h = 0;
     SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture.sdl_texture), nullptr, nullptr, &w, &h);
+    if (w == 0 || h == 0) continue;
 
-    ImVec2 p_min = canvas_.WorldToScreen(pos);
-    ImVec2 p_max = canvas_.WorldToScreen(Vec{static_cast<double>(w), static_cast<double>(h)});
+    // 1. Calculate Scaled Image Size
+    float img_w = w * canvas_.GetZoom();
+    float img_h = h * canvas_.GetZoom();
 
-    draw_list->AddImage(reinterpret_cast<ImTextureID>(texture.sdl_texture), p_min, p_max);
+    // 2. Calculate the "Anchor" Position on Screen
+    // This is where the top-left of the image would be if it were at World(0,0)
+    // Formula: (WorldPos - ParallaxCamPos) * Zoom + CenterOffset
+
+    // How much the camera effectively moves for this layer (0.0 = full movement, 1.0 = none)
+    double effective_cam_x = camera_.position.x * (1.0 - layer.scroll_factor.x);
+    double effective_cam_y = camera_.position.y * (1.0 - layer.scroll_factor.y);
+
+    double anchor_x = p_min.x + center_off_x - (effective_cam_x * canvas_.GetZoom());
+    double anchor_y = p_min.y + center_off_y - (effective_cam_y * canvas_.GetZoom());
+
+    // 3. Determine Start and End Points for Loops
+    float start_x, end_x;
+    float start_y, end_y;
+
+    // --- X AXIS LOGIC ---
+    if (layer.repeat_x) {
+      // If repeating, we find the "phase" relative to the anchor
+      // We want to start drawing just to the left of the viewport (p_min.x)
+      float phase_x = fmod(anchor_x - p_min.x, img_w);
+      if (phase_x > 0) phase_x -= img_w;  // Ensure we start behind the left edge
+
+      start_x = p_min.x + phase_x;
+      end_x = p_max.x;  // Fill the whole screen
+    } else {
+      // If NOT repeating, we just draw once at the anchor
+      start_x = (float)anchor_x;
+      end_x = start_x + img_w;
+      // Optimization: Skip if completely off screen
+      if (end_x < p_min.x || start_x > p_max.x) continue;
+    }
+
+    // --- Y AXIS LOGIC (Assuming repeat_y doesn't exist in struct yet, or defaulting false?) ---
+    // If you want Y repetition, copy the logic above.
+    // Usually parallax backgrounds don't repeat Y unless it's a pattern.
+    // For now, let's assume NO Y Repeat (Standard for side-scrollers) unless you add the flag.
+
+    // Simple Vertical Centering or World Positioning:
+    start_y = (float)anchor_y;
+    end_y = start_y + img_h;
+
+    // 4. Draw Loop
+    for (float y = start_y; y < end_y; y += img_h) {
+      for (float x = start_x; x < end_x; x += img_w) {
+        // Culling: Don't issue draw commands for tiles completely outside viewport
+        if (x + img_w < p_min.x || x > p_max.x) continue;
+        if (y + img_h < p_min.y || y > p_max.y) continue;
+
+        draw_list->AddImage(reinterpret_cast<ImTextureID>(texture.sdl_texture), ImVec2(x, y),
+                            ImVec2(x + img_w, y + img_h));
+      }
+    }
   }
 }
 

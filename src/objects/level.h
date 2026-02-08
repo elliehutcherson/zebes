@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <map>
-#include <memory>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
@@ -23,7 +22,24 @@ struct ParallaxLayer {
   std::string name;
   std::string texture_id;
   Vec scroll_factor;
+  float base_scale = 1.0f;
   bool repeat_x = false;
+  bool repeat_y = false;
+};
+
+struct ParallaxTheme {
+  std::string name;
+  std::vector<ParallaxLayer> layers;
+};
+
+struct ParallaxZone {
+  std::string theme_id;
+  // 2D Boundaries (World Coordinates)
+  Vec min_point;
+  Vec max_point;
+
+  // Transition settings
+  Vec fade_length;  // x = horizontal fade width, y = vertical fade height
 };
 
 struct Level {
@@ -49,7 +65,10 @@ struct Level {
   std::map<uint64_t, Entity> entities;
 
   // ENVIRONMENT
-  // Parallax layers, background color, music track ID, etc.
+  // Parallax layers, background color, music track ID, etc.'
+  std::map<std::string, ParallaxTheme> themes;
+  std::vector<ParallaxZone> zones;
+
   std::vector<ParallaxLayer> parallax_layers;
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
