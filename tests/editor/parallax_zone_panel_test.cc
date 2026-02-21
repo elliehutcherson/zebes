@@ -15,29 +15,15 @@ namespace zebes {
 // Peer class to access private members of ParallaxZonePanel
 class ParallaxZonePanelTestPeer {
  public:
-  using Op = ParallaxZonePanel::Op;
-
-  static absl::Status HandleOp(ParallaxZonePanel& panel, Level& level, Op op) {
-    return panel.HandleOp(level, op);
+  static absl::Status RenderNavigator(ParallaxZonePanel& panel, Level& level,
+                                      SelectionState& selection) {
+    return panel.RenderNavigator(level, selection);
   }
 
-  static int GetSelectedZoneIndex(const ParallaxZonePanel& panel) {
-    return panel.selected_zone_index_;
+  static absl::Status RenderDetails(ParallaxZonePanel& panel, Level& level,
+                                    SelectionState& selection) {
+    return panel.RenderDetails(level, selection);
   }
-
-  static void SetSelectedZoneIndex(ParallaxZonePanel& panel, int index) {
-    panel.selected_zone_index_ = index;
-  }
-
-  static const std::optional<ParallaxZone>& GetEditingZone(const ParallaxZonePanel& panel) {
-    return panel.editing_zone_;
-  }
-
-  static std::optional<ParallaxZone>& GetEditingZoneMutable(ParallaxZonePanel& panel) {
-    return panel.editing_zone_;
-  }
-
-  static int GetState(const ParallaxZonePanel& panel) { return static_cast<int>(panel.state_); }
 };
 
 namespace {
@@ -56,7 +42,7 @@ class ParallaxZonePanelTest : public ::testing::Test {
     level_.themes.clear();
 
     // Add dummy themes
-    level_.themes["Theme1"] = ParallaxTheme{.name = "Theme1"};
+    level_.themes[1] = ParallaxTheme{.name = "Theme1"};
 
     auto panel_or = ParallaxZonePanel::Create({.api = api_.get(), .gui = &gui_});
     ASSERT_TRUE(panel_or.ok());
@@ -87,98 +73,77 @@ class ParallaxZonePanelTest : public ::testing::Test {
             [&](ImGuiCol idx, const ImVec4& col) { return ScopedStyleColor(&gui_, {}, {}); });
 
     // By default, all buttons return false
-    ON_CALL(gui_, Button).WillByDefault(Return(false));
+    EXPECT_CALL(gui_, Button(_, _)).WillRepeatedly(Return(false));
+    EXPECT_CALL(gui_, CreateScopedCombo(_, _, _))
+        .WillRepeatedly(::testing::Invoke(
+            [this](const char* label, const char* preview, ImGuiComboFlags flags) {
+              return ScopedCombo(&gui_, label, preview, flags);
+            }));
   }
 
-  absl::Status HandleOp(ParallaxZonePanelTestPeer::Op op) {
-    return ParallaxZonePanelTestPeer::HandleOp(*panel_, level_, op);
+  absl::Status RenderNavigator() {
+    return ParallaxZonePanelTestPeer::RenderNavigator(*panel_, level_, selection_);
+  }
+
+  absl::Status RenderDetails() {
+    return ParallaxZonePanelTestPeer::RenderDetails(*panel_, level_, selection_);
   }
 
   std::unique_ptr<MockApi> api_ = std::make_unique<NiceMock<MockApi>>();
   NiceMock<MockGui> gui_;
   std::unique_ptr<ParallaxZonePanel> panel_;
   Level level_;
+  SelectionState selection_;
 };
 
 TEST_F(ParallaxZonePanelTest, CreateZoneAddsToLevel) {
   // Initial state
   EXPECT_TRUE(level_.zones.empty());
 
-  // Create zone
-  ASSERT_TRUE(HandleOp(ParallaxZonePanelTestPeer::Op::kCreateZone).ok());
+  EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _)).WillOnce(Return(true));
 
-  // Verify zone added
+  // Create zone
+  ASSERT_TRUE(RenderNavigator().ok());
+
+  // Verify zone added and selected
   EXPECT_EQ(level_.zones.size(), 1);
-  EXPECT_EQ(ParallaxZonePanelTestPeer::GetSelectedZoneIndex(*panel_), 0);
+  EXPECT_EQ(selection_.type, SelectionState::Type::kZone);
+  EXPECT_EQ(selection_.zone_index, 0);
 }
 
 TEST_F(ParallaxZonePanelTest, DeleteZoneRemovesFromLevel) {
   level_.zones.push_back({});
-  ParallaxZonePanelTestPeer::SetSelectedZoneIndex(*panel_, 0);
+  selection_.type = SelectionState::Type::kZone;
+  selection_.zone_index = 0;
 
-  ASSERT_TRUE(HandleOp(ParallaxZonePanelTestPeer::Op::kDeleteZone).ok());
+  EXPECT_CALL(gui_, Button(StrEq("Delete Zone"), _)).WillOnce(Return(true));
+
+  ASSERT_TRUE(RenderDetails().ok());
 
   EXPECT_TRUE(level_.zones.empty());
-  EXPECT_EQ(ParallaxZonePanelTestPeer::GetSelectedZoneIndex(*panel_), -1);
+  EXPECT_EQ(selection_.type, SelectionState::Type::kNone);
 }
 
-TEST_F(ParallaxZonePanelTest, EditZoneStartsEditing) {
+TEST_F(ParallaxZonePanelTest, SelectionStateUpdatedOnSelect) {
   level_.zones.push_back({});
-  ParallaxZonePanelTestPeer::SetSelectedZoneIndex(*panel_, 0);
 
-  ASSERT_TRUE(HandleOp(ParallaxZonePanelTestPeer::Op::kEditZone).ok());
+  EXPECT_CALL(gui_, Selectable(StrEq("Zone 0"), false, _, _)).WillOnce(Return(true));
 
-  EXPECT_TRUE(ParallaxZonePanelTestPeer::GetEditingZone(*panel_).has_value());
-  EXPECT_EQ(ParallaxZonePanelTestPeer::GetState(*panel_), 1);  // kZoneDetails
+  ASSERT_TRUE(RenderNavigator().ok());
+
+  EXPECT_EQ(selection_.type, SelectionState::Type::kZone);
+  EXPECT_EQ(selection_.zone_index, 0);
 }
 
-TEST_F(ParallaxZonePanelTest, SaveZoneUpdatesLevel) {
-  // Setup
+TEST_F(ParallaxZonePanelTest, DetailsReturnsErrorOnInvalidIndex) {
   level_.zones.push_back({});
-  ParallaxZonePanelTestPeer::SetSelectedZoneIndex(*panel_, 0);
+  selection_.type = SelectionState::Type::kZone;
+  selection_.zone_index = 5;  // Invalid
 
-  // Enter edit mode
-  ASSERT_TRUE(HandleOp(ParallaxZonePanelTestPeer::Op::kEditZone).ok());
+  ASSERT_FALSE(RenderDetails().ok());
 
-  // Modify
-  auto& editing = ParallaxZonePanelTestPeer::GetEditingZoneMutable(*panel_);
-  editing->theme_id = "Theme1";
-  editing->min_point = {10, 20};
-
-  // Save
-  ASSERT_TRUE(HandleOp(ParallaxZonePanelTestPeer::Op::kSaveZone).ok());
-
-  // Verify
-  ASSERT_EQ(level_.zones.size(), 1);
-  EXPECT_EQ(level_.zones[0].theme_id, "Theme1");
-  EXPECT_EQ(level_.zones[0].min_point.x, 10);
-  EXPECT_EQ(level_.zones[0].min_point.y, 20);
-}
-
-TEST_F(ParallaxZonePanelTest, BackButtonExitsDetails) {
-  level_.zones.push_back({});
-  ParallaxZonePanelTestPeer::SetSelectedZoneIndex(*panel_, 0);
-  ASSERT_TRUE(HandleOp(ParallaxZonePanelTestPeer::Op::kEditZone).ok());
-
-  // Back
-  ASSERT_TRUE(HandleOp(ParallaxZonePanelTestPeer::Op::kBackToZones).ok());
-
-  EXPECT_FALSE(ParallaxZonePanelTestPeer::GetEditingZone(*panel_).has_value());
-  EXPECT_EQ(ParallaxZonePanelTestPeer::GetState(*panel_), 0);  // kZoneList
-}
-
-TEST_F(ParallaxZonePanelTest, RenderZoneList_EditButton_Transitions) {
-  level_.zones.push_back({});
-  ParallaxZonePanelTestPeer::SetSelectedZoneIndex(*panel_, 0);
-
-  // Generic Fallback
-  EXPECT_CALL(gui_, Button(_, _)).WillRepeatedly(Return(false));
-  EXPECT_CALL(gui_, Button(StrEq("Edit Zone"), _)).WillOnce(Return(true));
-
-  auto result = panel_->Render(level_);
-  ASSERT_TRUE(result.ok());
-
-  EXPECT_EQ(ParallaxZonePanelTestPeer::GetState(*panel_), 1);  // kZoneDetails
+  // Selection should be cleared on error
+  EXPECT_EQ(selection_.type, SelectionState::Type::kNone);
 }
 
 }  // namespace

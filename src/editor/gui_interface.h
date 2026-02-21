@@ -140,6 +140,7 @@ class GuiInterface {
   virtual bool IsItemHovered(ImGuiHoveredFlags flags = 0) = 0;
   virtual void SetItemDefaultFocus() = 0;
   virtual bool IsItemActive() = 0;
+  virtual bool IsItemClicked(ImGuiMouseButton mouse_button = 0) = 0;
   virtual bool IsItemDeactivatedAfterEdit() = 0;
   virtual bool IsMouseDragging(ImGuiMouseButton button, float lock_threshold = -1.0f) = 0;
   virtual ImVec2 GetWindowSize() const = 0;
@@ -147,6 +148,7 @@ class GuiInterface {
   virtual bool IsWindowFocused(ImGuiFocusedFlags flags = 0) = 0;
 
   virtual bool CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0) = 0;
+  virtual bool TreeNodeEx(const char* label, ImGuiTreeNodeFlags flags = 0) = 0;
 
   // Scoped Object Creation
   virtual ImGuiViewport* GetMainViewport() = 0;

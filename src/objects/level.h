@@ -28,12 +28,13 @@ struct ParallaxLayer {
 };
 
 struct ParallaxTheme {
+  int id = 0;
   std::string name;
   std::vector<ParallaxLayer> layers;
 };
 
 struct ParallaxZone {
-  std::string theme_id;
+  int theme_id = -1;
   // 2D Boundaries (World Coordinates)
   Vec min_point;
   Vec max_point;
@@ -66,7 +67,7 @@ struct Level {
 
   // ENVIRONMENT
   // Parallax layers, background color, music track ID, etc.'
-  std::map<std::string, ParallaxTheme> themes;
+  std::map<int, ParallaxTheme> themes;
   std::vector<ParallaxZone> zones;
 
   std::vector<ParallaxLayer> parallax_layers;

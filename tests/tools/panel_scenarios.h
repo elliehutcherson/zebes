@@ -13,7 +13,6 @@
 // Project Headers
 #include "editor/gui.h"
 #include "editor/level_editor/level_panel.h"
-#include "editor/level_editor/parallax_panel.h"
 #include "objects/texture.h"
 #include "tests/api_mock.h"
 
@@ -77,7 +76,7 @@ class LevelPanelScenario : public BasePanelScenario {
  protected:
   absl::Status RenderContent() override {
     if (!panel_) return absl::OkStatus();
-    return panel_->Render(editing_level_).status();
+    return panel_->RenderList(editing_level_, selection_);
   }
 
  private:
@@ -91,59 +90,12 @@ class LevelPanelScenario : public BasePanelScenario {
   std::unique_ptr<zebes::LevelPanel> panel_;
   std::optional<zebes::Level> editing_level_;
   std::vector<zebes::Level> dummy_levels_;
-};
-
-class ParallaxPanelScenario : public BasePanelScenario {
- public:
-  static absl::StatusOr<std::unique_ptr<ParallaxPanelScenario>> Create() {
-    auto scenario = std::unique_ptr<ParallaxPanelScenario>(new ParallaxPanelScenario());
-
-    // Create the Panel
-    ASSIGN_OR_RETURN(scenario->panel_,
-                     ParallaxPanel::Create({.api = scenario->api_.get(), .gui = &scenario->gui_}));
-
-    // Setup dummy data
-    scenario->editing_level_ = Level();
-    scenario->editing_level_->parallax_layers = {
-        {"Background", "sky.png", {0.1f, 0.1f}, true},
-        {"Midground", "mountains.png", {0.5f, 0.5f}, false},
-        {"Foreground", "trees.png", {1.0f, 1.0f}, true},
-    };
-    scenario->dummy_textures_ = DummyTextures();
-
-    return scenario;
-  }
-
-  const char* GetTitle() const override { return "Parallax Panel Viewer"; }
-
- protected:
-  absl::Status RenderContent() override {
-    if (!panel_) return absl::OkStatus();
-    return panel_->Render(*editing_level_).status();
-  }
-
- private:
-  ParallaxPanelScenario() {
-    // Setup default mock behavior to prevent crashes
-    ON_CALL(*api_, GetAllTextures).WillByDefault([this]() { return dummy_textures_; });
-  }
-
-  std::unique_ptr<zebes::MockApi> api_ = std::make_unique<NiceMock<MockApi>>();
-  Gui gui_;
-  std::unique_ptr<zebes::ParallaxPanel> panel_;
-  std::optional<zebes::Level> editing_level_;
-  std::vector<Texture> dummy_textures_ = DummyTextures();
+  SelectionState selection_;
 };
 
 inline absl::StatusOr<std::unique_ptr<IPanelScenario>> CreateScenario(absl::string_view flag) {
   if (flag == "level_panel") {
     ASSIGN_OR_RETURN(std::unique_ptr<LevelPanelScenario> scenario, LevelPanelScenario::Create());
-    return scenario;
-  }
-
-  if (flag == "parallax_panel") {
-    ASSIGN_OR_RETURN(std::unique_ptr<ParallaxPanelScenario> scenario,
-                     ParallaxPanelScenario::Create());
     return scenario;
   }
 

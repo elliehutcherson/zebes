@@ -2,6 +2,9 @@ add_library(level_editor
   level_editor.cc
 )
 
+add_library(level_selection_state INTERFACE)
+target_include_directories(level_selection_state INTERFACE .)
+
 
 add_library(parallax_zone_panel
   parallax_zone_panel.cc
@@ -20,7 +23,6 @@ target_link_libraries(parallax_zone_panel
 
 target_link_libraries(level_editor
   level_panel
-  parallax_panel
   parallax_theme_panel
   parallax_zone_panel
   parallax_preview_tab
@@ -31,6 +33,7 @@ target_link_libraries(level_editor
   absl::memory
   absl::flags
   gui_interface
+  level_selection_state
 )
 
 add_library(level_panel
@@ -49,20 +52,6 @@ target_link_libraries(level_panel
   absl::strings
 )
 
-add_library(parallax_panel
-  parallax_panel.cc
-)
-
-target_link_libraries(parallax_panel
-  level
-  api
-  status_macros
-  ${IMGUI_LIBRARIES}
-  absl::status
-  absl::cleanup
-  absl::strings
-  gui_interface
-)
 
 add_library(parallax_theme_panel
   parallax_theme_panel.cc
@@ -78,6 +67,7 @@ target_link_libraries(parallax_theme_panel
   absl::memory
   absl::strings
   gui_interface
+  level_selection_state
 )
 
 add_library(parallax_preview_tab

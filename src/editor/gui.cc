@@ -248,6 +248,10 @@ bool Gui::IsItemHovered(ImGuiHoveredFlags flags) { return ImGui::IsItemHovered(f
 
 bool Gui::IsItemActive() { return ImGui::IsItemActive(); }
 
+bool Gui::IsItemClicked(ImGuiMouseButton mouse_button) {
+  return ImGui::IsItemClicked(mouse_button);
+}
+
 bool Gui::IsItemDeactivatedAfterEdit() { return ImGui::IsItemDeactivatedAfterEdit(); }
 
 bool Gui::IsMouseDragging(ImGuiMouseButton button, float lock_threshold) {
@@ -260,6 +264,10 @@ bool Gui::IsWindowFocused(ImGuiFocusedFlags flags) { return ImGui::IsWindowFocus
 void Gui::SetItemDefaultFocus() { ImGui::SetItemDefaultFocus(); }
 bool Gui::CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags) {
   return ImGui::CollapsingHeader(label, flags);
+}
+
+bool Gui::TreeNodeEx(const char* label, ImGuiTreeNodeFlags flags) {
+  return ImGui::TreeNodeEx(label, flags);
 }
 
 ImGuiViewport* Gui::GetMainViewport() { return ImGui::GetMainViewport(); }

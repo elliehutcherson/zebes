@@ -1,43 +1,44 @@
 {
-    "entities": [],
-    "height": 640.0,
-    "id": "9af42904-279b-4521-95a7-9274e53ba856",
-    "name": "level_0",
-    "parallax_layers": [
+  "entities": [],
+  "height": 640.0,
+  "id": "9af42904-279b-4521-95a7-9274e53ba856",
+  "name": "level_0",
+  "parallax_layers": [
+    {
+      "name": "Layer 0",
+      "repeat_x": true,
+      "scroll_factor_x": 0.5,
+      "scroll_factor_y": 0.8,
+      "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
+    }
+  ],
+  "spawn_point": {
+    "x": 0.0,
+    "y": 0.0
+  },
+  "themes": [
+    {
+      "id": 0,
+      "layers": [
         {
-            "name": "Layer 0",
-            "repeat_x": true,
-            "scroll_factor_x": 0.5,
-            "scroll_factor_y": 0.8,
-            "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
-        }
-    ],
-    "spawn_point": {
-        "x": 0.0,
-        "y": 0.0
-    },
-    "themes": [
+          "name": "Layer 0",
+          "repeat_x": true,
+          "scroll_factor_x": 1.0,
+          "scroll_factor_y": 1.0,
+          "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
+        },
         {
-            "layers": [
-                {
-                    "name": "Layer 0",
-                    "repeat_x": true,
-                    "scroll_factor_x": 1.0,
-                    "scroll_factor_y": 1.0,
-                    "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
-                },
-                {
-                    "name": "Layer 1",
-                    "repeat_x": false,
-                    "scroll_factor_x": 1.0,
-                    "scroll_factor_y": 1.0,
-                    "texture_id": "f46be754-c7dc-46af-b2c0-206978f4b743"
-                }
-            ],
-            "name": "Theme Editted"
+          "name": "Layer 1",
+          "repeat_x": false,
+          "scroll_factor_x": 1.0,
+          "scroll_factor_y": 1.0,
+          "texture_id": "f46be754-c7dc-46af-b2c0-206978f4b743"
         }
-    ],
-    "tile_chunks": [],
-    "width": 800.0,
-    "zones": []
+      ],
+      "name": "Theme Editted"
+    }
+  ],
+  "tile_chunks": [],
+  "width": 800.0,
+  "zones": []
 }

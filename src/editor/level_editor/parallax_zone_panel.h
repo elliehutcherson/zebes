@@ -8,6 +8,7 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/gui_interface.h"
+#include "editor/level_editor/level_selection_state.h"
 #include "objects/level.h"
 
 namespace zebes {
@@ -27,44 +28,19 @@ class ParallaxZonePanel {
 
   static absl::StatusOr<std::unique_ptr<ParallaxZonePanel>> Create(Options options);
 
-  // Renders the parallax zone panel UI.
-  absl::StatusOr<ParallaxZoneResult> Render(Level& level);
+  // Renders the list of Zones in the Navigator.
+  absl::Status RenderNavigator(Level& level, SelectionState& selection);
+
+  // Renders details for a selected Zone in the Inspector.
+  absl::Status RenderDetails(Level& level, SelectionState& selection);
 
  private:
   friend class ParallaxZonePanelTestPeer;
 
   explicit ParallaxZonePanel(Options options);
 
-  enum class State {
-    kZoneList,
-    kZoneDetails,
-  };
-
-  // Internal operations
-  enum class Op {
-    kCreateZone,
-    kDeleteZone,
-    kEditZone,
-    kBackToZones,
-    kSaveZone,
-  };
-
-  absl::Status RenderZoneList(Level& level);
-  absl::Status RenderZoneDetails(Level& level);
-
-  absl::Status HandleOp(Level& level, Op op);
-
   Api& api_;
   GuiInterface* gui_;
-
-  State state_ = State::kZoneList;
-
-  // Selections
-  int selected_zone_index_ = -1;
-
-  // Editing state
-  std::optional<ParallaxZone> editing_zone_;
-  std::string error_;
 };
 
 }  // namespace zebes

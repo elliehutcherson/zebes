@@ -45,6 +45,7 @@ void FromJson(const nlohmann::json& j, ParallaxLayer& layer) {
 
 // Helper for ParallaxTheme
 void ToJson(nlohmann::json& j, const ParallaxTheme& theme) {
+  j["id"] = theme.id;
   j["name"] = theme.name;
   std::vector<nlohmann::json> layers_json;
   for (const auto& layer : theme.layers) {
@@ -56,6 +57,7 @@ void ToJson(nlohmann::json& j, const ParallaxTheme& theme) {
 }
 
 void FromJson(const nlohmann::json& j, ParallaxTheme& theme) {
+  theme.id = j.value("id", -1);
   j.at("name").get_to(theme.name);
   if (j.contains("layers")) {
     for (const auto& item : j["layers"]) {
@@ -169,7 +171,7 @@ nlohmann::json ToJson(const Level& level) {
 
   // Themes
   std::vector<nlohmann::json> themes_json;
-  for (const auto& [name, theme] : level.themes) {
+  for (const auto& [id, theme] : level.themes) {
     nlohmann::json theme_j;
     ToJson(theme_j, theme);
     themes_json.push_back(theme_j);
@@ -256,9 +258,10 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& s
     for (const auto& item : j["themes"]) {
       ParallaxTheme theme;
       FromJson(item, theme);
-      if (!theme.name.empty()) {
-        level.themes[theme.name] = theme;
+      if (theme.id < 0) {
+        return absl::InvalidArgumentError("Theme must have a valid non-negative integer ID.");
       }
+      level.themes[theme.id] = theme;
     }
   }
 
@@ -403,13 +406,16 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
   }
 
   // 4. Validate Themes
-  for (const auto& [name, theme] : level.themes) {
-    if (name.empty()) {
+  for (const auto& [id, theme] : level.themes) {
+    if (theme.id < 0) {
+      return absl::InvalidArgumentError("Theme must have a valid non-negative integer ID.");
+    }
+    if (theme.name.empty()) {
       return absl::InvalidArgumentError("Theme name cannot be empty.");
     }
-    if (theme.name != name) {
+    if (theme.id != id) {
       return absl::InvalidArgumentError(
-          absl::StrCat("Theme map key '", name, "' does not match theme name '", theme.name, "'"));
+          absl::StrCat("Theme map key '", id, "' does not match theme id '", theme.id, "'"));
     }
   }
 

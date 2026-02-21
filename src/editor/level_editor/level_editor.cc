@@ -1,6 +1,5 @@
 #include "editor/level_editor/level_editor.h"
 
-#include "absl/flags/flag.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
@@ -8,12 +7,9 @@
 #include "editor/imgui_scoped.h"
 #include "editor/level_editor/level_panel.h"
 #include "editor/level_editor/level_panel_interface.h"
-#include "editor/level_editor/parallax_panel.h"
 #include "editor/level_editor/parallax_preview_tab.h"
 #include "imgui.h"
-
-ABSL_FLAG(bool, use_parallax_theme_panel, true,
-          "Use the new parallax theme panel instead of the legacy parallax panel.");
+#include "parallax_theme_panel.h"
 
 namespace zebes {
 namespace {
@@ -46,15 +42,15 @@ absl::Status LevelEditor::Init(Options options) {
                                        .gui = gui_,
                                    }));
   }
-  if (options.parallax_panel) {
-    parallax_panel_ = std::move(options.parallax_panel);
-  } else {
-    ASSIGN_OR_RETURN(parallax_panel_, ParallaxPanel::Create({.api = api_, .gui = gui_}));
-  }
   if (options.parallax_theme_panel) {
     parallax_theme_panel_ = std::move(options.parallax_theme_panel);
   } else {
     ASSIGN_OR_RETURN(parallax_theme_panel_, ParallaxThemePanel::Create({.api = api_, .gui = gui_}));
+  }
+  if (options.parallax_zone_panel) {
+    parallax_zone_panel_ = std::move(options.parallax_zone_panel);
+  } else {
+    ASSIGN_OR_RETURN(parallax_zone_panel_, ParallaxZonePanel::Create({.api = api_, .gui = gui_}));
   }
 
   parallax_tab_ = std::make_unique<ParallaxPreviewTab>(*api_, gui_);
@@ -64,67 +60,121 @@ absl::Status LevelEditor::Init(Options options) {
 }
 
 absl::Status LevelEditor::Render() {
-  // Use a table with 3 columns for the layout: Left (List), Center (Viewport), Right (Details).
-  // Stretch sizing allows the viewport to take the majority of the available space.
-  if (ScopedTable table = gui_->CreateScopedTable("LevelEditorLayout", 3, kTableFlags); table) {
-    // Setup columns with relative sizing
-    gui_->TableSetupColumn("Level List", ImGuiTableColumnFlags_WidthStretch, 0.2f);
-    gui_->TableSetupColumn("Viewport", ImGuiTableColumnFlags_WidthStretch, 0.6f);
-    gui_->TableSetupColumn("Details", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+  ScopedTable table = gui_->CreateScopedTable("LevelEditorLayout", 3, kTableFlags);
+  if (!table) return absl::OkStatus();
 
-    gui_->TableNextRow();
-    gui_->TableNextColumn();
+  // Setup columns with relative sizing
+  gui_->TableSetupColumn("Navigator", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+  gui_->TableSetupColumn("Viewport", ImGuiTableColumnFlags_WidthStretch, 0.6f);
+  gui_->TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthStretch, 0.2f);
 
-    RETURN_IF_ERROR(RenderLeft());
+  gui_->TableNextRow();
 
-    gui_->TableNextColumn();
+  gui_->TableNextColumn();
+  RETURN_IF_ERROR(RenderNavigator());
 
-    RETURN_IF_ERROR(RenderCenter());
+  gui_->TableNextColumn();
+  RETURN_IF_ERROR(RenderViewport());
 
-    gui_->TableNextColumn();
+  gui_->TableNextColumn();
+  RETURN_IF_ERROR(RenderInspector());
 
-    RenderRight();
-
-    // EndTable is handled by ScopedTable dtorette
-  }
   return absl::OkStatus();
 }
 
-absl::Status LevelEditor::RenderLeft() {
-  const float height =
-      gui_->GetContentRegionAvail().y * (editting_level_.has_value() ? 0.3f : 1.0f);
-
-  LevelResult lvl_result;
-  if (auto level_child = ScopedChild(gui_, "LevelPanel", ImVec2(0, height)); level_child) {
-    ASSIGN_OR_RETURN(lvl_result, level_panel_->Render(editting_level_));
-  }
-
+absl::Status LevelEditor::RenderNavigator() {
+  // If no level is loaded, show the Project Browser (List of Levels)
   if (!editting_level_.has_value()) {
-    parallax_panel_->Reset();
+    selection_.Clear();
+    // Use the LevelPanel's list view to select a level to edit.
+    RETURN_IF_ERROR(level_panel_->RenderList(editting_level_, selection_));
     return absl::OkStatus();
   }
 
+  // A Level is loaded. Render the Scene Graph.
+  Level& level = *editting_level_;
+
+  if (gui_->Button("Close Level")) {
+    editting_level_.reset();
+    selection_.Clear();
+    save_error_.reset();
+    return absl::OkStatus();
+  }
+  gui_->SameLine();
+  if (gui_->Button("Save Level")) {
+    absl::Status status = api_->UpdateLevel(*editting_level_);
+    if (!status.ok()) {
+      save_error_ = std::string(status.message());
+    } else {
+      save_error_.reset();
+    }
+  }
+
+  if (save_error_.has_value()) {
+    gui_->TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Save failed: %s", save_error_->c_str());
+  }
   gui_->Separator();
 
-  // Split remaining height between existing parallax panel and new theme panel
-  const float remaining_height = gui_->GetContentRegionAvail().y;
+  // Root Node: The Level itself
+  ImGuiTreeNodeFlags root_flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow;
+  if (selection_.type == SelectionState::Type::kLevel) {
+    root_flags |= ImGuiTreeNodeFlags_Selected;
+  }
 
-  if (absl::GetFlag(FLAGS_use_parallax_theme_panel)) {
-    if (auto theme_child = ScopedChild(gui_, "ParallaxThemePanel", ImVec2(0, remaining_height));
-        theme_child) {
-      ASSIGN_OR_RETURN(ParallaxThemeResult unused, parallax_theme_panel_->Render(*editting_level_));
+  bool root_open = gui_->CollapsingHeader(level.name.c_str(), root_flags);
+  if (gui_->IsItemClicked()) {
+    selection_.Clear();
+    selection_.type = SelectionState::Type::kLevel;
+  }
+
+  if (root_open) {
+    // 1. Parallax
+    if (gui_->CollapsingHeader("Parallax", ImGuiTreeNodeFlags_DefaultOpen)) {
+      RETURN_IF_ERROR(parallax_theme_panel_->RenderNavigator(level, selection_));
+      RETURN_IF_ERROR(parallax_zone_panel_->RenderNavigator(level, selection_));
     }
-  } else {
-    if (auto parallax_child = ScopedChild(gui_, "ParallaxPanel", ImVec2(0, remaining_height));
-        parallax_child) {
-      ASSIGN_OR_RETURN(ParallaxResult unused, parallax_panel_->Render(*editting_level_));
-    }
+
+    // 2. Entities (Future placeholder)
+    gui_->TextDisabled("Entities (TODO)");
   }
 
   return absl::OkStatus();
 }
 
-absl::Status LevelEditor::RenderCenter() {
+absl::Status LevelEditor::RenderInspector() {
+  gui_->Text("Inspector");
+  gui_->Separator();
+
+  if (!editting_level_.has_value()) {
+    gui_->TextDisabled("No Level Loaded");
+    return absl::OkStatus();
+  }
+
+  switch (selection_.type) {
+    case SelectionState::Type::kNone:
+      gui_->TextDisabled("Select an item to view properties.");
+      break;
+
+    case SelectionState::Type::kLevel:
+      RETURN_IF_ERROR(level_panel_->RenderDetails(editting_level_, selection_));
+      break;
+
+    case SelectionState::Type::kTheme:
+      RETURN_IF_ERROR(parallax_theme_panel_->RenderThemeDetails(*editting_level_, selection_));
+      break;
+
+    case SelectionState::Type::kLayer:
+      RETURN_IF_ERROR(parallax_theme_panel_->RenderLayerDetails(*editting_level_, selection_));
+      break;
+
+    case SelectionState::Type::kZone:
+      RETURN_IF_ERROR(parallax_zone_panel_->RenderDetails(*editting_level_, selection_));
+      break;
+  }
+  return absl::OkStatus();
+}
+
+absl::Status LevelEditor::RenderViewport() {
   gui_->Text("Viewport");
   gui_->Separator();
 
@@ -140,18 +190,12 @@ absl::Status LevelEditor::RenderCenter() {
   };
 
   auto tab_parallax = [this]() -> absl::Status {
-    std::optional<ParallaxLayer>& layer = parallax_panel_->GetEditingLayer();
-    std::optional<std::string> texture_id;
-
-    if (layer.has_value() && !layer->texture_id.empty()) {
-      texture_id = layer->texture_id;
-    } else {
-      texture_id = parallax_theme_panel_->GetTexture();
-    }
+    std::optional<std::string> texture_id =
+        parallax_theme_panel_->GetTexture(selection_, *editting_level_);
 
     if (!texture_id.has_value()) return absl::OkStatus();
 
-    return parallax_tab_->Render(texture_id);
+    return parallax_tab_->Render(*texture_id);
   };
 
   // Using a child window for the viewport to clip content if needed and handle scrolling.
@@ -163,13 +207,6 @@ absl::Status LevelEditor::RenderCenter() {
   }
 
   return absl::OkStatus();
-}
-
-void LevelEditor::RenderRight() {
-  gui_->Text("Details");
-  gui_->Separator();
-  // TODO(ellie): Render inspector for the selected level or entity.
-  gui_->TextDisabled("(Placeholder: Level Properties)");
 }
 
 }  // namespace zebes

@@ -116,6 +116,7 @@ class Gui : public GuiInterface {
   bool IsItemHovered(ImGuiHoveredFlags flags = 0) override;
   void SetItemDefaultFocus() override;
   bool IsItemActive() override;
+  bool IsItemClicked(ImGuiMouseButton mouse_button = 0) override;
   bool IsItemDeactivatedAfterEdit() override;
   bool IsMouseDragging(ImGuiMouseButton button, float lock_threshold = -1.0f) override;
   ImVec2 GetWindowSize() const override;
@@ -123,6 +124,7 @@ class Gui : public GuiInterface {
   bool IsWindowFocused(ImGuiFocusedFlags flags = 0) override;
 
   bool CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0) override;
+  bool TreeNodeEx(const char* label, ImGuiTreeNodeFlags flags = 0) override;
 
   ImGuiViewport* GetMainViewport() override;
   bool IsKeyDown(ImGuiKey key) override;

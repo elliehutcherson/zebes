@@ -6,10 +6,12 @@
 #include "api/api.h"
 #include "editor/gui_interface.h"
 #include "editor/level_editor/level_panel_interface.h"
-#include "editor/level_editor/parallax_panel.h"
+#include "editor/level_editor/level_selection_state.h"
 #include "editor/level_editor/parallax_preview_tab.h"
 #include "editor/level_editor/parallax_theme_panel.h"
+#include "editor/level_editor/parallax_zone_panel.h"
 #include "editor/level_editor/viewport_tab.h"
+#include "objects/level.h"
 
 namespace zebes {
 
@@ -19,8 +21,8 @@ class LevelEditor {
     Api* api = nullptr;
     GuiInterface* gui = nullptr;
     std::unique_ptr<LevelPanelInterface> level_panel;
-    std::unique_ptr<ParallaxPanel> parallax_panel;
     std::unique_ptr<ParallaxThemePanel> parallax_theme_panel;
+    std::unique_ptr<ParallaxZonePanel> parallax_zone_panel;
   };
 
   // Creates a new instance of the LevelEditor.
@@ -30,10 +32,6 @@ class LevelEditor {
   ~LevelEditor() = default;
 
   // Renders the main Level Editor UI.
-  // This uses a 3-column layout:
-  // - Left: Level List (Management)
-  // - Center: Viewport (Visual Editor)
-  // - Right: Details (Inspector)
   absl::Status Render();
 
  private:
@@ -42,19 +40,21 @@ class LevelEditor {
   absl::Status Init(Options options);
 
   // Renders the level list and management controls.
-  absl::Status RenderLeft();
+  absl::Status RenderNavigator();  // Left
 
   // Renders the main editing viewport.
-  absl::Status RenderCenter();
+  absl::Status RenderViewport();  // Middle
 
   // Renders the properties/details panel for the selected object.
-  void RenderRight();
+  absl::Status RenderInspector();  // Right
 
   Api* api_;
   GuiInterface* gui_;
+
+  // Sub-Panels
   std::unique_ptr<LevelPanelInterface> level_panel_;
-  std::unique_ptr<ParallaxPanel> parallax_panel_;
   std::unique_ptr<ParallaxThemePanel> parallax_theme_panel_;
+  std::unique_ptr<ParallaxZonePanel> parallax_zone_panel_;
 
   // Center Tabs
   std::unique_ptr<ParallaxPreviewTab> parallax_tab_;
@@ -62,6 +62,8 @@ class LevelEditor {
 
   // State
   std::optional<Level> editting_level_;
+  SelectionState selection_;
+  std::optional<std::string> save_error_;
 };
 
 }  // namespace zebes

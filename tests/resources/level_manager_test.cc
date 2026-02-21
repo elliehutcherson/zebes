@@ -289,15 +289,16 @@ TEST_F(LevelManagerTest, ZonesAndThemesPersistence) {
   };
 
   ParallaxTheme theme;
+  theme.id = 1;
   theme.name = "Forest";
   ParallaxLayer layer;
   layer.name = "Trees";
   layer.texture_id = "tex_trees";
   theme.layers.push_back(layer);
-  level.themes["Forest"] = theme;
+  level.themes[1] = theme;
 
   ParallaxZone zone;
-  zone.theme_id = "Forest";
+  zone.theme_id = 1;
   zone.min_point = {0, 0};
   zone.max_point = {100, 100};
   zone.fade_length = {10, 10};
@@ -315,12 +316,12 @@ TEST_F(LevelManagerTest, ZonesAndThemesPersistence) {
   ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
 
   ASSERT_EQ(loaded->themes.size(), 1);
-  ASSERT_TRUE(loaded->themes.contains("Forest"));
-  EXPECT_EQ(loaded->themes["Forest"].layers.size(), 1);
-  EXPECT_EQ(loaded->themes["Forest"].layers[0].name, "Trees");
+  ASSERT_TRUE(loaded->themes.contains(1));
+  EXPECT_EQ(loaded->themes[1].layers.size(), 1);
+  EXPECT_EQ(loaded->themes[1].layers[0].name, "Trees");
 
   ASSERT_EQ(loaded->zones.size(), 1);
-  EXPECT_EQ(loaded->zones[0].theme_id, "Forest");
+  EXPECT_EQ(loaded->zones[0].theme_id, 1);
   EXPECT_EQ(loaded->zones[0].min_point.x, 0);
   EXPECT_EQ(loaded->zones[0].max_point.x, 100);
 }
@@ -328,16 +329,48 @@ TEST_F(LevelManagerTest, ZonesAndThemesPersistence) {
 TEST_F(LevelManagerTest, SaveLevel_EmptyThemeName_Fails) {
   Level level{.name = "Bad Theme"};
   ParallaxTheme theme;
+  theme.id = 1;
   theme.name = "";
-  level.themes[""] = theme;
+  level.themes[1] = theme;
 
   EXPECT_FALSE(manager_->CreateLevel(std::move(level)).ok());
+}
+
+TEST_F(LevelManagerTest, SaveLevel_InvalidThemeId_Fails) {
+  Level level{.name = "Invalid Theme ID"};
+  ParallaxTheme theme;
+  theme.id = -1;
+  theme.name = "Valid Name";
+  level.themes[-1] = theme;
+
+  absl::StatusOr<std::string> id = manager_->CreateLevel(std::move(level));
+  EXPECT_FALSE(id.ok());
+  EXPECT_THAT(id.status().message(), HasSubstr("valid non-negative integer ID"));
+}
+
+TEST_F(LevelManagerTest, LoadLevel_MissingThemeId_Fails) {
+  std::string file_path = "test_data/level_manager_test/definitions/levels/bad_theme.json";
+  std::ofstream out(file_path);
+  out << R"({
+    "id": "123",
+    "name": "Bad Theme Level",
+    "width": 320,
+    "height": 320,
+    "themes": [
+      {
+        "name": "Missing ID Theme"
+      }
+    ]
+  })";
+  out.close();
+
+  EXPECT_FALSE(manager_->LoadLevel("bad_theme.json").ok());
 }
 
 TEST_F(LevelManagerTest, SaveLevel_ZoneInvalidThemeId_Fails) {
   Level level{.name = "Bad Zone"};
   ParallaxZone zone;
-  zone.theme_id = "NonExistent";
+  zone.theme_id = 99;
   level.zones.push_back(zone);
 
   EXPECT_FALSE(manager_->CreateLevel(std::move(level)).ok());

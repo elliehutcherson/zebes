@@ -149,6 +149,7 @@ class MockGui : public GuiInterface {
   MOCK_METHOD(bool, IsItemHovered, (ImGuiHoveredFlags flags), (override));
   MOCK_METHOD(void, SetItemDefaultFocus, (), (override));
   MOCK_METHOD(bool, IsItemActive, (), (override));
+  MOCK_METHOD(bool, IsItemClicked, (ImGuiMouseButton mouse_button), (override));
   MOCK_METHOD(bool, IsItemDeactivatedAfterEdit, (), (override));
   MOCK_METHOD(bool, IsMouseDragging, (ImGuiMouseButton button, float lock_threshold), (override));
   MOCK_METHOD(ImVec2, GetWindowSize, (), (const, override));
@@ -156,6 +157,7 @@ class MockGui : public GuiInterface {
   MOCK_METHOD(bool, IsWindowFocused, (ImGuiFocusedFlags flags), (override));
 
   MOCK_METHOD(bool, CollapsingHeader, (const char* label, ImGuiTreeNodeFlags flags), (override));
+  MOCK_METHOD(bool, TreeNodeEx, (const char* label, ImGuiTreeNodeFlags flags), (override));
 
   // Scoped Object Creation
   MOCK_METHOD(ImGuiViewport*, GetMainViewport, (), (override));

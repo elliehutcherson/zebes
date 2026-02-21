@@ -48,23 +48,6 @@ target_include_directories(sprite_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME sprite_panel_test COMMAND sprite_panel_test)
 
 
-# --- Parallax Panel Unit Test ---
-add_executable(parallax_panel_validation_test parallax_panel_validation_test.cc)
-target_link_libraries(parallax_panel_validation_test
-  gtest_main
-  gmock
-  api
-  parallax_panel
-  editor_gui
-  imgui_tested
-  imgui_test_engine
-  SDL2-static
-  absl::flags
-  absl::flags_parse
-)
-target_include_directories(parallax_panel_validation_test PRIVATE ${CMAKE_SOURCE_DIR})
-add_test(NAME parallax_panel_validation_test COMMAND parallax_panel_validation_test)
-
 # --- Parallax Theme Panel Test ---
 add_executable(parallax_theme_panel_test parallax_theme_panel_test.cc)
 target_link_libraries(parallax_theme_panel_test

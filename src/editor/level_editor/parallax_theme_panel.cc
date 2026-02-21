@@ -23,330 +23,141 @@ absl::StatusOr<std::unique_ptr<ParallaxThemePanel>> ParallaxThemePanel::Create(O
 
 ParallaxThemePanel::ParallaxThemePanel(Options options) : api_(*options.api), gui_(options.gui) {}
 
-absl::StatusOr<ParallaxThemeResult> ParallaxThemePanel::Render(Level& level) {
-  ScopedId scoped_id = gui_->CreateScopedId("ParallaxThemePanel");
-
-  if (!error_.empty()) {
-    ScopedStyleColor color =
-        gui_->CreateScopedStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-    gui_->TextWrapped("%s", error_.c_str());
-    gui_->Separator();
+absl::Status ParallaxThemePanel::RenderNavigator(Level& level, SelectionState& selection) {
+  if (gui_->Button("Add Theme")) {
+    AddTheme(level, selection);
   }
 
-  switch (state_) {
-    case State::kThemeList:
-      gui_->Text("Parallax Themes");
-      gui_->Separator();
-      RETURN_IF_ERROR(RenderThemeList(level));
-      break;
-    case State::kLayerList:
-      gui_->SetNextItemWidth(200);
-      if (gui_->InputText("##ThemeName", &editing_theme_name_,
-                          ImGuiInputTextFlags_EnterReturnsTrue)) {
-        RETURN_IF_ERROR(HandleOp(level, Op::kRenameTheme));
-      }
-      if (gui_->IsItemDeactivatedAfterEdit()) {
-        RETURN_IF_ERROR(HandleOp(level, Op::kRenameTheme));
-      }
-      gui_->SameLine();
-      gui_->Text("(Edit Name)");
-      gui_->Separator();
-      RETURN_IF_ERROR(RenderLayerList(level));
-      break;
-    case State::kLayerDetails:
-      gui_->Text("Edit Layer");
-      gui_->Separator();
-      RETURN_IF_ERROR(RenderLayerDetails(level));
-      return ParallaxThemeResult::kEdit;
-  }
+  // Iterate over themes
+  for (auto& [id, theme] : level.themes) {
+    ImGuiTreeNodeFlags theme_flags =
+        ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth;
 
-  return ParallaxThemeResult::kNone;
-}
-
-absl::Status ParallaxThemePanel::RenderThemeList(Level& level) {
-  const float button_width =
-      (gui_->GetContentRegionAvail().x - gui_->GetStyle().ItemSpacing.x * 2) / 3.0f;
-
-  if (gui_->Button("New Theme", ImVec2(button_width, 0))) {
-    RETURN_IF_ERROR(HandleOp(level, Op::kCreateTheme));
-  }
-
-  gui_->SameLine();
-
-  if (gui_->Button("Edit Theme", ImVec2(button_width, 0))) {
-    RETURN_IF_ERROR(HandleOp(level, Op::kEditTheme));
-  }
-
-  gui_->SameLine();
-
-  {
-    ScopedStyleColor color =
-        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-    if (gui_->Button("Delete Theme", ImVec2(button_width, 0))) {
-      RETURN_IF_ERROR(HandleOp(level, Op::kDeleteTheme));
+    if (selection.type == SelectionState::Type::kTheme && selection.theme_id == id) {
+      theme_flags |= ImGuiTreeNodeFlags_Selected;
     }
-  }
 
-  if (auto listbox = ScopedListBox(gui_, "##Themes", ImVec2(-FLT_MIN, -FLT_MIN)); listbox) {
-    for (auto& [name, theme] : level.themes) {
-      bool is_selected = (selected_theme_name_ == name);
-      if (gui_->Selectable(name.c_str(), is_selected)) {
-        selected_theme_name_ = name;
-        // Selection only updates the tracker, explicit "Edit" button needed to proceed.
-      }
-      if (is_selected) {
-        gui_->SetItemDefaultFocus();
+    bool theme_open = gui_->CollapsingHeader(theme.name.c_str(), theme_flags);
+    if (gui_->IsItemClicked()) {
+      selection.type = SelectionState::Type::kTheme;
+      selection.theme_id = id;
+    }
+
+    if (!theme_open) continue;
+    // Indent layers
+    gui_->Indent(10.0f);
+
+    // Layers
+    for (int i = 0; i < theme.layers.size(); ++i) {
+      ParallaxLayer& layer = theme.layers[i];
+      bool is_selected = (selection.type == SelectionState::Type::kLayer &&
+                          selection.theme_id == id && selection.layer_index == i);
+
+      std::string label = absl::StrCat(layer.name, "##", i);
+      if (gui_->Selectable(label.c_str(), is_selected)) {
+        selection.type = SelectionState::Type::kLayer;
+        selection.theme_id = id;
+        selection.layer_index = i;
       }
     }
+
+    gui_->Unindent(10.0f);
   }
   return absl::OkStatus();
 }
 
-absl::Status ParallaxThemePanel::RenderLayerList(Level& level) {
-  const float button_width =
-      (gui_->GetContentRegionAvail().x - gui_->GetStyle().ItemSpacing.x * 3) / 4.0f;
-
-  if (gui_->Button("Back", ImVec2(button_width, 0))) {
-    RETURN_IF_ERROR(HandleOp(level, Op::kBackToThemes));
-  }
-  gui_->SameLine();
-
-  if (gui_->Button("Add Layer", ImVec2(button_width, 0))) {
-    RETURN_IF_ERROR(HandleOp(level, Op::kCreateLayer));
-  }
-  gui_->SameLine();
-
-  if (gui_->Button("Edit Layer", ImVec2(button_width, 0))) {
-    RETURN_IF_ERROR(HandleOp(level, Op::kEditLayer));
-  }
-  gui_->SameLine();
-
-  {
-    ScopedStyleColor color =
-        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-    if (gui_->Button("Delete Layer", ImVec2(button_width, 0))) {
-      RETURN_IF_ERROR(HandleOp(level, Op::kDeleteLayer));
-    }
-  }
-
-  auto it = level.themes.find(selected_theme_name_);
+absl::Status ParallaxThemePanel::RenderThemeDetails(Level& level, SelectionState& selection) {
+  auto it = level.themes.find(selection.theme_id);
   if (it == level.themes.end()) {
-    // Should not happen, but safe fallback
-    state_ = State::kThemeList;
+    selection.Clear();
     return absl::OkStatus();
   }
 
   ParallaxTheme& theme = it->second;
 
-  if (auto listbox = ScopedListBox(gui_, "##Layers", ImVec2(-FLT_MIN, -FLT_MIN)); listbox) {
-    for (int i = 0; i < theme.layers.size(); ++i) {
-      const ParallaxLayer& layer = theme.layers[i];
-      bool is_selected = (selected_layer_index_ == i);
-      if (gui_->Selectable(layer.name.c_str(), is_selected)) {
-        selected_layer_index_ = i;
-        // Selection only updates the tracker, explicit "Edit" button needed to proceed.
-      }
-      if (is_selected) {
-        gui_->SetItemDefaultFocus();
-      }
-    }
-  }
+  gui_->TextDisabled("Theme Properties");
+  gui_->Separator();
 
-  return absl::OkStatus();
-}
+  gui_->BeginDisabled();
+  gui_->InputInt("Id", &theme.id);
+  gui_->EndDisabled();
 
-absl::Status ParallaxThemePanel::RenderLayerDetails(Level& level) {
-  if (gui_->Button("Back", ImVec2(-FLT_MIN, 0))) {
-    RETURN_IF_ERROR(HandleOp(level, Op::kBackToLayers));
-    return absl::OkStatus();
-  }
+  gui_->InputText("Name", &theme.name);
 
-  if (!editing_layer_.has_value()) return absl::InternalError("No editing layer");
+  gui_->Spacing();
+  if (gui_->Button("Add Layer")) {
+    ParallaxLayer new_layer{.name = absl::StrCat("Layer ", theme.layers.size()),
+                            .scroll_factor = {1.0, 1.0}};
+    theme.layers.push_back(new_layer);
 
-  gui_->InputText("Name", &editing_layer_->name);
-
-  // Read-only texture id
-  std::string texture_id_copy = editing_layer_->texture_id;
-  gui_->InputText("Texture ID", &texture_id_copy, ImGuiInputTextFlags_ReadOnly);
-
-  gui_->Checkbox("Repeat X", &editing_layer_->repeat_x);
-  gui_->Checkbox("Repeat Y",
-                 &editing_layer_->repeat_y);  // Added Repeat Y support as it is in the struct
-
-  gui_->Text("Scroll Factor");
-  gui_->InputDouble("X", &editing_layer_->scroll_factor.x);
-  gui_->InputDouble("Y", &editing_layer_->scroll_factor.y);
-
-  gui_->Text("Scale");
-  gui_->InputFloat("Base Scale", &editing_layer_->base_scale);
-
-  // Texture Selection
-  gui_->Text("Texture Cache");
-  if (auto list_box = ScopedListBox(gui_, "##TextureCache", ImVec2(-FLT_MIN, 150)); list_box) {
-    for (int i = 0; i < texture_cache_.size(); ++i) {
-      const Texture& texture = texture_cache_[i];
-      bool is_selected = (selected_texture_index_ == i);
-      if (gui_->Selectable(texture.name_id().c_str(), is_selected)) {
-        selected_texture_index_ = i;
-      }
-      if (is_selected) {
-        gui_->SetItemDefaultFocus();
-      }
-    }
-  }
-
-  const float button_width =
-      (gui_->GetContentRegionAvail().x - gui_->GetStyle().ItemSpacing.x) / 2.0f;
-  if (gui_->Button("Change Texture", ImVec2(button_width, 0))) {
-    RETURN_IF_ERROR(HandleOp(level, Op::kChangeLayerTexture));
+    // Auto-select new layer
+    selection.type = SelectionState::Type::kLayer;
+    selection.layer_index = theme.layers.size() - 1;
   }
 
   gui_->SameLine();
-
-  if (gui_->Button("Save", ImVec2(button_width, 0))) {
-    absl::Status save_result = HandleOp(level, Op::kSaveLayer);
-    if (save_result.code() == absl::StatusCode::kInvalidArgument) {
-      error_ = save_result.message();
-    } else if (!save_result.ok()) {
-      return save_result;
+  {
+    ScopedStyleColor color =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    if (gui_->Button("Delete Theme")) {
+      level.themes.erase(selection.theme_id);
+      selection.Clear();
     }
   }
 
   return absl::OkStatus();
 }
 
-absl::Status ParallaxThemePanel::HandleOp(Level& level, Op op) {
-  error_.clear();
+absl::Status ParallaxThemePanel::RenderLayerDetails(Level& level, SelectionState& selection) {
+  auto it = level.themes.find(selection.theme_id);
+  if (it == level.themes.end()) {
+    selection.Clear();
+    return absl::OkStatus();
+  }
+  ParallaxTheme& theme = it->second;
 
-  switch (op) {
-    case Op::kCreateTheme: {
-      std::string new_name = absl::StrCat("Theme ", level.themes.size());
-      if (level.themes.contains(new_name)) {
-        // Simple collision resolution
-        new_name = absl::StrCat(new_name, "_", rand() % 1000);
+  if (selection.layer_index < 0 || selection.layer_index >= theme.layers.size()) {
+    selection.type = SelectionState::Type::kTheme;  // Fallback
+    return absl::OkStatus();
+  }
+
+  ParallaxLayer& layer = theme.layers[selection.layer_index];
+
+  gui_->TextDisabled("Layer Properties");
+  gui_->Separator();
+
+  gui_->InputText("Name", &layer.name);
+  gui_->InputText("Texture ID", &layer.texture_id, ImGuiInputTextFlags_ReadOnly);
+
+  gui_->Checkbox("Repeat X", &layer.repeat_x);
+  gui_->Checkbox("Repeat Y", &layer.repeat_y);
+
+  gui_->Text("Scroll Factor");
+  gui_->InputDouble("X", &layer.scroll_factor.x);
+  gui_->InputDouble("Y", &layer.scroll_factor.y);
+  gui_->InputFloat("Scale", &layer.base_scale);
+
+  gui_->Separator();
+  gui_->Text("Texture Selector");
+
+  // Texture Combo
+  if (auto combo = gui_->CreateScopedCombo("Texture", layer.texture_id.c_str()); combo) {
+    for (const Texture& tex : texture_cache_) {
+      bool is_selected = (layer.texture_id == tex.id);
+      if (gui_->Selectable(tex.name_id().c_str(), is_selected)) {
+        layer.texture_id = tex.id;
       }
-      level.themes[new_name] = ParallaxTheme{.name = new_name};
-      selected_theme_name_ = new_name;
-      // Don't auto-switch, user might want to create multiple
-      break;
+      if (is_selected) gui_->SetItemDefaultFocus();
     }
-    case Op::kDeleteTheme:
-      if (!selected_theme_name_.empty()) {
-        level.themes.erase(selected_theme_name_);
-        selected_theme_name_.clear();
-      }
-      break;
-    case Op::kEditTheme:
-      state_ = State::kLayerList;
-      selected_layer_index_ = -1;
-      editing_theme_name_ = selected_theme_name_;
-      break;
+  }
 
-    case Op::kRenameTheme:
-      if (editing_theme_name_.empty()) return absl::InvalidArgumentError("Name cannot be empty");
-      if (editing_theme_name_ == selected_theme_name_) return absl::OkStatus();  // No change
-
-      if (level.themes.contains(editing_theme_name_)) {
-        return absl::AlreadyExistsError("Theme name already exists");
-      }
-
-      {
-        // Move the node
-        auto node = level.themes.extract(selected_theme_name_);
-        node.key() = editing_theme_name_;
-        node.mapped().name = editing_theme_name_;
-        level.themes.insert(std::move(node));
-        selected_theme_name_ = editing_theme_name_;
-      }
-      break;
-
-    case Op::kBackToThemes:
-      state_ = State::kThemeList;
-      selected_theme_name_.clear();
-      break;
-
-    case Op::kCreateLayer: {
-      auto it = level.themes.find(selected_theme_name_);
-      if (it == level.themes.end()) return absl::InternalError("Theme not found");
-
-      auto& theme = it->second;
-      ParallaxLayer new_layer{.name = absl::StrCat("Layer ", theme.layers.size()),
-                              .texture_id = "",
-                              .scroll_factor = {1.0, 1.0}};
-      theme.layers.push_back(new_layer);
-      selected_layer_index_ = theme.layers.size() - 1;
-
-      // Auto-enter edit mode for new layer? Or just select it.
-      // Let's just select it for list view.
-      break;
-    }
-
-    case Op::kDeleteLayer: {
-      auto it = level.themes.find(selected_theme_name_);
-      if (it == level.themes.end()) return absl::InternalError("Theme not found");
-      auto& theme = it->second;
-
-      if (selected_layer_index_ >= 0 && selected_layer_index_ < theme.layers.size()) {
-        theme.layers.erase(theme.layers.begin() + selected_layer_index_);
-        selected_layer_index_ = -1;
-      }
-      break;
-    }
-
-    case Op::kEditLayer: {
-      auto it = level.themes.find(selected_theme_name_);
-      if (it == level.themes.end()) return absl::InternalError("Theme not found");
-      auto& theme = it->second;
-
-      if (selected_layer_index_ < 0 || selected_layer_index_ >= theme.layers.size()) {
-        return absl::InternalError("Invalid layer index");
-      }
-
-      editing_layer_ = theme.layers[selected_layer_index_];
-      state_ = State::kLayerDetails;
-
-      // Setup texture selection
-      selected_texture_index_ = -1;
-      for (int i = 0; i < texture_cache_.size(); ++i) {
-        if (texture_cache_[i].id == editing_layer_->texture_id) {
-          selected_texture_index_ = i;
-          break;
-        }
-      }
-      break;
-    }
-
-    case Op::kBackToLayers:
-      state_ = State::kLayerList;
-      editing_layer_.reset();
-      break;
-
-    case Op::kChangeLayerTexture:
-      if (selected_texture_index_ >= 0 && selected_texture_index_ < texture_cache_.size()) {
-        editing_layer_->texture_id = texture_cache_[selected_texture_index_].id;
-      }
-      break;
-
-    case Op::kSaveLayer: {
-      if (editing_layer_->name.empty()) {
-        return absl::InvalidArgumentError("Layer name cannot be empty");
-      }
-      // Note: we might allow empty texture if it's just a color layer or something, but following
-      // existing logic
-      if (editing_layer_->texture_id.empty()) {
-        return absl::InvalidArgumentError("Layer texture must be selected");
-      }
-
-      auto it = level.themes.find(selected_theme_name_);
-      if (it == level.themes.end()) return absl::InternalError("Theme not found during save");
-      auto& theme = it->second;
-
-      if (selected_layer_index_ < 0 || selected_layer_index_ >= theme.layers.size()) {
-        return absl::InternalError("Layer index invalid during save");
-      }
-
-      theme.layers[selected_layer_index_] = *editing_layer_;
-      break;
+  gui_->Spacing();
+  {
+    ScopedStyleColor color =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    if (gui_->Button("Delete Layer")) {
+      theme.layers.erase(theme.layers.begin() + selection.layer_index);
+      selection.type = SelectionState::Type::kTheme;  // Select parent
     }
   }
 
@@ -362,15 +173,33 @@ absl::Status ParallaxThemePanel::RefreshTextureCache() {
   return absl::OkStatus();
 }
 
-std::optional<std::string> ParallaxThemePanel::GetTexture() const {
-  if (state_ != State::kLayerDetails || !editing_layer_.has_value()) {
+std::optional<std::string> ParallaxThemePanel::GetTexture(const SelectionState& selection,
+                                                          const Level& level) const {
+  if (selection.type != SelectionState::Type::kLayer) return std::nullopt;
+
+  auto it = level.themes.find(selection.theme_id);
+  if (it == level.themes.end()) return std::nullopt;
+
+  const ParallaxTheme& theme = it->second;
+  if (selection.layer_index < 0 || selection.layer_index >= theme.layers.size())
     return std::nullopt;
+
+  return theme.layers[selection.layer_index].texture_id;
+}
+
+void ParallaxThemePanel::AddTheme(Level& level, SelectionState& selection) {
+  std::string new_name = absl::StrCat("Theme ", level.themes.size());
+  int new_id = 0;
+  for (const auto& [id, theme] : level.themes) {
+    new_id = std::max(new_id, id + 1);
   }
-  // If we have a selected texture in the list, preview that?
-  if (selected_texture_index_ >= 0 && selected_texture_index_ < texture_cache_.size()) {
-    return texture_cache_[selected_texture_index_].id;
-  }
-  return editing_layer_->texture_id;
+  level.themes[new_id] = ParallaxTheme{
+      .id = new_id,
+      .name = new_name,
+  };
+
+  selection.type = SelectionState::Type::kTheme;
+  selection.theme_id = new_id;
 }
 
 }  // namespace zebes
