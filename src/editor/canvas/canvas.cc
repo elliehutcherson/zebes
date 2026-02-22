@@ -26,7 +26,9 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   // Enforce bounds immediately before rendering anything
   ClampCamera();
 
-  gui_->BeginChild(id, size, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
+  gui_->PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+  gui_->BeginChild(id, size, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
+  gui_->PopStyleVar();
 
   p0_ = gui_->GetCursorScreenPos();
   draw_list_ = gui_->GetWindowDrawList();

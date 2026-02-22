@@ -53,6 +53,35 @@ struct Camera {
 
     return world_pos;
   }
+
+  // Calculate the parallax view offset into the image.
+  // Returns the top-left corner of what the parallax layer should show.
+  // Vec ParallaxOffset(Vec scroll_factor, Vec offset = {0, 0}) const {
+  //   // The anchor is where parallax and world perfectly align
+  //   double anchor_x = offset.x + viewport_width / 2.0;
+  //   double anchor_y = offset.y + viewport_height / 2.0;
+
+  //   // How far the camera has moved from the anchor
+  //   double delta_x = position.x - anchor_x;
+  //   double delta_y = position.y - anchor_y;
+
+  //   // Parallax view shifts at scroll_factor rate
+  //   Vec result;
+  //   result.x = offset.x + delta_x * scroll_factor.x;
+  //   result.y = offset.y + delta_y * scroll_factor.y;
+  //   return result;
+  // }
+
+  // Returns where image pixel (0,0) should be placed in world space
+  // for correct parallax rendering.
+  Vec ParallaxWorldOrigin(Vec scroll_factor, Vec offset = {0, 0}) const {
+    double world_left = position.x - viewport_width / 2.0;
+    double world_top = position.y - viewport_height / 2.0;
+    Vec result;
+    result.x = offset.x + (world_left - offset.x) * (1.0 - scroll_factor.x);
+    result.y = offset.y + (world_top - offset.y) * (1.0 - scroll_factor.y);
+    return result;
+  }
 };
 
 }  // namespace zebes

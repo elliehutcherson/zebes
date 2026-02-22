@@ -1,44 +1,147 @@
 {
-  "entities": [],
-  "height": 640.0,
-  "id": "9af42904-279b-4521-95a7-9274e53ba856",
-  "name": "level_0",
-  "parallax_layers": [
-    {
-      "name": "Layer 0",
-      "repeat_x": true,
-      "scroll_factor_x": 0.5,
-      "scroll_factor_y": 0.8,
-      "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
-    }
-  ],
-  "spawn_point": {
-    "x": 0.0,
-    "y": 0.0
-  },
-  "themes": [
-    {
-      "id": 0,
-      "layers": [
+    "entities": [],
+    "height": 2048.0,
+    "id": "9af42904-279b-4521-95a7-9274e53ba856",
+    "name": "level_0",
+    "parallax_layers": [
         {
-          "name": "Layer 0",
-          "repeat_x": true,
-          "scroll_factor_x": 1.0,
-          "scroll_factor_y": 1.0,
-          "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
+            "base_scale": 1.0,
+            "name": "Layer 0",
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "repeat_x": true,
+            "repeat_y": false,
+            "scroll_factor_x": 0.5,
+            "scroll_factor_y": 0.8,
+            "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
+        }
+    ],
+    "spawn_point": {
+        "x": 0.0,
+        "y": 0.0
+    },
+    "themes": [
+        {
+            "id": 0,
+            "layers": [
+                {
+                    "base_scale": 6.0,
+                    "name": "Sunny Layer",
+                    "offset_x": 0.0,
+                    "offset_y": 0.0,
+                    "repeat_x": true,
+                    "repeat_y": false,
+                    "scroll_factor_x": 0.1,
+                    "scroll_factor_y": 0.01,
+                    "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
+                }
+            ],
+            "name": "Sunny Theme"
         },
         {
-          "name": "Layer 1",
-          "repeat_x": false,
-          "scroll_factor_x": 1.0,
-          "scroll_factor_y": 1.0,
-          "texture_id": "f46be754-c7dc-46af-b2c0-206978f4b743"
+            "id": 1,
+            "layers": [
+                {
+                    "base_scale": 6.0,
+                    "name": "Sunset Layer",
+                    "offset_x": 0.0,
+                    "offset_y": 0.0,
+                    "repeat_x": true,
+                    "repeat_y": false,
+                    "scroll_factor_x": 0.1,
+                    "scroll_factor_y": 0.01,
+                    "texture_id": "4221710a-04e7-419e-a36d-14b2c61446ca"
+                }
+            ],
+            "name": "Sunset Theme"
+        },
+        {
+            "id": 2,
+            "layers": [
+                {
+                    "base_scale": 7.0,
+                    "name": "Space Layer",
+                    "offset_x": 0.0,
+                    "offset_y": 0.0,
+                    "repeat_x": true,
+                    "repeat_y": false,
+                    "scroll_factor_x": 0.1,
+                    "scroll_factor_y": 0.1,
+                    "texture_id": "132b63e6-cec0-46cc-9232-9573733129aa"
+                }
+            ],
+            "name": "Space Theme"
+        },
+        {
+            "id": 3,
+            "layers": [
+                {
+                    "base_scale": 7.0,
+                    "name": "Forest Layer",
+                    "offset_x": 0.0,
+                    "offset_y": -1536.0,
+                    "repeat_x": true,
+                    "repeat_y": false,
+                    "scroll_factor_x": 0.5,
+                    "scroll_factor_y": 0.5,
+                    "texture_id": "d61cd2f7-924a-4619-975a-d355fe8de974"
+                },
+                {
+                    "base_scale": 1.0,
+                    "name": "Forest Floor Layer",
+                    "offset_x": 0.0,
+                    "offset_y": 256.0,
+                    "repeat_x": true,
+                    "repeat_y": false,
+                    "scroll_factor_x": 1.0,
+                    "scroll_factor_y": 1.0,
+                    "texture_id": "b8e8d3ee-d4d1-46f8-988a-77be06b2bafd"
+                }
+            ],
+            "name": "Forest Theme"
+        },
+        {
+            "id": 4,
+            "layers": [
+                {
+                    "base_scale": 7.0,
+                    "name": "Storm Layer",
+                    "offset_x": 0.0,
+                    "offset_y": 0.0,
+                    "repeat_x": true,
+                    "repeat_y": false,
+                    "scroll_factor_x": 0.1,
+                    "scroll_factor_y": 0.01,
+                    "texture_id": "137ec081-0f1b-4cf6-89e6-6b4a8d1a5e8a"
+                }
+            ],
+            "name": "Storm Theme"
         }
-      ],
-      "name": "Theme Editted"
-    }
-  ],
-  "tile_chunks": [],
-  "width": 800.0,
-  "zones": []
+    ],
+    "tile_chunks": [],
+    "width": 1048576.0,
+    "zones": [
+        {
+            "fade_x": 10.0,
+            "fade_y": 10.0,
+            "id": 0,
+            "max_x": 131072.0,
+            "max_y": 1080.0,
+            "min_x": 65536.0,
+            "min_y": 0.0,
+            "name": "Space Zone",
+            "theme_id": 2
+        },
+        {
+            "fade_x": 10.0,
+            "fade_y": 10.0,
+            "id": 1,
+            "max_x": 65356.0,
+            "max_y": 1080.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "name": "Forest Zone",
+            "theme_id": 3
+        }
+    ]
 }

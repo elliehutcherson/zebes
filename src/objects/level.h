@@ -22,6 +22,7 @@ struct ParallaxLayer {
   std::string name;
   std::string texture_id;
   Vec scroll_factor;
+  Vec offset;
   float base_scale = 1.0f;
   bool repeat_x = false;
   bool repeat_y = false;
@@ -34,6 +35,8 @@ struct ParallaxTheme {
 };
 
 struct ParallaxZone {
+  int id = 0;
+  std::string name;
   int theme_id = -1;
   // 2D Boundaries (World Coordinates)
   Vec min_point;

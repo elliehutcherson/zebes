@@ -76,6 +76,15 @@ target_link_libraries(parallax_zone_panel_test
 target_include_directories(parallax_zone_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_zone_panel_test COMMAND parallax_zone_panel_test)
 
+# --- Viewport Tab Test ---
+add_executable(viewport_tab_test viewport_tab_test.cc)
+target_link_libraries(viewport_tab_test
+  gtest_main
+  viewport_tab
+)
+target_include_directories(viewport_tab_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME viewport_tab_test COMMAND viewport_tab_test)
+
 # --- Mock Gui Test ---
 add_executable(mock_gui_test mock_gui_test.cc)
 target_link_libraries(mock_gui_test

@@ -30,6 +30,7 @@ namespace {
 
 using ::testing::_;
 using ::testing::An;
+using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::ReturnRef;
@@ -106,9 +107,11 @@ TEST_F(ParallaxZonePanelTest, CreateZoneAddsToLevel) {
   ASSERT_TRUE(RenderNavigator().ok());
 
   // Verify zone added and selected
-  EXPECT_EQ(level_.zones.size(), 1);
+  ASSERT_EQ(level_.zones.size(), 1);
   EXPECT_EQ(selection_.type, SelectionState::Type::kZone);
   EXPECT_EQ(selection_.zone_index, 0);
+  EXPECT_EQ(level_.zones[0].name, "Zone 0");
+  EXPECT_EQ(level_.zones[0].id, 0);
 }
 
 TEST_F(ParallaxZonePanelTest, DeleteZoneRemovesFromLevel) {
@@ -125,14 +128,35 @@ TEST_F(ParallaxZonePanelTest, DeleteZoneRemovesFromLevel) {
 }
 
 TEST_F(ParallaxZonePanelTest, SelectionStateUpdatedOnSelect) {
-  level_.zones.push_back({});
+  ParallaxZone zone;
+  zone.id = 0;
+  zone.name = "My Zone";
+  level_.zones.push_back(zone);
 
-  EXPECT_CALL(gui_, Selectable(StrEq("Zone 0"), false, _, _)).WillOnce(Return(true));
+  EXPECT_CALL(gui_, Selectable(StrEq("My Zone##zone_0"), false, _, _)).WillOnce(Return(true));
 
   ASSERT_TRUE(RenderNavigator().ok());
 
   EXPECT_EQ(selection_.type, SelectionState::Type::kZone);
   EXPECT_EQ(selection_.zone_index, 0);
+}
+
+TEST_F(ParallaxZonePanelTest, CreateZone_AssignsUniqueIds) {
+  // Add two zones via the Add Zone button
+  EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _))
+      .WillOnce(Return(true))
+      .WillRepeatedly(Return(false));
+  ASSERT_TRUE(RenderNavigator().ok());
+
+  EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _))
+      .WillOnce(Return(true))
+      .WillRepeatedly(Return(false));
+  ASSERT_TRUE(RenderNavigator().ok());
+
+  ASSERT_EQ(level_.zones.size(), 2);
+  EXPECT_NE(level_.zones[0].id, level_.zones[1].id);
+  EXPECT_FALSE(level_.zones[0].name.empty());
+  EXPECT_FALSE(level_.zones[1].name.empty());
 }
 
 TEST_F(ParallaxZonePanelTest, DetailsReturnsErrorOnInvalidIndex) {
@@ -144,6 +168,65 @@ TEST_F(ParallaxZonePanelTest, DetailsReturnsErrorOnInvalidIndex) {
 
   // Selection should be cleared on error
   EXPECT_EQ(selection_.type, SelectionState::Type::kNone);
+}
+
+TEST_F(ParallaxZonePanelTest, NavigatorShowsThemeNameInLabel) {
+  ParallaxZone zone;
+  zone.id = 0;
+  zone.name = "My Zone";
+  zone.theme_id = 1;  // Matches the theme added in SetUp
+  level_.zones.push_back(zone);
+
+  EXPECT_CALL(gui_, Selectable(StrEq("My Zone##zone_0 (Theme1)"), false, _, _))
+      .WillOnce(Return(false));
+
+  ASSERT_TRUE(RenderNavigator().ok());
+}
+
+TEST_F(ParallaxZonePanelTest, ComboPreviewShowsSelectedTheme) {
+  ParallaxZone zone;
+  zone.id = 0;
+  zone.name = "My Zone";
+  zone.theme_id = 1;
+  level_.zones.push_back(zone);
+  selection_.type = SelectionState::Type::kZone;
+  selection_.zone_index = 0;
+
+  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Theme"), StrEq("Theme1"), _))
+      .WillOnce(Invoke([this](const char* label, const char* preview, ImGuiComboFlags flags) {
+        return ScopedCombo(&gui_, label, preview, flags);
+      }));
+
+  ASSERT_TRUE(RenderDetails().ok());
+}
+
+TEST_F(ParallaxZonePanelTest, RenderDetails_ShowsLayerOffsets) {
+  ParallaxLayer layer{
+      .name = "Trees",
+      .texture_id = "tex_trees",
+      .offset = {250.0, -100.0},
+  };
+  ParallaxTheme theme{
+      .id = 2,
+      .name = "Forest",
+      .layers = {layer},
+  };
+  level_.themes[2] = theme;
+
+  ParallaxZone zone{
+      .id = 0,
+      .name = "Zone 0",
+      .theme_id = 2,
+      .min_point = {0, 0},
+      .max_point = {100, 100},
+  };
+  level_.zones.push_back(zone);
+  selection_.type = SelectionState::Type::kZone;
+  selection_.zone_index = 0;
+
+  EXPECT_CALL(gui_, InputDouble).WillRepeatedly(Return(false));
+
+  ASSERT_TRUE(RenderDetails().ok());
 }
 
 }  // namespace

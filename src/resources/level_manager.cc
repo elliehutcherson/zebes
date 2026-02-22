@@ -30,7 +30,11 @@ void ToJson(nlohmann::json& j, const ParallaxLayer& layer) {
       {"texture_id", layer.texture_id},
       {"scroll_factor_x", layer.scroll_factor.x},
       {"scroll_factor_y", layer.scroll_factor.y},
+      {"offset_x", layer.offset.x},
+      {"offset_y", layer.offset.y},
       {"repeat_x", layer.repeat_x},
+      {"repeat_y", layer.repeat_y},
+      {"base_scale", layer.base_scale},
   };
 }
 
@@ -39,7 +43,10 @@ void FromJson(const nlohmann::json& j, ParallaxLayer& layer) {
   j.at("texture_id").get_to(layer.texture_id);
   j.at("scroll_factor_x").get_to(layer.scroll_factor.x);
   j.at("scroll_factor_y").get_to(layer.scroll_factor.y);
+  layer.offset.x = j.value("offset_x", 0.0);
+  layer.offset.y = j.value("offset_y", 0.0);
   layer.repeat_x = j.value("repeat_x", false);
+  layer.repeat_y = j.value("repeat_y", false);
   layer.base_scale = j.value("base_scale", 1.0f);
 }
 
@@ -71,13 +78,21 @@ void FromJson(const nlohmann::json& j, ParallaxTheme& theme) {
 // Helper for ParallaxZone
 void ToJson(nlohmann::json& j, const ParallaxZone& zone) {
   j = nlohmann::json{
-      {"theme_id", zone.theme_id},    {"min_x", zone.min_point.x}, {"min_y", zone.min_point.y},
-      {"max_x", zone.max_point.x},    {"max_y", zone.max_point.y}, {"fade_x", zone.fade_length.x},
+      {"id", zone.id},
+      {"name", zone.name},
+      {"theme_id", zone.theme_id},
+      {"min_x", zone.min_point.x},
+      {"min_y", zone.min_point.y},
+      {"max_x", zone.max_point.x},
+      {"max_y", zone.max_point.y},
+      {"fade_x", zone.fade_length.x},
       {"fade_y", zone.fade_length.y},
   };
 }
 
 void FromJson(const nlohmann::json& j, ParallaxZone& zone) {
+  j.at("id").get_to(zone.id);
+  j.at("name").get_to(zone.name);
   j.at("theme_id").get_to(zone.theme_id);
   zone.min_point.x = j.value("min_x", 0.0f);
   zone.min_point.y = j.value("min_y", 0.0f);
@@ -266,11 +281,45 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& s
   }
 
   if (j.contains("zones")) {
+    absl::flat_hash_set<int> zone_ids;
     for (const auto& item : j["zones"]) {
       ParallaxZone zone;
-      FromJson(item, zone);
+      try {
+        FromJson(item, zone);
+      } catch (const nlohmann::json::exception& e) {
+        return absl::InvalidArgumentError(absl::StrCat("Failed to parse zone: ", e.what()));
+      }
+      if (zone.name.empty()) {
+        return absl::InvalidArgumentError("Zone name cannot be empty.");
+      }
+      if (zone.id < 0) {
+        return absl::InvalidArgumentError("Zone must have a valid non-negative integer ID.");
+      }
+      if (zone_ids.contains(zone.id)) {
+        return absl::InvalidArgumentError(absl::StrCat("Duplicate zone ID found: '", zone.id, "'"));
+      }
+      zone_ids.insert(zone.id);
       level.zones.push_back(zone);
     }
+  }
+
+  // Validate zone boundaries fit within level.
+  for (const ParallaxZone& zone : level.zones) {
+    if (zone.min_point.x < 0 || zone.min_point.y < 0 || zone.max_point.x > level.width ||
+        zone.max_point.y > level.height) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Zone '", zone.name, "' extends outside level boundaries."));
+    }
+    if (zone.min_point.x >= zone.max_point.x || zone.min_point.y >= zone.max_point.y) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Zone '", zone.name, "' has invalid dimensions (min >= max)."));
+    }
+  }
+
+  // Validate spawn point is within level bounds.
+  if (level.spawn_point.x < 0 || level.spawn_point.y < 0 || level.spawn_point.x > level.width ||
+      level.spawn_point.y > level.height) {
+    return absl::InvalidArgumentError("Spawn point is outside level boundaries.");
   }
 
   if (j.contains("tile_chunks")) {
@@ -420,11 +469,37 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
   }
 
   // 5. Validate Zones
+  absl::flat_hash_set<int> zone_ids;
   for (const auto& zone : level.zones) {
+    if (zone.name.empty()) {
+      return absl::InvalidArgumentError("Zone name cannot be empty.");
+    }
+    if (zone.id < 0) {
+      return absl::InvalidArgumentError("Zone must have a valid non-negative integer ID.");
+    }
+    if (zone_ids.contains(zone.id)) {
+      return absl::InvalidArgumentError(absl::StrCat("Duplicate zone ID found: '", zone.id, "'"));
+    }
+    zone_ids.insert(zone.id);
     if (!level.themes.contains(zone.theme_id)) {
       return absl::InvalidArgumentError(
           absl::StrCat("Zone references non-existent theme: '", zone.theme_id, "'"));
     }
+    if (zone.min_point.x < 0 || zone.min_point.y < 0 || zone.max_point.x > level.width ||
+        zone.max_point.y > level.height) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Zone '", zone.name, "' extends outside level boundaries."));
+    }
+    if (zone.min_point.x >= zone.max_point.x || zone.min_point.y >= zone.max_point.y) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Zone '", zone.name, "' has invalid dimensions (min >= max)."));
+    }
+  }
+
+  // 6. Validate Spawn Point
+  if (level.spawn_point.x < 0 || level.spawn_point.y < 0 || level.spawn_point.x > level.width ||
+      level.spawn_point.y > level.height) {
+    return absl::InvalidArgumentError("Spawn point is outside level boundaries.");
   }
 
   nlohmann::json json = ToJson(level);
