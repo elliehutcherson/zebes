@@ -58,6 +58,11 @@ add_executable(level_manager_test resources/level_manager_test.cc)
 target_link_libraries(level_manager_test level_manager macros gtest_main gmock)
 gtest_discover_tests(level_manager_test)
 
+# --- Tileset Manager ---
+add_executable(tileset_manager_test resources/tileset_manager_test.cc)
+target_link_libraries(tileset_manager_test tileset_manager macros gtest_main gmock)
+gtest_discover_tests(tileset_manager_test)
+
 add_subdirectory(editor)
 add_subdirectory(tools)
 

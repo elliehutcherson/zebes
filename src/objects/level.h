@@ -13,7 +13,7 @@ namespace zebes {
 
 // Definition of a Tile Chunk (Optimized Storage)
 struct TileChunk {
-  static constexpr int kSize = 16;
+  static constexpr int kSize = 32;
   std::array<int, kSize * kSize> tiles;
 };
 

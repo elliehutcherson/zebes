@@ -621,5 +621,30 @@ TEST_F(LevelManagerTest, SaveLevel_SpawnPointOutsideBounds_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("Spawn point is outside level boundaries"));
 }
 
+TEST_F(LevelManagerTest, EntityBlueprintFieldsSurviveRoundTrip) {
+  Level level{
+      .name = "Blueprint Round Trip",
+      .width = 320,
+      .height = 320,
+  };
+
+  Entity entity;
+  entity.id = 42;
+  entity.blueprint_id = "test-blueprint-uuid";
+  entity.blueprint_state_index = 2;
+  entity.transform.position = {64, 128};
+  level.AddEntity(std::move(entity));
+
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
+  ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
+
+  ASSERT_EQ(loaded->entities.size(), 1);
+  const Entity& loaded_entity = loaded->entities.at(42);
+  EXPECT_EQ(loaded_entity.blueprint_id, "test-blueprint-uuid");
+  EXPECT_EQ(loaded_entity.blueprint_state_index, 2);
+  EXPECT_EQ(loaded_entity.transform.position.x, 64);
+  EXPECT_EQ(loaded_entity.transform.position.y, 128);
+}
+
 }  // namespace
 }  // namespace zebes

@@ -106,6 +106,8 @@ void ToJson(nlohmann::json& j, const Entity& entity) {
   j = nlohmann::json{
       {"id", entity.id},
       {"active", entity.active},
+      {"blueprint_id", entity.blueprint_id},
+      {"blueprint_state_index", entity.blueprint_state_index},
       {"transform",
        {
            {"x", entity.transform.position.x},
@@ -135,6 +137,8 @@ absl::Status FromJson(const nlohmann::json& j, Entity& entity, SpriteManager& sm
                       ColliderManager& cm) {
   j.at("id").get_to(entity.id);
   entity.active = j.value("active", true);
+  entity.blueprint_id = j.value("blueprint_id", "");
+  entity.blueprint_state_index = j.value("blueprint_state_index", 0);
 
   if (j.contains("transform")) {
     auto& t = j["transform"];

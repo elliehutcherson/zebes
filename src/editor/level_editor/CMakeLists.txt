@@ -25,6 +25,7 @@ target_link_libraries(level_editor
   level_panel
   parallax_theme_panel
   parallax_zone_panel
+  blueprint_palette_panel
   parallax_preview_tab
   viewport_tab
   api
@@ -80,6 +81,20 @@ target_link_libraries(parallax_preview_tab
   ${IMGUI_LIBRARIES}
   absl::status
   SDL2-static
+  gui_interface
+)
+
+add_library(blueprint_palette_panel
+  blueprint_palette_panel.cc
+)
+
+target_link_libraries(blueprint_palette_panel
+  api
+  imgui_scoped
+  ${IMGUI_LIBRARIES}
+  absl::status
+  absl::memory
+  absl::strings
   gui_interface
 )
 

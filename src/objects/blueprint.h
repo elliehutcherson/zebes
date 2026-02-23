@@ -21,8 +21,8 @@ struct Blueprint {
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 
-  std::optional<std::string> collider_id(int index) {
-    if (index < 0 || index >= states.size()) {
+  std::optional<std::string> collider_id(int index) const {
+    if (index < 0 || index >= states.size()){
       return std::nullopt;
     }
     const State& state = states[index];
@@ -32,8 +32,8 @@ struct Blueprint {
     return state.collider_id;
   }
 
-  std::optional<std::string> sprite_id(int index) {
-    if (index < 0 || index >= states.size()) {
+  std::optional<std::string> sprite_id(int index) const {
+    if (index < 0 || index >= states.size()){
       return std::nullopt;
     }
     const State& state = states[index];

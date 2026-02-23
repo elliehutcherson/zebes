@@ -12,6 +12,7 @@ class Canvas {
   struct Options {
     GuiInterface* gui = nullptr;
     bool snap_grid = false;
+    float grid_size = 50.0f;
     std::optional<Vec> world_min;
     std::optional<Vec> world_max;
   };
@@ -24,6 +25,7 @@ class Canvas {
   // The key coordinate math
   ImVec2 WorldToScreen(const Vec& v) const;
   Vec ScreenToWorld(const ImVec2& p) const;
+  Vec SnapToGrid(Vec world_pos) const;
 
   // Renders grid, axis, and rulers
   void DrawGrid();
@@ -34,10 +36,14 @@ class Canvas {
   // Getters for tools to use
   float GetZoom() const;
   bool GetSnap() const { return snap_grid_; }
+  float GetGridSize() const { return grid_size_; }
   ImDrawList* GetDrawList() { return draw_list_; }
 
   // Method to update bounds. Should be called this before Begin or when level changes.
   void SetWorldBounds(Vec min, Vec max);
+
+  // Updates the snap to grid setting.
+  void SetSnap(bool snap) { snap_grid_ = snap; }
 
  private:
   // Helper to draw ruler ticks and grid lines for a specific axis
@@ -48,6 +54,7 @@ class Canvas {
 
   GuiInterface* gui_;
   bool snap_grid_ = false;
+  float grid_size_ = 50.0f;
 
   Camera* camera_ = nullptr;
   ImVec2 p0_;  // Screen position of canvas top-left

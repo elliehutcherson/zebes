@@ -76,6 +76,20 @@ target_link_libraries(parallax_zone_panel_test
 target_include_directories(parallax_zone_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_zone_panel_test COMMAND parallax_zone_panel_test)
 
+# --- Blueprint Palette Panel Test ---
+add_executable(blueprint_palette_panel_test blueprint_palette_panel_test.cc)
+target_link_libraries(blueprint_palette_panel_test
+  gtest_main
+  gmock
+  api
+  blueprint_palette_panel
+  gui_mock
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(blueprint_palette_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME blueprint_palette_panel_test COMMAND blueprint_palette_panel_test)
+
 # --- Viewport Tab Test ---
 add_executable(viewport_tab_test viewport_tab_test.cc)
 target_link_libraries(viewport_tab_test
@@ -92,3 +106,14 @@ target_link_libraries(mock_gui_test
   gui_mock
 )
 add_test(NAME mock_gui_test COMMAND mock_gui_test)
+
+# --- Canvas Test ---
+add_executable(canvas_test canvas_test.cc)
+target_link_libraries(canvas_test
+  gtest_main
+  editor_canvas
+  gui_mock
+  absl::log
+)
+target_include_directories(canvas_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME canvas_test COMMAND canvas_test)

@@ -8,7 +8,8 @@
 
 namespace zebes {
 
-Canvas::Canvas(Options options) : gui_(options.gui), snap_grid_(options.snap_grid) {}
+Canvas::Canvas(Options options)
+    : gui_(options.gui), snap_grid_(options.snap_grid), grid_size_(options.grid_size) {}
 
 void Canvas::SetWorldBounds(Vec min, Vec max) {
   world_min_ = min;
@@ -107,6 +108,12 @@ Vec Canvas::ScreenToWorld(const ImVec2& p) const {
   return camera_->ScreenToWorld(local_screen);
 }
 
+Vec Canvas::SnapToGrid(Vec world_pos) const {
+  if (!snap_grid_) return world_pos;
+  return {std::round(world_pos.x / grid_size_) * grid_size_,
+          std::round(world_pos.y / grid_size_) * grid_size_};
+}
+
 void Canvas::DrawGrid() {
   if (!draw_list_ || !camera_) return;
 
@@ -114,12 +121,9 @@ void Canvas::DrawGrid() {
   const float ruler_thickness = 20.0f;
 
   // 1. Calculate Grid Step based on Zoom
-  float step = 50.0f * camera_->zoom;
-  while (step < 50.0f) step *= 2.0f;
-  while (step > 150.0f) step /= 2.0f;
-
-  // The actual step in world units
-  double world_step = step / camera_->zoom;
+  // Using the new configurable grid_size.
+  double world_step = grid_size_;
+  float step = grid_size_ * camera_->zoom;
 
   // 2. Determine visible world range (top-left)
   Vec tl_world = ScreenToWorld(p0_);

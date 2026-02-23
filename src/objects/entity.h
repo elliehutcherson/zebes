@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 #include "objects/body.h"
 #include "objects/collider.h"
@@ -19,6 +20,11 @@ struct Entity {
   // Every entity needs a distinct position, so this is stored by Value.
   Transform transform;
   Body body;  // Physics velocity/acceleration
+
+  // BLUEPRINT REFERENCE (for serialization and editor display)
+  // Identifies which blueprint and state this entity was spawned from.
+  std::string blueprint_id;
+  int blueprint_state_index = 0;
 
   // IMMUTABLE ASSETS (Owned by Managers)
   // These are raw pointers because Entity does NOT own them.

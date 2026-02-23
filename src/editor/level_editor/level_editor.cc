@@ -42,15 +42,24 @@ absl::Status LevelEditor::Init(Options options) {
                                        .gui = gui_,
                                    }));
   }
+
   if (options.parallax_theme_panel) {
     parallax_theme_panel_ = std::move(options.parallax_theme_panel);
   } else {
     ASSIGN_OR_RETURN(parallax_theme_panel_, ParallaxThemePanel::Create({.api = api_, .gui = gui_}));
   }
+
   if (options.parallax_zone_panel) {
     parallax_zone_panel_ = std::move(options.parallax_zone_panel);
   } else {
     ASSIGN_OR_RETURN(parallax_zone_panel_, ParallaxZonePanel::Create({.api = api_, .gui = gui_}));
+  }
+
+  if (options.blueprint_palette_panel) {
+    blueprint_palette_panel_ = std::move(options.blueprint_palette_panel);
+  } else {
+    ASSIGN_OR_RETURN(blueprint_palette_panel_,
+                     BlueprintPalettePanel::Create({.api = api_, .gui = gui_}));
   }
 
   parallax_tab_ = std::make_unique<ParallaxPreviewTab>(*api_, gui_);
@@ -60,27 +69,35 @@ absl::Status LevelEditor::Init(Options options) {
 }
 
 absl::Status LevelEditor::Render() {
-  ScopedTable table = gui_->CreateScopedTable("LevelEditorLayout", 3, kTableFlags);
-  if (!table) return absl::OkStatus();
+  {
+    ScopedTable table = gui_->CreateScopedTable("LevelEditorLayout", 3, kTableFlags);
+    if (!table) return absl::OkStatus();
 
-  // Setup columns with relative sizing
-  gui_->TableSetupColumn("Navigator", ImGuiTableColumnFlags_WidthStretch, 0.2f);
-  gui_->TableSetupColumn("Viewport", ImGuiTableColumnFlags_WidthStretch, 0.6f);
-  gui_->TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+    // Setup columns with relative sizing
+    gui_->TableSetupColumn("Navigator", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+    gui_->TableSetupColumn("Viewport", ImGuiTableColumnFlags_WidthStretch, 0.6f);
+    gui_->TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthStretch, 0.2f);
 
-  gui_->TableNextRow();
+    gui_->TableNextRow();
 
-  gui_->TableNextColumn();
-  RETURN_IF_ERROR(RenderNavigator());
+    gui_->TableNextColumn();
+    RETURN_IF_ERROR(RenderNavigator());
 
-  gui_->TableNextColumn();
-  RETURN_IF_ERROR(RenderViewport());
+    gui_->TableNextColumn();
+    RETURN_IF_ERROR(RenderViewport());
 
-  gui_->TableNextColumn();
-  RETURN_IF_ERROR(RenderInspector());
+    gui_->TableNextColumn();
+    RETURN_IF_ERROR(RenderInspector());
+  }
+
+  // Render your full-width bottom row outside the table
+  gui_->Separator();
+  RETURN_IF_ERROR(RenderPalette());
 
   return absl::OkStatus();
 }
+
+absl::Status LevelEditor::RenderPalette() { return blueprint_palette_panel_->Render(); }
 
 absl::Status LevelEditor::RenderNavigator() {
   // If no level is loaded, show the Project Browser (List of Levels)
@@ -170,6 +187,37 @@ absl::Status LevelEditor::RenderInspector() {
     case SelectionState::Type::kZone:
       RETURN_IF_ERROR(parallax_zone_panel_->RenderDetails(*editting_level_, selection_));
       break;
+
+    case SelectionState::Type::kEntity: {
+      auto it = editting_level_->entities.find(selection_.entity_id);
+      if (it == editting_level_->entities.end()) {
+        selection_.Clear();
+        break;
+      }
+      Entity& entity = it->second;
+
+      gui_->Text("ID: %llu", static_cast<unsigned long long>(entity.id));
+      if (!entity.blueprint_id.empty()) {
+        gui_->Text("Blueprint: %s", entity.blueprint_id.c_str());
+      }
+      gui_->Separator();
+
+      float pos_x = static_cast<float>(entity.transform.position.x);
+      float pos_y = static_cast<float>(entity.transform.position.y);
+      if (gui_->InputFloat("X", &pos_x)) {
+        entity.transform.position.x = pos_x;
+      }
+      if (gui_->InputFloat("Y", &pos_y)) {
+        entity.transform.position.y = pos_y;
+      }
+      gui_->Separator();
+
+      if (gui_->Button("Remove Entity")) {
+        editting_level_->entities.erase(it);
+        selection_.Clear();
+      }
+      break;
+    }
   }
   return absl::OkStatus();
 }
@@ -180,10 +228,35 @@ absl::Status LevelEditor::RenderViewport() {
 
   auto tab_default = [this]() -> absl::Status {
     if (auto tab_item = ScopedTabItem(gui_, "Viewport"); tab_item) {
-      if (editting_level_.has_value()) {
-        RETURN_IF_ERROR(viewport_tab_->Render(*editting_level_));
-      } else {
+      if (!editting_level_.has_value()) {
         gui_->TextDisabled("No level selected.");
+        return absl::OkStatus();
+      }
+
+      RETURN_IF_ERROR(viewport_tab_->Render({
+          .level = &*editting_level_,
+          .placement_blueprint = blueprint_palette_panel_->GetSelectedBlueprint(),
+          .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
+                                    ? selection_.entity_id
+                                    : Entity::kInvalidId,
+          .snap_to_grid = blueprint_palette_panel_->GetSnapToGrid(),
+          .show_entity_borders = blueprint_palette_panel_->GetShowEntityBorders(),
+      }));
+
+      // Consume a newly placed entity and add it to the level.
+      std::optional<Entity> new_entity = viewport_tab_->TakeNewEntity();
+      if (new_entity.has_value()) {
+        editting_level_->entities[new_entity->id] = std::move(*new_entity);
+      }
+
+      // Consume a canvas click and update the editor selection state.
+      std::optional<uint64_t> click_sel = viewport_tab_->TakeClickSelection();
+      if (click_sel.has_value()) {
+        selection_.Clear();
+        if (*click_sel != Entity::kInvalidId) {
+          selection_.type = SelectionState::Type::kEntity;
+          selection_.entity_id = *click_sel;
+        }
       }
     }
     return absl::OkStatus();

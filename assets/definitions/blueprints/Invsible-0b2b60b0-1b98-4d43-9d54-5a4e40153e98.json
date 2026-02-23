@@ -1,0 +1,11 @@
+{
+    "id": "0b2b60b0-1b98-4d43-9d54-5a4e40153e98",
+    "name": "Invsible",
+    "states": [
+        {
+            "collider_id": "94a787f3-11c0-4064-88f1-ec177c4f1e7b",
+            "name": "default",
+            "sprite_id": ""
+        }
+    ]
+}

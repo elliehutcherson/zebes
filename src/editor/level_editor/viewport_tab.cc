@@ -1,92 +1,15 @@
 #include "editor/level_editor/viewport_tab.h"
 
+#include <cmath>
+
+#include "SDL_render.h"
+#include "absl/status/status.h"
+#include "common/status_macros.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
-#include "editor/level_editor/viewport_tab.h"
 #include "imgui.h"
 
 namespace zebes {
-namespace {
-
-struct Rect {
-  ImVec2 min;
-  ImVec2 max;
-};
-
-std::vector<Rect> CalculateParallaxTiles(Vec camera_p, Vec viewport_size, Vec image_size,
-                                         float zoom, Vec scroll_factor) {
-  // 1. Calculate the view size in world units
-  float view_w = viewport_size.x / zoom;
-  float view_h = viewport_size.y / zoom;
-
-  LOG(INFO) << "camera_p: " << camera_p;
-  LOG(INFO) << "viewport_size: " << viewport_size;
-  LOG(INFO) << "image_size: " << image_size;
-  LOG(INFO) << "zoom: " << zoom;
-  LOG(INFO) << "scroll_factor: " << scroll_factor;
-
-  float left = camera_p.x - (view_w / 2.0f);
-  float left_adj = left * scroll_factor.x;
-  float right_adj = left_adj + view_w;
-
-  float top = camera_p.y - (view_h / 2.0f);
-  float top_adj = top * scroll_factor.y;
-  float bottom_adj = top + view_w;
-
-  // float right = camera_p.x + (view_w / 2.0f);
-  // float bottom = camera_p.y + (view_h / 2.0f);
-
-  // 2. Calculate effective camera position
-  // float cam_eff_x = camera_p.x * scroll_factor.x;
-  // float cam_eff_y = camera_p.y * scroll_factor.y;
-
-  // 3. Determine the visible boundaries in the layer's space
-  LOG(INFO) << "left = " << left_adj;
-  LOG(INFO) << "view_w = " << view_w;
-
-  // 4. Calculate starting and ending grid indices
-  // Note: std::floor is critical here to handle negative coordinates correctly
-  // int start_col = static_cast<int>(std::floor(left / image_size.x));
-  // int end_col = static_cast<int>(std::floor(right / image_size.x));
-  // int start_row = static_cast<int>(std::floor(top / image_size.y));
-  // int end_row = static_cast<int>(std::floor(bottom / image_size.y));
-
-  // 5. Calculate world offset for the parallax layer
-  // float offset_x = -(camera_p.x * (1.0f - scroll_factor.x));
-  // float offset_y = -(camera_p.y * (1.0f - scroll_factor.y));
-
-  // 6. Generate bounding boxes for all visible tiles
-  std::vector<Rect> tiles;
-  Rect tile;
-  tile.min.x = left_adj;
-  tile.min.y = top_adj;
-  tile.max.x = right_adj;
-  tile.max.y = bottom_adj;
-  tiles.push_back(tile);
-  LOG(INFO) << left_adj << "->" << right_adj << ", " << top_adj << "->" << bottom_adj;
-  //     tile.min.x = offset_x + (col * image_size.x);
-  //     tile.min.y = offset_y + (row * image_size.y);
-
-  //     tile.max.x = tile.min.x + image_size.x;
-  //     tile.max.y = tile.min.y + image_size.y;
-
-  // for (int row = start_row; row <= end_row; ++row) {
-  //   for (int col = start_col; col <= end_col; ++col) {
-  //     Rect tile;
-  //     tile.min.x = offset_x + (col * image_size.x);
-  //     tile.min.y = offset_y + (row * image_size.y);
-
-  //     tile.max.x = tile.min.x + image_size.x;
-  //     tile.max.y = tile.min.y + image_size.y;
-
-  //     tiles.push_back(tile);
-  //   }
-  // }
-
-  return tiles;
-}
-
-}  // namespace
 
 ViewportTab::ViewportTab(Api& api, GuiInterface* gui)
     : api_(api),
@@ -94,40 +17,72 @@ ViewportTab::ViewportTab(Api& api, GuiInterface* gui)
       canvas_(Canvas::Options{
           .gui = gui,
           .snap_grid = true,
+          .grid_size = static_cast<float>(TileChunk::kSize),
       }) {
   camera_ = Camera{};
 }
 
 void ViewportTab::Reset() { camera_ = {}; }
 
-absl::Status ViewportTab::Render(Level& level) {
-  // Use a child window to contain the canvas and handle input clipping
+std::optional<Entity> ViewportTab::TakeNewEntity() {
+  return std::exchange(pending_entity_, std::nullopt);
+}
+
+std::optional<uint64_t> ViewportTab::TakeClickSelection() {
+  return std::exchange(click_selected_entity_id_, std::nullopt);
+}
+
+bool ViewportTab::TakeEntityMoved() {
+  bool moved = entity_moved_;
+  entity_moved_ = false;
+  return moved;
+}
+
+absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
+  Level& level = *options.level;
+
+  // Ensure next_entity_id_ is always greater than every entity already in the
+  // level. This guards against collisions when a saved level is loaded whose
+  // existing IDs are higher than the counter's current value.
+  uint64_t available = NextAvailableEntityId(level.entities);
+  if (available > next_entity_id_) {
+    next_entity_id_ = available;
+  }
+
   auto child = ScopedChild(gui_, "ViewportCanvas", ImVec2(0, 0), false,
                            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
   ImVec2 canvas_size = gui_->GetContentRegionAvail();
-  canvas_size.y -= 25;  // Leave slightly more room for the status bar
+  canvas_size.y -= 25;  // Leave room for the status bar
 
   canvas_.SetWorldBounds({0, 0}, {level.width, level.height});
+  canvas_.SetSnap(options.snap_to_grid);
   canvas_.Begin("LevelCanvas", canvas_size, camera_);
 
   // 1. Render Scene Elements
   RenderZones(level);
   canvas_.DrawGrid();
   RenderLevelBounds(level);
+  RenderEntities(level, options.selected_entity_id, options.show_entity_borders);
 
-  // TODO: Render Entities, Tiles, etc.
-
-  // 2. Handle Input (Keyboard Panning)
-  canvas_.HandleInput();
-
-  // 3. Capture values before End() nullifies the internal camera pointer.
+  // 2. Render placement ghost at mouse position when in placement mode.
   Vec mouse_world = canvas_.ScreenToWorld(gui_->GetMousePos());
+  mouse_world = canvas_.SnapToGrid(mouse_world);
+  if (options.placement_blueprint != nullptr) {
+    RenderPlacementGhost(*options.placement_blueprint, mouse_world);
+  }
+
+  // 3. Handle input (pan/zoom from keyboard/mouse wheel, then entity interaction).
+  canvas_.HandleInput();
+  LOG_IF_ERROR(HandleEntityInput(level, options.placement_blueprint, mouse_world,
+                                 options.selected_entity_id));
+
+  // 4. Capture zoom before End() nullifies the camera pointer.
   float zoom = canvas_.GetZoom();
 
   canvas_.End();
 
-  // 4. Status Bar / Debug Overlay
+  // 5. Status bar
   gui_->Text("Cam: (%.0f, %.0f) | Zoom: %.2f | Mouse World: (%.0f, %.0f)", camera_.position.x,
              camera_.position.y, zoom, mouse_world.x, mouse_world.y);
 
@@ -137,6 +92,164 @@ absl::Status ViewportTab::Render(Level& level) {
   }
 
   return absl::OkStatus();
+}
+
+absl::Status ViewportTab::HandleEntityInput(Level& level, const Blueprint* placement_blueprint,
+                                            Vec mouse_world, uint64_t selected_entity_id) {
+  // --- Placement mode: a left-click drops a new entity ---
+  if (placement_blueprint != nullptr) {
+    if (!gui_->IsItemClicked(0)) return absl::OkStatus();
+
+    Entity entity =
+        CreateEntityFromBlueprint(*placement_blueprint, 0, mouse_world, next_entity_id_++);
+
+    // Resolve sprite pointer from the blueprint's first state.
+    // Invisible blueprints have no sprite; leave entity.sprite null in that case.
+    std::optional<std::string> sprite_id = placement_blueprint->sprite_id(0);
+    if (sprite_id.has_value()) {
+      ASSIGN_OR_RETURN(Sprite * sprite, api_.GetSprite(*sprite_id));
+      entity.sprite = sprite;
+    }
+    pending_entity_ = entity;
+    return absl::OkStatus();
+  }
+
+  // --- Drag update: runs every frame while a drag is in progress ---
+  if (dragging_entity_) {
+    if (gui_->IsItemActive()) {
+      auto it = level.entities.find(drag_entity_id_);
+      if (it != level.entities.end()) {
+        it->second.transform.position = {mouse_world.x - drag_offset_.x,
+                                         mouse_world.y - drag_offset_.y};
+        entity_moved_ = true;
+      }
+      return absl::OkStatus();
+    }
+
+    // Mouse released — end drag.
+    dragging_entity_ = false;
+    drag_entity_id_ = Entity::kInvalidId;
+    return absl::OkStatus();
+  }
+
+  // --- Click: select entity or deselect, and optionally start a drag ---
+  if (gui_->IsItemClicked(0)) {
+    uint64_t picked = PickEntity(level.entities, mouse_world);
+    click_selected_entity_id_ = picked;
+
+    // Begin dragging if the click landed on the already-selected entity.
+    if (picked != Entity::kInvalidId && picked == selected_entity_id) {
+      auto it = level.entities.find(picked);
+      if (it != level.entities.end()) {
+        dragging_entity_ = true;
+        drag_entity_id_ = picked;
+        drag_offset_ = {mouse_world.x - it->second.transform.position.x,
+                        mouse_world.y - it->second.transform.position.y};
+      }
+    }
+  }
+
+  return absl::OkStatus();
+}
+
+void ViewportTab::RenderEntities(const Level& level, uint64_t selected_entity_id,
+                                 bool show_borders) {
+  ImDrawList* draw_list = canvas_.GetDrawList();
+  if (!draw_list) return;
+
+  for (const auto& [id, entity] : level.entities) {
+    if (!entity.active) continue;
+
+    ImVec2 sp_min;
+    ImVec2 sp_max;
+
+    if (entity.sprite != nullptr && !entity.sprite->frames.empty() &&
+        entity.sprite->sdl_texture != nullptr) {
+      const SpriteFrame& frame = entity.sprite->frames[0];
+
+      int tex_w = 0, tex_h = 0;
+      SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(entity.sprite->sdl_texture), nullptr, nullptr,
+                       &tex_w, &tex_h);
+
+      sp_min = canvas_.WorldToScreen({entity.transform.position.x + frame.offset_x,
+                                      entity.transform.position.y + frame.offset_y});
+      sp_max = ImVec2(sp_min.x + frame.render_w * camera_.zoom,
+                      sp_min.y + frame.render_h * camera_.zoom);
+
+      if (tex_w > 0 && tex_h > 0) {
+        float u0 = static_cast<float>(frame.texture_x) / tex_w;
+        float v0 = static_cast<float>(frame.texture_y) / tex_h;
+        float u1 = static_cast<float>(frame.texture_x + frame.texture_w) / tex_w;
+        float v1 = static_cast<float>(frame.texture_y + frame.texture_h) / tex_h;
+
+        draw_list->AddImage(reinterpret_cast<ImTextureID>(entity.sprite->sdl_texture), sp_min,
+                            sp_max, ImVec2(u0, v0), ImVec2(u1, v1));
+      }
+    } else {
+      // No sprite: draw a placeholder box.
+      constexpr int kDefaultSize = 32;
+      sp_min = canvas_.WorldToScreen(entity.transform.position);
+      sp_max =
+          ImVec2(sp_min.x + kDefaultSize * camera_.zoom, sp_min.y + kDefaultSize * camera_.zoom);
+      draw_list->AddRectFilled(sp_min, sp_max, IM_COL32(100, 100, 200, 180));
+    }
+
+    // Draw a border around every entity when the toggle is on.
+    if (show_borders) {
+      draw_list->AddRect(sp_min, sp_max, IM_COL32(255, 255, 255, 180), 0.0f, 0, 1.0f);
+    }
+    // Highlight the selected entity with a thicker gold outline on top.
+    if (id == selected_entity_id) {
+      draw_list->AddRect(sp_min, sp_max, IM_COL32(255, 200, 0, 255), 0.0f, 0, 2.0f);
+    }
+  }
+}
+
+void ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos) {
+  ImDrawList* draw_list = canvas_.GetDrawList();
+  if (!draw_list) return;
+
+  Sprite* sprite = nullptr;
+  std::optional<std::string> sprite_id_opt = blueprint.sprite_id(0);
+  if (sprite_id_opt.has_value()) {
+    absl::StatusOr<Sprite*> sprite_or = api_.GetSprite(*sprite_id_opt);
+    if (sprite_or.ok() && *sprite_or != nullptr && !(*sprite_or)->frames.empty() &&
+        (*sprite_or)->sdl_texture != nullptr)
+      sprite = *sprite_or;
+  }
+
+  if (sprite != nullptr) {
+    const SpriteFrame& frame = sprite->frames[0];
+
+    int tex_w = 0, tex_h = 0;
+    SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(sprite->sdl_texture), nullptr, nullptr, &tex_w,
+                     &tex_h);
+
+    ImVec2 ghost_min =
+        canvas_.WorldToScreen({world_pos.x + frame.offset_x, world_pos.y + frame.offset_y});
+    ImVec2 ghost_max = ImVec2(ghost_min.x + frame.render_w * camera_.zoom,
+                              ghost_min.y + frame.render_h * camera_.zoom);
+
+    if (tex_w > 0 && tex_h > 0) {
+      float u0 = static_cast<float>(frame.texture_x) / tex_w;
+      float v0 = static_cast<float>(frame.texture_y) / tex_h;
+      float u1 = static_cast<float>(frame.texture_x + frame.texture_w) / tex_w;
+      float v1 = static_cast<float>(frame.texture_y + frame.texture_h) / tex_h;
+
+      // Semi-transparent tint to indicate ghost/preview.
+      draw_list->AddImage(reinterpret_cast<ImTextureID>(sprite->sdl_texture), ghost_min, ghost_max,
+                          ImVec2(u0, v0), ImVec2(u1, v1), IM_COL32(255, 255, 255, 160));
+      return;
+    }
+  }
+
+  // Fallback: draw a simple colored box.
+  constexpr int kDefaultSize = 32;
+  ImVec2 ghost_min = canvas_.WorldToScreen(world_pos);
+  ImVec2 ghost_max =
+      ImVec2(ghost_min.x + kDefaultSize * camera_.zoom, ghost_min.y + kDefaultSize * camera_.zoom);
+  draw_list->AddRectFilled(ghost_min, ghost_max, IM_COL32(100, 200, 100, 100));
+  draw_list->AddRect(ghost_min, ghost_max, IM_COL32(100, 200, 100, 220), 0.0f, 0, 2.0f);
 }
 
 void ViewportTab::RenderZones(const Level& level) {
@@ -221,17 +334,13 @@ void ViewportTab::RenderLevelBounds(const Level& level) {
   ImDrawList* draw_list = canvas_.GetDrawList();
   if (!draw_list) return;
 
-  // Level bounds rectangle
   Vec tl = {0, 0};
   Vec br = {level.width, level.height};
 
   ImVec2 p_min = canvas_.WorldToScreen(tl);
   ImVec2 p_max = canvas_.WorldToScreen(br);
 
-  // Draw border
   draw_list->AddRect(p_min, p_max, IM_COL32(255, 0, 0, 255), 0.0f, 0, 2.0f);
-
-  // Draw text label
   draw_list->AddText(p_min, IM_COL32(255, 0, 0, 255), "Level Bounds");
 }
 
