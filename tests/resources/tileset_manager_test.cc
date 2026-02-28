@@ -114,15 +114,17 @@ TEST_F(TilesetManagerTest, SerializationRoundTrip) {
                   .name = "Grass",
                   .source_x = 0,
                   .source_y = 0,
-                  .collider_id = "grass-collider",
+                  .shape = TileShape::kFullBlock,
                   .tags = {"solid"},
               },
               Tile{
                   .id = 2,
-                  .name = "Lava",
+                  .name = "Platform",
                   .source_x = 32,
                   .source_y = 0,
-                  .tags = {"lethal"},
+                  .shape = TileShape::kHalfBlockBottom,
+                  .is_one_way = true,
+                  .tags = {"ice"},
               },
           },
   };
@@ -144,18 +146,20 @@ TEST_F(TilesetManagerTest, SerializationRoundTrip) {
   EXPECT_EQ(t1.name, "Grass");
   EXPECT_EQ(t1.source_x, 0);
   EXPECT_EQ(t1.source_y, 0);
-  EXPECT_EQ(t1.collider_id, "grass-collider");
+  EXPECT_EQ(t1.shape, TileShape::kFullBlock);
+  EXPECT_FALSE(t1.is_one_way);
   ASSERT_EQ(t1.tags.size(), 1);
   EXPECT_EQ(t1.tags[0], "solid");
 
   const Tile& t2 = loaded->tiles[1];
   EXPECT_EQ(t2.id, 2);
-  EXPECT_EQ(t2.name, "Lava");
+  EXPECT_EQ(t2.name, "Platform");
   EXPECT_EQ(t2.source_x, 32);
   EXPECT_EQ(t2.source_y, 0);
-  EXPECT_TRUE(t2.collider_id.empty());
+  EXPECT_EQ(t2.shape, TileShape::kHalfBlockBottom);
+  EXPECT_TRUE(t2.is_one_way);
   ASSERT_EQ(t2.tags.size(), 1);
-  EXPECT_EQ(t2.tags[0], "lethal");
+  EXPECT_EQ(t2.tags[0], "ice");
 }
 
 TEST_F(TilesetManagerTest, EmptyTileListPersists) {

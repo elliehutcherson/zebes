@@ -15,4 +15,5 @@ target_link_libraries(api
   collider_manager
   blueprint_manager
   level_manager
+  tileset_manager
 )

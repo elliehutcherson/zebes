@@ -1,0 +1,153 @@
+{
+    "id": "b04681b4-ef3f-4017-bf57-923c9f16cafe",
+    "name": "Sunny Tileset",
+    "texture_id": "dfe2596b-f2e1-403e-adb5-fe8da22502bf",
+    "tile_height": 16,
+    "tile_width": 16,
+    "tiles": [
+        {
+            "id": 1,
+            "is_one_way": false,
+            "name": "Grass1",
+            "shape": 1,
+            "source_x": 16,
+            "source_y": 16,
+            "tags": []
+        },
+        {
+            "id": 2,
+            "is_one_way": false,
+            "name": "Grass2",
+            "shape": 1,
+            "source_x": 48,
+            "source_y": 16,
+            "tags": []
+        },
+        {
+            "id": 3,
+            "is_one_way": false,
+            "name": "Grass3",
+            "shape": 1,
+            "source_x": 80,
+            "source_y": 16,
+            "tags": []
+        },
+        {
+            "id": 4,
+            "is_one_way": false,
+            "name": "Dirt1",
+            "shape": 1,
+            "source_x": 112,
+            "source_y": 16,
+            "tags": []
+        },
+        {
+            "id": 5,
+            "is_one_way": false,
+            "name": "Dirt2",
+            "shape": 1,
+            "source_x": 16,
+            "source_y": 48,
+            "tags": []
+        },
+        {
+            "id": 6,
+            "is_one_way": false,
+            "name": "Background",
+            "shape": 0,
+            "source_x": 48,
+            "source_y": 48,
+            "tags": []
+        },
+        {
+            "id": 7,
+            "is_one_way": false,
+            "name": "Dirt3",
+            "shape": 1,
+            "source_x": 80,
+            "source_y": 48,
+            "tags": []
+        },
+        {
+            "id": 8,
+            "is_one_way": false,
+            "name": "Dirt4",
+            "shape": 1,
+            "source_x": 16,
+            "source_y": 80,
+            "tags": []
+        },
+        {
+            "id": 9,
+            "is_one_way": false,
+            "name": "Dirt5",
+            "shape": 1,
+            "source_x": 48,
+            "source_y": 80,
+            "tags": []
+        },
+        {
+            "id": 10,
+            "is_one_way": false,
+            "name": "Dirt6",
+            "shape": 1,
+            "source_x": 80,
+            "source_y": 80,
+            "tags": []
+        },
+        {
+            "id": 11,
+            "is_one_way": false,
+            "name": "GrassTop1",
+            "shape": 0,
+            "source_x": 16,
+            "source_y": 112,
+            "tags": []
+        },
+        {
+            "id": 12,
+            "is_one_way": false,
+            "name": "GrassTop2",
+            "shape": 0,
+            "source_x": 48,
+            "source_y": 112,
+            "tags": []
+        },
+        {
+            "id": 13,
+            "is_one_way": false,
+            "name": "DirtInside1",
+            "shape": 0,
+            "source_x": 80,
+            "source_y": 112,
+            "tags": []
+        },
+        {
+            "id": 14,
+            "is_one_way": false,
+            "name": "DirtInside2",
+            "shape": 0,
+            "source_x": 112,
+            "source_y": 112,
+            "tags": []
+        },
+        {
+            "id": 15,
+            "is_one_way": false,
+            "name": "Twig1",
+            "shape": 0,
+            "source_x": 144,
+            "source_y": 112,
+            "tags": []
+        },
+        {
+            "id": 16,
+            "is_one_way": false,
+            "name": "Twig2",
+            "shape": 0,
+            "source_x": 176,
+            "source_y": 112,
+            "tags": []
+        }
+    ]
+}

@@ -7,28 +7,70 @@
 
 namespace zebes {
 
-// Defines a single tile within a Tileset, mapping an integer ID to its visual
-// region in the texture atlas and optional gameplay properties.
-//
-// Tile ID 0 is reserved to denote an empty cell in a TileChunk and must never
-// appear in a Tileset's tile list.
+enum TileShape : uint8_t {
+  kNone = 0,
+  kFullBlock = 1,
+
+  // --- HALF BLOCKS ---
+  // Useful for pass-through platforms or thin walls.
+  kHalfBlockBottom = 2,
+  kHalfBlockTop = 3,
+  kHalfBlockLeft = 4,
+  kHalfBlockRight = 5,
+
+  // --- 45-DEGREE SLOPES (1x1 Ratio) ---
+  // The name indicates where the "solid" right-angle corner of the triangle is.
+  kSlope45BottomLeft = 6,   // /| shape (walking up to the right)
+  kSlope45BottomRight = 7,  // |\ shape (walking up to the left)
+  kSlope45TopLeft = 8,      // \| shape (ceiling slope)
+  kSlope45TopRight = 9,     // |/ shape (ceiling slope)
+
+  // --- GENTLE SLOPES (2x1 Ratio, ~26.5 degrees) ---
+  // It takes two adjacent tiles to make one smooth gentle slope.
+  // "Lower" means the wedge that starts from 0 height.
+  // "Upper" means the wedge that connects to the top of the tile.
+  kGentleSlopeBottomLeft_Lower = 10,
+  kGentleSlopeBottomLeft_Upper = 11,
+  kGentleSlopeBottomRight_Lower = 12,
+  kGentleSlopeBottomRight_Upper = 13,
+
+  // Ceiling variations of gentle slopes
+  kGentleSlopeTopLeft_Lower = 14,
+  kGentleSlopeTopLeft_Upper = 15,
+  kGentleSlopeTopRight_Lower = 16,
+  kGentleSlopeTopRight_Upper = 17,
+
+  // --- STEEP SLOPES (1x2 Ratio, ~63.4 degrees) ---
+  // It takes two vertically stacked tiles to make one steep slope.
+  // "Bottom" is the tile resting on the ground.
+  // "Top" is the tile above it.
+  kSteepSlopeBottomLeft_Bottom = 18,
+  kSteepSlopeBottomLeft_Top = 19,
+  kSteepSlopeBottomRight_Bottom = 20,
+  kSteepSlopeBottomRight_Top = 21,
+
+  // Ceiling variations of steep slopes
+  kSteepSlopeTopLeft_Bottom = 22,
+  kSteepSlopeTopLeft_Top = 23,
+  kSteepSlopeTopRight_Bottom = 24,
+  kSteepSlopeTopRight_Top = 25
+};
+
 struct Tile {
-  // The integer ID stored in TileChunk::tiles. Must be > 0.
   int id = 0;
-
-  // Human-readable label for editor display (e.g., "Solid Rock", "Lava").
   std::string name;
-
-  // Pixel origin of this tile's region within the texture atlas.
   int source_x = 0;
   int source_y = 0;
 
-  // Optional reference to a collider asset for this tile type. An empty string
-  // means the tile has no collision shape.
-  std::string collider_id;
+  // The mathematical shape of the tile.
+  TileShape shape = TileShape::kNone;
 
-  // Freeform gameplay tags applied to this tile (e.g., "solid", "lethal",
-  // "one_way"). Interpreted by the physics and gameplay systems.
+  // If true, entities can pass through this tile when moving upwards or horizontally,
+  // but will collide when falling downwards onto it.
+  bool is_one_way = false;
+
+  // Keep tags for high-level gameplay logic (e.g., "lethal", "ice", "water")
+  // which are checked less frequently than physical collisions.
   std::vector<std::string> tags;
 };
 

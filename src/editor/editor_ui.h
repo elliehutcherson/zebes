@@ -14,6 +14,7 @@
 #include "editor/level_editor/level_editor.h"
 #include "editor/sprite_editor/sprite_editor.h"
 #include "editor/texture_editor/texture_editor.h"
+#include "editor/tileset_editor/tileset_editor.h"
 #include "imgui.h"
 #include "objects/sprite.h"
 #include "objects/texture.h"
@@ -107,6 +108,7 @@ class EditorUi {
   std::unique_ptr<SpriteEditor> sprite_editor_;
   std::unique_ptr<BlueprintEditor> blueprint_editor_;
   std::unique_ptr<LevelEditor> level_editor_;
+  std::unique_ptr<TilesetEditor> tileset_editor_;
 
   // UI state buffers
   std::string sprite_path_buffer_;

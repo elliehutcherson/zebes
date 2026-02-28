@@ -59,6 +59,10 @@ absl::Status EditorEngine::Init() {
 
   RETURN_IF_ERROR(level_manager_->LoadAllLevels());
 
+  // Create Tileset Manager
+  ASSIGN_OR_RETURN(tileset_manager_, TilesetManager::Create(config_.paths.assets()));
+  RETURN_IF_ERROR(tileset_manager_->LoadAllTilesets());
+
   // Create ImGui Wrapper
   imgui_wrapper_ = ImGuiWrapper::Create();
 
@@ -74,6 +78,7 @@ absl::Status EditorEngine::Init() {
       .collider_manager = collider_manager_.get(),
       .blueprint_manager = blueprint_manager_.get(),
       .level_manager = level_manager_.get(),
+      .tileset_manager = tileset_manager_.get(),
   };
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
@@ -144,6 +149,7 @@ void EditorEngine::Shutdown() {
 
   ui_.reset();
   api_.reset();
+  tileset_manager_.reset();
   sprite_manager_.reset();
   texture_manager_.reset();
   collider_manager_.reset();

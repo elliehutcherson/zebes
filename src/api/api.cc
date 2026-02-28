@@ -20,6 +20,9 @@ absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
   if (options.level_manager == nullptr) {
     return absl::InvalidArgumentError("LevelManager is null.");
   }
+  if (options.tileset_manager == nullptr) {
+    return absl::InvalidArgumentError("TilesetManager is null.");
+  }
   return std::unique_ptr<Api>(new Api(options));
 }
 
@@ -29,7 +32,8 @@ Api::Api(const Options& options)
       sprite_manager_(options.sprite_manager),
       collider_manager_(options.collider_manager),
       blueprint_manager_(options.blueprint_manager),
-      level_manager_(options.level_manager) {}
+      level_manager_(options.level_manager),
+      tileset_manager_(options.tileset_manager) {}
 
 absl::Status Api::SaveConfig(const EngineConfig& config) {
   LOG(INFO) << "SaveConfig in the api....";
@@ -132,6 +136,24 @@ std::vector<Level> Api::GetAllLevels() { return level_manager_->GetAllLevels(); 
 
 absl::StatusOr<Level*> Api::GetLevel(const std::string& level_id) {
   return level_manager_->GetLevel(level_id);
+}
+
+absl::StatusOr<std::string> Api::CreateTileset(Tileset tileset) {
+  return tileset_manager_->CreateTileset(std::move(tileset));
+}
+
+absl::Status Api::UpdateTileset(Tileset tileset) {
+  return tileset_manager_->SaveTileset(tileset);
+}
+
+absl::Status Api::DeleteTileset(const std::string& tileset_id) {
+  return tileset_manager_->DeleteTileset(tileset_id);
+}
+
+std::vector<Tileset> Api::GetAllTilesets() { return tileset_manager_->GetAllTilesets(); }
+
+absl::StatusOr<Tileset*> Api::GetTileset(const std::string& tileset_id) {
+  return tileset_manager_->GetTileset(tileset_id);
 }
 
 }  // namespace zebes

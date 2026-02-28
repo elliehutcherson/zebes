@@ -16,6 +16,7 @@
 #include "resources/level_manager.h"
 #include "resources/sprite_manager.h"
 #include "resources/texture_manager.h"
+#include "resources/tileset_manager.h"
 
 namespace zebes {
 
@@ -60,6 +61,7 @@ class EditorEngine {
   std::unique_ptr<ColliderManager> collider_manager_;
   std::unique_ptr<BlueprintManager> blueprint_manager_;
   std::unique_ptr<LevelManager> level_manager_;
+  std::unique_ptr<TilesetManager> tileset_manager_;
   std::unique_ptr<ImGuiWrapper> imgui_wrapper_;
   std::unique_ptr<InputManager> input_manager_;
   std::unique_ptr<Api> api_;

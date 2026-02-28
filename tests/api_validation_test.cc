@@ -7,6 +7,7 @@
 #include "resources/level_manager_mock.h"
 #include "resources/sprite_manager_mock.h"
 #include "resources/texture_manager_mock.h"
+#include "resources/tileset_manager_mock.h"
 
 namespace zebes {
 namespace {
@@ -24,6 +25,7 @@ class ApiValidationTest : public ::testing::Test {
         .collider_manager = &collider_manager_,
         .blueprint_manager = &blueprint_manager_,
         .level_manager = &level_manager_,
+        .tileset_manager = &tileset_manager_,
     };
 
     ASSERT_OK_AND_ASSIGN(api_, Api::Create(options));
@@ -35,6 +37,7 @@ class ApiValidationTest : public ::testing::Test {
   ColliderManagerMock collider_manager_;
   BlueprintManagerMock blueprint_manager_;
   LevelManagerMock level_manager_;
+  TilesetManagerMock tileset_manager_;
   std::unique_ptr<Api> api_;
 };
 

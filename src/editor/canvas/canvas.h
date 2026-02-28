@@ -45,6 +45,9 @@ class Canvas {
   // Updates the snap to grid setting.
   void SetSnap(bool snap) { snap_grid_ = snap; }
 
+  // Updates the grid cell size (world units per grid line).
+  void SetGridSize(float size) { grid_size_ = size; }
+
  private:
   // Helper to draw ruler ticks and grid lines for a specific axis
   void DrawRulerAndGrid(double start_val, double step, double max_dim, bool is_x_axis);

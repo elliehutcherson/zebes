@@ -10,6 +10,7 @@
 #include "resources/level_manager.h"
 #include "resources/sprite_manager.h"
 #include "resources/texture_manager.h"
+#include "resources/tileset_manager.h"
 
 namespace zebes {
 
@@ -22,6 +23,7 @@ class Api {
     ColliderManager* collider_manager;
     BlueprintManager* blueprint_manager;
     LevelManager* level_manager;
+    TilesetManager* tileset_manager;
   };
 
   static absl::StatusOr<std::unique_ptr<Api>> Create(const Options& options);
@@ -65,6 +67,12 @@ class Api {
   virtual std::vector<Level> GetAllLevels();
   virtual absl::StatusOr<Level*> GetLevel(const std::string& level_id);
 
+  virtual absl::StatusOr<std::string> CreateTileset(Tileset tileset);
+  virtual absl::Status UpdateTileset(Tileset tileset);
+  virtual absl::Status DeleteTileset(const std::string& tileset_id);
+  virtual std::vector<Tileset> GetAllTilesets();
+  virtual absl::StatusOr<Tileset*> GetTileset(const std::string& tileset_id);
+
  protected:
   // Allow default construction for mocks
   Api()
@@ -73,7 +81,8 @@ class Api {
         sprite_manager_(nullptr),
         collider_manager_(nullptr),
         blueprint_manager_(nullptr),
-        level_manager_(nullptr) {}
+        level_manager_(nullptr),
+        tileset_manager_(nullptr) {}
 
  private:
   const EngineConfig& config_;
@@ -82,6 +91,7 @@ class Api {
   ColliderManager* collider_manager_;
   BlueprintManager* blueprint_manager_;
   LevelManager* level_manager_;
+  TilesetManager* tileset_manager_;
 };
 
 }  // namespace zebes

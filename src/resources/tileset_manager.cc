@@ -23,7 +23,8 @@ void ToJson(nlohmann::json& j, const Tile& tile_def) {
       {"name", tile_def.name},
       {"source_x", tile_def.source_x},
       {"source_y", tile_def.source_y},
-      {"collider_id", tile_def.collider_id},
+      {"shape", static_cast<int>(tile_def.shape)},
+      {"is_one_way", tile_def.is_one_way},
       {"tags", tile_def.tags},
   };
 }
@@ -35,7 +36,8 @@ absl::StatusOr<Tile> GetTileFromJson(const nlohmann::json& j) {
     j.at("name").get_to(tile_def.name);
     tile_def.source_x = j.value("source_x", 0);
     tile_def.source_y = j.value("source_y", 0);
-    tile_def.collider_id = j.value("collider_id", std::string{});
+    tile_def.shape = static_cast<TileShape>(j.value("shape", 0));
+    tile_def.is_one_way = j.value("is_one_way", false);
     if (j.contains("tags")) {
       j.at("tags").get_to(tile_def.tags);
     }

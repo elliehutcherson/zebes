@@ -96,6 +96,9 @@ target_link_libraries(editor_config
 # Level Editor
 add_subdirectory(level_editor)
 
+# Tileset Editor
+add_subdirectory(tileset_editor)
+
 
 # Editor UI
 add_library(editor_ui editor_ui.cc)
@@ -106,6 +109,7 @@ target_link_libraries(editor_ui
   editor_sprite
   editor_texture
   level_editor
+  tileset_editor
   api
   sdl_wrapper
   absl::memory
