@@ -2,6 +2,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_format.h"
 #include "common/status_macros.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
@@ -151,8 +152,47 @@ absl::Status LevelEditor::RenderNavigator() {
       RETURN_IF_ERROR(parallax_zone_panel_->RenderNavigator(level, selection_));
     }
 
-    // 2. Entities (Future placeholder)
-    gui_->TextDisabled("Entities (TODO)");
+    // 2. Entities
+    if (gui_->CollapsingHeader("Entities", ImGuiTreeNodeFlags_DefaultOpen)) {
+      // Toggle button — styled red when delete mode is active.
+      if (delete_mode_active_) {
+        ScopedStyleColor color =
+            gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.1f, 0.1f, 1.0f));
+        if (gui_->Button("Delete Mode: ON")) delete_mode_active_ = false;
+      } else {
+        if (gui_->Button("Delete Mode: OFF")) delete_mode_active_ = true;
+      }
+
+      // Entity list with right-click context menu for deletion.
+      std::optional<uint64_t> entity_to_delete;
+      for (const auto& [id, entity] : level.entities) {
+        ScopedId scoped_id = gui_->CreateScopedId(static_cast<const void*>(&entity));
+
+        std::string label = entity.blueprint_id.empty()
+                                ? absl::StrFormat("Entity %llu", entity.id)
+                                : absl::StrFormat("%s (%llu)", entity.blueprint_id, entity.id);
+
+        bool is_selected =
+            (selection_.type == SelectionState::Type::kEntity && selection_.entity_id == id);
+        gui_->Selectable(label.c_str(), is_selected);
+        if (gui_->IsItemClicked()) {
+          selection_.type = SelectionState::Type::kEntity;
+          selection_.entity_id = id;
+        }
+
+        if (auto popup = gui_->CreateScopedPopupContextItem(); popup) {
+          if (gui_->MenuItem("Delete Entity")) {
+            entity_to_delete = id;
+          }
+        }
+      }
+
+      // Erase after the loop to avoid invalidating iterators mid-iteration.
+      if (entity_to_delete.has_value()) {
+        if (selection_.entity_id == *entity_to_delete) selection_.Clear();
+        level.entities.erase(*entity_to_delete);
+      }
+    }
   }
 
   return absl::OkStatus();
@@ -227,36 +267,45 @@ absl::Status LevelEditor::RenderViewport() {
   gui_->Separator();
 
   auto tab_default = [this]() -> absl::Status {
-    if (auto tab_item = ScopedTabItem(gui_, "Viewport"); tab_item) {
-      if (!editting_level_.has_value()) {
-        gui_->TextDisabled("No level selected.");
-        return absl::OkStatus();
-      }
+    auto tab_item = ScopedTabItem(gui_, "Viewport");
+    if (!tab_item) return absl::OkStatus();
 
-      RETURN_IF_ERROR(viewport_tab_->Render({
-          .level = &*editting_level_,
-          .placement_blueprint = blueprint_palette_panel_->GetSelectedBlueprint(),
-          .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
-                                    ? selection_.entity_id
-                                    : Entity::kInvalidId,
-          .snap_to_grid = blueprint_palette_panel_->GetSnapToGrid(),
-          .show_entity_borders = blueprint_palette_panel_->GetShowEntityBorders(),
-      }));
+    if (!editting_level_.has_value()) {
+      gui_->TextDisabled("No level selected.");
+      return absl::OkStatus();
+    }
 
-      // Consume a newly placed entity and add it to the level.
-      std::optional<Entity> new_entity = viewport_tab_->TakeNewEntity();
-      if (new_entity.has_value()) {
-        editting_level_->entities[new_entity->id] = std::move(*new_entity);
-      }
+    RETURN_IF_ERROR(viewport_tab_->Render({
+        .level = &*editting_level_,
+        .placement_blueprint = blueprint_palette_panel_->GetSelectedBlueprint(),
+        .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
+                                  ? selection_.entity_id
+                                  : Entity::kInvalidId,
+        .snap_to_grid = blueprint_palette_panel_->GetSnapToGrid(),
+        .show_entity_borders = blueprint_palette_panel_->GetShowEntityBorders(),
+        .delete_mode = delete_mode_active_,
+    }));
 
-      // Consume a canvas click and update the editor selection state.
-      std::optional<uint64_t> click_sel = viewport_tab_->TakeClickSelection();
-      if (click_sel.has_value()) {
-        selection_.Clear();
-        if (*click_sel != Entity::kInvalidId) {
-          selection_.type = SelectionState::Type::kEntity;
-          selection_.entity_id = *click_sel;
-        }
+    // Consume a canvas right-click delete request and remove the entity.
+    std::optional<uint64_t> delete_request = viewport_tab_->TakeDeleteRequest();
+    if (delete_request.has_value()) {
+      if (selection_.entity_id == *delete_request) selection_.Clear();
+      editting_level_->entities.erase(*delete_request);
+    }
+
+    // Consume a newly placed entity and add it to the level.
+    std::optional<Entity> new_entity = viewport_tab_->TakeNewEntity();
+    if (new_entity.has_value()) {
+      editting_level_->entities[new_entity->id] = std::move(*new_entity);
+    }
+
+    // Consume a canvas click and update the editor selection state.
+    std::optional<uint64_t> click_sel = viewport_tab_->TakeClickSelection();
+    if (click_sel.has_value()) {
+      selection_.Clear();
+      if (*click_sel != Entity::kInvalidId) {
+        selection_.type = SelectionState::Type::kEntity;
+        selection_.entity_id = *click_sel;
       }
     }
     return absl::OkStatus();

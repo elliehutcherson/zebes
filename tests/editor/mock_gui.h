@@ -34,6 +34,11 @@ class MockGui : public GuiInterface {
   MOCK_METHOD(void, EndCombo, (), (override));
   MOCK_METHOD(void, BeginGroup, (), (override));
   MOCK_METHOD(void, EndGroup, (), (override));
+  MOCK_METHOD(bool, BeginPopupContextItem,
+              (const char* str_id, ImGuiPopupFlags flags), (override));
+  MOCK_METHOD(void, EndPopup, (), (override));
+  MOCK_METHOD(bool, MenuItem,
+              (const char* label, const char* shortcut, bool selected, bool enabled), (override));
 
   MOCK_METHOD(void, PushID, (const char* str_id), (override));
   MOCK_METHOD(void, PushID, (const char* str_id_begin, const char* str_id_end), (override));
@@ -193,6 +198,8 @@ class MockGui : public GuiInterface {
   MOCK_METHOD(ScopedStyleVar, CreateScopedStyleVar, (ImGuiStyleVar idx, float val), (override));
   MOCK_METHOD(ScopedStyleVar, CreateScopedStyleVar, (ImGuiStyleVar idx, const ImVec2& val),
               (override));
+  MOCK_METHOD(ScopedPopup, CreateScopedPopupContextItem,
+              (const char* str_id, ImGuiPopupFlags flags), (override));
 };
 
 }  // namespace zebes

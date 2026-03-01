@@ -95,6 +95,8 @@ struct ViewportRenderOptions {
   bool snap_to_grid = true;
   // Whether to draw bounding-box borders around all entities in the viewport.
   bool show_entity_borders = false;
+  // When true, a right-click on the canvas deletes the entity under the cursor.
+  bool delete_mode = false;
 };
 
 class ViewportTab {
@@ -120,6 +122,10 @@ class ViewportTab {
   // Returns true if an entity was moved by drag this frame, then clears the flag.
   bool TakeEntityMoved();
 
+  // Returns the ID of an entity the user right-clicked to delete (if any), then clears it.
+  // Only populated when delete_mode is true in the render options.
+  std::optional<uint64_t> TakeDeleteRequest();
+
  private:
   // Renders all active entities in the level, highlighting the selected one.
   // When show_borders is true, draws a bounding-box outline around every entity.
@@ -132,7 +138,7 @@ class ViewportTab {
   // placement clicks, selection clicks, and drag-to-move.
   // Must be called after canvas_.HandleInput() so ImGui item queries target the canvas.
   absl::Status HandleEntityInput(Level& level, const Blueprint* placement_blueprint,
-                                 Vec mouse_world, uint64_t selected_entity_id);
+                                 Vec mouse_world, uint64_t selected_entity_id, bool delete_mode);
 
   // Renders the parallax layers for the given level.
   // Each layer is rendered with its specific scroll factor relative to the camera view.
@@ -154,6 +160,10 @@ class ViewportTab {
   // nullopt = no click this frame; Some(kInvalidId) = deselect; Some(id) = select.
   // Only valid for one frame; consumed via TakeClickSelection().
   std::optional<uint64_t> click_selected_entity_id_;
+
+  // Delete-mode state (output to LevelEditor)
+  // nullopt = no delete request this frame; Some(id) = entity to delete.
+  std::optional<uint64_t> delete_requested_entity_id_;
 
   // Drag state
   bool dragging_entity_ = false;

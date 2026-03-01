@@ -38,6 +38,10 @@ bool ViewportTab::TakeEntityMoved() {
   return moved;
 }
 
+std::optional<uint64_t> ViewportTab::TakeDeleteRequest() {
+  return std::exchange(delete_requested_entity_id_, std::nullopt);
+}
+
 absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   Level& level = *options.level;
 
@@ -75,7 +79,7 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   // 3. Handle input (pan/zoom from keyboard/mouse wheel, then entity interaction).
   canvas_.HandleInput();
   LOG_IF_ERROR(HandleEntityInput(level, options.placement_blueprint, mouse_world,
-                                 options.selected_entity_id));
+                                 options.selected_entity_id, options.delete_mode));
 
   // 4. Capture zoom before End() nullifies the camera pointer.
   float zoom = canvas_.GetZoom();
@@ -95,7 +99,17 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
 }
 
 absl::Status ViewportTab::HandleEntityInput(Level& level, const Blueprint* placement_blueprint,
-                                            Vec mouse_world, uint64_t selected_entity_id) {
+                                            Vec mouse_world, uint64_t selected_entity_id,
+                                            bool delete_mode) {
+  // --- Delete mode: a right-click removes the entity under the cursor ---
+  if (delete_mode && gui_->IsItemClicked(1)) {
+    uint64_t picked = PickEntity(level.entities, mouse_world);
+    if (picked != Entity::kInvalidId) {
+      delete_requested_entity_id_ = picked;
+    }
+    return absl::OkStatus();
+  }
+
   // --- Placement mode: a left-click drops a new entity ---
   if (placement_blueprint != nullptr) {
     if (!gui_->IsItemClicked(0)) return absl::OkStatus();

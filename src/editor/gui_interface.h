@@ -19,6 +19,7 @@ class ScopedGroup;
 class ScopedId;
 class ScopedStyleColor;
 class ScopedStyleVar;
+class ScopedPopup;
 
 class GuiInterface {
  public:
@@ -48,6 +49,13 @@ class GuiInterface {
   virtual void EndCombo() = 0;
   virtual void BeginGroup() = 0;
   virtual void EndGroup() = 0;
+  // Opens a context popup when the user right-clicks the previously rendered item.
+  // EndPopup() must be called only if this returns true; prefer CreateScopedPopupContextItem.
+  virtual bool BeginPopupContextItem(const char* str_id = nullptr,
+                                     ImGuiPopupFlags flags = 0) = 0;
+  virtual void EndPopup() = 0;
+  virtual bool MenuItem(const char* label, const char* shortcut = nullptr, bool selected = false,
+                        bool enabled = true) = 0;
 
   virtual void PushID(const char* str_id) = 0;
   virtual void PushID(const char* str_id_begin, const char* str_id_end) = 0;
@@ -179,6 +187,8 @@ class GuiInterface {
   virtual ScopedStyleColor CreateScopedStyleColor(ImGuiCol idx, const ImVec4& col) = 0;
   virtual ScopedStyleVar CreateScopedStyleVar(ImGuiStyleVar idx, float val) = 0;
   virtual ScopedStyleVar CreateScopedStyleVar(ImGuiStyleVar idx, const ImVec2& val) = 0;
+  virtual ScopedPopup CreateScopedPopupContextItem(const char* str_id = nullptr,
+                                                   ImGuiPopupFlags flags = 0) = 0;
 };
 
 }  // namespace zebes

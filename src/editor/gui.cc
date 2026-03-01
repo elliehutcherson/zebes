@@ -58,6 +58,16 @@ void Gui::BeginGroup() { ImGui::BeginGroup(); }
 
 void Gui::EndGroup() { ImGui::EndGroup(); }
 
+bool Gui::BeginPopupContextItem(const char* str_id, ImGuiPopupFlags flags) {
+  return ImGui::BeginPopupContextItem(str_id, flags);
+}
+
+void Gui::EndPopup() { ImGui::EndPopup(); }
+
+bool Gui::MenuItem(const char* label, const char* shortcut, bool selected, bool enabled) {
+  return ImGui::MenuItem(label, shortcut, selected, enabled);
+}
+
 void Gui::PushID(const char* str_id) { ImGui::PushID(str_id); }
 
 void Gui::PushID(const char* str_id_begin, const char* str_id_end) {
@@ -336,6 +346,10 @@ ScopedStyleVar Gui::CreateScopedStyleVar(ImGuiStyleVar idx, float val) {
 
 ScopedStyleVar Gui::CreateScopedStyleVar(ImGuiStyleVar idx, const ImVec2& val) {
   return ScopedStyleVar(this, idx, val);
+}
+
+ScopedPopup Gui::CreateScopedPopupContextItem(const char* str_id, ImGuiPopupFlags flags) {
+  return ScopedPopup(this, str_id, flags);
 }
 
 }  // namespace zebes

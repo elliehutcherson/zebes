@@ -30,6 +30,10 @@ class Gui : public GuiInterface {
   void EndCombo() override;
   void BeginGroup() override;
   void EndGroup() override;
+  bool BeginPopupContextItem(const char* str_id = nullptr, ImGuiPopupFlags flags = 0) override;
+  void EndPopup() override;
+  bool MenuItem(const char* label, const char* shortcut = nullptr, bool selected = false,
+                bool enabled = true) override;
 
   void PushID(const char* str_id) override;
   void PushID(const char* str_id_begin, const char* str_id_end) override;
@@ -154,6 +158,8 @@ class Gui : public GuiInterface {
   ScopedStyleColor CreateScopedStyleColor(ImGuiCol idx, const ImVec4& col) override;
   ScopedStyleVar CreateScopedStyleVar(ImGuiStyleVar idx, float val) override;
   ScopedStyleVar CreateScopedStyleVar(ImGuiStyleVar idx, const ImVec2& val) override;
+  ScopedPopup CreateScopedPopupContextItem(const char* str_id = nullptr,
+                                           ImGuiPopupFlags flags = 0) override;
 };
 
 }  // namespace zebes

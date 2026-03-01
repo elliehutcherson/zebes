@@ -223,6 +223,27 @@ class ScopedStyleColor {
   bool moved_from_ = false;
 };
 
+// RAII wrapper for GuiInterface::BeginPopupContextItem/EndPopup.
+// EndPopup() is called only if the popup was opened (active_), as required by ImGui.
+class ScopedPopup {
+ public:
+  ScopedPopup(GuiInterface* gui, const char* str_id, ImGuiPopupFlags flags = 0);
+  ~ScopedPopup();
+
+  operator bool() const { return active_; }
+  bool IsActive() const { return active_; }
+
+  ScopedPopup(const ScopedPopup&) = delete;
+  ScopedPopup& operator=(const ScopedPopup&) = delete;
+
+  ScopedPopup(ScopedPopup&& other) noexcept;
+  ScopedPopup& operator=(ScopedPopup&& other) noexcept;
+
+ private:
+  GuiInterface* gui_;
+  bool active_;
+};
+
 // RAII wrapper for GuiInterface::PushStyleVar/PopStyleVar
 class ScopedStyleVar {
  public:

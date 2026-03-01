@@ -279,6 +279,32 @@ ScopedId& ScopedId::operator=(ScopedId&& other) noexcept {
   return *this;
 }
 
+// ScopedPopup
+ScopedPopup::ScopedPopup(GuiInterface* gui, const char* str_id, ImGuiPopupFlags flags)
+    : gui_(gui), active_(gui->BeginPopupContextItem(str_id, flags)) {}
+
+ScopedPopup::~ScopedPopup() {
+  if (active_ && gui_) {
+    gui_->EndPopup();
+  }
+}
+
+ScopedPopup::ScopedPopup(ScopedPopup&& other) noexcept : gui_(other.gui_), active_(other.active_) {
+  other.active_ = false;
+  other.gui_ = nullptr;
+}
+
+ScopedPopup& ScopedPopup::operator=(ScopedPopup&& other) noexcept {
+  if (this != &other) {
+    if (active_ && gui_) gui_->EndPopup();
+    gui_ = other.gui_;
+    active_ = other.active_;
+    other.active_ = false;
+    other.gui_ = nullptr;
+  }
+  return *this;
+}
+
 // ScopedStyleColor
 ScopedStyleColor::ScopedStyleColor(GuiInterface* gui, ImGuiCol idx, ImU32 col)
     : gui_(gui), moved_from_(false) {
