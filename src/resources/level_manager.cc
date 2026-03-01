@@ -175,8 +175,11 @@ nlohmann::json ToJson(const Level& level) {
   nlohmann::json j;
   j["id"] = level.id;
   j["name"] = level.name;
+  j["tileset_id"] = level.tileset_id;
   j["width"] = level.width;
   j["height"] = level.height;
+  j["tile_render_width"] = level.tile_render_width;
+  j["tile_render_height"] = level.tile_render_height;
   j["spawn_point"] = {{"x", level.spawn_point.x}, {"y", level.spawn_point.y}};
 
   // Parallax
@@ -235,17 +238,23 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& s
   j.at("name").get_to(level.name);
   level.width = j.value("width", 0.0);
   level.height = j.value("height", 0.0);
+  level.tile_render_width = j.value("tile_render_width", 16);
+  level.tile_render_height = j.value("tile_render_height", 16);
+  level.tileset_id = j.value("tileset_id", "");
   if (j.contains("spawn_point")) {
     level.spawn_point.x = j["spawn_point"].value("x", 0.0);
     level.spawn_point.y = j["spawn_point"].value("y", 0.0);
   }
 
   // Validation
-  constexpr int kTileSize = 16;
-  if (static_cast<int>(level.width) % kTileSize != 0 ||
-      static_cast<int>(level.height) % kTileSize != 0) {
+  if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
+    return absl::InvalidArgumentError("Tile render dimensions must be positive.");
+  }
+  if (static_cast<int>(level.width) % level.tile_render_width != 0 ||
+      static_cast<int>(level.height) % level.tile_render_height != 0) {
     return absl::InvalidArgumentError(
-        absl::StrCat("Level boundaries must be multiples of tile size (", kTileSize, ")"));
+        absl::StrCat("Level boundaries must be multiples of tile render size (",
+                     level.tile_render_width, " x ", level.tile_render_height, ")"));
   }
 
   if (j.contains("parallax_layers")) {
@@ -504,6 +513,17 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
   if (level.spawn_point.x < 0 || level.spawn_point.y < 0 || level.spawn_point.x > level.width ||
       level.spawn_point.y > level.height) {
     return absl::InvalidArgumentError("Spawn point is outside level boundaries.");
+  }
+
+  // 7. Validate Tile Render Dimensions
+  if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
+    return absl::InvalidArgumentError("Tile render dimensions must be positive.");
+  }
+  if (static_cast<int>(level.width) % level.tile_render_width != 0 ||
+      static_cast<int>(level.height) % level.tile_render_height != 0) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Level boundaries must be multiples of tile render size (",
+                     level.tile_render_width, " x ", level.tile_render_height, ")"));
   }
 
   nlohmann::json json = ToJson(level);

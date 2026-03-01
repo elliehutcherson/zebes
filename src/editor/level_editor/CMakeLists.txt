@@ -25,7 +25,7 @@ target_link_libraries(level_editor
   level_panel
   parallax_theme_panel
   parallax_zone_panel
-  blueprint_palette_panel
+  palette_panel
   parallax_preview_tab
   viewport_tab
   api
@@ -98,6 +98,37 @@ target_link_libraries(blueprint_palette_panel
   gui_interface
 )
 
+add_library(tile_palette_panel
+  tile_palette_panel.cc
+)
+
+target_link_libraries(tile_palette_panel
+  api
+  tileset
+  imgui_scoped
+  ${IMGUI_LIBRARIES}
+  SDL2-static
+  absl::status
+  absl::memory
+  absl::log
+  gui_interface
+)
+
+add_library(palette_panel
+  palette_panel.cc
+)
+
+target_link_libraries(palette_panel
+  blueprint_palette_panel
+  tile_palette_panel
+  api
+  imgui_scoped
+  ${IMGUI_LIBRARIES}
+  absl::status
+  absl::memory
+  gui_interface
+)
+
 add_library(viewport_tab
   viewport_tab.cc
 )
@@ -107,8 +138,12 @@ target_link_libraries(viewport_tab
   editor_canvas
   imgui_scoped
   level
+  tileset
   ${IMGUI_LIBRARIES}
+  SDL2-static
   absl::status
+  absl::log
+  absl::flat_hash_map
   gui_interface
 )
 

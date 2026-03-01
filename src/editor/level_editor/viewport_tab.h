@@ -13,6 +13,7 @@
 #include "objects/entity.h"
 #include "objects/level.h"
 #include "objects/sprite.h"
+#include "objects/tileset.h"
 #include "objects/vec.h"
 
 namespace zebes {
@@ -82,6 +83,34 @@ static inline Entity CreateEntityFromBlueprint(const Blueprint& blueprint, int s
   return entity;
 }
 
+// Encodes a (chunk_x, chunk_y) pair as the flat-hash-map key used by Level::tile_chunks.
+static inline int64_t ChunkKey(int chunk_x, int chunk_y) {
+  return (static_cast<int64_t>(chunk_y) << 32) | static_cast<uint32_t>(chunk_x);
+}
+
+// Sets the tile ID at a world-tile coordinate, creating the chunk if absent.
+// Pass tile_id=0 to erase a tile.
+static inline void SetTileAt(Level& level, int tile_x, int tile_y, int tile_id) {
+  constexpr int kSize = TileChunk::kSize;
+  int chunk_x = tile_x / kSize;
+  int chunk_y = tile_y / kSize;
+  int local_x = tile_x % kSize;
+  int local_y = tile_y % kSize;
+  level.tile_chunks[ChunkKey(chunk_x, chunk_y)].tiles[local_y * kSize + local_x] = tile_id;
+}
+
+// Returns the tile ID at a world-tile coordinate, or 0 if the chunk does not exist.
+static inline int GetTileAt(const Level& level, int tile_x, int tile_y) {
+  constexpr int kSize = TileChunk::kSize;
+  int chunk_x = tile_x / kSize;
+  int chunk_y = tile_y / kSize;
+  int local_x = tile_x % kSize;
+  int local_y = tile_y % kSize;
+  auto it = level.tile_chunks.find(ChunkKey(chunk_x, chunk_y));
+  if (it == level.tile_chunks.end()) return 0;
+  return it->second.tiles[local_y * kSize + local_x];
+}
+
 // Per-frame inputs to ViewportTab::Render(). All fields are transient — they
 // are not stored between frames.
 struct ViewportRenderOptions {
@@ -97,6 +126,14 @@ struct ViewportRenderOptions {
   bool show_entity_borders = false;
   // When true, a right-click on the canvas deletes the entity under the cursor.
   bool delete_mode = false;
+  // Tile to paint when non-null; nullptr = not in tile-painting mode.
+  const Tile* placement_tile = nullptr;
+  // Tileset owning placement_tile. Must be non-null when placement_tile is set.
+  const Tileset* placement_tileset = nullptr;
+  // Whether to draw a thin border around every placed tile cell in the viewport.
+  bool show_tile_frame = false;
+  // Whether to draw the collision-shape overlay on every placed tile.
+  bool show_tile_collision = false;
 };
 
 class ViewportTab {
@@ -133,6 +170,22 @@ class ViewportTab {
 
   // Renders a semi-transparent ghost of the placement blueprint at world_pos.
   void RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos);
+
+  // Renders all placed tile chunks using the given tileset's texture atlas.
+  // Optionally draws cell borders (show_frame) and collision overlays (show_collision).
+  void RenderTileChunks(const Level& level, const Tileset& tileset, bool show_frame,
+                        bool show_collision);
+
+  // Renders a semi-transparent ghost of the selected tile snapped to the tile render grid.
+  // tile_render_w/h are the world-space pixel dimensions used for snapping and screen extents.
+  void RenderTilePlacementGhost(const Tile& tile, const Tileset& tileset, Vec mouse_world,
+                                int tile_render_w, int tile_render_h);
+
+  // Handles tile-painting input: left-held paints tile at snapped position,
+  // right-click erases (sets tile_id=0).
+  // tile_render_w/h are the world-space pixel dimensions used for grid snapping.
+  absl::Status HandleTileInput(Level& level, const Tile& tile, const Tileset& tileset,
+                               Vec mouse_world, int tile_render_w, int tile_render_h);
 
   // Handles all entity-related mouse input for a single frame:
   // placement clicks, selection clicks, and drag-to-move.

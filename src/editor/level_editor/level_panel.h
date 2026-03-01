@@ -27,13 +27,14 @@ class LevelPanel : public LevelPanelInterface {
 
   absl::Status HandleOp(std::optional<Level>& level, SelectionState& selection, Op op);
 
+  void RefreshCache() override;
   absl::Status RenderList(std::optional<Level>& level, SelectionState& selection) override;
   absl::Status RenderDetails(std::optional<Level>& level, SelectionState& selection) override;
 
  private:
-  explicit LevelPanel(Options options);
+  friend class LevelPanelTestPeer;
 
-  void RefreshLevelCache();
+  explicit LevelPanel(Options options);
 
   Api& api_;
   GuiInterface* gui_;

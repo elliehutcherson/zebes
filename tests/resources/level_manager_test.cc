@@ -135,7 +135,8 @@ TEST_F(LevelManagerTest, ValidationTest) {
 
   absl::StatusOr<std::string> id = manager_->CreateLevel(std::move(level));
   EXPECT_FALSE(id.ok());
-  EXPECT_THAT(id.status().message(), HasSubstr("Level boundaries must be multiples of tile size"));
+  EXPECT_THAT(id.status().message(),
+              HasSubstr("Level boundaries must be multiples of tile render size"));
 }
 
 TEST_F(LevelManagerTest, CreateLevel_EmptyName_Fails) {

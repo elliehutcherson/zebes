@@ -8,6 +8,7 @@
 #include "absl/strings/str_cat.h"
 #include "objects/camera.h"
 #include "objects/entity.h"
+#include "objects/tileset.h"
 
 namespace zebes {
 
@@ -49,6 +50,15 @@ struct ParallaxZone {
 struct Level {
   std::string id;
   std::string name;
+
+  // The UUID of the tileset whose tile definitions back tile_chunks.
+  // Empty string means no tileset is associated with this level.
+  std::string tileset_id;
+
+  // World-space pixel size each tile is rendered at. Independent of the source
+  // tile dimensions in the tileset atlas (Tileset::tile_width / tile_height).
+  int tile_render_width = 16;
+  int tile_render_height = 16;
 
   // BOUNDARIES
   double width = 0;

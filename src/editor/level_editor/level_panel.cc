@@ -22,7 +22,7 @@ absl::StatusOr<std::unique_ptr<LevelPanel>> LevelPanel::Create(Options options) 
 }
 
 LevelPanel::LevelPanel(Options options) : api_(*options.api), gui_(options.gui) {
-  RefreshLevelCache();
+  RefreshCache();
 }
 
 absl::Status LevelPanel::RenderList(std::optional<Level>& level, SelectionState& selection) {
@@ -80,6 +80,8 @@ absl::Status LevelPanel::RenderDetails(std::optional<Level>& level, SelectionSta
   gui_->InputText("Name", &lvl.name);
   gui_->InputDouble("Width", &lvl.width);
   gui_->InputDouble("Height", &lvl.height);
+  gui_->InputInt("Tile Render Width", &lvl.tile_render_width);
+  gui_->InputInt("Tile Render Height", &lvl.tile_render_height);
 
   gui_->Text("Spawn Point");
   gui_->InputDouble("X", &lvl.spawn_point.x);
@@ -121,11 +123,11 @@ absl::Status LevelPanel::HandleOp(std::optional<Level>& level, SelectionState& s
         return absl::InvalidArgumentError("Level must not be null!");
       }
       RETURN_IF_ERROR(api_.UpdateLevel(*level));
-      RefreshLevelCache();
+      RefreshCache();
       break;
     case Op::kLevelDelete:
       RETURN_IF_ERROR(api_.DeleteLevel(level_cache_[selected_index_].id));
-      RefreshLevelCache();
+      RefreshCache();
       selection.Clear();
       break;
     case Op::kLevelBack:
@@ -137,7 +139,7 @@ absl::Status LevelPanel::HandleOp(std::optional<Level>& level, SelectionState& s
   return absl::OkStatus();
 }
 
-void LevelPanel::RefreshLevelCache() {
+void LevelPanel::RefreshCache() {
   level_cache_ = api_.GetAllLevels();
 
   std::sort(level_cache_.begin(), level_cache_.end(),

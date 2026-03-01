@@ -1,153 +1,16 @@
 #include "editor/tileset_editor/tileset_editor.h"
 
 #include <cmath>
-#include <initializer_list>
-#include <vector>
 
 #include "SDL_render.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
+#include "editor/canvas/tile_draw.h"
 #include "editor/imgui_scoped.h"
 #include "objects/tileset.h"
 
 namespace zebes {
-namespace {
-
-// Converts a normalized [0,1] point within a tile cell to ImGui screen space.
-ImVec2 TileToScreen(const ImVec2& norm, const ImVec2& cell_min, const ImVec2& cell_max) {
-  return {cell_min.x + norm.x * (cell_max.x - cell_min.x),
-          cell_min.y + norm.y * (cell_max.y - cell_min.y)};
-}
-
-// Draws the collision-shape overlay for a tile on the given draw list.
-//
-// Polygon vertices are in normalized [0,1] tile space: (0,0)=top-left,
-// (1,1)=bottom-right. Slope geometries follow the naming convention in
-// tileset.h ("XY" = location of the pointed tip of the triangle). Gentle and
-// steep slope variants approximate the 2:1 / 1:2 geometry; validate against
-// the physics collision system if precise accuracy is needed.
-void DrawShapeOverlay(ImDrawList* dl, const ImVec2& cell_min, const ImVec2& cell_max,
-                      TileShape shape) {
-  constexpr ImU32 kFillColor = IM_COL32(255, 80, 0, 60);
-  constexpr ImU32 kLineColor = IM_COL32(255, 80, 0, 220);
-  constexpr float kLineWidth = 2.0f;
-
-  auto draw = [&](std::initializer_list<ImVec2> pts) {
-    std::vector<ImVec2> screen;
-    screen.reserve(pts.size());
-    for (const ImVec2& p : pts) screen.push_back(TileToScreen(p, cell_min, cell_max));
-    dl->AddConvexPolyFilled(screen.data(), static_cast<int>(screen.size()), kFillColor);
-    dl->AddPolyline(screen.data(), static_cast<int>(screen.size()), kLineColor,
-                    ImDrawFlags_Closed, kLineWidth);
-  };
-
-  switch (shape) {
-    case TileShape::kNone:
-      break;
-
-    case TileShape::kFullBlock:
-      draw({{0, 0}, {1, 0}, {1, 1}, {0, 1}});
-      break;
-
-    // --- Half Blocks ---
-    case TileShape::kHalfBlockBottom:
-      draw({{0, .5f}, {1, .5f}, {1, 1}, {0, 1}});
-      break;
-    case TileShape::kHalfBlockTop:
-      draw({{0, 0}, {1, 0}, {1, .5f}, {0, .5f}});
-      break;
-    case TileShape::kHalfBlockLeft:
-      draw({{0, 0}, {.5f, 0}, {.5f, 1}, {0, 1}});
-      break;
-    case TileShape::kHalfBlockRight:
-      draw({{.5f, 0}, {1, 0}, {1, 1}, {.5f, 1}});
-      break;
-
-    // --- 45-Degree Slopes ---
-    // "XY" = location of the pointed tip; right angle is at the solid corner.
-    case TileShape::kSlope45BottomLeft:   // /| tip at (0,1) bottom-left
-      draw({{0, 1}, {1, 0}, {1, 1}});
-      break;
-    case TileShape::kSlope45BottomRight:  // |\ tip at (1,1) bottom-right
-      draw({{0, 0}, {0, 1}, {1, 1}});
-      break;
-    case TileShape::kSlope45TopLeft:      // \| tip at (0,0) top-left
-      draw({{0, 0}, {1, 0}, {1, 1}});
-      break;
-    case TileShape::kSlope45TopRight:     // |/ tip at (1,0) top-right
-      draw({{0, 0}, {1, 0}, {0, 1}});
-      break;
-
-    // --- Gentle Slopes (2:1 ratio, ~26.5 degrees) ---
-    // "Lower" = thin wedge (near tip, starts from zero height).
-    // "Upper" = thick wedge (connects to full tile height).
-    // BottomLeft = slope goes up to the right; Lower is the left/thin tile.
-    case TileShape::kGentleSlopeBottomLeft_Lower:
-      draw({{0, 1}, {1, .5f}, {1, 1}});
-      break;
-    case TileShape::kGentleSlopeBottomLeft_Upper:
-      draw({{0, .5f}, {1, 0}, {1, 1}, {0, 1}});
-      break;
-    // BottomRight = slope goes up to the left; Lower is the right/thin tile.
-    case TileShape::kGentleSlopeBottomRight_Lower:
-      draw({{0, .5f}, {1, 1}, {0, 1}});
-      break;
-    case TileShape::kGentleSlopeBottomRight_Upper:
-      draw({{0, 0}, {1, .5f}, {1, 1}, {0, 1}});
-      break;
-    // TopLeft = ceiling slope going right; Lower is the left/thin ceiling tile.
-    case TileShape::kGentleSlopeTopLeft_Lower:
-      draw({{0, 0}, {1, 0}, {1, .5f}});
-      break;
-    case TileShape::kGentleSlopeTopLeft_Upper:
-      draw({{0, 0}, {1, 0}, {1, 1}, {0, .5f}});
-      break;
-    // TopRight = ceiling slope going left; Lower is the right/thin ceiling tile.
-    case TileShape::kGentleSlopeTopRight_Lower:
-      draw({{0, 0}, {1, 0}, {0, .5f}});
-      break;
-    case TileShape::kGentleSlopeTopRight_Upper:
-      draw({{0, 0}, {1, 0}, {1, .5f}, {0, 1}});
-      break;
-
-    // --- Steep Slopes (1:2 ratio, ~63.4 degrees) ---
-    // "Bottom" = lower tile in the vertical pair; "Top" = upper tile.
-    // BottomLeft = slope goes steeply up to the right.
-    case TileShape::kSteepSlopeBottomLeft_Bottom:
-      // Slope surface enters at top-mid (0.5, 0) and exits bottom-left (0, 1).
-      draw({{0, 1}, {.5f, 0}, {1, 0}, {1, 1}});
-      break;
-    case TileShape::kSteepSlopeBottomLeft_Top:
-      // Slope exits the top tile at mid-bottom (0.5, 1) rising to top-right (1, 0).
-      draw({{0, 0}, {0, 1}, {.5f, 1}, {1, 0}});
-      break;
-    // BottomRight = slope goes steeply up to the left.
-    case TileShape::kSteepSlopeBottomRight_Bottom:
-      draw({{0, 0}, {.5f, 0}, {1, 1}, {0, 1}});
-      break;
-    case TileShape::kSteepSlopeBottomRight_Top:
-      draw({{0, 0}, {1, 0}, {1, 1}, {.5f, 1}});
-      break;
-    // Ceiling steep slopes (solid hangs from ceiling).
-    // TopLeft = ceiling slope going down-right; Top tile is near the ceiling.
-    case TileShape::kSteepSlopeTopLeft_Bottom:
-      draw({{0, 0}, {.5f, 0}, {1, 1}, {0, 1}});
-      break;
-    case TileShape::kSteepSlopeTopLeft_Top:
-      draw({{0, 0}, {1, 0}, {.5f, 1}, {0, 1}});
-      break;
-    // TopRight = ceiling slope going down-left; Top tile is near the ceiling.
-    case TileShape::kSteepSlopeTopRight_Bottom:
-      draw({{0, 1}, {.5f, 0}, {1, 0}, {1, 1}});
-      break;
-    case TileShape::kSteepSlopeTopRight_Top:
-      draw({{0, 0}, {1, 0}, {1, 1}, {.5f, 1}});
-      break;
-  }
-}
-
-}  // namespace
 
 absl::StatusOr<std::unique_ptr<TilesetEditor>> TilesetEditor::Create(Api* api, GuiInterface* gui) {
   if (api == nullptr) return absl::InvalidArgumentError("Api is null.");

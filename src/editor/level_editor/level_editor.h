@@ -5,8 +5,8 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/gui_interface.h"
-#include "editor/level_editor/blueprint_palette_panel.h"
 #include "editor/level_editor/level_panel_interface.h"
+#include "editor/level_editor/palette_panel.h"
 #include "editor/level_editor/level_selection_state.h"
 #include "editor/level_editor/parallax_preview_tab.h"
 #include "editor/level_editor/parallax_theme_panel.h"
@@ -24,7 +24,7 @@ class LevelEditor {
     std::unique_ptr<LevelPanelInterface> level_panel;
     std::unique_ptr<ParallaxThemePanel> parallax_theme_panel;
     std::unique_ptr<ParallaxZonePanel> parallax_zone_panel;
-    std::unique_ptr<BlueprintPalettePanel> blueprint_palette_panel;
+    std::unique_ptr<PalettePanel> palette_panel;
   };
 
   // Creates a new instance of the LevelEditor.
@@ -37,6 +37,8 @@ class LevelEditor {
   absl::Status Render();
 
  private:
+  friend class LevelEditorTestPeer;
+
   explicit LevelEditor(Api* api, GuiInterface* gui);
 
   absl::Status Init(Options options);
@@ -50,7 +52,7 @@ class LevelEditor {
   // Renders the properties/details panel for the selected object.
   absl::Status RenderInspector();  // Right
 
-  // Renders the full-width blueprint palette strip below the 3-column table.
+  // Renders the full-width palette strip below the 3-column table.
   absl::Status RenderPalette();
 
   Api* api_;
@@ -60,7 +62,7 @@ class LevelEditor {
   std::unique_ptr<LevelPanelInterface> level_panel_;
   std::unique_ptr<ParallaxThemePanel> parallax_theme_panel_;
   std::unique_ptr<ParallaxZonePanel> parallax_zone_panel_;
-  std::unique_ptr<BlueprintPalettePanel> blueprint_palette_panel_;
+  std::unique_ptr<PalettePanel> palette_panel_;
 
   // Center Tabs
   std::unique_ptr<ParallaxPreviewTab> parallax_tab_;

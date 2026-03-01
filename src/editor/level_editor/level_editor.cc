@@ -56,11 +56,10 @@ absl::Status LevelEditor::Init(Options options) {
     ASSIGN_OR_RETURN(parallax_zone_panel_, ParallaxZonePanel::Create({.api = api_, .gui = gui_}));
   }
 
-  if (options.blueprint_palette_panel) {
-    blueprint_palette_panel_ = std::move(options.blueprint_palette_panel);
+  if (options.palette_panel) {
+    palette_panel_ = std::move(options.palette_panel);
   } else {
-    ASSIGN_OR_RETURN(blueprint_palette_panel_,
-                     BlueprintPalettePanel::Create({.api = api_, .gui = gui_}));
+    ASSIGN_OR_RETURN(palette_panel_, PalettePanel::Create({.api = api_, .gui = gui_}));
   }
 
   parallax_tab_ = std::make_unique<ParallaxPreviewTab>(*api_, gui_);
@@ -98,7 +97,14 @@ absl::Status LevelEditor::Render() {
   return absl::OkStatus();
 }
 
-absl::Status LevelEditor::RenderPalette() { return blueprint_palette_panel_->Render(); }
+absl::Status LevelEditor::RenderPalette() {
+  int tile_render_w = 16, tile_render_h = 16;
+  if (editting_level_.has_value()) {
+    tile_render_w = editting_level_->tile_render_width;
+    tile_render_h = editting_level_->tile_render_height;
+  }
+  return palette_panel_->Render(tile_render_w, tile_render_h);
+}
 
 absl::Status LevelEditor::RenderNavigator() {
   // If no level is loaded, show the Project Browser (List of Levels)
@@ -122,9 +128,10 @@ absl::Status LevelEditor::RenderNavigator() {
   if (gui_->Button("Save Level")) {
     absl::Status status = api_->UpdateLevel(*editting_level_);
     if (!status.ok()) {
-      save_error_ = std::string(status.message());
+      save_error_ = status.message();
     } else {
       save_error_.reset();
+      level_panel_->RefreshCache();
     }
   }
 
@@ -275,15 +282,25 @@ absl::Status LevelEditor::RenderViewport() {
       return absl::OkStatus();
     }
 
+    // Auto-associate the level with the selected tileset on first tile selection.
+    const Tileset* selected_tileset = palette_panel_->GetSelectedTileset();
+    if (selected_tileset != nullptr && editting_level_->tileset_id.empty()) {
+      editting_level_->tileset_id = selected_tileset->id;
+    }
+
     RETURN_IF_ERROR(viewport_tab_->Render({
         .level = &*editting_level_,
-        .placement_blueprint = blueprint_palette_panel_->GetSelectedBlueprint(),
+        .placement_blueprint = palette_panel_->GetSelectedBlueprint(),
         .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
                                   ? selection_.entity_id
                                   : Entity::kInvalidId,
-        .snap_to_grid = blueprint_palette_panel_->GetSnapToGrid(),
-        .show_entity_borders = blueprint_palette_panel_->GetShowEntityBorders(),
+        .snap_to_grid = palette_panel_->GetSnapToGrid(),
+        .show_entity_borders = palette_panel_->GetShowEntityBorders(),
         .delete_mode = delete_mode_active_,
+        .placement_tile = palette_panel_->GetSelectedTile(),
+        .placement_tileset = selected_tileset,
+        .show_tile_frame = palette_panel_->GetShowTileFrame(),
+        .show_tile_collision = palette_panel_->GetShowTileCollision(),
     }));
 
     // Consume a canvas right-click delete request and remove the entity.

@@ -107,6 +107,48 @@ target_link_libraries(mock_gui_test
 )
 add_test(NAME mock_gui_test COMMAND mock_gui_test)
 
+# --- Level Panel Test ---
+add_executable(level_panel_test level_panel_test.cc)
+target_link_libraries(level_panel_test
+  gtest_main
+  gmock
+  api
+  level_panel
+  gui_mock
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(level_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME level_panel_test COMMAND level_panel_test)
+
+# --- Level Editor Test ---
+add_executable(level_editor_test level_editor_test.cc)
+target_link_libraries(level_editor_test
+  gtest_main
+  gmock
+  api
+  level_editor
+  gui_mock
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(level_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME level_editor_test COMMAND level_editor_test)
+
+# --- Tile Palette Panel Test ---
+add_executable(tile_palette_panel_test tile_palette_panel_test.cc)
+target_link_libraries(tile_palette_panel_test
+  gtest_main
+  gmock
+  api
+  tile_palette_panel
+  gui_mock
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(tile_palette_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME tile_palette_panel_test COMMAND tile_palette_panel_test)
+
 # --- Canvas Test ---
 add_executable(canvas_test canvas_test.cc)
 target_link_libraries(canvas_test

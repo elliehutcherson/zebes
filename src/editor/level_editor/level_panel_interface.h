@@ -12,6 +12,8 @@ class LevelPanelInterface {
  public:
   virtual ~LevelPanelInterface() = default;
 
+  virtual void RefreshCache() = 0;
+
   virtual absl::Status RenderList(std::optional<Level>& level, SelectionState& selection) = 0;
 
   virtual absl::Status RenderDetails(std::optional<Level>& level, SelectionState& selection) = 0;

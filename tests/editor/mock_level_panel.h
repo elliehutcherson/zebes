@@ -8,6 +8,7 @@ namespace zebes {
 
 class MockLevelPanel : public LevelPanelInterface {
  public:
+  MOCK_METHOD(void, RefreshCache, (), (override));
   MOCK_METHOD(absl::Status, RenderList, (std::optional<Level> & level, SelectionState& selection),
               (override));
   MOCK_METHOD(absl::Status, RenderDetails,
