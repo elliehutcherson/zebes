@@ -153,6 +153,11 @@ void Gui::LabelText(const char* label, const char* fmt, ...) {
 
 bool Gui::Checkbox(const char* label, bool* v) { return ImGui::Checkbox(label, v); }
 
+bool Gui::SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format,
+                      ImGuiSliderFlags flags) {
+  return ImGui::SliderFloat(label, v, v_min, v_max, format, flags);
+}
+
 bool Gui::SliderInt(const char* label, int* v, int v_min, int v_max, const char* format,
                     ImGuiSliderFlags flags) {
   return ImGui::SliderInt(label, v, v_min, v_max, format, flags);

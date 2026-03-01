@@ -94,7 +94,12 @@ add_test(NAME blueprint_palette_panel_test COMMAND blueprint_palette_panel_test)
 add_executable(viewport_tab_test viewport_tab_test.cc)
 target_link_libraries(viewport_tab_test
   gtest_main
+  gmock
+  api
   viewport_tab
+  gui_mock
+  absl::flags
+  absl::flags_parse
 )
 target_include_directories(viewport_tab_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME viewport_tab_test COMMAND viewport_tab_test)

@@ -1,5 +1,6 @@
 #include "editor/canvas/canvas.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 
@@ -7,6 +8,16 @@
 #include "editor/gui_interface.h"
 
 namespace zebes {
+
+namespace {
+
+// Hard zoom limits applied both at the start of each frame (ClampCamera) and
+// immediately after the user scrolls (HandleInput). Keeping them in one place
+// ensures the two sites never drift out of sync.
+constexpr double kMinZoom = 0.1;
+constexpr double kMaxZoom = 10.0;
+
+}  // namespace
 
 Canvas::Canvas(Options options)
     : gui_(options.gui), snap_grid_(options.snap_grid), grid_size_(options.grid_size) {}
@@ -65,6 +76,8 @@ void Canvas::HandleInput() {
   if (is_hovered && gui_->GetIO().MouseWheel != 0.0f) {
     float zoom_speed = 0.1f;
     camera_->zoom += gui_->GetIO().MouseWheel * zoom_speed;
+    // Clamp immediately so DrawGrid never sees zoom <= 0, regardless of call order.
+    camera_->zoom = std::clamp(camera_->zoom, kMinZoom, kMaxZoom);
   }
 
   // 2. Handle Panning (Keyboard: WASD / Arrows)
@@ -176,6 +189,10 @@ void Canvas::DrawGrid() {
 }
 
 void Canvas::DrawRulerAndGrid(double start_val, double step, double max_dim, bool is_x_axis) {
+  // A zero or negative step would cause an infinite loop; this guards against
+  // broken state from bad zoom values or an unset grid_size.
+  if (step <= 0) return;
+
   const float ruler_thickness = 20.0f;
   ImU32 ruler_tick_color = IM_COL32(180, 180, 180, 255);
   ImU32 grid_color = IM_COL32(60, 60, 60, 100);
@@ -231,8 +248,7 @@ void Canvas::ClampCamera() {
 
   // 1. Apply Hard Limits (Sanity Check)
   // We always want reasonable limits regardless of world size
-  if (camera_->zoom > 10.0f) camera_->zoom = 10.0f;
-  if (camera_->zoom < 0.1f) camera_->zoom = 0.1f;
+  camera_->zoom = std::clamp(camera_->zoom, kMinZoom, kMaxZoom);
 
   if (!world_min_.has_value() || !world_max_.has_value()) return;
 

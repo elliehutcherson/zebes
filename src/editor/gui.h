@@ -67,6 +67,8 @@ class Gui : public GuiInterface {
   void LabelText(const char* label, const char* fmt, ...) override;
 
   bool Checkbox(const char* label, bool* v) override;
+  bool SliderFloat(const char* label, float* v, float v_min, float v_max,
+                   const char* format = "%.3f", ImGuiSliderFlags flags = 0) override;
   bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d",
                  ImGuiSliderFlags flags = 0) override;
   bool InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags = 0,

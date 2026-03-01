@@ -72,7 +72,6 @@ class LevelEditor {
   std::optional<Level> editting_level_;
   SelectionState selection_;
   std::optional<std::string> save_error_;
-  bool delete_mode_active_ = false;
 };
 
 }  // namespace zebes

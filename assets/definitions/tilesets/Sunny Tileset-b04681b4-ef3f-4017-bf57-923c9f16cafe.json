@@ -148,6 +148,15 @@
             "source_x": 176,
             "source_y": 112,
             "tags": []
+        },
+        {
+            "id": 17,
+            "is_one_way": false,
+            "name": "Invisible",
+            "shape": 0,
+            "source_x": 0,
+            "source_y": 0,
+            "tags": []
         }
     ]
 }

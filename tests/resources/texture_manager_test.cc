@@ -11,6 +11,15 @@
 #include "macros.h"
 
 namespace zebes {
+
+// Exposes the protected SaveTexture method for testing via friendship.
+class TextureManagerTestPeer {
+ public:
+  static absl::Status SaveTexture(TextureManager& manager, const Texture& texture) {
+    return manager.SaveTexture(texture);
+  }
+};
+
 namespace {
 
 class MockSdlWrapper : public SdlWrapper {
@@ -247,6 +256,31 @@ TEST_F(TextureManagerTest, RenameTexture) {
   std::string new_file = test_dir_ + "/definitions/textures/NewName-" + *id + ".json";
   EXPECT_TRUE(std::filesystem::exists(new_file));
   EXPECT_FALSE(std::filesystem::exists(old_file));
+}
+
+TEST_F(TextureManagerTest, SaveTextureWithEmptyIdFails) {
+  Texture texture{.name = "some-name", .path = "textures/some.png"};
+  // id is empty — SaveTexture must reject it immediately.
+  absl::Status status = TextureManagerTestPeer::SaveTexture(*manager_, texture);
+  EXPECT_FALSE(status.ok());
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST_F(TextureManagerTest, CreateTextureIdIsNonEmpty) {
+  std::string img_path = test_dir_ + "/textures/nonempty_id.png";
+  {
+    std::ofstream f(img_path);
+    f << "dummy";
+  }
+
+  ASSERT_OK_AND_ASSIGN(
+      std::string id,
+      manager_->CreateTexture({.path = std::filesystem::absolute(img_path).string()}));
+  EXPECT_FALSE(id.empty());
+
+  // The texture cached in the manager must carry the same non-empty id.
+  ASSERT_OK_AND_ASSIGN(Texture * tex, manager_->GetTexture(id));
+  EXPECT_EQ(tex->id, id);
 }
 
 }  // namespace

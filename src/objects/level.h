@@ -8,7 +8,6 @@
 #include "absl/strings/str_cat.h"
 #include "objects/camera.h"
 #include "objects/entity.h"
-#include "objects/tileset.h"
 
 namespace zebes {
 

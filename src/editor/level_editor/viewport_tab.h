@@ -5,11 +5,13 @@
 #include <optional>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/canvas/canvas.h"
 #include "editor/gui_interface.h"
 #include "objects/blueprint.h"
 #include "objects/camera.h"
+#include "objects/collider.h"
 #include "objects/entity.h"
 #include "objects/level.h"
 #include "objects/sprite.h"
@@ -111,6 +113,13 @@ static inline int GetTileAt(const Level& level, int tile_x, int tile_y) {
   return it->second.tiles[local_y * kSize + local_x];
 }
 
+// Computes the entity transform origin such that the collider or sprite bounding box is
+// horizontally centered within the hovered tile cell and vertically bottom-aligned with it.
+// The collider bounding box takes priority over sprite render dimensions.
+// Returns InvalidArgument and logs an error if neither provides usable dimensions.
+absl::StatusOr<Vec> SnapEntityToGrid(Vec mouse_world, int tile_render_w, int tile_render_h,
+                                      const Collider* collider, const Sprite* sprite);
+
 // Per-frame inputs to ViewportTab::Render(). All fields are transient — they
 // are not stored between frames.
 struct ViewportRenderOptions {
@@ -134,6 +143,10 @@ struct ViewportRenderOptions {
   bool show_tile_frame = false;
   // Whether to draw the collision-shape overlay on every placed tile.
   bool show_tile_collision = false;
+  // Blue overlay alpha [0,1] drawn on top of every tile cell. 0 = off.
+  float tile_overlay_opacity = 0.0f;
+  // Yellow overlay alpha [0,1] drawn on top of every entity. 0 = off.
+  float entity_overlay_opacity = 0.0f;
 };
 
 class ViewportTab {
@@ -164,9 +177,12 @@ class ViewportTab {
   std::optional<uint64_t> TakeDeleteRequest();
 
  private:
+  friend class ViewportTabTestPeer;
+
   // Renders all active entities in the level, highlighting the selected one.
   // When show_borders is true, draws a bounding-box outline around every entity.
-  void RenderEntities(const Level& level, uint64_t selected_entity_id, bool show_borders);
+  void RenderEntities(const Level& level, uint64_t selected_entity_id, bool show_borders,
+                      float entity_overlay_opacity);
 
   // Renders a semi-transparent ghost of the placement blueprint at world_pos.
   void RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos);
@@ -174,7 +190,7 @@ class ViewportTab {
   // Renders all placed tile chunks using the given tileset's texture atlas.
   // Optionally draws cell borders (show_frame) and collision overlays (show_collision).
   void RenderTileChunks(const Level& level, const Tileset& tileset, bool show_frame,
-                        bool show_collision);
+                        bool show_collision, float tile_overlay_opacity);
 
   // Renders a semi-transparent ghost of the selected tile snapped to the tile render grid.
   // tile_render_w/h are the world-space pixel dimensions used for snapping and screen extents.
@@ -199,6 +215,11 @@ class ViewportTab {
 
   // Renders the boundaries of the level and potentially the camera start box.
   void RenderLevelBounds(const Level& level);
+
+  // Resolves the blueprint's collider and sprite via the Api, then delegates to
+  // SnapEntityToGrid. Returns mouse_world unchanged when snap is disabled.
+  absl::StatusOr<Vec> SnapBlueprintToGrid(Vec mouse_world, const Blueprint& blueprint,
+                                           int tile_render_w, int tile_render_h) const;
 
   Api& api_;
   GuiInterface* gui_;

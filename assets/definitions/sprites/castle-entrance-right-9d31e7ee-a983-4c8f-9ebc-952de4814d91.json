@@ -1,0 +1,19 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "offset_x": 0,
+            "offset_y": -640,
+            "render_h": 640,
+            "render_w": 338,
+            "texture_h": 320,
+            "texture_w": 169,
+            "texture_x": 87,
+            "texture_y": 0
+        }
+    ],
+    "id": "9d31e7ee-a983-4c8f-9ebc-952de4814d91",
+    "name": "castle-entrance-right",
+    "texture_id": "ef87b036-f7ba-422d-8601-62d5221d42e6"
+}

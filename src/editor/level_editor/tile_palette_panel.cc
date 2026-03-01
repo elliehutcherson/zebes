@@ -26,7 +26,7 @@ constexpr float kThumbnailPad = 4.0f;
 // Isolated here to keep the per-tile loop body flat.
 void DrawTileThumbnail(ImDrawList* dl, ImVec2 cursor, const Tile& tile, void* sdl_texture,
                        int tex_w, int tex_h, float tile_w, float tile_h, float thumb_w,
-                       float thumb_h, bool is_selected, bool is_hovered) {
+                       float thumb_h, bool is_selected, bool is_hovered, float overlay_opacity) {
   ImVec2 btn_max = ImVec2(cursor.x + thumb_w, cursor.y + thumb_h);
 
   if (sdl_texture != nullptr && tex_w > 0 && tex_h > 0) {
@@ -38,6 +38,11 @@ void DrawTileThumbnail(ImDrawList* dl, ImVec2 cursor, const Tile& tile, void* sd
                  ImVec2(u1, v1));
   } else {
     dl->AddRectFilled(cursor, btn_max, IM_COL32(80, 80, 80, 200));
+  }
+
+  if (overlay_opacity > 0.0f) {
+    dl->AddRectFilled(cursor, btn_max,
+                      IM_COL32(50, 100, 255, static_cast<uint8_t>(overlay_opacity * 255.0f)));
   }
 
   if (is_hovered) dl->AddRect(cursor, btn_max, IM_COL32(200, 200, 200, 180), 0.0f, 0, 1.0f);
@@ -74,7 +79,8 @@ absl::Status TilePalettePanel::HandleTileClick(int tile_id, bool is_selected) {
 }
 
 absl::Status TilePalettePanel::RenderTileGrid(void* sdl_texture, int tex_w, int tex_h,
-                                              int tile_render_w, int tile_render_h) {
+                                              int tile_render_w, int tile_render_h,
+                                              float overlay_opacity) {
   auto child = ScopedChild(gui_, "TileGrid", ImVec2(0, 0), false);
   if (!child) return absl::OkStatus();
 
@@ -103,7 +109,7 @@ absl::Status TilePalettePanel::RenderTileGrid(void* sdl_texture, int tex_w, int 
     ImDrawList* dl = gui_->GetWindowDrawList();
     if (dl != nullptr) {
       DrawTileThumbnail(dl, cursor, tile, sdl_texture, tex_w, tex_h, tile_w, tile_h, thumb_w,
-                        thumb_h, is_selected, hovered);
+                        thumb_h, is_selected, hovered, overlay_opacity);
     }
 
     if (clicked) {
@@ -145,6 +151,7 @@ absl::Status TilePalettePanel::Render(int tile_render_width, int tile_render_hei
   gui_->Checkbox("Show Frame", &show_tile_frame_);
   gui_->SameLine();
   gui_->Checkbox("Show Collision", &show_tile_collision_);
+  gui_->SliderFloat("Tile Overlay", &tile_overlay_opacity_, /*v_min=*/0.0f, /*v_max=*/1.0f);
 
   if (selected_tileset_ == nullptr) {
     gui_->TextDisabled(tilesets.empty() ? "No tilesets loaded." : "Select a tileset above.");
@@ -165,7 +172,8 @@ absl::Status TilePalettePanel::Render(int tile_render_width, int tile_render_hei
     }
   }
 
-  return RenderTileGrid(sdl_texture, tex_w, tex_h, tile_render_width, tile_render_height);
+  return RenderTileGrid(sdl_texture, tex_w, tex_h, tile_render_width, tile_render_height,
+                        tile_overlay_opacity_);
 }
 
 }  // namespace zebes

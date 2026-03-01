@@ -2,12 +2,33 @@
 
 #include <map>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "objects/collider.h"
 #include "objects/entity.h"
+#include "objects/level.h"
 #include "objects/sprite.h"
+#include "objects/tileset.h"
+#include "tests/api_mock.h"
+#include "tests/editor/mock_gui.h"
 
 namespace zebes {
+
+// Exposes private ViewportTab methods for testing.
+class ViewportTabTestPeer {
+ public:
+  static absl::Status HandleTileInput(ViewportTab& tab, Level& level, const Tile& tile,
+                                      const Tileset& tileset, Vec mouse_world, int tile_render_w,
+                                      int tile_render_h) {
+    return tab.HandleTileInput(level, tile, tileset, mouse_world, tile_render_w, tile_render_h);
+  }
+};
+
 namespace {
+
+using ::testing::NiceMock;
+using ::testing::Return;
+using ::testing::ReturnRef;
 
 TEST(CalculateParallaxOffsetTest, ZeroCameraPos) {
   EXPECT_DOUBLE_EQ(CalculateParallaxOffset(0.0, 0.5, 2.0), 0.0);
@@ -169,6 +190,84 @@ TEST(NextAvailableEntityIdTest, NeverCollisdesWithLoadedLevel) {
   }
 }
 
+// SnapEntityToGrid tests
+
+TEST(SnapEntityToGridTest, ColliderCenterAlignedAndBottomAligned) {
+  // Tile grid: 16×16. Mouse at (20, 20) → tile (1, 1): center_x=24, bottom_y=32.
+  // Collider: a box from x∈[-8,8], y∈[-16,0] → center_x_offset=0, max_y=0.
+  Collider collider;
+  collider.polygons.push_back({{-8, -16}, {8, -16}, {8, 0}, {-8, 0}});
+  absl::StatusOr<Vec> result = SnapEntityToGrid({20, 20}, 16, 16, &collider, nullptr);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_DOUBLE_EQ(result->x, 24.0);  // cell_center_x - 0
+  EXPECT_DOUBLE_EQ(result->y, 32.0);  // cell_bottom_y - 0
+}
+
+TEST(SnapEntityToGridTest, ColliderAsymmetricBoundingBox) {
+  // Tile grid: 16×16. Mouse at (0, 0) → tile (0, 0): center_x=8, bottom_y=16.
+  // Collider x∈[4,12] → center_x_offset=8; max_y=10.
+  Collider collider;
+  collider.polygons.push_back({{4, 0}, {12, 0}, {12, 10}, {4, 10}});
+  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, nullptr);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_DOUBLE_EQ(result->x, 0.0);   // 8 - 8
+  EXPECT_DOUBLE_EQ(result->y, 6.0);   // 16 - 10
+}
+
+TEST(SnapEntityToGridTest, SpriteFallbackWhenNoCollider) {
+  // Tile grid: 16×16. Mouse at (0, 0) → tile (0, 0): center_x=8, bottom_y=16.
+  // Sprite: render_w=48, render_h=64, offset_x=-24, offset_y=0.
+  // center_x_offset = -24 + 24 = 0; bottom_y_offset = 0 + 64 = 64.
+  Sprite sprite;
+  sprite.frames.push_back(
+      SpriteFrame{.render_w = 48, .render_h = 64, .offset_x = -24, .offset_y = 0});
+  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, nullptr, &sprite);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_DOUBLE_EQ(result->x, 8.0);    // 8 - 0
+  EXPECT_DOUBLE_EQ(result->y, -48.0);  // 16 - 64
+}
+
+TEST(SnapEntityToGridTest, ColliderTakesPriorityOverSprite) {
+  // Both collider and sprite present; collider wins.
+  // Tile grid: 16×16. Mouse at (0, 0) → center_x=8, bottom_y=16.
+  // Collider x∈[0,16], y∈[0,16] → center=8, bottom=16 → pos=(0,0).
+  Collider collider;
+  collider.polygons.push_back({{0, 0}, {16, 0}, {16, 16}, {0, 16}});
+  Sprite sprite;
+  sprite.frames.push_back(SpriteFrame{.render_w = 48, .render_h = 64});
+  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, &sprite);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_DOUBLE_EQ(result->x, 0.0);
+  EXPECT_DOUBLE_EQ(result->y, 0.0);
+}
+
+TEST(SnapEntityToGridTest, ErrorWhenNeitherColliderNorSprite) {
+  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, nullptr, nullptr);
+  EXPECT_FALSE(result.ok());
+  EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST(SnapEntityToGridTest, ErrorWhenSpriteFrameHasZeroDimensions) {
+  Sprite sprite;
+  sprite.frames.push_back(SpriteFrame{.render_w = 0, .render_h = 0});
+  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, nullptr, &sprite);
+  EXPECT_FALSE(result.ok());
+  EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST(SnapEntityToGridTest, EmptyColliderFallsBackToSprite) {
+  // Collider present but has no polygons — falls through to sprite.
+  Collider collider;  // polygons empty
+  Sprite sprite;
+  sprite.frames.push_back(SpriteFrame{.render_w = 16, .render_h = 16, .offset_x = 0, .offset_y = 0});
+  // Tile grid: 16×16. Mouse at (0, 0) → center_x=8, bottom_y=16.
+  // Sprite: center_x_offset=8, bottom_y_offset=16 → pos=(0, 0).
+  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, &sprite);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_DOUBLE_EQ(result->x, 0.0);
+  EXPECT_DOUBLE_EQ(result->y, 0.0);
+}
+
 // PickEntity already uses a 32x32 default hit-box for entities with no sprite.
 // Verify both edges of that box for an entity created from an invisible blueprint.
 TEST(PickEntityTest, InvisibleBlueprintEntity_HitsDefaultBox) {
@@ -184,6 +283,84 @@ TEST(PickEntityTest, InvisibleBlueprintEntity_HitsDefaultBox) {
   // Miss just outside the box.
   EXPECT_EQ(PickEntity(entities, {33, 80}), Entity::kInvalidId);
   EXPECT_EQ(PickEntity(entities, {67, 80}), Entity::kInvalidId);
+}
+
+// HandleTileInput tests
+//
+// These tests exercise the left-paint / right-erase logic in HandleTileInput.
+// The key invariant: painting must only occur when the LEFT mouse button is
+// held. The canvas InvisibleButton is registered for all three mouse buttons,
+// so IsItemActive() returns true on right-click too — the paint guard must
+// additionally check MouseDown[Left] to avoid painting on right-click.
+
+class HandleTileInputTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    io_.MouseDown[ImGuiMouseButton_Left] = false;
+    io_.MouseDown[ImGuiMouseButton_Right] = false;
+    ON_CALL(gui_, GetIO()).WillByDefault(ReturnRef(io_));
+    ON_CALL(gui_, IsItemActive()).WillByDefault(Return(false));
+    ON_CALL(gui_, IsItemClicked(ImGuiMouseButton_Right)).WillByDefault(Return(false));
+  }
+
+  NiceMock<MockApi> api_;
+  NiceMock<MockGui> gui_;
+  ImGuiIO io_{};
+  ViewportTab tab_{api_, &gui_};
+
+  // A minimal tile + tileset sufficient for HandleTileInput (no texture needed).
+  Tile tile_{.id = 7, .source_x = 0, .source_y = 0};
+  Tileset tileset_{.tile_width = 16, .tile_height = 16};
+
+  // Mouse positioned at world (8, 8) with a 16×16 render grid → tile (0, 0).
+  static constexpr Vec kMouseWorld = {8.0, 8.0};
+  static constexpr int kTileRenderW = 16;
+  static constexpr int kTileRenderH = 16;
+};
+
+TEST_F(HandleTileInputTest, LeftHeld_PaintsTile) {
+  Level level;
+  ON_CALL(gui_, IsItemActive()).WillByDefault(Return(true));
+  io_.MouseDown[ImGuiMouseButton_Left] = true;
+
+  ASSERT_TRUE(
+      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, tileset_, kMouseWorld,
+                                           kTileRenderW, kTileRenderH).ok());
+
+  EXPECT_EQ(GetTileAt(level, 0, 0), tile_.id);
+}
+
+TEST_F(HandleTileInputTest, RightClick_ErasesToile) {
+  Level level;
+  // Pre-place a tile so we can verify it gets cleared.
+  SetTileAt(level, 0, 0, tile_.id);
+  ON_CALL(gui_, IsItemClicked(ImGuiMouseButton_Right)).WillByDefault(Return(true));
+
+  ASSERT_TRUE(
+      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, tileset_, kMouseWorld,
+                                           kTileRenderW, kTileRenderH).ok());
+
+  EXPECT_EQ(GetTileAt(level, 0, 0), 0);
+}
+
+// Regression: the canvas InvisibleButton captures right-click, making
+// IsItemActive() true on right-click. Without checking MouseDown[Left], the
+// paint branch fires on right-click instead of the erase branch.
+TEST_F(HandleTileInputTest, RightClickActivatesItem_ErasesNotPaints) {
+  Level level;
+  SetTileAt(level, 0, 0, tile_.id);
+
+  // Simulate right-click activating the canvas item (the bug condition):
+  // IsItemActive() is true, but the left mouse button is NOT held.
+  ON_CALL(gui_, IsItemActive()).WillByDefault(Return(true));
+  io_.MouseDown[ImGuiMouseButton_Left] = false;
+  ON_CALL(gui_, IsItemClicked(ImGuiMouseButton_Right)).WillByDefault(Return(true));
+
+  ASSERT_TRUE(
+      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, tileset_, kMouseWorld,
+                                           kTileRenderW, kTileRenderH).ok());
+
+  EXPECT_EQ(GetTileAt(level, 0, 0), 0) << "Right-click must erase, not paint";
 }
 
 }  // namespace

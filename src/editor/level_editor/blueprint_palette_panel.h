@@ -37,6 +37,10 @@ class BlueprintPalettePanel {
   // Returns whether entity borders should be drawn in the viewport.
   bool GetShowEntityBorders() const { return show_entity_borders_; }
 
+  // Returns the yellow overlay opacity [0,1] applied to entities in the
+  // viewport and to blueprint buttons in the palette. 0 = off, 1 = fully yellow.
+  float GetEntityOverlayOpacity() const { return entity_overlay_opacity_; }
+
  private:
   friend class BlueprintPalettePanelTestPeer;
 
@@ -49,6 +53,7 @@ class BlueprintPalettePanel {
   const Blueprint* selected_blueprint_ = nullptr;
   bool snap_to_grid_ = true;
   bool show_entity_borders_ = false;
+  float entity_overlay_opacity_ = 0.0f;
 };
 
 }  // namespace zebes

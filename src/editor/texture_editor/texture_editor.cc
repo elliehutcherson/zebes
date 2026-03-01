@@ -199,8 +199,22 @@ void TextureEditor::RenderTextureDetails() {
       return;
     }
 
-    RefreshTextures();
+    // Assign the generated ID back so the editor knows which texture was
+    // created. Without this, selected_texture_.id stays empty and the UI
+    // immediately falls back to "Select a texture to edit".
+    selected_texture_.id = *result;
+
+    // Reload from the manager to get canonical state (relative path, etc.).
+    absl::StatusOr<Texture*> loaded = api_->GetTexture(*result);
+    if (!loaded.ok()) {
+      LOG(ERROR) << "Created texture but failed to reload: " << loaded.status();
+      // Keep the id so a subsequent Save doesn't silently use an empty id.
+    } else {
+      selected_texture_ = **loaded;
+    }
+
     new_texture_ = false;
+    RefreshTextures();
     return;
   }
 

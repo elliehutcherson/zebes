@@ -161,15 +161,6 @@ absl::Status LevelEditor::RenderNavigator() {
 
     // 2. Entities
     if (gui_->CollapsingHeader("Entities", ImGuiTreeNodeFlags_DefaultOpen)) {
-      // Toggle button — styled red when delete mode is active.
-      if (delete_mode_active_) {
-        ScopedStyleColor color =
-            gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.1f, 0.1f, 1.0f));
-        if (gui_->Button("Delete Mode: ON")) delete_mode_active_ = false;
-      } else {
-        if (gui_->Button("Delete Mode: OFF")) delete_mode_active_ = true;
-      }
-
       // Entity list with right-click context menu for deletion.
       std::optional<uint64_t> entity_to_delete;
       for (const auto& [id, entity] : level.entities) {
@@ -296,11 +287,13 @@ absl::Status LevelEditor::RenderViewport() {
                                   : Entity::kInvalidId,
         .snap_to_grid = palette_panel_->GetSnapToGrid(),
         .show_entity_borders = palette_panel_->GetShowEntityBorders(),
-        .delete_mode = delete_mode_active_,
+        .delete_mode = palette_panel_->GetDeleteMode(),
         .placement_tile = palette_panel_->GetSelectedTile(),
         .placement_tileset = selected_tileset,
         .show_tile_frame = palette_panel_->GetShowTileFrame(),
         .show_tile_collision = palette_panel_->GetShowTileCollision(),
+        .tile_overlay_opacity = palette_panel_->GetTileOverlayOpacity(),
+        .entity_overlay_opacity = palette_panel_->GetEntityOverlayOpacity(),
     }));
 
     // Consume a canvas right-click delete request and remove the entity.

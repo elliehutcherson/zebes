@@ -49,6 +49,12 @@ class PalettePanel {
   const Tileset* GetSelectedTileset() const;
   bool GetShowTileFrame() const;
   bool GetShowTileCollision() const;
+  float GetTileOverlayOpacity() const;
+  float GetEntityOverlayOpacity() const;
+
+  // Returns true when delete mode is active: right-clicking an entity in the
+  // viewport will delete it instead of deselecting.
+  bool GetDeleteMode() const { return delete_mode_; }
 
   Mode GetMode() const { return mode_; }
 
@@ -58,6 +64,7 @@ class PalettePanel {
   PalettePanel() = default;
 
   Mode mode_ = Mode::kBlueprints;
+  bool delete_mode_ = false;
   std::unique_ptr<BlueprintPalettePanel> blueprint_panel_;
   std::unique_ptr<TilePalettePanel> tile_panel_;
   GuiInterface* gui_ = nullptr;

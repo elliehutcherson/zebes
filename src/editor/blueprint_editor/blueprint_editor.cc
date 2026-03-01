@@ -176,11 +176,11 @@ absl::Status BlueprintEditor::RenderCanvas() {
   canvas_.Begin("StateCanvas", size, camera_);
   auto canvas_end = absl::MakeCleanup([&] { canvas_.End(); });
 
-  // Handles pan (MMB) and Zoom (Wheel) automatically
-  canvas_.HandleInput();
-
   // Rulers & Grid
   canvas_.DrawGrid();
+
+  // Handles pan (MMB) and Zoom (Wheel) automatically
+  canvas_.HandleInput();
 
   // Sync Sprite Logic
   RETURN_IF_ERROR(sprite_panel_->RenderCanvas(canvas_, /*input_allowed=*/true).status());

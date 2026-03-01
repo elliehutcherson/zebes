@@ -167,6 +167,9 @@ absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
 }
 
 absl::Status TextureManager::SaveTexture(const Texture& texture) {
+  if (texture.id.empty()) {
+    return absl::InvalidArgumentError("Cannot save texture with empty id.");
+  }
   nlohmann::json json;
   json["id"] = texture.id;
   json["name"] = texture.name;

@@ -83,6 +83,10 @@ class MockGui : public GuiInterface {
   void LabelText(const char* label, const char* fmt, ...) override {}
 
   MOCK_METHOD(bool, Checkbox, (const char* label, bool* v), (override));
+  MOCK_METHOD(bool, SliderFloat,
+              (const char* label, float* v, float v_min, float v_max, const char* format,
+               ImGuiSliderFlags flags),
+              (override));
   MOCK_METHOD(bool, SliderInt,
               (const char* label, int* v, int v_min, int v_max, const char* format,
                ImGuiSliderFlags flags),

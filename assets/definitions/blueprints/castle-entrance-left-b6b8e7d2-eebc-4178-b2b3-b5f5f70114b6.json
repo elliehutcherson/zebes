@@ -1,0 +1,11 @@
+{
+    "id": "b6b8e7d2-eebc-4178-b2b3-b5f5f70114b6",
+    "name": "castle-entrance-left",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "castle-entrance-left",
+            "sprite_id": "2f7ace7c-c7b0-4dbe-9b15-e82db2c092b3"
+        }
+    ]
+}

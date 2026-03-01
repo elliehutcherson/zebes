@@ -91,6 +91,8 @@ class GuiInterface {
   virtual void LabelText(const char* label, const char* fmt, ...) = 0;
 
   virtual bool Checkbox(const char* label, bool* v) = 0;
+  virtual bool SliderFloat(const char* label, float* v, float v_min, float v_max,
+                           const char* format = "%.3f", ImGuiSliderFlags flags = 0) = 0;
   virtual bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d",
                          ImGuiSliderFlags flags = 0) = 0;
   virtual bool InputText(const char* label, char* buf, size_t buf_size,

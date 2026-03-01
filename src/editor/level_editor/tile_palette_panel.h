@@ -42,6 +42,10 @@ class TilePalettePanel {
   // tile in the viewport.
   bool GetShowTileCollision() const { return show_tile_collision_; }
 
+  // Returns the blue overlay opacity [0,1] applied to tile cells in the
+  // viewport and to tile thumbnails in the palette. 0 = off, 1 = fully blue.
+  float GetTileOverlayOpacity() const { return tile_overlay_opacity_; }
+
   // Deselects the current tile (e.g. after pressing Escape).
   void ClearSelection() { selected_tile_ = nullptr; }
 
@@ -57,7 +61,7 @@ class TilePalettePanel {
   // Renders the scrollable thumbnail grid for the current tileset.
   // tile_render_w/h are forwarded from Render() to scale thumbnail proportions.
   absl::Status RenderTileGrid(void* sdl_texture, int tex_w, int tex_h,
-                              int tile_render_w, int tile_render_h);
+                              int tile_render_w, int tile_render_h, float overlay_opacity);
 
   Api& api_;
   GuiInterface* gui_;
@@ -69,6 +73,7 @@ class TilePalettePanel {
 
   bool show_tile_frame_ = true;
   bool show_tile_collision_ = false;
+  float tile_overlay_opacity_ = 0.0f;
 };
 
 }  // namespace zebes

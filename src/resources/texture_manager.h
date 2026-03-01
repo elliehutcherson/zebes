@@ -65,6 +65,8 @@ class TextureManager {
   virtual absl::Status UpdateTexture(const Texture& texture);
 
  protected:
+  friend class TextureManagerTestPeer;
+
   explicit TextureManager(SdlWrapper* sdl, std::string root_path);
 
   absl::Status SaveTexture(const Texture& texture);

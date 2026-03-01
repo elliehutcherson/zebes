@@ -65,6 +65,17 @@ absl::Status PalettePanel::Render(int tile_render_width, int tile_render_height)
     }
   }
 
+  gui_->SameLine();
+
+  {
+    constexpr ImVec4 kDeleteActiveColor = {0.7f, 0.1f, 0.1f, 1.0f};
+    ScopedStyleColor color = gui_->CreateScopedStyleColor(
+        ImGuiCol_Button, delete_mode_ ? kDeleteActiveColor : kInactiveButtonColor);
+    if (gui_->Button(delete_mode_ ? "Delete Mode: ON" : "Delete Mode: OFF")) {
+      delete_mode_ = !delete_mode_;
+    }
+  }
+
   gui_->Separator();
 
   if (mode_ == Mode::kBlueprints) return blueprint_panel_->Render();
@@ -95,5 +106,13 @@ const Tileset* PalettePanel::GetSelectedTileset() const {
 bool PalettePanel::GetShowTileFrame() const { return tile_panel_->GetShowTileFrame(); }
 
 bool PalettePanel::GetShowTileCollision() const { return tile_panel_->GetShowTileCollision(); }
+
+float PalettePanel::GetTileOverlayOpacity() const {
+  return tile_panel_->GetTileOverlayOpacity();
+}
+
+float PalettePanel::GetEntityOverlayOpacity() const {
+  return blueprint_panel_->GetEntityOverlayOpacity();
+}
 
 }  // namespace zebes
