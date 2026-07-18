@@ -4,6 +4,7 @@
 #include "api/api.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
+#include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
 
@@ -36,20 +37,21 @@ absl::Status ParallaxPreviewTab::Render(std::optional<std::string> texture_id) {
   }
   const Texture& texture = *(*texture_or);
 
-  if (texture.sdl_texture == nullptr) {
+  if (!texture.texture_handle) {
     gui_->Text("Error: SDL_Texture is null.");
     return absl::OkStatus();
   }
 
   int w = 0, h = 0;
-  SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture.sdl_texture), nullptr, nullptr, &w, &h);
+  SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(texture.texture_handle);
+  SDL_QueryTexture(native_texture, nullptr, nullptr, &w, &h);
   float aspect = (h > 0) ? static_cast<float>(w) / static_cast<float>(h) : 1.0f;
   float preview_w = 200.0f * zoom_;
   float preview_h = preview_w / aspect;
 
   gui_->Text("Size: %dx%d", w, h);
 
-  gui_->Image(reinterpret_cast<ImTextureID>(texture.sdl_texture), ImVec2(preview_w, preview_h));
+  gui_->Image(reinterpret_cast<ImTextureID>(native_texture), ImVec2(preview_w, preview_h));
 
   return absl::OkStatus();
 }

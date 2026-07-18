@@ -1,7 +1,7 @@
 #pragma once
 
-#include "SDL_scancode.h"
 #include "absl/strings/string_view.h"
+#include "engine/input_types.h"
 
 namespace zebes {
 
@@ -10,7 +10,7 @@ class IInputManager {
   virtual ~IInputManager() = default;
 
   // --- 1. Registration API ---
-  virtual void BindAction(absl::string_view action_name, SDL_Scancode key) = 0;
+  virtual void BindAction(absl::string_view action_name, Key key) = 0;
 
   // --- 2. Interception Loop ---
   virtual void Update() = 0;

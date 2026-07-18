@@ -36,6 +36,7 @@ target_link_libraries(editor_utils
 add_library(editor_animator animator.cc)
 target_link_libraries(editor_animator
   absl::status
+  absl::statusor
   sprite
 )
 
@@ -45,6 +46,7 @@ add_library(canvas_elements
   canvas/canvas_sprite.cc
 )
 target_link_libraries(canvas_elements
+  editor_animator
   editor_utils
   ${IMGUI_LIBRARIES}
   absl::status
@@ -61,8 +63,16 @@ target_link_libraries(editor_canvas
 )
 
 # Texture Editor
+add_library(texture_editor_model
+  texture_editor/texture_editor_model.cc
+)
+target_link_libraries(texture_editor_model
+  PUBLIC texture absl::status absl::statusor
+)
+
 add_library(editor_texture texture_editor/texture_editor.cc)
 target_link_libraries(editor_texture
+  texture_editor_model
   gui_interface
   api
   ${IMGUI_LIBRARIES}
@@ -74,8 +84,13 @@ target_link_libraries(editor_texture
 add_subdirectory(blueprint_editor)
 
 # Sprite Editor
+add_library(sprite_editor_model sprite_editor/sprite_editor_model.cc)
+target_link_libraries(sprite_editor_model PUBLIC sprite texture absl::status absl::statusor)
+
 add_library(editor_sprite sprite_editor/sprite_editor.cc)
 target_link_libraries(editor_sprite
+  editor_animator
+  sprite_editor_model
   sprite_panel
   api
   ${IMGUI_LIBRARIES}
@@ -104,17 +119,19 @@ add_subdirectory(tileset_editor)
 add_library(editor_ui editor_ui.cc)
 target_link_libraries(editor_ui
   blueprint_editor
-  editor_gui
   editor_config
   editor_sprite
   editor_texture
   level_editor
   tileset_editor
   api
+  gui_interface
+  imgui_scoped
   sdl_wrapper
+  absl::log
   absl::memory
   absl::status
-  gui_interface
+  absl::statusor
   ${IMGUI_LIBRARIES}
 )
 
@@ -132,6 +149,8 @@ target_link_libraries(editor_engine
   sdl_wrapper
   imgui_wrapper
   input_manager
+  sdl_input_source
+  sdl_texture_store
   config
   ${IMGUI_LIBRARIES}
   ${SQLITE3_LIBRARIES}

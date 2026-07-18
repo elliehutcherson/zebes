@@ -1,12 +1,11 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 #include <string>
-#include <vector>
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "editor/blueprint_editor/sprite_panel_model.h"
 #include "editor/canvas/canvas_sprite.h"
 #include "editor/gui_interface.h"
 #include "imgui.h"
@@ -36,7 +35,6 @@ class SpritePanel {
   void Detach();
 
   // Test helpers
-  // Test helpers
   struct Counters {
     int render_list = 0;
     int render_details = 0;
@@ -57,21 +55,14 @@ class SpritePanel {
   // Renders the details view for the selected sprite.
   absl::StatusOr<SpriteResult> RenderDetails();
 
-  // Renders the details of a specific frame.
-  // Assumes frame_index is valid and sdl_texture is populated.
-  void RenderFrameDetails(int frame_index);
-
-  // Calculates UV coordinates for a frame.
-  std::pair<ImVec2, ImVec2> GetFrameUVs(const SpriteFrame& frame, int tex_w, int tex_h) const;
+  // Renders details for the model's current frame.
+  void RenderFrameDetails();
 
   // Confirms changes to the sprite (update).
   absl::Status ConfirmState();
 
-  int sprite_index_ = -1;
-  int frame_index_ = 0;
   Counters counters_;
-  std::vector<Sprite> sprite_cache_;
-  std::optional<Sprite> editting_sprite_;
+  SpritePanelModel model_;
   std::unique_ptr<CanvasSprite> canvas_sprite_;
 
   // Outside dependencies

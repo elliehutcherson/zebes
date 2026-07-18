@@ -1,12 +1,14 @@
+add_library(input_types INTERFACE input_types.h)
+
+add_library(texture_handle INTERFACE texture_handle.h)
+
 add_library(input_manager input_manager.cc)
 target_link_libraries(input_manager
-  common
-  sdl_wrapper
-  imgui_wrapper
+  PUBLIC input_types
+  PRIVATE
   absl::status
   absl::statusor
   absl::flat_hash_map
-  SDL2-static
 )
 
 add_library(camera_controller camera_controller.cc)

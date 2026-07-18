@@ -45,12 +45,26 @@ target_link_libraries(api_validation_test
 gtest_discover_tests(api_validation_test) # <--- REGISTERS THE TEST
 
 add_executable(input_manager_test input_manager_test.cc)
-target_link_libraries(input_manager_test input_manager sdl_wrapper macros gtest_main gmock)
+target_link_libraries(input_manager_test input_manager macros gtest_main gmock)
 gtest_discover_tests(input_manager_test)
+
+add_executable(sdl_input_source_test platform/sdl_input_source_test.cc)
+target_link_libraries(sdl_input_source_test
+  sdl_input_source
+  sdl_wrapper
+  imgui_wrapper
+  gtest_main
+  gmock
+)
+gtest_discover_tests(sdl_input_source_test)
+
+add_executable(sdl_texture_store_test platform/sdl_texture_store_test.cc)
+target_link_libraries(sdl_texture_store_test sdl_texture_store sdl_wrapper gtest_main)
+gtest_discover_tests(sdl_texture_store_test)
 
 # --- Camera Controller ---
 add_executable(camera_controller_test engine/camera_controller_test.cc)
-target_link_libraries(camera_controller_test camera_controller sdl_wrapper macros gtest_main gmock)
+target_link_libraries(camera_controller_test camera_controller macros gtest_main gmock)
 gtest_discover_tests(camera_controller_test)
 
 # --- Level Manager ---
@@ -65,4 +79,3 @@ gtest_discover_tests(tileset_manager_test)
 
 add_subdirectory(editor)
 add_subdirectory(tools)
-

@@ -23,12 +23,12 @@ CameraController::CameraController(Options options)
       zoom_speed_(options.zoom_speed) {
   // Register Inputs (Separation of Mapping vs Logic)
   // You can load these from a file in a real engine
-  input_manager_.BindAction("PanUp", SDL_SCANCODE_W);
-  input_manager_.BindAction("PanDown", SDL_SCANCODE_S);
-  input_manager_.BindAction("PanLeft", SDL_SCANCODE_A);
-  input_manager_.BindAction("PanRight", SDL_SCANCODE_D);
-  input_manager_.BindAction("ZoomIn", SDL_SCANCODE_E);
-  input_manager_.BindAction("ZoomOut", SDL_SCANCODE_Q);
+  input_manager_.BindAction("PanUp", Key::kW);
+  input_manager_.BindAction("PanDown", Key::kS);
+  input_manager_.BindAction("PanLeft", Key::kA);
+  input_manager_.BindAction("PanRight", Key::kD);
+  input_manager_.BindAction("ZoomIn", Key::kE);
+  input_manager_.BindAction("ZoomOut", Key::kQ);
 }
 
 void CameraController::SetCamera(Camera& camera) { camera_ = camera; }

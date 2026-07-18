@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -13,21 +12,20 @@ class Animator {
   Animator() = default;
   ~Animator() = default;
 
-  // Set the sprite config and reset animation state.
-  void SetSprite(const Sprite& sprite);
+  // Reset playback to the first frame.
+  void Reset();
 
-  // Advance the animation by one tick.
-  void Update();
+  // Advance the supplied live frame collection by one tick.
+  void Update(const std::vector<SpriteFrame>& frames);
 
   // Get the current frame of the animation.
-  // Returns error if no sprite config is set or frames are empty.
-  absl::StatusOr<SpriteFrame> GetCurrentFrame() const;
+  // Returns an error when frames are empty.
+  absl::StatusOr<SpriteFrame> GetCurrentFrame(const std::vector<SpriteFrame>& frames) const;
+  absl::StatusOr<int> GetCurrentFrameIndex(const std::vector<SpriteFrame>& frames) const;
 
-  // Check if an animation is currently active.
-  bool IsActive() const;
+  bool IsActive(const std::vector<SpriteFrame>& frames) const;
 
  private:
-  std::optional<Sprite> sprite_;
   int current_frame_index_ = 0;
   int tick_counter_ = 0;
 };

@@ -60,7 +60,7 @@ class TilePalettePanel {
 
   // Renders the scrollable thumbnail grid for the current tileset.
   // tile_render_w/h are forwarded from Render() to scale thumbnail proportions.
-  absl::Status RenderTileGrid(void* sdl_texture, int tex_w, int tex_h,
+  absl::Status RenderTileGrid(void* texture_handle, int tex_w, int tex_h,
                               int tile_render_w, int tile_render_h, float overlay_opacity);
 
   Api& api_;

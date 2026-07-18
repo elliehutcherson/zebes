@@ -1,36 +1,22 @@
 #pragma once
 
-#include <cstring>  // Required for memcpy
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "SDL.h"
-#include "SDL_scancode.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "engine/input_manager_interface.h"
+#include "engine/input_types.h"
 
 namespace zebes {
 
-class SdlWrapper;
-class ImGuiWrapper;
-
 class InputManager : public IInputManager {
  public:
-  // Alias for the poll event function signature: int (*)(SDL_Event*)
-  using PollEventCallback = std::function<int(SDL_Event*)>;
-
   struct Options {
-    // SdlWrapper dependency. Must not be null.
-    // The InputManager does not own this dependency.
-    SdlWrapper* sdl_wrapper = nullptr;
-
-    // Optional ImGuiWrapper dependency.
-    // If provided, InputManager will delegate event processing to it.
-    ImGuiWrapper* imgui_wrapper = nullptr;
+    // Platform input source. Must outlive the manager.
+    InputSource* input_source = nullptr;
   };
 
   // Factory function
@@ -43,7 +29,7 @@ class InputManager : public IInputManager {
   ~InputManager() override = default;
 
   // --- 1. Registration API ---
-  void BindAction(absl::string_view action_name, SDL_Scancode key) override;
+  void BindAction(absl::string_view action_name, Key key) override;
 
   // --- 2. Interception Loop ---
   void Update() override;
@@ -57,13 +43,12 @@ class InputManager : public IInputManager {
 
  private:
   // Private constructor
-  InputManager(SdlWrapper& sdl_wrapper, ImGuiWrapper* imgui_wrapper);
+  explicit InputManager(InputSource& input_source);
 
-  SdlWrapper& sdl_wrapper_;
-  ImGuiWrapper* imgui_wrapper_;
-  absl::flat_hash_map<std::string, std::vector<SDL_Scancode>> action_bindings_;
-  std::vector<uint8_t> curr_keyboard_state_;
-  std::vector<uint8_t> prev_keyboard_state_;
+  InputSource& input_source_;
+  absl::flat_hash_map<std::string, std::vector<Key>> action_bindings_;
+  InputSnapshot current_snapshot_;
+  InputSnapshot previous_snapshot_;
   bool quit_requested_ = false;
 };
 

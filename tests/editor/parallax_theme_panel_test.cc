@@ -51,11 +51,11 @@ class ParallaxThemePanelTest : public Test {
     level_.themes.clear();
 
     textures_ = {// ID, Name, Path, SDL_Texture*
-                 {"t_001", "grass_ground", "assets/tiles/grass.png", nullptr},
-                 {"t_002", "stone_wall", "assets/tiles/stone.png", nullptr},
-                 {"t_003", "player_idle", "assets/chars/hero.png", nullptr},
-                 {"t_004", "enemy_slime", "assets/chars/slime.png", nullptr},
-                 {"t_005", "ui_button", "assets/ui/btn_ok.png", nullptr}};
+                 {"t_001", "grass_ground", "assets/tiles/grass.png", {}},
+                 {"t_002", "stone_wall", "assets/tiles/stone.png", {}},
+                 {"t_003", "player_idle", "assets/chars/hero.png", {}},
+                 {"t_004", "enemy_slime", "assets/chars/slime.png", {}},
+                 {"t_005", "ui_button", "assets/ui/btn_ok.png", {}}};
 
     ON_CALL(*api_, GetAllTextures()).WillByDefault(Return(textures_));
 

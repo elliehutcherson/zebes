@@ -1,16 +1,16 @@
-# --- Editor Test Main ---
-add_library(editor_test_main
-  test_main.cc
-)
-target_link_libraries(editor_test_main
-  PUBLIC
-  imgui_tested
-  imgui_test_engine
-  SDL2-static
-  absl::flags
-  absl::flags_parse
-  absl::log
-)
+if(BUILD_UI_TESTING)
+  # Shared harness for tests that require a real SDL window and ImGui context.
+  add_library(editor_test_main test_main.cc)
+  target_link_libraries(editor_test_main
+    PUBLIC
+    imgui_tested
+    imgui_test_engine
+    SDL2-static
+    absl::flags
+    absl::flags_parse
+    absl::log
+  )
+endif()
 
 # --- Gui Mock ---
 add_library(gui_mock INTERFACE)
@@ -22,31 +22,48 @@ target_link_libraries(gui_mock INTERFACE
 )
 
 
-# --- Sanity Test ---
-add_executable(sanity_test sanity_test.cc)
-target_link_libraries(sanity_test
-  editor_test_main
-  absl::flags
-  absl::flags_parse
-)
+if(BUILD_UI_TESTING)
+  add_executable(sanity_test sanity_test.cc)
+  target_link_libraries(sanity_test
+    editor_test_main
+    absl::flags
+    absl::flags_parse
+  )
+  add_test(NAME sanity_test COMMAND sanity_test)
 
-add_test(NAME sanity_test COMMAND sanity_test)
+  add_executable(sprite_panel_test sprite_panel_test.cc)
+  target_link_libraries(sprite_panel_test
+    editor_test_main
+    sprite_panel
+    editor_gui
+    api
+    gmock
+    absl::flags
+    absl::flags_parse
+  )
+  target_include_directories(sprite_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+  add_test(NAME sprite_panel_test COMMAND sprite_panel_test)
+
+  set_tests_properties(sanity_test sprite_panel_test PROPERTIES LABELS "ui")
+endif()
 
 
-# --- Sprite Panel Test ---
-add_executable(sprite_panel_test sprite_panel_test.cc)
-target_link_libraries(sprite_panel_test
-  editor_test_main
-  sprite_panel
-  editor_gui
-  api
-  gmock
-  absl::flags
-  absl::flags_parse
-)
-target_include_directories(sprite_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
-add_test(NAME sprite_panel_test COMMAND sprite_panel_test)
+# --- Parallax Theme Panel Test ---
+add_executable(sprite_panel_model_test sprite_panel_model_test.cc)
+target_link_libraries(sprite_panel_model_test sprite_panel_model gtest_main)
+gtest_discover_tests(sprite_panel_model_test)
 
+add_executable(texture_editor_model_test texture_editor_model_test.cc)
+target_link_libraries(texture_editor_model_test texture_editor_model gtest_main)
+gtest_discover_tests(texture_editor_model_test)
+
+add_executable(sprite_editor_model_test sprite_editor_model_test.cc)
+target_link_libraries(sprite_editor_model_test sprite_editor_model gtest_main)
+gtest_discover_tests(sprite_editor_model_test)
+
+add_executable(animator_test animator_test.cc)
+target_link_libraries(animator_test editor_animator gtest_main)
+gtest_discover_tests(animator_test)
 
 # --- Parallax Theme Panel Test ---
 add_executable(parallax_theme_panel_test parallax_theme_panel_test.cc)

@@ -43,10 +43,12 @@ target_include_directories(imgui_headers INTERFACE
 add_library(imgui_clean STATIC ${IMGUI_ALL_SOURCES})
 target_link_libraries(imgui_clean PUBLIC imgui_headers SDL2-static)
 
-# 3. Tested Implementation (With Test Engine Hooks)
-add_library(imgui_tested STATIC ${IMGUI_ALL_SOURCES})
-target_link_libraries(imgui_tested PUBLIC imgui_headers SDL2-static)
-target_compile_definitions(imgui_tested PUBLIC IMGUI_ENABLE_TEST_ENGINE)
+if(BUILD_UI_TESTING)
+  # Tested implementation with ImGui Test Engine hooks.
+  add_library(imgui_tested STATIC ${IMGUI_ALL_SOURCES})
+  target_link_libraries(imgui_tested PUBLIC imgui_headers SDL2-static)
+  target_compile_definitions(imgui_tested PUBLIC IMGUI_ENABLE_TEST_ENGINE)
+endif()
 
 # Default 'imgui' alias points to clean version
 add_library(imgui ALIAS imgui_clean)

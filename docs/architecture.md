@@ -1,0 +1,169 @@
+# Zebes Architecture
+
+This document records the intended dependency boundaries and ownership rules in
+Zebes. It describes the architecture we want new code to preserve, including
+places where the current implementation is intentionally transitional.
+
+## Dependency direction
+
+The primary dependency direction is:
+
+```text
+editor/UI ───────► API and resource managers ───────► domain objects
+    │                         │
+    └────────────► platform adapters ◄───────────────┘
+                              │
+                              ▼
+                     SDL, ImGui, and other libraries
+```
+
+The important rules are:
+
+- Domain and engine logic use Zebes-owned types, not SDL or ImGui types.
+- Resource managers depend on platform-neutral interfaces.
+- Platform implementations may depend on external libraries.
+- ImGui belongs in editor/UI code. It should not determine engine data models.
+- The application composition root, currently `EditorEngine`, connects concrete
+  platform implementations to platform-neutral interfaces.
+
+## Texture metadata and runtime resources
+
+Texture metadata and renderer resources have different responsibilities:
+
+```text
+Texture metadata
+  id, name, path
+         │
+         ▼
+TextureManager
+  persistence and metadata cache
+         │ Load(path) / Unload(handle)
+         ▼
+TextureResourceStore
+  platform-neutral ownership contract
+         │ implemented by
+         ▼
+SdlTextureStore
+  owns SDL_Texture instances
+```
+
+`TextureManager` reads and writes texture definitions. It asks a
+`TextureResourceStore` to load and unload runtime resources, but it does not
+create, cast, query, or destroy `SDL_Texture` objects itself.
+
+The serialized metadata contains only `id`, `name`, and `path`. The current
+in-memory `Texture` and `Sprite` structures also carry a transient
+`TextureHandle` for convenient editor rendering; that field is never serialized.
+This is a transitional runtime projection, not persistent asset data. If runtime
+and authoring models are separated later, move the handle into the runtime view
+without changing the stored JSON format.
+
+`SdlTextureStore` owns every managed `SDL_Texture`. It allocates stable numeric
+resource IDs, stores the mapping from ID to native pointer, and destroys the
+native resource on unload or store destruction.
+
+The composition root must outlive objects that use the store. In
+`EditorEngine`, the required lifetime order is:
+
+```text
+SdlWrapper
+  └── SdlTextureStore
+        └── TextureManager
+```
+
+Destruction happens in the opposite order: manager, store, then SDL wrapper.
+
+## TextureHandle and the SDL adapter
+
+`TextureHandle` is the engine-owned identifier passed through resource and
+editor code. It contains:
+
+- a numeric resource ID;
+- an opaque pointer to the resource store that created it.
+
+It does not contain an `SDL_Texture*`, and engine code cannot access its owner
+directly. The owner is retained so the platform adapter can route the handle
+back to the store that owns the resource.
+
+The managed texture flow is:
+
+```text
+1. TextureManager asks TextureResourceStore::Load(path).
+2. SdlTextureStore creates an SDL_Texture.
+3. SdlTextureStore stores textures_[numeric_id] = SDL_Texture*.
+4. SdlTextureStore returns TextureHandle{numeric_id, this store}.
+5. Engine/resource code copies the opaque handle without inspecting SDL state.
+6. SDL editor rendering calls SdlTextureHandleAdapter::ToNative(handle).
+7. The adapter retrieves the recorded owner and asks that SdlTextureStore to
+   resolve the numeric ID.
+8. The resolved SDL_Texture* is used only at the SDL/ImGui rendering boundary.
+```
+
+After `Unload(handle)`, the store removes the ID-to-pointer mapping. Resolving
+that handle then returns `nullptr`, rather than returning a destroyed native
+pointer.
+
+### Handle invariant
+
+The current adapter relies on this invariant:
+
+> A handle passed to `SdlTextureHandleAdapter` was created by a live
+> `SdlTextureStore`.
+
+The handle records its owner as `const void*` to keep backend types out of the
+engine type. The SDL adapter converts that owner back to `SdlTextureStore*`.
+C++ cannot validate this conversion at runtime. Passing a handle from a
+different store implementation, or resolving it after its owner has been
+destroyed, is invalid.
+
+Consequently:
+
+- do not manually construct texture handles;
+- do not retain handles beyond the owning resource store's lifetime;
+- do not pass fake or non-SDL-store handles to the SDL adapter;
+- keep native conversion inside SDL/editor rendering code;
+- use an appropriate platform adapter for any future renderer backend.
+
+This owner-routing design is intentional for the current single-renderer
+architecture. If Zebes gains multiple simultaneous renderer backends or handles
+that routinely outlive stores, replace it with an explicitly injected resolver
+or a backend-checked handle representation.
+
+## Transient texture previews
+
+An imported image preview is not yet a managed engine resource. `TextureEditor`
+therefore owns its preview `SDL_Texture*` directly and destroys it when the
+preview changes or the editor is destroyed. It must not create a `TextureHandle`
+for this temporary pointer.
+
+Once an import is accepted, normal texture creation loads the copied asset
+through `TextureResourceStore`, and subsequent rendering uses the managed
+handle flow above.
+
+## Input boundary
+
+Engine input logic consumes `InputSnapshot`, `Key`, and `InputSource`. SDL event
+translation and ImGui event forwarding live in `SdlInputSource`. Camera and
+other engine systems must not inspect `SDL_Event`, SDL scancodes, or ImGui IO.
+
+This separation allows engine input behavior to be tested using ordinary fake
+snapshots without initializing a window or ImGui context.
+
+## Testing boundaries
+
+- Domain and manager tests should use fake platform-neutral interfaces.
+- SDL adapter/store tests may mock `SdlWrapper` and verify native ownership.
+- ImGui interaction tests belong to the UI test preset.
+- Headless tests must not require a display, SDL window, or ImGui context.
+- Boundary tests should verify invalid handles, missing resources, destruction,
+  and dependency lifetime assumptions.
+
+## Adding another backend
+
+A new renderer should add its implementation below `src/platform/` and
+implement the platform-neutral resource contracts. Do not add the new
+renderer's native types to `Texture`, `Sprite`, engine interfaces, or resource
+manager public APIs.
+
+The composition root chooses the concrete implementation. Backend-specific
+conversion belongs in that backend's presentation or adapter layer.

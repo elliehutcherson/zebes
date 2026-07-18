@@ -6,9 +6,9 @@
 #include <fstream>
 
 #include "common/common.h"
-#include "common/sdl_wrapper.h"
 #include "common/utils.h"
 #include "macros.h"
+#include "resources/fake_texture_resource_store.h"
 
 namespace zebes {
 
@@ -22,20 +22,6 @@ class TextureManagerTestPeer {
 
 namespace {
 
-class MockSdlWrapper : public SdlWrapper {
- public:
-  MockSdlWrapper() : SdlWrapper(nullptr, nullptr) {}
-
-  absl::StatusOr<SDL_Texture*> CreateTexture(const std::string& path) override {
-    // Return a dummy pointer
-    return reinterpret_cast<SDL_Texture*>(0x1234);
-  }
-
-  void DestroyTexture(SDL_Texture* texture) override {
-    // No-op
-  }
-};
-
 class TextureManagerTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -43,20 +29,20 @@ class TextureManagerTest : public ::testing::Test {
     std::filesystem::create_directories(test_dir_ + "/definitions/textures");
     std::filesystem::create_directories(test_dir_ + "/textures");
 
-    mock_sdl_ = std::make_unique<MockSdlWrapper>();
-    auto tm = TextureManager::Create(mock_sdl_.get(), test_dir_);
+    resources_ = std::make_unique<FakeTextureResourceStore>();
+    auto tm = TextureManager::Create(resources_.get(), test_dir_);
     ASSERT_TRUE(tm.ok());
     manager_ = std::move(*tm);
   }
 
   void TearDown() override {
     manager_.reset();
-    mock_sdl_.reset();
+    resources_.reset();
     std::filesystem::remove_all(test_dir_);
   }
 
   std::string test_dir_;
-  std::unique_ptr<MockSdlWrapper> mock_sdl_;
+  std::unique_ptr<FakeTextureResourceStore> resources_;
   std::unique_ptr<TextureManager> manager_;
 };
 
@@ -79,6 +65,9 @@ TEST_F(TextureManagerTest, CreateAndGetTexture) {
   EXPECT_EQ((*tex)->path, "textures/test.png");
   // Default name should be the stem
   EXPECT_EQ((*tex)->name, "test");
+  EXPECT_TRUE((*tex)->texture_handle);
+  ASSERT_EQ(resources_->loaded_paths.size(), 1);
+  EXPECT_EQ(resources_->loaded_paths.front(), test_dir_ + "/textures/test.png");
 
   // Verify JSON exists in definitions path
   std::string json_path = test_dir_ + "/definitions/textures/test-" + *id + ".json";
@@ -162,6 +151,8 @@ TEST_F(TextureManagerTest, DeleteTexture) {
   // Delete
   auto status = manager_->DeleteTexture(*id);
   ASSERT_TRUE(status.ok());
+  ASSERT_EQ(resources_->unloaded_ids.size(), 1);
+  EXPECT_NE(resources_->unloaded_ids.front(), 0);
 
   // Check removed from manager
   auto tex = manager_->GetTexture(*id);

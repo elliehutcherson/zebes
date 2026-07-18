@@ -1,5 +1,7 @@
 #include "editor/sprite_editor/sprite_editor.h"
 
+#include <algorithm>
+
 #include "SDL_render.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
@@ -13,6 +15,8 @@
 namespace zebes {
 
 constexpr float kSpriteListHeight = 300.0f;
+constexpr float kAnimationPreviewMaximumHeight = 300.0f;
+constexpr float kAnimationPreviewPadding = 8.0f;
 
 absl::StatusOr<std::unique_ptr<SpriteEditor>> SpriteEditor::Create(Api* api, SdlWrapper* sdl,
                                                                    GuiInterface* gui) {
@@ -36,107 +40,78 @@ SpriteEditor::SpriteEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui)
 void SpriteEditor::LoadSpriteTexture(const std::string& texture_id) {
   absl::StatusOr<Texture*> texture = api_->GetTexture(texture_id);
   if (!texture.ok()) {
-    sprite_.sdl_texture = nullptr;
+    model_.sprite().texture_handle = {};
     LOG(ERROR) << "Failed to load sprite texture: " << texture.status();
     return;
   }
 
-  sprite_.sdl_texture = (*texture)->sdl_texture;
+  absl::Status status = model_.SelectTexture(texture_id, (*texture)->texture_handle);
+  if (!status.ok()) LOG(ERROR) << "Failed to select sprite texture: " << status;
 }
 
 void SpriteEditor::RefreshSpriteList() {
-  std::vector<Sprite> sprites = api_->GetAllSprites();
-
-  std::sort(sprites.begin(), sprites.end(),
-            [](const Sprite& a, const Sprite& b) { return a.name < b.name; });
-
-  sprite_list_ = sprites;
-  LOG(INFO) << "Loaded " << sprite_list_.size() << " sprites.";
+  model_.SetSprites(api_->GetAllSprites());
+  LOG(INFO) << "Loaded " << model_.sprites().size() << " sprites.";
 
   absl::StatusOr<std::vector<Texture>> textures = api_->GetAllTextures();
   if (!textures.ok()) {
     LOG(ERROR) << "Failed to load textures: " << textures.status();
-    texture_list_.clear();
+    model_.SetTextures({});
   } else {
-    texture_list_ = *textures;
-    LOG(INFO) << "Loaded " << texture_list_.size() << " textures.";
+    model_.SetTextures(std::move(*textures));
+    LOG(INFO) << "Loaded " << model_.textures().size() << " textures.";
   }
 }
 
 void SpriteEditor::SelectSprite(const std::string& sprite_id) {
-  new_sprite_ = false;
-
-  // Find config and setup editing buffer
-  bool found = false;
-  for (const Sprite& s : sprite_list_) {
-    if (s.id != sprite_id) continue;
-
-    sprite_ = s;
-    edit_name_buffer_ = s.name;
-    // Ensure buffer has enough space for editing
-    if (edit_name_buffer_.size() < 256) {
-      edit_name_buffer_.resize(256, '\0');
-    }
-    // Deep copy frames
-    original_frames_ = s.frames;
-    found = true;
-    break;
-  }
-
-  if (!found) {
-    LOG(ERROR) << "Selected sprite not found in list: " << sprite_id;
+  absl::Status status = model_.SelectSprite(sprite_id);
+  if (!status.ok()) {
+    LOG(ERROR) << "Selected sprite not found in list: " << sprite_id << ": " << status;
     return;
   }
-  LoadSpriteTexture(sprite_.texture_id);
+  LoadSpriteTexture(model_.sprite().texture_id);
 
-  active_frame_index_ = -1;  // Reset active selection
-
-  // Reset animator
-  animator_->SetSprite(sprite_);  // Animator also needs update potentially?
+  animator_->Reset();
   is_playing_animation_ = false;
   animation_timer_ = 0.0;
 }
 
 // Below the methods for upserting, updating and deleting sprites are defined.
-void SpriteEditor::UpsertSprite(const std::string& sprite_id) {
-  sprite_.name = edit_name_buffer_.c_str();
-  if (sprite_.texture_id.empty()) {
-    LOG(ERROR) << "Texture must be selected.";
+void SpriteEditor::CreateSprite() {
+  absl::StatusOr<Sprite> request = model_.BuildCreateRequest();
+  if (!request.ok()) {
+    LOG(ERROR) << "Cannot create sprite: " << request.status();
     return;
   }
 
-  // Create new sprite
-  absl::StatusOr<std::string> new_id = api_->CreateSprite(sprite_);
+  absl::StatusOr<std::string> new_id = api_->CreateSprite(*request);
   if (!new_id.ok()) {
     LOG(ERROR) << "Failed to create sprite: " << new_id.status();
     return;
   }
 
   LOG(INFO) << "Created new sprite: " << *new_id;
-  new_sprite_ = false;
   RefreshSpriteList();
   SelectSprite(*new_id);
-};
+}
 
-void SpriteEditor::UpdateSprite(const std::string& sprite_id) {
-  // Update config from buffer
-  sprite_.name = edit_name_buffer_.c_str();
-
-  // Ensure frames indices are correct
-  for (int i = 0; i < sprite_.frames.size(); ++i) {
-    sprite_.frames[i].index = i;
+void SpriteEditor::UpdateSprite() {
+  absl::StatusOr<Sprite> request = model_.BuildUpdateRequest();
+  if (!request.ok()) {
+    LOG(ERROR) << "Cannot update sprite: " << request.status();
+    return;
   }
 
-  absl::Status status = api_->UpdateSprite(sprite_);
+  absl::Status status = api_->UpdateSprite(*request);
   if (!status.ok()) {
     LOG(ERROR) << "Failed to update sprite: " << status;
     return;
   }
 
   LOG(INFO) << "Updated sprite config.";
-  original_frames_ = sprite_.frames;
+  model_.FinishSave();
   RefreshSpriteList();  // Refresh list to show new name
-};
+}
 
 void SpriteEditor::DeleteSprite(const std::string& sprite_id) {
   absl::Status status = api_->DeleteSprite(sprite_id);
@@ -146,13 +121,11 @@ void SpriteEditor::DeleteSprite(const std::string& sprite_id) {
   }
 
   LOG(INFO) << "Deleted sprite " << sprite_id;
-  sprite_ = {};
-  original_frames_.clear();
-  active_frame_index_ = -1;
+  model_.ClearSelection();
   RefreshSpriteList();
-};
+}
 
-void SpriteEditor::SaveSpriteFrames() { UpdateSprite(sprite_.id); }
+void SpriteEditor::SaveSpriteFrames() { UpdateSprite(); }
 
 void SpriteEditor::Render() {
   RenderSpriteSelection();
@@ -190,21 +163,18 @@ void SpriteEditor::RenderSpriteList() {
   }
   gui_->SameLine();
   if (gui_->Button("Create New Sprite")) {
-    new_sprite_ = true;
-    // Clear/Init buffers
-    sprite_ = {};
-    edit_name_buffer_ = "";
-    edit_name_buffer_.resize(256, '\0');
-    sprite_.frames.clear();
-    original_frames_.clear();
-    active_frame_index_ = -1;
+    model_.BeginNewSprite();
+    animator_->Reset();
+    is_playing_animation_ = false;
+    animation_timer_ = 0.0;
   }
 
   // Create list with fixed height
   ScopedChild child = gui_->CreateScopedChild("##Sprites", ImVec2(0, kSpriteListHeight), false);
-  for (const Sprite& sprite : sprite_list_) {
+  for (const auto& catalog_entry : model_.sprites()) {
+    const Sprite& sprite = catalog_entry.second;
     std::string label = sprite.name_id();
-    bool is_selected = (sprite_.id == sprite.id && !new_sprite_);
+    bool is_selected = (model_.sprite().id == sprite.id && !model_.is_new_sprite());
 
     if (gui_->Selectable(label.c_str(), is_selected)) {
       SelectSprite(sprite.id);
@@ -216,24 +186,25 @@ void SpriteEditor::RenderSpriteList() {
 }
 
 void SpriteEditor::RenderSpriteMeta() {
-  if (sprite_.id.empty() && !new_sprite_) {
+  if (!model_.has_selection()) {
     gui_->Text("Select a sprite to edit or Create New.");
     return;
   }
 
   // Title
-  std::string title = new_sprite_ ? "NewSprite" : absl::StrCat("Sprite: ", sprite_.id);
+  Sprite& sprite = model_.sprite();
+  std::string title = model_.is_new_sprite() ? "NewSprite" : absl::StrCat("Sprite: ", sprite.id);
   gui_->Text("%s", title.c_str());
   gui_->Separator();
 
   // ID is auto-assigned
   {
     ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
-    if (new_sprite_) {
+    if (model_.is_new_sprite()) {
       gui_->Text("ID: <Auto>");
     } else {
       // Read-only ID
-      gui_->InputText("ID", const_cast<char*>(sprite_.id.c_str()), sprite_.id.size(),
+      gui_->InputText("ID", const_cast<char*>(sprite.id.c_str()), sprite.id.size(),
                       ImGuiInputTextFlags_ReadOnly);
     }
   }
@@ -241,9 +212,10 @@ void SpriteEditor::RenderSpriteMeta() {
   // Texture Dropdown
   // Find current texture path from ID for display
   std::string current_tex_path = "Select Texture";
-  if (!sprite_.texture_id.empty()) {
-    for (const auto& tex : texture_list_) {
-      if (tex.id == sprite_.texture_id) {
+  if (!sprite.texture_id.empty()) {
+    for (const auto& catalog_entry : model_.textures()) {
+      const Texture& tex = catalog_entry.second;
+      if (tex.id == sprite.texture_id) {
         current_tex_path = tex.path;
         break;
       }
@@ -251,14 +223,14 @@ void SpriteEditor::RenderSpriteMeta() {
   }
 
   {
-    ScopedDisabled disabled = gui_->CreateScopedDisabled(!new_sprite_);
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(!model_.is_new_sprite());
     ScopedCombo combo = gui_->CreateScopedCombo("Texture", current_tex_path.c_str());
-    for (const Texture& texture : texture_list_) {
-      bool is_selected = (sprite_.texture_id == texture.id);
+    for (const auto& catalog_entry : model_.textures()) {
+      const Texture& texture = catalog_entry.second;
+      bool is_selected = (sprite.texture_id == texture.id);
 
       if (gui_->Selectable(texture.path.c_str(), is_selected)) {
-        sprite_.texture_id = texture.id;
-        LoadSpriteTexture(sprite_.texture_id);
+        LoadSpriteTexture(texture.id);
       }
 
       if (is_selected) ImGui::SetItemDefaultFocus();
@@ -266,7 +238,8 @@ void SpriteEditor::RenderSpriteMeta() {
   }
 
   // Sprite Name
-  if (gui_->InputText("Name", edit_name_buffer_.data(), edit_name_buffer_.size())) {
+  std::string& edit_name = model_.edit_name_buffer();
+  if (gui_->InputText("Name", edit_name.data(), edit_name.size())) {
     // Handled by buffer
   }
 
@@ -275,10 +248,10 @@ void SpriteEditor::RenderSpriteMeta() {
   gui_->Spacing();
 
   // Allow the user to create, update or delete sprite
-  if (new_sprite_ && gui_->Button("Create Sprite")) {
-    UpsertSprite(sprite_.id);
-  } else if (!new_sprite_ && gui_->Button("Save Sprite Config")) {
-    UpdateSprite(sprite_.id);
+  if (model_.is_new_sprite() && gui_->Button("Create Sprite")) {
+    CreateSprite();
+  } else if (!model_.is_new_sprite() && gui_->Button("Save Sprite Config")) {
+    UpdateSprite();
   }
   gui_->SameLine();
 
@@ -286,13 +259,14 @@ void SpriteEditor::RenderSpriteMeta() {
     ScopedStyleColor style =
         gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
     if (gui_->Button("Delete Sprite")) {
-      DeleteSprite(sprite_.id);
+      DeleteSprite(sprite.id);
     }
   }
 }
 
 void SpriteEditor::RenderSpriteAnimation() {
   gui_->Text("Animation Preview");
+  const std::vector<SpriteFrame>& frames = model_.sprite().frames;
 
   // Play/Pause Control
   if (gui_->Button(is_playing_animation_ ? "Pause" : "Play")) {
@@ -307,19 +281,20 @@ void SpriteEditor::RenderSpriteAnimation() {
 
     animation_timer_ += ImGui::GetIO().DeltaTime;
     while (animation_timer_ >= tick_duration) {
-      animator_->Update();
+      animator_->Update(frames);
       animation_timer_ -= tick_duration;
     }
   }
 
   // Handle empty frames gracefully
-  if (sprite_.frames.empty()) {
+  if (frames.empty()) {
     gui_->TextDisabled("No frames to animate.");
     return;
   }
 
   // Render Animated Frame
-  absl::StatusOr<SpriteFrame> frame = animator_->GetCurrentFrame();
+  absl::StatusOr<SpriteFrame> frame = animator_->GetCurrentFrame(frames);
+  absl::StatusOr<int> current_frame_index = animator_->GetCurrentFrameIndex(frames);
   if (!frame.ok()) {
     if (is_playing_animation_) {
       gui_->Text("Animation Error: %s", frame.status().ToString().c_str());
@@ -328,48 +303,77 @@ void SpriteEditor::RenderSpriteAnimation() {
     }
     return;
   }
+  if (!current_frame_index.ok()) return;
 
   // Calculate UVs
   int tex_w = 0, tex_h = 0;
-  if (sprite_.sdl_texture != nullptr) {
+  if (model_.sprite().texture_handle) {
     SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
   }
 
   if (tex_w > 0 && tex_h > 0) {
+    const float available_width =
+        std::max(1.0f, gui_->GetContentRegionAvail().x - 2.0f * kAnimationPreviewPadding);
+    absl::StatusOr<AnimationPreviewLayout> layout =
+        SpriteEditorModel::CalculateAnimationPreviewLayout(
+            frames, *current_frame_index, available_width, kAnimationPreviewMaximumHeight);
+    if (!layout.ok()) {
+      gui_->Text("Invalid animation layout: %s", layout.status().ToString().c_str());
+      return;
+    }
+
     ImVec2 uv0(static_cast<float>(frame->texture_x) / tex_w,
                static_cast<float>(frame->texture_y) / tex_h);
     ImVec2 uv1(static_cast<float>(frame->texture_x + frame->texture_w) / tex_w,
                static_cast<float>(frame->texture_y + frame->texture_h) / tex_h);
 
-    gui_->Image(ImTextureId(), ImVec2(frame->render_w, frame->render_h), uv0, uv1);
+    const ImVec2 canvas_position = gui_->GetCursorScreenPos();
+    const ImVec2 canvas_size(layout->canvas_width + 2.0f * kAnimationPreviewPadding,
+                             layout->canvas_height + 2.0f * kAnimationPreviewPadding);
+    gui_->InvisibleButton("##AnimationPreviewCanvas", canvas_size);
+
+    ImDrawList* draw_list = gui_->GetWindowDrawList();
+    if (draw_list != nullptr) {
+      const ImVec2 canvas_end(canvas_position.x + canvas_size.x, canvas_position.y + canvas_size.y);
+      draw_list->AddRectFilled(canvas_position, canvas_end, IM_COL32(28, 28, 32, 255));
+      draw_list->AddRect(canvas_position, canvas_end, IM_COL32(80, 80, 88, 255));
+
+      const float origin_x = canvas_position.x + kAnimationPreviewPadding +
+                             static_cast<float>(-layout->bounds_left) * layout->scale;
+      const float origin_y = canvas_position.y + kAnimationPreviewPadding +
+                             static_cast<float>(-layout->bounds_top) * layout->scale;
+      draw_list->AddLine(ImVec2(origin_x - 4.0f, origin_y), ImVec2(origin_x + 4.0f, origin_y),
+                         IM_COL32(120, 120, 128, 180));
+      draw_list->AddLine(ImVec2(origin_x, origin_y - 4.0f), ImVec2(origin_x, origin_y + 4.0f),
+                         IM_COL32(120, 120, 128, 180));
+
+      const ImVec2 image_min(canvas_position.x + kAnimationPreviewPadding + layout->frame_x,
+                             canvas_position.y + kAnimationPreviewPadding + layout->frame_y);
+      const ImVec2 image_max(image_min.x + layout->frame_width, image_min.y + layout->frame_height);
+      draw_list->AddImage(ImTextureId(), image_min, image_max, uv0, uv1);
+    }
   } else {
     gui_->Text("Invalid texture dimensions.");
   }
 
-  gui_->Text("Frame Index: %d", frame->index);  // Debug info
+  gui_->Text("Frame Index: %d", *current_frame_index);  // Debug info
 }
 
 void SpriteEditor::RenderSpriteFrameList() {
-  if (sprite_.id.empty() && !new_sprite_) return;
+  if (!model_.has_selection()) return;
 
   gui_->Separator();
-  std::string header_text = new_sprite_ ? "Sprite Frames (New Sprite)"
-                                        : absl::StrCat("Sprite Frames for ID: ", sprite_.id);
+  Sprite& sprite = model_.sprite();
+  std::string header_text = model_.is_new_sprite()
+                                ? "Sprite Frames (New Sprite)"
+                                : absl::StrCat("Sprite Frames for ID: ", sprite.id);
   gui_->Text("%s", header_text.c_str());
 
   // Controls
   if (gui_->Button("Add Frame")) {
-    SpriteFrame new_frame;
-    new_frame.texture_w = 32;  // Default size
-    new_frame.texture_h = 32;
-    new_frame.render_w = 32;
-    new_frame.render_h = 32;
-    new_frame.texture_x = 0;
-    new_frame.texture_y = 0;
-    sprite_.frames.push_back(new_frame);
-    active_frame_index_ = static_cast<int>(sprite_.frames.size()) - 1;
+    model_.AddFrame().IgnoreError();
   }
-  if (!new_sprite_) {
+  if (!model_.is_new_sprite()) {
     gui_->SameLine();
     if (gui_->Button("Save Changes")) {
       SaveSpriteFrames();
@@ -377,21 +381,20 @@ void SpriteEditor::RenderSpriteFrameList() {
 
     gui_->SameLine();
     if (gui_->Button("Reset Changes")) {
-      sprite_.frames = original_frames_;
-      active_frame_index_ = -1;
+      model_.ResetFrames();
     }
   }
 
   // Horizontal scroll area
-  float min_height = sprite_.frames.empty() ? 0.0f : 550.0f;
+  float min_height = sprite.frames.empty() ? 0.0f : 550.0f;
   ScopedChild child = gui_->CreateScopedChild("SpriteFramesList", ImVec2(0, min_height));
 
-  if (sprite_.frames.empty()) {
+  if (sprite.frames.empty()) {
     gui_->TextDisabled("No frames found.");
   } else {
-    for (int i = 0; i < sprite_.frames.size(); ++i) {
-      RenderSpriteFrameItem(i, sprite_.frames[i]);
-      if (i >= sprite_.frames.size() - 1) break;
+    for (int i = 0; i < static_cast<int>(sprite.frames.size()); ++i) {
+      RenderSpriteFrameItem(i, sprite.frames[i]);
+      if (i >= static_cast<int>(sprite.frames.size()) - 1) break;
 
       gui_->SameLine();
       gui_->Dummy(ImVec2(10, 0));
@@ -406,27 +409,20 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   ScopedId id = gui_->CreateScopedId(index);
 
   // Header / Active Toggle
-  bool is_active = (active_frame_index_ == index);
+  bool is_active = (model_.active_frame_index() == index);
   if (is_active) {
     ScopedStyleColor style =
         gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
     if (gui_->Button(absl::StrCat("Active ##", index).c_str())) {
-      active_frame_index_ = -1;  // Deselect
+      model_.ToggleActiveFrame(index);
     }
   } else if (gui_->Button(absl::StrCat("Edit ##", index).c_str())) {
-    active_frame_index_ = index;
+    model_.ToggleActiveFrame(index);
   }
 
   gui_->SameLine();
   if (gui_->Button("X")) {
-    // Delete this frame
-    if (active_frame_index_ == index)
-      active_frame_index_ = -1;
-    else if (active_frame_index_ > index)
-      active_frame_index_--;
-
-    sprite_.frames.erase(sprite_.frames.begin() + index);
-
+    model_.DeleteFrame(index).IgnoreError();
     return;  // Stop rendering this item (ScopedId/Group destructors called)
   }
 
@@ -434,21 +430,15 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   if (index > 0) {
     gui_->SameLine();
     if (gui_->ArrowButton("##up", ImGuiDir_Left)) {
-      std::swap(sprite_.frames[index], sprite_.frames[index - 1]);
-      if (active_frame_index_ == index)
-        active_frame_index_ = index - 1;
-      else if (active_frame_index_ == index - 1)
-        active_frame_index_ = index;
+      model_.MoveFrameLeft(index).IgnoreError();
+      return;
     }
   }
-  if (index < sprite_.frames.size() - 1) {
+  if (index < static_cast<int>(model_.sprite().frames.size()) - 1) {
     gui_->SameLine();
     if (gui_->ArrowButton("##down", ImGuiDir_Right)) {
-      std::swap(sprite_.frames[index], sprite_.frames[index + 1]);
-      if (active_frame_index_ == index)
-        active_frame_index_ = index + 1;
-      else if (active_frame_index_ == index + 1)
-        active_frame_index_ = index;
+      model_.MoveFrameRight(index).IgnoreError();
+      return;
     }
   }
 
@@ -456,10 +446,9 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
 
   // Preview Image
   int tex_w = 0, tex_h = 0;
-  if (sprite_.sdl_texture != nullptr) {
+  if (model_.sprite().texture_handle) {
     SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
-    if (tex_w < frame.texture_w) frame.texture_w = tex_w;
-    if (tex_h < frame.texture_h) frame.texture_h = tex_h;
+    model_.ClampFrameToTexture(index, tex_w, tex_h).IgnoreError();
 
     // Calculate UVs
     ImVec2 uv0((float)frame.texture_x / tex_w, (float)frame.texture_y / tex_h);
@@ -526,8 +515,7 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
 
   gui_->Indent(80.0f);
   if (gui_->Button("Apply Scale")) {
-    frame.render_w = frame.texture_w * render_scale_input;
-    frame.render_h = frame.texture_h * render_scale_input;
+    model_.ApplyFrameScale(index, render_scale_input).IgnoreError();
   }
   gui_->Unindent(80.0f);
 
@@ -535,22 +523,23 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
 }
 
 void SpriteEditor::RenderFullTextureView() {
-  if (sprite_.sdl_texture == nullptr) return;
+  if (!model_.sprite().texture_handle) return;
 
   gui_->Separator();
   gui_->Text("Full Texture (Interact to Edit)");
 
   // Zoom controls
-  if (gui_->Button("-")) full_texture_zoom_ = std::max(0.1f, full_texture_zoom_ - 0.1f);
+  if (gui_->Button("-")) model_.ZoomTextureOut();
   gui_->SameLine();
-  if (gui_->Button("+")) full_texture_zoom_ = std::min(5.0f, full_texture_zoom_ + 0.1f);
+  if (gui_->Button("+")) model_.ZoomTextureIn();
   gui_->SameLine();
-  gui_->Text("Zoom: %.1fx", full_texture_zoom_);
+  gui_->Text("Zoom: %.1fx", model_.texture_zoom());
 
   int tex_w, tex_h;
   SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
 
-  ImVec2 canvas_size = ImVec2((float)tex_w * full_texture_zoom_, (float)tex_h * full_texture_zoom_);
+  const float texture_zoom = model_.texture_zoom();
+  ImVec2 canvas_size = ImVec2((float)tex_w * texture_zoom, (float)tex_h * texture_zoom);
 
   ScopedChild child =
       gui_->CreateScopedChild("FullTextureRegion", ImVec2(0, 400), true,
@@ -560,18 +549,20 @@ void SpriteEditor::RenderFullTextureView() {
   gui_->Image(ImTextureId(), canvas_size);
 
   // Early return if no active frame allows us to skip interaction logic
-  if (active_frame_index_ < 0 || active_frame_index_ >= (int)sprite_.frames.size()) {
+  const int active_frame_index = model_.active_frame_index();
+  if (active_frame_index < 0 ||
+      active_frame_index >= static_cast<int>(model_.sprite().frames.size())) {
     return;
   }
 
-  SpriteFrame& active_frame = sprite_.frames[active_frame_index_];
+  SpriteFrame& active_frame = model_.sprite().frames[active_frame_index];
   ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
   // Draw current rect
-  ImVec2 rect_min = ImVec2(canvas_pos.x + active_frame.texture_x * full_texture_zoom_,
-                           canvas_pos.y + active_frame.texture_y * full_texture_zoom_);
-  ImVec2 rect_max = ImVec2(rect_min.x + active_frame.texture_w * full_texture_zoom_,
-                           rect_min.y + active_frame.texture_h * full_texture_zoom_);
+  ImVec2 rect_min = ImVec2(canvas_pos.x + active_frame.texture_x * texture_zoom,
+                           canvas_pos.y + active_frame.texture_y * texture_zoom);
+  ImVec2 rect_max = ImVec2(rect_min.x + active_frame.texture_w * texture_zoom,
+                           rect_min.y + active_frame.texture_h * texture_zoom);
 
   draw_list->AddRect(rect_min, rect_max, IM_COL32(255, 0, 0, 255), 0.0f, 0, 2.0f);
 
@@ -587,8 +578,8 @@ void SpriteEditor::RenderFullTextureView() {
 
   // Handle Dragging
   ImVec2 mouse_pos = ImGui::GetMousePos();
-  float rel_x = (mouse_pos.x - canvas_pos.x) / full_texture_zoom_;
-  float rel_y = (mouse_pos.y - canvas_pos.y) / full_texture_zoom_;
+  float rel_x = (mouse_pos.x - canvas_pos.x) / texture_zoom;
+  float rel_y = (mouse_pos.y - canvas_pos.y) / texture_zoom;
 
   // Clamp to texture bounds
   rel_x = std::max(0.0f, std::min(rel_x, (float)tex_w));

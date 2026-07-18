@@ -1,65 +1,33 @@
 #include "engine/input_manager.h"
 
-#include <cstring>
 #include <memory>
-#include <vector>
 
-#include "SDL_scancode.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "common/imgui_wrapper.h"
-#include "common/sdl_wrapper.h"
+#include "engine/input_types.h"
 
 namespace zebes {
 
 absl::StatusOr<std::unique_ptr<InputManager>> InputManager::Create(Options options) {
-  if (options.sdl_wrapper == nullptr) {
-    return absl::InvalidArgumentError("sdl_wrapper cannot be null");
+  if (options.input_source == nullptr) {
+    return absl::InvalidArgumentError("input_source cannot be null");
   }
   // We use 'new' and wrap it because std::make_unique cannot access
   // the private constructor.
-  return std::unique_ptr<InputManager>(
-      new InputManager(*options.sdl_wrapper, options.imgui_wrapper));
+  return std::unique_ptr<InputManager>(new InputManager(*options.input_source));
 }
 
-InputManager::InputManager(SdlWrapper& sdl_wrapper, ImGuiWrapper* imgui_wrapper)
-    : sdl_wrapper_(sdl_wrapper), imgui_wrapper_(imgui_wrapper) {
-  curr_keyboard_state_.resize(SDL_NUM_SCANCODES, 0);
-  prev_keyboard_state_.resize(SDL_NUM_SCANCODES, 0);
-}
+InputManager::InputManager(InputSource& input_source) : input_source_(input_source) {}
 
-void InputManager::BindAction(absl::string_view action_name, SDL_Scancode key) {
+void InputManager::BindAction(absl::string_view action_name, Key key) {
   action_bindings_[action_name].push_back(key);
 }
 
 void InputManager::Update() {
-  // 1. Copy current state to previous state (to detect edges)
-  prev_keyboard_state_ = curr_keyboard_state_;
-
-  // 2. Poll SDL Events using the injected wrapper
-  SDL_Event event;
-  while (sdl_wrapper_.PollEvent(&event)) {
-    if (imgui_wrapper_) {
-      imgui_wrapper_->ProcessEvent(&event);
-    }
-    if (event.type == SDL_QUIT) {
-      quit_requested_ = true;
-    } else if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
-      quit_requested_ = true;
-    }
-    // Handle other events here
-  }
-
-  // 3. Update current state from SDL hardware snapshot
-  const uint8_t* state = sdl_wrapper_.GetKeyboardState(nullptr);
-
-  if (curr_keyboard_state_.size() < SDL_NUM_SCANCODES) {
-    curr_keyboard_state_.resize(SDL_NUM_SCANCODES);
-    prev_keyboard_state_.resize(SDL_NUM_SCANCODES);
-  }
-
-  std::memcpy(curr_keyboard_state_.data(), state, SDL_NUM_SCANCODES);
+  previous_snapshot_ = current_snapshot_;
+  current_snapshot_ = input_source_.Poll();
+  quit_requested_ = quit_requested_ || current_snapshot_.quit_requested;
 }
 
 bool InputManager::IsActionActive(absl::string_view action_name) const {
@@ -67,10 +35,8 @@ bool InputManager::IsActionActive(absl::string_view action_name) const {
   if (it == action_bindings_.end()) {
     return false;
   }
-  const std::vector<SDL_Scancode>& scancodes = it->second;
-
-  for (SDL_Scancode scancode : scancodes) {
-    if (curr_keyboard_state_[scancode]) {
+  for (Key key : it->second) {
+    if (current_snapshot_.IsKeyDown(key)) {
       return true;
     }
   }
@@ -82,10 +48,8 @@ bool InputManager::IsActionJustPressed(absl::string_view action_name) const {
   if (it == action_bindings_.end()) {
     return false;
   }
-  const std::vector<SDL_Scancode>& scancodes = it->second;
-
-  for (SDL_Scancode scancode : scancodes) {
-    if (curr_keyboard_state_[scancode] && !prev_keyboard_state_[scancode]) {
+  for (Key key : it->second) {
+    if (current_snapshot_.IsKeyDown(key) && !previous_snapshot_.IsKeyDown(key)) {
       return true;
     }
   }

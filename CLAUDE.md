@@ -16,6 +16,10 @@
 
 ## 3. Coding Standards (Google C++ Style)
 
+The human-facing project conventions are documented in
+[`docs/style-guide.md`](docs/style-guide.md). Keep that document and these
+automation instructions aligned.
+
 * **Naming Conventions:**
   * **Variables:** Use `snake_case` for local variables.
   * **Class Members:** Use `snake_case_` (with a trailing underscore).
@@ -31,6 +35,10 @@
 * **Libraries:** Prioritize **Abseil (`absl`)** types and utilities (e.g., `absl::Status`, `absl::flat_hash_map`, `absl::StrFormat`) over STL equivalents where Abseil offers better safety or performance.
 
 ## 4. Architecture & Safety
+
+Cross-layer dependencies and ownership rules are documented in
+[`docs/architecture.md`](docs/architecture.md). Update it when introducing or
+changing an architectural boundary.
 
 * **RAII:** Enforce RAII. Assume resources are initialized on construction.
 * **Pointers vs. References:** Prefer references (`T&` or `const T&`). Use pointers only when nullability is required. No redundant null checks for references.

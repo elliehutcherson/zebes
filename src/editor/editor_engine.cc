@@ -11,6 +11,8 @@
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include "platform/sdl/sdl_input_source.h"
+#include "platform/sdl/sdl_texture_store.h"
 #include "resources/blueprint_manager.h"
 #include "resources/level_manager.h"
 #include "resources/texture_manager.h"
@@ -35,8 +37,10 @@ absl::Status EditorEngine::Init() {
   // Create SDL Wrapper (Window & Renderer)
   ASSIGN_OR_RETURN(sdl_, SdlWrapper::Create(config_.window));
 
-  // Create Texture Manager
-  ASSIGN_OR_RETURN(texture_manager_, TextureManager::Create(sdl_.get(), config_.paths.assets()));
+  // Compose platform texture ownership with metadata persistence.
+  texture_resources_ = std::make_unique<SdlTextureStore>(*sdl_);
+  ASSIGN_OR_RETURN(texture_manager_,
+                   TextureManager::Create(texture_resources_.get(), config_.paths.assets()));
   RETURN_IF_ERROR(texture_manager_->LoadAllTextures());
 
   // Create Sprite Manager
@@ -66,9 +70,10 @@ absl::Status EditorEngine::Init() {
   // Create ImGui Wrapper
   imgui_wrapper_ = ImGuiWrapper::Create();
 
-  // Create Input Manager
-  ASSIGN_OR_RETURN(input_manager_, InputManager::Create({.sdl_wrapper = sdl_.get(),
-                                                         .imgui_wrapper = imgui_wrapper_.get()}));
+  // Translate platform input before it reaches engine logic.
+  sdl_input_source_ = std::make_unique<SdlInputSource>(*sdl_, *imgui_wrapper_);
+  ASSIGN_OR_RETURN(input_manager_,
+                   InputManager::Create({.input_source = sdl_input_source_.get()}));
 
   // Create API
   Api::Options api_options = {
@@ -152,8 +157,12 @@ void EditorEngine::Shutdown() {
   tileset_manager_.reset();
   sprite_manager_.reset();
   texture_manager_.reset();
+  texture_resources_.reset();
   collider_manager_.reset();
   level_manager_.reset();
+  input_manager_.reset();
+  sdl_input_source_.reset();
+  imgui_wrapper_.reset();
 
   sdl_.reset();  // Unique ptr will destroy Wrapper which destroys window/renderer
 

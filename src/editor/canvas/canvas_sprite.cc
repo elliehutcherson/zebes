@@ -5,6 +5,7 @@
 #include "SDL_render.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
+#include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
 
@@ -12,7 +13,7 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
   if (frame_index < 0 || frame_index >= sprite_.frames.size()) {
     return absl::InvalidArgumentError("Index out of range.");
   }
-  if (sprite_.sdl_texture == nullptr) {
+  if (!sprite_.texture_handle) {
     return absl::InternalError("SDL_Texture must not be null!");
   }
 
@@ -24,7 +25,7 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
     // Input is strictly disabled during animation to prevent modifying
     // transient interpolated frames.
     input_allowed = false;
-    ASSIGN_OR_RETURN(local_frame_copy, animator_.GetCurrentFrame());
+    ASSIGN_OR_RETURN(local_frame_copy, animator_.GetCurrentFrame(sprite_.frames));
     frame_ptr = &local_frame_copy;
   } else {
     frame_ptr = &sprite_.frames[frame_index];
@@ -39,14 +40,15 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
 
   // 3. Render Texture
   int tex_w = 0, tex_h = 0;
-  SDL_QueryTexture((SDL_Texture*)sprite_.sdl_texture, nullptr, nullptr, &tex_w, &tex_h);
+  SDL_Texture* texture = SdlTextureHandleAdapter::ToNative(sprite_.texture_handle);
+  SDL_QueryTexture(texture, nullptr, nullptr, &tex_w, &tex_h);
 
   if (tex_w > 0 && tex_h > 0) {
     ImVec2 uv0((float)frame_ptr->texture_x / tex_w, (float)frame_ptr->texture_y / tex_h);
     ImVec2 uv1((float)(frame_ptr->texture_x + frame_ptr->texture_w) / tex_w,
                (float)(frame_ptr->texture_y + frame_ptr->texture_h) / tex_h);
 
-    draw_list->AddImage((ImTextureID)sprite_.sdl_texture, p1, p2, uv0, uv1);
+    draw_list->AddImage(reinterpret_cast<ImTextureID>(texture), p1, p2, uv0, uv1);
   }
 
   // 4. Draw Selection Box
@@ -141,11 +143,14 @@ void CanvasSprite::UpdateAnimation() {
   constexpr double kTickDuration = 1.0 / kTargetFps;
   animation_timer_ += ImGui::GetIO().DeltaTime;
   while (animation_timer_ >= kTickDuration) {
-    animator_.Update();
+    animator_.Update(sprite_.frames);
     animation_timer_ -= kTickDuration;
   }
 }
 
-void CanvasSprite::SetIsAnimating(bool is_animating) { is_animating_ = is_animating; }
+void CanvasSprite::SetIsAnimating(bool is_animating) {
+  if (is_animating && !is_animating_) animator_.Reset();
+  is_animating_ = is_animating;
+}
 
 }  // namespace zebes

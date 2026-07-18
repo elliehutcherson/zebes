@@ -6,26 +6,13 @@
 #include <fstream>
 
 #include "absl/status/status.h"
-#include "common/sdl_wrapper.h"
 #include "common/utils.h"
+#include "nlohmann/json.hpp"
+#include "resources/fake_texture_resource_store.h"
 #include "resources/texture_manager.h"
 
 namespace zebes {
 namespace {
-
-class MockSdlWrapper : public SdlWrapper {
- public:
-  MockSdlWrapper() : SdlWrapper(nullptr, nullptr) {}
-
-  absl::StatusOr<SDL_Texture*> CreateTexture(const std::string& path) override {
-    // Return a dummy pointer
-    return reinterpret_cast<SDL_Texture*>(0x1234);
-  }
-
-  void DestroyTexture(SDL_Texture* texture) override {
-    // No-op
-  }
-};
 
 class SpriteManagerTest : public ::testing::Test {
  protected:
@@ -40,9 +27,9 @@ class SpriteManagerTest : public ::testing::Test {
     // Setup structure for SpriteManager
     std::filesystem::create_directories(test_dir_ + "/definitions/sprites");
 
-    mock_sdl_ = std::make_unique<MockSdlWrapper>();
+    resources_ = std::make_unique<FakeTextureResourceStore>();
     // Create Texture Manager
-    auto tm = TextureManager::Create(mock_sdl_.get(), test_dir_);
+    auto tm = TextureManager::Create(resources_.get(), test_dir_);
     ASSERT_TRUE(tm.ok());
     texture_manager_ = std::move(*tm);
 
@@ -55,12 +42,12 @@ class SpriteManagerTest : public ::testing::Test {
   void TearDown() override {
     manager_.reset();
     texture_manager_.reset();
-    mock_sdl_.reset();
+    resources_.reset();
     std::filesystem::remove_all(test_dir_);
   }
 
   std::string test_dir_;
-  std::unique_ptr<MockSdlWrapper> mock_sdl_;
+  std::unique_ptr<FakeTextureResourceStore> resources_;
   std::unique_ptr<TextureManager> texture_manager_;
   std::unique_ptr<SpriteManager> manager_;
 };

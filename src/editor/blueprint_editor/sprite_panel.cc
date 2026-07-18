@@ -1,7 +1,5 @@
 #include "editor/blueprint_editor/sprite_panel.h"
 
-#include <algorithm>
-
 #include "SDL_render.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -10,6 +8,7 @@
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
 #include "imgui.h"
+#include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
 
@@ -27,44 +26,34 @@ SpritePanel::SpritePanel(Api* api, GuiInterface* gui) : api_(*api), gui_(gui) {
   RefreshSpriteCache();
 }
 
-void SpritePanel::RefreshSpriteCache() {
-  sprite_cache_ = api_.GetAllSprites();
-
-  std::sort(sprite_cache_.begin(), sprite_cache_.end(),
-            [](const Sprite& a, const Sprite& b) { return a.name < b.name; });
-}
+void SpritePanel::RefreshSpriteCache() { model_.SetSprites(api_.GetAllSprites()); }
 
 absl::Status SpritePanel::Attach(const std::string& id) {
   Detach();
   ASSIGN_OR_RETURN(Sprite * sprite, api_.GetSprite(id));
-  editting_sprite_ = *sprite;
-  canvas_sprite_ = std::make_unique<CanvasSprite>(*editting_sprite_);
+  model_.AttachSprite(*sprite);
+  canvas_sprite_ = std::make_unique<CanvasSprite>(*model_.editing_sprite());
 
   return absl::OkStatus();
 }
 
 absl::Status SpritePanel::Attach(int i) {
-  Detach();
-  if (i < 0 || i >= sprite_cache_.size()) {
-    return absl::OutOfRangeError("Cannot attach sprite, index out of range!!!");
-  }
-  editting_sprite_ = sprite_cache_[i];
-  canvas_sprite_ = std::make_unique<CanvasSprite>(*editting_sprite_);
+  model_.SelectSpriteIndex(i);
+  RETURN_IF_ERROR(model_.AttachSelectedSprite());
+  canvas_sprite_ = std::make_unique<CanvasSprite>(*model_.editing_sprite());
 
   return absl::OkStatus();
 }
 
 void SpritePanel::Detach() {
-  frame_index_ = 0;
-  sprite_index_ = -1;
-  editting_sprite_.reset();
+  model_.DetachSprite();
   canvas_sprite_.reset();
 }
 
 absl::StatusOr<SpriteResult> SpritePanel::Render() {
   ScopedId id = gui_->CreateScopedId("SpritePanel");
 
-  if (editting_sprite_.has_value()) {
+  if (model_.has_editing_sprite()) {
     return RenderDetails();
   }
   return RenderList();
@@ -81,15 +70,15 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
 
   // Attach button
   gui_->SameLine();
-  if (gui_->Button("Attach", ImVec2(-FLT_MIN, 0)) && sprite_index_ > -1) {
-    RETURN_IF_ERROR(Attach(sprite_index_));
-    result = {SpriteResult::Type::kAttach, editting_sprite_->id};
+  if (gui_->Button("Attach", ImVec2(-FLT_MIN, 0)) && model_.selected_sprite_index() > -1) {
+    RETURN_IF_ERROR(Attach(model_.selected_sprite_index()));
+    result = {SpriteResult::Type::kAttach, model_.editing_sprite()->id};
   }
   if (auto list_box = gui_->CreateScopedListBox("Sprites", ImVec2(-FLT_MIN, -FLT_MIN)); list_box) {
-    for (int i = 0; i < sprite_cache_.size(); ++i) {
-      const bool is_selected = (sprite_index_ == i);
-      if (gui_->Selectable(sprite_cache_[i].name_id().c_str(), is_selected)) {
-        sprite_index_ = i;
+    for (int i = 0; i < static_cast<int>(model_.sprites().size()); ++i) {
+      const bool is_selected = (model_.selected_sprite_index() == i);
+      if (gui_->Selectable(model_.sprites()[i].name_id().c_str(), is_selected)) {
+        model_.SelectSpriteIndex(i);
       }
 
       if (is_selected) gui_->SetItemDefaultFocus();
@@ -102,20 +91,24 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderList() {
 absl::StatusOr<SpriteResult> SpritePanel::RenderDetails() {
   counters_.render_details++;
   SpriteResult result;
+  Sprite* editing_sprite = model_.editing_sprite();
 
-  gui_->Text("ID: %s", editting_sprite_->id.c_str());
-  gui_->Text("Name: %s", editting_sprite_->name.c_str());
+  gui_->Text("ID: %s", editing_sprite->id.c_str());
+  gui_->Text("Name: %s", editing_sprite->name.c_str());
 
   gui_->Separator();
 
-  if (editting_sprite_->frames.empty()) {
+  if (editing_sprite->frames.empty()) {
     gui_->Text("No frames available.");
   } else {
     // Slider for frame selection
-    gui_->SliderInt("Frame", &frame_index_, /*v_min=*/0,
-                    /*v_max=*/editting_sprite_->frames.size() - 1);
+    int frame_index = model_.frame_index();
+    if (gui_->SliderInt("Frame", &frame_index, /*v_min=*/0,
+                        /*v_max=*/editing_sprite->frames.size() - 1)) {
+      RETURN_IF_ERROR(model_.SetFrameIndex(frame_index));
+    }
 
-    RenderFrameDetails(frame_index_);
+    RenderFrameDetails();
   }
 
   gui_->Separator();
@@ -141,68 +134,65 @@ absl::StatusOr<SpriteResult> SpritePanel::RenderDetails() {
 }
 
 absl::StatusOr<bool> SpritePanel::RenderCanvas(Canvas& canvas, bool input_allowed) {
-  if (!editting_sprite_.has_value()) return false;
+  if (!model_.has_editing_sprite()) return false;
 
-  return canvas_sprite_->Render(canvas, frame_index_, input_allowed);
+  return canvas_sprite_->Render(canvas, model_.frame_index(), input_allowed);
 }
 
 absl::Status SpritePanel::ConfirmState() {
-  RETURN_IF_ERROR(api_.UpdateSprite(*editting_sprite_));
+  RETURN_IF_ERROR(api_.UpdateSprite(*model_.editing_sprite()));
   RefreshSpriteCache();
 
-  LOG(INFO) << "Saved sprite: " << editting_sprite_->name;
+  LOG(INFO) << "Saved sprite: " << model_.editing_sprite()->name;
   return absl::OkStatus();
 }
 
-std::pair<ImVec2, ImVec2> SpritePanel::GetFrameUVs(const SpriteFrame& frame, int tex_w,
-                                                   int tex_h) const {
-  ImVec2 uv0((float)frame.texture_x / tex_w, (float)frame.texture_y / tex_h);
-  ImVec2 uv1((float)(frame.texture_x + frame.texture_w) / tex_w,
-             (float)(frame.texture_y + frame.texture_h) / tex_h);
-  return {uv0, uv1};
-}
-
-void SpritePanel::RenderFrameDetails(int frame_index) {
-  if (!editting_sprite_->sdl_texture) {
+void SpritePanel::RenderFrameDetails() {
+  Sprite* editing_sprite = model_.editing_sprite();
+  if (!editing_sprite->texture_handle) {
     gui_->TextColored(ImVec4(1, 0, 0, 1), "Texture not loaded");
     return;
   }
 
-  SpriteFrame& frame = editting_sprite_->frames[frame_index];
+  SpriteFrame* frame = model_.current_frame();
+  if (frame == nullptr) return;
+
   int tex_w, tex_h;
-  SDL_QueryTexture((SDL_Texture*)editting_sprite_->sdl_texture, nullptr, nullptr, &tex_w, &tex_h);
-
-  if (tex_w <= 0 || tex_h <= 0) return;
-
-  std::pair<ImVec2, ImVec2> uvs = GetFrameUVs(frame, tex_w, tex_h);
+  SDL_Texture* texture = SdlTextureHandleAdapter::ToNative(editing_sprite->texture_handle);
+  if (texture == nullptr) {
+    gui_->TextColored(ImVec4(1, 0, 0, 1), "Texture resource unavailable");
+    return;
+  }
+  SDL_QueryTexture(texture, nullptr, nullptr, &tex_w, &tex_h);
 
   float avail_width = gui_->GetContentRegionAvail().x;
-  float scale = 1.0f;
-  if (frame.texture_w > avail_width) {
-    scale = avail_width / frame.texture_w;
-  }
+  absl::StatusOr<SpriteFramePreview> preview =
+      SpritePanelModel::CalculateFramePreview(*frame, tex_w, tex_h, avail_width);
+  if (!preview.ok()) return;
 
-  ImVec2 size((float)frame.texture_w * scale, (float)frame.texture_h * scale);
-  gui_->Image((ImTextureID)editting_sprite_->sdl_texture, size, uvs.first, uvs.second);
+  ImVec2 size(preview->width, preview->height);
+  ImVec2 uv0(preview->uv0_x, preview->uv0_y);
+  ImVec2 uv1(preview->uv1_x, preview->uv1_y);
+  gui_->Image(reinterpret_cast<ImTextureID>(texture), size, uv0, uv1);
 
   gui_->Separator();
   gui_->Text("Frame Details");
 
   // Editable fields
-  gui_->InputInt("Offset X", &frame.offset_x);
-  gui_->InputInt("Offset Y", &frame.offset_y);
+  gui_->InputInt("Offset X", &frame->offset_x);
+  gui_->InputInt("Offset Y", &frame->offset_y);
 
   // Read-only fields
   {
     ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
-    gui_->InputInt("Index", &frame.index);
-    gui_->InputInt("Texture X", &frame.texture_x);
-    gui_->InputInt("Texture Y", &frame.texture_y);
-    gui_->InputInt("Texture W", &frame.texture_w);
-    gui_->InputInt("Texture H", &frame.texture_h);
-    gui_->InputInt("Render W", &frame.render_w);
-    gui_->InputInt("Render H", &frame.render_h);
-    gui_->InputInt("Frames Per Cycle", &frame.frames_per_cycle);
+    gui_->InputInt("Index", &frame->index);
+    gui_->InputInt("Texture X", &frame->texture_x);
+    gui_->InputInt("Texture Y", &frame->texture_y);
+    gui_->InputInt("Texture W", &frame->texture_w);
+    gui_->InputInt("Texture H", &frame->texture_h);
+    gui_->InputInt("Render W", &frame->render_w);
+    gui_->InputInt("Render H", &frame->render_h);
+    gui_->InputInt("Frames Per Cycle", &frame->frames_per_cycle);
   }
 }
 

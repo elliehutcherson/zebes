@@ -1,5 +1,10 @@
 # Blueprint Components
 
+add_library(sprite_panel_model sprite_panel_model.cc)
+target_link_libraries(sprite_panel_model
+  PUBLIC sprite absl::status absl::statusor
+)
+
 add_library(blueprint_panel blueprint_panel.cc)
 target_link_libraries(blueprint_panel
   editor_utils
@@ -30,6 +35,7 @@ target_link_libraries(collider_panel
 
 add_library(sprite_panel sprite_panel.cc)
 target_link_libraries(sprite_panel
+  sprite_panel_model
   editor_utils
   ${IMGUI_LIBRARIES}
   absl::status

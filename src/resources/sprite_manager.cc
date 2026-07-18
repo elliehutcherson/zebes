@@ -91,7 +91,7 @@ absl::StatusOr<Sprite> GetSpriteFromJson(const nlohmann::json& j) {
 absl::StatusOr<std::unique_ptr<SpriteManager>> SpriteManager::Create(TextureManager* tm,
                                                                      std::string root_path) {
   if (tm == nullptr) {
-    return absl::InvalidArgumentError("SdlWrapper must not be null");
+    return absl::InvalidArgumentError("TextureManager must not be null");
   }
   return std::unique_ptr<SpriteManager>(new SpriteManager(tm, root_path));
 }
@@ -124,7 +124,7 @@ absl::StatusOr<Sprite*> SpriteManager::LoadSprite(const std::string& path_json) 
 
   // Check that texutre has been loaded.
   ASSIGN_OR_RETURN(Texture * texture, tm_->GetTexture(sprite.texture_id));
-  sprite.sdl_texture = texture->sdl_texture;
+  sprite.texture_handle = texture->texture_handle;
 
   // Create Sprite object.
   std::string id = sprite.id;
@@ -170,7 +170,7 @@ absl::Status SpriteManager::SaveSprite(Sprite sprite) {
 
   // Check that texutre has been loaded.
   ASSIGN_OR_RETURN(Texture * texture, tm_->GetTexture(sprite.texture_id));
-  sprite.sdl_texture = texture->sdl_texture;
+  sprite.texture_handle = texture->texture_handle;
 
   nlohmann::json json = ToJson(sprite);
 

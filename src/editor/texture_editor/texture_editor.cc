@@ -7,6 +7,7 @@
 #include "common/common.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
+#include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
 
@@ -29,31 +30,24 @@ TextureEditor::TextureEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui)
   RefreshTextures();
 }
 
-TextureEditor::~TextureEditor() {
-  if (selected_texture_.sdl_texture != nullptr) {
-    sdl_->DestroyTexture(reinterpret_cast<SDL_Texture*>(selected_texture_.sdl_texture));
-  }
-}
+TextureEditor::~TextureEditor() { sdl_->DestroyTexture(preview_texture_); }
 
 void TextureEditor::RefreshTextures() {
-  auto result = api_->GetAllTextures();
+  absl::StatusOr<std::vector<Texture>> result = api_->GetAllTextures();
   if (!result.ok()) {
     LOG(ERROR) << "Failed to fetch textures for importer: " << result.status();
-    texture_list_.clear();
+    model_.SetTextures({});
+    return;
   }
-
-  texture_list_ = *result;
-  std::sort(texture_list_.begin(), texture_list_.end(),
-            [](const Texture& a, const Texture& b) { return a.name < b.name; });
+  model_.SetTextures(std::move(*result));
 }
 
 void TextureEditor::LoadPreview(const std::string& path) {
-  if (!selected_texture_.id.empty()) return;
+  const Texture* selected_texture = model_.selected_texture();
+  if (selected_texture == nullptr || !selected_texture->id.empty()) return;
 
-  if (selected_texture_.sdl_texture != nullptr) {
-    sdl_->DestroyTexture(reinterpret_cast<SDL_Texture*>(selected_texture_.sdl_texture));
-    selected_texture_.sdl_texture = nullptr;
-  }
+  sdl_->DestroyTexture(preview_texture_);
+  preview_texture_ = nullptr;
 
   absl::StatusOr<SDL_Texture*> texture = sdl_->CreateTexture(path);
   if (!texture.ok()) {
@@ -61,17 +55,20 @@ void TextureEditor::LoadPreview(const std::string& path) {
     return;
   }
 
-  selected_texture_.sdl_texture = *texture;
+  preview_texture_ = *texture;
 }
 
 void TextureEditor::SelectTexture(const Texture& texture) {
-  selected_texture_ = texture;
-  new_texture_ = false;
-  edit_name_buffer_ = texture.name;
-  // +1 for null terminator
-  if (edit_name_buffer_.size() <= kMaxTextureNameLength) {
-    edit_name_buffer_.resize(kMaxTextureNameLength + 1, '\0');
-  }
+  sdl_->DestroyTexture(preview_texture_);
+  preview_texture_ = nullptr;
+  model_.SelectTexture(texture);
+}
+
+SDL_Texture* TextureEditor::PreviewTexture() const {
+  if (preview_texture_ != nullptr) return preview_texture_;
+  const Texture* selected_texture = model_.selected_texture();
+  if (selected_texture == nullptr) return nullptr;
+  return SdlTextureHandleAdapter::ToNative(selected_texture->texture_handle);
 }
 
 void TextureEditor::Render() {
@@ -96,9 +93,9 @@ void TextureEditor::Render() {
   // Handle File Dialog
   if (ImGuiFileDialog::Instance()->Display("TextureOpenDlg_v2")) {
     if (ImGuiFileDialog::Instance()->IsOk()) {
-      std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-      selected_texture_.path = filePathName;
-      LoadPreview(selected_texture_.path);
+      std::string file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
+      model_.SetSelectedPath(file_path_name);
+      LoadPreview(file_path_name);
     }
     ImGuiFileDialog::Instance()->Close();
   }
@@ -113,31 +110,25 @@ void TextureEditor::RenderTextureList() {
   gui_->Text("Imported Textures");
 
   // Refresh list if empty (or add a refresh button)
-  if (texture_list_.empty()) {
-    if (gui_->Button("Refresh List")) {
-      RefreshTextures();
-    }
-  } else {
-    if (gui_->Button("Refresh List")) {
-      RefreshTextures();
-    }
+  if (gui_->Button("Refresh List")) {
+    RefreshTextures();
   }
 
   gui_->SameLine();
   if (gui_->Button("New Texture")) {
-    new_texture_ = true;
-    selected_texture_ = {};
-    selected_texture_ = {};
-    edit_name_buffer_ = "";
-    edit_name_buffer_.resize(kMaxTextureNameLength + 1, '\0');
+    sdl_->DestroyTexture(preview_texture_);
+    preview_texture_ = nullptr;
+    model_.BeginNewTexture();
   }
 
   // List textures
   ScopedListBox list_box = gui_->CreateScopedListBox(
       "##Textures", ImVec2(-FLT_MIN, 10 * gui_->GetTextLineHeightWithSpacing()));
   if (list_box) {
-    for (const Texture& texture : texture_list_) {
-      bool is_selected = (!new_texture_ && selected_texture_.id == texture.id);
+    const Texture* selected_texture = model_.selected_texture();
+    for (const Texture& texture : model_.textures()) {
+      bool is_selected = (!model_.is_new_texture() && selected_texture != nullptr &&
+                          selected_texture->id == texture.id);
       std::string label = texture.name_id();
       if (gui_->Selectable(label.c_str(), is_selected)) {
         SelectTexture(texture);
@@ -150,7 +141,8 @@ void TextureEditor::RenderTextureList() {
 }
 
 void TextureEditor::RenderTextureDetails() {
-  if (selected_texture_.id.empty() && !new_texture_) {
+  Texture* selected_texture = model_.selected_texture();
+  if (selected_texture == nullptr) {
     gui_->TextDisabled("Select a texture to edit.");
     return;
   }
@@ -159,20 +151,20 @@ void TextureEditor::RenderTextureDetails() {
   gui_->Separator();
 
   // ID Field
-  if (new_texture_) {
+  if (model_.is_new_texture()) {
     gui_->Text("ID: <Auto-Generated>");
   } else {
     // Read-only for existing
-    gui_->LabelText("ID", "%s", selected_texture_.id.c_str());
+    gui_->LabelText("ID", "%s", selected_texture->id.c_str());
   }
 
   // Name Field
-  gui_->InputText("Name", edit_name_buffer_.data(), edit_name_buffer_.size());
+  gui_->InputText("Name", model_.edit_name_buffer().data(), model_.edit_name_buffer().size());
 
   // Path Field (Read-only for now, consistent with existing logic usually)
-  gui_->LabelText("Path", "%s", selected_texture_.path.c_str());
+  gui_->LabelText("Path", "%s", selected_texture->path.c_str());
 
-  if (new_texture_) {
+  if (model_.is_new_texture()) {
     gui_->SameLine();
     if (gui_->Button("Browse...")) {
       IGFD::FileDialogConfig config;
@@ -184,48 +176,49 @@ void TextureEditor::RenderTextureDetails() {
 
   gui_->Spacing();
 
-  if (new_texture_ && gui_->Button("Create")) {
-    // TODO: Implement Create Logic
-    selected_texture_.name = edit_name_buffer_.c_str();
-    // We assume selected_texture_.path is already set by the file dialog
-    if (selected_texture_.path.empty()) {
-      LOG(ERROR) << "Cannot create texture without a path.";
+  if (model_.is_new_texture() && gui_->Button("Create")) {
+    absl::StatusOr<Texture> texture = model_.BuildTextureForCreate();
+    if (!texture.ok()) {
+      LOG(ERROR) << texture.status();
       return;
     }
 
-    auto result = api_->CreateTexture(selected_texture_);
+    absl::StatusOr<std::string> result = api_->CreateTexture(*texture);
     if (!result.ok()) {
       LOG(ERROR) << "Failed to create texture: " << result.status();
       return;
     }
 
-    // Assign the generated ID back so the editor knows which texture was
-    // created. Without this, selected_texture_.id stays empty and the UI
-    // immediately falls back to "Select a texture to edit".
-    selected_texture_.id = *result;
+    texture->id = *result;
 
     // Reload from the manager to get canonical state (relative path, etc.).
     absl::StatusOr<Texture*> loaded = api_->GetTexture(*result);
     if (!loaded.ok()) {
       LOG(ERROR) << "Created texture but failed to reload: " << loaded.status();
-      // Keep the id so a subsequent Save doesn't silently use an empty id.
+      model_.FinishCreate(*texture);
     } else {
-      selected_texture_ = **loaded;
+      model_.FinishCreate(**loaded);
     }
 
-    new_texture_ = false;
+    sdl_->DestroyTexture(preview_texture_);
+    preview_texture_ = nullptr;
     RefreshTextures();
     return;
   }
 
   if (gui_->Button("Save")) {
-    selected_texture_.name = edit_name_buffer_.c_str();
-    auto status = api_->UpdateTexture(selected_texture_);
+    absl::StatusOr<Texture> texture = model_.BuildTextureForUpdate();
+    if (!texture.ok()) {
+      LOG(ERROR) << texture.status();
+      return;
+    }
+    absl::Status status = api_->UpdateTexture(*texture);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to update texture: " << status;
       return;
     }
 
+    model_.FinishUpdate();
     RefreshTextures();
   }
 }
@@ -233,29 +226,26 @@ void TextureEditor::RenderTextureDetails() {
 void TextureEditor::RenderZoom() {
   // Zoom controls
   if (gui_->Button("-")) {
-    zoom_ *= 0.8f;
-    if (zoom_ < 0.1f) zoom_ = 0.1f;
+    model_.ZoomOut();
   }
   gui_->SameLine();
   if (gui_->Button("+")) {
-    zoom_ *= 1.25f;
-    if (zoom_ > 10.0f) zoom_ = 10.0f;
+    model_.ZoomIn();
   }
   gui_->SameLine();
   if (gui_->Button("Reset Zoom")) {
-    zoom_ = 1.0f;
+    model_.ResetZoom();
   }
   gui_->SameLine();
-  gui_->Text("Zoom: %.1fx", zoom_);
+  gui_->Text("Zoom: %.1fx", model_.zoom());
 
   int w = 0, h = 0;
-  if (selected_texture_.sdl_texture) {
-    SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(selected_texture_.sdl_texture), nullptr,
-                     nullptr, &w, &h);
+  if (SDL_Texture* texture = PreviewTexture(); texture != nullptr) {
+    SDL_QueryTexture(texture, nullptr, nullptr, &w, &h);
   }
-  float aspect = (h > 0) ? static_cast<float>(w) / static_cast<float>(h) : 1.0f;
-  preview_w_ = 200.0f * zoom_;
-  preview_h_ = preview_w_ / aspect;
+  TexturePreviewSize preview_size = model_.CalculatePreviewSize(w, h);
+  preview_w_ = preview_size.width;
+  preview_h_ = preview_size.height;
 
   gui_->Text("Size: %dx%d", w, h);
 }
@@ -269,7 +259,8 @@ void TextureEditor::RenderPreview() {
   ScopedChild child = gui_->CreateScopedChild("PreviewRegion", ImVec2(0, 400), true,
                                               ImGuiWindowFlags_HorizontalScrollbar);
 
-  if (selected_texture_.sdl_texture == nullptr) {
+  SDL_Texture* texture = PreviewTexture();
+  if (texture == nullptr) {
     gui_->TextDisabled("No texture loaded.");
     return;
   }
@@ -279,14 +270,11 @@ void TextureEditor::RenderPreview() {
   if (gui_->IsWindowHovered()) {
     float wheel = gui_->GetIO().MouseWheel;
     if (wheel != 0.0f) {
-      zoom_ *= (1.0f + wheel * 0.1f);
-      if (zoom_ < 0.1f) zoom_ = 0.1f;
-      if (zoom_ > 10.0f) zoom_ = 10.0f;
+      model_.AdjustZoom(1.0f + wheel * 0.1f);
     }
   }
 
-  gui_->Image(reinterpret_cast<ImTextureID>(selected_texture_.sdl_texture),
-              ImVec2(preview_w_, preview_h_));
+  gui_->Image(reinterpret_cast<ImTextureID>(texture), ImVec2(preview_w_, preview_h_));
 }
 
 }  // namespace zebes

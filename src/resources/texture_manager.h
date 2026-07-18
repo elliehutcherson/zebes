@@ -2,20 +2,17 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
-
-#include "SDL.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "common/sdl_wrapper.h"
 #include "objects/texture.h"
+#include "resources/texture_resource_store.h"
 
 namespace zebes {
 
 class TextureManager {
  public:
-  static absl::StatusOr<std::unique_ptr<TextureManager>> Create(SdlWrapper* sdl,
+  static absl::StatusOr<std::unique_ptr<TextureManager>> Create(TextureResourceStore* resources,
                                                                 std::string root_path);
 
   virtual ~TextureManager();
@@ -67,7 +64,7 @@ class TextureManager {
  protected:
   friend class TextureManagerTestPeer;
 
-  explicit TextureManager(SdlWrapper* sdl, std::string root_path);
+  explicit TextureManager(TextureResourceStore* resources, std::string root_path);
 
   absl::Status SaveTexture(const Texture& texture);
 
@@ -77,7 +74,7 @@ class TextureManager {
   const std::string root_path_;
   const std::string definitions_path_;
   const std::string images_path_;
-  SdlWrapper* sdl_;
+  TextureResourceStore* resources_;
   absl::flat_hash_map<std::string, std::unique_ptr<Texture>> textures_;
 };
 

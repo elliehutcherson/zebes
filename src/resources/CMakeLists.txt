@@ -1,13 +1,15 @@
 add_library(resource_utils resource_utils.cc)
 target_link_libraries(resource_utils absl::strings)
 
+add_library(texture_resource_store INTERFACE texture_resource_store.h)
+target_link_libraries(texture_resource_store INTERFACE texture_handle absl::status absl::statusor)
+
 add_library(texture_manager texture_manager.cc)
 target_link_libraries(texture_manager common)
 target_link_libraries(texture_manager absl::status)
 target_link_libraries(texture_manager absl::statusor)
 target_link_libraries(texture_manager absl::flat_hash_map)
-target_link_libraries(texture_manager SDL2-static)
-target_link_libraries(texture_manager sdl_wrapper)
+target_link_libraries(texture_manager texture_resource_store)
 target_link_libraries(texture_manager texture)
 target_link_libraries(texture_manager resource_utils)
 
@@ -18,7 +20,6 @@ target_link_libraries(sprite_manager texture_manager)
 target_link_libraries(sprite_manager absl::status)
 target_link_libraries(sprite_manager absl::statusor)
 target_link_libraries(sprite_manager absl::flat_hash_map)
-target_link_libraries(sprite_manager SDL2-static)
 target_link_libraries(sprite_manager resource_utils)
 
 add_library(collider_manager collider_manager.cc)

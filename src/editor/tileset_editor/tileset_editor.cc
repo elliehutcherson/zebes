@@ -9,6 +9,7 @@
 #include "editor/canvas/tile_draw.h"
 #include "editor/imgui_scoped.h"
 #include "objects/tileset.h"
+#include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
 
@@ -88,22 +89,22 @@ absl::Status TilesetEditor::RenderViewport() {
   }
 
   // Resolve the SDL texture from the panel's cache.
-  void* sdl_texture = nullptr;
+  void* texture_handle = nullptr;
   for (const Texture& tex : tileset_panel_->GetTextures()) {
     if (tex.id == active_tileset_->texture_id) {
-      sdl_texture = tex.sdl_texture;
+      texture_handle = SdlTextureHandleAdapter::ToNative(tex.texture_handle);
       break;
     }
   }
 
-  if (sdl_texture == nullptr) {
+  if (texture_handle == nullptr) {
     gui_->Text("Texture not loaded.");
     return absl::OkStatus();
   }
 
   int tex_w = 0;
   int tex_h = 0;
-  SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(sdl_texture), nullptr, nullptr, &tex_w, &tex_h);
+  SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture_handle), nullptr, nullptr, &tex_w, &tex_h);
 
   const float tw = static_cast<float>(active_tileset_->tile_width);
   const float th = static_cast<float>(active_tileset_->tile_height);
@@ -122,7 +123,7 @@ absl::Status TilesetEditor::RenderViewport() {
     ImVec2 img_min = canvas_.WorldToScreen({0, 0});
     ImVec2 img_max =
         canvas_.WorldToScreen({static_cast<double>(tex_w), static_cast<double>(tex_h)});
-    dl->AddImage(reinterpret_cast<ImTextureID>(sdl_texture), img_min, img_max);
+    dl->AddImage(reinterpret_cast<ImTextureID>(texture_handle), img_min, img_max);
 
     // Draw grid and rulers on top of the texture.
     canvas_.DrawGrid();

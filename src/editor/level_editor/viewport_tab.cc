@@ -14,18 +14,19 @@
 #include "editor/imgui_scoped.h"
 #include "imgui.h"
 #include "objects/texture.h"
+#include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
 
 namespace {
 
 // Draws a single tile cell onto the draw list at the given world-tile coordinate.
-// sdl_texture may be null; overlays (frame, collision) are drawn regardless so
+// texture_handle may be null; overlays (frame, collision) are drawn regardless so
 // that invisible tiles remain visible in the editor.
 // tile_render_w/h control the world-space pixel size of the rendered cell;
 // UV sampling always uses the source rect from tileset.tile_width/tile_height.
 void DrawTileAt(ImDrawList* dl, const Canvas& canvas, const Camera& camera, const Tile& tile,
-                const Tileset& tileset, void* sdl_texture, int tex_w, int tex_h, int world_tile_x,
+                const Tileset& tileset, void* texture_handle, int tex_w, int tex_h, int world_tile_x,
                 int world_tile_y, int tile_render_w, int tile_render_h, bool show_frame,
                 bool show_collision, float tile_overlay_opacity) {
   Vec world_pos = {world_tile_x * static_cast<double>(tile_render_w),
@@ -34,12 +35,12 @@ void DrawTileAt(ImDrawList* dl, const Canvas& canvas, const Camera& camera, cons
   ImVec2 sp_max =
       ImVec2(sp_min.x + tile_render_w * camera.zoom, sp_min.y + tile_render_h * camera.zoom);
 
-  if (sdl_texture != nullptr && tex_w > 0 && tex_h > 0) {
+  if (texture_handle != nullptr && tex_w > 0 && tex_h > 0) {
     float u0 = static_cast<float>(tile.source_x) / tex_w;
     float v0 = static_cast<float>(tile.source_y) / tex_h;
     float u1 = static_cast<float>(tile.source_x + tileset.tile_width) / tex_w;
     float v1 = static_cast<float>(tile.source_y + tileset.tile_height) / tex_h;
-    dl->AddImage(reinterpret_cast<ImTextureID>(sdl_texture), sp_min, sp_max, ImVec2(u0, v0),
+    dl->AddImage(reinterpret_cast<ImTextureID>(texture_handle), sp_min, sp_max, ImVec2(u0, v0),
                  ImVec2(u1, v1));
   }
   if (tile_overlay_opacity > 0.0f) {
@@ -307,12 +308,13 @@ void ViewportTab::RenderEntities(const Level& level, uint64_t selected_entity_id
     ImVec2 sp_max;
 
     if (entity.sprite != nullptr && !entity.sprite->frames.empty() &&
-        entity.sprite->sdl_texture != nullptr) {
+        entity.sprite->texture_handle) {
       const SpriteFrame& frame = entity.sprite->frames[0];
 
       int tex_w = 0, tex_h = 0;
-      SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(entity.sprite->sdl_texture), nullptr, nullptr,
-                       &tex_w, &tex_h);
+      SDL_Texture* native_texture =
+          SdlTextureHandleAdapter::ToNative(entity.sprite->texture_handle);
+      SDL_QueryTexture(native_texture, nullptr, nullptr, &tex_w, &tex_h);
 
       sp_min = canvas_.WorldToScreen({entity.transform.position.x + frame.offset_x,
                                       entity.transform.position.y + frame.offset_y});
@@ -325,8 +327,8 @@ void ViewportTab::RenderEntities(const Level& level, uint64_t selected_entity_id
         float u1 = static_cast<float>(frame.texture_x + frame.texture_w) / tex_w;
         float v1 = static_cast<float>(frame.texture_y + frame.texture_h) / tex_h;
 
-        draw_list->AddImage(reinterpret_cast<ImTextureID>(entity.sprite->sdl_texture), sp_min,
-                            sp_max, ImVec2(u0, v0), ImVec2(u1, v1));
+        draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), sp_min, sp_max,
+                            ImVec2(u0, v0), ImVec2(u1, v1));
       }
     } else {
       // No sprite: draw a placeholder box.
@@ -364,7 +366,7 @@ void ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos
   if (sprite_id_opt.has_value()) {
     absl::StatusOr<Sprite*> sprite_or = api_.GetSprite(*sprite_id_opt);
     if (sprite_or.ok() && *sprite_or != nullptr && !(*sprite_or)->frames.empty() &&
-        (*sprite_or)->sdl_texture != nullptr)
+        (*sprite_or)->texture_handle)
       sprite = *sprite_or;
   }
 
@@ -372,8 +374,8 @@ void ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos
     const SpriteFrame& frame = sprite->frames[0];
 
     int tex_w = 0, tex_h = 0;
-    SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(sprite->sdl_texture), nullptr, nullptr, &tex_w,
-                     &tex_h);
+    SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(sprite->texture_handle);
+    SDL_QueryTexture(native_texture, nullptr, nullptr, &tex_w, &tex_h);
 
     ImVec2 ghost_min =
         canvas_.WorldToScreen({world_pos.x + frame.offset_x, world_pos.y + frame.offset_y});
@@ -387,7 +389,7 @@ void ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos
       float v1 = static_cast<float>(frame.texture_y + frame.texture_h) / tex_h;
 
       // Semi-transparent tint to indicate ghost/preview.
-      draw_list->AddImage(reinterpret_cast<ImTextureID>(sprite->sdl_texture), ghost_min, ghost_max,
+      draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), ghost_min, ghost_max,
                           ImVec2(u0, v0), ImVec2(u1, v1), IM_COL32(255, 255, 255, 160));
       return;
     }
@@ -431,8 +433,8 @@ void ViewportTab::RenderZones(const Level& level) {
       const Texture& texture = *(*texture_or);
 
       int w = 0, h = 0;
-      SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture.sdl_texture), nullptr, nullptr, &w,
-                       &h);
+      SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(texture.texture_handle);
+      SDL_QueryTexture(native_texture, nullptr, nullptr, &w, &h);
       if (w == 0 || h == 0) continue;
 
       float image_w = static_cast<float>(w) * layer.base_scale;
@@ -470,7 +472,7 @@ void ViewportTab::RenderZones(const Level& level) {
           ImVec2 sp_max =
               ImVec2(sp_min.x + image_w * camera_.zoom, sp_min.y + image_h * camera_.zoom);
 
-          draw_list->AddImage(reinterpret_cast<ImTextureID>(texture.sdl_texture), sp_min, sp_max,
+          draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), sp_min, sp_max,
                               ImVec2(0, 0), ImVec2(1, 1));
         }
       }
@@ -500,16 +502,16 @@ void ViewportTab::RenderTileChunks(const Level& level, const Tileset& tileset, b
   if (!dl) return;
 
   // Resolve the atlas texture. A non-empty texture_id must resolve successfully.
-  void* sdl_texture = nullptr;
+  void* texture_handle = nullptr;
   int tex_w = 0, tex_h = 0;
   if (!tileset.texture_id.empty()) {
     absl::StatusOr<Texture*> texture = api_.GetTexture(tileset.texture_id);
-    if (!texture.ok() || *texture == nullptr || (*texture)->sdl_texture == nullptr) {
+    if (!texture.ok() || *texture == nullptr || !(*texture)->texture_handle) {
       LOG(ERROR) << "RenderTileChunks: failed to resolve texture '" << tileset.texture_id << "'";
       return;
     }
-    sdl_texture = (*texture)->sdl_texture;
-    SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(sdl_texture), nullptr, nullptr, &tex_w, &tex_h);
+    texture_handle = SdlTextureHandleAdapter::ToNative((*texture)->texture_handle);
+    SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture_handle), nullptr, nullptr, &tex_w, &tex_h);
     if (tex_w <= 0 || tex_h <= 0) {
       LOG(ERROR) << "RenderTileChunks: texture has invalid dimensions '" << tileset.texture_id
                  << "'";
@@ -534,7 +536,7 @@ void ViewportTab::RenderTileChunks(const Level& level, const Tileset& tileset, b
 
       int local_x = i % TileChunk::kSize;
       int local_y = i / TileChunk::kSize;
-      DrawTileAt(dl, canvas_, camera_, *it->second, tileset, sdl_texture, tex_w, tex_h,
+      DrawTileAt(dl, canvas_, camera_, *it->second, tileset, texture_handle, tex_w, tex_h,
                  chunk_x * TileChunk::kSize + local_x, chunk_y * TileChunk::kSize + local_y,
                  level.tile_render_width, level.tile_render_height, show_frame, show_collision,
                  tile_overlay_opacity);
@@ -559,14 +561,14 @@ void ViewportTab::RenderTilePlacementGhost(const Tile& tile, const Tileset& tile
 
   if (!tileset.texture_id.empty()) {
     absl::StatusOr<Texture*> texture = api_.GetTexture(tileset.texture_id);
-    if (!texture.ok() || *texture == nullptr || (*texture)->sdl_texture == nullptr) {
+    if (!texture.ok() || *texture == nullptr || !(*texture)->texture_handle) {
       LOG(ERROR) << "RenderTilePlacementGhost: failed to resolve texture '" << tileset.texture_id
                  << "'";
       return;
     }
-    void* sdl_texture = (*texture)->sdl_texture;
+    void* texture_handle = SdlTextureHandleAdapter::ToNative((*texture)->texture_handle);
     int tex_w = 0, tex_h = 0;
-    SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(sdl_texture), nullptr, nullptr, &tex_w, &tex_h);
+    SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture_handle), nullptr, nullptr, &tex_w, &tex_h);
     if (tex_w <= 0 || tex_h <= 0) {
       LOG(ERROR) << "RenderTilePlacementGhost: texture has invalid dimensions '"
                  << tileset.texture_id << "'";
@@ -577,7 +579,7 @@ void ViewportTab::RenderTilePlacementGhost(const Tile& tile, const Tileset& tile
     float v0 = static_cast<float>(tile.source_y) / tex_h;
     float u1 = static_cast<float>(tile.source_x + tileset.tile_width) / tex_w;
     float v1 = static_cast<float>(tile.source_y + tileset.tile_height) / tex_h;
-    dl->AddImage(reinterpret_cast<ImTextureID>(sdl_texture), sp_min, sp_max, ImVec2(u0, v0),
+    dl->AddImage(reinterpret_cast<ImTextureID>(texture_handle), sp_min, sp_max, ImVec2(u0, v0),
                  ImVec2(u1, v1), IM_COL32(255, 255, 255, 160));
   } else {
     // No texture: draw a colored placeholder so the user still sees a ghost.

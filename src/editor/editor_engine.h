@@ -11,6 +11,8 @@
 #include "editor/editor_ui.h"
 #include "editor/gui.h"
 #include "engine/input_manager.h"
+#include "platform/sdl/sdl_input_source.h"
+#include "platform/sdl/sdl_texture_store.h"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
 #include "resources/level_manager.h"
@@ -56,6 +58,7 @@ class EditorEngine {
 
   // Zebes state
   EngineConfig config_;
+  std::unique_ptr<SdlTextureStore> texture_resources_;
   std::unique_ptr<TextureManager> texture_manager_;
   std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<ColliderManager> collider_manager_;
@@ -63,6 +66,7 @@ class EditorEngine {
   std::unique_ptr<LevelManager> level_manager_;
   std::unique_ptr<TilesetManager> tileset_manager_;
   std::unique_ptr<ImGuiWrapper> imgui_wrapper_;
+  std::unique_ptr<SdlInputSource> sdl_input_source_;
   std::unique_ptr<InputManager> input_manager_;
   std::unique_ptr<Api> api_;
 

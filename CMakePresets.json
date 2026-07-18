@@ -1,0 +1,80 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "Development",
+      "description": "Debug build with headless tests enabled",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "ui",
+      "inherits": "dev",
+      "displayName": "UI Integration Tests",
+      "description": "Debug build including display-dependent SDL/ImGui tests",
+      "binaryDir": "${sourceDir}/build/ui",
+      "cacheVariables": {
+        "BUILD_UI_TESTING": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Optimized editor build without test dependencies",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "jobs": 0
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "jobs": 0
+    },
+    {
+      "name": "ui",
+      "configurePreset": "ui",
+      "jobs": 0
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ui",
+      "configurePreset": "ui",
+      "filter": {
+        "include": {
+          "label": "ui"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

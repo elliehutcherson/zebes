@@ -1,15 +1,12 @@
 #pragma once
 
 #include <memory>
-#include <string>
-#include <vector>
 
-#include "ImGuiFileDialog.h"
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
 #include "editor/gui_interface.h"
-#include "objects/texture.h"
+#include "editor/texture_editor/texture_editor_model.h"
 
 namespace zebes {
 
@@ -22,7 +19,7 @@ class TextureEditor {
 
   void Render();
 
-  const std::vector<Texture>& GetTextureList() const { return texture_list_; }
+  const std::vector<Texture>& GetTextureList() const { return model_.textures(); }
 
  private:
   TextureEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui);
@@ -38,30 +35,18 @@ class TextureEditor {
   void LoadPreview(const std::string& path);
   // Selects a texture and sets up the editing buffer
   void SelectTexture(const Texture& texture);
+  SDL_Texture* PreviewTexture() const;
 
   Api* api_;
   SdlWrapper* sdl_;
   GuiInterface* gui_;
 
-  // UI state buffers
-  Texture selected_texture_;
-  bool new_texture_ = false;
-  std::string edit_name_buffer_;
+  TextureEditorModel model_;
+  SDL_Texture* preview_texture_ = nullptr;
 
-  // Texture preview state
-  std::vector<Texture> texture_list_;
-
-  // Zoom control set on every frame
-  float zoom_ = 1.0f;
+  // Preview dimensions calculated for the current frame.
   float preview_w_ = 0;
   float preview_h_ = 0;
-
-  // Import state
-  ImGuiFileDialog file_dialog_;
-
-  // Deletion state
-  std::string texture_to_delete_;
-  bool show_delete_popup_ = false;
 };
 
 }  // namespace zebes

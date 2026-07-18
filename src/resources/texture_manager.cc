@@ -19,24 +19,26 @@ constexpr char kImagesPath[] = "textures";
 
 }  // namespace
 
-absl::StatusOr<std::unique_ptr<TextureManager>> TextureManager::Create(SdlWrapper* sdl,
+absl::StatusOr<std::unique_ptr<TextureManager>> TextureManager::Create(
+    TextureResourceStore* resources,
                                                                        std::string root_path) {
-  if (sdl == nullptr) {
-    return absl::InvalidArgumentError("SdlWrapper must not be null");
+  if (resources == nullptr) {
+    return absl::InvalidArgumentError("TextureResourceStore must not be null");
   }
-  return std::unique_ptr<TextureManager>(new TextureManager(sdl, root_path));
+  return std::unique_ptr<TextureManager>(new TextureManager(resources, root_path));
 }
 
-TextureManager::TextureManager(SdlWrapper* sdl, std::string root_path)
-    : sdl_(sdl),
+TextureManager::TextureManager(TextureResourceStore* resources, std::string root_path)
+    : resources_(resources),
       root_path_(root_path),
       definitions_path_(absl::StrCat(root_path, "/", kDefinitionsPath)),
       images_path_(absl::StrCat(root_path, "/", kImagesPath)) {}
 
 TextureManager::~TextureManager() {
   for (auto& [id, texture] : textures_) {
-    if (texture != nullptr && texture->sdl_texture != nullptr)
-      sdl_->DestroyTexture(static_cast<SDL_Texture*>(texture->sdl_texture));
+    if (texture != nullptr && texture->texture_handle) {
+      resources_->Unload(texture->texture_handle).IgnoreError();
+    }
   }
 }
 
@@ -97,13 +99,13 @@ absl::StatusOr<Texture*> TextureManager::LoadTexture(const std::string& path_jso
     return textures_[id].get();
   }
 
-  ASSIGN_OR_RETURN(SDL_Texture * sdl_tex, sdl_->CreateTexture(GetImagesPath(path)));
+  ASSIGN_OR_RETURN(TextureHandle texture_handle, resources_->Load(GetImagesPath(path)));
 
   std::unique_ptr<Texture> texture = std::make_unique<Texture>();
   texture->id = id;
   texture->name = name;
   texture->path = path;
-  texture->sdl_texture = reinterpret_cast<void*>(sdl_tex);
+  texture->texture_handle = texture_handle;
 
   textures_[id] = std::move(texture);
   return textures_[id].get();
@@ -140,9 +142,6 @@ absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
     }
   }
 
-  // Create internal Texture object
-  ASSIGN_OR_RETURN(SDL_Texture * sdl_tex, sdl_->CreateTexture(destination_path));
-
   texture.id = id;
   // Update path to be relative for storage
   texture.path = absl::StrCat("textures/", filename);
@@ -150,15 +149,20 @@ absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
   if (texture.name.empty()) {
     texture.name = src.stem().string();
   }
-  texture.sdl_texture = sdl_tex;
-
   if (texture.name.length() > kMaxTextureNameLength) {
     return absl::InvalidArgumentError(absl::StrCat("Texture name too long: ", texture.name,
                                                    ". Max length is ", kMaxTextureNameLength));
   }
 
+  ASSIGN_OR_RETURN(TextureHandle texture_handle, resources_->Load(destination_path));
+  texture.texture_handle = texture_handle;
+
   // Save metadata to JSON
-  RETURN_IF_ERROR(SaveTexture(texture));
+  absl::Status save_status = SaveTexture(texture);
+  if (!save_status.ok()) {
+    resources_->Unload(texture_handle).IgnoreError();
+    return save_status;
+  }
 
   // Store in map
   textures_[id] = std::make_unique<Texture>(texture);
@@ -227,9 +231,9 @@ absl::Status TextureManager::DeleteTexture(const std::string& id) {
   auto it = textures_.find(id);
   if (it == textures_.end()) return absl::NotFoundError("Texture not found");
 
-  // Destroy SDL texture
-  if (it->second->sdl_texture) {
-    sdl_->DestroyTexture(static_cast<SDL_Texture*>(it->second->sdl_texture));
+  // Release the runtime renderer resource.
+  if (it->second->texture_handle) {
+    RETURN_IF_ERROR(resources_->Unload(it->second->texture_handle));
   }
 
   // Remove JSON file

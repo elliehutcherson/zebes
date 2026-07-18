@@ -1,20 +1,21 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "editor/editor_ui.h"
 
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
 #include "common/status_macros.h"
+#include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
-#include "editor/editor_utils.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
 #include "editor/level_editor/level_editor.h"
 #include "editor/sprite_editor/sprite_editor.h"
 #include "editor/texture_editor/texture_editor.h"
+#include "editor/tileset_editor/tileset_editor.h"
 #include "imgui.h"
-#include "imgui_internal.h"
 
 namespace zebes {
 
@@ -35,7 +36,7 @@ absl::StatusOr<std::unique_ptr<EditorUi>> EditorUi::Create(SdlWrapper* sdl, Api*
 }
 
 EditorUi::EditorUi(SdlWrapper* sdl, Api* api, GuiInterface* gui)
-    : sdl_(sdl), api_(api), gui_(gui), sprite_path_buffer_(256, '\0') {}
+    : sdl_(sdl), api_(api), gui_(gui) {}
 
 absl::Status EditorUi::Init() {
   ASSIGN_OR_RETURN(texture_editor_, TextureEditor::Create(api_, sdl_, gui_));
@@ -87,46 +88,16 @@ void EditorUi::Render() {
   }
 }
 
-bool EditorUi::RenderTab(const char* name, std::function<absl::Status()> render_fn) {
+void EditorUi::RenderTab(const char* name, const std::function<absl::Status()>& render_fn) {
   ScopedTabItem tab = gui_->CreateScopedTabItem(name);
-  if (!tab) return false;
+  if (!tab) return;
 
   absl::Status status = render_fn();
-  if (status.ok()) return true;
+  if (status.ok()) return;
 
   LOG(ERROR) << name << " Render error: " << status;
-
-  // ImGui stack recovery
-  ImGuiContext* g = ImGui::GetCurrentContext();
-
-  // Close any unclosed child windows
-  while (g->CurrentWindow != g->CurrentWindowStack[0].Window) {
-    LOG(WARNING) << "Recovering unclosed window: " << g->CurrentWindow->Name;
-
-    // Check what type of window it is by its flags
-    if (g->CurrentWindow->Flags & ImGuiWindowFlags_ChildWindow) {
-      gui_->EndChild();
-    } else {
-      gui_->End();
-    }
-  }
-
-  // Close any unclosed popup stacks
-  while (g->OpenPopupStack.Size > 0) {
-    LOG(WARNING) << "Recovering unclosed popup";
-    ImGui::EndPopup();
-  }
-
-  // Close any unclosed tab bars (more complex - ImGui doesn't expose this easily)
-  // This is harder to detect reliably...
-
-  // Attempt to recover
-  status = Init();
-  if (!status.ok()) {
-    LOG(FATAL) << "UNABLE TO RECOVER FROM " << name << " ERROR: " << status;
-  }
-
-  return true;
+  gui_->TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "%s failed: %s", name,
+                    status.ToString().c_str());
 }
 
 }  // namespace zebes

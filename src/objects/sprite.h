@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "engine/texture_handle.h"
 
 namespace zebes {
 
@@ -29,8 +30,8 @@ struct Sprite {
   std::string texture_id;
   // Sprite frames
   std::vector<SpriteFrame> frames;
-  // Pointer to the sdl texture
-  void* sdl_texture = nullptr;
+  // Transient renderer resource. Not serialized.
+  TextureHandle texture_handle;
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 };
