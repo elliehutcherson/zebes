@@ -11,11 +11,12 @@ namespace zebes {
 
 namespace {
 
-// Hard zoom limits applied both at the start of each frame (ClampCamera) and
-// immediately after the user scrolls (HandleInput). Keeping them in one place
-// ensures the two sites never drift out of sync.
-constexpr double kMinZoom = 0.1;
-constexpr double kMaxZoom = 10.0;
+// Editor navigation deliberately permits a wider range than gameplay camera
+// control. These limits apply both before rendering and immediately after a
+// wheel event.
+constexpr CameraZoomRange kEditorNavigationZoomRange{.minimum = 0.1, .maximum = 10.0};
+constexpr double kEditorPanSpeed = 500.0;
+constexpr double kEditorWheelZoomStep = 0.1;
 
 }  // namespace
 
@@ -85,19 +86,17 @@ void Canvas::HandleInput() {
 
   // 1. Handle Zoom (Mouse Wheel)
   if (is_hovered && gui_->GetIO().MouseWheel != 0.0f) {
-    float zoom_speed = 0.1f;
-    camera_->zoom += gui_->GetIO().MouseWheel * zoom_speed;
+    camera_->zoom += gui_->GetIO().MouseWheel * kEditorWheelZoomStep;
     // Clamp immediately so DrawGrid never sees zoom <= 0, regardless of call order.
-    camera_->zoom = std::clamp(camera_->zoom, kMinZoom, kMaxZoom);
+    camera_->zoom = kEditorNavigationZoomRange.Clamp(camera_->zoom);
   }
 
   // 2. Handle Panning (Keyboard: WASD / Arrows)
   if (gui_->IsWindowFocused()) {
-    float base_speed = 500.0f;  // Pixels per second
     float dt = gui_->GetIO().DeltaTime;
 
     // Scale speed by zoom so visual speed remains constant
-    float move_step = (base_speed * dt) / camera_->zoom;
+    float move_step = (kEditorPanSpeed * dt) / camera_->zoom;
 
     if (gui_->IsKeyDown(ImGuiKey_UpArrow) || gui_->IsKeyDown(ImGuiKey_W)) {
       LOG(INFO) << __func__ << ": up";
@@ -263,7 +262,7 @@ void Canvas::ClampCamera() {
 
   // 1. Apply Hard Limits (Sanity Check)
   // We always want reasonable limits regardless of world size
-  camera_->zoom = std::clamp(camera_->zoom, kMinZoom, kMaxZoom);
+  camera_->zoom = kEditorNavigationZoomRange.Clamp(camera_->zoom);
 
   if (!world_min_.has_value() || !world_max_.has_value()) return;
 

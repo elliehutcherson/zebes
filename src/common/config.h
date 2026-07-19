@@ -1,13 +1,15 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
-#include "SDL_video.h"
 #include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "nlohmann/json.hpp"
+#include "objects/game_view.h"
 
 inline constexpr int kNoTile = 0;
 
@@ -23,28 +25,60 @@ namespace zebes {
 
 struct WindowConfig {
   std::string title = "Zebes";
-  uint32_t xpos = SDL_WINDOWPOS_CENTERED;
-  uint32_t ypos = SDL_WINDOWPOS_CENTERED;
+  bool centered = true;
+  int x = 0;
+  int y = 0;
   int width = 1400;
   int height = 640;
-  uint32_t flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+  bool fullscreen = false;
+  bool resizable = true;
+  bool high_dpi = true;
 
-  bool full_screen() const { return flags & SDL_WINDOW_FULLSCREEN_DESKTOP; }
-
-  // Define to_json and from_json functions for serialization and
-  // deserialization
   friend void to_json(nlohmann::json& j, const WindowConfig& s) {
-    j = nlohmann::json{{"title", s.title}, {"xpos", s.xpos},     {"ypos", s.ypos},
-                       {"width", s.width}, {"height", s.height}, {"flags", s.flags}};
+    j = nlohmann::json{{"title", s.title},
+                       {"centered", s.centered},
+                       {"x", s.x},
+                       {"y", s.y},
+                       {"width", s.width},
+                       {"height", s.height},
+                       {"fullscreen", s.fullscreen},
+                       {"resizable", s.resizable},
+                       {"high_dpi", s.high_dpi}};
   }
 
   friend void from_json(const nlohmann::json& j, WindowConfig& s) {
     j.at("title").get_to(s.title);
-    j.at("xpos").get_to(s.xpos);
-    j.at("ypos").get_to(s.ypos);
     j.at("width").get_to(s.width);
     j.at("height").get_to(s.height);
-    j.at("flags").get_to(s.flags);
+
+    if (j.contains("centered")) {
+      j.at("centered").get_to(s.centered);
+      s.x = j.value("x", 0);
+      s.y = j.value("y", 0);
+      s.fullscreen = j.value("fullscreen", false);
+      s.resizable = j.value("resizable", true);
+      s.high_dpi = j.value("high_dpi", true);
+      return;
+    }
+
+    // Migration for configs written before WindowConfig stopped persisting
+    // SDL constants. These numeric values are read-only legacy file-format
+    // details; current engine state remains platform-neutral.
+    constexpr uint32_t kLegacyCenteredPosition = 0x2FFF0000u;
+    constexpr uint32_t kLegacyFullscreenDesktop = 0x00001001u;
+    constexpr uint32_t kLegacyResizable = 0x00000020u;
+    constexpr uint32_t kLegacyHighDpi = 0x00002000u;
+    const uint32_t legacy_x = j.value("xpos", kLegacyCenteredPosition);
+    const uint32_t legacy_y = j.value("ypos", kLegacyCenteredPosition);
+    const uint32_t legacy_flags = j.value("flags", 0u);
+    s.centered = legacy_x == kLegacyCenteredPosition && legacy_y == kLegacyCenteredPosition;
+    if (!s.centered) {
+      s.x = static_cast<int>(legacy_x);
+      s.y = static_cast<int>(legacy_y);
+    }
+    s.fullscreen = (legacy_flags & kLegacyFullscreenDesktop) != 0;
+    s.resizable = (legacy_flags & kLegacyResizable) != 0;
+    s.high_dpi = (legacy_flags & kLegacyHighDpi) != 0;
   }
 };
 
@@ -87,10 +121,14 @@ class EngineConfig {
   // Create the game config (load or default).
   static absl::StatusOr<EngineConfig> Create();
 
+  // Validates project settings before they are used or persisted.
+  absl::Status Validate() const;
+
   explicit EngineConfig();
   ~EngineConfig() { LOG(INFO) << "EngineConfig destroyed"; }
 
   WindowConfig window;
+  GameViewSize game_view;
   PathConfig paths;
 
   int fps = 60;
@@ -101,6 +139,7 @@ class EngineConfig {
   friend void to_json(nlohmann::json& j, const EngineConfig& s) {
     j = nlohmann::json{
         {"window", s.window},
+        {"game_view", {{"width", s.game_view.width}, {"height", s.game_view.height}}},
         {"paths", s.paths},
         {"fps", s.fps},
         {"frame_delay", s.frame_delay},
@@ -109,6 +148,11 @@ class EngineConfig {
 
   friend void from_json(const nlohmann::json& j, EngineConfig& s) {
     j.at("window").get_to(s.window);
+    if (j.contains("game_view")) {
+      const nlohmann::json& game_view = j.at("game_view");
+      game_view.at("width").get_to(s.game_view.width);
+      game_view.at("height").get_to(s.game_view.height);
+    }
     j.at("paths").get_to(s.paths);
 
     j.at("fps").get_to(s.fps);

@@ -6,7 +6,6 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
-#include "objects/camera.h"
 #include "objects/entity.h"
 
 namespace zebes {
@@ -65,9 +64,6 @@ struct Level {
 
   // GAMEPLAY
   Vec spawn_point;  // Where to start
-
-  // Not part of the definition, but a runtime component.
-  Camera camera;
 
   // TILE DATA (The World)
   // Stored in chunks for memory efficiency

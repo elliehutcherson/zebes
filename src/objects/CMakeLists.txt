@@ -1,6 +1,9 @@
 add_library(vec INTERFACE)
 target_include_directories(vec INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
+add_library(game_view INTERFACE)
+target_include_directories(game_view INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
 add_library(sprite INTERFACE)
 target_include_directories(sprite INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 

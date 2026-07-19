@@ -8,10 +8,13 @@ namespace zebes {
 
 absl::StatusOr<std::unique_ptr<CameraController>> CameraController::Create(Options options) {
   if (options.camera == nullptr) {
-    return absl::InvalidArgumentError("Camera can not be null!!");
+    return absl::InvalidArgumentError("Camera must not be null");
   }
   if (options.input_manager == nullptr) {
-    return absl::InvalidArgumentError("InputManager can not be null!!");
+    return absl::InvalidArgumentError("Input manager must not be null");
+  }
+  if (!options.zoom_range.IsValid()) {
+    return absl::InvalidArgumentError("Camera zoom range is invalid");
   }
   return absl::WrapUnique(new CameraController(std::move(options)));
 }
@@ -20,7 +23,8 @@ CameraController::CameraController(Options options)
     : camera_(*options.camera),
       input_manager_(*options.input_manager),
       move_speed_(options.move_speed),
-      zoom_speed_(options.zoom_speed) {
+      zoom_speed_(options.zoom_speed),
+      zoom_range_(options.zoom_range) {
   // Register Inputs (Separation of Mapping vs Logic)
   // You can load these from a file in a real engine
   input_manager_.BindAction("PanUp", Key::kW);
@@ -30,8 +34,6 @@ CameraController::CameraController(Options options)
   input_manager_.BindAction("ZoomIn", Key::kE);
   input_manager_.BindAction("ZoomOut", Key::kQ);
 }
-
-void CameraController::SetCamera(Camera& camera) { camera_ = camera; }
 
 void CameraController::Update(double delta_time) {
   Vec movement = {0, 0};
@@ -54,9 +56,7 @@ void CameraController::Update(double delta_time) {
   if (input_manager_.IsActionActive("ZoomIn")) camera_.zoom += zoom_speed_ * delta_time;
   if (input_manager_.IsActionActive("ZoomOut")) camera_.zoom -= zoom_speed_ * delta_time;
 
-  // Clamp Zoom to sane values
-  if (camera_.zoom < 0.1) camera_.zoom = 0.1;
-  if (camera_.zoom > 5.0) camera_.zoom = 5.0;
+  camera_.zoom = zoom_range_.Clamp(camera_.zoom);
 }
 
 }  // namespace zebes

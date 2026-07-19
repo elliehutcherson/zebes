@@ -12,6 +12,52 @@ target_link_libraries(parallax_layout
   PUBLIC level
 )
 
+add_library(camera_guide
+  camera_guide.cc
+)
+
+add_library(viewport_model
+  viewport_model.cc
+)
+target_link_libraries(viewport_model
+  PUBLIC
+  blueprint
+  collider
+  level
+  sprite
+  absl::status
+  absl::statusor
+)
+
+add_library(viewport_scene
+  viewport_scene.cc
+)
+target_link_libraries(viewport_scene
+  PUBLIC
+  camera
+  entity
+  level
+  parallax_layout
+  texture_handle
+  viewport_model
+  absl::status
+  absl::statusor
+)
+
+add_library(viewport_renderer
+  viewport_renderer.cc
+)
+target_link_libraries(viewport_renderer
+  PUBLIC
+  editor_canvas
+  viewport_scene
+  PRIVATE
+  SDL2-static
+  ${IMGUI_LIBRARIES}
+  absl::status
+  absl::strings
+)
+
 
 add_library(parallax_zone_panel
   parallax_zone_panel.cc
@@ -152,13 +198,18 @@ add_library(viewport_tab
 
 target_link_libraries(viewport_tab
   api
+  camera_guide
   editor_canvas
   imgui_scoped
   level
   parallax_layout
   tileset
+  viewport_model
+  viewport_renderer
+  viewport_scene
   ${IMGUI_LIBRARIES}
   SDL2-static
+  absl::cleanup
   absl::status
   absl::log
   absl::flat_hash_map

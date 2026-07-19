@@ -125,12 +125,21 @@ target_link_libraries(viewport_tab_test
   gmock
   api
   viewport_tab
+  viewport_model
   gui_mock
   absl::flags
   absl::flags_parse
 )
 target_include_directories(viewport_tab_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME viewport_tab_test COMMAND viewport_tab_test)
+
+add_executable(viewport_scene_test viewport_scene_test.cc)
+target_link_libraries(viewport_scene_test
+  gtest_main
+  viewport_scene
+)
+target_include_directories(viewport_scene_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(viewport_scene_test)
 
 # --- Parallax Layout Test ---
 add_executable(parallax_layout_test parallax_layout_test.cc)
@@ -140,6 +149,14 @@ target_link_libraries(parallax_layout_test
 )
 target_include_directories(parallax_layout_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_layout_test COMMAND parallax_layout_test)
+
+add_executable(camera_guide_test camera_guide_test.cc)
+target_link_libraries(camera_guide_test
+  gtest_main
+  camera_guide
+)
+target_include_directories(camera_guide_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME camera_guide_test COMMAND camera_guide_test)
 
 # --- Mock Gui Test ---
 add_executable(mock_gui_test mock_gui_test.cc)

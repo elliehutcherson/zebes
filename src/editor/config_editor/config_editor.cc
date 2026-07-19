@@ -59,41 +59,32 @@ void ConfigEditor::Render() {
       gui_->InputInt("Frame Delay (ms)", &local_config_.frame_delay);
     }
 
+    if (gui_->CollapsingHeader("Game View", ImGuiTreeNodeFlags_DefaultOpen)) {
+      gui_->InputInt("Logical Width", &local_config_.game_view.width);
+      gui_->InputInt("Logical Height", &local_config_.game_view.height);
+    }
+
     if (gui_->CollapsingHeader("Window Settings")) {
       gui_->InputText("Title", window_title_buffer_.data(), window_title_buffer_.size());
       gui_->InputInt("Width", &local_config_.window.width);
       gui_->InputInt("Height", &local_config_.window.height);
+      gui_->Checkbox("Center on Start", &local_config_.window.centered);
+      if (!local_config_.window.centered) {
+        gui_->InputInt("Position X", &local_config_.window.x);
+        gui_->InputInt("Position Y", &local_config_.window.y);
+      }
 
-      // Flags
-      bool fullscreen = (local_config_.window.flags & SDL_WINDOW_FULLSCREEN_DESKTOP);
-      if (gui_->Checkbox("Fullscreen", &fullscreen)) {
-        if (fullscreen)
-          local_config_.window.flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-        else
-          local_config_.window.flags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
-
-        absl::Status s = sdl_->SetWindowFullscreen(fullscreen);
+      if (gui_->Checkbox("Fullscreen", &local_config_.window.fullscreen)) {
+        absl::Status s = sdl_->SetWindowFullscreen(local_config_.window.fullscreen);
         if (!s.ok()) LOG(ERROR) << "Failed to set fullscreen: " << s;
       }
 
-      bool resizable = (local_config_.window.flags & SDL_WINDOW_RESIZABLE);
-      if (gui_->Checkbox("Resizable", &resizable)) {
-        if (resizable)
-          local_config_.window.flags |= SDL_WINDOW_RESIZABLE;
-        else
-          local_config_.window.flags &= ~SDL_WINDOW_RESIZABLE;
-
-        absl::Status s = sdl_->SetWindowResizable(resizable);
+      if (gui_->Checkbox("Resizable", &local_config_.window.resizable)) {
+        absl::Status s = sdl_->SetWindowResizable(local_config_.window.resizable);
         if (!s.ok()) LOG(ERROR) << "Failed to set resizable: " << s;
       }
 
-      bool high_dpi = (local_config_.window.flags & SDL_WINDOW_ALLOW_HIGHDPI);
-      if (gui_->Checkbox("High DPI", &high_dpi)) {
-        if (high_dpi)
-          local_config_.window.flags |= SDL_WINDOW_ALLOW_HIGHDPI;
-        else
-          local_config_.window.flags &= ~SDL_WINDOW_ALLOW_HIGHDPI;
-      }
+      gui_->Checkbox("High DPI", &local_config_.window.high_dpi);
     }
   }
 }

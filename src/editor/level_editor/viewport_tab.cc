@@ -1,18 +1,24 @@
 #include "editor/level_editor/viewport_tab.h"
 
 #include <cmath>
-#include <limits>
 
 #include "SDL_render.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_format.h"
 #include "common/status_macros.h"
 #include "editor/canvas/tile_draw.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
+#include "editor/level_editor/camera_guide.h"
+#include "editor/level_editor/viewport_model.h"
+#include "editor/level_editor/viewport_scene.h"
 #include "imgui.h"
+#include "objects/collider.h"
+#include "objects/sprite.h"
 #include "objects/texture.h"
 #include "platform/sdl/sdl_texture_handle.h"
 
@@ -57,41 +63,6 @@ void DrawTileAt(ImDrawList* dl, const Canvas& canvas, const Camera& camera, cons
 
 }  // namespace
 
-absl::StatusOr<Vec> SnapEntityToGrid(Vec mouse_world, int tile_render_w, int tile_render_h,
-                                     const Collider* collider, const Sprite* sprite) {
-  int tile_x = static_cast<int>(std::floor(mouse_world.x / tile_render_w));
-  int tile_y = static_cast<int>(std::floor(mouse_world.y / tile_render_h));
-  double cell_center_x = tile_x * tile_render_w + tile_render_w / 2.0;
-  double cell_bottom_y = (tile_y + 1) * static_cast<double>(tile_render_h);
-
-  if (collider != nullptr && !collider->polygons.empty()) {
-    double min_x = std::numeric_limits<double>::max();
-    double max_x = std::numeric_limits<double>::lowest();
-    double max_y = std::numeric_limits<double>::lowest();
-    for (const Polygon& poly : collider->polygons) {
-      for (const Vec& pt : poly) {
-        min_x = std::min(min_x, pt.x);
-        max_x = std::max(max_x, pt.x);
-        max_y = std::max(max_y, pt.y);
-      }
-    }
-    return Vec{cell_center_x - (min_x + max_x) / 2.0, cell_bottom_y - max_y};
-  }
-
-  if (sprite != nullptr && !sprite->frames.empty()) {
-    const SpriteFrame& frame = sprite->frames[0];
-    if (frame.render_w <= 0 || frame.render_h <= 0) {
-      LOG(ERROR) << "SnapEntityToGrid: sprite frame has invalid render dimensions";
-      return absl::InvalidArgumentError("sprite frame has invalid render dimensions");
-    }
-    return Vec{cell_center_x - (frame.offset_x + frame.render_w / 2.0),
-               cell_bottom_y - (frame.offset_y + frame.render_h)};
-  }
-
-  LOG(ERROR) << "SnapEntityToGrid: blueprint has no valid collider or sprite";
-  return absl::InvalidArgumentError("blueprint has no valid collider or sprite");
-}
-
 absl::StatusOr<Vec> ViewportTab::SnapBlueprintToGrid(Vec mouse_world, const Blueprint& blueprint,
                                                      int tile_render_w, int tile_render_h) const {
   if (!canvas_.GetSnap()) return mouse_world;
@@ -118,7 +89,8 @@ ViewportTab::ViewportTab(Api& api, GuiInterface* gui)
           .gui = gui,
           .snap_grid = true,
           .grid_size = static_cast<float>(TileChunk::kSize),
-      }) {
+      }),
+      renderer_(canvas_) {
   camera_ = Camera{};
 }
 
@@ -167,6 +139,9 @@ std::optional<uint64_t> ViewportTab::TakeDeleteRequest() {
 }
 
 absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
+  if (options.level == nullptr) {
+    return absl::InvalidArgumentError("viewport render requires a level");
+  }
   Level& level = *options.level;
 
   // Ensure next_entity_id_ is always greater than every entity already in the
@@ -190,6 +165,7 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   canvas_.SetSnap(options.snap_to_grid);
   canvas_.SetGridSize(static_cast<float>(level.tile_render_width));
   canvas_.Begin("LevelCanvas", canvas_size, camera_);
+  auto canvas_end = absl::MakeCleanup([this] { canvas_.End(); });
 
   // Capture canvas input before calculating any scene geometry so zoom and
   // camera movement are reflected immediately in this frame.
@@ -218,11 +194,21 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
     RenderTileChunks(level, *active_tileset, options.show_tile_frame, options.show_tile_collision,
                      options.tile_overlay_opacity);
   }
-  RenderEntities(level, options.selected_entity_id, options.show_entity_borders,
-                 options.entity_overlay_opacity);
-  RenderZoneGizmos(level, options.selected_zone_id,
-                   active_zone.has_value() ? std::optional<int>(active_zone->zone_id)
-                                           : std::nullopt);
+  ASSIGN_OR_RETURN(
+      std::vector<EntityRenderItem> entity_items,
+      ComposeEntityRenderItems(
+          level.entities,
+          {.selected_entity_id = options.selected_entity_id,
+           .show_borders = options.show_entity_borders,
+           .overlay_opacity = options.entity_overlay_opacity}));
+  RETURN_IF_ERROR(renderer_.RenderEntities(entity_items));
+
+  ASSIGN_OR_RETURN(
+      std::vector<ZoneGizmoItem> zone_items,
+      ComposeZoneGizmoItems(level.zones, camera_, options.selected_zone_id,
+                            active_zone.has_value() ? std::optional<int>(active_zone->zone_id)
+                                                    : std::nullopt));
+  renderer_.RenderZoneGizmos(zone_items);
 
   // 2. Render placement ghost. Tile mode uses its own grid snap; blueprint mode
   //    snaps to the blueprint's own collider/sprite dimensions.
@@ -235,6 +221,12 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
                      SnapBlueprintToGrid(mouse_world, *options.placement_blueprint,
                                          level.tile_render_width, level.tile_render_height));
     RenderPlacementGhost(*options.placement_blueprint, snapped);
+  }
+
+  // Camera guides are editor overlays and remain visible above scene and
+  // placement rendering.
+  if (show_camera_guide_) {
+    RenderCameraGuide();
   }
 
   // 3. Handle mode-specific interaction. Canvas input above created the
@@ -256,7 +248,7 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   // 4. Capture zoom before End() nullifies the camera pointer.
   float zoom = canvas_.GetZoom();
 
-  canvas_.End();
+  std::move(canvas_end).Invoke();
 
   // 5. Status bar
   const char* active_zone_name = "None";
@@ -274,6 +266,8 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   if (gui_->Button("Reset View")) {
     Reset();
   }
+  gui_->SameLine();
+  gui_->Checkbox("Camera Guide", &show_camera_guide_);
 
   return absl::OkStatus();
 }
@@ -283,7 +277,7 @@ absl::Status ViewportTab::HandleEntityInput(Level& level, const Blueprint* place
                                             bool delete_mode) {
   // --- Delete mode: a right-click removes the entity under the cursor ---
   if (delete_mode && gui_->IsItemClicked(1)) {
-    uint64_t picked = PickEntity(level.entities, mouse_world);
+    ASSIGN_OR_RETURN(uint64_t picked, PickEntity(level.entities, mouse_world));
     if (picked != Entity::kInvalidId) {
       delete_requested_entity_id_ = picked;
     }
@@ -328,7 +322,7 @@ absl::Status ViewportTab::HandleEntityInput(Level& level, const Blueprint* place
 
   // --- Click: select entity or deselect, and optionally start a drag ---
   if (gui_->IsItemClicked(0)) {
-    uint64_t picked = PickEntity(level.entities, mouse_world);
+    ASSIGN_OR_RETURN(uint64_t picked, PickEntity(level.entities, mouse_world));
     click_selected_entity_id_ = picked;
 
     // Begin dragging if the click landed on the already-selected entity.
@@ -344,67 +338,6 @@ absl::Status ViewportTab::HandleEntityInput(Level& level, const Blueprint* place
   }
 
   return absl::OkStatus();
-}
-
-void ViewportTab::RenderEntities(const Level& level, uint64_t selected_entity_id,
-                                 bool show_borders, float entity_overlay_opacity) {
-  ImDrawList* draw_list = canvas_.GetDrawList();
-  if (!draw_list) return;
-
-  for (const auto& [id, entity] : level.entities) {
-    if (!entity.active) continue;
-
-    ImVec2 sp_min;
-    ImVec2 sp_max;
-
-    if (entity.sprite != nullptr && !entity.sprite->frames.empty() &&
-        entity.sprite->texture_handle) {
-      const SpriteFrame& frame = entity.sprite->frames[0];
-
-      int tex_w = 0, tex_h = 0;
-      SDL_Texture* native_texture =
-          SdlTextureHandleAdapter::ToNative(entity.sprite->texture_handle);
-      SDL_QueryTexture(native_texture, nullptr, nullptr, &tex_w, &tex_h);
-
-      sp_min = canvas_.WorldToScreen({entity.transform.position.x + frame.offset_x,
-                                      entity.transform.position.y + frame.offset_y});
-      sp_max = ImVec2(sp_min.x + frame.render_w * camera_.zoom,
-                      sp_min.y + frame.render_h * camera_.zoom);
-
-      if (tex_w > 0 && tex_h > 0) {
-        float u0 = static_cast<float>(frame.texture_x) / tex_w;
-        float v0 = static_cast<float>(frame.texture_y) / tex_h;
-        float u1 = static_cast<float>(frame.texture_x + frame.texture_w) / tex_w;
-        float v1 = static_cast<float>(frame.texture_y + frame.texture_h) / tex_h;
-
-        draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), sp_min, sp_max,
-                            ImVec2(u0, v0), ImVec2(u1, v1));
-      }
-    } else {
-      // No sprite: draw a placeholder box.
-      constexpr int kDefaultSize = 32;
-      sp_min = canvas_.WorldToScreen(entity.transform.position);
-      sp_max =
-          ImVec2(sp_min.x + kDefaultSize * camera_.zoom, sp_min.y + kDefaultSize * camera_.zoom);
-      draw_list->AddRectFilled(sp_min, sp_max, IM_COL32(100, 100, 200, 180));
-    }
-
-    // Yellow overlay to help identify invisible entities.
-    if (entity_overlay_opacity > 0.0f) {
-      draw_list->AddRectFilled(
-          sp_min, sp_max,
-          IM_COL32(255, 200, 0, static_cast<uint8_t>(entity_overlay_opacity * 255.0f)));
-    }
-
-    // Draw a border around every entity when the toggle is on.
-    if (show_borders) {
-      draw_list->AddRect(sp_min, sp_max, IM_COL32(255, 255, 255, 180), 0.0f, 0, 1.0f);
-    }
-    // Highlight the selected entity with a thicker gold outline on top.
-    if (id == selected_entity_id) {
-      draw_list->AddRect(sp_min, sp_max, IM_COL32(255, 200, 0, 255), 0.0f, 0, 2.0f);
-    }
-  }
 }
 
 void ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos) {
@@ -501,34 +434,6 @@ void ViewportTab::RenderParallaxTheme(const ParallaxTheme& theme) {
   }
 }
 
-void ViewportTab::RenderZoneGizmos(const Level& level, std::optional<int> selected_zone_id,
-                                   std::optional<int> active_zone_id) {
-  ImDrawList* draw_list = canvas_.GetDrawList();
-  if (!draw_list) return;
-
-  const VisibleWorldBounds visible = CalculateVisibleWorldBounds(camera_);
-  for (const ParallaxZone& zone : level.zones) {
-    const bool is_visible = zone.max_point.x >= visible.min.x &&
-                            zone.min_point.x <= visible.max.x &&
-                            zone.max_point.y >= visible.min.y &&
-                            zone.min_point.y <= visible.max.y;
-    if (!is_visible) continue;
-
-    ImU32 color = IM_COL32(255, 255, 0, 150);
-    float thickness = 2.0f;
-    if (active_zone_id == zone.id) {
-      color = IM_COL32(80, 220, 120, 220);
-    }
-    if (selected_zone_id == zone.id) {
-      color = IM_COL32(255, 200, 0, 255);
-      thickness = 3.0f;
-    }
-
-    draw_list->AddRect(canvas_.WorldToScreen(zone.min_point),
-                       canvas_.WorldToScreen(zone.max_point), color, 0.0f, 0, thickness);
-  }
-}
-
 void ViewportTab::RenderLevelBounds(const Level& level) {
   ImDrawList* draw_list = canvas_.GetDrawList();
   if (!draw_list) return;
@@ -541,6 +446,32 @@ void ViewportTab::RenderLevelBounds(const Level& level) {
 
   draw_list->AddRect(p_min, p_max, IM_COL32(255, 0, 0, 255), 0.0f, 0, 2.0f);
   draw_list->AddText(p_min, IM_COL32(255, 0, 0, 255), "Level Bounds");
+}
+
+void ViewportTab::RenderCameraGuide() {
+  ImDrawList* draw_list = canvas_.GetDrawList();
+  if (!draw_list) return;
+
+  constexpr ImU32 kGuideColor = IM_COL32(80, 200, 255, 230);
+  constexpr float kReticleArm = 11.0f;
+
+  const ImVec2 center = canvas_.WorldToScreen(camera_.position);
+  draw_list->AddLine(ImVec2(center.x - kReticleArm, center.y),
+                     ImVec2(center.x + kReticleArm, center.y), kGuideColor, 2.0f);
+  draw_list->AddLine(ImVec2(center.x, center.y - kReticleArm),
+                     ImVec2(center.x, center.y + kReticleArm), kGuideColor, 2.0f);
+
+  const GameViewSize& game_view = api_.GetConfig()->game_view;
+  const std::optional<CameraGuide> guide = CalculateCameraGuide(camera_.position, game_view);
+  if (!guide.has_value()) return;
+
+  const ImVec2 guide_min = canvas_.WorldToScreen(guide->min);
+  const ImVec2 guide_max = canvas_.WorldToScreen(guide->max);
+  draw_list->AddRect(guide_min, guide_max, kGuideColor, 0.0f, 0, 2.0f);
+
+  const std::string label =
+      absl::StrFormat("Game View %dx%d", game_view.width, game_view.height);
+  draw_list->AddText(ImVec2(guide_min.x + 5.0f, guide_min.y + 5.0f), kGuideColor, label.c_str());
 }
 
 void ViewportTab::RenderTileChunks(const Level& level, const Tileset& tileset, bool show_frame,

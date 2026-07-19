@@ -11,17 +11,16 @@ namespace zebes {
 class CameraController {
  public:
   struct Options {
-    Camera* camera;
-    IInputManager* input_manager;
+    Camera* camera = nullptr;
+    IInputManager* input_manager = nullptr;
     double move_speed = 0;
     double zoom_speed = 0;
+    CameraZoomRange zoom_range{.minimum = 0.1, .maximum = 5.0};
   };
 
   static absl::StatusOr<std::unique_ptr<CameraController>> Create(Options options);
 
   void Update(double delta_time);
-
-  void SetCamera(Camera& camera);
 
  private:
   CameraController(Options options);
@@ -30,6 +29,7 @@ class CameraController {
   IInputManager& input_manager_;
   double move_speed_ = 0;
   double zoom_speed_ = 0;
+  CameraZoomRange zoom_range_;
 };
 
 }  // namespace zebes

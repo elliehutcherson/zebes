@@ -151,5 +151,22 @@ TEST_F(CameraControllerTest, CreateReturnsErrorOnNulls) {
   EXPECT_FALSE(result.ok());
 }
 
+TEST_F(CameraControllerTest, CreateRejectsInvalidZoomRange) {
+  CameraController::Options options;
+  options.camera = camera_.get();
+  options.input_manager = mock_input_.get();
+  options.zoom_range = {.minimum = 2.0, .maximum = 1.0};
+
+  EXPECT_FALSE(CameraController::Create(options).ok());
+}
+
+TEST(CameraZoomRangeTest, ClampUsesOwningSystemsPolicy) {
+  constexpr CameraZoomRange range{.minimum = 0.5, .maximum = 2.0};
+
+  EXPECT_DOUBLE_EQ(range.Clamp(0.1), 0.5);
+  EXPECT_DOUBLE_EQ(range.Clamp(1.25), 1.25);
+  EXPECT_DOUBLE_EQ(range.Clamp(4.0), 2.0);
+}
+
 }  // namespace
 }  // namespace zebes

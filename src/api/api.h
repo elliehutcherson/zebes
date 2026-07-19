@@ -17,7 +17,7 @@ namespace zebes {
 class Api {
  public:
   struct Options {
-    const EngineConfig* config;
+    EngineConfig* config;
     TextureManager* texture_manager;
     SpriteManager* sprite_manager;
     ColliderManager* collider_manager;
@@ -85,7 +85,7 @@ class Api {
         tileset_manager_(nullptr) {}
 
  private:
-  const EngineConfig& config_;
+  EngineConfig& config_;
   TextureManager* texture_manager_;
   SpriteManager* sprite_manager_;
   ColliderManager* collider_manager_;

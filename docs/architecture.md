@@ -149,6 +149,36 @@ other engine systems must not inspect `SDL_Event`, SDL scancodes, or ImGui IO.
 This separation allows engine input behavior to be tested using ordinary fake
 snapshots without initializing a window or ImGui context.
 
+## Camera responsibilities
+
+`Camera` is a platform-neutral view transform: a world-space center, a zoom,
+and the current viewport dimensions used for coordinate conversion. It does
+not own input behavior or decide whether it is an editor or gameplay camera.
+
+The owning controller supplies that policy:
+
+- `Canvas` owns editor navigation and deliberately permits zoom from 0.1 to
+  10.0 so an author can inspect unusually large or small level features.
+- `CameraController` owns gameplay input and defaults to a narrower 0.1 to 5.0
+  range. Its options may supply a different validated `CameraZoomRange` for a
+  specific game camera.
+- `Level` is persistent authoring data and does not embed transient camera
+  state. A runtime world or editor view owns its camera separately.
+
+The logical game view is the project setting `EngineConfig::game_view`. It is
+independent of the SDL window and ImGui canvas: authors can configure the game
+camera's width and height without changing the physical display resolution.
+Saving through `Api::SaveConfig` updates the EditorEngine-owned configuration,
+so long-lived editor views observe the new dimensions without being recreated.
+The level editor uses the logical size only to calculate a pure `CameraGuide`;
+ImGui renders the resulting rectangle and crosshair.
+
+`WindowConfig` likewise uses Zebes-owned coordinates and booleans. It contains
+no SDL position sentinels, flag bits, or headers. `SdlWrapper` is responsible
+for translating those values into `SDL_WindowFlags` and centered positions at
+the platform boundary. Config loading recognizes the former numeric format
+only as a backwards-compatible migration path.
+
 ## Editor models
 
 Stateful editor screens separate authoring behavior from presentation:
@@ -169,6 +199,19 @@ geometry. For example, the level viewport calculates a `ParallaxLayout` from a
 Zebes `Camera`, layer settings, and texture dimensions. The ImGui/SDL view only
 resolves the native texture and emits the tiles described by that layout. This
 keeps first-frame, viewport, zoom, and repetition behavior headlessly testable.
+
+Level viewport authoring rules live in the platform-neutral `ViewportModel`
+module. Entity picking and construction, stable ID allocation, tile mutation,
+and grid snapping do not depend on ImGui, SDL, or `Api`. `ViewportTab` resolves
+resources, draws the results, and translates UI gestures into those operations.
+
+Viewport scene composition is separate from presentation. `ViewportScene`
+builds platform-neutral entity and zone render items with validated world-space
+bounds, selection state, and opaque `TextureHandle` values. `ViewportRenderer`
+is the UI boundary that converts those handles to SDL textures and emits ImGui
+draw commands. `ViewportTab` orchestrates the two. Picking and rendering share
+one entity-bounds calculation so invisible and textured entities do not acquire
+different interaction geometry.
 
 Parallax-zone activation is also a pure editor/runtime rule: resolve one zone
 from a world-space reference point, currently the camera center, and then render

@@ -1,8 +1,20 @@
 #pragma once
 
+#include <algorithm>
+
 #include "objects/vec.h"
 
 namespace zebes {
+
+// Valid zoom interval supplied by the system that controls a camera. Camera
+// state itself does not decide whether it belongs to gameplay or an editor.
+struct CameraZoomRange {
+  double minimum;
+  double maximum;
+
+  constexpr bool IsValid() const { return minimum > 0.0 && maximum >= minimum; }
+  constexpr double Clamp(double zoom) const { return std::clamp(zoom, minimum, maximum); }
+};
 
 struct Camera {
   // Center of the camera view in World Coordinates

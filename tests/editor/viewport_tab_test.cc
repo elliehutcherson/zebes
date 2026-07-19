@@ -1,4 +1,5 @@
 #include "editor/level_editor/viewport_tab.h"
+#include "editor/level_editor/viewport_model.h"
 
 #include <map>
 
@@ -44,7 +45,7 @@ TEST(PickEntityTest, HitEntityWithNoSprite) {
   std::map<uint64_t, Entity> entities{{e.id, e}};
 
   // Center of the default 32x32 box
-  EXPECT_EQ(PickEntity(entities, {100, 200}), 1u);
+  EXPECT_EQ(PickEntity(entities, {100, 200}).value(), 1u);
 }
 
 TEST(PickEntityTest, MissReturnsFallbackId) {
@@ -52,14 +53,14 @@ TEST(PickEntityTest, MissReturnsFallbackId) {
   std::map<uint64_t, Entity> entities{{e.id, e}};
 
   // Well outside the 32x32 hit box
-  EXPECT_EQ(PickEntity(entities, {500, 500}), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {500, 500}).value(), Entity::kInvalidId);
 }
 
 TEST(PickEntityTest, InactiveEntityIsSkipped) {
   Entity e = {.id = 1, .active = false, .transform = {.position = {100, 200}}};
   std::map<uint64_t, Entity> entities{{e.id, e}};
 
-  EXPECT_EQ(PickEntity(entities, {100, 200}), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {100, 200}).value(), Entity::kInvalidId);
 }
 
 TEST(PickEntityTest, HitEntityWithSprite) {
@@ -75,8 +76,8 @@ TEST(PickEntityTest, HitEntityWithSprite) {
   Entity e = {.id = 7, .active = true, .transform = {.position = {50, 100}}, .sprite = &sprite};
   std::map<uint64_t, Entity> entities{{e.id, e}};
 
-  EXPECT_EQ(PickEntity(entities, {55, 95}), 7u);
-  EXPECT_EQ(PickEntity(entities, {35, 95}), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {55, 95}).value(), 7u);
+  EXPECT_EQ(PickEntity(entities, {35, 95}).value(), Entity::kInvalidId);
 }
 
 // CreateEntityFromBlueprint tests
@@ -195,6 +196,14 @@ TEST(ViewportTabTest, FrameZoneCentersAndFitsStableZoneBounds) {
   EXPECT_DOUBLE_EQ(camera.zoom, 2);
 }
 
+TEST(ViewportTabTest, RenderRejectsMissingLevelBeforeOpeningCanvas) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+
+  EXPECT_EQ(tab.Render({}).code(), absl::StatusCode::kInvalidArgument);
+}
+
 // SnapEntityToGrid tests
 
 TEST(SnapEntityToGridTest, ColliderCenterAlignedAndBottomAligned) {
@@ -260,6 +269,16 @@ TEST(SnapEntityToGridTest, ErrorWhenSpriteFrameHasZeroDimensions) {
   EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST(SnapEntityToGridTest, ErrorWhenTileDimensionsAreInvalid) {
+  Sprite sprite;
+  sprite.frames.push_back(SpriteFrame{.render_w = 16, .render_h = 16});
+
+  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 0, 16, nullptr, &sprite);
+
+  EXPECT_FALSE(result.ok());
+  EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
 TEST(SnapEntityToGridTest, EmptyColliderFallsBackToSprite) {
   // Collider present but has no polygons — falls through to sprite.
   Collider collider;  // polygons empty
@@ -281,13 +300,22 @@ TEST(PickEntityTest, InvisibleBlueprintEntity_HitsDefaultBox) {
   std::map<uint64_t, Entity> entities{{e.id, e}};
 
   // Hits are inside the default ±16 box around (50, 80): x∈[34,66], y∈[64,96].
-  EXPECT_EQ(PickEntity(entities, {50, 80}), 3u);   // center
-  EXPECT_EQ(PickEntity(entities, {34, 64}), 3u);   // top-left corner
-  EXPECT_EQ(PickEntity(entities, {66, 96}), 3u);   // bottom-right corner
+  EXPECT_EQ(PickEntity(entities, {50, 80}).value(), 3u);  // center
+  EXPECT_EQ(PickEntity(entities, {34, 64}).value(), 3u);  // top-left corner
+  EXPECT_EQ(PickEntity(entities, {66, 96}).value(), 3u);  // bottom-right corner
 
   // Miss just outside the box.
-  EXPECT_EQ(PickEntity(entities, {33, 80}), Entity::kInvalidId);
-  EXPECT_EQ(PickEntity(entities, {67, 80}), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {33, 80}).value(), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {67, 80}).value(), Entity::kInvalidId);
+}
+
+TEST(PickEntityTest, InvalidSpriteBoundsFailFast) {
+  Sprite sprite;
+  sprite.frames.push_back(SpriteFrame{.render_w = 0, .render_h = 16});
+  Entity entity{.id = 1, .sprite = &sprite};
+  std::map<uint64_t, Entity> entities{{entity.id, entity}};
+
+  EXPECT_EQ(PickEntity(entities, {0, 0}).status().code(), absl::StatusCode::kInvalidArgument);
 }
 
 // HandleTileInput tests

@@ -35,6 +35,15 @@ std::string GetExecPath() {
 
 EngineConfig::EngineConfig() : paths(GetExecPath()) {}
 
+absl::Status EngineConfig::Validate() const {
+  if (!game_view.IsValid()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Game view dimensions must be positive; got %dx%d", game_view.width,
+                        game_view.height));
+  }
+  return absl::OkStatus();
+}
+
 absl::StatusOr<EngineConfig> EngineConfig::Load(const std::string& path) {
   LOG(INFO) << __func__ << ": "
             << "Importing config from path: " << path;
@@ -53,6 +62,8 @@ absl::StatusOr<EngineConfig> EngineConfig::Load(const std::string& path) {
 
   EngineConfig config;
   nlohmann::from_json(j, config);
+  absl::Status validation = config.Validate();
+  if (!validation.ok()) return validation;
 
   LOG(INFO) << __func__ << ": "
             << "Successfully imported: " << j.dump(2);
@@ -61,6 +72,9 @@ absl::StatusOr<EngineConfig> EngineConfig::Load(const std::string& path) {
 }
 
 absl::Status EngineConfig::Save(const EngineConfig& config) {
+  absl::Status validation = config.Validate();
+  if (!validation.ok()) return validation;
+
   nlohmann::json j;
   to_json(j, config);
 

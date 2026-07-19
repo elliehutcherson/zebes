@@ -34,14 +34,16 @@ void SdlWrapper::DestroyTexture(SDL_Texture* texture) {
 }
 
 absl::StatusOr<std::unique_ptr<SdlWrapper>> SdlWrapper::Create(const WindowConfig& config) {
-  // Ensure editor is always resizable and high-dpi aware, while respecting config flags
-  // We use the config flags as a base, but enforce RESIZABLE/HIGHDPI for the editor context
-  // unless specifically overridden by the user config implies we shouldn't (but here we force it
-  // for editor usability).
-  uint32_t window_flags = config.flags | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+  uint32_t window_flags = 0;
+  if (config.fullscreen) window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+  if (config.resizable) window_flags |= SDL_WINDOW_RESIZABLE;
+  if (config.high_dpi) window_flags |= SDL_WINDOW_ALLOW_HIGHDPI;
 
-  SDL_Window* window = SDL_CreateWindow(config.title.c_str(), config.xpos, config.ypos,
-                                        config.width, config.height, (SDL_WindowFlags)window_flags);
+  const int window_x = config.centered ? SDL_WINDOWPOS_CENTERED : config.x;
+  const int window_y = config.centered ? SDL_WINDOWPOS_CENTERED : config.y;
+  SDL_Window* window = SDL_CreateWindow(config.title.c_str(), window_x, window_y, config.width,
+                                        config.height,
+                                        static_cast<SDL_WindowFlags>(window_flags));
 
   if (window == nullptr) {
     return absl::InternalError(absl::StrCat("Failed to create SDL window: ", SDL_GetError()));

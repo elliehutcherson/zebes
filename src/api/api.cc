@@ -37,7 +37,14 @@ Api::Api(const Options& options)
 
 absl::Status Api::SaveConfig(const EngineConfig& config) {
   LOG(INFO) << "SaveConfig in the api....";
-  return EngineConfig::Save(config);
+  absl::Status status = EngineConfig::Save(config);
+  if (!status.ok()) return status;
+
+  // Publish the saved settings to long-lived editor consumers. The Api holds
+  // the EditorEngine-owned config by reference, so this does not introduce a
+  // second source of truth.
+  config_ = config;
+  return absl::OkStatus();
 }
 
 absl::StatusOr<std::string> Api::CreateTexture(Texture texture) {

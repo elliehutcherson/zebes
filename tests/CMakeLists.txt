@@ -12,6 +12,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
 add_library(macros INTERFACE macros.h)
 target_link_libraries(macros INTERFACE absl::statusor)
 
+add_executable(common_config_test common_config_test.cc)
+target_link_libraries(common_config_test config gtest_main)
+gtest_discover_tests(common_config_test)
+
 # --- Texture Manager ---
 add_executable(texture_manager_test resources/texture_manager_test.cc)
 target_link_libraries(texture_manager_test texture_manager macros gtest_main)
@@ -70,7 +74,7 @@ gtest_discover_tests(camera_controller_test)
 # --- Level Manager ---
 add_executable(level_manager_test resources/level_manager_test.cc)
 target_link_libraries(level_manager_test level_manager macros gtest_main gmock)
-gtest_discover_tests(level_manager_test)
+gtest_discover_tests(level_manager_test PROPERTIES RESOURCE_LOCK level_manager_test_data)
 
 # --- Tileset Manager ---
 add_executable(tileset_manager_test resources/tileset_manager_test.cc)
