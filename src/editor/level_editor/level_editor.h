@@ -6,6 +6,7 @@
 #include "api/api.h"
 #include "editor/gui_interface.h"
 #include "editor/level_editor/level_panel_interface.h"
+#include "editor/level_editor/level_panel_model.h"
 #include "editor/level_editor/palette_panel.h"
 #include "editor/level_editor/level_selection_state.h"
 #include "editor/level_editor/parallax_preview_tab.h"
@@ -42,6 +43,9 @@ class LevelEditor {
   explicit LevelEditor(Api* api, GuiInterface* gui);
 
   absl::Status Init(Options options);
+  void RefreshLevelCatalog();
+  absl::Status SaveActiveLevel();
+  absl::Status HandleLevelPanelEvent(LevelPanelEvent event);
 
   // Renders the level list and management controls.
   absl::Status RenderNavigator();  // Left
@@ -69,7 +73,7 @@ class LevelEditor {
   std::unique_ptr<ViewportTab> viewport_tab_;
 
   // State
-  std::optional<Level> editting_level_;
+  LevelPanelModel level_model_;
   SelectionState selection_;
   std::optional<std::string> save_error_;
 };

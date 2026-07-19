@@ -18,7 +18,7 @@ struct SelectionState {
   Type type = Type::kNone;
 
   // Context Data
-  int zone_index = -1;
+  int zone_id = -1;
   int theme_id = -1;
   int layer_index = -1;
   uint64_t entity_id = 0;  // Entity::kInvalidId
@@ -26,10 +26,24 @@ struct SelectionState {
   // Clears selection
   void Clear() {
     type = Type::kNone;
-    zone_index = -1;
+    zone_id = -1;
     theme_id = -1;
     layer_index = -1;
     entity_id = 0;
+  }
+
+  // Applies an entity pick from the viewport. Clicking empty space clears an
+  // entity selection, but preserves unrelated level, zone, theme, or layer
+  // authoring context.
+  void ApplyEntityPick(uint64_t picked_entity_id) {
+    if (picked_entity_id == 0) {
+      if (type == Type::kEntity) Clear();
+      return;
+    }
+
+    Clear();
+    type = Type::kEntity;
+    entity_id = picked_entity_id;
   }
 };
 

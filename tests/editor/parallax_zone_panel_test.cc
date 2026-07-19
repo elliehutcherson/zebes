@@ -7,7 +7,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "objects/level.h"
-#include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
 
 namespace zebes {
@@ -45,7 +44,7 @@ class ParallaxZonePanelTest : public ::testing::Test {
     // Add dummy themes
     level_.themes[1] = ParallaxTheme{.name = "Theme1"};
 
-    auto panel_or = ParallaxZonePanel::Create({.api = api_.get(), .gui = &gui_});
+    auto panel_or = ParallaxZonePanel::Create({.gui = &gui_});
     ASSERT_TRUE(panel_or.ok());
     panel_ = *std::move(panel_or);
 
@@ -90,7 +89,6 @@ class ParallaxZonePanelTest : public ::testing::Test {
     return ParallaxZonePanelTestPeer::RenderDetails(*panel_, level_, selection_);
   }
 
-  std::unique_ptr<MockApi> api_ = std::make_unique<NiceMock<MockApi>>();
   NiceMock<MockGui> gui_;
   std::unique_ptr<ParallaxZonePanel> panel_;
   Level level_;
@@ -109,7 +107,7 @@ TEST_F(ParallaxZonePanelTest, CreateZoneAddsToLevel) {
   // Verify zone added and selected
   ASSERT_EQ(level_.zones.size(), 1);
   EXPECT_EQ(selection_.type, SelectionState::Type::kZone);
-  EXPECT_EQ(selection_.zone_index, 0);
+  EXPECT_EQ(selection_.zone_id, 0);
   EXPECT_EQ(level_.zones[0].name, "Zone 0");
   EXPECT_EQ(level_.zones[0].id, 0);
 }
@@ -117,7 +115,7 @@ TEST_F(ParallaxZonePanelTest, CreateZoneAddsToLevel) {
 TEST_F(ParallaxZonePanelTest, DeleteZoneRemovesFromLevel) {
   level_.zones.push_back({});
   selection_.type = SelectionState::Type::kZone;
-  selection_.zone_index = 0;
+  selection_.zone_id = 0;
 
   EXPECT_CALL(gui_, Button(StrEq("Delete Zone"), _)).WillOnce(Return(true));
 
@@ -138,7 +136,7 @@ TEST_F(ParallaxZonePanelTest, SelectionStateUpdatedOnSelect) {
   ASSERT_TRUE(RenderNavigator().ok());
 
   EXPECT_EQ(selection_.type, SelectionState::Type::kZone);
-  EXPECT_EQ(selection_.zone_index, 0);
+  EXPECT_EQ(selection_.zone_id, 0);
 }
 
 TEST_F(ParallaxZonePanelTest, CreateZone_AssignsUniqueIds) {
@@ -159,15 +157,29 @@ TEST_F(ParallaxZonePanelTest, CreateZone_AssignsUniqueIds) {
   EXPECT_FALSE(level_.zones[1].name.empty());
 }
 
-TEST_F(ParallaxZonePanelTest, DetailsReturnsErrorOnInvalidIndex) {
+TEST_F(ParallaxZonePanelTest, DetailsReturnsErrorOnInvalidId) {
   level_.zones.push_back({});
   selection_.type = SelectionState::Type::kZone;
-  selection_.zone_index = 5;  // Invalid
+  selection_.zone_id = 5;  // Invalid
 
   ASSERT_FALSE(RenderDetails().ok());
 
   // Selection should be cleared on error
   EXPECT_EQ(selection_.type, SelectionState::Type::kNone);
+}
+
+TEST_F(ParallaxZonePanelTest, SelectionUsesStableIdAfterZoneOrderChanges) {
+  level_.zones = {
+      {.id = 10, .name = "First", .theme_id = 1, .min_point = {0, 0}, .max_point = {50, 50}},
+      {.id = 20, .name = "Second", .theme_id = 1, .min_point = {50, 0}, .max_point = {100, 50}},
+  };
+  selection_.type = SelectionState::Type::kZone;
+  selection_.zone_id = 20;
+
+  level_.zones.erase(level_.zones.begin());
+
+  ASSERT_TRUE(RenderDetails().ok());
+  EXPECT_EQ(selection_.zone_id, 20);
 }
 
 TEST_F(ParallaxZonePanelTest, NavigatorShowsThemeNameInLabel) {
@@ -190,7 +202,7 @@ TEST_F(ParallaxZonePanelTest, ComboPreviewShowsSelectedTheme) {
   zone.theme_id = 1;
   level_.zones.push_back(zone);
   selection_.type = SelectionState::Type::kZone;
-  selection_.zone_index = 0;
+  selection_.zone_id = 0;
 
   EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Theme"), StrEq("Theme1"), _))
       .WillOnce(Invoke([this](const char* label, const char* preview, ImGuiComboFlags flags) {
@@ -222,7 +234,7 @@ TEST_F(ParallaxZonePanelTest, RenderDetails_ShowsLayerOffsets) {
   };
   level_.zones.push_back(zone);
   selection_.type = SelectionState::Type::kZone;
-  selection_.zone_index = 0;
+  selection_.zone_id = 0;
 
   EXPECT_CALL(gui_, InputDouble).WillRepeatedly(Return(false));
 

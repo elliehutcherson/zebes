@@ -122,7 +122,31 @@ ViewportTab::ViewportTab(Api& api, GuiInterface* gui)
   camera_ = Camera{};
 }
 
-void ViewportTab::Reset() { camera_ = {}; }
+void ViewportTab::Reset() {
+  camera_ = {};
+  pending_camera_frame_.reset();
+}
+
+void ViewportTab::FrameZone(const ParallaxZone& zone) {
+  pending_camera_frame_ = VisibleWorldBounds{
+      .min = zone.min_point,
+      .max = zone.max_point,
+  };
+}
+
+void ViewportTab::ApplyPendingCameraFrame(const ImVec2& viewport_size,
+                                          VisibleWorldBounds world_bounds) {
+  if (!pending_camera_frame_.has_value()) return;
+
+  std::optional<CameraFrame> frame = CalculateConstrainedCameraFrame(
+      *pending_camera_frame_, world_bounds, static_cast<int>(viewport_size.x),
+      static_cast<int>(viewport_size.y));
+  pending_camera_frame_.reset();
+  if (!frame.has_value()) return;
+
+  camera_.position = frame->position;
+  camera_.zoom = frame->zoom;
+}
 
 std::optional<Entity> ViewportTab::TakeNewEntity() {
   return std::exchange(pending_entity_, std::nullopt);
@@ -159,10 +183,25 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   ImVec2 canvas_size = gui_->GetContentRegionAvail();
   canvas_size.y -= 25;  // Leave room for the status bar
 
+  ApplyPendingCameraFrame(canvas_size,
+                          {.min = {0, 0}, .max = {level.width, level.height}});
+
   canvas_.SetWorldBounds({0, 0}, {level.width, level.height});
   canvas_.SetSnap(options.snap_to_grid);
   canvas_.SetGridSize(static_cast<float>(level.tile_render_width));
   canvas_.Begin("LevelCanvas", canvas_size, camera_);
+
+  // Capture canvas input before calculating any scene geometry so zoom and
+  // camera movement are reflected immediately in this frame.
+  canvas_.HandleInput();
+
+  if (options.selected_zone_id.has_value() && gui_->IsItemHovered() &&
+      gui_->IsKeyPressed(ImGuiKey_F, false)) {
+    if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, *options.selected_zone_id);
+        zone != nullptr) {
+      FrameZone(*zone);
+    }
+  }
 
   // Determine the active tileset: from options, or from the level's stored id.
   const Tileset* active_tileset = options.placement_tileset;
@@ -171,8 +210,8 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
     if (tileset.ok() && *tileset != nullptr) active_tileset = *tileset;
   }
 
-  // 1. Render Scene Elements
-  RenderZones(level);
+  // 1. Render scene elements.
+  std::optional<ActiveParallaxZone> active_zone = RenderParallaxBackground(level);
   canvas_.DrawGrid();
   RenderLevelBounds(level);
   if (active_tileset != nullptr) {
@@ -181,6 +220,9 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   }
   RenderEntities(level, options.selected_entity_id, options.show_entity_borders,
                  options.entity_overlay_opacity);
+  RenderZoneGizmos(level, options.selected_zone_id,
+                   active_zone.has_value() ? std::optional<int>(active_zone->zone_id)
+                                           : std::nullopt);
 
   // 2. Render placement ghost. Tile mode uses its own grid snap; blueprint mode
   //    snaps to the blueprint's own collider/sprite dimensions.
@@ -195,8 +237,8 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
     RenderPlacementGhost(*options.placement_blueprint, snapped);
   }
 
-  // 3. Handle input (pan/zoom first, then mode-specific interaction).
-  canvas_.HandleInput();
+  // 3. Handle mode-specific interaction. Canvas input above created the
+  // invisible interaction surface, so its item state remains available here.
   if (options.placement_tile != nullptr && options.placement_tileset != nullptr) {
     LOG_IF_ERROR(HandleTileInput(level, *options.placement_tile, *options.placement_tileset,
                                  mouse_world, level.tile_render_width, level.tile_render_height));
@@ -217,8 +259,16 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   canvas_.End();
 
   // 5. Status bar
-  gui_->Text("Cam: (%.0f, %.0f) | Zoom: %.2f | Mouse World: (%.0f, %.0f)", camera_.position.x,
-             camera_.position.y, zoom, mouse_world.x, mouse_world.y);
+  const char* active_zone_name = "None";
+  if (active_zone.has_value()) {
+    if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, active_zone->zone_id);
+        zone != nullptr) {
+      active_zone_name = zone->name.c_str();
+    }
+  }
+  gui_->Text("Cam: (%.0f, %.0f) | Zoom: %.2f | Mouse: (%.0f, %.0f) | Zone: %s",
+             camera_.position.x, camera_.position.y, zoom, mouse_world.x, mouse_world.y,
+             active_zone_name);
 
   gui_->SameLine();
   if (gui_->Button("Reset View")) {
@@ -404,81 +454,78 @@ void ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos
   draw_list->AddRect(ghost_min, ghost_max, IM_COL32(100, 200, 100, 220), 0.0f, 0, 2.0f);
 }
 
-void ViewportTab::RenderZones(const Level& level) {
+std::optional<ActiveParallaxZone> ViewportTab::RenderParallaxBackground(const Level& level) {
+  std::optional<ActiveParallaxZone> active =
+      ResolveActiveParallaxZone(level.zones, camera_.position);
+  if (!active.has_value()) return std::nullopt;
+
+  auto theme_it = level.themes.find(active->theme_id);
+  if (theme_it == level.themes.end()) return active;
+
+  RenderParallaxTheme(theme_it->second);
+  return active;
+}
+
+void ViewportTab::RenderParallaxTheme(const ParallaxTheme& theme) {
   ImDrawList* draw_list = canvas_.GetDrawList();
   if (!draw_list) return;
 
+  for (const ParallaxLayer& layer : theme.layers) {
+    if (layer.texture_id.empty()) continue;
+
+    absl::StatusOr<Texture*> texture_or = api_.GetTexture(layer.texture_id);
+    if (!texture_or.ok() || *texture_or == nullptr) continue;
+    const Texture& texture = *(*texture_or);
+
+    int w = 0, h = 0;
+    SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(texture.texture_handle);
+    SDL_QueryTexture(native_texture, nullptr, nullptr, &w, &h);
+    if (w == 0 || h == 0) continue;
+
+    std::optional<ParallaxLayout> layout = CalculateParallaxLayout(camera_, layer, w, h);
+    if (!layout.has_value()) continue;
+
+    for (int row = layout->first_row; row <= layout->last_row; ++row) {
+      for (int col = layout->first_column; col <= layout->last_column; ++col) {
+        Vec tile_world = {layout->origin.x + col * layout->tile_width,
+                          layout->origin.y + row * layout->tile_height};
+
+        ImVec2 sp_min = canvas_.WorldToScreen(tile_world);
+        ImVec2 sp_max = ImVec2(sp_min.x + layout->tile_width * camera_.zoom,
+                               sp_min.y + layout->tile_height * camera_.zoom);
+
+        draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), sp_min, sp_max,
+                            ImVec2(0, 0), ImVec2(1, 1));
+      }
+    }
+  }
+}
+
+void ViewportTab::RenderZoneGizmos(const Level& level, std::optional<int> selected_zone_id,
+                                   std::optional<int> active_zone_id) {
+  ImDrawList* draw_list = canvas_.GetDrawList();
+  if (!draw_list) return;
+
+  const VisibleWorldBounds visible = CalculateVisibleWorldBounds(camera_);
   for (const ParallaxZone& zone : level.zones) {
-    ImVec2 p_min = canvas_.WorldToScreen(zone.min_point);
-    ImVec2 p_max = canvas_.WorldToScreen(zone.max_point);
+    const bool is_visible = zone.max_point.x >= visible.min.x &&
+                            zone.min_point.x <= visible.max.x &&
+                            zone.max_point.y >= visible.min.y &&
+                            zone.min_point.y <= visible.max.y;
+    if (!is_visible) continue;
 
-    // Frustum Culling
-    ImVec2 canvas_p_min = ImGui::GetWindowPos();
-    ImVec2 canvas_p_max = ImVec2(canvas_p_min.x + ImGui::GetWindowSize().x,
-                                 canvas_p_min.y + ImGui::GetWindowSize().y);
-    if (p_max.x < canvas_p_min.x || p_min.x > canvas_p_max.x || p_max.y < canvas_p_min.y ||
-        p_min.y > canvas_p_max.y) {
-      continue;
+    ImU32 color = IM_COL32(255, 255, 0, 150);
+    float thickness = 2.0f;
+    if (active_zone_id == zone.id) {
+      color = IM_COL32(80, 220, 120, 220);
+    }
+    if (selected_zone_id == zone.id) {
+      color = IM_COL32(255, 200, 0, 255);
+      thickness = 3.0f;
     }
 
-    auto it = level.themes.find(zone.theme_id);
-    if (it == level.themes.end()) continue;
-    const ParallaxTheme& theme = it->second;
-
-    for (const ParallaxLayer& layer : theme.layers) {
-      if (layer.texture_id.empty()) continue;
-
-      absl::StatusOr<Texture*> texture_or = api_.GetTexture(layer.texture_id);
-      if (!texture_or.ok() || *texture_or == nullptr) continue;
-      const Texture& texture = *(*texture_or);
-
-      int w = 0, h = 0;
-      SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(texture.texture_handle);
-      SDL_QueryTexture(native_texture, nullptr, nullptr, &w, &h);
-      if (w == 0 || h == 0) continue;
-
-      float image_w = static_cast<float>(w) * layer.base_scale;
-      float image_h = static_cast<float>(h) * layer.base_scale;
-
-      // Where image (0,0) goes in world space
-      Vec origin = camera_.ParallaxWorldOrigin(layer.scroll_factor, layer.offset);
-
-      // Visible world area
-      float view_w = camera_.viewport_width / camera_.zoom;
-      float view_h = camera_.viewport_height / camera_.zoom;
-      float world_left = camera_.position.x - view_w / 2.0f;
-      float world_top = camera_.position.y - view_h / 2.0f;
-
-      // Which tiles are visible
-      int start_col = (int)std::floor((world_left - origin.x) / image_w);
-      int end_col = (int)std::floor((world_left + view_w - origin.x) / image_w);
-      int start_row = (int)std::floor((world_top - origin.y) / image_h);
-      int end_row = (int)std::floor((world_top + view_h - origin.y) / image_h);
-
-      if (!layer.repeat_x) {
-        start_col = 0;
-        end_col = 0;
-      }
-      if (!layer.repeat_y) {
-        start_row = 0;
-        end_row = 0;
-      }
-
-      for (int row = start_row; row <= end_row; ++row) {
-        for (int col = start_col; col <= end_col; ++col) {
-          Vec tile_world = {origin.x + col * (double)image_w, origin.y + row * (double)image_h};
-
-          ImVec2 sp_min = canvas_.WorldToScreen(tile_world);
-          ImVec2 sp_max =
-              ImVec2(sp_min.x + image_w * camera_.zoom, sp_min.y + image_h * camera_.zoom);
-
-          draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), sp_min, sp_max,
-                              ImVec2(0, 0), ImVec2(1, 1));
-        }
-      }
-    }
-
-    draw_list->AddRect(p_min, p_max, IM_COL32(255, 255, 0, 150), 0.0f, 0, 2.0f);
+    draw_list->AddRect(canvas_.WorldToScreen(zone.min_point),
+                       canvas_.WorldToScreen(zone.max_point), color, 0.0f, 0, thickness);
   }
 }
 

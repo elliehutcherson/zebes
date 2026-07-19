@@ -75,8 +75,8 @@ struct Camera {
   // Returns where image pixel (0,0) should be placed in world space
   // for correct parallax rendering.
   Vec ParallaxWorldOrigin(Vec scroll_factor, Vec offset = {0, 0}) const {
-    double world_left = position.x - viewport_width / 2.0;
-    double world_top = position.y - viewport_height / 2.0;
+    double world_left = position.x - viewport_width / (2.0 * zoom);
+    double world_top = position.y - viewport_height / (2.0 * zoom);
     Vec result;
     result.x = offset.x + (world_left - offset.x) * (1.0 - scroll_factor.x);
     result.y = offset.y + (world_top - offset.y) * (1.0 - scroll_factor.y);

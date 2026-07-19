@@ -1,13 +1,17 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
+#include <string>
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/animator.h"
 #include "editor/blueprint_editor/blueprint_panel.h"
+#include "editor/blueprint_editor/blueprint_panel_model.h"
 #include "editor/blueprint_editor/blueprint_state_panel.h"
 #include "editor/blueprint_editor/collider_panel.h"
+#include "editor/blueprint_editor/collider_panel_model.h"
 #include "editor/blueprint_editor/sprite_panel.h"
 #include "editor/canvas/canvas.h"
 #include "editor/gui_interface.h"
@@ -15,7 +19,11 @@
 
 namespace zebes {
 
-class BlueprintEditorReproTest;
+struct ColliderResult {
+  enum class Type : std::uint8_t { kNone, kAttach, kDetach };
+  Type type = Type::kNone;
+  std::string collider_id;
+};
 
 class BlueprintEditor {
  public:
@@ -50,6 +58,12 @@ class BlueprintEditor {
   absl::Status EnterBlueprintStateMode(Blueprint& bp, int state_index);
   absl::Status ExitBlueprintStateMode();
 
+  void RefreshBlueprintCatalog();
+  absl::Status HandleBlueprintPanelEvent(const BlueprintPanel::Event& event);
+  absl::Status SaveActiveBlueprint();
+  void RefreshColliderCatalog();
+  absl::StatusOr<ColliderResult> HandleColliderPanelAction(ColliderPanel::Action action);
+
   void UpdateStateCollider(const ColliderResult& collider_result);
   void UpdateStateSprite(const SpriteResult& sprite_result);
 
@@ -63,6 +77,8 @@ class BlueprintEditor {
   std::unique_ptr<BlueprintStatePanel> blueprint_state_panel_;
   std::unique_ptr<ColliderPanel> collider_panel_;
   std::unique_ptr<SpritePanel> sprite_panel_;
+  BlueprintPanelModel blueprint_model_;
+  ColliderPanelModel collider_model_;
 
   Mode mode_ = Mode::kBlueprint;
 };

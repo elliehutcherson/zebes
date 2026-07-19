@@ -9,6 +9,7 @@
 #include "api/api.h"
 #include "editor/canvas/canvas.h"
 #include "editor/gui_interface.h"
+#include "editor/level_editor/parallax_layout.h"
 #include "objects/blueprint.h"
 #include "objects/camera.h"
 #include "objects/collider.h"
@@ -19,16 +20,6 @@
 #include "objects/vec.h"
 
 namespace zebes {
-
-// Calculates the screen-space offset (in pixels) for a parallax layer.
-// - camera_pos: the camera's world position along one axis.
-// - scroll_factor: how much the layer moves relative to the camera.
-//   1.0 = moves with the camera (foreground).
-//   0.0 = completely fixed (distant background).
-// - zoom: the current canvas zoom level.
-static inline double CalculateParallaxOffset(double camera_pos, double scroll_factor, double zoom) {
-  return camera_pos * scroll_factor * zoom;
-}
 
 // Returns the id of the entity whose bounding box contains world_pos, or
 // Entity::kInvalidId if none match. The bounding box is derived from the
@@ -147,6 +138,9 @@ struct ViewportRenderOptions {
   float tile_overlay_opacity = 0.0f;
   // Yellow overlay alpha [0,1] drawn on top of every entity. 0 = off.
   float entity_overlay_opacity = 0.0f;
+  // Zone selected in the editor navigator. Used only for gizmo highlighting
+  // and frame-selected behavior; it does not override runtime activation.
+  std::optional<int> selected_zone_id;
 };
 
 class ViewportTab {
@@ -158,6 +152,9 @@ class ViewportTab {
 
   // Resets the viewport view (zoom/offset) to default.
   void Reset();
+
+  // Requests that the next viewport frame center and fit this zone.
+  void FrameZone(const ParallaxZone& zone);
 
   // Returns the entity placed this frame (if any), then clears it.
   // The returned entity has its sprite pointer resolved via the Api.
@@ -209,9 +206,20 @@ class ViewportTab {
   absl::Status HandleEntityInput(Level& level, const Blueprint* placement_blueprint,
                                  Vec mouse_world, uint64_t selected_entity_id, bool delete_mode);
 
-  // Renders the parallax layers for the given level.
-  // Each layer is rendered with its specific scroll factor relative to the camera view.
-  void RenderZones(const Level& level);
+  // Resolves and renders the single active parallax environment at the camera
+  // center. Returns the stable active-zone identity, when one exists.
+  std::optional<ActiveParallaxZone> RenderParallaxBackground(const Level& level);
+
+  // Renders one theme's layers using the current camera.
+  void RenderParallaxTheme(const ParallaxTheme& theme);
+
+  // Draws visible zone bounds independently of background activation.
+  void RenderZoneGizmos(const Level& level, std::optional<int> selected_zone_id,
+                        std::optional<int> active_zone_id);
+
+  // Applies a queued frame request once the current viewport and world
+  // dimensions are known.
+  void ApplyPendingCameraFrame(const ImVec2& viewport_size, VisibleWorldBounds world_bounds);
 
   // Renders the boundaries of the level and potentially the camera start box.
   void RenderLevelBounds(const Level& level);
@@ -225,6 +233,7 @@ class ViewportTab {
   GuiInterface* gui_;
   Canvas canvas_;
   Camera camera_;
+  std::optional<VisibleWorldBounds> pending_camera_frame_;
 
   // Placement state
   std::optional<Entity> pending_entity_;

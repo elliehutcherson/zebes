@@ -148,6 +148,10 @@ class GuiInterface {
   virtual ImGuiIO& GetIO() = 0;
   virtual ImGuiStyle& GetStyle() = 0;
   virtual bool IsItemHovered(ImGuiHoveredFlags flags = 0) = 0;
+  // Claims an input for the last item while it is hovered or active. This is
+  // required for custom widgets such as Canvas to prevent handled mouse-wheel
+  // input from also scrolling an ancestor window.
+  virtual void SetItemKeyOwner(ImGuiKey key) = 0;
   virtual void SetItemDefaultFocus() = 0;
   virtual bool IsItemActive() = 0;
   virtual bool IsItemClicked(ImGuiMouseButton mouse_button = 0) = 0;

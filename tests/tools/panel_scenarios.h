@@ -1,28 +1,17 @@
 #pragma once
 
 #include <memory>
-#include <optional>
-#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "common/status_macros.h"
-#include "gmock/gmock.h"
 #include "imgui.h"
 
 // Project Headers
 #include "editor/gui.h"
 #include "editor/level_editor/level_panel.h"
-#include "objects/texture.h"
-#include "tests/api_mock.h"
 
 namespace zebes {
-namespace {
-
-using ::testing::NiceMock;
-using ::testing::ReturnRef;
-
-}  // namespace
 
 class IPanelScenario {
  public:
@@ -64,9 +53,7 @@ class LevelPanelScenario : public BasePanelScenario {
   static absl::StatusOr<std::unique_ptr<LevelPanelScenario>> Create() {
     auto scenario = std::unique_ptr<LevelPanelScenario>(new LevelPanelScenario());
 
-    // 2. Create the Panel
-    ASSIGN_OR_RETURN(scenario->panel_,
-                     LevelPanel::Create({.api = scenario->api_.get(), .gui = &scenario->gui_}));
+    ASSIGN_OR_RETURN(scenario->panel_, LevelPanel::Create(&scenario->gui_));
 
     return scenario;
   }
@@ -76,27 +63,31 @@ class LevelPanelScenario : public BasePanelScenario {
  protected:
   absl::Status RenderContent() override {
     if (!panel_) return absl::OkStatus();
-    return panel_->RenderList(editing_level_, selection_);
+    absl::StatusOr<LevelPanelEvent> event = model_.has_active_level()
+                                                ? panel_->RenderDetails(model_)
+                                                : panel_->RenderList(model_);
+    if (!event.ok()) return event.status();
+
+    if (event->action == LevelPanelAction::kCreate) {
+      RETURN_IF_ERROR(model_.FinishCreate("panel-viewer-level"));
+    } else if (event->action == LevelPanelAction::kDelete) {
+      model_.FinishDelete();
+    }
+    return absl::OkStatus();
   }
 
  private:
-  LevelPanelScenario() {
-    // Setup default mock behavior to prevent crashes
-    ON_CALL(*api_, GetAllLevels).WillByDefault([this]() { return dummy_levels_; });
-  }
+  LevelPanelScenario() = default;
 
-  std::unique_ptr<zebes::MockApi> api_ = std::make_unique<NiceMock<MockApi>>();
   Gui gui_;
   std::unique_ptr<zebes::LevelPanel> panel_;
-  std::optional<zebes::Level> editing_level_;
-  std::vector<zebes::Level> dummy_levels_;
-  SelectionState selection_;
+  LevelPanelModel model_;
 };
 
 inline absl::StatusOr<std::unique_ptr<IPanelScenario>> CreateScenario(absl::string_view flag) {
   if (flag == "level_panel") {
     ASSIGN_OR_RETURN(std::unique_ptr<LevelPanelScenario> scenario, LevelPanelScenario::Create());
-    return scenario;
+    return std::unique_ptr<IPanelScenario>(std::move(scenario));
   }
 
   return absl::NotFoundError("Unknown scenario flag");

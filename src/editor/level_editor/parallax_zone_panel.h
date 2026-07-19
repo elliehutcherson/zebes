@@ -1,28 +1,18 @@
 #pragma once
 
 #include <memory>
-#include <optional>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "api/api.h"
 #include "editor/gui_interface.h"
 #include "editor/level_editor/level_selection_state.h"
 #include "objects/level.h"
 
 namespace zebes {
 
-// Result of the Render call.
-enum class ParallaxZoneResult : uint8_t {
-  kNone,  // Just viewing lists
-  kEdit   // Currently editing a specific zone's properties
-};
-
 class ParallaxZonePanel {
  public:
   struct Options {
-    Api* api;
     GuiInterface* gui = nullptr;
   };
 
@@ -39,7 +29,6 @@ class ParallaxZonePanel {
 
   explicit ParallaxZonePanel(Options options);
 
-  Api& api_;
   GuiInterface* gui_;
 };
 

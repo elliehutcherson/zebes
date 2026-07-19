@@ -1,5 +1,6 @@
 #include "editor/canvas/canvas.h"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "objects/camera.h"
@@ -7,6 +8,10 @@
 
 namespace zebes {
 namespace {
+
+using ::testing::NiceMock;
+using ::testing::Return;
+using ::testing::ReturnRef;
 
 TEST(CanvasTest, GridSizeIsConfigurable) {
   MockGui mock_gui;
@@ -40,6 +45,45 @@ TEST(CanvasTest, SetSnapUpdatesSnapValue) {
 
   canvas.SetSnap(false);
   EXPECT_FALSE(canvas.GetSnap());
+}
+
+TEST(CanvasTest, BeginClampsCameraUsingCurrentViewportOnFirstFrame) {
+  NiceMock<MockGui> mock_gui;
+  ON_CALL(mock_gui, GetCursorScreenPos()).WillByDefault(Return(ImVec2(0, 0)));
+
+  Canvas canvas({.gui = &mock_gui});
+  canvas.SetWorldBounds({0, 0}, {2000, 1000});
+  Camera camera;
+
+  canvas.Begin("TestCanvas", ImVec2(800, 600), camera);
+
+  EXPECT_EQ(camera.viewport_width, 800);
+  EXPECT_EQ(camera.viewport_height, 600);
+  EXPECT_DOUBLE_EQ(camera.position.x, 400);
+  EXPECT_DOUBLE_EQ(camera.position.y, 300);
+
+  canvas.End();
+}
+
+TEST(CanvasTest, HoveredCanvasClaimsMouseWheelWhileZooming) {
+  NiceMock<MockGui> mock_gui;
+  ImGuiIO io;
+  io.MouseWheel = 1.0f;
+  ON_CALL(mock_gui, GetCursorScreenPos()).WillByDefault(Return(ImVec2(0, 0)));
+  ON_CALL(mock_gui, GetContentRegionAvail()).WillByDefault(Return(ImVec2(800, 600)));
+  ON_CALL(mock_gui, IsItemHovered).WillByDefault(Return(true));
+  ON_CALL(mock_gui, GetIO()).WillByDefault(ReturnRef(io));
+
+  Canvas canvas({.gui = &mock_gui});
+  canvas.SetWorldBounds({0, 0}, {2000, 1000});
+  Camera camera;
+  canvas.Begin("TestCanvas", ImVec2(800, 600), camera);
+
+  EXPECT_CALL(mock_gui, SetItemKeyOwner(ImGuiKey_MouseWheelY));
+  canvas.HandleInput();
+
+  EXPECT_GT(camera.zoom, 1.0);
+  canvas.End();
 }
 
 }  // namespace

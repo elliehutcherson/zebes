@@ -7,28 +7,18 @@
 
 namespace zebes {
 
-absl::StatusOr<std::unique_ptr<BlueprintStatePanel>> BlueprintStatePanel::Create(
-    Api* api, GuiInterface* gui) {
-  if (api == nullptr) {
-    return absl::InvalidArgumentError("API cannot be null");
-  }
+absl::StatusOr<std::unique_ptr<BlueprintStatePanel>> BlueprintStatePanel::Create(GuiInterface* gui) {
   if (gui == nullptr) {
     return absl::InvalidArgumentError("GUI cannot be null");
   }
-  return absl::WrapUnique(new BlueprintStatePanel(api, gui));
+  return absl::WrapUnique(new BlueprintStatePanel(gui));
 }
 
-BlueprintStatePanel::BlueprintStatePanel(Api* api, GuiInterface* gui) : api_(api), gui_(gui) {}
+BlueprintStatePanel::BlueprintStatePanel(GuiInterface* gui) : gui_(gui) {}
 
 void BlueprintStatePanel::SetState(Blueprint& blueprint, int index) {
   blueprint_ = &blueprint;
   index_ = index;
-
-  if (index_ >= 0 && index_ < blueprint_->states.size()) {
-    current_name_ = blueprint_->states[index].name;
-  } else {
-    current_name_.clear();
-  }
 }
 
 void BlueprintStatePanel::Reset() {
@@ -49,9 +39,7 @@ void BlueprintStatePanel::Render() {
     gui_->InputInt("Index", &index_);
   }
 
-  if (gui_->InputText("Name", &blueprint_->states[index_].name)) {
-    current_name_ = blueprint_->states[index_].name;
-  }
+  gui_->InputText("Name", &blueprint_->states[index_].name);
 
   {
     ScopedDisabled disabled = gui_->CreateScopedDisabled(true);

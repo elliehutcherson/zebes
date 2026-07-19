@@ -2,8 +2,6 @@ add_executable(panel_viewer panel_viewer.cc)
 target_link_libraries(panel_viewer
   level_panel
   editor_gui
-  api
-  gmock
   ${IMGUI_LIBRARIES}
   SDL2-static
   absl::flags

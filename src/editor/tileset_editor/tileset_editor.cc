@@ -1,8 +1,10 @@
 #include "editor/tileset_editor/tileset_editor.h"
 
-#include <cmath>
+#include <utility>
+#include <vector>
 
 #include "SDL_render.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
@@ -25,9 +27,57 @@ TilesetEditor::TilesetEditor(Api* api, GuiInterface* gui)
     : api_(api), gui_(gui), canvas_(Canvas::Options{.gui = gui}) {}
 
 absl::Status TilesetEditor::Init() {
-  ASSIGN_OR_RETURN(tileset_panel_, TilesetPanel::Create({.api = api_, .gui = gui_}));
+  ASSIGN_OR_RETURN(tileset_panel_, TilesetPanel::Create(gui_));
   ASSIGN_OR_RETURN(tile_panel_, TilePanel::Create(gui_));
+  RefreshCatalogs();
   return absl::OkStatus();
+}
+
+void TilesetEditor::RefreshCatalogs() {
+  model_.SetTilesets(api_->GetAllTilesets());
+
+  absl::StatusOr<std::vector<Texture>> textures = api_->GetAllTextures();
+  if (!textures.ok()) {
+    LOG(ERROR) << "Failed to load textures: " << textures.status();
+    model_.SetTextures({});
+    return;
+  }
+  model_.SetTextures(std::move(*textures));
+}
+
+absl::Status TilesetEditor::SaveActiveTileset() {
+  ASSIGN_OR_RETURN(Tileset request, model_.BuildSaveRequest());
+  std::string saved_id = request.id;
+  if (saved_id.empty()) {
+    ASSIGN_OR_RETURN(saved_id, api_->CreateTileset(std::move(request)));
+  } else {
+    RETURN_IF_ERROR(api_->UpdateTileset(std::move(request)));
+  }
+  RETURN_IF_ERROR(model_.FinishSave(saved_id));
+  RefreshCatalogs();
+  return absl::OkStatus();
+}
+
+absl::Status TilesetEditor::DeleteSelectedTileset() {
+  if (!model_.has_tileset_selection()) {
+    return absl::FailedPreconditionError("No tileset is selected");
+  }
+  RETURN_IF_ERROR(api_->DeleteTileset(model_.selected_tileset_id()));
+  model_.FinishDelete();
+  RefreshCatalogs();
+  return absl::OkStatus();
+}
+
+absl::Status TilesetEditor::HandlePanelAction(TilesetPanel::Action action) {
+  switch (action) {
+    case TilesetPanel::Action::kNone:
+      return absl::OkStatus();
+    case TilesetPanel::Action::kSave:
+      return SaveActiveTileset();
+    case TilesetPanel::Action::kDelete:
+      return DeleteSelectedTileset();
+  }
+  return absl::InternalError("Unknown tileset panel action");
 }
 
 absl::Status TilesetEditor::Render() {
@@ -64,17 +114,19 @@ absl::Status TilesetEditor::Render() {
 }
 
 absl::Status TilesetEditor::RenderNavigator() {
-  if (!active_tileset_.has_value())
-    return tileset_panel_->RenderList(active_tileset_);
-  return tileset_panel_->RenderDetails(active_tileset_);
+  absl::StatusOr<TilesetPanel::Action> action = model_.has_active_tileset()
+                                                    ? tileset_panel_->RenderDetails(model_)
+                                                    : tileset_panel_->RenderList(model_);
+  if (!action.ok()) return action.status();
+  return HandlePanelAction(*action);
 }
 
 absl::Status TilesetEditor::RenderInspector() {
-  if (!active_tileset_.has_value()) {
+  if (!model_.has_active_tileset()) {
     gui_->Text("Select or create a tileset.");
     return absl::OkStatus();
   }
-  Tile* tile = tileset_panel_->GetSelectedTile(*active_tileset_);
+  Tile* tile = model_.selected_tile();
   if (tile == nullptr) {
     gui_->Text("Select or add a tile.");
     return absl::OkStatus();
@@ -83,31 +135,30 @@ absl::Status TilesetEditor::RenderInspector() {
 }
 
 absl::Status TilesetEditor::RenderViewport() {
-  if (!active_tileset_.has_value() || active_tileset_->texture_id.empty()) {
+  Tileset* active_tileset = model_.active_tileset();
+  if (active_tileset == nullptr || active_tileset->texture_id.empty()) {
     gui_->Text("Select a tileset with a texture to preview.");
     return absl::OkStatus();
   }
 
-  // Resolve the SDL texture from the panel's cache.
-  void* texture_handle = nullptr;
-  for (const Texture& tex : tileset_panel_->GetTextures()) {
-    if (tex.id == active_tileset_->texture_id) {
-      texture_handle = SdlTextureHandleAdapter::ToNative(tex.texture_handle);
-      break;
-    }
-  }
-
-  if (texture_handle == nullptr) {
+  const Texture* texture = model_.active_texture();
+  SDL_Texture* native_texture =
+      texture == nullptr ? nullptr : SdlTextureHandleAdapter::ToNative(texture->texture_handle);
+  if (native_texture == nullptr) {
     gui_->Text("Texture not loaded.");
     return absl::OkStatus();
   }
 
   int tex_w = 0;
   int tex_h = 0;
-  SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture_handle), nullptr, nullptr, &tex_w, &tex_h);
+  SDL_QueryTexture(native_texture, nullptr, nullptr, &tex_w, &tex_h);
 
-  const float tw = static_cast<float>(active_tileset_->tile_width);
-  const float th = static_cast<float>(active_tileset_->tile_height);
+  if (active_tileset->tile_width <= 0 || active_tileset->tile_height <= 0) {
+    gui_->Text("Tile dimensions must be positive.");
+    return absl::OkStatus();
+  }
+  const float tw = static_cast<float>(active_tileset->tile_width);
+  const float th = static_cast<float>(active_tileset->tile_height);
 
   canvas_.SetWorldBounds({0, 0}, {static_cast<double>(tex_w), static_cast<double>(tex_h)});
   canvas_.SetGridSize(tw);
@@ -123,13 +174,13 @@ absl::Status TilesetEditor::RenderViewport() {
     ImVec2 img_min = canvas_.WorldToScreen({0, 0});
     ImVec2 img_max =
         canvas_.WorldToScreen({static_cast<double>(tex_w), static_cast<double>(tex_h)});
-    dl->AddImage(reinterpret_cast<ImTextureID>(texture_handle), img_min, img_max);
+    dl->AddImage(reinterpret_cast<ImTextureID>(native_texture), img_min, img_max);
 
     // Draw grid and rulers on top of the texture.
     canvas_.DrawGrid();
 
     // Overlay: highlight the selected tile's source cell and collision shape.
-    Tile* tile = tileset_panel_->GetSelectedTile(*active_tileset_);
+    Tile* tile = model_.selected_tile();
     if (tile != nullptr) {
       const ImVec2 cell_min = canvas_.WorldToScreen(
           {static_cast<double>(tile->source_x), static_cast<double>(tile->source_y)});
@@ -155,22 +206,18 @@ absl::Status TilesetEditor::RenderViewport() {
       const ImVec2 mouse = gui_->GetMousePos();
       const Vec world = canvas_.ScreenToWorld(mouse);
 
-      const float cell_x = std::floor(world.x / tw) * tw;
-      const float cell_y = std::floor(world.y / th) * th;
-
-      const bool in_bounds = cell_x >= 0 && cell_y >= 0 &&
-                             (cell_x + tw) <= static_cast<float>(tex_w) &&
-                             (cell_y + th) <= static_cast<float>(tex_h);
-      if (in_bounds) {
+      absl::StatusOr<AtlasCell> cell = model_.CalculateAtlasCell(world.x, world.y, tex_w, tex_h);
+      if (cell.ok()) {
         // Cyan hover highlight for the cell under the cursor.
-        const ImVec2 h_min = canvas_.WorldToScreen({cell_x, cell_y});
-        const ImVec2 h_max = canvas_.WorldToScreen({cell_x + tw, cell_y + th});
+        const ImVec2 h_min = canvas_.WorldToScreen(
+            {static_cast<double>(cell->source_x), static_cast<double>(cell->source_y)});
+        const ImVec2 h_max = canvas_.WorldToScreen(
+            {static_cast<double>(cell->source_x) + tw, static_cast<double>(cell->source_y) + th});
         dl->AddRectFilled(h_min, h_max, IM_COL32(0, 200, 255, 40));
         dl->AddRect(h_min, h_max, IM_COL32(0, 200, 255, 220), 0.0f, 0, 2.0f);
 
         if (gui_->IsItemClicked(ImGuiMouseButton_Left)) {
-          tile->source_x = static_cast<int>(cell_x);
-          tile->source_y = static_cast<int>(cell_y);
+          RETURN_IF_ERROR(model_.SetSelectedTileSource(*cell));
         }
       }
     }
@@ -179,7 +226,7 @@ absl::Status TilesetEditor::RenderViewport() {
   float zoom = canvas_.GetZoom();
   canvas_.End();
 
-  Tile* tile = tileset_panel_->GetSelectedTile(*active_tileset_);
+  Tile* tile = model_.selected_tile();
   if (tile != nullptr)
     gui_->Text("Click atlas to set tile source  |  Zoom: %.2f", zoom);
   else

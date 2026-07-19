@@ -14,12 +14,6 @@
 
 namespace zebes {
 
-// Result of the Render call.
-enum class ParallaxThemeResult : uint8_t {
-  kNone,  // Just viewing lists
-  kEdit   // Currently editing a specific layer's properties
-};
-
 class ParallaxThemePanel {
  public:
   struct Options {
@@ -46,12 +40,6 @@ class ParallaxThemePanel {
 
   explicit ParallaxThemePanel(Options options);
 
-  enum class State {
-    kNavigator,
-    kThemeDetails,
-    kLayerDetails,
-  };
-
   void AddTheme(Level& level, SelectionState& selection);
 
   absl::Status RefreshTextureCache();
@@ -60,7 +48,6 @@ class ParallaxThemePanel {
   GuiInterface* gui_;
 
   std::vector<Texture> texture_cache_;
-  std::string error_;
 };
 
 }  // namespace zebes

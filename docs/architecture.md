@@ -149,6 +149,40 @@ other engine systems must not inspect `SDL_Event`, SDL scancodes, or ImGui IO.
 This separation allows engine input behavior to be tested using ordinary fake
 snapshots without initializing a window or ImGui context.
 
+## Editor models
+
+Stateful editor screens separate authoring behavior from presentation:
+
+```text
+ImGui panel ─────► editor model ◄───── editor/controller ─────► API
+   rendering       state and pure          persistence
+                   calculations
+```
+
+Editor models own selections, editable asset copies, deterministic catalogs,
+and calculations such as preview bounds or atlas-cell snapping. They must not
+depend on ImGui, SDL, or `Api`. Panels render model state and report persistence
+intents; the containing editor coordinates those intents with `Api`.
+
+Rendering layout follows the same boundary when it can be expressed as pure
+geometry. For example, the level viewport calculates a `ParallaxLayout` from a
+Zebes `Camera`, layer settings, and texture dimensions. The ImGui/SDL view only
+resolves the native texture and emits the tiles described by that layout. This
+keeps first-frame, viewport, zoom, and repetition behavior headlessly testable.
+
+Parallax-zone activation is also a pure editor/runtime rule: resolve one zone
+from a world-space reference point, currently the camera center, and then render
+that zone's theme. Viewport intersection and zoom must not change the active
+environment. Zone outlines are editor gizmos and are rendered independently.
+Zone selections use stable zone IDs; selecting or explicitly framing a zone may
+move the editor camera without changing activation semantics.
+
+Named asset catalogs use the shared `AssetCatalogKey`, ordered by display name
+and then stable asset ID. This preserves duplicate names while providing
+deterministic UI iteration without sorting every frame. Selection is stored by
+stable asset or tile ID rather than by a vector position that can change after
+refreshing or editing.
+
 ## Testing boundaries
 
 - Domain and manager tests should use fake platform-neutral interfaces.

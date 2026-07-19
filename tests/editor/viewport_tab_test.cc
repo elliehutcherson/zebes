@@ -22,6 +22,13 @@ class ViewportTabTestPeer {
                                       int tile_render_h) {
     return tab.HandleTileInput(level, tile, tileset, mouse_world, tile_render_w, tile_render_h);
   }
+
+  static void ApplyPendingCameraFrame(ViewportTab& tab, ImVec2 viewport_size,
+                                      VisibleWorldBounds world_bounds) {
+    tab.ApplyPendingCameraFrame(viewport_size, world_bounds);
+  }
+
+  static const Camera& GetCamera(const ViewportTab& tab) { return tab.camera_; }
 };
 
 namespace {
@@ -29,28 +36,6 @@ namespace {
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::ReturnRef;
-
-TEST(CalculateParallaxOffsetTest, ZeroCameraPos) {
-  EXPECT_DOUBLE_EQ(CalculateParallaxOffset(0.0, 0.5, 2.0), 0.0);
-}
-
-TEST(CalculateParallaxOffsetTest, FullScrollFactor) {
-  // scroll_factor=1.0 means layer moves fully with camera
-  EXPECT_DOUBLE_EQ(CalculateParallaxOffset(100.0, 1.0, 1.0), 100.0);
-}
-
-TEST(CalculateParallaxOffsetTest, ZeroScrollFactor) {
-  // scroll_factor=0.0 means layer is fixed (distant background)
-  EXPECT_DOUBLE_EQ(CalculateParallaxOffset(100.0, 0.0, 1.0), 0.0);
-}
-
-TEST(CalculateParallaxOffsetTest, HalfScrollFactor) {
-  EXPECT_DOUBLE_EQ(CalculateParallaxOffset(200.0, 0.5, 1.0), 100.0);
-}
-
-TEST(CalculateParallaxOffsetTest, ZoomScales) {
-  EXPECT_DOUBLE_EQ(CalculateParallaxOffset(100.0, 1.0, 2.0), 200.0);
-}
 
 // PickEntity tests
 
@@ -188,6 +173,26 @@ TEST(NextAvailableEntityIdTest, NeverCollisdesWithLoadedLevel) {
     EXPECT_EQ(entities.count(next_id), 0u) << "ID " << next_id << " collides with a loaded entity";
     ++next_id;
   }
+}
+
+TEST(ViewportTabTest, FrameZoneCentersAndFitsStableZoneBounds) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  ParallaxZone zone{
+      .id = 42,
+      .min_point = {100, 200},
+      .max_point = {500, 400},
+  };
+
+  tab.FrameZone(zone);
+  ViewportTabTestPeer::ApplyPendingCameraFrame(
+      tab, ImVec2(1000, 800), {.min = {0, 0}, .max = {1000, 1000}});
+
+  const Camera& camera = ViewportTabTestPeer::GetCamera(tab);
+  EXPECT_DOUBLE_EQ(camera.position.x, 300);
+  EXPECT_DOUBLE_EQ(camera.position.y, 300);
+  EXPECT_DOUBLE_EQ(camera.zoom, 2);
 }
 
 // SnapEntityToGrid tests

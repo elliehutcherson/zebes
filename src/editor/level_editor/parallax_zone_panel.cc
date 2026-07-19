@@ -12,9 +12,6 @@
 namespace zebes {
 
 absl::StatusOr<std::unique_ptr<ParallaxZonePanel>> ParallaxZonePanel::Create(Options options) {
-  if (options.api == nullptr) {
-    return absl::InvalidArgumentError("API can not be null.");
-  }
   if (options.gui == nullptr) {
     return absl::InvalidArgumentError("Gui can not be null.");
   }
@@ -22,7 +19,7 @@ absl::StatusOr<std::unique_ptr<ParallaxZonePanel>> ParallaxZonePanel::Create(Opt
   return absl::WrapUnique(new ParallaxZonePanel(std::move(options)));
 }
 
-ParallaxZonePanel::ParallaxZonePanel(Options options) : api_(*options.api), gui_(options.gui) {}
+ParallaxZonePanel::ParallaxZonePanel(Options options) : gui_(options.gui) {}
 
 absl::Status ParallaxZonePanel::RenderNavigator(Level& level, SelectionState& selection) {
   if (gui_->Button("Add Zone")) {
@@ -40,34 +37,38 @@ absl::Status ParallaxZonePanel::RenderNavigator(Level& level, SelectionState& se
     level.zones.push_back(new_zone);
 
     selection.type = SelectionState::Type::kZone;
-    selection.zone_index = level.zones.size() - 1;
+    selection.zone_id = new_id;
   }
 
-  for (int i = 0; i < level.zones.size(); ++i) {
-    std::string label = absl::StrCat(level.zones[i].name, "##zone_", i);
+  for (const ParallaxZone& zone : level.zones) {
+    std::string label = absl::StrCat(zone.name, "##zone_", zone.id);
 
     // Add theme name to label if it exists
-    auto theme_it = level.themes.find(level.zones[i].theme_id);
+    auto theme_it = level.themes.find(zone.theme_id);
     if (theme_it != level.themes.end()) {
       absl::StrAppend(&label, " (", theme_it->second.name, ")");
     }
 
-    bool is_selected = (selection.type == SelectionState::Type::kZone && selection.zone_index == i);
+    bool is_selected =
+        (selection.type == SelectionState::Type::kZone && selection.zone_id == zone.id);
     if (gui_->Selectable(label.c_str(), is_selected)) {
       selection.type = SelectionState::Type::kZone;
-      selection.zone_index = i;
+      selection.zone_id = zone.id;
     }
   }
   return absl::OkStatus();
 }
 
 absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& selection) {
-  if (selection.zone_index < 0 || selection.zone_index >= level.zones.size()) {
+  auto zone_it = std::find_if(level.zones.begin(), level.zones.end(), [&](const ParallaxZone& zone) {
+    return zone.id == selection.zone_id;
+  });
+  if (zone_it == level.zones.end()) {
     selection.Clear();
-    return absl::InvalidArgumentError("Selection zone index out of bounds.");
+    return absl::InvalidArgumentError("Selected zone does not exist.");
   }
 
-  ParallaxZone& zone = level.zones[selection.zone_index];
+  ParallaxZone& zone = *zone_it;
 
   gui_->TextDisabled("Zone Properties");
   gui_->Separator();
@@ -130,7 +131,7 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
     ScopedStyleColor color =
         gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
     if (gui_->Button("Delete Zone")) {
-      level.zones.erase(level.zones.begin() + selection.zone_index);
+      level.zones.erase(zone_it);
       selection.Clear();
     }
   }

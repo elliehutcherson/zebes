@@ -1,6 +1,7 @@
 #include "editor/blueprint_editor/blueprint_editor.h"
 
 #include <memory>
+#include <utility>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
@@ -39,10 +40,12 @@ absl::Status BlueprintEditor::Init() {
   animator_ = std::make_unique<Animator>();
 
   // Initialize panels
-  ASSIGN_OR_RETURN(blueprint_panel_, BlueprintPanel::Create(api_, gui_));
-  ASSIGN_OR_RETURN(blueprint_state_panel_, BlueprintStatePanel::Create(api_, gui_));
-  ASSIGN_OR_RETURN(collider_panel_, ColliderPanel::Create(api_, gui_));
+  ASSIGN_OR_RETURN(blueprint_panel_, BlueprintPanel::Create(gui_));
+  ASSIGN_OR_RETURN(blueprint_state_panel_, BlueprintStatePanel::Create(gui_));
+  ASSIGN_OR_RETURN(collider_panel_, ColliderPanel::Create(gui_));
   ASSIGN_OR_RETURN(sprite_panel_, SpritePanel::Create(api_, gui_));
+  RefreshBlueprintCatalog();
+  RefreshColliderCatalog();
 
   return absl::OkStatus();
 }
@@ -51,7 +54,7 @@ absl::Status BlueprintEditor::ExitBlueprintStateMode() {
   blueprint_state_panel_->Reset();
 
   // Clean up panels
-  collider_panel_->Detach();
+  collider_model_.CloseActiveCollider();
   sprite_panel_->Detach();
 
   camera_ = {};
@@ -102,15 +105,8 @@ absl::Status BlueprintEditor::RenderLeftPanel() {
 }
 
 absl::Status BlueprintEditor::RenderBlueprintListMode() {
-  int state_index = blueprint_panel_->Render();
-  if (state_index == -1) return absl::OkStatus();
-
-  Blueprint* bp = blueprint_panel_->GetBlueprint();
-  if (bp == nullptr) {
-    return absl::InternalError("Blueprint is null!!!");
-  }
-
-  return EnterBlueprintStateMode(*bp, state_index);
+  ASSIGN_OR_RETURN(BlueprintPanel::Event event, blueprint_panel_->Render(blueprint_model_));
+  return HandleBlueprintPanelEvent(event);
 }
 
 absl::Status BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_index) {
@@ -121,7 +117,8 @@ absl::Status BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_i
   // Set Collider
   std::optional<std::string> collider_id = bp.collider_id(state_index);
   if (collider_id.has_value()) {
-    RETURN_IF_ERROR(collider_panel_->Attach(*collider_id));
+    RefreshColliderCatalog();
+    RETURN_IF_ERROR(collider_model_.BeginEditingCollider(*collider_id));
   }
 
   // Set Sprite
@@ -148,7 +145,8 @@ absl::Status BlueprintEditor::RenderBlueprintStateMode() {
   gui_->Spacing();
   gui_->Spacing();
 
-  ASSIGN_OR_RETURN(ColliderResult collider_result, collider_panel_->Render());
+  ASSIGN_OR_RETURN(ColliderPanel::Action action, collider_panel_->Render(collider_model_));
+  ASSIGN_OR_RETURN(ColliderResult collider_result, HandleColliderPanelAction(action));
   UpdateStateCollider(collider_result);
 
   return absl::OkStatus();
@@ -186,15 +184,102 @@ absl::Status BlueprintEditor::RenderCanvas() {
   RETURN_IF_ERROR(sprite_panel_->RenderCanvas(canvas_, /*input_allowed=*/true).status());
 
   // Draw objects
-  RETURN_IF_ERROR(collider_panel_->RenderCanvas(canvas_, /*input_allowed=*/true).status());
+  RETURN_IF_ERROR(
+      collider_panel_->RenderCanvas(collider_model_, canvas_, /*input_allowed=*/true).status());
 
   return absl::OkStatus();
+}
+
+void BlueprintEditor::RefreshBlueprintCatalog() {
+  blueprint_model_.SetBlueprints(api_->GetAllBlueprints());
+}
+
+absl::Status BlueprintEditor::HandleBlueprintPanelEvent(const BlueprintPanel::Event& event) {
+  switch (event.action) {
+    case BlueprintPanel::Action::kNone:
+      return absl::OkStatus();
+    case BlueprintPanel::Action::kSave:
+      return SaveActiveBlueprint();
+    case BlueprintPanel::Action::kDelete:
+      if (!blueprint_model_.has_blueprint_selection()) {
+        return absl::FailedPreconditionError("No blueprint is selected");
+      }
+      RETURN_IF_ERROR(api_->DeleteBlueprint(blueprint_model_.selected_blueprint_id()));
+      blueprint_model_.FinishDelete();
+      RefreshBlueprintCatalog();
+      return absl::OkStatus();
+    case BlueprintPanel::Action::kEditState: {
+      RETURN_IF_ERROR(blueprint_model_.ValidateStateIndex(event.state_index));
+      Blueprint* blueprint = blueprint_model_.active_blueprint();
+      if (blueprint == nullptr) {
+        return absl::FailedPreconditionError("No blueprint is being edited");
+      }
+      return EnterBlueprintStateMode(*blueprint, event.state_index);
+    }
+  }
+  return absl::InternalError("Unknown blueprint panel action");
+}
+
+absl::Status BlueprintEditor::SaveActiveBlueprint() {
+  ASSIGN_OR_RETURN(Blueprint blueprint, blueprint_model_.BuildSaveRequest());
+  if (blueprint.id.empty()) {
+    ASSIGN_OR_RETURN(std::string id, api_->CreateBlueprint(std::move(blueprint)));
+    RETURN_IF_ERROR(blueprint_model_.FinishCreate(id));
+  } else {
+    RETURN_IF_ERROR(api_->UpdateBlueprint(std::move(blueprint)));
+  }
+  RefreshBlueprintCatalog();
+  return absl::OkStatus();
+}
+
+void BlueprintEditor::RefreshColliderCatalog() {
+  collider_model_.SetColliders(api_->GetAllColliders());
+}
+
+absl::StatusOr<ColliderResult> BlueprintEditor::HandleColliderPanelAction(
+    ColliderPanel::Action action) {
+  switch (action) {
+    case ColliderPanel::Action::kNone:
+      return ColliderResult{};
+    case ColliderPanel::Action::kCreate: {
+      ASSIGN_OR_RETURN(Collider collider, collider_model_.BuildSaveRequest());
+      ASSIGN_OR_RETURN(std::string id, api_->CreateCollider(std::move(collider)));
+      RETURN_IF_ERROR(collider_model_.FinishCreate(id));
+      RefreshColliderCatalog();
+      return ColliderResult{.type = ColliderResult::Type::kAttach, .collider_id = std::move(id)};
+    }
+    case ColliderPanel::Action::kAttach: {
+      const Collider* collider = collider_model_.active_collider();
+      if (collider == nullptr) {
+        return absl::FailedPreconditionError("No collider is available to attach");
+      }
+      return ColliderResult{.type = ColliderResult::Type::kAttach,
+                            .collider_id = collider->id};
+    }
+    case ColliderPanel::Action::kSave: {
+      ASSIGN_OR_RETURN(Collider collider, collider_model_.BuildSaveRequest());
+      RETURN_IF_ERROR(api_->UpdateCollider(std::move(collider)));
+      RefreshColliderCatalog();
+      return ColliderResult{};
+    }
+    case ColliderPanel::Action::kDelete:
+      if (!collider_model_.has_collider_selection()) {
+        return absl::FailedPreconditionError("No collider is selected");
+      }
+      RETURN_IF_ERROR(api_->DeleteCollider(collider_model_.selected_collider_id()));
+      collider_model_.FinishDelete();
+      RefreshColliderCatalog();
+      return ColliderResult{};
+    case ColliderPanel::Action::kDetach:
+      return ColliderResult{.type = ColliderResult::Type::kDetach};
+  }
+  return absl::InternalError("Unknown collider panel action");
 }
 
 void BlueprintEditor::UpdateStateCollider(const ColliderResult& collider_result) {
   if (collider_result.type == ColliderResult::Type::kNone) return;
 
-  Blueprint* bp = blueprint_panel_->GetBlueprint();
+  Blueprint* bp = blueprint_model_.active_blueprint();
   if (bp == nullptr) {
     LOG(FATAL) << "Attempted to update state with bad blueprint!!!";
     return;
@@ -208,7 +293,6 @@ void BlueprintEditor::UpdateStateCollider(const ColliderResult& collider_result)
 
   if (collider_result.type == ColliderResult::Type::kAttach) {
     bp->states[state_index].collider_id = collider_result.collider_id;
-    // ColliderPanel manages CanvasCollider creation internally upon attachment/SetCollider
   } else if (collider_result.type == ColliderResult::Type::kDetach) {
     bp->states[state_index].collider_id.clear();
   }
@@ -217,7 +301,7 @@ void BlueprintEditor::UpdateStateCollider(const ColliderResult& collider_result)
 void BlueprintEditor::UpdateStateSprite(const SpriteResult& sprite_result) {
   if (sprite_result.type == SpriteResult::Type::kNone) return;
 
-  Blueprint* bp = blueprint_panel_->GetBlueprint();
+  Blueprint* bp = blueprint_model_.active_blueprint();
   if (bp == nullptr) {
     LOG(FATAL) << "Attempted to update state with bad blueprint!!!";
     return;
@@ -237,15 +321,15 @@ void BlueprintEditor::UpdateStateSprite(const SpriteResult& sprite_result) {
 }
 
 void BlueprintEditor::SaveBlueprint() {
-  Blueprint* bp = blueprint_panel_->GetBlueprint();
-  if (!bp) {
-    LOG(FATAL) << "Blueprint is null in state mode!!!";
+  Blueprint* blueprint = blueprint_model_.active_blueprint();
+  if (blueprint == nullptr) {
+    LOG(ERROR) << "No blueprint is active in state mode";
+    return;
   }
-  absl::Status status = api_->UpdateBlueprint(*bp);
+  const std::string name = blueprint->name;
+  absl::Status status = SaveActiveBlueprint();
   if (status.ok()) {
-    LOG(INFO) << "Saved blueprint: " << bp->name;
-    // FIX: Refresh the cache so the panel has the updated data.
-    blueprint_panel_->RefreshBlueprintCache();
+    LOG(INFO) << "Saved blueprint: " << name;
   } else {
     LOG(ERROR) << "Failed to save: " << status.message();
   }

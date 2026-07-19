@@ -7,20 +7,11 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "editor/asset_catalog.h"
 #include "objects/sprite.h"
 #include "objects/texture.h"
 
 namespace zebes {
-
-struct AssetCatalogKey {
-  std::string display_name;
-  std::string id;
-
-  friend bool operator<(const AssetCatalogKey& lhs, const AssetCatalogKey& rhs) {
-    if (lhs.display_name != rhs.display_name) return lhs.display_name < rhs.display_name;
-    return lhs.id < rhs.id;
-  }
-};
 
 struct AnimationPreviewLayout {
   int64_t bounds_left = 0;

@@ -259,6 +259,8 @@ ImGuiIO& Gui::GetIO() { return ImGui::GetIO(); }
 
 ImGuiStyle& Gui::GetStyle() { return ImGui::GetStyle(); }
 
+void Gui::SetItemKeyOwner(ImGuiKey key) { ImGui::SetItemKeyOwner(key); }
+
 bool Gui::IsItemHovered(ImGuiHoveredFlags flags) { return ImGui::IsItemHovered(flags); }
 
 bool Gui::IsItemActive() { return ImGui::IsItemActive(); }

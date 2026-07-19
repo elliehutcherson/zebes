@@ -8,6 +8,7 @@
 #include "editor/imgui_scoped.h"
 #include "editor/level_editor/level_panel.h"
 #include "editor/level_editor/level_panel_interface.h"
+#include "editor/level_editor/parallax_layout.h"
 #include "editor/level_editor/parallax_preview_tab.h"
 #include "imgui.h"
 #include "parallax_theme_panel.h"
@@ -38,11 +39,9 @@ absl::Status LevelEditor::Init(Options options) {
   if (options.level_panel) {
     level_panel_ = std::move(options.level_panel);
   } else {
-    ASSIGN_OR_RETURN(level_panel_, LevelPanel::Create({
-                                       .api = api_,
-                                       .gui = gui_,
-                                   }));
+    ASSIGN_OR_RETURN(level_panel_, LevelPanel::Create(gui_));
   }
+  RefreshLevelCatalog();
 
   if (options.parallax_theme_panel) {
     parallax_theme_panel_ = std::move(options.parallax_theme_panel);
@@ -53,7 +52,7 @@ absl::Status LevelEditor::Init(Options options) {
   if (options.parallax_zone_panel) {
     parallax_zone_panel_ = std::move(options.parallax_zone_panel);
   } else {
-    ASSIGN_OR_RETURN(parallax_zone_panel_, ParallaxZonePanel::Create({.api = api_, .gui = gui_}));
+    ASSIGN_OR_RETURN(parallax_zone_panel_, ParallaxZonePanel::Create({.gui = gui_}));
   }
 
   if (options.palette_panel) {
@@ -66,6 +65,52 @@ absl::Status LevelEditor::Init(Options options) {
   viewport_tab_ = std::make_unique<ViewportTab>(*api_, gui_);
 
   return absl::OkStatus();
+}
+
+void LevelEditor::RefreshLevelCatalog() { level_model_.SetLevels(api_->GetAllLevels()); }
+
+absl::Status LevelEditor::SaveActiveLevel() {
+  ASSIGN_OR_RETURN(Level level, level_model_.BuildSaveRequest());
+  if (level.id.empty()) {
+    ASSIGN_OR_RETURN(std::string id, api_->CreateLevel(std::move(level)));
+    RETURN_IF_ERROR(level_model_.FinishCreate(id));
+  } else {
+    RETURN_IF_ERROR(api_->UpdateLevel(std::move(level)));
+  }
+  RefreshLevelCatalog();
+  return absl::OkStatus();
+}
+
+absl::Status LevelEditor::HandleLevelPanelEvent(LevelPanelEvent event) {
+  switch (event.action) {
+    case LevelPanelAction::kNone:
+      return absl::OkStatus();
+    case LevelPanelAction::kCreate:
+      RETURN_IF_ERROR(SaveActiveLevel());
+      selection_.Clear();
+      selection_.type = SelectionState::Type::kLevel;
+      return absl::OkStatus();
+    case LevelPanelAction::kOpen:
+      selection_.Clear();
+      selection_.type = SelectionState::Type::kLevel;
+      return absl::OkStatus();
+    case LevelPanelAction::kSave:
+      return SaveActiveLevel();
+    case LevelPanelAction::kDelete:
+      if (!level_model_.has_level_selection()) {
+        return absl::FailedPreconditionError("No level is selected");
+      }
+      RETURN_IF_ERROR(api_->DeleteLevel(level_model_.selected_level_id()));
+      level_model_.FinishDelete();
+      selection_.Clear();
+      RefreshLevelCatalog();
+      return absl::OkStatus();
+    case LevelPanelAction::kClose:
+      selection_.Clear();
+      save_error_.reset();
+      return absl::OkStatus();
+  }
+  return absl::InternalError("Unknown level panel action");
 }
 
 absl::Status LevelEditor::Render() {
@@ -99,39 +144,37 @@ absl::Status LevelEditor::Render() {
 
 absl::Status LevelEditor::RenderPalette() {
   int tile_render_w = 16, tile_render_h = 16;
-  if (editting_level_.has_value()) {
-    tile_render_w = editting_level_->tile_render_width;
-    tile_render_h = editting_level_->tile_render_height;
+  if (const Level* level = level_model_.active_level(); level != nullptr) {
+    tile_render_w = level->tile_render_width;
+    tile_render_h = level->tile_render_height;
   }
   return palette_panel_->Render(tile_render_w, tile_render_h);
 }
 
 absl::Status LevelEditor::RenderNavigator() {
   // If no level is loaded, show the Project Browser (List of Levels)
-  if (!editting_level_.has_value()) {
+  if (!level_model_.has_active_level()) {
     selection_.Clear();
-    // Use the LevelPanel's list view to select a level to edit.
-    RETURN_IF_ERROR(level_panel_->RenderList(editting_level_, selection_));
-    return absl::OkStatus();
+    ASSIGN_OR_RETURN(LevelPanelEvent event, level_panel_->RenderList(level_model_));
+    return HandleLevelPanelEvent(event);
   }
 
   // A Level is loaded. Render the Scene Graph.
-  Level& level = *editting_level_;
+  Level& level = *level_model_.active_level();
 
   if (gui_->Button("Close Level")) {
-    editting_level_.reset();
+    level_model_.CloseActiveLevel();
     selection_.Clear();
     save_error_.reset();
     return absl::OkStatus();
   }
   gui_->SameLine();
   if (gui_->Button("Save Level")) {
-    absl::Status status = api_->UpdateLevel(*editting_level_);
+    absl::Status status = SaveActiveLevel();
     if (!status.ok()) {
       save_error_ = status.message();
     } else {
       save_error_.reset();
-      level_panel_->RefreshCache();
     }
   }
 
@@ -156,7 +199,20 @@ absl::Status LevelEditor::RenderNavigator() {
     // 1. Parallax
     if (gui_->CollapsingHeader("Parallax", ImGuiTreeNodeFlags_DefaultOpen)) {
       RETURN_IF_ERROR(parallax_theme_panel_->RenderNavigator(level, selection_));
+
+      std::optional<int> previous_zone_id;
+      if (selection_.type == SelectionState::Type::kZone) {
+        previous_zone_id = selection_.zone_id;
+      }
       RETURN_IF_ERROR(parallax_zone_panel_->RenderNavigator(level, selection_));
+
+      if (selection_.type == SelectionState::Type::kZone &&
+          previous_zone_id != selection_.zone_id) {
+        if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, selection_.zone_id);
+            zone != nullptr) {
+          viewport_tab_->FrameZone(*zone);
+        }
+      }
     }
 
     // 2. Entities
@@ -200,7 +256,7 @@ absl::Status LevelEditor::RenderInspector() {
   gui_->Text("Inspector");
   gui_->Separator();
 
-  if (!editting_level_.has_value()) {
+  if (!level_model_.has_active_level()) {
     gui_->TextDisabled("No Level Loaded");
     return absl::OkStatus();
   }
@@ -211,24 +267,39 @@ absl::Status LevelEditor::RenderInspector() {
       break;
 
     case SelectionState::Type::kLevel:
-      RETURN_IF_ERROR(level_panel_->RenderDetails(editting_level_, selection_));
+      {
+        ASSIGN_OR_RETURN(LevelPanelEvent event, level_panel_->RenderDetails(level_model_));
+        RETURN_IF_ERROR(HandleLevelPanelEvent(event));
+      }
       break;
 
     case SelectionState::Type::kTheme:
-      RETURN_IF_ERROR(parallax_theme_panel_->RenderThemeDetails(*editting_level_, selection_));
+      RETURN_IF_ERROR(
+          parallax_theme_panel_->RenderThemeDetails(*level_model_.active_level(), selection_));
       break;
 
     case SelectionState::Type::kLayer:
-      RETURN_IF_ERROR(parallax_theme_panel_->RenderLayerDetails(*editting_level_, selection_));
+      RETURN_IF_ERROR(
+          parallax_theme_panel_->RenderLayerDetails(*level_model_.active_level(), selection_));
       break;
 
     case SelectionState::Type::kZone:
-      RETURN_IF_ERROR(parallax_zone_panel_->RenderDetails(*editting_level_, selection_));
+      if (gui_->Button("Frame Zone")) {
+        const Level& level = *level_model_.active_level();
+        if (const ParallaxZone* zone =
+                FindParallaxZoneById(level.zones, selection_.zone_id);
+            zone != nullptr) {
+          viewport_tab_->FrameZone(*zone);
+        }
+      }
+      RETURN_IF_ERROR(
+          parallax_zone_panel_->RenderDetails(*level_model_.active_level(), selection_));
       break;
 
     case SelectionState::Type::kEntity: {
-      auto it = editting_level_->entities.find(selection_.entity_id);
-      if (it == editting_level_->entities.end()) {
+      Level& level = *level_model_.active_level();
+      auto it = level.entities.find(selection_.entity_id);
+      if (it == level.entities.end()) {
         selection_.Clear();
         break;
       }
@@ -251,7 +322,7 @@ absl::Status LevelEditor::RenderInspector() {
       gui_->Separator();
 
       if (gui_->Button("Remove Entity")) {
-        editting_level_->entities.erase(it);
+        level.entities.erase(it);
         selection_.Clear();
       }
       break;
@@ -268,19 +339,20 @@ absl::Status LevelEditor::RenderViewport() {
     auto tab_item = ScopedTabItem(gui_, "Viewport");
     if (!tab_item) return absl::OkStatus();
 
-    if (!editting_level_.has_value()) {
+    Level* level = level_model_.active_level();
+    if (level == nullptr) {
       gui_->TextDisabled("No level selected.");
       return absl::OkStatus();
     }
 
     // Auto-associate the level with the selected tileset on first tile selection.
     const Tileset* selected_tileset = palette_panel_->GetSelectedTileset();
-    if (selected_tileset != nullptr && editting_level_->tileset_id.empty()) {
-      editting_level_->tileset_id = selected_tileset->id;
+    if (selected_tileset != nullptr && level->tileset_id.empty()) {
+      level->tileset_id = selected_tileset->id;
     }
 
     RETURN_IF_ERROR(viewport_tab_->Render({
-        .level = &*editting_level_,
+        .level = level,
         .placement_blueprint = palette_panel_->GetSelectedBlueprint(),
         .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
                                   ? selection_.entity_id
@@ -294,36 +366,37 @@ absl::Status LevelEditor::RenderViewport() {
         .show_tile_collision = palette_panel_->GetShowTileCollision(),
         .tile_overlay_opacity = palette_panel_->GetTileOverlayOpacity(),
         .entity_overlay_opacity = palette_panel_->GetEntityOverlayOpacity(),
+        .selected_zone_id = (selection_.type == SelectionState::Type::kZone)
+                                ? std::optional<int>(selection_.zone_id)
+                                : std::nullopt,
     }));
 
     // Consume a canvas right-click delete request and remove the entity.
     std::optional<uint64_t> delete_request = viewport_tab_->TakeDeleteRequest();
     if (delete_request.has_value()) {
       if (selection_.entity_id == *delete_request) selection_.Clear();
-      editting_level_->entities.erase(*delete_request);
+      level->entities.erase(*delete_request);
     }
 
     // Consume a newly placed entity and add it to the level.
     std::optional<Entity> new_entity = viewport_tab_->TakeNewEntity();
     if (new_entity.has_value()) {
-      editting_level_->entities[new_entity->id] = std::move(*new_entity);
+      level->entities[new_entity->id] = std::move(*new_entity);
     }
 
     // Consume a canvas click and update the editor selection state.
     std::optional<uint64_t> click_sel = viewport_tab_->TakeClickSelection();
     if (click_sel.has_value()) {
-      selection_.Clear();
-      if (*click_sel != Entity::kInvalidId) {
-        selection_.type = SelectionState::Type::kEntity;
-        selection_.entity_id = *click_sel;
-      }
+      selection_.ApplyEntityPick(*click_sel);
     }
     return absl::OkStatus();
   };
 
   auto tab_parallax = [this]() -> absl::Status {
+    Level* level = level_model_.active_level();
+    if (level == nullptr) return absl::OkStatus();
     std::optional<std::string> texture_id =
-        parallax_theme_panel_->GetTexture(selection_, *editting_level_);
+        parallax_theme_panel_->GetTexture(selection_, *level);
 
     if (!texture_id.has_value()) return absl::OkStatus();
 

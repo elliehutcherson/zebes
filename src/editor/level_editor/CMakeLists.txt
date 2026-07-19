@@ -5,6 +5,13 @@ add_library(level_editor
 add_library(level_selection_state INTERFACE)
 target_include_directories(level_selection_state INTERFACE .)
 
+add_library(parallax_layout
+  parallax_layout.cc
+)
+target_link_libraries(parallax_layout
+  PUBLIC level
+)
+
 
 add_library(parallax_zone_panel
   parallax_zone_panel.cc
@@ -12,7 +19,6 @@ add_library(parallax_zone_panel
 
 target_link_libraries(parallax_zone_panel
   level
-  api
   imgui_scoped
   status_macros
   ${IMGUI_LIBRARIES}
@@ -23,10 +29,12 @@ target_link_libraries(parallax_zone_panel
 
 target_link_libraries(level_editor
   level_panel
+  level_panel_model
   parallax_theme_panel
   parallax_zone_panel
   palette_panel
   parallax_preview_tab
+  parallax_layout
   viewport_tab
   api
   ${IMGUI_LIBRARIES}
@@ -37,20 +45,29 @@ target_link_libraries(level_editor
   level_selection_state
 )
 
+add_library(level_panel_model
+  level_panel_model.cc
+)
+
+target_link_libraries(level_panel_model
+  PUBLIC
+  level
+  absl::status
+  absl::statusor
+)
+
 add_library(level_panel
   level_panel.cc
 )
 
 target_link_libraries(level_panel
-  editor_utils
-  api
+  level_panel_model
   level
   status_macros
   ${IMGUI_LIBRARIES}
   absl::status
-  absl::cleanup
   absl::memory
-  absl::strings
+  gui_interface
 )
 
 
@@ -138,6 +155,7 @@ target_link_libraries(viewport_tab
   editor_canvas
   imgui_scoped
   level
+  parallax_layout
   tileset
   ${IMGUI_LIBRARIES}
   SDL2-static
@@ -146,4 +164,3 @@ target_link_libraries(viewport_tab
   absl::flat_hash_map
   gui_interface
 )
-

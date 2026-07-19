@@ -53,6 +53,14 @@ add_executable(sprite_panel_model_test sprite_panel_model_test.cc)
 target_link_libraries(sprite_panel_model_test sprite_panel_model gtest_main)
 gtest_discover_tests(sprite_panel_model_test)
 
+add_executable(collider_panel_model_test collider_panel_model_test.cc)
+target_link_libraries(collider_panel_model_test collider_panel_model gtest_main)
+gtest_discover_tests(collider_panel_model_test)
+
+add_executable(blueprint_panel_model_test blueprint_panel_model_test.cc)
+target_link_libraries(blueprint_panel_model_test blueprint_panel_model gtest_main)
+gtest_discover_tests(blueprint_panel_model_test)
+
 add_executable(texture_editor_model_test texture_editor_model_test.cc)
 target_link_libraries(texture_editor_model_test texture_editor_model gtest_main)
 gtest_discover_tests(texture_editor_model_test)
@@ -64,6 +72,10 @@ gtest_discover_tests(sprite_editor_model_test)
 add_executable(animator_test animator_test.cc)
 target_link_libraries(animator_test editor_animator gtest_main)
 gtest_discover_tests(animator_test)
+
+add_executable(tileset_editor_model_test tileset_editor_model_test.cc)
+target_link_libraries(tileset_editor_model_test tileset_editor_model gtest_main)
+gtest_discover_tests(tileset_editor_model_test)
 
 # --- Parallax Theme Panel Test ---
 add_executable(parallax_theme_panel_test parallax_theme_panel_test.cc)
@@ -84,7 +96,6 @@ add_executable(parallax_zone_panel_test parallax_zone_panel_test.cc)
 target_link_libraries(parallax_zone_panel_test
   gtest_main
   gmock
-  api
   parallax_zone_panel
   gui_mock
   absl::flags
@@ -121,6 +132,15 @@ target_link_libraries(viewport_tab_test
 target_include_directories(viewport_tab_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME viewport_tab_test COMMAND viewport_tab_test)
 
+# --- Parallax Layout Test ---
+add_executable(parallax_layout_test parallax_layout_test.cc)
+target_link_libraries(parallax_layout_test
+  gtest_main
+  parallax_layout
+)
+target_include_directories(parallax_layout_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME parallax_layout_test COMMAND parallax_layout_test)
+
 # --- Mock Gui Test ---
 add_executable(mock_gui_test mock_gui_test.cc)
 target_link_libraries(mock_gui_test
@@ -134,7 +154,6 @@ add_executable(level_panel_test level_panel_test.cc)
 target_link_libraries(level_panel_test
   gtest_main
   gmock
-  api
   level_panel
   gui_mock
   absl::flags
@@ -142,6 +161,10 @@ target_link_libraries(level_panel_test
 )
 target_include_directories(level_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME level_panel_test COMMAND level_panel_test)
+
+add_executable(level_panel_model_test level_panel_model_test.cc)
+target_link_libraries(level_panel_model_test level_panel_model gtest_main)
+gtest_discover_tests(level_panel_model_test)
 
 # --- Level Editor Test ---
 add_executable(level_editor_test level_editor_test.cc)

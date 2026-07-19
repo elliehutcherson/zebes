@@ -35,7 +35,13 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   // Prevent zero zoom
   if (camera_->zoom <= 0.001f) camera_->zoom = 1.0f;
 
-  // Enforce bounds immediately before rendering anything
+  // Camera clamping depends on the visible world dimensions, so install the
+  // current viewport before clamping. On the first frame these values are
+  // otherwise zero and the camera can be positioned outside the actual view.
+  camera_->viewport_width = size.x;
+  camera_->viewport_height = size.y;
+
+  // Enforce bounds immediately before rendering anything.
   ClampCamera();
 
   gui_->PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -46,12 +52,11 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   draw_list_ = gui_->GetWindowDrawList();
 
   // Draw Background
-  ImU32 bg_color = IM_COL32(50, 50, 50, 255);
-  draw_list_->AddRectFilled(p0_, ImVec2(p0_.x + size.x, p0_.y + size.y), bg_color);
+  if (draw_list_ != nullptr) {
+    ImU32 bg_color = IM_COL32(50, 50, 50, 255);
+    draw_list_->AddRectFilled(p0_, ImVec2(p0_.x + size.x, p0_.y + size.y), bg_color);
+  }
 
-  // Update viewport size in camera so it knows how to center things
-  camera_->viewport_width = size.x;
-  camera_->viewport_height = size.y;
 }
 
 void Canvas::End() {
@@ -71,6 +76,12 @@ void Canvas::HandleInput() {
                             ImGuiButtonFlags_MouseButtonMiddle);
 
   bool is_hovered = gui_->IsItemHovered();
+
+  // The canvas consumes vertical wheel input for zoom. Claim it for the
+  // invisible canvas item so ImGui does not also scroll a parent window.
+  if (is_hovered) {
+    gui_->SetItemKeyOwner(ImGuiKey_MouseWheelY);
+  }
 
   // 1. Handle Zoom (Mouse Wheel)
   if (is_hovered && gui_->GetIO().MouseWheel != 0.0f) {
@@ -105,6 +116,10 @@ void Canvas::HandleInput() {
       camera_->position.x += move_step;
     }
   }
+
+  // Input changes apply to this frame's rendering. Keep the updated camera
+  // within the same bounds enforced at Begin().
+  ClampCamera();
 }
 
 ImVec2 Canvas::WorldToScreen(const Vec& v) const {

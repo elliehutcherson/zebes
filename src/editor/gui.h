@@ -120,6 +120,7 @@ class Gui : public GuiInterface {
   ImGuiIO& GetIO() override;
   ImGuiStyle& GetStyle() override;
   bool IsItemHovered(ImGuiHoveredFlags flags = 0) override;
+  void SetItemKeyOwner(ImGuiKey key) override;
   void SetItemDefaultFocus() override;
   bool IsItemActive() override;
   bool IsItemClicked(ImGuiMouseButton mouse_button = 0) override;

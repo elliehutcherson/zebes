@@ -1,69 +1,48 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+
 #include "absl/status/statusor.h"
-#include "api/api.h"
+#include "editor/blueprint_editor/collider_panel_model.h"
 #include "editor/canvas/canvas_collider.h"
 #include "editor/gui_interface.h"
-#include "objects/collider.h"
 
 namespace zebes {
 
-struct ColliderResult {
-  enum Type : uint8_t { kNone = 0, kAttach = 1, kDetach = 2 };
-  Type type = Type::kNone;
-  std::string collider_id;
-};
-
+// Renders collider authoring state and reports persistence intents to the
+// containing editor. It does not access the application API.
 class ColliderPanel {
  public:
-  // Creates a new ColliderPanel instance.
-  // Returns an error if the API pointer is null.
-  // If attach is true, an "Attach" button will be rendered. If clicked, "Render" will return
-  // "kAttach" or "kDetach" when the user attaches or detaches a valid collider.
-  static absl::StatusOr<std::unique_ptr<ColliderPanel>> Create(Api* api, GuiInterface* gui);
+  enum class Action : std::uint8_t {
+    kNone,
+    kCreate,
+    kAttach,
+    kSave,
+    kDelete,
+    kDetach,
+  };
 
-  // Renders the collider panel UI.
-  // This is the main entry point for the panel's rendering logic.
-  absl::StatusOr<ColliderResult> Render();
+  static absl::StatusOr<std::unique_ptr<ColliderPanel>> Create(GuiInterface* gui);
 
-  absl::StatusOr<bool> RenderCanvas(Canvas& canvas, bool input_allowed);
-
-  absl::Status Attach(const std::string& id);
-
-  void Detach();
+  absl::StatusOr<Action> Render(ColliderPanelModel& model);
+  absl::StatusOr<bool> RenderCanvas(ColliderPanelModel& model, Canvas& canvas,
+                                    bool input_allowed);
 
  private:
-  enum Op : uint8_t { kColliderCreate, kColliderUpdate, kColliderDelete, kColliderReset };
+  explicit ColliderPanel(GuiInterface* gui);
 
-  ColliderPanel(Api* api, GuiInterface* gui);
+  absl::StatusOr<Action> RenderList(ColliderPanelModel& model);
+  absl::StatusOr<Action> RenderDetails(ColliderPanelModel& model);
+  absl::Status RenderPolygonList(ColliderPanelModel& model);
+  absl::StatusOr<bool> RenderPolygonDetails(ColliderPanelModel& model,
+                                            std::size_t polygon_index);
+  void SyncCanvas(ColliderPanelModel& model);
 
-  absl::Status Attach(int i);
-
-  // Refreshes the local cache of colliders from the API.
-  void RefreshColliderCache();
-
-  // Renders the list of colliders and CRUD buttons.
-  absl::StatusOr<ColliderResult> RenderList();
-
-  // Renders the details view for creating or editing a collider.
-  absl::StatusOr<ColliderResult> RenderDetails();
-
-  // Renders the list of polygons for the current collider.
-  void RenderPolygonList();
-
-  // Renders a single polygon's details (vertices, deletion).
-  // Returns true if polygon was deleted.
-  bool RenderPolygonDetails(Polygon& poly, int index);
-
-  absl::Status ConfirmState(Op op);
-
-  int selected_index_ = -1;
-  std::vector<Collider> collider_cache_;
-  std::optional<Collider> editting_collider_;
   std::unique_ptr<CanvasCollider> canvas_collider_;
-
-  // Outside dependencies
-  Api& api_;
+  std::uint64_t canvas_revision_ = std::numeric_limits<std::uint64_t>::max();
   GuiInterface* gui_;
 };
 

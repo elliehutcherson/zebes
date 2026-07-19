@@ -156,6 +156,7 @@ class MockGui : public GuiInterface {
   MOCK_METHOD(ImGuiIO&, GetIO, (), (override));
   MOCK_METHOD(ImGuiStyle&, GetStyle, (), (override));
   MOCK_METHOD(bool, IsItemHovered, (ImGuiHoveredFlags flags), (override));
+  MOCK_METHOD(void, SetItemKeyOwner, (ImGuiKey key), (override));
   MOCK_METHOD(void, SetItemDefaultFocus, (), (override));
   MOCK_METHOD(bool, IsItemActive, (), (override));
   MOCK_METHOD(bool, IsItemClicked, (ImGuiMouseButton mouse_button), (override));
