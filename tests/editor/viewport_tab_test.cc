@@ -1,6 +1,7 @@
 #include "editor/level_editor/viewport_tab.h"
 #include "editor/level_editor/viewport_model.h"
 
+#include <limits>
 #include <map>
 
 #include "gmock/gmock.h"
@@ -19,9 +20,8 @@ namespace zebes {
 class ViewportTabTestPeer {
  public:
   static absl::Status HandleTileInput(ViewportTab& tab, Level& level, const Tile& tile,
-                                      const Tileset& tileset, Vec mouse_world, int tile_render_w,
-                                      int tile_render_h) {
-    return tab.HandleTileInput(level, tile, tileset, mouse_world, tile_render_w, tile_render_h);
+                                      Vec mouse_world, int tile_render_w, int tile_render_h) {
+    return tab.HandleTileInput(level, tile, mouse_world, tile_render_w, tile_render_h);
   }
 
   static void ApplyPendingCameraFrame(ViewportTab& tab, ImVec2 viewport_size,
@@ -204,6 +204,21 @@ TEST(ViewportTabTest, RenderRejectsMissingLevelBeforeOpeningCanvas) {
   EXPECT_EQ(tab.Render({}).code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST(ViewportTabTest, RenderRejectsInvalidLevelGeometryBeforeOpeningCanvas) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  Level level{
+      .tile_render_width = 0,
+      .width = std::numeric_limits<double>::infinity(),
+  };
+
+  EXPECT_EQ(tab.Render({.level = &level}).code(), absl::StatusCode::kInvalidArgument);
+
+  level.width = 0;
+  EXPECT_EQ(tab.Render({.level = &level}).code(), absl::StatusCode::kInvalidArgument);
+}
+
 // SnapEntityToGrid tests
 
 TEST(SnapEntityToGridTest, ColliderCenterAlignedAndBottomAligned) {
@@ -279,6 +294,16 @@ TEST(SnapEntityToGridTest, ErrorWhenTileDimensionsAreInvalid) {
   EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST(SnapEntityToGridTest, RejectsUnrepresentableGridCoordinate) {
+  Sprite sprite;
+  sprite.frames.push_back(SpriteFrame{.render_w = 16, .render_h = 16});
+
+  absl::StatusOr<Vec> result = SnapEntityToGrid(
+      {std::numeric_limits<double>::max(), 0}, 16, 16, nullptr, &sprite);
+
+  EXPECT_EQ(result.status().code(), absl::StatusCode::kOutOfRange);
+}
+
 TEST(SnapEntityToGridTest, EmptyColliderFallsBackToSprite) {
   // Collider present but has no polygons — falls through to sprite.
   Collider collider;  // polygons empty
@@ -341,9 +366,7 @@ class HandleTileInputTest : public ::testing::Test {
   ImGuiIO io_{};
   ViewportTab tab_{api_, &gui_};
 
-  // A minimal tile + tileset sufficient for HandleTileInput (no texture needed).
   Tile tile_{.id = 7, .source_x = 0, .source_y = 0};
-  Tileset tileset_{.tile_width = 16, .tile_height = 16};
 
   // Mouse positioned at world (8, 8) with a 16×16 render grid → tile (0, 0).
   static constexpr Vec kMouseWorld = {8.0, 8.0};
@@ -352,36 +375,36 @@ class HandleTileInputTest : public ::testing::Test {
 };
 
 TEST_F(HandleTileInputTest, LeftHeld_PaintsTile) {
-  Level level;
+  Level level{.width = 100, .height = 100};
   ON_CALL(gui_, IsItemActive()).WillByDefault(Return(true));
   io_.MouseDown[ImGuiMouseButton_Left] = true;
 
   ASSERT_TRUE(
-      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, tileset_, kMouseWorld,
-                                           kTileRenderW, kTileRenderH).ok());
+      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, kMouseWorld, kTileRenderW,
+                                           kTileRenderH).ok());
 
-  EXPECT_EQ(GetTileAt(level, 0, 0), tile_.id);
+  EXPECT_EQ(GetTileAt(level, 0, 0).value(), tile_.id);
 }
 
 TEST_F(HandleTileInputTest, RightClick_ErasesToile) {
-  Level level;
+  Level level{.width = 100, .height = 100};
   // Pre-place a tile so we can verify it gets cleared.
-  SetTileAt(level, 0, 0, tile_.id);
+  ASSERT_TRUE(SetTileAt(level, 0, 0, tile_.id).ok());
   ON_CALL(gui_, IsItemClicked(ImGuiMouseButton_Right)).WillByDefault(Return(true));
 
   ASSERT_TRUE(
-      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, tileset_, kMouseWorld,
-                                           kTileRenderW, kTileRenderH).ok());
+      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, kMouseWorld, kTileRenderW,
+                                           kTileRenderH).ok());
 
-  EXPECT_EQ(GetTileAt(level, 0, 0), 0);
+  EXPECT_EQ(GetTileAt(level, 0, 0).value(), 0);
 }
 
 // Regression: the canvas InvisibleButton captures right-click, making
 // IsItemActive() true on right-click. Without checking MouseDown[Left], the
 // paint branch fires on right-click instead of the erase branch.
 TEST_F(HandleTileInputTest, RightClickActivatesItem_ErasesNotPaints) {
-  Level level;
-  SetTileAt(level, 0, 0, tile_.id);
+  Level level{.width = 100, .height = 100};
+  ASSERT_TRUE(SetTileAt(level, 0, 0, tile_.id).ok());
 
   // Simulate right-click activating the canvas item (the bug condition):
   // IsItemActive() is true, but the left mouse button is NOT held.
@@ -390,10 +413,48 @@ TEST_F(HandleTileInputTest, RightClickActivatesItem_ErasesNotPaints) {
   ON_CALL(gui_, IsItemClicked(ImGuiMouseButton_Right)).WillByDefault(Return(true));
 
   ASSERT_TRUE(
-      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, tileset_, kMouseWorld,
-                                           kTileRenderW, kTileRenderH).ok());
+      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, kMouseWorld, kTileRenderW,
+                                           kTileRenderH).ok());
 
-  EXPECT_EQ(GetTileAt(level, 0, 0), 0) << "Right-click must erase, not paint";
+  EXPECT_EQ(GetTileAt(level, 0, 0).value(), 0) << "Right-click must erase, not paint";
+}
+
+TEST_F(HandleTileInputTest, MouseOutsideLevelDoesNotMutateTiles) {
+  Level level{.width = 100, .height = 100};
+  ON_CALL(gui_, IsItemActive()).WillByDefault(Return(true));
+  io_.MouseDown[ImGuiMouseButton_Left] = true;
+
+  ASSERT_TRUE(ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, {-1, 8}, kTileRenderW,
+                                                   kTileRenderH).ok());
+  EXPECT_TRUE(level.tile_chunks.empty());
+}
+
+TEST_F(HandleTileInputTest, UnavailableMouseSentinelDoesNotAttemptGridConversion) {
+  Level level{.width = 100, .height = 100};
+  ON_CALL(gui_, IsItemActive()).WillByDefault(Return(true));
+  io_.MouseDown[ImGuiMouseButton_Left] = true;
+
+  const double unavailable = -std::numeric_limits<float>::max();
+  ASSERT_TRUE(ViewportTabTestPeer::HandleTileInput(
+                  tab_, level, tile_, {unavailable, unavailable}, kTileRenderW,
+                  kTileRenderH)
+                  .ok());
+  EXPECT_TRUE(level.tile_chunks.empty());
+}
+
+TEST(TileMutationTest, RejectsNegativeCoordinates) {
+  Level level;
+
+  EXPECT_EQ(SetTileAt(level, -1, 0, 1).code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(GetTileAt(level, 0, -1).status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_TRUE(level.tile_chunks.empty());
+}
+
+TEST(TileChunkKeyTest, RoundTripsSignedCoordinatesWithoutUndefinedShifts) {
+  const TileChunkCoordinate coordinate = DecodeChunkKey(ChunkKey(-2, 3));
+
+  EXPECT_EQ(coordinate.x, -2);
+  EXPECT_EQ(coordinate.y, 3);
 }
 
 }  // namespace

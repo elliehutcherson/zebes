@@ -1,6 +1,7 @@
 #include "editor/level_editor/viewport_model.h"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <limits>
 
@@ -62,19 +63,66 @@ Entity CreateEntityFromBlueprint(const Blueprint& blueprint, int state_index, Ve
 }
 
 int64_t ChunkKey(int chunk_x, int chunk_y) {
-  return (static_cast<int64_t>(chunk_y) << 32) | static_cast<uint32_t>(chunk_x);
+  const uint64_t encoded = (static_cast<uint64_t>(static_cast<uint32_t>(chunk_y)) << 32) |
+                           static_cast<uint32_t>(chunk_x);
+  return std::bit_cast<int64_t>(encoded);
 }
 
-void SetTileAt(Level& level, int tile_x, int tile_y, int tile_id) {
+TileChunkCoordinate DecodeChunkKey(int64_t key) {
+  const uint64_t encoded = std::bit_cast<uint64_t>(key);
+  return {
+      .x = std::bit_cast<int32_t>(static_cast<uint32_t>(encoded)),
+      .y = std::bit_cast<int32_t>(static_cast<uint32_t>(encoded >> 32)),
+  };
+}
+
+absl::StatusOr<TileCoordinate> WorldToTileCoordinate(
+    Vec world_position, int tile_render_width, int tile_render_height) {
+  if (tile_render_width <= 0 || tile_render_height <= 0) {
+    return absl::InvalidArgumentError("tile render dimensions must be positive");
+  }
+  if (!std::isfinite(world_position.x) || !std::isfinite(world_position.y)) {
+    return absl::InvalidArgumentError("tile position must be finite");
+  }
+
+  const long double tile_x =
+      std::floor(static_cast<long double>(world_position.x) / tile_render_width);
+  const long double tile_y =
+      std::floor(static_cast<long double>(world_position.y) / tile_render_height);
+  constexpr int kMinCoordinate = std::numeric_limits<int>::min();
+  constexpr int kMaxCoordinate = std::numeric_limits<int>::max();
+  if (tile_x < kMinCoordinate || tile_x > kMaxCoordinate || tile_y < kMinCoordinate ||
+      tile_y > kMaxCoordinate) {
+    return absl::OutOfRangeError("tile coordinate exceeds level storage range");
+  }
+  return TileCoordinate{
+      .x = static_cast<int>(tile_x),
+      .y = static_cast<int>(tile_y),
+  };
+}
+
+absl::Status SetTileAt(Level& level, int tile_x, int tile_y, int tile_id) {
+  if (tile_x < 0 || tile_y < 0) {
+    return absl::InvalidArgumentError("tile coordinates must be non-negative");
+  }
+  if (tile_id < 0) {
+    return absl::InvalidArgumentError("tile ID must be non-negative");
+  }
+
   constexpr int kSize = TileChunk::kSize;
   const int chunk_x = tile_x / kSize;
   const int chunk_y = tile_y / kSize;
   const int local_x = tile_x % kSize;
   const int local_y = tile_y % kSize;
   level.tile_chunks[ChunkKey(chunk_x, chunk_y)].tiles[local_y * kSize + local_x] = tile_id;
+  return absl::OkStatus();
 }
 
-int GetTileAt(const Level& level, int tile_x, int tile_y) {
+absl::StatusOr<int> GetTileAt(const Level& level, int tile_x, int tile_y) {
+  if (tile_x < 0 || tile_y < 0) {
+    return absl::InvalidArgumentError("tile coordinates must be non-negative");
+  }
+
   constexpr int kSize = TileChunk::kSize;
   const int chunk_x = tile_x / kSize;
   const int chunk_y = tile_y / kSize;
@@ -87,14 +135,14 @@ int GetTileAt(const Level& level, int tile_x, int tile_y) {
 
 absl::StatusOr<Vec> SnapEntityToGrid(Vec mouse_world, int tile_render_w, int tile_render_h,
                                      const Collider* collider, const Sprite* sprite) {
-  if (tile_render_w <= 0 || tile_render_h <= 0) {
-    return absl::InvalidArgumentError("tile render dimensions must be positive");
-  }
+  absl::StatusOr<TileCoordinate> tile =
+      WorldToTileCoordinate(mouse_world, tile_render_w, tile_render_h);
+  if (!tile.ok()) return tile.status();
 
-  const int tile_x = static_cast<int>(std::floor(mouse_world.x / tile_render_w));
-  const int tile_y = static_cast<int>(std::floor(mouse_world.y / tile_render_h));
-  const double cell_center_x = tile_x * tile_render_w + tile_render_w / 2.0;
-  const double cell_bottom_y = (tile_y + 1) * static_cast<double>(tile_render_h);
+  const double cell_center_x =
+      static_cast<double>(tile->x) * tile_render_w + tile_render_w / 2.0;
+  const double cell_bottom_y =
+      (static_cast<double>(tile->y) + 1.0) * tile_render_h;
 
   if (collider != nullptr && !collider->polygons.empty()) {
     double min_x = std::numeric_limits<double>::max();

@@ -40,8 +40,10 @@ target_link_libraries(viewport_scene
   parallax_layout
   texture_handle
   viewport_model
+  absl::flat_hash_map
   absl::status
   absl::statusor
+  absl::strings
 )
 
 add_library(viewport_renderer
@@ -211,7 +213,5 @@ target_link_libraries(viewport_tab
   SDL2-static
   absl::cleanup
   absl::status
-  absl::log
-  absl::flat_hash_map
   gui_interface
 )

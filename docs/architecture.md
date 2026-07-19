@@ -213,6 +213,14 @@ draw commands. `ViewportTab` orchestrates the two. Picking and rendering share
 one entity-bounds calculation so invisible and textured entities do not acquire
 different interaction geometry.
 
+Level tiles follow the same boundary. `ViewportScene` culls offscreen chunks
+before scanning their cells and emits a `TileRenderBatch` containing one opaque
+atlas handle plus the visible world rectangles, pixel source rectangles, and
+collision shapes. Placement previews use the same description. Atlas queries,
+UV normalization, tinting, and collision-overlay drawing live exclusively in
+`ViewportRenderer`. Tile mutation rejects negative coordinates so invalid
+world positions cannot become out-of-bounds chunk-array indices.
+
 Parallax-zone activation is also a pure editor/runtime rule: resolve one zone
 from a world-space reference point, currently the camera center, and then render
 that zone's theme. Viewport intersection and zoom must not change the active

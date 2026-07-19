@@ -87,21 +87,11 @@ class ViewportTab {
   // Renders a semi-transparent ghost of the placement blueprint at world_pos.
   void RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos);
 
-  // Renders all placed tile chunks using the given tileset's texture atlas.
-  // Optionally draws cell borders (show_frame) and collision overlays (show_collision).
-  void RenderTileChunks(const Level& level, const Tileset& tileset, bool show_frame,
-                        bool show_collision, float tile_overlay_opacity);
-
-  // Renders a semi-transparent ghost of the selected tile snapped to the tile render grid.
-  // tile_render_w/h are the world-space pixel dimensions used for snapping and screen extents.
-  void RenderTilePlacementGhost(const Tile& tile, const Tileset& tileset, Vec mouse_world,
-                                int tile_render_w, int tile_render_h);
-
   // Handles tile-painting input: left-held paints tile at snapped position,
   // right-click erases (sets tile_id=0).
   // tile_render_w/h are the world-space pixel dimensions used for grid snapping.
-  absl::Status HandleTileInput(Level& level, const Tile& tile, const Tileset& tileset,
-                               Vec mouse_world, int tile_render_w, int tile_render_h);
+  absl::Status HandleTileInput(Level& level, const Tile& tile, Vec mouse_world,
+                               int tile_render_w, int tile_render_h);
 
   // Handles all entity-related mouse input for a single frame:
   // placement clicks, selection clicks, and drag-to-move.
@@ -131,6 +121,10 @@ class ViewportTab {
   // SnapEntityToGrid. Returns mouse_world unchanged when snap is disabled.
   absl::StatusOr<Vec> SnapBlueprintToGrid(Vec mouse_world, const Blueprint& blueprint,
                                            int tile_render_w, int tile_render_h) const;
+
+  // Resolves the tileset's platform-neutral atlas handle. An empty texture ID
+  // deliberately produces an invalid handle for placeholder-only rendering.
+  absl::StatusOr<TextureHandle> ResolveTilesetTexture(const Tileset& tileset) const;
 
   Api& api_;
   GuiInterface* gui_;

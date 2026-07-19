@@ -105,6 +105,27 @@ TEST(SelectionStateTest, EntityPickReplacesOtherSelection) {
   EXPECT_EQ(selection.zone_id, -1);
 }
 
+TEST(LevelEditorPanelLayoutTest, ReservesBoundedPaletteBelowWorkspace) {
+  const LevelEditorPanelLayout layout = CalculateLevelEditorPanelLayout(1000.0f);
+
+  EXPECT_FLOAT_EQ(layout.workspace_height, 742.0f);
+  EXPECT_FLOAT_EQ(layout.palette_height, 250.0f);
+}
+
+TEST(LevelEditorPanelLayoutTest, KeepsBothPanelsReachableWhenHeightIsConstrained) {
+  const LevelEditorPanelLayout layout = CalculateLevelEditorPanelLayout(300.0f);
+
+  EXPECT_FLOAT_EQ(layout.workspace_height, 175.2f);
+  EXPECT_FLOAT_EQ(layout.palette_height, 116.8f);
+}
+
+TEST(LevelEditorPanelLayoutTest, ClampsNegativeAvailableHeight) {
+  const LevelEditorPanelLayout layout = CalculateLevelEditorPanelLayout(-10.0f);
+
+  EXPECT_FLOAT_EQ(layout.workspace_height, 0.0f);
+  EXPECT_FLOAT_EQ(layout.palette_height, 0.0f);
+}
+
 class LevelEditorTest : public ::testing::Test {
  protected:
   void SetUp() override {

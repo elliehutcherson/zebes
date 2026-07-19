@@ -16,6 +16,7 @@ class ViewportRenderer {
   explicit ViewportRenderer(Canvas& canvas) : canvas_(canvas) {}
 
   absl::Status RenderEntities(std::span<const EntityRenderItem> items) const;
+  absl::Status RenderTiles(const TileRenderBatch& batch) const;
   void RenderZoneGizmos(std::span<const ZoneGizmoItem> items) const;
 
  private:

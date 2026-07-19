@@ -1,5 +1,7 @@
 #include "editor/level_editor/level_editor.h"
 
+#include <algorithm>
+
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
@@ -17,9 +19,36 @@ namespace zebes {
 namespace {
 
 constexpr ImGuiTableFlags kTableFlags =
-    ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp;
+    ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
+    ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoHostExtendY;
+
+constexpr float kPanelGap = 8.0f;
+constexpr float kPaletteHeightFraction = 0.25f;
+constexpr float kMinimumWorkspaceHeight = 180.0f;
+constexpr float kMinimumPaletteHeight = 120.0f;
+constexpr float kMaximumPaletteHeight = 260.0f;
+constexpr float kConstrainedWorkspaceFraction = 0.6f;
 
 }  // namespace
+
+LevelEditorPanelLayout CalculateLevelEditorPanelLayout(float available_height) {
+  const float usable_height = std::max(0.0f, available_height - kPanelGap);
+  if (usable_height < kMinimumWorkspaceHeight + kMinimumPaletteHeight) {
+    const float workspace_height = usable_height * kConstrainedWorkspaceFraction;
+    return {
+        .workspace_height = workspace_height,
+        .palette_height = usable_height - workspace_height,
+    };
+  }
+
+  const float palette_height =
+      std::clamp(available_height * kPaletteHeightFraction, kMinimumPaletteHeight,
+                 kMaximumPaletteHeight);
+  return {
+      .workspace_height = usable_height - palette_height,
+      .palette_height = palette_height,
+  };
+}
 
 absl::StatusOr<std::unique_ptr<LevelEditor>> LevelEditor::Create(Options options) {
   if (options.api == nullptr) {
@@ -114,8 +143,11 @@ absl::Status LevelEditor::HandleLevelPanelEvent(LevelPanelEvent event) {
 }
 
 absl::Status LevelEditor::Render() {
+  const LevelEditorPanelLayout layout =
+      CalculateLevelEditorPanelLayout(gui_->GetContentRegionAvail().y);
   {
-    ScopedTable table = gui_->CreateScopedTable("LevelEditorLayout", 3, kTableFlags);
+    ScopedTable table = gui_->CreateScopedTable(
+        "LevelEditorLayout", 3, kTableFlags, ImVec2(0.0f, layout.workspace_height));
     if (!table) return absl::OkStatus();
 
     // Setup columns with relative sizing
@@ -126,17 +158,27 @@ absl::Status LevelEditor::Render() {
     gui_->TableNextRow();
 
     gui_->TableNextColumn();
-    RETURN_IF_ERROR(RenderNavigator());
+    {
+      ScopedChild navigator =
+          gui_->CreateScopedChild("LevelEditorNavigator", ImVec2(0.0f, 0.0f));
+      if (navigator) RETURN_IF_ERROR(RenderNavigator());
+    }
 
     gui_->TableNextColumn();
     RETURN_IF_ERROR(RenderViewport());
 
     gui_->TableNextColumn();
-    RETURN_IF_ERROR(RenderInspector());
+    {
+      ScopedChild inspector =
+          gui_->CreateScopedChild("LevelEditorInspector", ImVec2(0.0f, 0.0f));
+      if (inspector) RETURN_IF_ERROR(RenderInspector());
+    }
   }
 
-  // Render your full-width bottom row outside the table
   gui_->Separator();
+  ScopedChild palette = gui_->CreateScopedChild(
+      "LevelEditorPalette", ImVec2(0.0f, layout.palette_height), true);
+  if (!palette) return absl::OkStatus();
   RETURN_IF_ERROR(RenderPalette());
 
   return absl::OkStatus();

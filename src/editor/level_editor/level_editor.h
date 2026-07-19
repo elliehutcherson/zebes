@@ -17,6 +17,15 @@
 
 namespace zebes {
 
+// Vertical space reserved for the main editor workspace and bottom palette.
+struct LevelEditorPanelLayout {
+  float workspace_height = 0.0f;
+  float palette_height = 0.0f;
+};
+
+// Divides the available editor height while keeping both panels reachable.
+LevelEditorPanelLayout CalculateLevelEditorPanelLayout(float available_height);
+
 class LevelEditor {
  public:
   struct Options {
@@ -56,7 +65,7 @@ class LevelEditor {
   // Renders the properties/details panel for the selected object.
   absl::Status RenderInspector();  // Right
 
-  // Renders the full-width palette strip below the 3-column table.
+  // Renders the full-width palette panel below the 3-column workspace.
   absl::Status RenderPalette();
 
   Api* api_;

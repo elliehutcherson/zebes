@@ -1,5 +1,6 @@
 #include "editor/level_editor/viewport_scene.h"
 
+#include <limits>
 #include <map>
 #include <vector>
 
@@ -139,6 +140,171 @@ TEST(ViewportSceneZoneTest, RejectsInvalidCameraAndZoneBounds) {
   EXPECT_EQ(
       ComposeZoneGizmoItems(invalid_zones, camera, std::nullopt, std::nullopt).status().code(),
       absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ViewportSceneTileTest, ComposesOnlyVisibleTilesWithAtlasAndPresentationState) {
+  Level level{
+      .tile_render_width = 16,
+      .tile_render_height = 16,
+      .width = 2048,
+      .height = 1024,
+  };
+  ASSERT_TRUE(SetTileAt(level, 1, 2, 7).ok());
+  ASSERT_TRUE(SetTileAt(level, 70, 2, 7).ok());
+  Tileset tileset{
+      .tile_width = 16,
+      .tile_height = 24,
+      .tiles = {{.id = 7,
+                 .source_x = 32,
+                 .source_y = 48,
+                 .shape = TileShape::kFullBlock}},
+  };
+  Camera camera{
+      .position = {32, 40},
+      .zoom = 1.0,
+      .viewport_width = 128,
+      .viewport_height = 128,
+  };
+  int texture_owner = 0;
+  const TextureHandle texture = TextureHandleAccess::Create(5, &texture_owner);
+
+  absl::StatusOr<TileRenderBatch> batch = ComposeLevelTileRenderBatch(
+      level, tileset, texture, camera,
+      {.overlay_opacity = 0.5f, .show_frame = true, .show_collision = true});
+
+  ASSERT_TRUE(batch.ok()) << batch.status();
+  EXPECT_EQ(batch->atlas_texture, texture);
+  EXPECT_EQ(batch->mode, TileRenderMode::kLevel);
+  EXPECT_FLOAT_EQ(batch->overlay_opacity, 0.5f);
+  EXPECT_TRUE(batch->show_frame);
+  EXPECT_TRUE(batch->show_collision);
+  ASSERT_EQ(batch->items.size(), 1u);
+  const TileRenderItem& item = batch->items.front();
+  EXPECT_EQ(item.tile_id, 7);
+  EXPECT_EQ(item.bounds.min, (Vec{16, 32}));
+  EXPECT_EQ(item.bounds.max, (Vec{32, 48}));
+  EXPECT_EQ(item.source.x, 32);
+  EXPECT_EQ(item.source.y, 48);
+  EXPECT_EQ(item.source.width, 16);
+  EXPECT_EQ(item.source.height, 24);
+  EXPECT_EQ(item.collision_shape, TileShape::kFullBlock);
+}
+
+TEST(ViewportSceneTileTest, OffscreenChunksAreNotScanned) {
+  Level level{
+      .tile_render_width = 16,
+      .tile_render_height = 16,
+      .width = 4096,
+      .height = 1024,
+  };
+  // Unknown tile data is deliberately placed in a distant chunk. The camera
+  // only composes the visible chunk, avoiding 1,024-cell scans elsewhere.
+  ASSERT_TRUE(SetTileAt(level, 100, 2, 999).ok());
+  Tileset tileset{.tiles = {{.id = 1, .source_x = 0, .source_y = 0}}};
+  Camera camera{.position = {32, 32}, .zoom = 1, .viewport_width = 64, .viewport_height = 64};
+
+  absl::StatusOr<TileRenderBatch> batch =
+      ComposeLevelTileRenderBatch(level, tileset, {}, camera, {});
+
+  ASSERT_TRUE(batch.ok()) << batch.status();
+  EXPECT_TRUE(batch->items.empty());
+}
+
+TEST(ViewportSceneTileTest, RejectsUnknownVisibleTileAndDuplicateDefinitions) {
+  Level level{
+      .tile_render_width = 16,
+      .tile_render_height = 16,
+      .width = 128,
+      .height = 128,
+  };
+  ASSERT_TRUE(SetTileAt(level, 1, 1, 9).ok());
+  Camera camera{.position = {32, 32}, .zoom = 1, .viewport_width = 64, .viewport_height = 64};
+  Tileset tileset{.tiles = {{.id = 1}}};
+
+  EXPECT_EQ(ComposeLevelTileRenderBatch(level, tileset, {}, camera, {}).status().code(),
+            absl::StatusCode::kInvalidArgument);
+
+  tileset.tiles.push_back(Tile{.id = 1});
+  EXPECT_EQ(ComposeLevelTileRenderBatch(level, tileset, {}, camera, {}).status().code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ViewportSceneTileTest, RejectsTileOutsideLevelBounds) {
+  Level level{
+      .tile_render_width = 16,
+      .tile_render_height = 16,
+      .width = 16,
+      .height = 16,
+  };
+  ASSERT_TRUE(SetTileAt(level, 1, 0, 1).ok());
+  Tileset tileset{.tiles = {{.id = 1}}};
+  Camera camera{.position = {16, 8}, .zoom = 1, .viewport_width = 64, .viewport_height = 64};
+
+  EXPECT_EQ(ComposeLevelTileRenderBatch(level, tileset, {}, camera, {}).status().code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ViewportSceneTileTest, PlacementSnapsToRenderGrid) {
+  Tileset tileset{
+      .tile_width = 8,
+      .tile_height = 12,
+      .tiles = {{.id = 4, .source_x = 24, .source_y = 36}},
+  };
+  Tile tile{.id = 4, .source_x = 24, .source_y = 36};
+
+  absl::StatusOr<TileRenderBatch> batch =
+      ComposeTilePlacementBatch(tile, tileset, {}, {33, 47}, 16, 24);
+
+  ASSERT_TRUE(batch.ok()) << batch.status();
+  EXPECT_EQ(batch->mode, TileRenderMode::kPlacementGhost);
+  ASSERT_EQ(batch->items.size(), 1u);
+  EXPECT_EQ(batch->items.front().bounds.min, (Vec{32, 24}));
+  EXPECT_EQ(batch->items.front().bounds.max, (Vec{48, 48}));
+  EXPECT_EQ(batch->items.front().source.width, 8);
+  EXPECT_EQ(batch->items.front().source.height, 12);
+}
+
+TEST(ViewportSceneTileTest, RejectsInvalidDimensionsAndOpacity) {
+  Level level{.tile_render_width = 0, .tile_render_height = 16};
+  Tileset tileset{.tiles = {{.id = 1}}};
+  Camera camera{.zoom = 1, .viewport_width = 64, .viewport_height = 64};
+
+  EXPECT_EQ(ComposeLevelTileRenderBatch(level, tileset, {}, camera, {}).status().code(),
+            absl::StatusCode::kInvalidArgument);
+
+  level.tile_render_width = 16;
+  EXPECT_EQ(ComposeLevelTileRenderBatch(level, tileset, {}, camera,
+                                        {.overlay_opacity = -0.1f})
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(ComposeLevelTileRenderBatch(
+                level, tileset, {}, camera,
+                {.overlay_opacity = std::numeric_limits<float>::quiet_NaN()})
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+
+  camera.position.x = std::numeric_limits<double>::infinity();
+  EXPECT_EQ(ComposeLevelTileRenderBatch(level, tileset, {}, camera, {}).status().code(),
+            absl::StatusCode::kInvalidArgument);
+
+  const Tile& tile = tileset.tiles.front();
+  EXPECT_EQ(ComposeTilePlacementBatch(tile, tileset, {},
+                                      {std::numeric_limits<double>::infinity(), 0}, 16, 16)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(ComposeTilePlacementBatch(tile, tileset, {},
+                                      {std::numeric_limits<double>::max(), 0}, 16, 16)
+                .status()
+                .code(),
+            absl::StatusCode::kOutOfRange);
+
+  camera.position.x = 0;
+  level.width = std::numeric_limits<double>::quiet_NaN();
+  EXPECT_EQ(ComposeLevelTileRenderBatch(level, tileset, {}, camera, {}).status().code(),
+            absl::StatusCode::kInvalidArgument);
 }
 
 }  // namespace

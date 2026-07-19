@@ -3,14 +3,11 @@
 #include <cmath>
 
 #include "SDL_render.h"
-#include "absl/container/flat_hash_map.h"
 #include "absl/cleanup/cleanup.h"
-#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "common/status_macros.h"
-#include "editor/canvas/tile_draw.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
 #include "editor/level_editor/camera_guide.h"
@@ -23,45 +20,6 @@
 #include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
-
-namespace {
-
-// Draws a single tile cell onto the draw list at the given world-tile coordinate.
-// texture_handle may be null; overlays (frame, collision) are drawn regardless so
-// that invisible tiles remain visible in the editor.
-// tile_render_w/h control the world-space pixel size of the rendered cell;
-// UV sampling always uses the source rect from tileset.tile_width/tile_height.
-void DrawTileAt(ImDrawList* dl, const Canvas& canvas, const Camera& camera, const Tile& tile,
-                const Tileset& tileset, void* texture_handle, int tex_w, int tex_h, int world_tile_x,
-                int world_tile_y, int tile_render_w, int tile_render_h, bool show_frame,
-                bool show_collision, float tile_overlay_opacity) {
-  Vec world_pos = {world_tile_x * static_cast<double>(tile_render_w),
-                   world_tile_y * static_cast<double>(tile_render_h)};
-  ImVec2 sp_min = canvas.WorldToScreen(world_pos);
-  ImVec2 sp_max =
-      ImVec2(sp_min.x + tile_render_w * camera.zoom, sp_min.y + tile_render_h * camera.zoom);
-
-  if (texture_handle != nullptr && tex_w > 0 && tex_h > 0) {
-    float u0 = static_cast<float>(tile.source_x) / tex_w;
-    float v0 = static_cast<float>(tile.source_y) / tex_h;
-    float u1 = static_cast<float>(tile.source_x + tileset.tile_width) / tex_w;
-    float v1 = static_cast<float>(tile.source_y + tileset.tile_height) / tex_h;
-    dl->AddImage(reinterpret_cast<ImTextureID>(texture_handle), sp_min, sp_max, ImVec2(u0, v0),
-                 ImVec2(u1, v1));
-  }
-  if (tile_overlay_opacity > 0.0f) {
-    dl->AddRectFilled(sp_min, sp_max,
-                      IM_COL32(50, 100, 255, static_cast<uint8_t>(tile_overlay_opacity * 255.0f)));
-  }
-  if (show_frame) {
-    dl->AddRect(sp_min, sp_max, IM_COL32(200, 200, 200, 100), 0.0f, 0, 1.0f);
-  }
-  if (show_collision && tile.shape != TileShape::kNone) {
-    DrawShapeOverlay(dl, sp_min, sp_max, tile.shape);
-  }
-}
-
-}  // namespace
 
 absl::StatusOr<Vec> ViewportTab::SnapBlueprintToGrid(Vec mouse_world, const Blueprint& blueprint,
                                                      int tile_render_w, int tile_render_h) const {
@@ -142,7 +100,17 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   if (options.level == nullptr) {
     return absl::InvalidArgumentError("viewport render requires a level");
   }
+  if (options.placement_tile != nullptr && options.placement_tileset == nullptr) {
+    return absl::InvalidArgumentError("tile placement requires its owning tileset");
+  }
   Level& level = *options.level;
+  if (!std::isfinite(level.width) || !std::isfinite(level.height) || level.width < 0.0 ||
+      level.height < 0.0) {
+    return absl::InvalidArgumentError("level world dimensions must be finite and non-negative");
+  }
+  if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
+    return absl::InvalidArgumentError("level tile render dimensions must be positive");
+  }
 
   // Ensure next_entity_id_ is always greater than every entity already in the
   // level. This guards against collisions when a saved level is loaded whose
@@ -170,8 +138,9 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   // Capture canvas input before calculating any scene geometry so zoom and
   // camera movement are reflected immediately in this frame.
   canvas_.HandleInput();
+  const bool canvas_hovered = gui_->IsItemHovered();
 
-  if (options.selected_zone_id.has_value() && gui_->IsItemHovered() &&
+  if (options.selected_zone_id.has_value() && canvas_hovered &&
       gui_->IsKeyPressed(ImGuiKey_F, false)) {
     if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, *options.selected_zone_id);
         zone != nullptr) {
@@ -182,8 +151,16 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   // Determine the active tileset: from options, or from the level's stored id.
   const Tileset* active_tileset = options.placement_tileset;
   if (active_tileset == nullptr && !level.tileset_id.empty()) {
-    absl::StatusOr<Tileset*> tileset = api_.GetTileset(level.tileset_id);
-    if (tileset.ok() && *tileset != nullptr) active_tileset = *tileset;
+    ASSIGN_OR_RETURN(Tileset * tileset, api_.GetTileset(level.tileset_id));
+    if (tileset == nullptr) {
+      return absl::FailedPreconditionError("level tileset resolved to null");
+    }
+    active_tileset = tileset;
+  }
+
+  TextureHandle active_tileset_texture;
+  if (active_tileset != nullptr) {
+    ASSIGN_OR_RETURN(active_tileset_texture, ResolveTilesetTexture(*active_tileset));
   }
 
   // 1. Render scene elements.
@@ -191,8 +168,14 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   canvas_.DrawGrid();
   RenderLevelBounds(level);
   if (active_tileset != nullptr) {
-    RenderTileChunks(level, *active_tileset, options.show_tile_frame, options.show_tile_collision,
-                     options.tile_overlay_opacity);
+    ASSIGN_OR_RETURN(
+        TileRenderBatch tile_batch,
+        ComposeLevelTileRenderBatch(
+            level, *active_tileset, active_tileset_texture, camera_,
+            {.overlay_opacity = options.tile_overlay_opacity,
+             .show_frame = options.show_tile_frame,
+             .show_collision = options.show_tile_collision}));
+    RETURN_IF_ERROR(renderer_.RenderTiles(tile_batch));
   }
   ASSIGN_OR_RETURN(
       std::vector<EntityRenderItem> entity_items,
@@ -213,10 +196,19 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   // 2. Render placement ghost. Tile mode uses its own grid snap; blueprint mode
   //    snaps to the blueprint's own collider/sprite dimensions.
   Vec mouse_world = canvas_.ScreenToWorld(gui_->GetMousePos());
-  if (options.placement_tile != nullptr && options.placement_tileset != nullptr) {
-    RenderTilePlacementGhost(*options.placement_tile, *options.placement_tileset, mouse_world,
-                             level.tile_render_width, level.tile_render_height);
-  } else if (options.placement_blueprint != nullptr) {
+  const bool mouse_in_level =
+      canvas_hovered && mouse_world.x >= 0.0 && mouse_world.y >= 0.0 &&
+      mouse_world.x < level.width && mouse_world.y < level.height;
+  if (options.placement_tile != nullptr && options.placement_tileset != nullptr &&
+      mouse_in_level) {
+    ASSIGN_OR_RETURN(TileRenderBatch placement_batch,
+                     ComposeTilePlacementBatch(*options.placement_tile,
+                                               *options.placement_tileset,
+                                               active_tileset_texture, mouse_world,
+                                               level.tile_render_width,
+                                               level.tile_render_height));
+    RETURN_IF_ERROR(renderer_.RenderTiles(placement_batch));
+  } else if (options.placement_blueprint != nullptr && mouse_in_level) {
     ASSIGN_OR_RETURN(Vec snapped,
                      SnapBlueprintToGrid(mouse_world, *options.placement_blueprint,
                                          level.tile_render_width, level.tile_render_height));
@@ -231,18 +223,19 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
 
   // 3. Handle mode-specific interaction. Canvas input above created the
   // invisible interaction surface, so its item state remains available here.
-  if (options.placement_tile != nullptr && options.placement_tileset != nullptr) {
-    LOG_IF_ERROR(HandleTileInput(level, *options.placement_tile, *options.placement_tileset,
-                                 mouse_world, level.tile_render_width, level.tile_render_height));
-  } else if (options.placement_blueprint != nullptr) {
+  if (options.placement_tile != nullptr && options.placement_tileset != nullptr &&
+      mouse_in_level) {
+    RETURN_IF_ERROR(HandleTileInput(level, *options.placement_tile, mouse_world,
+                                    level.tile_render_width, level.tile_render_height));
+  } else if (options.placement_blueprint != nullptr && mouse_in_level) {
     ASSIGN_OR_RETURN(Vec snapped,
                      SnapBlueprintToGrid(mouse_world, *options.placement_blueprint,
                                          level.tile_render_width, level.tile_render_height));
-    LOG_IF_ERROR(HandleEntityInput(level, options.placement_blueprint, snapped,
-                                   options.selected_entity_id, options.delete_mode));
-  } else {
-    LOG_IF_ERROR(HandleEntityInput(level, nullptr, mouse_world, options.selected_entity_id,
-                                   options.delete_mode));
+    RETURN_IF_ERROR(HandleEntityInput(level, options.placement_blueprint, snapped,
+                                      options.selected_entity_id, options.delete_mode));
+  } else if (options.placement_blueprint == nullptr) {
+    RETURN_IF_ERROR(HandleEntityInput(level, nullptr, mouse_world, options.selected_entity_id,
+                                      options.delete_mode));
   }
 
   // 4. Capture zoom before End() nullifies the camera pointer.
@@ -474,110 +467,42 @@ void ViewportTab::RenderCameraGuide() {
   draw_list->AddText(ImVec2(guide_min.x + 5.0f, guide_min.y + 5.0f), kGuideColor, label.c_str());
 }
 
-void ViewportTab::RenderTileChunks(const Level& level, const Tileset& tileset, bool show_frame,
-                                   bool show_collision, float tile_overlay_opacity) {
-  ImDrawList* dl = canvas_.GetDrawList();
-  if (!dl) return;
+absl::StatusOr<TextureHandle> ViewportTab::ResolveTilesetTexture(
+    const Tileset& tileset) const {
+  if (tileset.texture_id.empty()) return TextureHandle{};
 
-  // Resolve the atlas texture. A non-empty texture_id must resolve successfully.
-  void* texture_handle = nullptr;
-  int tex_w = 0, tex_h = 0;
-  if (!tileset.texture_id.empty()) {
-    absl::StatusOr<Texture*> texture = api_.GetTexture(tileset.texture_id);
-    if (!texture.ok() || *texture == nullptr || !(*texture)->texture_handle) {
-      LOG(ERROR) << "RenderTileChunks: failed to resolve texture '" << tileset.texture_id << "'";
-      return;
-    }
-    texture_handle = SdlTextureHandleAdapter::ToNative((*texture)->texture_handle);
-    SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture_handle), nullptr, nullptr, &tex_w, &tex_h);
-    if (tex_w <= 0 || tex_h <= 0) {
-      LOG(ERROR) << "RenderTileChunks: texture has invalid dimensions '" << tileset.texture_id
-                 << "'";
-      return;
-    }
+  ASSIGN_OR_RETURN(Texture * texture, api_.GetTexture(tileset.texture_id));
+  if (texture == nullptr || !texture->texture_handle) {
+    return absl::FailedPreconditionError("tileset texture has no renderer resource");
   }
-
-  // Build an id→tile lookup once so each chunk cell lookup is O(1).
-  absl::flat_hash_map<int, const Tile*> tile_map;
-  for (const Tile& t : tileset.tiles) tile_map[t.id] = &t;
-
-  for (const auto& [key, chunk] : level.tile_chunks) {
-    int chunk_x = static_cast<int32_t>(key);        // low 32 bits
-    int chunk_y = static_cast<int32_t>(key >> 32);  // high 32 bits
-
-    for (int i = 0; i < TileChunk::kSize * TileChunk::kSize; ++i) {
-      int tile_id = chunk.tiles[i];
-      if (tile_id == 0) continue;
-
-      auto it = tile_map.find(tile_id);
-      if (it == tile_map.end()) continue;
-
-      int local_x = i % TileChunk::kSize;
-      int local_y = i / TileChunk::kSize;
-      DrawTileAt(dl, canvas_, camera_, *it->second, tileset, texture_handle, tex_w, tex_h,
-                 chunk_x * TileChunk::kSize + local_x, chunk_y * TileChunk::kSize + local_y,
-                 level.tile_render_width, level.tile_render_height, show_frame, show_collision,
-                 tile_overlay_opacity);
-    }
-  }
+  return texture->texture_handle;
 }
 
-void ViewportTab::RenderTilePlacementGhost(const Tile& tile, const Tileset& tileset,
-                                           Vec mouse_world, int tile_render_w, int tile_render_h) {
-  ImDrawList* dl = canvas_.GetDrawList();
-  if (!dl) return;
-
-  // Snap to the tile render grid (not the source size).
-  int tile_x = static_cast<int>(std::floor(mouse_world.x / tile_render_w));
-  int tile_y = static_cast<int>(std::floor(mouse_world.y / tile_render_h));
-  Vec snapped = {tile_x * static_cast<double>(tile_render_w),
-                 tile_y * static_cast<double>(tile_render_h)};
-
-  ImVec2 sp_min = canvas_.WorldToScreen(snapped);
-  ImVec2 sp_max =
-      ImVec2(sp_min.x + tile_render_w * camera_.zoom, sp_min.y + tile_render_h * camera_.zoom);
-
-  if (!tileset.texture_id.empty()) {
-    absl::StatusOr<Texture*> texture = api_.GetTexture(tileset.texture_id);
-    if (!texture.ok() || *texture == nullptr || !(*texture)->texture_handle) {
-      LOG(ERROR) << "RenderTilePlacementGhost: failed to resolve texture '" << tileset.texture_id
-                 << "'";
-      return;
-    }
-    void* texture_handle = SdlTextureHandleAdapter::ToNative((*texture)->texture_handle);
-    int tex_w = 0, tex_h = 0;
-    SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture_handle), nullptr, nullptr, &tex_w, &tex_h);
-    if (tex_w <= 0 || tex_h <= 0) {
-      LOG(ERROR) << "RenderTilePlacementGhost: texture has invalid dimensions '"
-                 << tileset.texture_id << "'";
-      return;
-    }
-    // UV sampling always uses the source rect from the tileset atlas.
-    float u0 = static_cast<float>(tile.source_x) / tex_w;
-    float v0 = static_cast<float>(tile.source_y) / tex_h;
-    float u1 = static_cast<float>(tile.source_x + tileset.tile_width) / tex_w;
-    float v1 = static_cast<float>(tile.source_y + tileset.tile_height) / tex_h;
-    dl->AddImage(reinterpret_cast<ImTextureID>(texture_handle), sp_min, sp_max, ImVec2(u0, v0),
-                 ImVec2(u1, v1), IM_COL32(255, 255, 255, 160));
-  } else {
-    // No texture: draw a colored placeholder so the user still sees a ghost.
-    dl->AddRectFilled(sp_min, sp_max, IM_COL32(100, 200, 100, 100));
+absl::Status ViewportTab::HandleTileInput(Level& level, const Tile& tile, Vec mouse_world,
+                                          int tile_render_w, int tile_render_h) {
+  if (tile_render_w <= 0 || tile_render_h <= 0) {
+    return absl::InvalidArgumentError("tile render dimensions must be positive");
   }
-  dl->AddRect(sp_min, sp_max, IM_COL32(100, 200, 255, 200), 0.0f, 0, 2.0f);
-}
+  if (!std::isfinite(mouse_world.x) || !std::isfinite(mouse_world.y)) {
+    return absl::InvalidArgumentError("tile input position must be finite");
+  }
 
-absl::Status ViewportTab::HandleTileInput(Level& level, const Tile& tile, const Tileset& tileset,
-                                          Vec mouse_world, int tile_render_w, int tile_render_h) {
-  // Snap to the tile render grid (independent of the chunk snap grid).
-  int tile_x = static_cast<int>(std::floor(mouse_world.x / tile_render_w));
-  int tile_y = static_cast<int>(std::floor(mouse_world.y / tile_render_h));
+  // ImGui uses a large negative sentinel when the mouse is unavailable. An
+  // off-level cursor is a normal no-op and must be rejected before conversion.
+  if (mouse_world.x < 0.0 || mouse_world.y < 0.0 || mouse_world.x >= level.width ||
+      mouse_world.y >= level.height) {
+    return absl::OkStatus();
+  }
+
+  absl::StatusOr<TileCoordinate> coordinate =
+      WorldToTileCoordinate(mouse_world, tile_render_w, tile_render_h);
+  if (!coordinate.ok()) return coordinate.status();
 
   // Left mouse held: paint. Guard against right-click activating the canvas
   // InvisibleButton (which captures all three buttons), which would otherwise
   // make IsItemActive() true on right-click and paint instead of erase.
   if (gui_->IsItemActive() && gui_->GetIO().MouseDown[ImGuiMouseButton_Left]) {
-    SetTileAt(level, tile_x, tile_y, tile.id);
-    return absl::OkStatus();
+    return SetTileAt(level, coordinate->x, coordinate->y, tile.id);
   }
 
   // Right click or right mouse held: erase. A single right-click is the primary
@@ -585,7 +510,7 @@ absl::Status ViewportTab::HandleTileInput(Level& level, const Tile& tile, const 
   // across multiple tiles without re-clicking each one.
   if (gui_->IsItemClicked(ImGuiMouseButton_Right) ||
       (gui_->IsItemActive() && gui_->GetIO().MouseDown[ImGuiMouseButton_Right])) {
-    SetTileAt(level, tile_x, tile_y, 0);
+    return SetTileAt(level, coordinate->x, coordinate->y, 0);
   }
 
   return absl::OkStatus();
