@@ -49,7 +49,7 @@ class Canvas {
   void SetGridSize(float size) { grid_size_ = size; }
 
  private:
-  // Helper to draw ruler ticks and grid lines for a specific axis
+  // Draws ruler ticks and grid lines for one axis.
   void DrawRulerAndGrid(double start_val, double step, double max_dim, bool is_x_axis);
 
   // Helper to force camera inside bounds
@@ -60,7 +60,10 @@ class Canvas {
   float grid_size_ = 50.0f;
 
   Camera* camera_ = nullptr;
-  ImVec2 p0_;  // Screen position of canvas top-left
+  ImVec2 canvas_origin_;
+  ImVec2 canvas_size_;
+  ImVec2 content_origin_;
+  ImVec2 content_size_;
   ImDrawList* draw_list_ = nullptr;
 
   // Bounds State

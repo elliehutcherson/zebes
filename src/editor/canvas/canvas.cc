@@ -17,6 +17,8 @@ namespace {
 constexpr CameraZoomRange kEditorNavigationZoomRange{.minimum = 0.1, .maximum = 10.0};
 constexpr double kEditorPanSpeed = 500.0;
 constexpr double kEditorWheelZoomStep = 0.1;
+constexpr float kRulerWidth = 56.0f;
+constexpr float kRulerHeight = 20.0f;
 
 }  // namespace
 
@@ -32,6 +34,11 @@ float Canvas::GetZoom() const { return camera_ ? camera_->zoom : 1.0f; }
 
 void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   camera_ = &camera;
+  canvas_size_ = {std::max(0.0f, size.x), std::max(0.0f, size.y)};
+  content_size_ = {
+      std::max(0.0f, canvas_size_.x - kRulerWidth),
+      std::max(0.0f, canvas_size_.y - kRulerHeight),
+  };
 
   // Prevent zero zoom
   if (camera_->zoom <= 0.001f) camera_->zoom = 1.0f;
@@ -39,8 +46,8 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   // Camera clamping depends on the visible world dimensions, so install the
   // current viewport before clamping. On the first frame these values are
   // otherwise zero and the camera can be positioned outside the actual view.
-  camera_->viewport_width = size.x;
-  camera_->viewport_height = size.y;
+  camera_->viewport_width = content_size_.x;
+  camera_->viewport_height = content_size_.y;
 
   // Enforce bounds immediately before rendering anything.
   ClampCamera();
@@ -49,15 +56,21 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   gui_->BeginChild(id, size, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
   gui_->PopStyleVar();
 
-  p0_ = gui_->GetCursorScreenPos();
+  canvas_origin_ = gui_->GetCursorScreenPos();
+  content_origin_ = {
+      canvas_origin_.x + kRulerWidth,
+      canvas_origin_.y + kRulerHeight,
+  };
   draw_list_ = gui_->GetWindowDrawList();
 
   // Draw Background
   if (draw_list_ != nullptr) {
     ImU32 bg_color = IM_COL32(50, 50, 50, 255);
-    draw_list_->AddRectFilled(p0_, ImVec2(p0_.x + size.x, p0_.y + size.y), bg_color);
+    draw_list_->AddRectFilled(
+        canvas_origin_,
+        ImVec2(canvas_origin_.x + canvas_size_.x, canvas_origin_.y + canvas_size_.y),
+        bg_color);
   }
-
 }
 
 void Canvas::End() {
@@ -67,12 +80,11 @@ void Canvas::End() {
 
 void Canvas::HandleInput() {
   if (!camera_) return;
-
-  ImVec2 size = gui_->GetContentRegionAvail();
+  if (content_size_.x <= 0.0f || content_size_.y <= 0.0f) return;
 
   // Invisible button covers the canvas to capture mouse interaction
-  gui_->SetCursorPos(ImVec2(0, 0));
-  gui_->InvisibleButton("##CanvasInput", size,
+  gui_->SetCursorPos(ImVec2(kRulerWidth, kRulerHeight));
+  gui_->InvisibleButton("##CanvasInput", content_size_,
                         ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight |
                             ImGuiButtonFlags_MouseButtonMiddle);
 
@@ -124,14 +136,15 @@ void Canvas::HandleInput() {
 ImVec2 Canvas::WorldToScreen(const Vec& v) const {
   if (!camera_) return {0, 0};
   Vec local = camera_->WorldToScreen(v);
-  return ImVec2(p0_.x + (float)local.x, p0_.y + (float)local.y);
+  return ImVec2(content_origin_.x + static_cast<float>(local.x),
+                content_origin_.y + static_cast<float>(local.y));
 }
 
 Vec Canvas::ScreenToWorld(const ImVec2& p) const {
   if (!camera_) return {0, 0};
   Vec local_screen;
-  local_screen.x = p.x - p0_.x;
-  local_screen.y = p.y - p0_.y;
+  local_screen.x = p.x - content_origin_.x;
+  local_screen.y = p.y - content_origin_.y;
   return camera_->ScreenToWorld(local_screen);
 }
 
@@ -142,51 +155,51 @@ Vec Canvas::SnapToGrid(Vec world_pos) const {
 }
 
 void Canvas::DrawGrid() {
-  if (!draw_list_ || !camera_) return;
+  if (!draw_list_ || !camera_ || content_size_.x <= 0.0f || content_size_.y <= 0.0f) return;
 
-  ImVec2 canvas_sz = gui_->GetWindowSize();
-  const float ruler_thickness = 20.0f;
-
-  // 1. Calculate Grid Step based on Zoom
-  // Using the new configurable grid_size.
+  // 1. Calculate grid spacing using the configurable world-space grid size.
   double world_step = grid_size_;
-  float step = grid_size_ * camera_->zoom;
 
   // 2. Determine visible world range (top-left)
-  Vec tl_world = ScreenToWorld(p0_);
+  Vec tl_world = ScreenToWorld(content_origin_);
 
   // Snap start positions to the nearest grid step
   double start_x = floor(tl_world.x / world_step) * world_step;
   double start_y = floor(tl_world.y / world_step) * world_step;
 
   // 3. Draw Axis/Origin Crosshair (Thicker lines at 0,0)
-  Vec origin_screen_local = camera_->WorldToScreen({0, 0});
-  ImVec2 origin_screen = ImVec2(p0_.x + origin_screen_local.x, p0_.y + origin_screen_local.y);
+  ImVec2 origin_screen = WorldToScreen({0, 0});
   ImU32 axis_color = IM_COL32(100, 100, 100, 255);
 
   // X Axis (Horizontal line where Y=0)
-  if (origin_screen.y > p0_.y && origin_screen.y < p0_.y + canvas_sz.y) {
-    draw_list_->AddLine(ImVec2(p0_.x, origin_screen.y),
-                        ImVec2(p0_.x + canvas_sz.x, origin_screen.y), axis_color, 2.0f);
+  if (origin_screen.y > content_origin_.y &&
+      origin_screen.y < content_origin_.y + content_size_.y) {
+    draw_list_->AddLine(ImVec2(content_origin_.x, origin_screen.y),
+                        ImVec2(content_origin_.x + content_size_.x, origin_screen.y), axis_color,
+                        2.0f);
   }
   // Y Axis (Vertical line where X=0)
-  if (origin_screen.x > p0_.x && origin_screen.x < p0_.x + canvas_sz.x) {
-    draw_list_->AddLine(ImVec2(origin_screen.x, p0_.y),
-                        ImVec2(origin_screen.x, p0_.y + canvas_sz.y), axis_color, 2.0f);
+  if (origin_screen.x > content_origin_.x &&
+      origin_screen.x < content_origin_.x + content_size_.x) {
+    draw_list_->AddLine(ImVec2(origin_screen.x, content_origin_.y),
+                        ImVec2(origin_screen.x, content_origin_.y + content_size_.y), axis_color,
+                        2.0f);
   }
 
   // 4. Draw Ruler Backgrounds
   ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
   // Top Ruler (X)
-  draw_list_->AddRectFilled(p0_, ImVec2(p0_.x + canvas_sz.x, p0_.y + ruler_thickness),
-                            ruler_bg_color);
+  draw_list_->AddRectFilled(
+      canvas_origin_, ImVec2(canvas_origin_.x + canvas_size_.x, content_origin_.y),
+      ruler_bg_color);
   // Left Ruler (Y)
-  draw_list_->AddRectFilled(p0_, ImVec2(p0_.x + ruler_thickness, p0_.y + canvas_sz.y),
-                            ruler_bg_color);
+  draw_list_->AddRectFilled(
+      canvas_origin_, ImVec2(content_origin_.x, canvas_origin_.y + canvas_size_.y),
+      ruler_bg_color);
 
   // 5. Draw Ticks & Grid Lines using Member Helper
-  DrawRulerAndGrid(start_x, world_step, canvas_sz.x, true);
-  DrawRulerAndGrid(start_y, world_step, canvas_sz.y, false);
+  DrawRulerAndGrid(start_x, world_step, content_size_.x, true);
+  DrawRulerAndGrid(start_y, world_step, content_size_.y, false);
 
   // 6. Mouse Indicators
   if (gui_->IsWindowHovered()) {
@@ -194,11 +207,17 @@ void Canvas::DrawGrid() {
     ImU32 indicator_color = IM_COL32(255, 50, 50, 255);
 
     // Indicator on X Ruler
-    draw_list_->AddLine(ImVec2(mouse_pos.x, p0_.y), ImVec2(mouse_pos.x, p0_.y + ruler_thickness),
-                        indicator_color, 2.0f);
+    if (mouse_pos.x >= content_origin_.x &&
+        mouse_pos.x <= content_origin_.x + content_size_.x) {
+      draw_list_->AddLine(ImVec2(mouse_pos.x, canvas_origin_.y),
+                          ImVec2(mouse_pos.x, content_origin_.y), indicator_color, 2.0f);
+    }
     // Indicator on Y Ruler
-    draw_list_->AddLine(ImVec2(p0_.x, mouse_pos.y), ImVec2(p0_.x + ruler_thickness, mouse_pos.y),
-                        indicator_color, 2.0f);
+    if (mouse_pos.y >= content_origin_.y &&
+        mouse_pos.y <= content_origin_.y + content_size_.y) {
+      draw_list_->AddLine(ImVec2(canvas_origin_.x, mouse_pos.y),
+                          ImVec2(content_origin_.x, mouse_pos.y), indicator_color, 2.0f);
+    }
   }
 }
 
@@ -207,13 +226,11 @@ void Canvas::DrawRulerAndGrid(double start_val, double step, double max_dim, boo
   // broken state from bad zoom values or an unset grid_size.
   if (step <= 0) return;
 
-  const float ruler_thickness = 20.0f;
   ImU32 ruler_tick_color = IM_COL32(180, 180, 180, 255);
   ImU32 grid_color = IM_COL32(60, 60, 60, 100);
 
-  // Determine main axis start and cross axis start from class members
-  float p0_main = is_x_axis ? p0_.x : p0_.y;
-  float p0_cross = is_x_axis ? p0_.y : p0_.x;
+  const float content_main = is_x_axis ? content_origin_.x : content_origin_.y;
+  const float ruler_cross = is_x_axis ? canvas_origin_.y : canvas_origin_.x;
 
   for (double val = start_val;; val += step) {
     // We only need the screen coordinate for the current axis.
@@ -224,29 +241,29 @@ void Canvas::DrawRulerAndGrid(double start_val, double step, double max_dim, boo
     float pos_main = is_x_axis ? screen_pos.x : screen_pos.y;
 
     // Check bounds
-    if (pos_main > p0_main + max_dim) break;
-    if (pos_main < p0_main) continue;
+    if (pos_main > content_main + max_dim) break;
+    if (pos_main < content_main) continue;
 
     // 1. Draw Ruler Tick
     ImVec2 tick_start, tick_end;
     if (is_x_axis) {
-      tick_start = ImVec2(pos_main, p0_cross);
-      tick_end = ImVec2(pos_main, p0_cross + ruler_thickness * 0.5f);
+      tick_start = ImVec2(pos_main, ruler_cross);
+      tick_end = ImVec2(pos_main, ruler_cross + kRulerHeight * 0.5f);
     } else {
-      tick_start = ImVec2(p0_cross, pos_main);
-      tick_end = ImVec2(p0_cross + ruler_thickness * 0.5f, pos_main);
+      tick_start = ImVec2(ruler_cross, pos_main);
+      tick_end = ImVec2(ruler_cross + kRulerWidth * 0.25f, pos_main);
     }
     draw_list_->AddLine(tick_start, tick_end, ruler_tick_color);
 
     // 2. Draw Grid Line
-    ImVec2 grid_start = tick_start;
+    ImVec2 grid_start;
     ImVec2 grid_end;
     if (is_x_axis) {
-      grid_start.y += ruler_thickness;
-      grid_end = ImVec2(pos_main, p0_cross + 20000.0f);
+      grid_start = ImVec2(pos_main, content_origin_.y);
+      grid_end = ImVec2(pos_main, content_origin_.y + content_size_.y);
     } else {
-      grid_start.x += ruler_thickness;
-      grid_end = ImVec2(p0_cross + 20000.0f, pos_main);
+      grid_start = ImVec2(content_origin_.x, pos_main);
+      grid_end = ImVec2(content_origin_.x + content_size_.x, pos_main);
     }
     draw_list_->AddLine(grid_start, grid_end, grid_color);
 

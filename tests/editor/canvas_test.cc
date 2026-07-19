@@ -57,10 +57,27 @@ TEST(CanvasTest, BeginClampsCameraUsingCurrentViewportOnFirstFrame) {
 
   canvas.Begin("TestCanvas", ImVec2(800, 600), camera);
 
-  EXPECT_EQ(camera.viewport_width, 800);
-  EXPECT_EQ(camera.viewport_height, 600);
-  EXPECT_DOUBLE_EQ(camera.position.x, 400);
-  EXPECT_DOUBLE_EQ(camera.position.y, 300);
+  EXPECT_EQ(camera.viewport_width, 744);
+  EXPECT_EQ(camera.viewport_height, 580);
+  EXPECT_DOUBLE_EQ(camera.position.x, 372);
+  EXPECT_DOUBLE_EQ(camera.position.y, 290);
+
+  canvas.End();
+}
+
+TEST(CanvasTest, RulerGuttersDoNotOverlapWorldContent) {
+  NiceMock<MockGui> mock_gui;
+  ON_CALL(mock_gui, GetCursorScreenPos()).WillByDefault(Return(ImVec2(100, 50)));
+
+  Canvas canvas({.gui = &mock_gui});
+  canvas.SetWorldBounds({0, 0}, {2000, 1000});
+  Camera camera;
+  canvas.Begin("TestCanvas", ImVec2(800, 600), camera);
+
+  const ImVec2 screen_center = canvas.WorldToScreen(camera.position);
+  EXPECT_FLOAT_EQ(screen_center.x, 528.0f);
+  EXPECT_FLOAT_EQ(screen_center.y, 360.0f);
+  EXPECT_EQ(canvas.ScreenToWorld(screen_center), camera.position);
 
   canvas.End();
 }
