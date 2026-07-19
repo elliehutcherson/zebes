@@ -3,12 +3,14 @@
 #include <cmath>
 #include <cstdint>
 #include <map>
+#include <optional>
 
 #include "SDL_error.h"
 #include "SDL_render.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "editor/canvas/tile_draw.h"
+#include "editor/level_editor/parallax_layout.h"
 #include "imgui.h"
 #include "platform/sdl/sdl_texture_handle.h"
 
@@ -82,10 +84,22 @@ absl::Status ViewportRenderer::RenderEntities(
                           static_cast<float>(source.y) / texture.height);
       const ImVec2 uv_max(static_cast<float>(source.x + source.width) / texture.width,
                           static_cast<float>(source.y + source.height) / texture.height);
+      const ImU32 tint = item.mode == EntityRenderMode::kPlacementGhost
+                             ? IM_COL32(255, 255, 255, 160)
+                             : IM_COL32_WHITE;
       draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), screen_min, screen_max,
-                          uv_min, uv_max);
+                          uv_min, uv_max, tint);
     } else {
-      draw_list->AddRectFilled(screen_min, screen_max, IM_COL32(100, 100, 200, 180));
+      const ImU32 fill = item.mode == EntityRenderMode::kPlacementGhost
+                             ? IM_COL32(100, 200, 100, 100)
+                             : IM_COL32(100, 100, 200, 180);
+      draw_list->AddRectFilled(screen_min, screen_max, fill);
+    }
+
+    if (item.mode == EntityRenderMode::kPlacementGhost) {
+      draw_list->AddRect(screen_min, screen_max, IM_COL32(100, 200, 100, 220), 0.0f, 0,
+                         2.0f);
+      continue;
     }
 
     if (item.overlay_opacity > 0.0f) {
@@ -161,6 +175,50 @@ absl::Status ViewportRenderer::RenderTiles(const TileRenderBatch& batch) const {
     }
     if (batch.show_collision && item.collision_shape != TileShape::kNone) {
       DrawShapeOverlay(draw_list, screen_min, screen_max, item.collision_shape);
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ViewportRenderer::RenderParallax(const ParallaxRenderBatch& batch) const {
+  ImDrawList* draw_list = canvas_.GetDrawList();
+  if (draw_list == nullptr) {
+    return absl::FailedPreconditionError("viewport canvas has no active draw list");
+  }
+
+  std::map<SDL_Texture*, NativeTextureInfo> texture_info;
+  for (const ParallaxRenderItem& item : batch.layers) {
+    SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(item.texture);
+    if (native_texture == nullptr) {
+      return absl::FailedPreconditionError("parallax texture handle cannot be resolved");
+    }
+
+    auto [texture_it, inserted] = texture_info.try_emplace(native_texture);
+    if (inserted) {
+      absl::StatusOr<NativeTextureInfo> queried = QueryTextureInfo(native_texture);
+      if (!queried.ok()) return queried.status();
+      texture_it->second = *queried;
+    }
+    const NativeTextureInfo& texture = texture_it->second;
+
+    std::optional<ParallaxLayout> layout = CalculateParallaxLayout(
+        batch.camera, item.layer, texture.width, texture.height);
+    if (!layout.has_value()) {
+      return absl::InvalidArgumentError("parallax render item has invalid layout inputs");
+    }
+
+    for (int row = layout->first_row; row <= layout->last_row; ++row) {
+      for (int column = layout->first_column; column <= layout->last_column; ++column) {
+        const Vec world_min{
+            layout->origin.x + column * layout->tile_width,
+            layout->origin.y + row * layout->tile_height,
+        };
+        const ImVec2 screen_min = canvas_.WorldToScreen(world_min);
+        const ImVec2 screen_max = canvas_.WorldToScreen(
+            {world_min.x + layout->tile_width, world_min.y + layout->tile_height});
+        draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), screen_min,
+                            screen_max);
+      }
     }
   }
   return absl::OkStatus();

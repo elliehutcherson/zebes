@@ -84,8 +84,8 @@ class ViewportTab {
  private:
   friend class ViewportTabTestPeer;
 
-  // Renders a semi-transparent ghost of the placement blueprint at world_pos.
-  void RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos);
+  // Composes and renders a semi-transparent placement preview at world_pos.
+  absl::Status RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos);
 
   // Handles tile-painting input: left-held paints tile at snapped position,
   // right-click erases (sets tile_id=0).
@@ -99,12 +99,9 @@ class ViewportTab {
   absl::Status HandleEntityInput(Level& level, const Blueprint* placement_blueprint,
                                  Vec mouse_world, uint64_t selected_entity_id, bool delete_mode);
 
-  // Resolves and renders the single active parallax environment at the camera
-  // center. Returns the stable active-zone identity, when one exists.
-  std::optional<ActiveParallaxZone> RenderParallaxBackground(const Level& level);
-
-  // Renders one theme's layers using the current camera.
-  void RenderParallaxTheme(const ParallaxTheme& theme);
+  // Resolves and renders the active environment, returning its stable zone identity.
+  absl::StatusOr<std::optional<ActiveParallaxZone>> RenderParallaxBackground(
+      const Level& level);
 
   // Applies a queued frame request once the current viewport and world
   // dimensions are known.

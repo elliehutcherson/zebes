@@ -1,8 +1,11 @@
 #include "editor/level_editor/viewport_tab.h"
 
 #include <cmath>
+#include <map>
+#include <optional>
+#include <span>
+#include <string>
 
-#include "SDL_render.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -17,7 +20,6 @@
 #include "objects/collider.h"
 #include "objects/sprite.h"
 #include "objects/texture.h"
-#include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
 
@@ -164,7 +166,8 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   }
 
   // 1. Render scene elements.
-  std::optional<ActiveParallaxZone> active_zone = RenderParallaxBackground(level);
+  ASSIGN_OR_RETURN(std::optional<ActiveParallaxZone> active_zone,
+                   RenderParallaxBackground(level));
   canvas_.DrawGrid();
   RenderLevelBounds(level);
   if (active_tileset != nullptr) {
@@ -212,7 +215,7 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
     ASSIGN_OR_RETURN(Vec snapped,
                      SnapBlueprintToGrid(mouse_world, *options.placement_blueprint,
                                          level.tile_render_width, level.tile_render_height));
-    RenderPlacementGhost(*options.placement_blueprint, snapped);
+    RETURN_IF_ERROR(RenderPlacementGhost(*options.placement_blueprint, snapped));
   }
 
   // Camera guides are editor overlays and remain visible above scene and
@@ -333,98 +336,49 @@ absl::Status ViewportTab::HandleEntityInput(Level& level, const Blueprint* place
   return absl::OkStatus();
 }
 
-void ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos) {
-  ImDrawList* draw_list = canvas_.GetDrawList();
-  if (!draw_list) return;
-
-  Sprite* sprite = nullptr;
-  std::optional<std::string> sprite_id_opt = blueprint.sprite_id(0);
-  if (sprite_id_opt.has_value()) {
-    absl::StatusOr<Sprite*> sprite_or = api_.GetSprite(*sprite_id_opt);
-    if (sprite_or.ok() && *sprite_or != nullptr && !(*sprite_or)->frames.empty() &&
-        (*sprite_or)->texture_handle)
-      sprite = *sprite_or;
-  }
-
-  if (sprite != nullptr) {
-    const SpriteFrame& frame = sprite->frames[0];
-
-    int tex_w = 0, tex_h = 0;
-    SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(sprite->texture_handle);
-    SDL_QueryTexture(native_texture, nullptr, nullptr, &tex_w, &tex_h);
-
-    ImVec2 ghost_min =
-        canvas_.WorldToScreen({world_pos.x + frame.offset_x, world_pos.y + frame.offset_y});
-    ImVec2 ghost_max = ImVec2(ghost_min.x + frame.render_w * camera_.zoom,
-                              ghost_min.y + frame.render_h * camera_.zoom);
-
-    if (tex_w > 0 && tex_h > 0) {
-      float u0 = static_cast<float>(frame.texture_x) / tex_w;
-      float v0 = static_cast<float>(frame.texture_y) / tex_h;
-      float u1 = static_cast<float>(frame.texture_x + frame.texture_w) / tex_w;
-      float v1 = static_cast<float>(frame.texture_y + frame.texture_h) / tex_h;
-
-      // Semi-transparent tint to indicate ghost/preview.
-      draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), ghost_min, ghost_max,
-                          ImVec2(u0, v0), ImVec2(u1, v1), IM_COL32(255, 255, 255, 160));
-      return;
+absl::Status ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos) {
+  const Sprite* sprite = nullptr;
+  std::optional<std::string> sprite_id = blueprint.sprite_id(0);
+  if (sprite_id.has_value()) {
+    ASSIGN_OR_RETURN(Sprite * resolved_sprite, api_.GetSprite(*sprite_id));
+    if (resolved_sprite == nullptr) {
+      return absl::FailedPreconditionError("placement blueprint sprite resolved to null");
     }
+    sprite = resolved_sprite;
   }
 
-  // Fallback: draw a simple colored box.
-  constexpr int kDefaultSize = 32;
-  ImVec2 ghost_min = canvas_.WorldToScreen(world_pos);
-  ImVec2 ghost_max =
-      ImVec2(ghost_min.x + kDefaultSize * camera_.zoom, ghost_min.y + kDefaultSize * camera_.zoom);
-  draw_list->AddRectFilled(ghost_min, ghost_max, IM_COL32(100, 200, 100, 100));
-  draw_list->AddRect(ghost_min, ghost_max, IM_COL32(100, 200, 100, 220), 0.0f, 0, 2.0f);
+  ASSIGN_OR_RETURN(EntityRenderItem item,
+                   ComposeEntityPlacementItem(world_pos, sprite));
+  return renderer_.RenderEntities(std::span<const EntityRenderItem>(&item, 1));
 }
 
-std::optional<ActiveParallaxZone> ViewportTab::RenderParallaxBackground(const Level& level) {
+absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBackground(
+    const Level& level) {
   std::optional<ActiveParallaxZone> active =
       ResolveActiveParallaxZone(level.zones, camera_.position);
   if (!active.has_value()) return std::nullopt;
 
   auto theme_it = level.themes.find(active->theme_id);
-  if (theme_it == level.themes.end()) return active;
-
-  RenderParallaxTheme(theme_it->second);
-  return active;
-}
-
-void ViewportTab::RenderParallaxTheme(const ParallaxTheme& theme) {
-  ImDrawList* draw_list = canvas_.GetDrawList();
-  if (!draw_list) return;
-
-  for (const ParallaxLayer& layer : theme.layers) {
-    if (layer.texture_id.empty()) continue;
-
-    absl::StatusOr<Texture*> texture_or = api_.GetTexture(layer.texture_id);
-    if (!texture_or.ok() || *texture_or == nullptr) continue;
-    const Texture& texture = *(*texture_or);
-
-    int w = 0, h = 0;
-    SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(texture.texture_handle);
-    SDL_QueryTexture(native_texture, nullptr, nullptr, &w, &h);
-    if (w == 0 || h == 0) continue;
-
-    std::optional<ParallaxLayout> layout = CalculateParallaxLayout(camera_, layer, w, h);
-    if (!layout.has_value()) continue;
-
-    for (int row = layout->first_row; row <= layout->last_row; ++row) {
-      for (int col = layout->first_column; col <= layout->last_column; ++col) {
-        Vec tile_world = {layout->origin.x + col * layout->tile_width,
-                          layout->origin.y + row * layout->tile_height};
-
-        ImVec2 sp_min = canvas_.WorldToScreen(tile_world);
-        ImVec2 sp_max = ImVec2(sp_min.x + layout->tile_width * camera_.zoom,
-                               sp_min.y + layout->tile_height * camera_.zoom);
-
-        draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), sp_min, sp_max,
-                            ImVec2(0, 0), ImVec2(1, 1));
-      }
-    }
+  if (theme_it == level.themes.end()) {
+    return absl::FailedPreconditionError("active parallax zone references a missing theme");
   }
+
+  std::map<std::string, TextureHandle> textures;
+  for (const ParallaxLayer& layer : theme_it->second.layers) {
+    if (layer.texture_id.empty()) continue;
+    if (textures.contains(layer.texture_id)) continue;
+
+    ASSIGN_OR_RETURN(Texture * texture, api_.GetTexture(layer.texture_id));
+    if (texture == nullptr || !texture->texture_handle) {
+      return absl::FailedPreconditionError("parallax layer texture is unavailable");
+    }
+    textures.emplace(layer.texture_id, texture->texture_handle);
+  }
+
+  ASSIGN_OR_RETURN(ParallaxRenderBatch batch,
+                   ComposeParallaxRenderBatch(theme_it->second, camera_, textures));
+  RETURN_IF_ERROR(renderer_.RenderParallax(batch));
+  return active;
 }
 
 void ViewportTab::RenderLevelBounds(const Level& level) {

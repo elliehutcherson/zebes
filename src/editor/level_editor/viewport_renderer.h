@@ -17,6 +17,7 @@ class ViewportRenderer {
 
   absl::Status RenderEntities(std::span<const EntityRenderItem> items) const;
   absl::Status RenderTiles(const TileRenderBatch& batch) const;
+  absl::Status RenderParallax(const ParallaxRenderBatch& batch) const;
   void RenderZoneGizmos(std::span<const ZoneGizmoItem> items) const;
 
  private:

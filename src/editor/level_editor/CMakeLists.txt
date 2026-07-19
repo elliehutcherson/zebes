@@ -210,7 +210,6 @@ target_link_libraries(viewport_tab
   viewport_renderer
   viewport_scene
   ${IMGUI_LIBRARIES}
-  SDL2-static
   absl::cleanup
   absl::status
   gui_interface

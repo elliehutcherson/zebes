@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <map>
+#include <utility>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
@@ -84,6 +85,45 @@ TileRenderItem MakeTileRenderItem(const Tile& tile, const Tileset& tileset, int6
   };
 }
 
+absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id,
+                                                         const Entity& entity,
+                                                         EntityRenderMode mode,
+                                                         const EntityRenderOptions& options) {
+  EntityRenderItem item{
+      .mode = mode,
+      .entity_id = entity_id,
+      .overlay_opacity = options.overlay_opacity,
+      .show_border = options.show_borders,
+      .selected = entity_id == options.selected_entity_id,
+  };
+
+  absl::StatusOr<WorldRect> bounds = CalculateEntityBounds(entity);
+  if (!bounds.ok()) return bounds.status();
+  item.bounds = *bounds;
+
+  if (entity.sprite == nullptr || entity.sprite->frames.empty() ||
+      !entity.sprite->texture_handle) {
+    return item;
+  }
+
+  const SpriteFrame& frame = entity.sprite->frames.front();
+  const PixelRect source{
+      .x = frame.texture_x,
+      .y = frame.texture_y,
+      .width = frame.texture_w,
+      .height = frame.texture_h,
+  };
+  if (!source.IsValid()) {
+    return absl::InvalidArgumentError("entity sprite frame has invalid texture geometry");
+  }
+
+  item.sprite = SpriteRenderItem{
+      .texture = entity.sprite->texture_handle,
+      .source = source,
+  };
+  return item;
+}
+
 }  // namespace
 
 absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
@@ -97,42 +137,32 @@ absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
   items.reserve(entities.size());
   for (const auto& [id, entity] : entities) {
     if (!entity.active) continue;
-
-    EntityRenderItem item{
-        .entity_id = id,
-        .overlay_opacity = options.overlay_opacity,
-        .show_border = options.show_borders,
-        .selected = id == options.selected_entity_id,
-    };
-
-    absl::StatusOr<WorldRect> bounds = CalculateEntityBounds(entity);
-    if (!bounds.ok()) return bounds.status();
-    item.bounds = *bounds;
-
-    if (entity.sprite == nullptr || entity.sprite->frames.empty() ||
-        !entity.sprite->texture_handle) {
-      items.push_back(item);
-      continue;
-    }
-
-    const SpriteFrame& frame = entity.sprite->frames.front();
-    const PixelRect source{
-        .x = frame.texture_x,
-        .y = frame.texture_y,
-        .width = frame.texture_w,
-        .height = frame.texture_h,
-    };
-    if (!source.IsValid()) {
-      return absl::InvalidArgumentError("entity sprite frame has invalid texture geometry");
-    }
-
-    item.sprite = SpriteRenderItem{
-        .texture = entity.sprite->texture_handle,
-        .source = source,
-    };
-    items.push_back(item);
+    absl::StatusOr<EntityRenderItem> item =
+        ComposeEntityRenderItem(id, entity, EntityRenderMode::kLevel, options);
+    if (!item.ok()) return item.status();
+    items.push_back(std::move(*item));
   }
   return items;
+}
+
+absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
+                                                            const Sprite* sprite) {
+  if (!std::isfinite(world_position.x) || !std::isfinite(world_position.y)) {
+    return absl::InvalidArgumentError("entity placement position must be finite");
+  }
+  if (sprite != nullptr &&
+      (sprite->frames.empty() || !sprite->texture_handle)) {
+    return absl::FailedPreconditionError(
+        "entity placement sprite requires a frame and texture resource");
+  }
+
+  Entity entity{
+      .id = Entity::kInvalidId,
+      .transform = {.position = world_position},
+      .sprite = sprite,
+  };
+  return ComposeEntityRenderItem(Entity::kInvalidId, entity,
+                                 EntityRenderMode::kPlacementGhost, {});
 }
 
 absl::StatusOr<std::vector<ZoneGizmoItem>> ComposeZoneGizmoItems(
@@ -268,6 +298,32 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(
   batch.items.push_back(MakeTileRenderItem(*selected_tile->second, tileset, coordinate->x,
                                            coordinate->y, tile_render_width,
                                            tile_render_height));
+  return batch;
+}
+
+absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
+    const ParallaxTheme& theme, const Camera& camera,
+    const std::map<std::string, TextureHandle>& textures) {
+  absl::Status camera_status = ValidateCamera(camera);
+  if (!camera_status.ok()) return camera_status;
+
+  ParallaxRenderBatch batch{.camera = camera};
+  batch.layers.reserve(theme.layers.size());
+  for (const ParallaxLayer& layer : theme.layers) {
+    if (layer.texture_id.empty()) continue;
+    if (!std::isfinite(layer.scroll_factor.x) || !std::isfinite(layer.scroll_factor.y) ||
+        !std::isfinite(layer.offset.x) || !std::isfinite(layer.offset.y) ||
+        !std::isfinite(layer.base_scale) || layer.base_scale <= 0.0f) {
+      return absl::InvalidArgumentError("parallax layer geometry must be finite and positive");
+    }
+
+    auto texture = textures.find(layer.texture_id);
+    if (texture == textures.end() || !texture->second) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("parallax texture is unavailable: ", layer.texture_id));
+    }
+    batch.layers.push_back({.texture = texture->second, .layer = layer});
+  }
   return batch;
 }
 

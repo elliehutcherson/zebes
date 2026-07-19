@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -11,6 +12,7 @@
 #include "objects/camera.h"
 #include "objects/entity.h"
 #include "objects/level.h"
+#include "objects/sprite.h"
 #include "objects/tileset.h"
 #include "objects/vec.h"
 
@@ -36,14 +38,29 @@ struct SpriteRenderItem {
   PixelRect source;
 };
 
+enum class EntityRenderMode {
+  // An entity stored in the level with normal editor overlays.
+  kLevel,
+  // A transient semi-transparent preview under the placement cursor.
+  kPlacementGhost,
+};
+
 // Platform-neutral description of one entity in the editor viewport. Styling
 // and native texture conversion remain the renderer's responsibility.
 struct EntityRenderItem {
+  // Selects presentation rules for persistent entities versus placement previews.
+  EntityRenderMode mode = EntityRenderMode::kLevel;
+  // Stable entity ID, or Entity::kInvalidId for a transient placement preview.
   uint64_t entity_id = Entity::kInvalidId;
+  // Destination rectangle in world coordinates.
   WorldRect bounds;
+  // Optional source texture region; absent entities render as placeholders.
   std::optional<SpriteRenderItem> sprite;
+  // Yellow editor overlay opacity in the inclusive range [0, 1].
   float overlay_opacity = 0.0f;
+  // Draw a border around a persistent entity.
   bool show_border = false;
+  // Draw the persistent entity's selection border.
   bool selected = false;
 };
 
@@ -112,11 +129,31 @@ struct TileRenderOptions {
   bool show_collision = false;
 };
 
+// Platform-neutral description of one parallax layer and its managed texture.
+struct ParallaxRenderItem {
+  // Opaque texture reference resolved only by ViewportRenderer.
+  TextureHandle texture;
+  // Layer settings copied from the active theme for this rendering pass.
+  ParallaxLayer layer;
+};
+
+// Complete platform-neutral description of the active parallax environment.
+struct ParallaxRenderBatch {
+  // Camera used to calculate parallax origins and visible repetitions.
+  Camera camera;
+  // Theme layers in their authored back-to-front order.
+  std::vector<ParallaxRenderItem> layers;
+};
+
 // Builds render items in stable entity-ID order. Inactive entities are omitted.
 // Invalid sprite geometry and opacity are rejected instead of being rendered
 // with undefined bounds or color values.
 absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
     const std::map<uint64_t, Entity>& entities, const EntityRenderOptions& options);
+
+// Composes one transient entity preview using the same geometry as level entities.
+absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
+                                                            const Sprite* sprite);
 
 // Builds gizmos for zones intersecting the current camera. Selection takes
 // visual precedence over active-zone state.
@@ -134,5 +171,10 @@ absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
 absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(
     const Tile& tile, const Tileset& tileset, TextureHandle atlas_texture,
     Vec mouse_world, int tile_render_width, int tile_render_height);
+
+// Binds active-theme layers to managed textures without exposing native resources.
+absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
+    const ParallaxTheme& theme, const Camera& camera,
+    const std::map<std::string, TextureHandle>& textures);
 
 }  // namespace zebes

@@ -36,6 +36,7 @@ TEST(ViewportSceneEntityTest, ComposesStableSpriteGeometryAndPresentationState) 
   ASSERT_TRUE(items.ok()) << items.status();
   ASSERT_EQ(items->size(), 1u);
   const EntityRenderItem& item = items->front();
+  EXPECT_EQ(item.mode, EntityRenderMode::kLevel);
   EXPECT_EQ(item.entity_id, 7u);
   EXPECT_EQ(item.bounds.min, (Vec{90, 180}));
   EXPECT_EQ(item.bounds.max, (Vec{122, 228}));
@@ -107,6 +108,61 @@ TEST(ViewportSceneEntityTest, RejectsInvalidState) {
             absl::StatusCode::kInvalidArgument);
 }
 
+TEST(ViewportSceneEntityTest, ComposesPlacementGhostWithSharedEntityGeometry) {
+  int texture_owner = 0;
+  Sprite sprite{
+      .frames = {SpriteFrame{
+          .texture_x = 4,
+          .texture_y = 8,
+          .texture_w = 16,
+          .texture_h = 24,
+          .render_w = 32,
+          .render_h = 48,
+          .offset_x = -10,
+          .offset_y = -20,
+      }},
+      .texture_handle = TextureHandleAccess::Create(3, &texture_owner),
+  };
+
+  absl::StatusOr<EntityRenderItem> item =
+      ComposeEntityPlacementItem({100, 200}, &sprite);
+
+  ASSERT_TRUE(item.ok()) << item.status();
+  EXPECT_EQ(item->mode, EntityRenderMode::kPlacementGhost);
+  EXPECT_EQ(item->entity_id, Entity::kInvalidId);
+  EXPECT_EQ(item->bounds.min, (Vec{90, 180}));
+  EXPECT_EQ(item->bounds.max, (Vec{122, 228}));
+  ASSERT_TRUE(item->sprite.has_value());
+  EXPECT_EQ(item->sprite->texture, sprite.texture_handle);
+  EXPECT_EQ(item->sprite->source.x, 4);
+  EXPECT_EQ(item->sprite->source.y, 8);
+}
+
+TEST(ViewportSceneEntityTest, PlacementGhostAllowsNoSpriteButRejectsBrokenSprite) {
+  absl::StatusOr<EntityRenderItem> placeholder =
+      ComposeEntityPlacementItem({100, 200}, nullptr);
+  ASSERT_TRUE(placeholder.ok()) << placeholder.status();
+  EXPECT_EQ(placeholder->bounds.min, (Vec{84, 184}));
+  EXPECT_EQ(placeholder->bounds.max, (Vec{116, 216}));
+  EXPECT_FALSE(placeholder->sprite.has_value());
+
+  Sprite missing_resource{
+      .frames = {SpriteFrame{
+          .texture_w = 16,
+          .texture_h = 16,
+          .render_w = 16,
+          .render_h = 16,
+      }},
+  };
+  EXPECT_EQ(ComposeEntityPlacementItem({0, 0}, &missing_resource).status().code(),
+            absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(ComposeEntityPlacementItem(
+                {std::numeric_limits<double>::infinity(), 0}, nullptr)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
 TEST(ViewportSceneZoneTest, CullsOffscreenZonesAndGivesSelectionPrecedence) {
   Camera camera{
       .position = {0, 0},
@@ -140,6 +196,58 @@ TEST(ViewportSceneZoneTest, RejectsInvalidCameraAndZoneBounds) {
   EXPECT_EQ(
       ComposeZoneGizmoItems(invalid_zones, camera, std::nullopt, std::nullopt).status().code(),
       absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ViewportSceneParallaxTest, BindsTexturesInAuthoredLayerOrder) {
+  int texture_owner = 0;
+  const TextureHandle forest = TextureHandleAccess::Create(1, &texture_owner);
+  const TextureHandle fog = TextureHandleAccess::Create(2, &texture_owner);
+  ParallaxTheme theme{
+      .layers = {
+          {.name = "Incomplete", .scroll_factor = {1, 1}},
+          {.name = "Forest", .texture_id = "forest", .scroll_factor = {0.5, 0.5}},
+          {.name = "Fog", .texture_id = "fog", .scroll_factor = {0.8, 0.8}},
+          {.name = "Forest Front", .texture_id = "forest", .scroll_factor = {1, 1}},
+      },
+  };
+  Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
+  std::map<std::string, TextureHandle> textures{
+      {"fog", fog},
+      {"forest", forest},
+  };
+
+  absl::StatusOr<ParallaxRenderBatch> batch =
+      ComposeParallaxRenderBatch(theme, camera, textures);
+
+  ASSERT_TRUE(batch.ok()) << batch.status();
+  ASSERT_EQ(batch->layers.size(), 3u);
+  EXPECT_EQ(batch->layers[0].layer.name, "Forest");
+  EXPECT_EQ(batch->layers[0].texture, forest);
+  EXPECT_EQ(batch->layers[1].layer.name, "Fog");
+  EXPECT_EQ(batch->layers[1].texture, fog);
+  EXPECT_EQ(batch->layers[2].layer.name, "Forest Front");
+  EXPECT_EQ(batch->layers[2].texture, forest);
+}
+
+TEST(ViewportSceneParallaxTest, RejectsMissingTexturesAndInvalidGeometry) {
+  Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
+  ParallaxTheme theme{
+      .layers = {{.texture_id = "missing", .scroll_factor = {1, 1}}},
+  };
+  EXPECT_EQ(ComposeParallaxRenderBatch(theme, camera, {}).status().code(),
+            absl::StatusCode::kFailedPrecondition);
+
+  int texture_owner = 0;
+  std::map<std::string, TextureHandle> textures{
+      {"missing", TextureHandleAccess::Create(1, &texture_owner)},
+  };
+  theme.layers.front().base_scale = 0.0f;
+  EXPECT_EQ(ComposeParallaxRenderBatch(theme, camera, textures).status().code(),
+            absl::StatusCode::kInvalidArgument);
+
+  camera.zoom = 0.0;
+  EXPECT_EQ(ComposeParallaxRenderBatch(theme, camera, textures).status().code(),
+            absl::StatusCode::kInvalidArgument);
 }
 
 TEST(ViewportSceneTileTest, ComposesOnlyVisibleTilesWithAtlasAndPresentationState) {

@@ -213,6 +213,12 @@ draw commands. `ViewportTab` orchestrates the two. Picking and rendering share
 one entity-bounds calculation so invisible and textured entities do not acquire
 different interaction geometry.
 
+Blueprint placement previews use the same entity render description and native
+renderer path as persistent entities, with an explicit placement mode selecting
+their translucent presentation. A blueprint without a sprite is a valid
+placeholder; a referenced sprite with no frame or managed texture is invalid and
+stops the render pass instead of silently changing appearance.
+
 Level tiles follow the same boundary. `ViewportScene` culls offscreen chunks
 before scanning their cells and emits a `TileRenderBatch` containing one opaque
 atlas handle plus the visible world rectangles, pixel source rectangles, and
@@ -227,6 +233,14 @@ that zone's theme. Viewport intersection and zoom must not change the active
 environment. Zone outlines are editor gizmos and are rendered independently.
 Zone selections use stable zone IDs; selecting or explicitly framing a zone may
 move the editor camera without changing activation semantics.
+
+For the active parallax theme, `ViewportTab` resolves authored texture IDs into
+opaque handles once per frame and `ViewportScene` binds them to a
+`ParallaxRenderBatch`. `ViewportRenderer` alone converts those handles, queries
+native texture dimensions, calculates the already headlessly tested parallax
+layout, and emits draw commands. Missing referenced themes, textures, or runtime
+resources fail the render pass; an empty texture ID remains a valid incomplete
+authoring layer and is omitted.
 
 Named asset catalogs use the shared `AssetCatalogKey`, ordered by display name
 and then stable asset ID. This preserves duplicate names while providing
