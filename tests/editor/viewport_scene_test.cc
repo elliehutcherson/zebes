@@ -250,6 +250,32 @@ TEST(ViewportSceneParallaxTest, RejectsMissingTexturesAndInvalidGeometry) {
             absl::StatusCode::kInvalidArgument);
 }
 
+TEST(ViewportSceneParallaxTest, IsolatesSelectedLayerAndRejectsStaleIndex) {
+  int texture_owner = 0;
+  const TextureHandle back = TextureHandleAccess::Create(1, &texture_owner);
+  const TextureHandle front = TextureHandleAccess::Create(2, &texture_owner);
+  ParallaxTheme theme{
+      .layers = {
+          {.name = "Back", .texture_id = "back", .scroll_factor = {0.5, 0.5}},
+          {.name = "Front", .texture_id = "front", .scroll_factor = {1, 1}},
+      },
+  };
+  Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
+  std::map<std::string, TextureHandle> textures{{"back", back}, {"front", front}};
+
+  absl::StatusOr<ParallaxRenderBatch> batch =
+      ComposeParallaxRenderBatch(theme, camera, textures, {.layer_index = 1});
+
+  ASSERT_TRUE(batch.ok()) << batch.status();
+  ASSERT_EQ(batch->layers.size(), 1u);
+  EXPECT_EQ(batch->layers.front().layer.name, "Front");
+  EXPECT_EQ(batch->layers.front().texture, front);
+  EXPECT_EQ(ComposeParallaxRenderBatch(theme, camera, textures, {.layer_index = 2})
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
 TEST(ViewportSceneTileTest, ComposesOnlyVisibleTilesWithAtlasAndPresentationState) {
   Level level{
       .tile_render_width = 16,

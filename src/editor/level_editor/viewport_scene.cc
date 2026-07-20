@@ -303,13 +303,21 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(
 
 absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
     const ParallaxTheme& theme, const Camera& camera,
-    const std::map<std::string, TextureHandle>& textures) {
+    const std::map<std::string, TextureHandle>& textures,
+    const ParallaxRenderOptions& options) {
   absl::Status camera_status = ValidateCamera(camera);
   if (!camera_status.ok()) return camera_status;
+  if (options.layer_index.has_value() &&
+      (*options.layer_index < 0 ||
+       *options.layer_index >= static_cast<int>(theme.layers.size()))) {
+    return absl::InvalidArgumentError("parallax preview layer index is out of range");
+  }
 
   ParallaxRenderBatch batch{.camera = camera};
-  batch.layers.reserve(theme.layers.size());
-  for (const ParallaxLayer& layer : theme.layers) {
+  batch.layers.reserve(options.layer_index.has_value() ? 1 : theme.layers.size());
+  for (int index = 0; index < static_cast<int>(theme.layers.size()); ++index) {
+    if (options.layer_index.has_value() && index != *options.layer_index) continue;
+    const ParallaxLayer& layer = theme.layers[index];
     if (layer.texture_id.empty()) continue;
     if (!std::isfinite(layer.scroll_factor.x) || !std::isfinite(layer.scroll_factor.y) ||
         !std::isfinite(layer.offset.x) || !std::isfinite(layer.offset.y) ||

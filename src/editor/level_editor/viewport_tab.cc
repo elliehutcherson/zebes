@@ -22,6 +22,21 @@
 #include "objects/texture.h"
 
 namespace zebes {
+namespace {
+
+const char* ParallaxPreviewModeLabel(ParallaxPreviewMode mode) {
+  switch (mode) {
+    case ParallaxPreviewMode::kActiveZone:
+      return "Active Zone";
+    case ParallaxPreviewMode::kSelectedTheme:
+      return "Selected Theme";
+    case ParallaxPreviewMode::kSelectedLayer:
+      return "Selected Layer";
+  }
+  return "Unknown";
+}
+
+}  // namespace
 
 absl::StatusOr<Vec> ViewportTab::SnapBlueprintToGrid(Vec mouse_world, const Blueprint& blueprint,
                                                      int tile_render_w, int tile_render_h) const {
@@ -113,6 +128,7 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
     return absl::InvalidArgumentError("level tile render dimensions must be positive");
   }
+  ReconcileParallaxPreviewMode(options);
 
   // Ensure next_entity_id_ is always greater than every entity already in the
   // level. This guards against collisions when a saved level is loaded whose
@@ -167,7 +183,7 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
 
   // 1. Render scene elements.
   ASSIGN_OR_RETURN(std::optional<ActiveParallaxZone> active_zone,
-                   RenderParallaxBackground(level));
+                   RenderParallaxBackground(level, options));
   canvas_.DrawGrid();
   RenderLevelBounds(level);
   if (active_tileset != nullptr) {
@@ -264,6 +280,7 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   }
   gui_->SameLine();
   gui_->Checkbox("Camera Guide", &show_camera_guide_);
+  RenderParallaxPreviewControls(options);
 
   return absl::OkStatus();
 }
@@ -353,18 +370,35 @@ absl::Status ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec w
 }
 
 absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBackground(
-    const Level& level) {
+    const Level& level, const ViewportRenderOptions& options) {
   std::optional<ActiveParallaxZone> active =
       ResolveActiveParallaxZone(level.zones, camera_.position);
-  if (!active.has_value()) return std::nullopt;
 
-  auto theme_it = level.themes.find(active->theme_id);
+  std::optional<int> theme_id;
+  std::optional<int> layer_index;
+  switch (parallax_preview_mode_) {
+    case ParallaxPreviewMode::kActiveZone:
+      if (active.has_value()) theme_id = active->theme_id;
+      break;
+    case ParallaxPreviewMode::kSelectedTheme:
+      theme_id = options.selected_parallax_theme_id;
+      break;
+    case ParallaxPreviewMode::kSelectedLayer:
+      theme_id = options.selected_parallax_theme_id;
+      layer_index = options.selected_parallax_layer_index;
+      break;
+  }
+  if (!theme_id.has_value()) return active;
+
+  auto theme_it = level.themes.find(*theme_id);
   if (theme_it == level.themes.end()) {
-    return absl::FailedPreconditionError("active parallax zone references a missing theme");
+    return absl::FailedPreconditionError("parallax preview references a missing theme");
   }
 
   std::map<std::string, TextureHandle> textures;
-  for (const ParallaxLayer& layer : theme_it->second.layers) {
+  for (int index = 0; index < static_cast<int>(theme_it->second.layers.size()); ++index) {
+    if (layer_index.has_value() && index != *layer_index) continue;
+    const ParallaxLayer& layer = theme_it->second.layers[index];
     if (layer.texture_id.empty()) continue;
     if (textures.contains(layer.texture_id)) continue;
 
@@ -376,9 +410,44 @@ absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBac
   }
 
   ASSIGN_OR_RETURN(ParallaxRenderBatch batch,
-                   ComposeParallaxRenderBatch(theme_it->second, camera_, textures));
+                   ComposeParallaxRenderBatch(theme_it->second, camera_, textures,
+                                              {.layer_index = layer_index}));
   RETURN_IF_ERROR(renderer_.RenderParallax(batch));
   return active;
+}
+
+void ViewportTab::ReconcileParallaxPreviewMode(const ViewportRenderOptions& options) {
+  if (parallax_preview_mode_ == ParallaxPreviewMode::kSelectedTheme &&
+      !options.selected_parallax_theme_id.has_value()) {
+    parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
+  }
+  if (parallax_preview_mode_ == ParallaxPreviewMode::kSelectedLayer &&
+      (!options.selected_parallax_theme_id.has_value() ||
+       !options.selected_parallax_layer_index.has_value())) {
+    parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
+  }
+}
+
+void ViewportTab::RenderParallaxPreviewControls(const ViewportRenderOptions& options) {
+  gui_->SameLine();
+  ScopedCombo combo = gui_->CreateScopedCombo(
+      "Parallax View", ParallaxPreviewModeLabel(parallax_preview_mode_));
+  if (!combo) return;
+
+  if (gui_->Selectable("Active Zone",
+                       parallax_preview_mode_ == ParallaxPreviewMode::kActiveZone)) {
+    parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
+  }
+  if (options.selected_parallax_theme_id.has_value() &&
+      gui_->Selectable("Selected Theme",
+                       parallax_preview_mode_ == ParallaxPreviewMode::kSelectedTheme)) {
+    parallax_preview_mode_ = ParallaxPreviewMode::kSelectedTheme;
+  }
+  if (options.selected_parallax_layer_index.has_value() &&
+      gui_->Selectable("Selected Layer",
+                       parallax_preview_mode_ == ParallaxPreviewMode::kSelectedLayer)) {
+    parallax_preview_mode_ = ParallaxPreviewMode::kSelectedLayer;
+  }
 }
 
 void ViewportTab::RenderLevelBounds(const Level& level) {

@@ -1,7 +1,5 @@
 # Editor Component Libraries
 
-# Editor Component Libraries
-
 # Gui Interface
 add_library(gui_interface INTERFACE)
 target_link_libraries(gui_interface INTERFACE
@@ -38,6 +36,19 @@ target_link_libraries(editor_animator
   absl::status
   absl::statusor
   sprite
+)
+
+# Shared managed-texture preview adapter
+add_library(editor_texture_preview texture_preview.cc)
+target_link_libraries(editor_texture_preview
+  PUBLIC
+  gui_interface
+  texture_handle
+  absl::statusor
+  PRIVATE
+  SDL2-static
+  absl::status
+  absl::strings
 )
 
 # Canvas Elements

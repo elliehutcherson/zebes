@@ -145,6 +145,12 @@ struct ParallaxRenderBatch {
   std::vector<ParallaxRenderItem> layers;
 };
 
+// Selects all theme layers or isolates one authored layer for preview.
+struct ParallaxRenderOptions {
+  // Authored layer index to isolate; empty renders the complete theme.
+  std::optional<int> layer_index;
+};
+
 // Builds render items in stable entity-ID order. Inactive entities are omitted.
 // Invalid sprite geometry and opacity are rejected instead of being rendered
 // with undefined bounds or color values.
@@ -175,6 +181,7 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(
 // Binds active-theme layers to managed textures without exposing native resources.
 absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
     const ParallaxTheme& theme, const Camera& camera,
-    const std::map<std::string, TextureHandle>& textures);
+    const std::map<std::string, TextureHandle>& textures,
+    const ParallaxRenderOptions& options = {});
 
 }  // namespace zebes

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-#include <string>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -9,6 +7,7 @@
 #include "api/api.h"
 #include "editor/gui_interface.h"
 #include "editor/level_editor/level_selection_state.h"
+#include "editor/texture_preview.h"
 #include "objects/level.h"
 #include "objects/texture.h"
 
@@ -32,9 +31,6 @@ class ParallaxThemePanel {
   // Renders Inspector for a selected Layer
   absl::Status RenderLayerDetails(Level& level, SelectionState& selection);
 
-  // Returns the texture ID being currently edited/selected, if any.
-  std::optional<std::string> GetTexture(const SelectionState& selection, const Level& level) const;
-
  private:
   friend class ParallaxThemePanelTestPeer;
 
@@ -46,6 +42,7 @@ class ParallaxThemePanel {
 
   Api& api_;
   GuiInterface* gui_;
+  TexturePreviewRenderer texture_preview_;
 
   std::vector<Texture> texture_cache_;
 };

@@ -30,6 +30,19 @@ class ViewportTabTestPeer {
   }
 
   static const Camera& GetCamera(const ViewportTab& tab) { return tab.camera_; }
+
+  static void SetParallaxPreviewMode(ViewportTab& tab, ParallaxPreviewMode mode) {
+    tab.parallax_preview_mode_ = mode;
+  }
+
+  static ParallaxPreviewMode GetParallaxPreviewMode(const ViewportTab& tab) {
+    return tab.parallax_preview_mode_;
+  }
+
+  static void ReconcileParallaxPreviewMode(ViewportTab& tab,
+                                           const ViewportRenderOptions& options) {
+    tab.ReconcileParallaxPreviewMode(options);
+  }
 };
 
 namespace {
@@ -217,6 +230,31 @@ TEST(ViewportTabTest, RenderRejectsInvalidLevelGeometryBeforeOpeningCanvas) {
 
   level.width = 0;
   EXPECT_EQ(tab.Render({.level = &level}).code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ViewportTabTest, SelectedParallaxPreviewRequiresCompatibleSelection) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+
+  ViewportTabTestPeer::SetParallaxPreviewMode(tab,
+                                              ParallaxPreviewMode::kSelectedLayer);
+  ViewportTabTestPeer::ReconcileParallaxPreviewMode(
+      tab, {.selected_parallax_theme_id = 3,
+            .selected_parallax_layer_index = 1});
+  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab),
+            ParallaxPreviewMode::kSelectedLayer);
+
+  ViewportTabTestPeer::ReconcileParallaxPreviewMode(
+      tab, {.selected_parallax_theme_id = 3});
+  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab),
+            ParallaxPreviewMode::kActiveZone);
+
+  ViewportTabTestPeer::SetParallaxPreviewMode(tab,
+                                              ParallaxPreviewMode::kSelectedTheme);
+  ViewportTabTestPeer::ReconcileParallaxPreviewMode(tab, {});
+  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab),
+            ParallaxPreviewMode::kActiveZone);
 }
 
 // SnapEntityToGrid tests

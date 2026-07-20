@@ -65,6 +65,10 @@ add_executable(texture_editor_model_test texture_editor_model_test.cc)
 target_link_libraries(texture_editor_model_test texture_editor_model gtest_main)
 gtest_discover_tests(texture_editor_model_test)
 
+add_executable(texture_preview_test texture_preview_test.cc)
+target_link_libraries(texture_preview_test editor_texture_preview gtest_main)
+gtest_discover_tests(texture_preview_test)
+
 add_executable(sprite_editor_model_test sprite_editor_model_test.cc)
 target_link_libraries(sprite_editor_model_test sprite_editor_model gtest_main)
 gtest_discover_tests(sprite_editor_model_test)

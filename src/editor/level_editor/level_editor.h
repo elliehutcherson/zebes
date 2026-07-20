@@ -9,7 +9,6 @@
 #include "editor/level_editor/level_panel_model.h"
 #include "editor/level_editor/palette_panel.h"
 #include "editor/level_editor/level_selection_state.h"
-#include "editor/level_editor/parallax_preview_tab.h"
 #include "editor/level_editor/parallax_theme_panel.h"
 #include "editor/level_editor/parallax_zone_panel.h"
 #include "editor/level_editor/viewport_tab.h"
@@ -77,8 +76,7 @@ class LevelEditor {
   std::unique_ptr<ParallaxZonePanel> parallax_zone_panel_;
   std::unique_ptr<PalettePanel> palette_panel_;
 
-  // Center Tabs
-  std::unique_ptr<ParallaxPreviewTab> parallax_tab_;
+  // Center viewport
   std::unique_ptr<ViewportTab> viewport_tab_;
 
   // State

@@ -81,7 +81,6 @@ target_link_libraries(level_editor
   parallax_theme_panel
   parallax_zone_panel
   palette_panel
-  parallax_preview_tab
   parallax_layout
   viewport_tab
   api
@@ -126,6 +125,7 @@ add_library(parallax_theme_panel
 target_link_libraries(parallax_theme_panel
   level
   api
+  editor_texture_preview
   imgui_scoped
   status_macros
   ${IMGUI_LIBRARIES}
@@ -134,19 +134,6 @@ target_link_libraries(parallax_theme_panel
   absl::strings
   gui_interface
   level_selection_state
-)
-
-add_library(parallax_preview_tab
-  parallax_preview_tab.cc
-)
-
-target_link_libraries(parallax_preview_tab
-  api
-  imgui_scoped
-  ${IMGUI_LIBRARIES}
-  absl::status
-  SDL2-static
-  gui_interface
 )
 
 add_library(blueprint_palette_panel

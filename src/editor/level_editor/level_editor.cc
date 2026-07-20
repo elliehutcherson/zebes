@@ -11,7 +11,6 @@
 #include "editor/level_editor/level_panel.h"
 #include "editor/level_editor/level_panel_interface.h"
 #include "editor/level_editor/parallax_layout.h"
-#include "editor/level_editor/parallax_preview_tab.h"
 #include "imgui.h"
 #include "parallax_theme_panel.h"
 
@@ -90,7 +89,6 @@ absl::Status LevelEditor::Init(Options options) {
     ASSIGN_OR_RETURN(palette_panel_, PalettePanel::Create({.api = api_, .gui = gui_}));
   }
 
-  parallax_tab_ = std::make_unique<ParallaxPreviewTab>(*api_, gui_);
   viewport_tab_ = std::make_unique<ViewportTab>(*api_, gui_);
 
   return absl::OkStatus();
@@ -377,80 +375,64 @@ absl::Status LevelEditor::RenderViewport() {
   gui_->Text("Viewport");
   gui_->Separator();
 
-  auto tab_default = [this]() -> absl::Status {
-    auto tab_item = ScopedTabItem(gui_, "Viewport");
-    if (!tab_item) return absl::OkStatus();
+  ScopedChild viewport = gui_->CreateScopedChild("LevelViewport", ImVec2(0, 0), true);
+  if (!viewport) return absl::OkStatus();
 
-    Level* level = level_model_.active_level();
-    if (level == nullptr) {
-      gui_->TextDisabled("No level selected.");
-      return absl::OkStatus();
-    }
-
-    // Auto-associate the level with the selected tileset on first tile selection.
-    const Tileset* selected_tileset = palette_panel_->GetSelectedTileset();
-    if (selected_tileset != nullptr && level->tileset_id.empty()) {
-      level->tileset_id = selected_tileset->id;
-    }
-
-    RETURN_IF_ERROR(viewport_tab_->Render({
-        .level = level,
-        .placement_blueprint = palette_panel_->GetSelectedBlueprint(),
-        .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
-                                  ? selection_.entity_id
-                                  : Entity::kInvalidId,
-        .snap_to_grid = palette_panel_->GetSnapToGrid(),
-        .show_entity_borders = palette_panel_->GetShowEntityBorders(),
-        .delete_mode = palette_panel_->GetDeleteMode(),
-        .placement_tile = palette_panel_->GetSelectedTile(),
-        .placement_tileset = selected_tileset,
-        .show_tile_frame = palette_panel_->GetShowTileFrame(),
-        .show_tile_collision = palette_panel_->GetShowTileCollision(),
-        .tile_overlay_opacity = palette_panel_->GetTileOverlayOpacity(),
-        .entity_overlay_opacity = palette_panel_->GetEntityOverlayOpacity(),
-        .selected_zone_id = (selection_.type == SelectionState::Type::kZone)
-                                ? std::optional<int>(selection_.zone_id)
-                                : std::nullopt,
-    }));
-
-    // Consume a canvas right-click delete request and remove the entity.
-    std::optional<uint64_t> delete_request = viewport_tab_->TakeDeleteRequest();
-    if (delete_request.has_value()) {
-      if (selection_.entity_id == *delete_request) selection_.Clear();
-      level->entities.erase(*delete_request);
-    }
-
-    // Consume a newly placed entity and add it to the level.
-    std::optional<Entity> new_entity = viewport_tab_->TakeNewEntity();
-    if (new_entity.has_value()) {
-      level->entities[new_entity->id] = std::move(*new_entity);
-    }
-
-    // Consume a canvas click and update the editor selection state.
-    std::optional<uint64_t> click_sel = viewport_tab_->TakeClickSelection();
-    if (click_sel.has_value()) {
-      selection_.ApplyEntityPick(*click_sel);
-    }
+  Level* level = level_model_.active_level();
+  if (level == nullptr) {
+    gui_->TextDisabled("No level selected.");
     return absl::OkStatus();
-  };
+  }
 
-  auto tab_parallax = [this]() -> absl::Status {
-    Level* level = level_model_.active_level();
-    if (level == nullptr) return absl::OkStatus();
-    std::optional<std::string> texture_id =
-        parallax_theme_panel_->GetTexture(selection_, *level);
+  // Auto-associate the level with the selected tileset on first tile selection.
+  const Tileset* selected_tileset = palette_panel_->GetSelectedTileset();
+  if (selected_tileset != nullptr && level->tileset_id.empty()) {
+    level->tileset_id = selected_tileset->id;
+  }
 
-    if (!texture_id.has_value()) return absl::OkStatus();
+  RETURN_IF_ERROR(viewport_tab_->Render({
+      .level = level,
+      .placement_blueprint = palette_panel_->GetSelectedBlueprint(),
+      .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
+                                ? selection_.entity_id
+                                : Entity::kInvalidId,
+      .snap_to_grid = palette_panel_->GetSnapToGrid(),
+      .show_entity_borders = palette_panel_->GetShowEntityBorders(),
+      .delete_mode = palette_panel_->GetDeleteMode(),
+      .placement_tile = palette_panel_->GetSelectedTile(),
+      .placement_tileset = selected_tileset,
+      .show_tile_frame = palette_panel_->GetShowTileFrame(),
+      .show_tile_collision = palette_panel_->GetShowTileCollision(),
+      .tile_overlay_opacity = palette_panel_->GetTileOverlayOpacity(),
+      .entity_overlay_opacity = palette_panel_->GetEntityOverlayOpacity(),
+      .selected_zone_id = (selection_.type == SelectionState::Type::kZone)
+                              ? std::optional<int>(selection_.zone_id)
+                              : std::nullopt,
+      .selected_parallax_theme_id =
+          (selection_.type == SelectionState::Type::kTheme ||
+           selection_.type == SelectionState::Type::kLayer)
+              ? std::optional<int>(selection_.theme_id)
+              : std::nullopt,
+      .selected_parallax_layer_index =
+          (selection_.type == SelectionState::Type::kLayer)
+              ? std::optional<int>(selection_.layer_index)
+              : std::nullopt,
+  }));
 
-    return parallax_tab_->Render(*texture_id);
-  };
+  std::optional<uint64_t> delete_request = viewport_tab_->TakeDeleteRequest();
+  if (delete_request.has_value()) {
+    if (selection_.entity_id == *delete_request) selection_.Clear();
+    level->entities.erase(*delete_request);
+  }
 
-  // Using a child window for the viewport to clip content if needed and handle scrolling.
-  if (auto view_child = ScopedChild(gui_, "LevelViewport", ImVec2(0, 0), true); view_child) {
-    if (auto view_tab = ScopedTabBar(gui_, "ViewportTabs"); view_tab) {
-      RETURN_IF_ERROR(tab_default());
-      RETURN_IF_ERROR(tab_parallax());
-    }
+  std::optional<Entity> new_entity = viewport_tab_->TakeNewEntity();
+  if (new_entity.has_value()) {
+    level->entities[new_entity->id] = std::move(*new_entity);
+  }
+
+  std::optional<uint64_t> click_selection = viewport_tab_->TakeClickSelection();
+  if (click_selection.has_value()) {
+    selection_.ApplyEntityPick(*click_selection);
   }
 
   return absl::OkStatus();

@@ -1,5 +1,8 @@
 #include "editor/level_editor/parallax_theme_panel.h"
 
+#include <algorithm>
+#include <string>
+
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
@@ -21,7 +24,8 @@ absl::StatusOr<std::unique_ptr<ParallaxThemePanel>> ParallaxThemePanel::Create(O
   return ret;
 }
 
-ParallaxThemePanel::ParallaxThemePanel(Options options) : api_(*options.api), gui_(options.gui) {}
+ParallaxThemePanel::ParallaxThemePanel(Options options)
+    : api_(*options.api), gui_(options.gui), texture_preview_(*options.gui) {}
 
 absl::Status ParallaxThemePanel::RenderNavigator(Level& level, SelectionState& selection) {
   if (gui_->Button("Add Theme")) {
@@ -151,6 +155,31 @@ absl::Status ParallaxThemePanel::RenderLayerDetails(Level& level, SelectionState
     }
   }
 
+  gui_->Separator();
+  gui_->Text("Source Texture");
+  if (layer.texture_id.empty()) {
+    gui_->TextDisabled("No texture selected.");
+  } else {
+    auto texture = std::find_if(texture_cache_.begin(), texture_cache_.end(),
+                                [&](const Texture& candidate) {
+                                  return candidate.id == layer.texture_id;
+                                });
+    if (texture == texture_cache_.end() || !texture->texture_handle) {
+      return absl::FailedPreconditionError("selected layer texture is unavailable");
+    }
+
+    constexpr float kMaximumPreviewWidth = 240.0f;
+    constexpr float kMaximumPreviewHeight = 140.0f;
+    const float preview_width =
+        std::min(kMaximumPreviewWidth, gui_->GetContentRegionAvail().x);
+    if (preview_width > 0.0f) {
+      ASSIGN_OR_RETURN(TexturePreviewLayout preview,
+                       texture_preview_.Render(texture->texture_handle, preview_width,
+                                               kMaximumPreviewHeight));
+      gui_->Text("Source Size: %dx%d", preview.source_width, preview.source_height);
+    }
+  }
+
   gui_->Spacing();
   {
     ScopedStyleColor color =
@@ -171,20 +200,6 @@ absl::Status ParallaxThemePanel::RefreshTextureCache() {
             [](const Texture& a, const Texture& b) { return a.name < b.name; });
 
   return absl::OkStatus();
-}
-
-std::optional<std::string> ParallaxThemePanel::GetTexture(const SelectionState& selection,
-                                                          const Level& level) const {
-  if (selection.type != SelectionState::Type::kLayer) return std::nullopt;
-
-  auto it = level.themes.find(selection.theme_id);
-  if (it == level.themes.end()) return std::nullopt;
-
-  const ParallaxTheme& theme = it->second;
-  if (selection.layer_index < 0 || selection.layer_index >= theme.layers.size())
-    return std::nullopt;
-
-  return theme.layers[selection.layer_index].texture_id;
 }
 
 void ParallaxThemePanel::AddTheme(Level& level, SelectionState& selection) {

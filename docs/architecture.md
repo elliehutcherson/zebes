@@ -242,6 +242,17 @@ layout, and emits draw commands. Missing referenced themes, textures, or runtime
 resources fail the render pass; an empty texture ID remains a valid incomplete
 authoring layer and is omitted.
 
+The level viewport may explicitly preview the active zone, the selected theme,
+or the selected layer. These modes only choose the parallax batch shown behind
+the level; they do not change zone activation, selection, or persistent level
+data. A layer preview is represented by an optional layer index in the
+platform-neutral batch request, while native rendering remains unchanged.
+
+Managed texture thumbnails use `TexturePreviewRenderer` at the editor boundary.
+Panels supply an opaque `TextureHandle`; the renderer resolves SDL state,
+queries source dimensions, calculates an aspect-preserving layout, and emits
+the ImGui image. Panels and domain models never receive `SDL_Texture*` values.
+
 Named asset catalogs use the shared `AssetCatalogKey`, ordered by display name
 and then stable asset ID. This preserves duplicate names while providing
 deterministic UI iteration without sorting every frame. Selection is stored by

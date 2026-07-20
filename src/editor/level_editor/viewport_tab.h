@@ -19,6 +19,12 @@
 
 namespace zebes {
 
+enum class ParallaxPreviewMode {
+  kActiveZone,
+  kSelectedTheme,
+  kSelectedLayer,
+};
+
 // Per-frame inputs to ViewportTab::Render(). All fields are transient — they
 // are not stored between frames.
 struct ViewportRenderOptions {
@@ -49,6 +55,10 @@ struct ViewportRenderOptions {
   // Zone selected in the editor navigator. Used only for gizmo highlighting
   // and frame-selected behavior; it does not override runtime activation.
   std::optional<int> selected_zone_id;
+  // Theme selected in the navigator and available for explicit preview.
+  std::optional<int> selected_parallax_theme_id;
+  // Layer selected within selected_parallax_theme_id and available for isolation.
+  std::optional<int> selected_parallax_layer_index;
 };
 
 class ViewportTab {
@@ -99,9 +109,15 @@ class ViewportTab {
   absl::Status HandleEntityInput(Level& level, const Blueprint* placement_blueprint,
                                  Vec mouse_world, uint64_t selected_entity_id, bool delete_mode);
 
-  // Resolves and renders the active environment, returning its stable zone identity.
+  // Resolves and renders the requested environment, returning the actual active zone.
   absl::StatusOr<std::optional<ActiveParallaxZone>> RenderParallaxBackground(
-      const Level& level);
+      const Level& level, const ViewportRenderOptions& options);
+
+  // Falls back to active-zone rendering when the requested selection no longer exists.
+  void ReconcileParallaxPreviewMode(const ViewportRenderOptions& options);
+
+  // Renders explicit active-zone, selected-theme, and selected-layer controls.
+  void RenderParallaxPreviewControls(const ViewportRenderOptions& options);
 
   // Applies a queued frame request once the current viewport and world
   // dimensions are known.
@@ -129,6 +145,7 @@ class ViewportTab {
   Camera camera_;
   ViewportRenderer renderer_;
   bool show_camera_guide_ = true;
+  ParallaxPreviewMode parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
   std::optional<VisibleWorldBounds> pending_camera_frame_;
 
   // Placement state
