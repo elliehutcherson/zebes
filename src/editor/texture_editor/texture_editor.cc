@@ -1,6 +1,8 @@
 #include "editor/texture_editor/texture_editor.h"
 
-#include "ImGuiFileDialog.h"
+#include <optional>
+#include <string>
+
 #include "SDL_render.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
@@ -10,6 +12,13 @@
 #include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
+namespace {
+
+// Names the texture browser so its result cannot be picked up by another
+// panel's file dialog.
+constexpr const char* kTextureDialogKey = "TextureOpenDlg_v2";
+
+}  // namespace
 
 absl::StatusOr<std::unique_ptr<TextureEditor>> TextureEditor::Create(Api* api, SdlWrapper* sdl,
                                                                      GuiInterface* gui) {
@@ -96,13 +105,10 @@ void TextureEditor::Render() {
   }
 
   // Handle File Dialog
-  if (ImGuiFileDialog::Instance()->Display("TextureOpenDlg_v2")) {
-    if (ImGuiFileDialog::Instance()->IsOk()) {
-      std::string file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
-      model_.SetSelectedPath(file_path_name);
-      LoadPreview(file_path_name);
-    }
-    ImGuiFileDialog::Instance()->Close();
+  if (std::optional<std::string> chosen = gui_->DisplayFileDialog(kTextureDialogKey);
+      chosen.has_value()) {
+    model_.SetSelectedPath(*chosen);
+    LoadPreview(*chosen);
   }
 
   gui_->Separator();
@@ -172,10 +178,7 @@ void TextureEditor::RenderTextureDetails() {
   if (model_.is_new_texture()) {
     gui_->SameLine();
     if (gui_->Button("Browse...")) {
-      IGFD::FileDialogConfig config;
-      config.path = ".";
-      ImGuiFileDialog::Instance()->OpenDialog("TextureOpenDlg_v2", "Choose File",
-                                              ".png,.jpg,.jpeg,.bmp", config);
+      gui_->OpenFileDialog(kTextureDialogKey, "Choose File", ".png,.jpg,.jpeg,.bmp", ".");
     }
   }
 

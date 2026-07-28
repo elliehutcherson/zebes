@@ -88,6 +88,19 @@ target_link_libraries(tileset_editor_model_test
 target_include_directories(tileset_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(tileset_editor_model_test)
 
+# --- Tileset Panel Test ---
+add_executable(tileset_panel_test tileset_panel_test.cc)
+target_link_libraries(tileset_panel_test
+  gtest_main
+  gmock
+  tileset_panel
+  tileset_editor_model
+  blob47_compose
+  gui_mock
+)
+target_include_directories(tileset_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(tileset_panel_test)
+
 # --- Parallax Theme Panel Test ---
 add_executable(parallax_theme_panel_test parallax_theme_panel_test.cc)
 target_link_libraries(parallax_theme_panel_test

@@ -1,7 +1,9 @@
 #include "editor/tileset_editor/tileset_panel.h"
 
-#include <cstring>
 #include <fstream>
+#include <optional>
+#include <string>
+#include <utility>
 
 #include "absl/strings/str_cat.h"
 
@@ -17,8 +19,12 @@
 namespace zebes {
 namespace {
 
-// Buffer size for the manifest path input field.
-constexpr size_t kManifestPathCapacity = 512;
+// Names the manifest browser so its result cannot be picked up by another
+// panel's file dialog.
+constexpr const char* kManifestDialogKey = "TerrainManifestDlg";
+
+// Width of the manifest path field, leaving room for the Browse button.
+constexpr float kManifestPathWidth = 220.0f;
 
 // Width of the terrain name field, leaving room for the mask count and the
 // delete button on the same row.
@@ -158,9 +164,18 @@ absl::Status TilesetPanel::RenderTerrainList(TilesetEditorModel& model) {
   gui_->Separator();
   gui_->Text("Terrains");
 
-  manifest_path_.resize(kManifestPathCapacity);
-  gui_->InputText("Manifest##Terrain", manifest_path_.data(), manifest_path_.size());
-  manifest_path_.resize(std::strlen(manifest_path_.c_str()));
+  gui_->SetNextItemWidth(kManifestPathWidth);
+  gui_->InputText("Manifest##Terrain", &manifest_path_);
+  gui_->SameLine();
+  if (gui_->Button("Browse##Terrain")) {
+    gui_->OpenFileDialog(kManifestDialogKey, "Choose Terrain Manifest", ".json", ".");
+  }
+
+  // Drawn every frame because the dialog outlives the frame that opened it.
+  if (std::optional<std::string> chosen = gui_->DisplayFileDialog(kManifestDialogKey);
+      chosen.has_value()) {
+    manifest_path_ = *std::move(chosen);
+  }
 
   if (gui_->Button("Import##Terrain")) {
     absl::Status status = ImportTerrainFromFile(model, manifest_path_);

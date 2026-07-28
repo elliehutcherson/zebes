@@ -130,6 +130,10 @@ class Gui : public GuiInterface {
   bool IsWindowHovered(ImGuiHoveredFlags flags = 0) override;
   bool IsWindowFocused(ImGuiFocusedFlags flags = 0) override;
 
+  void OpenFileDialog(const char* key, const char* title, const char* filters,
+                      const char* start_path = ".") override;
+  std::optional<std::string> DisplayFileDialog(const char* key) override;
+
   bool CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0) override;
   bool TreeNodeEx(const char* label, ImGuiTreeNodeFlags flags = 0) override;
 

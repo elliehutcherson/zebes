@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "imgui.h"
@@ -160,6 +161,17 @@ class GuiInterface {
   virtual ImVec2 GetWindowSize() const = 0;
   virtual bool IsWindowHovered(ImGuiHoveredFlags flags = 0) = 0;
   virtual bool IsWindowFocused(ImGuiFocusedFlags flags = 0) = 0;
+
+  // File browsing. The dialog outlives the frame that opens it, so the two
+  // halves are separate calls: OpenFileDialog arms the dialog named `key`, and
+  // DisplayFileDialog draws it and must be called every frame after that.
+  // Keying the dialog is what stops one panel consuming another's result.
+  virtual void OpenFileDialog(const char* key, const char* title, const char* filters,
+                              const char* start_path = ".") = 0;
+  // Draws the dialog armed under `key` and returns the chosen path on the one
+  // frame the user confirms. Returns nullopt while the dialog is open, when it
+  // is cancelled, and when no dialog is armed under that key.
+  virtual std::optional<std::string> DisplayFileDialog(const char* key) = 0;
 
   virtual bool CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0) = 0;
   virtual bool TreeNodeEx(const char* label, ImGuiTreeNodeFlags flags = 0) = 0;

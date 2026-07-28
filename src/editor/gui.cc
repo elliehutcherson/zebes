@@ -2,6 +2,7 @@
 
 #include <stdarg.h>
 
+#include "ImGuiFileDialog.h"
 #include "editor/imgui_scoped.h"
 #include "misc/cpp/imgui_stdlib.h"
 
@@ -279,6 +280,25 @@ ImVec2 Gui::GetWindowSize() const { return ImGui::GetWindowSize(); }
 bool Gui::IsWindowHovered(ImGuiHoveredFlags flags) { return ImGui::IsWindowHovered(flags); }
 bool Gui::IsWindowFocused(ImGuiFocusedFlags flags) { return ImGui::IsWindowFocused(flags); }
 void Gui::SetItemDefaultFocus() { ImGui::SetItemDefaultFocus(); }
+void Gui::OpenFileDialog(const char* key, const char* title, const char* filters,
+                         const char* start_path) {
+  IGFD::FileDialogConfig config;
+  config.path = start_path;
+  ImGuiFileDialog::Instance()->OpenDialog(key, title, filters, config);
+}
+
+std::optional<std::string> Gui::DisplayFileDialog(const char* key) {
+  if (!ImGuiFileDialog::Instance()->Display(key)) return std::nullopt;
+
+  // Display() returning true means the dialog closed this frame, either way.
+  std::optional<std::string> selection;
+  if (ImGuiFileDialog::Instance()->IsOk()) {
+    selection = ImGuiFileDialog::Instance()->GetFilePathName();
+  }
+  ImGuiFileDialog::Instance()->Close();
+  return selection;
+}
+
 bool Gui::CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags) {
   return ImGui::CollapsingHeader(label, flags);
 }

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
 #include "gmock/gmock.h"
@@ -165,6 +168,11 @@ class MockGui : public GuiInterface {
   MOCK_METHOD(ImVec2, GetWindowSize, (), (const, override));
   MOCK_METHOD(bool, IsWindowHovered, (ImGuiHoveredFlags flags), (override));
   MOCK_METHOD(bool, IsWindowFocused, (ImGuiFocusedFlags flags), (override));
+
+  MOCK_METHOD(void, OpenFileDialog,
+              (const char* key, const char* title, const char* filters, const char* start_path),
+              (override));
+  MOCK_METHOD((std::optional<std::string>), DisplayFileDialog, (const char* key), (override));
 
   MOCK_METHOD(bool, CollapsingHeader, (const char* label, ImGuiTreeNodeFlags flags), (override));
   MOCK_METHOD(bool, TreeNodeEx, (const char* label, ImGuiTreeNodeFlags flags), (override));

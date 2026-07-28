@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "ImGuiFileDialog.h"
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "common/sdl_wrapper.h"
