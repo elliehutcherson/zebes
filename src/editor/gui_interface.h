@@ -143,6 +143,10 @@ class GuiInterface {
   virtual void PopItemWidth() = 0;
   virtual void SetNextItemWidth(float item_width) = 0;
   virtual float GetTextLineHeightWithSpacing() const = 0;
+  // Height of one row occupied by a framed widget, such as a button or an
+  // input field. Taller than a text row, so laying out mixed rows with the
+  // text height alone under-reserves space.
+  virtual float GetFrameHeightWithSpacing() const = 0;
   virtual ImVec2 GetContentRegionAvail() const = 0;
   virtual ImDrawList* GetWindowDrawList() = 0;
   virtual ImVec2 GetMousePos() const = 0;

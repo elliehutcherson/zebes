@@ -1,5 +1,6 @@
 #include "editor/tileset_editor/tileset_panel.h"
 
+#include <algorithm>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -29,6 +30,11 @@ constexpr float kManifestPathWidth = 220.0f;
 // Width of the terrain name field, leaving room for the mask count and the
 // delete button on the same row.
 constexpr float kTerrainNameWidth = 160.0f;
+
+// Smallest tile list worth keeping. Once the window is short enough that the
+// terrain section cannot fit above this, the panel scrolls rather than
+// shrinking the list into uselessness.
+constexpr float kMinTileListRows = 4.0f;
 
 // Reads a compose_blob47 manifest from disk and adds its terrain to the model.
 absl::Status ImportTerrainFromFile(TilesetEditorModel& model, const std::string& path) {
@@ -139,7 +145,14 @@ absl::Status TilesetPanel::RenderTileList(TilesetEditorModel& model) {
     if (gui_->Button("Delete##Tile")) RETURN_IF_ERROR(model.DeleteSelectedTile());
   }
 
-  if (ScopedListBox list_box = gui_->CreateScopedListBox("##Tiles", ImVec2(-FLT_MIN, -FLT_MIN));
+  // The list gives back exactly the height the terrain section needs. Taking
+  // all of it (-FLT_MIN) is what pushed Import below the window bottom, where
+  // the only way to reach it was to scroll.
+  const float reserved = TerrainSectionHeight(*tileset, model.selected_tile() != nullptr);
+  const float minimum = kMinTileListRows * gui_->GetTextLineHeightWithSpacing();
+  const float list_height = std::max(minimum, gui_->GetContentRegionAvail().y - reserved);
+
+  if (ScopedListBox list_box = gui_->CreateScopedListBox("##Tiles", ImVec2(-FLT_MIN, list_height));
       list_box) {
     for (const Tile& tile : tileset->tiles) {
       const std::string display =
@@ -155,6 +168,23 @@ absl::Status TilesetPanel::RenderTileList(TilesetEditorModel& model) {
 
   RETURN_IF_ERROR(RenderTerrainList(model));
   return absl::OkStatus();
+}
+
+float TilesetPanel::TerrainSectionHeight(const Tileset& tileset, bool has_selected_tile) const {
+  const float text_row = gui_->GetTextLineHeightWithSpacing();
+  const float widget_row = gui_->GetFrameHeightWithSpacing();
+
+  // Heading and the status line.
+  float height = 2.0f * text_row;
+  // The manifest field and the import/detect row.
+  height += 2.0f * widget_row;
+  // One row per terrain, or the hint shown when there are none.
+  height += tileset.terrains.empty()
+                ? text_row
+                : static_cast<float>(tileset.terrains.size()) * widget_row;
+  // Membership appears only while a tile is selected: a label and a combo.
+  if (has_selected_tile) height += text_row + widget_row;
+  return height;
 }
 
 absl::Status TilesetPanel::RenderTerrainList(TilesetEditorModel& model) {

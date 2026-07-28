@@ -153,6 +153,7 @@ class MockGui : public GuiInterface {
   MOCK_METHOD(void, PopItemWidth, (), (override));
   MOCK_METHOD(void, SetNextItemWidth, (float item_width), (override));
   MOCK_METHOD(float, GetTextLineHeightWithSpacing, (), (const, override));
+  MOCK_METHOD(float, GetFrameHeightWithSpacing, (), (const, override));
   MOCK_METHOD(ImVec2, GetContentRegionAvail, (), (const, override));
   MOCK_METHOD(ImDrawList*, GetWindowDrawList, (), (override));
   MOCK_METHOD(ImVec2, GetMousePos, (), (const, override));

@@ -249,6 +249,7 @@ void Gui::PopItemWidth() { ImGui::PopItemWidth(); }
 void Gui::SetNextItemWidth(float item_width) { ImGui::SetNextItemWidth(item_width); }
 
 float Gui::GetTextLineHeightWithSpacing() const { return ImGui::GetTextLineHeightWithSpacing(); }
+float Gui::GetFrameHeightWithSpacing() const { return ImGui::GetFrameHeightWithSpacing(); }
 
 ImVec2 Gui::GetContentRegionAvail() const { return ImGui::GetContentRegionAvail(); }
 

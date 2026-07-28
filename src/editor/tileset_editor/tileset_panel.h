@@ -31,6 +31,11 @@ class TilesetPanel {
   absl::Status RenderTilesetFields(TilesetEditorModel& model);
   absl::Status RenderTileList(TilesetEditorModel& model);
 
+  // Height the terrain section will occupy this frame. The tile list above it
+  // reserves this much so the import controls stay on screen without
+  // scrolling; when the window is too short to honour it, the panel scrolls.
+  float TerrainSectionHeight(const Tileset& tileset, bool has_selected_tile) const;
+
   // Renders the terrain list plus the import and detect controls. Defining a
   // 47-tile terrain by hand is impractical, so these are the authoring entry
   // points for the terrain brush.

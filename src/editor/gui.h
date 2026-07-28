@@ -114,6 +114,7 @@ class Gui : public GuiInterface {
   void PopItemWidth() override;
   void SetNextItemWidth(float item_width) override;
   float GetTextLineHeightWithSpacing() const override;
+  float GetFrameHeightWithSpacing() const override;
   ImVec2 GetContentRegionAvail() const override;
   ImDrawList* GetWindowDrawList() override;
   ImVec2 GetMousePos() const override;

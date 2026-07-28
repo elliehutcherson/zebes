@@ -36,8 +36,22 @@ std::string MakeManifest() {
   return WriteBlob47Manifest(*atlas);
 }
 
+constexpr float kTextRow = 20.0f;
+constexpr float kWidgetRow = 26.0f;
+constexpr float kWindowHeight = 500.0f;
+
 class TilesetPanelTest : public ::testing::Test {
  protected:
+  // Records the height the tile list asks for, which is what leaves room for
+  // the terrain section below it.
+  void CaptureTileListHeight(float* height) {
+    ON_CALL(gui_, CreateScopedListBox(StrEq("##Tiles"), _))
+        .WillByDefault(Invoke([this, height](const char* label, ImVec2 size) {
+          *height = size.y;
+          return ScopedListBox(&gui_, label, size);
+        }));
+  }
+
   void SetUp() override {
     absl::StatusOr<std::unique_ptr<TilesetPanel>> panel = TilesetPanel::Create(&gui_);
     ASSERT_TRUE(panel.ok()) << panel.status();
@@ -66,6 +80,12 @@ class TilesetPanelTest : public ::testing::Test {
 
     ON_CALL(gui_, Button(_, _)).WillByDefault(Return(false));
     ON_CALL(gui_, DisplayFileDialog(_)).WillByDefault(Return(std::nullopt));
+
+    // Layout metrics stand in for a real ImGui frame so height reservation is
+    // checkable arithmetic rather than a guess about font size.
+    ON_CALL(gui_, GetTextLineHeightWithSpacing()).WillByDefault(Return(kTextRow));
+    ON_CALL(gui_, GetFrameHeightWithSpacing()).WillByDefault(Return(kWidgetRow));
+    ON_CALL(gui_, GetContentRegionAvail()).WillByDefault(Return(ImVec2(200.0f, kWindowHeight)));
 
     model_.BeginNewTileset();
   }
@@ -151,6 +171,46 @@ TEST_F(TilesetPanelTest, ImportingAMissingFileAddsNoTerrain) {
 
   ASSERT_NE(model_.active_tileset(), nullptr);
   EXPECT_TRUE(model_.active_tileset()->terrains.empty());
+}
+
+// Import used to sit below the window bottom because the tile list claimed
+// every remaining pixel.
+TEST_F(TilesetPanelTest, TileListLeavesRoomForTheTerrainSection) {
+  float list_height = 0.0f;
+  CaptureTileListHeight(&list_height);
+
+  RenderDetails();
+
+  // Heading and status text, the manifest and import rows, and the empty hint.
+  const float reserved = 2.0f * kTextRow + 2.0f * kWidgetRow + kTextRow;
+  EXPECT_FLOAT_EQ(list_height, kWindowHeight - reserved);
+}
+
+TEST_F(TilesetPanelTest, EachTerrainWidensTheReservation) {
+  float without_terrains = 0.0f;
+  CaptureTileListHeight(&without_terrains);
+  RenderDetails();
+
+  model_.active_tileset()->terrains.push_back(Terrain{.id = 1, .name = "Grass"});
+  model_.active_tileset()->terrains.push_back(Terrain{.id = 2, .name = "Stone"});
+
+  float with_terrains = 0.0f;
+  CaptureTileListHeight(&with_terrains);
+  RenderDetails();
+
+  // Two terrain rows replace the one-line empty hint.
+  EXPECT_FLOAT_EQ(with_terrains, without_terrains + kTextRow - 2.0f * kWidgetRow);
+}
+
+// Below a minimum the panel scrolls instead of shrinking the list away.
+TEST_F(TilesetPanelTest, ShortWindowKeepsAMinimumTileList) {
+  ON_CALL(gui_, GetContentRegionAvail()).WillByDefault(Return(ImVec2(200.0f, 30.0f)));
+  float list_height = 0.0f;
+  CaptureTileListHeight(&list_height);
+
+  RenderDetails();
+
+  EXPECT_FLOAT_EQ(list_height, 4.0f * kTextRow);
 }
 
 TEST_F(TilesetPanelTest, TerrainNameIsEditable) {
