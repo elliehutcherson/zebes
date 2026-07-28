@@ -11,6 +11,14 @@
 
 namespace zebes {
 
+// Checks a tileset's invariants: names and IDs present and unique, positive tile
+// dimensions, and terrain rules that reference only tiles the tileset owns.
+//
+// SaveTileset applies this before writing, but LoadTileset deliberately does
+// not, so anything that reads definitions off disk and needs to trust them has
+// to ask. Exposed for that reason.
+absl::Status ValidateTileset(const Tileset& tileset);
+
 class TilesetManager {
  public:
   static absl::StatusOr<std::unique_ptr<TilesetManager>> Create(std::string root_path);

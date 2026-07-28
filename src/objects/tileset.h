@@ -1,6 +1,10 @@
 #pragma once
 
+#include <cstdint>
+#include <iterator>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -56,6 +60,54 @@ enum TileShape : uint8_t {
   kSteepSlopeTopRight_Top = 25
 };
 
+// Stable identifiers for TileShape, matching the enumerator spellings and
+// indexed by numeric value.
+//
+// These are a tool contract: asset pipelines parse them off the command line
+// and print them in manifests, so unlike the editor's human-facing display
+// strings they must never be reworded. They live beside the enum so that adding
+// a shape without naming it fails to compile.
+inline constexpr const char* kTileShapeIdentifiers[] = {
+    "kNone",
+    "kFullBlock",
+    "kHalfBlockBottom",
+    "kHalfBlockTop",
+    "kHalfBlockLeft",
+    "kHalfBlockRight",
+    "kSlope45BottomLeft",
+    "kSlope45BottomRight",
+    "kSlope45TopLeft",
+    "kSlope45TopRight",
+    "kGentleSlopeBottomLeft_Lower",
+    "kGentleSlopeBottomLeft_Upper",
+    "kGentleSlopeBottomRight_Lower",
+    "kGentleSlopeBottomRight_Upper",
+    "kGentleSlopeTopLeft_Lower",
+    "kGentleSlopeTopLeft_Upper",
+    "kGentleSlopeTopRight_Lower",
+    "kGentleSlopeTopRight_Upper",
+    "kSteepSlopeBottomLeft_Bottom",
+    "kSteepSlopeBottomLeft_Top",
+    "kSteepSlopeBottomRight_Bottom",
+    "kSteepSlopeBottomRight_Top",
+    "kSteepSlopeTopLeft_Bottom",
+    "kSteepSlopeTopLeft_Top",
+    "kSteepSlopeTopRight_Bottom",
+    "kSteepSlopeTopRight_Top",
+};
+static_assert(std::size(kTileShapeIdentifiers) ==
+                  static_cast<size_t>(TileShape::kSteepSlopeTopRight_Top) + 1,
+              "kTileShapeIdentifiers must name every TileShape");
+
+// Resolves an identifier back to its shape. Returns nullopt for unknown names so
+// callers can fail loudly rather than defaulting to kNone.
+inline std::optional<TileShape> TileShapeFromIdentifier(std::string_view identifier) {
+  for (size_t i = 0; i < std::size(kTileShapeIdentifiers); ++i) {
+    if (identifier == kTileShapeIdentifiers[i]) return static_cast<TileShape>(i);
+  }
+  return std::nullopt;
+}
+
 struct Tile {
   int id = 0;
   std::string name;
@@ -72,6 +124,50 @@ struct Tile {
   // Keep tags for high-level gameplay logic (e.g., "lethal", "ice", "water")
   // which are checked less frequently than physical collisions.
   std::vector<std::string> tags;
+};
+
+// One tile eligible for a neighbour mask. Listing several variants for the same
+// mask is what keeps a large painted region from repeating a single tile.
+struct TerrainVariant {
+  int tile_id = 0;
+
+  // Relative likelihood among the variants of one rule. Must be positive.
+  int weight = 1;
+};
+
+// The tiles eligible for one normalized neighbour mask.
+struct TerrainRule {
+  uint8_t mask = 0;
+  std::vector<TerrainVariant> variants;
+};
+
+// How a terrain's rule table is indexed. Smaller schemes expand into the same
+// mask-keyed table rather than changing how rules are stored, so introducing
+// one never migrates level data.
+enum class TerrainScheme : uint8_t {
+  kBlob47 = 0,
+};
+
+// A group of tiles the brush treats as one material. Painting a terrain writes
+// whichever tile matches the painted cell's neighbourhood, so the artwork is
+// resolved once at paint time and levels keep storing plain tile IDs.
+struct Terrain {
+  int id = 0;
+  std::string name;
+  TerrainScheme scheme = TerrainScheme::kBlob47;
+
+  // Whether cells outside the level bounds count as this terrain. True keeps
+  // ground continuous at the level border instead of drawing an edge there.
+  bool solid_outside_level = true;
+
+  // Unique by mask, ascending.
+  std::vector<TerrainRule> rules;
+
+  // Tiles that count as this terrain when computing a neighbour mask but that
+  // the brush never writes. Slope units and hand-placed set-pieces live here,
+  // so painted ground continues into them instead of capping off with an edge.
+  // A tile must not appear both here and in rules.
+  std::vector<int> member_tile_ids;
 };
 
 // A named texture atlas paired with an ordered table of tile definitions.
@@ -92,6 +188,10 @@ struct Tileset {
   // The tile definitions for this tileset. Tile ID 0 is always implicitly
   // empty and must not appear here.
   std::vector<Tile> tiles;
+
+  // Terrain brushes defined over the tiles above. Empty for tilesets that are
+  // only placed by hand.
+  std::vector<Terrain> terrains;
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 };
