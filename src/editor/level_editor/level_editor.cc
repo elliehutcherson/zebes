@@ -378,6 +378,21 @@ absl::Status LevelEditor::RenderInspector() {
   return absl::OkStatus();
 }
 
+void LevelEditor::RenderTilesetMismatchWarning(const Level& level,
+                                               const Tileset* palette_tileset,
+                                               bool palette_matches_level) {
+  if (palette_tileset == nullptr || palette_matches_level) return;
+
+  absl::StatusOr<Tileset*> level_tileset = api_->GetTileset(level.tileset_id);
+  const char* level_name = (level_tileset.ok() && *level_tileset != nullptr)
+                               ? (*level_tileset)->name.c_str()
+                               : level.tileset_id.c_str();
+  gui_->TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+                    "Painting is off: the palette shows '%s' but this level uses '%s'. Select "
+                    "'%s' in the palette, or erase this level's tiles to rebind it.",
+                    palette_tileset->name.c_str(), level_name, level_name);
+}
+
 absl::Status LevelEditor::RenderViewport() {
   gui_->Text("Viewport");
   gui_->Separator();
@@ -391,21 +406,25 @@ absl::Status LevelEditor::RenderViewport() {
     return absl::OkStatus();
   }
 
-  // Auto-associate the level with the selected tileset on first tile or terrain
-  // selection. Either palette mode can be the one that binds the level.
+  // A level's tiles are IDs into exactly one tileset, so the palette selection
+  // is only usable when it comes from that tileset. Binding happens while the
+  // level still has no tiles: rebinding later would leave every placed ID
+  // pointing at whatever art the new tileset happens to number the same.
   const Tileset* selected_tileset = palette_panel_->GetSelectedTileset();
   const Tileset* terrain_tileset = palette_panel_->GetSelectedTerrainTileset();
-  const Tileset* binding_tileset =
+  const Tileset* palette_tileset =
       selected_tileset != nullptr ? selected_tileset : terrain_tileset;
-  if (binding_tileset != nullptr && level->tileset_id.empty()) {
-    level->tileset_id = binding_tileset->id;
-  }
+  const TilesetBinding binding = ResolveTilesetBinding(*level, palette_tileset);
+  level->tileset_id = binding.tileset_id;
+
+  const bool palette_matches_level = binding.palette_matches;
+  RenderTilesetMismatchWarning(*level, palette_tileset, palette_matches_level);
 
   // Rebuilt every frame because the tileset's terrains can change in the
   // Tileset Editor between frames.
   std::optional<TerrainIndex> terrain_index;
   std::optional<int> paint_terrain_id = palette_panel_->GetSelectedTerrainId();
-  if (paint_terrain_id.has_value() && terrain_tileset != nullptr) {
+  if (paint_terrain_id.has_value() && terrain_tileset != nullptr && palette_matches_level) {
     ASSIGN_OR_RETURN(terrain_index, TerrainIndex::Build(*terrain_tileset));
   }
   if (!terrain_index.has_value()) paint_terrain_id.reset();
@@ -421,8 +440,10 @@ absl::Status LevelEditor::RenderViewport() {
       .snap_to_grid = palette_panel_->GetSnapToGrid(),
       .show_entity_borders = palette_panel_->GetShowEntityBorders(),
       .delete_mode = palette_panel_->GetDeleteMode(),
-      .placement_tile = palette_panel_->GetSelectedTile(),
-      .placement_tileset = selected_tileset,
+      // Withheld on a mismatch: placing writes a bare tile ID, which would
+      // mean a different tile under the level's own tileset.
+      .placement_tile = palette_matches_level ? palette_panel_->GetSelectedTile() : nullptr,
+      .placement_tileset = palette_matches_level ? selected_tileset : nullptr,
       .show_tile_frame = palette_panel_->GetShowTileFrame(),
       .show_tile_collision = palette_panel_->GetShowTileCollision(),
       .tile_overlay_opacity = palette_panel_->GetTileOverlayOpacity(),

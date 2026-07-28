@@ -157,6 +157,14 @@ target_link_libraries(viewport_tab_test
 target_include_directories(viewport_tab_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME viewport_tab_test COMMAND viewport_tab_test)
 
+add_executable(viewport_model_test viewport_model_test.cc)
+target_link_libraries(viewport_model_test
+  gtest_main
+  viewport_model
+)
+target_include_directories(viewport_model_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(viewport_model_test)
+
 add_executable(viewport_scene_test viewport_scene_test.cc)
 target_link_libraries(viewport_scene_test
   gtest_main

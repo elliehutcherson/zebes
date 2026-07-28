@@ -25,6 +25,7 @@ target_link_libraries(viewport_model
   collider
   level
   sprite
+  tileset
   absl::status
   absl::statusor
 )

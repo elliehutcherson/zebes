@@ -12,6 +12,7 @@
 #include "objects/entity.h"
 #include "objects/level.h"
 #include "objects/sprite.h"
+#include "objects/tileset.h"
 #include "objects/vec.h"
 
 namespace zebes {
@@ -102,6 +103,27 @@ absl::Status SetTileAt(Level& level, int tile_x, int tile_y, int tile_id);
 
 // Returns the tile at a world-tile coordinate, or zero when its chunk is absent.
 absl::StatusOr<int> GetTileAt(const Level& level, int tile_x, int tile_y);
+
+// Whether any tile is placed. Allocated chunks do not count: the editor
+// creates them eagerly, so their presence says nothing about whether tile IDs
+// exist that a different tileset would reinterpret.
+bool LevelHasTiles(const Level& level);
+
+// Which tileset a level's tiles belong to, and whether the palette's tileset
+// is the same one.
+struct TilesetBinding {
+  // The tileset ID the level should carry after this frame.
+  std::string tileset_id;
+  // Whether the palette selection can be painted into the level. Tiles are
+  // stored as bare IDs, so a selection from any other tileset would write
+  // artwork the level cannot resolve.
+  bool palette_matches = false;
+};
+
+// Resolves the binding for one frame. A level with no tiles adopts the
+// palette's tileset, since there are no IDs yet to reinterpret; once tiles
+// exist the binding is fixed and a foreign palette selection is unusable.
+TilesetBinding ResolveTilesetBinding(const Level& level, const Tileset* palette_tileset);
 
 // Centers an entity horizontally within the hovered tile and bottom-aligns
 // its collider or sprite bounds. Collider geometry takes priority.

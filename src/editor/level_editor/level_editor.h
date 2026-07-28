@@ -61,6 +61,11 @@ class LevelEditor {
   // Renders the main editing viewport.
   absl::Status RenderViewport();  // Middle
 
+  // Explains why a palette selection cannot be painted. Without this the
+  // mismatch is invisible: the brush simply does nothing.
+  void RenderTilesetMismatchWarning(const Level& level, const Tileset* palette_tileset,
+                                    bool palette_matches_level);
+
   // Renders the properties/details panel for the selected object.
   absl::Status RenderInspector();  // Right
 
