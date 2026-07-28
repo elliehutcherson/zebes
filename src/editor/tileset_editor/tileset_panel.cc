@@ -20,6 +20,10 @@ namespace {
 // Buffer size for the manifest path input field.
 constexpr size_t kManifestPathCapacity = 512;
 
+// Width of the terrain name field, leaving room for the mask count and the
+// delete button on the same row.
+constexpr float kTerrainNameWidth = 160.0f;
+
 // Reads a compose_blob47 manifest from disk and adds its terrain to the model.
 absl::Status ImportTerrainFromFile(TilesetEditorModel& model, const std::string& path) {
   if (path.empty()) return absl::InvalidArgumentError("Manifest path is empty.");
@@ -176,9 +180,19 @@ absl::Status TilesetPanel::RenderTerrainList(TilesetEditorModel& model) {
     return absl::OkStatus();
   }
 
-  for (const Terrain& terrain : tileset->terrains) {
+  for (Terrain& terrain : tileset->terrains) {
     ScopedId id = gui_->CreateScopedId(terrain.id);
-    gui_->Text("%s", absl::StrFormat("%s (%d masks)", terrain.name, terrain.rules.size()).c_str());
+
+    // The name is editable because importing cannot infer one: a manifest
+    // describes geometry, not material, so every import arrives called
+    // "Terrain". This name is also the brush's label in the level editor's
+    // terrain palette, so leaving it fixed made two terrains in one tileset
+    // indistinguishable while painting.
+    gui_->SetNextItemWidth(kTerrainNameWidth);
+    gui_->InputText("##TerrainName", &terrain.name);
+
+    gui_->SameLine();
+    gui_->Text("%s", absl::StrFormat("(%d masks)", terrain.rules.size()).c_str());
     gui_->SameLine();
     ScopedStyleColor style =
         gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
