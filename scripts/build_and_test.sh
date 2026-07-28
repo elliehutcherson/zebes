@@ -5,6 +5,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_TESTS=true
 TEST_FILTER=""
 PRESET="dev"
+VENV_PYTHON="${PROJECT_ROOT}/build/tileset-venv/bin/python"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -50,8 +51,20 @@ if [ "$RUN_TESTS" = true ]; then
     else
         ctest --preset "${PRESET}"
     fi
-    echo "Running build_cleaner integration test..."
-    python3 tests/build_cleaner_test.py
+    # The asset-tool tests need numpy/Pillow, which live in an isolated venv
+    # under build/. That directory is gitignored and is routinely deleted, so
+    # create it on demand instead of failing an otherwise clean tree.
+    if [ ! -x "${VENV_PYTHON}" ]; then
+        echo "Creating Python environment for asset-tool tests..."
+        python3 -m venv "${PROJECT_ROOT}/build/tileset-venv"
+        "${VENV_PYTHON}" -m pip install --quiet --upgrade pip
+        "${VENV_PYTHON}" -m pip install --quiet -r "${PROJECT_ROOT}/scripts/requirements-tileset.txt"
+    fi
+
+    echo "Running Python tool tests..."
+    "${VENV_PYTHON}" -m unittest discover \
+        --start-directory "${PROJECT_ROOT}/tests" \
+        --pattern '*_test.py'
 else
     echo "[3/3] Skipping Tests (--no-tests flag provided)"
 fi

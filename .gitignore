@@ -6,3 +6,17 @@
 
 # Ignore build folder
 build/
+
+# Python bytecode caches. The asset scripts under scripts/ are loaded by their
+# tests via importlib, which writes caches next to the sources.
+__pycache__/
+*.py[cod]
+
+# macOS Finder metadata
+.DS_Store
+
+# ImGui window layout state, rewritten on every editor run
+imgui.ini
+
+# Scratch directories that tests create and populate at run time
+test_data/
