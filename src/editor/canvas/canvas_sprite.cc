@@ -13,7 +13,7 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
   if (frame_index < 0 || frame_index >= sprite_.frames.size()) {
     return absl::InvalidArgumentError("Index out of range.");
   }
-  if (!sprite_.texture_handle) {
+  if (!texture_) {
     return absl::InternalError("SDL_Texture must not be null!");
   }
 
@@ -40,7 +40,7 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
 
   // 3. Render Texture
   int tex_w = 0, tex_h = 0;
-  SDL_Texture* texture = SdlTextureHandleAdapter::ToNative(sprite_.texture_handle);
+  SDL_Texture* texture = SdlTextureHandleAdapter::ToNative(texture_);
   SDL_QueryTexture(texture, nullptr, nullptr, &tex_w, &tex_h);
 
   if (tex_w > 0 && tex_h > 0) {

@@ -114,27 +114,25 @@ void ToJson(nlohmann::json& j, const Entity& entity) {
            {"y", entity.transform.position.y},
            {"rotation", entity.transform.rotation},
        }},
-      {"current_frame_index", entity.current_frame_index},
+      // Only authored properties are persisted. Velocity, acceleration, and
+      // animation playback are simulation state and deliberately never written.
       {"body",
        {
-           {"vx", entity.body.velocity.x},
-           {"vy", entity.body.velocity.y},
-           {"ax", entity.body.acceleration.x},
-           {"ay", entity.body.acceleration.y},
+           {"drag_x", entity.body.drag.x},
+           {"drag_y", entity.body.drag.y},
            {"is_static", entity.body.is_static},
            {"mass", entity.body.mass},
        }},
   };
-  if (entity.sprite) {
-    j["sprite_id"] = entity.sprite->id;
+  if (!entity.sprite_id.empty()) {
+    j["sprite_id"] = entity.sprite_id;
   }
-  if (entity.collider) {
-    j["collider_id"] = entity.collider->id;
+  if (!entity.collider_id.empty()) {
+    j["collider_id"] = entity.collider_id;
   }
 }
 
-absl::Status FromJson(const nlohmann::json& j, Entity& entity, SpriteManager& sm,
-                      ColliderManager& cm) {
+absl::Status FromJson(const nlohmann::json& j, Entity& entity) {
   j.at("id").get_to(entity.id);
   entity.active = j.value("active", true);
   entity.blueprint_id = j.value("blueprint_id", "");
@@ -147,27 +145,23 @@ absl::Status FromJson(const nlohmann::json& j, Entity& entity, SpriteManager& sm
     entity.transform.rotation = t.value("rotation", 0.0);
   }
 
-  entity.current_frame_index = j.value("current_frame_index", 0);
+  // Levels written before the split carry current_frame_index. Like the body's
+  // vx/vy/ax/ay, it is simulation state and is ignored rather than restored.
 
   if (j.contains("body")) {
+    // Levels written before the split carry vx/vy/ax/ay. Those keys are
+    // simulation state and are ignored rather than restored.
     auto& b = j["body"];
-    entity.body.velocity.x = b.value("vx", 0.0);
-    entity.body.velocity.y = b.value("vy", 0.0);
-    entity.body.acceleration.x = b.value("ax", 0.0);
-    entity.body.acceleration.y = b.value("ay", 0.0);
+    entity.body.drag.x = b.value("drag_x", 0.0);
+    entity.body.drag.y = b.value("drag_y", 0.0);
     entity.body.is_static = b.value("is_static", false);
     entity.body.mass = b.value("mass", 0.0);
   }
 
-  if (j.contains("sprite_id")) {
-    std::string sprite_id = j["sprite_id"];
-    ASSIGN_OR_RETURN(entity.sprite, sm.GetSprite(sprite_id));
-  }
-
-  if (j.contains("collider_id")) {
-    std::string collider_id = j["collider_id"];
-    ASSIGN_OR_RETURN(entity.collider, cm.GetCollider(collider_id));
-  }
+  // Asset references are kept as IDs. Resolving them is the renderer's job, so
+  // a level can be loaded without the sprite or collider managers.
+  entity.sprite_id = j.value("sprite_id", "");
+  entity.collider_id = j.value("collider_id", "");
   return absl::OkStatus();
 }
 
@@ -231,8 +225,7 @@ nlohmann::json ToJson(const Level& level) {
   return j;
 }
 
-absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& sm,
-                                       ColliderManager& cm) {
+absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j) {
   Level level;
   j.at("id").get_to(level.id);
   j.at("name").get_to(level.name);
@@ -347,7 +340,7 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& s
   if (j.contains("entities")) {
     for (const nlohmann::json& item : j["entities"]) {
       Entity entity;
-      RETURN_IF_ERROR(FromJson(item, entity, sm, cm));
+      RETURN_IF_ERROR(FromJson(item, entity));
       level.AddEntity(std::move(entity));
     }
   }
@@ -357,20 +350,13 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j, SpriteManager& s
 
 }  // namespace
 
-absl::StatusOr<std::unique_ptr<LevelManager>> LevelManager::Create(SpriteManager* sm,
-                                                                   ColliderManager* cm,
-                                                                   std::string root_path) {
-  if (sm == nullptr || cm == nullptr) {
-    return absl::InvalidArgumentError("Dependencies must not be null");
-  }
-  return std::unique_ptr<LevelManager>(new LevelManager(*sm, *cm, root_path));
+absl::StatusOr<std::unique_ptr<LevelManager>> LevelManager::Create(std::string root_path) {
+  return std::unique_ptr<LevelManager>(new LevelManager(root_path));
 }
 
-LevelManager::LevelManager(SpriteManager& sm, ColliderManager& cm, std::string root_path)
+LevelManager::LevelManager(std::string root_path)
     : root_path_(root_path),
-      definitions_path_(absl::StrCat(root_path_, "/", kDefinitionsPath)),
-      sm_(sm),
-      cm_(cm) {}
+      definitions_path_(absl::StrCat(root_path_, "/", kDefinitionsPath)) {}
 
 std::string LevelManager::GetDefinitionsPath(const std::string relative_path) {
   return absl::StrCat(definitions_path_, "/", relative_path);
@@ -386,7 +372,7 @@ absl::StatusOr<Level*> LevelManager::LoadLevel(const std::string& path_json) {
   nlohmann::json json;
   stream >> json;
 
-  ASSIGN_OR_RETURN(Level level, GetLevelFromJson(json, sm_, cm_));
+  ASSIGN_OR_RETURN(Level level, GetLevelFromJson(json));
 
   std::string id = level.id;
   levels_[id] = std::make_unique<Level>(std::move(level));

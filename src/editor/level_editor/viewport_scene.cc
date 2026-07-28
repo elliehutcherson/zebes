@@ -87,6 +87,7 @@ TileRenderItem MakeTileRenderItem(const Tile& tile, const Tileset& tileset, int6
 
 absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id,
                                                          const Entity& entity,
+                                                         const ResolvedSprite& resolved,
                                                          EntityRenderMode mode,
                                                          const EntityRenderOptions& options) {
   EntityRenderItem item{
@@ -97,16 +98,16 @@ absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id,
       .selected = entity_id == options.selected_entity_id,
   };
 
-  absl::StatusOr<WorldRect> bounds = CalculateEntityBounds(entity);
+  const Sprite* sprite = resolved.sprite;
+  absl::StatusOr<WorldRect> bounds = CalculateEntityBounds(entity, sprite);
   if (!bounds.ok()) return bounds.status();
   item.bounds = *bounds;
 
-  if (entity.sprite == nullptr || entity.sprite->frames.empty() ||
-      !entity.sprite->texture_handle) {
+  if (sprite == nullptr || sprite->frames.empty() || !resolved.texture) {
     return item;
   }
 
-  const SpriteFrame& frame = entity.sprite->frames.front();
+  const SpriteFrame& frame = sprite->frames.front();
   const PixelRect source{
       .x = frame.texture_x,
       .y = frame.texture_y,
@@ -118,7 +119,7 @@ absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id,
   }
 
   item.sprite = SpriteRenderItem{
-      .texture = entity.sprite->texture_handle,
+      .texture = resolved.texture,
       .source = source,
   };
   return item;
@@ -127,7 +128,8 @@ absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id,
 }  // namespace
 
 absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
-    const std::map<uint64_t, Entity>& entities, const EntityRenderOptions& options) {
+    const std::map<uint64_t, Entity>& entities, const SpriteLookup& sprites,
+    const EntityRenderOptions& options) {
   if (!std::isfinite(options.overlay_opacity) || options.overlay_opacity < 0.0f ||
       options.overlay_opacity > 1.0f) {
     return absl::InvalidArgumentError("entity overlay opacity must be between zero and one");
@@ -137,8 +139,8 @@ absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
   items.reserve(entities.size());
   for (const auto& [id, entity] : entities) {
     if (!entity.active) continue;
-    absl::StatusOr<EntityRenderItem> item =
-        ComposeEntityRenderItem(id, entity, EntityRenderMode::kLevel, options);
+    absl::StatusOr<EntityRenderItem> item = ComposeEntityRenderItem(
+        id, entity, FindSprite(sprites, entity.sprite_id), EntityRenderMode::kLevel, options);
     if (!item.ok()) return item.status();
     items.push_back(std::move(*item));
   }
@@ -146,12 +148,12 @@ absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
 }
 
 absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
-                                                            const Sprite* sprite) {
+                                                            const ResolvedSprite& resolved) {
   if (!std::isfinite(world_position.x) || !std::isfinite(world_position.y)) {
     return absl::InvalidArgumentError("entity placement position must be finite");
   }
-  if (sprite != nullptr &&
-      (sprite->frames.empty() || !sprite->texture_handle)) {
+  if (resolved.sprite != nullptr &&
+      (resolved.sprite->frames.empty() || !resolved.texture)) {
     return absl::FailedPreconditionError(
         "entity placement sprite requires a frame and texture resource");
   }
@@ -159,9 +161,8 @@ absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
   Entity entity{
       .id = Entity::kInvalidId,
       .transform = {.position = world_position},
-      .sprite = sprite,
   };
-  return ComposeEntityRenderItem(Entity::kInvalidId, entity,
+  return ComposeEntityRenderItem(Entity::kInvalidId, entity, resolved,
                                  EntityRenderMode::kPlacementGhost, {});
 }
 

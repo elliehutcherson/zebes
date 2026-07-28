@@ -61,9 +61,17 @@ class SpritePanel {
   // Confirms changes to the sprite (update).
   absl::Status ConfirmState();
 
+  // Resolves the attached sprite's texture and rebuilds the canvas sprite for
+  // it. Called from both Attach overloads so neither can forget the handle.
+  absl::Status AttachCanvasSprite();
+
   Counters counters_;
   SpritePanelModel model_;
   std::unique_ptr<CanvasSprite> canvas_sprite_;
+
+  // GPU handle for the attached sprite's texture. Resolved on attach because
+  // Sprite carries only a texture ID.
+  TextureHandle editing_texture_;
 
   // Outside dependencies
   Api& api_;

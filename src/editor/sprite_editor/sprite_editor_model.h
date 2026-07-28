@@ -8,6 +8,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "editor/asset_catalog.h"
+#include "engine/texture_handle.h"
 #include "objects/sprite.h"
 #include "objects/texture.h"
 
@@ -51,6 +52,15 @@ class SpriteEditorModel {
   std::string& edit_name_buffer() { return edit_name_buffer_; }
   const std::string& edit_name_buffer() const { return edit_name_buffer_; }
 
+  // GPU handle for sprite_'s texture. Held here rather than on the Sprite,
+  // which is a pure definition and names its texture by ID only. Invalid until
+  // a texture is selected, and cleared whenever the selection changes.
+  TextureHandle texture() const { return texture_; }
+
+  // Drops the resolved handle without touching sprite_.texture_id, so a texture
+  // that failed to load renders as absent rather than as stale artwork.
+  void ClearTexture() { texture_ = {}; }
+
   absl::Status SelectTexture(const std::string& texture_id, TextureHandle handle);
   absl::StatusOr<Sprite> BuildCreateRequest() const;
   absl::StatusOr<Sprite> BuildUpdateRequest() const;
@@ -82,6 +92,7 @@ class SpriteEditorModel {
   SpriteCatalog sprites_;
   TextureCatalog textures_;
   Sprite sprite_;
+  TextureHandle texture_;
   bool is_new_sprite_ = false;
   std::string edit_name_buffer_;
   std::vector<SpriteFrame> original_frames_;

@@ -17,6 +17,8 @@ class TextureManagerMock : public TextureManager {
   MOCK_METHOD(absl::Status, LoadAllTextures, (), (override));
   MOCK_METHOD(absl::StatusOr<std::string>, CreateTexture, (Texture texture), (override));
   MOCK_METHOD(absl::StatusOr<Texture*>, GetTexture, (const std::string& id), (override));
+  MOCK_METHOD(absl::StatusOr<TextureHandle>, GetTextureHandle, (const std::string& id),
+              (const, override));
   MOCK_METHOD(absl::Status, DeleteTexture, (const std::string& id), (override));
   MOCK_METHOD(std::vector<Texture>, GetAllTextures, (), (const, override));
   MOCK_METHOD(absl::Status, UpdateTexture, (const Texture& texture), (override));

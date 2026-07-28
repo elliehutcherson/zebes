@@ -370,5 +370,194 @@ TEST_F(TilesetManagerTest, LoadAllTilesets_PopulatesCache) {
   EXPECT_EQ(manager_->GetAllTilesets().size(), 2);
 }
 
+// --- Terrains ---
+
+namespace {
+
+// A tileset with three tiles and one terrain whose solid mask offers two
+// variants, exercising the variety path through serialization.
+Tileset MakeTerrainTileset() {
+  return Tileset{
+      .name = "GrassTerrain",
+      .texture_id = "grass-atlas-uuid",
+      .tile_width = 32,
+      .tile_height = 32,
+      .tiles =
+          {
+              Tile{.id = 1, .name = "Isolated"},
+              Tile{.id = 2, .name = "SolidA", .source_x = 32},
+              Tile{.id = 3, .name = "SolidB", .source_x = 64},
+          },
+      .terrains =
+          {
+              Terrain{
+                  .id = 7,
+                  .name = "Grass",
+                  .scheme = TerrainScheme::kBlob47,
+                  .solid_outside_level = false,
+                  .rules =
+                      {
+                          TerrainRule{.mask = 0, .variants = {{.tile_id = 1, .weight = 1}}},
+                          TerrainRule{.mask = 255,
+                                      .variants = {{.tile_id = 2, .weight = 3},
+                                                   {.tile_id = 3, .weight = 1}}},
+                      },
+              },
+          },
+  };
+}
+
+}  // namespace
+
+TEST_F(TilesetManagerTest, TerrainSurvivesSerializationRoundTrip) {
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTileset(MakeTerrainTileset()));
+
+  ReloadFromDisk();
+
+  ASSERT_OK_AND_ASSIGN(Tileset * loaded, manager_->GetTileset(id));
+  ASSERT_EQ(loaded->terrains.size(), 1);
+
+  const Terrain& terrain = loaded->terrains[0];
+  EXPECT_EQ(terrain.id, 7);
+  EXPECT_EQ(terrain.name, "Grass");
+  EXPECT_EQ(terrain.scheme, TerrainScheme::kBlob47);
+  EXPECT_FALSE(terrain.solid_outside_level);
+
+  ASSERT_EQ(terrain.rules.size(), 2);
+  EXPECT_EQ(terrain.rules[0].mask, 0);
+  ASSERT_EQ(terrain.rules[0].variants.size(), 1);
+  EXPECT_EQ(terrain.rules[0].variants[0].tile_id, 1);
+
+  EXPECT_EQ(terrain.rules[1].mask, 255);
+  ASSERT_EQ(terrain.rules[1].variants.size(), 2);
+  EXPECT_EQ(terrain.rules[1].variants[0].tile_id, 2);
+  EXPECT_EQ(terrain.rules[1].variants[0].weight, 3);
+  EXPECT_EQ(terrain.rules[1].variants[1].tile_id, 3);
+  EXPECT_EQ(terrain.rules[1].variants[1].weight, 1);
+}
+
+// Every tileset authored before terrains existed must keep loading unchanged.
+TEST_F(TilesetManagerTest, LegacyTilesetWithoutTerrainsLoads) {
+  std::string file_path = test_dir_ + "/definitions/tilesets/legacy.json";
+  std::ofstream out(file_path);
+  out << R"({
+    "id": "legacy-id",
+    "name": "Legacy",
+    "texture_id": "tx",
+    "tile_width": 32,
+    "tile_height": 32,
+    "tiles": [{"id": 1, "name": "Solid", "source_x": 0, "source_y": 0, "shape": 1}]
+  })";
+  out.close();
+
+  ASSERT_OK_AND_ASSIGN(Tileset * loaded, manager_->LoadTileset("legacy.json"));
+  EXPECT_EQ(loaded->tiles.size(), 1);
+  EXPECT_TRUE(loaded->terrains.empty());
+}
+
+// A tileset with no terrains must not gain a "terrains" key on disk.
+TEST_F(TilesetManagerTest, TilesetWithoutTerrainsOmitsTheKey) {
+  ASSERT_OK_AND_ASSIGN(std::string id,
+                       manager_->CreateTileset(Tileset{
+                           .name = "Plain",
+                           .texture_id = "tx",
+                           .tiles = {Tile{.id = 1, .name = "Solid"}},
+                       }));
+
+  std::ifstream in(test_dir_ + "/definitions/tilesets/Plain-" + id + ".json");
+  ASSERT_TRUE(in.is_open());
+  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  EXPECT_THAT(contents, ::testing::Not(HasSubstr("terrains")));
+}
+
+TEST_F(TilesetManagerTest, SaveTileset_TerrainReferencingUnknownTile_Fails) {
+  Tileset tileset = MakeTerrainTileset();
+  tileset.terrains[0].rules[0].variants[0].tile_id = 99;
+
+  absl::Status status = manager_->CreateTileset(tileset).status();
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(), HasSubstr("unknown tile ID 99"));
+}
+
+TEST_F(TilesetManagerTest, SaveTileset_TerrainWithDuplicateMask_Fails) {
+  Tileset tileset = MakeTerrainTileset();
+  tileset.terrains[0].rules[1].mask = 0;
+
+  absl::Status status = manager_->CreateTileset(tileset).status();
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(), HasSubstr("repeats mask 0"));
+}
+
+TEST_F(TilesetManagerTest, SaveTileset_TerrainWithEmptyVariants_Fails) {
+  Tileset tileset = MakeTerrainTileset();
+  tileset.terrains[0].rules[0].variants.clear();
+
+  absl::Status status = manager_->CreateTileset(tileset).status();
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(), HasSubstr("at least one variant"));
+}
+
+TEST_F(TilesetManagerTest, SaveTileset_TerrainWithNonPositiveWeight_Fails) {
+  Tileset tileset = MakeTerrainTileset();
+  tileset.terrains[0].rules[1].variants[0].weight = 0;
+
+  absl::Status status = manager_->CreateTileset(tileset).status();
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(), HasSubstr("weights must be positive"));
+}
+
+TEST_F(TilesetManagerTest, TerrainMemberTileIdsSurviveRoundTrip) {
+  Tileset tileset = MakeTerrainTileset();
+  tileset.tiles.push_back(Tile{.id = 4, .name = "Slope", .shape = TileShape::kSlope45BottomLeft});
+  tileset.terrains[0].member_tile_ids = {4};
+
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTileset(std::move(tileset)));
+  ReloadFromDisk();
+
+  ASSERT_OK_AND_ASSIGN(Tileset * loaded, manager_->GetTileset(id));
+  ASSERT_EQ(loaded->terrains.size(), 1);
+  EXPECT_THAT(loaded->terrains[0].member_tile_ids, ::testing::ElementsAre(4));
+}
+
+// A terrain with no hand-placed pieces must not gain the key on disk.
+TEST_F(TilesetManagerTest, TerrainWithoutMembersOmitsTheKey) {
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTileset(MakeTerrainTileset()));
+
+  std::ifstream in(test_dir_ + "/definitions/tilesets/GrassTerrain-" + id + ".json");
+  ASSERT_TRUE(in.is_open());
+  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  EXPECT_THAT(contents, ::testing::Not(HasSubstr("member_tile_ids")));
+}
+
+TEST_F(TilesetManagerTest, SaveTileset_TerrainMemberReferencingUnknownTile_Fails) {
+  Tileset tileset = MakeTerrainTileset();
+  tileset.terrains[0].member_tile_ids = {77};
+
+  absl::Status status = manager_->CreateTileset(tileset).status();
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(), HasSubstr("unknown member tile ID 77"));
+}
+
+TEST_F(TilesetManagerTest, SaveTileset_TerrainMemberAlsoPainted_Fails) {
+  Tileset tileset = MakeTerrainTileset();
+  // Tile 1 is already a rule variant.
+  tileset.terrains[0].member_tile_ids = {1};
+
+  absl::Status status = manager_->CreateTileset(tileset).status();
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(), HasSubstr("both painted and a member"));
+}
+
+TEST_F(TilesetManagerTest, SaveTileset_DuplicateTerrainId_Fails) {
+  Tileset tileset = MakeTerrainTileset();
+  Terrain duplicate = tileset.terrains[0];
+  duplicate.name = "Other";
+  tileset.terrains.push_back(std::move(duplicate));
+
+  absl::Status status = manager_->CreateTileset(tileset).status();
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(), HasSubstr("Duplicate terrain ID"));
+}
+
 }  // namespace
 }  // namespace zebes

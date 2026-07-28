@@ -49,7 +49,7 @@ class SpriteEditor {
   void RenderSpriteFrameItem(int index, SpriteFrame& frame);
 
   SDL_Texture* SdlTexture() {
-    return SdlTextureHandleAdapter::ToNative(model_.sprite().texture_handle);
+    return SdlTextureHandleAdapter::ToNative(model_.texture());
   }
   ImTextureID ImTextureId() { return (ImTextureID)(SdlTexture()); }
 

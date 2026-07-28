@@ -33,6 +33,25 @@ absl::StatusOr<TexturePreviewLayout> CalculateTexturePreviewLayout(int source_wi
   };
 }
 
+absl::StatusOr<AtlasBinding> TexturePreviewRenderer::BindAtlas(TextureHandle texture) const {
+  if (!texture) return AtlasBinding{};
+
+  SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(texture);
+  if (native_texture == nullptr) return AtlasBinding{};
+
+  int width = 0;
+  int height = 0;
+  if (SDL_QueryTexture(native_texture, nullptr, nullptr, &width, &height) != 0) {
+    return absl::InternalError(absl::StrCat("failed to query atlas texture: ", SDL_GetError()));
+  }
+
+  return AtlasBinding{
+      .texture_id = reinterpret_cast<ImTextureID>(native_texture),
+      .width = width,
+      .height = height,
+  };
+}
+
 absl::StatusOr<TexturePreviewLayout> TexturePreviewRenderer::Render(TextureHandle texture,
                                                                     float max_width,
                                                                     float max_height) const {

@@ -2,44 +2,17 @@
 
 #include <string>
 
-#include "engine/texture_handle.h"
-
 #include "absl/strings/str_cat.h"
 
+// A texture asset as authored: an identity and where its image lives on disk.
+//
+// Deliberately free of any runtime handle. The GPU resource for a texture is
+// owned by the texture store and looked up by ID, which keeps this definition
+// serializable and independent of the rendering backend.
 struct Texture {
   std::string id;
   std::string name;
   std::string path;
-  zebes::TextureHandle texture_handle;
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 };
-
-inline std::vector<Texture> DummyTextures() {
-  return {
-      {
-          .id = "0",
-          .name = "sky_background",
-          .path = "assets/textures/parallax/sky.png",
-          .texture_handle = {},
-      },
-      {
-          .id = "1",
-          .name = "distant_mountains",
-          .path = "assets/textures/parallax/mountains_far.png",
-          .texture_handle = {},
-      },
-      {
-          .id = "2",
-          .name = "near_trees",
-          .path = "assets/textures/parallax/trees_near.png",
-          .texture_handle = {},
-      },
-      {
-          .id = "3",
-          .name = "ground_tiles",
-          .path = "assets/textures/tileset_01.png",
-          .texture_handle = {},
-      },
-  };
-}

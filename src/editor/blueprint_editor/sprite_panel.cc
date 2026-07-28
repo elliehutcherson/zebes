@@ -28,26 +28,37 @@ SpritePanel::SpritePanel(Api* api, GuiInterface* gui) : api_(*api), gui_(gui) {
 
 void SpritePanel::RefreshSpriteCache() { model_.SetSprites(api_.GetAllSprites()); }
 
+absl::Status SpritePanel::AttachCanvasSprite() {
+  Sprite* sprite = model_.editing_sprite();
+  if (sprite == nullptr) {
+    return absl::FailedPreconditionError("No sprite is attached.");
+  }
+
+  // An unloadable texture is an authoring state, not a failure: the panel
+  // reports "Texture not loaded" rather than refusing to attach.
+  absl::StatusOr<TextureHandle> texture = api_.GetTextureHandle(sprite->texture_id);
+  editing_texture_ = texture.ok() ? *texture : TextureHandle{};
+  canvas_sprite_ = std::make_unique<CanvasSprite>(*sprite, editing_texture_);
+  return absl::OkStatus();
+}
+
 absl::Status SpritePanel::Attach(const std::string& id) {
   Detach();
   ASSIGN_OR_RETURN(Sprite * sprite, api_.GetSprite(id));
   model_.AttachSprite(*sprite);
-  canvas_sprite_ = std::make_unique<CanvasSprite>(*model_.editing_sprite());
-
-  return absl::OkStatus();
+  return AttachCanvasSprite();
 }
 
 absl::Status SpritePanel::Attach(int i) {
   model_.SelectSpriteIndex(i);
   RETURN_IF_ERROR(model_.AttachSelectedSprite());
-  canvas_sprite_ = std::make_unique<CanvasSprite>(*model_.editing_sprite());
-
-  return absl::OkStatus();
+  return AttachCanvasSprite();
 }
 
 void SpritePanel::Detach() {
   model_.DetachSprite();
   canvas_sprite_.reset();
+  editing_texture_ = {};
 }
 
 absl::StatusOr<SpriteResult> SpritePanel::Render() {
@@ -148,8 +159,7 @@ absl::Status SpritePanel::ConfirmState() {
 }
 
 void SpritePanel::RenderFrameDetails() {
-  Sprite* editing_sprite = model_.editing_sprite();
-  if (!editing_sprite->texture_handle) {
+  if (!editing_texture_) {
     gui_->TextColored(ImVec4(1, 0, 0, 1), "Texture not loaded");
     return;
   }
@@ -158,7 +168,7 @@ void SpritePanel::RenderFrameDetails() {
   if (frame == nullptr) return;
 
   int tex_w, tex_h;
-  SDL_Texture* texture = SdlTextureHandleAdapter::ToNative(editing_sprite->texture_handle);
+  SDL_Texture* texture = SdlTextureHandleAdapter::ToNative(editing_texture_);
   if (texture == nullptr) {
     gui_->TextColored(ImVec4(1, 0, 0, 1), "Texture resource unavailable");
     return;

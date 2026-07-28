@@ -27,6 +27,8 @@ absl::Status SpriteEditorModel::SelectSprite(const std::string& id) {
   for (const auto& [key, sprite] : sprites_) {
     if (sprite.id != id) continue;
     sprite_ = sprite;
+    // The caller resolves the new sprite's texture; until then there is none.
+    texture_ = {};
     is_new_sprite_ = false;
     SetEditName(sprite.name);
     original_frames_ = sprite.frames;
@@ -38,6 +40,7 @@ absl::Status SpriteEditorModel::SelectSprite(const std::string& id) {
 
 void SpriteEditorModel::BeginNewSprite() {
   sprite_ = {};
+  texture_ = {};
   is_new_sprite_ = true;
   SetEditName("");
   original_frames_.clear();
@@ -46,6 +49,7 @@ void SpriteEditorModel::BeginNewSprite() {
 
 void SpriteEditorModel::ClearSelection() {
   sprite_ = {};
+  texture_ = {};
   is_new_sprite_ = false;
   edit_name_buffer_.clear();
   original_frames_.clear();
@@ -55,7 +59,7 @@ void SpriteEditorModel::ClearSelection() {
 absl::Status SpriteEditorModel::SelectTexture(const std::string& texture_id, TextureHandle handle) {
   if (!has_selection()) return absl::FailedPreconditionError("No sprite is selected");
   sprite_.texture_id = texture_id;
-  sprite_.texture_handle = handle;
+  texture_ = handle;
   return absl::OkStatus();
 }
 

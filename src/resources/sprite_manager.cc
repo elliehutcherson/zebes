@@ -122,9 +122,9 @@ absl::StatusOr<Sprite*> SpriteManager::LoadSprite(const std::string& path_json) 
     return sprites_[sprite.id].get();
   }
 
-  // Check that texutre has been loaded.
-  ASSIGN_OR_RETURN(Texture * texture, tm_->GetTexture(sprite.texture_id));
-  sprite.texture_handle = texture->texture_handle;
+  // The texture must be loaded, but its handle is runtime state and stays with
+  // the texture manager; Sprite names its texture by ID only.
+  RETURN_IF_ERROR(tm_->GetTexture(sprite.texture_id).status());
 
   // Create Sprite object.
   std::string id = sprite.id;
@@ -168,9 +168,9 @@ absl::Status SpriteManager::SaveSprite(Sprite sprite) {
     return absl::InvalidArgumentError("Sprite must have an ID to be saved.");
   }
 
-  // Check that texutre has been loaded.
-  ASSIGN_OR_RETURN(Texture * texture, tm_->GetTexture(sprite.texture_id));
-  sprite.texture_handle = texture->texture_handle;
+  // The texture must be loaded, but its handle is runtime state and stays with
+  // the texture manager; Sprite names its texture by ID only.
+  RETURN_IF_ERROR(tm_->GetTexture(sprite.texture_id).status());
 
   nlohmann::json json = ToJson(sprite);
 

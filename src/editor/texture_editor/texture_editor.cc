@@ -68,7 +68,12 @@ SDL_Texture* TextureEditor::PreviewTexture() const {
   if (preview_texture_ != nullptr) return preview_texture_;
   const Texture* selected_texture = model_.selected_texture();
   if (selected_texture == nullptr) return nullptr;
-  return SdlTextureHandleAdapter::ToNative(selected_texture->texture_handle);
+
+  // An unloaded texture yields an invalid handle, which resolves to null and
+  // renders as "no preview" rather than failing.
+  absl::StatusOr<TextureHandle> handle = api_->GetTextureHandle(selected_texture->id);
+  if (!handle.ok()) return nullptr;
+  return SdlTextureHandleAdapter::ToNative(*handle);
 }
 
 void TextureEditor::Render() {

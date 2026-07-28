@@ -11,8 +11,16 @@
 namespace zebes {
 namespace {
 
+// Entities reference sprites by ID, so tests build the per-frame lookup the
+// viewport would supply. The texture is paired in rather than stored on the
+// sprite, matching how the viewport resolves it.
+SpriteLookup Lookup(const Sprite& sprite, TextureHandle texture = {}) {
+  return SpriteLookup{{"s1", ResolvedSprite{.sprite = &sprite, .texture = texture}}};
+}
+
 TEST(ViewportSceneEntityTest, ComposesStableSpriteGeometryAndPresentationState) {
   int texture_owner = 0;
+  const TextureHandle texture = TextureHandleAccess::Create(1, &texture_owner);
   Sprite sprite{
       .frames = {SpriteFrame{
           .texture_x = 8,
@@ -24,14 +32,14 @@ TEST(ViewportSceneEntityTest, ComposesStableSpriteGeometryAndPresentationState) 
           .offset_x = -10,
           .offset_y = -20,
       }},
-      .texture_handle = TextureHandleAccess::Create(1, &texture_owner),
   };
   std::map<uint64_t, Entity> entities{
-      {7, Entity{.id = 7, .transform = {.position = {100, 200}}, .sprite = &sprite}},
+      {7, Entity{.id = 7, .transform = {.position = {100, 200}}, .sprite_id = "s1"}},
   };
 
   absl::StatusOr<std::vector<EntityRenderItem>> items = ComposeEntityRenderItems(
-      entities, {.selected_entity_id = 7, .show_borders = true, .overlay_opacity = 0.25f});
+      entities, Lookup(sprite, texture),
+      {.selected_entity_id = 7, .show_borders = true, .overlay_opacity = 0.25f});
 
   ASSERT_TRUE(items.ok()) << items.status();
   ASSERT_EQ(items->size(), 1u);
@@ -57,7 +65,7 @@ TEST(ViewportSceneEntityTest, OmitsInactiveEntitiesAndCentersPlaceholderBounds) 
   };
 
   absl::StatusOr<std::vector<EntityRenderItem>> items =
-      ComposeEntityRenderItems(entities, {});
+      ComposeEntityRenderItems(entities, {}, {});
 
   ASSERT_TRUE(items.ok()) << items.status();
   ASSERT_EQ(items->size(), 1u);
@@ -72,11 +80,11 @@ TEST(ViewportSceneEntityTest, SpriteWithoutTextureStillUsesSpriteBounds) {
       .frames = {SpriteFrame{.render_w = 20, .render_h = 30, .offset_x = -5, .offset_y = -10}},
   };
   std::map<uint64_t, Entity> entities{
-      {1, Entity{.id = 1, .transform = {.position = {50, 60}}, .sprite = &sprite}},
+      {1, Entity{.id = 1, .transform = {.position = {50, 60}}, .sprite_id = "s1"}},
   };
 
   absl::StatusOr<std::vector<EntityRenderItem>> items =
-      ComposeEntityRenderItems(entities, {});
+      ComposeEntityRenderItems(entities, Lookup(sprite), {});
 
   ASSERT_TRUE(items.ok()) << items.status();
   ASSERT_EQ(items->size(), 1u);
@@ -88,12 +96,14 @@ TEST(ViewportSceneEntityTest, SpriteWithoutTextureStillUsesSpriteBounds) {
 TEST(ViewportSceneEntityTest, RejectsInvalidState) {
   Sprite sprite{.frames = {SpriteFrame{.render_w = 0, .render_h = 16}}};
   std::map<uint64_t, Entity> entities{
-      {1, Entity{.id = 1, .sprite = &sprite}},
+      {1, Entity{.id = 1, .sprite_id = "s1"}},
   };
 
-  EXPECT_EQ(ComposeEntityRenderItems(entities, {}).status().code(),
+  EXPECT_EQ(ComposeEntityRenderItems(entities, Lookup(sprite), {}).status().code(),
             absl::StatusCode::kInvalidArgument);
-  EXPECT_EQ(ComposeEntityRenderItems(entities, {.overlay_opacity = 1.1f}).status().code(),
+  EXPECT_EQ(ComposeEntityRenderItems(entities, Lookup(sprite), {.overlay_opacity = 1.1f})
+                .status()
+                .code(),
             absl::StatusCode::kInvalidArgument);
 
   int texture_owner = 0;
@@ -103,13 +113,14 @@ TEST(ViewportSceneEntityTest, RejectsInvalidState) {
       .render_w = 16,
       .render_h = 16,
   };
-  sprite.texture_handle = TextureHandleAccess::Create(1, &texture_owner);
-  EXPECT_EQ(ComposeEntityRenderItems(entities, {}).status().code(),
+  const TextureHandle texture = TextureHandleAccess::Create(1, &texture_owner);
+  EXPECT_EQ(ComposeEntityRenderItems(entities, Lookup(sprite, texture), {}).status().code(),
             absl::StatusCode::kInvalidArgument);
 }
 
 TEST(ViewportSceneEntityTest, ComposesPlacementGhostWithSharedEntityGeometry) {
   int texture_owner = 0;
+  const TextureHandle texture = TextureHandleAccess::Create(3, &texture_owner);
   Sprite sprite{
       .frames = {SpriteFrame{
           .texture_x = 4,
@@ -121,11 +132,10 @@ TEST(ViewportSceneEntityTest, ComposesPlacementGhostWithSharedEntityGeometry) {
           .offset_x = -10,
           .offset_y = -20,
       }},
-      .texture_handle = TextureHandleAccess::Create(3, &texture_owner),
   };
 
-  absl::StatusOr<EntityRenderItem> item =
-      ComposeEntityPlacementItem({100, 200}, &sprite);
+  absl::StatusOr<EntityRenderItem> item = ComposeEntityPlacementItem(
+      {100, 200}, ResolvedSprite{.sprite = &sprite, .texture = texture});
 
   ASSERT_TRUE(item.ok()) << item.status();
   EXPECT_EQ(item->mode, EntityRenderMode::kPlacementGhost);
@@ -133,14 +143,13 @@ TEST(ViewportSceneEntityTest, ComposesPlacementGhostWithSharedEntityGeometry) {
   EXPECT_EQ(item->bounds.min, (Vec{90, 180}));
   EXPECT_EQ(item->bounds.max, (Vec{122, 228}));
   ASSERT_TRUE(item->sprite.has_value());
-  EXPECT_EQ(item->sprite->texture, sprite.texture_handle);
+  EXPECT_EQ(item->sprite->texture, texture);
   EXPECT_EQ(item->sprite->source.x, 4);
   EXPECT_EQ(item->sprite->source.y, 8);
 }
 
 TEST(ViewportSceneEntityTest, PlacementGhostAllowsNoSpriteButRejectsBrokenSprite) {
-  absl::StatusOr<EntityRenderItem> placeholder =
-      ComposeEntityPlacementItem({100, 200}, nullptr);
+  absl::StatusOr<EntityRenderItem> placeholder = ComposeEntityPlacementItem({100, 200}, {});
   ASSERT_TRUE(placeholder.ok()) << placeholder.status();
   EXPECT_EQ(placeholder->bounds.min, (Vec{84, 184}));
   EXPECT_EQ(placeholder->bounds.max, (Vec{116, 216}));
@@ -154,13 +163,15 @@ TEST(ViewportSceneEntityTest, PlacementGhostAllowsNoSpriteButRejectsBrokenSprite
           .render_h = 16,
       }},
   };
-  EXPECT_EQ(ComposeEntityPlacementItem({0, 0}, &missing_resource).status().code(),
-            absl::StatusCode::kFailedPrecondition);
-  EXPECT_EQ(ComposeEntityPlacementItem(
-                {std::numeric_limits<double>::infinity(), 0}, nullptr)
+  EXPECT_EQ(ComposeEntityPlacementItem({0, 0}, ResolvedSprite{.sprite = &missing_resource})
                 .status()
                 .code(),
-            absl::StatusCode::kInvalidArgument);
+            absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(
+      ComposeEntityPlacementItem({std::numeric_limits<double>::infinity(), 0}, {})
+          .status()
+          .code(),
+      absl::StatusCode::kInvalidArgument);
 }
 
 TEST(ViewportSceneZoneTest, CullsOffscreenZonesAndGivesSelectionPrecedence) {

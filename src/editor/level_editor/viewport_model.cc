@@ -9,9 +9,9 @@
 
 namespace zebes {
 
-absl::StatusOr<WorldRect> CalculateEntityBounds(const Entity& entity) {
+absl::StatusOr<WorldRect> CalculateEntityBounds(const Entity& entity, const Sprite* sprite) {
   constexpr double kDefaultHalfSize = 16.0;
-  if (entity.sprite == nullptr || entity.sprite->frames.empty()) {
+  if (sprite == nullptr || sprite->frames.empty()) {
     return WorldRect{
         .min = {entity.transform.position.x - kDefaultHalfSize,
                 entity.transform.position.y - kDefaultHalfSize},
@@ -20,7 +20,7 @@ absl::StatusOr<WorldRect> CalculateEntityBounds(const Entity& entity) {
     };
   }
 
-  const SpriteFrame& frame = entity.sprite->frames.front();
+  const SpriteFrame& frame = sprite->frames.front();
   WorldRect bounds{
       .min = {entity.transform.position.x + frame.offset_x,
               entity.transform.position.y + frame.offset_y},
@@ -33,11 +33,19 @@ absl::StatusOr<WorldRect> CalculateEntityBounds(const Entity& entity) {
   return bounds;
 }
 
-absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, Vec world_pos) {
+ResolvedSprite FindSprite(const SpriteLookup& sprites, const std::string& sprite_id) {
+  auto found = sprites.find(sprite_id);
+  if (found == sprites.end()) return ResolvedSprite{};
+  return found->second;
+}
+
+absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, Vec world_pos,
+                                    const SpriteLookup& sprites) {
   for (const auto& [id, entity] : entities) {
     if (!entity.active) continue;
 
-    absl::StatusOr<WorldRect> bounds = CalculateEntityBounds(entity);
+    absl::StatusOr<WorldRect> bounds =
+        CalculateEntityBounds(entity, FindSprite(sprites, entity.sprite_id).sprite);
     if (!bounds.ok()) return bounds.status();
     if (world_pos.x >= bounds->min.x && world_pos.x <= bounds->max.x &&
         world_pos.y >= bounds->min.y && world_pos.y <= bounds->max.y) {
@@ -59,6 +67,9 @@ Entity CreateEntityFromBlueprint(const Blueprint& blueprint, int state_index, Ve
   entity.blueprint_id = blueprint.id;
   entity.blueprint_state_index = state_index;
   entity.transform.position = world_pos;
+  // The blueprint state is the authored source of the asset reference, so the
+  // entity records the ID rather than a resolved pointer.
+  entity.sprite_id = blueprint.sprite_id(state_index).value_or("");
   return entity;
 }
 

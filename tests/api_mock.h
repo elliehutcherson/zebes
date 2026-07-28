@@ -18,6 +18,7 @@ class MockApi : public Api {
   MOCK_METHOD(absl::StatusOr<std::vector<Texture>>, GetAllTextures, (), (override));
   MOCK_METHOD(absl::Status, UpdateTexture, (const Texture&), (override));
   MOCK_METHOD(absl::StatusOr<Texture*>, GetTexture, (const std::string&), (override));
+  MOCK_METHOD(absl::StatusOr<TextureHandle>, GetTextureHandle, (const std::string&), (override));
 
   // Sprites
   MOCK_METHOD(absl::StatusOr<std::string>, CreateSprite, (Sprite), (override));

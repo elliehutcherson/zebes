@@ -65,7 +65,9 @@ TEST_F(TextureManagerTest, CreateAndGetTexture) {
   EXPECT_EQ((*tex)->path, "textures/test.png");
   // Default name should be the stem
   EXPECT_EQ((*tex)->name, "test");
-  EXPECT_TRUE((*tex)->texture_handle);
+  // The runtime handle lives on the manager, not on the definition.
+  ASSERT_OK_AND_ASSIGN(TextureHandle handle, manager_->GetTextureHandle(*id));
+  EXPECT_TRUE(handle);
   ASSERT_EQ(resources_->loaded_paths.size(), 1);
   EXPECT_EQ(resources_->loaded_paths.front(), test_dir_ + "/textures/test.png");
 

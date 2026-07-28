@@ -155,11 +155,12 @@ struct ParallaxRenderOptions {
 // Invalid sprite geometry and opacity are rejected instead of being rendered
 // with undefined bounds or color values.
 absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
-    const std::map<uint64_t, Entity>& entities, const EntityRenderOptions& options);
+    const std::map<uint64_t, Entity>& entities, const SpriteLookup& sprites,
+    const EntityRenderOptions& options);
 
 // Composes one transient entity preview using the same geometry as level entities.
 absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
-                                                            const Sprite* sprite);
+                                                            const ResolvedSprite& resolved);
 
 // Builds gizmos for zones intersecting the current camera. Selection takes
 // visual precedence over active-zone state.

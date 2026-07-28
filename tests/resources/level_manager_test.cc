@@ -4,11 +4,9 @@
 #include <fstream>
 #include <memory>
 
-#include "collider_manager_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
-#include "sprite_manager_mock.h"
 
 namespace zebes {
 namespace {
@@ -25,27 +23,20 @@ class LevelManagerTest : public ::testing::Test {
     std::filesystem::remove_all(test_dir);
     std::filesystem::create_directories(test_dir + "/definitions/levels");
 
-    sm_ = std::make_unique<NiceMock<SpriteManagerMock>>();
-    cm_ = std::make_unique<NiceMock<ColliderManagerMock>>();
-
-    // LevelManager::Create expects dependencies
-    ASSERT_OK_AND_ASSIGN(manager_, LevelManager::Create(sm_.get(), cm_.get(), test_dir));
+    // Levels reference sprites and colliders by ID, so no asset managers are
+    // needed to round-trip one.
+    ASSERT_OK_AND_ASSIGN(manager_, LevelManager::Create(test_dir));
   }
 
   void TearDown() override { std::filesystem::remove_all("/tmp/test_level_manager"); }
 
   std::unique_ptr<LevelManager> manager_;
-  std::unique_ptr<SpriteManagerMock> sm_;
-  std::unique_ptr<ColliderManagerMock> cm_;
 };
 
 TEST_F(LevelManagerTest, CreateAndGetLevel) {
   Level level{
       .name = "My Level",
   };
-
-  EXPECT_CALL(*sm_, GetSprite(_)).Times(0);
-  EXPECT_CALL(*cm_, GetCollider(_)).Times(0);
 
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
   EXPECT_FALSE(id.empty());
@@ -83,7 +74,8 @@ TEST_F(LevelManagerTest, SerializationTest) {
   auto entity = std::make_unique<Entity>();
   entity->id = 123;
   entity->transform.position = {10, 20};
-  entity->body.velocity = {1, 0};
+  entity->body.drag = {1, 0};
+  entity->body.mass = 4.5;
   entity->body.is_static = true;
 
   level.AddEntity(std::move(*entity));
@@ -112,7 +104,8 @@ TEST_F(LevelManagerTest, SerializationTest) {
   const Entity& loaded_entity = loaded->entities.at(123);
   EXPECT_EQ(loaded_entity.id, 123);
   EXPECT_EQ(loaded_entity.transform.position.x, 10);
-  EXPECT_EQ(loaded_entity.body.velocity.x, 1);
+  EXPECT_EQ(loaded_entity.body.drag.x, 1);
+  EXPECT_EQ(loaded_entity.body.mass, 4.5);
   EXPECT_TRUE(loaded_entity.body.is_static);
 }
 
@@ -267,7 +260,7 @@ TEST_F(LevelManagerTest, ParallaxLayerPersistence) {
   // Force reload from disk
   manager_ = nullptr;
   ASSERT_OK_AND_ASSIGN(auto new_manager,
-                       LevelManager::Create(sm_.get(), cm_.get(), "test_data/level_manager_test"));
+                       LevelManager::Create("test_data/level_manager_test"));
   manager_ = std::move(new_manager);
   ASSERT_OK(manager_->LoadAllLevels());
 
@@ -329,7 +322,7 @@ TEST_F(LevelManagerTest, ZonesAndThemesPersistence) {
   // Reload
   manager_ = nullptr;
   ASSERT_OK_AND_ASSIGN(auto new_manager,
-                       LevelManager::Create(sm_.get(), cm_.get(), "test_data/level_manager_test"));
+                       LevelManager::Create("test_data/level_manager_test"));
   manager_ = std::move(new_manager);
   ASSERT_OK(manager_->LoadAllLevels());
 
@@ -383,7 +376,7 @@ TEST_F(LevelManagerTest, ThemeLayerOffsetPersistence) {
   // Force reload from disk
   manager_ = nullptr;
   ASSERT_OK_AND_ASSIGN(auto new_manager,
-                       LevelManager::Create(sm_.get(), cm_.get(), "test_data/level_manager_test"));
+                       LevelManager::Create("test_data/level_manager_test"));
   manager_ = std::move(new_manager);
   ASSERT_OK(manager_->LoadAllLevels());
 
@@ -645,6 +638,88 @@ TEST_F(LevelManagerTest, EntityBlueprintFieldsSurviveRoundTrip) {
   EXPECT_EQ(loaded_entity.blueprint_state_index, 2);
   EXPECT_EQ(loaded_entity.transform.position.x, 64);
   EXPECT_EQ(loaded_entity.transform.position.y, 128);
+}
+
+// --- Definition / runtime boundary -------------------------------------------
+
+// Velocity and acceleration are simulation state. A level file records what was
+// authored, not how fast something happened to be moving when it was saved.
+TEST_F(LevelManagerTest, SimulationStateIsNotPersisted) {
+  Level level{.name = "Motion", .width = 320, .height = 320};
+  Entity entity;
+  entity.id = 7;
+  entity.body.mass = 2.0;
+  entity.body.is_static = true;
+  level.AddEntity(std::move(entity));
+
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
+
+  std::ifstream in("test_data/level_manager_test/definitions/levels/Motion-" + id + ".json");
+  ASSERT_TRUE(in.is_open());
+  const std::string contents((std::istreambuf_iterator<char>(in)),
+                             std::istreambuf_iterator<char>());
+
+  EXPECT_THAT(contents, ::testing::Not(HasSubstr("\"vx\"")));
+  EXPECT_THAT(contents, ::testing::Not(HasSubstr("\"vy\"")));
+  EXPECT_THAT(contents, ::testing::Not(HasSubstr("\"ax\"")));
+  EXPECT_THAT(contents, ::testing::Not(HasSubstr("\"ay\"")));
+  // Animation playback is likewise runtime state and belongs to the animator.
+  EXPECT_THAT(contents, ::testing::Not(HasSubstr("\"current_frame_index\"")));
+  // Authored properties are still written.
+  EXPECT_THAT(contents, HasSubstr("\"mass\""));
+  EXPECT_THAT(contents, HasSubstr("\"is_static\""));
+}
+
+// Asset references round-trip as IDs, which is what lets a level load without
+// the sprite or collider managers.
+TEST_F(LevelManagerTest, EntityAssetReferencesRoundTripAsIds) {
+  Level level{.name = "Refs", .width = 320, .height = 320};
+  Entity entity;
+  entity.id = 11;
+  entity.sprite_id = "sprite-uuid";
+  entity.collider_id = "collider-uuid";
+  level.AddEntity(std::move(entity));
+
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
+  ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
+
+  ASSERT_EQ(loaded->entities.size(), 1);
+  EXPECT_EQ(loaded->entities.at(11).sprite_id, "sprite-uuid");
+  EXPECT_EQ(loaded->entities.at(11).collider_id, "collider-uuid");
+}
+
+// Levels written before the split carry vx/vy/ax/ay and current_frame_index.
+// They must keep loading, with those keys ignored rather than restored.
+TEST_F(LevelManagerTest, LegacyLevelWithSimulationStateStillLoads) {
+  const std::string path =
+      "test_data/level_manager_test/definitions/levels/Legacy-legacy-id.json";
+  std::ofstream out(path);
+  out << R"({
+    "id": "legacy-id",
+    "name": "Legacy",
+    "width": 320.0,
+    "height": 320.0,
+    "tile_render_width": 16,
+    "tile_render_height": 16,
+    "spawn_point": {"x": 0.0, "y": 0.0},
+    "entities": [{
+      "id": 9,
+      "active": true,
+      "transform": {"x": 32.0, "y": 48.0, "rotation": 0.0},
+      "current_frame_index": 4,
+      "body": {"vx": 5.0, "vy": -3.0, "ax": 1.0, "ay": 2.0, "mass": 1.5, "is_static": false}
+    }],
+    "themes": [], "zones": [], "parallax_layers": [], "tile_chunks": []
+  })";
+  out.close();
+
+  ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->LoadLevel("Legacy-legacy-id.json"));
+
+  ASSERT_EQ(loaded->entities.size(), 1);
+  const Entity& entity = loaded->entities.at(9);
+  EXPECT_EQ(entity.transform.position.x, 32);
+  EXPECT_EQ(entity.body.mass, 1.5);
+  EXPECT_FALSE(entity.body.is_static);
 }
 
 }  // namespace

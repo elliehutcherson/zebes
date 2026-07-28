@@ -4,38 +4,41 @@
 #include <string>
 
 #include "objects/body.h"
-#include "objects/collider.h"
-#include "objects/sprite.h"
 #include "objects/transform.h"
 
 namespace zebes {
 
+// A placed entity as authored. Deliberately free of resolved asset pointers:
+// assets are referenced by ID so this stays a pure, serializable definition and
+// loading a level does not require the sprite or collider managers.
 struct Entity {
   static constexpr uint64_t kInvalidId = 0;
 
   uint64_t id = kInvalidId;  // Unique Runtime ID (for safe lookups)
   bool active = true;        // For "soft" deletion
 
-  // MUTABLE STATE (Owned by Entity)
+  // AUTHORED STATE (Owned by Entity)
   // Every entity needs a distinct position, so this is stored by Value.
   Transform transform;
-  Body body;  // Physics velocity/acceleration
+  // Authored physical properties only. Velocity and acceleration are runtime
+  // simulation state and live in Motion.
+  Body body;
 
   // BLUEPRINT REFERENCE (for serialization and editor display)
   // Identifies which blueprint and state this entity was spawned from.
   std::string blueprint_id;
   int blueprint_state_index = 0;
 
-  // IMMUTABLE ASSETS (Owned by Managers)
-  // These are raw pointers because Entity does NOT own them.
-  // The Managers guarantee these pointers remain valid.
-  const Sprite* sprite = nullptr;
-  const Collider* collider = nullptr;
+  // ASSET REFERENCES (Owned by Managers)
+  // Stored by ID rather than by pointer. Rendering and picking resolve these
+  // once per frame and pass the result explicitly.
+  std::string sprite_id;
+  std::string collider_id;
 
-  // If you need unique instance data for a component (e.g. current animation frame),
-  // you store that small state here, separate from the heavy Sprite asset.
-  int current_frame_index = 0;
-  double animation_timer = 0.0;
+  // Animation playback state deliberately lives elsewhere. It is runtime
+  // simulation state, not authored data, and keeping it here meant every saved
+  // level carried a frame index nothing ever read. See editor/animator.h for
+  // how playback state is owned today.
 };
 
 }  // namespace zebes

@@ -8,16 +8,16 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "objects/level.h"
-#include "resources/collider_manager.h"
-#include "resources/sprite_manager.h"
 
 namespace zebes {
 
+// Loads and saves level definitions.
+//
+// Deliberately free of asset-manager dependencies: entities reference sprites
+// and colliders by ID, so a level round-trips without resolving them.
 class LevelManager {
  public:
-  static absl::StatusOr<std::unique_ptr<LevelManager>> Create(SpriteManager* sprite_manager,
-                                                              ColliderManager* collider_manager,
-                                                              std::string root_path);
+  static absl::StatusOr<std::unique_ptr<LevelManager>> Create(std::string root_path);
 
   virtual ~LevelManager() = default;
 
@@ -66,14 +66,12 @@ class LevelManager {
   virtual std::vector<Level> GetAllLevels() const;
 
  protected:
-  LevelManager(SpriteManager& sm, ColliderManager& cm, std::string root_path);
+  explicit LevelManager(std::string root_path);
 
   std::string GetDefinitionsPath(const std::string relative_path);
 
   std::string root_path_;
   std::string definitions_path_;
-  SpriteManager& sm_;
-  ColliderManager& cm_;
   absl::flat_hash_map<std::string, std::unique_ptr<Level>> levels_;
 };
 

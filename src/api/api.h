@@ -4,6 +4,7 @@
 
 #include "absl/status/statusor.h"
 #include "common/config.h"
+#include "engine/texture_handle.h"
 #include "objects/texture.h"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
@@ -42,6 +43,9 @@ class Api {
   virtual absl::StatusOr<std::vector<Texture>> GetAllTextures();
   virtual absl::Status UpdateTexture(const Texture& texture);
   virtual absl::StatusOr<Texture*> GetTexture(const std::string& sprite_id);
+  // Runtime GPU handle for a texture. Definitions no longer carry one, so
+  // rendering paths resolve it by ID at the point of use.
+  virtual absl::StatusOr<TextureHandle> GetTextureHandle(const std::string& texture_id);
 
   virtual absl::StatusOr<std::string> CreateSprite(Sprite sprite);
   virtual absl::Status UpdateSprite(Sprite sprite);

@@ -67,6 +67,10 @@ absl::StatusOr<std::vector<Texture>> Api::GetAllTextures() {
   return texture_manager_->GetAllTextures();
 }
 
+absl::StatusOr<TextureHandle> Api::GetTextureHandle(const std::string& texture_id) {
+  return texture_manager_->GetTextureHandle(texture_id);
+}
+
 absl::StatusOr<Texture*> Api::GetTexture(const std::string& id) {
   return texture_manager_->GetTexture(id);
 }

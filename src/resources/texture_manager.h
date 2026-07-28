@@ -10,6 +10,16 @@
 
 namespace zebes {
 
+// Resolves a texture definition's declared path to a file under the asset root.
+//
+// Two conventions are in circulation: older definitions store a bare filename
+// relative to the images directory, newer ones store a root-relative path that
+// already begins with "textures/". Both are accepted so existing definitions
+// keep loading. Exposed so callers that need to check artwork exists resolve it
+// the same way loading does, instead of reimplementing the rule.
+std::string ResolveTextureImagePath(const std::string& root_path,
+                                    const std::string& declared_path);
+
 class TextureManager {
  public:
   static absl::StatusOr<std::unique_ptr<TextureManager>> Create(TextureResourceStore* resources,
@@ -61,6 +71,15 @@ class TextureManager {
    */
   virtual absl::Status UpdateTexture(const Texture& texture);
 
+  /**
+   * @brief Returns the loaded GPU handle for a texture.
+   *
+   * The handle is runtime state and deliberately lives here rather than on the
+   * Texture definition. An unloaded texture yields an invalid handle rather
+   * than an error, since that is an ordinary authoring state.
+   */
+  virtual absl::StatusOr<TextureHandle> GetTextureHandle(const std::string& id) const;
+
  protected:
   friend class TextureManagerTestPeer;
 
@@ -76,6 +95,10 @@ class TextureManager {
   const std::string images_path_;
   TextureResourceStore* resources_;
   absl::flat_hash_map<std::string, std::unique_ptr<Texture>> textures_;
+
+  // Runtime GPU handles, keyed by texture ID. Kept beside the definitions
+  // rather than inside them so Texture stays backend-independent.
+  absl::flat_hash_map<std::string, TextureHandle> handles_;
 };
 
 }  // namespace zebes

@@ -35,22 +35,31 @@ TextureManager::TextureManager(TextureResourceStore* resources, std::string root
       images_path_(absl::StrCat(root_path, "/", kImagesPath)) {}
 
 TextureManager::~TextureManager() {
-  for (auto& [id, texture] : textures_) {
-    if (texture != nullptr && texture->texture_handle) {
-      resources_->Unload(texture->texture_handle).IgnoreError();
-    }
+  for (auto& [id, handle] : handles_) {
+    if (handle) resources_->Unload(handle).IgnoreError();
   }
+}
+
+absl::StatusOr<TextureHandle> TextureManager::GetTextureHandle(const std::string& id) const {
+  auto found = handles_.find(id);
+  if (found == handles_.end()) return TextureHandle{};
+  return found->second;
 }
 
 std::string TextureManager::GetDefinitionsPath(const std::string& relative_path) {
   return absl::StrCat(definitions_path_, "/", relative_path);
 }
 
-std::string TextureManager::GetImagesPath(const std::string& relative_path) {
-  if (relative_path.rfind("textures/", 0) == 0) {
-    return absl::StrCat(root_path_, "/", relative_path);
+std::string ResolveTextureImagePath(const std::string& root_path,
+                                    const std::string& declared_path) {
+  if (declared_path.rfind(absl::StrCat(kImagesPath, "/"), 0) == 0) {
+    return absl::StrCat(root_path, "/", declared_path);
   }
-  return absl::StrCat(images_path_, "/", relative_path);
+  return absl::StrCat(root_path, "/", kImagesPath, "/", declared_path);
+}
+
+std::string TextureManager::GetImagesPath(const std::string& relative_path) {
+  return ResolveTextureImagePath(root_path_, relative_path);
 }
 
 absl::Status TextureManager::LoadAllTextures() {
@@ -105,8 +114,8 @@ absl::StatusOr<Texture*> TextureManager::LoadTexture(const std::string& path_jso
   texture->id = id;
   texture->name = name;
   texture->path = path;
-  texture->texture_handle = texture_handle;
 
+  handles_[id] = texture_handle;
   textures_[id] = std::move(texture);
   return textures_[id].get();
 }
@@ -155,7 +164,6 @@ absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
   }
 
   ASSIGN_OR_RETURN(TextureHandle texture_handle, resources_->Load(destination_path));
-  texture.texture_handle = texture_handle;
 
   // Save metadata to JSON
   absl::Status save_status = SaveTexture(texture);
@@ -165,6 +173,7 @@ absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
   }
 
   // Store in map
+  handles_[id] = texture_handle;
   textures_[id] = std::make_unique<Texture>(texture);
 
   return id;
@@ -232,8 +241,10 @@ absl::Status TextureManager::DeleteTexture(const std::string& id) {
   if (it == textures_.end()) return absl::NotFoundError("Texture not found");
 
   // Release the runtime renderer resource.
-  if (it->second->texture_handle) {
-    RETURN_IF_ERROR(resources_->Unload(it->second->texture_handle));
+  auto handle = handles_.find(id);
+  if (handle != handles_.end()) {
+    if (handle->second) RETURN_IF_ERROR(resources_->Unload(handle->second));
+    handles_.erase(handle);
   }
 
   // Remove JSON file

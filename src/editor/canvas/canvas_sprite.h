@@ -2,6 +2,7 @@
 
 #include "editor/animator.h"
 #include "editor/canvas/canvas.h"
+#include "engine/texture_handle.h"
 #include "objects/sprite.h"
 
 namespace zebes {
@@ -9,7 +10,10 @@ namespace zebes {
 // Handles rendering and interacting with a sprite on the editor canvas.
 class CanvasSprite {
  public:
-  CanvasSprite(Sprite& sprite) : sprite_(sprite) {}
+  // The texture handle is passed in rather than read off the sprite: Sprite is
+  // a pure definition that names its texture by ID, so resolving it belongs to
+  // the caller that owns Api access.
+  CanvasSprite(Sprite& sprite, TextureHandle texture) : sprite_(sprite), texture_(texture) {}
 
   // Renders the sprite and handles input.
   // Returns true if the sprite was modified (dragged).
@@ -32,6 +36,7 @@ class CanvasSprite {
   void UpdateAnimation();
 
   Sprite& sprite_;
+  TextureHandle texture_;
   Animator animator_;
 
   // Dragging state

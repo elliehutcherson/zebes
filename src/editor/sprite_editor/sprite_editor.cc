@@ -38,14 +38,14 @@ SpriteEditor::SpriteEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui)
 }
 
 void SpriteEditor::LoadSpriteTexture(const std::string& texture_id) {
-  absl::StatusOr<Texture*> texture = api_->GetTexture(texture_id);
-  if (!texture.ok()) {
-    model_.sprite().texture_handle = {};
-    LOG(ERROR) << "Failed to load sprite texture: " << texture.status();
+  absl::StatusOr<TextureHandle> handle = api_->GetTextureHandle(texture_id);
+  if (!handle.ok()) {
+    model_.ClearTexture();
+    LOG(ERROR) << "Failed to load sprite texture: " << handle.status();
     return;
   }
 
-  absl::Status status = model_.SelectTexture(texture_id, (*texture)->texture_handle);
+  absl::Status status = model_.SelectTexture(texture_id, *handle);
   if (!status.ok()) LOG(ERROR) << "Failed to select sprite texture: " << status;
 }
 
@@ -307,7 +307,7 @@ void SpriteEditor::RenderSpriteAnimation() {
 
   // Calculate UVs
   int tex_w = 0, tex_h = 0;
-  if (model_.sprite().texture_handle) {
+  if (model_.texture()) {
     SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
   }
 
@@ -446,7 +446,7 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
 
   // Preview Image
   int tex_w = 0, tex_h = 0;
-  if (model_.sprite().texture_handle) {
+  if (model_.texture()) {
     SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
     model_.ClampFrameToTexture(index, tex_w, tex_h).IgnoreError();
 
@@ -523,7 +523,7 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
 }
 
 void SpriteEditor::RenderFullTextureView() {
-  if (!model_.sprite().texture_handle) return;
+  if (!model_.texture()) return;
 
   gui_->Separator();
   gui_->Text("Full Texture (Interact to Edit)");
