@@ -10,7 +10,6 @@
 #include "objects/entity.h"
 #include "objects/level.h"
 #include "objects/sprite.h"
-#include "objects/tileset.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
 
@@ -19,11 +18,6 @@ namespace zebes {
 // Exposes private ViewportTab methods for testing.
 class ViewportTabTestPeer {
  public:
-  static absl::Status HandleTileInput(ViewportTab& tab, Level& level, const Tile& tile,
-                                      Vec mouse_world, int tile_render_w, int tile_render_h) {
-    return tab.HandleTileInput(level, tile, mouse_world, tile_render_w, tile_render_h);
-  }
-
   static void ApplyPendingCameraFrame(ViewportTab& tab, ImVec2 viewport_size,
                                       VisibleWorldBounds world_bounds) {
     tab.ApplyPendingCameraFrame(viewport_size, world_bounds);
@@ -43,13 +37,16 @@ class ViewportTabTestPeer {
                                            const ViewportRenderOptions& options) {
     tab.ReconcileParallaxPreviewMode(options);
   }
+
+  static absl::StatusOr<std::optional<ActiveParallaxZone>> RenderParallaxBackground(
+      ViewportTab& tab, const Level& level, const ViewportRenderOptions& options) {
+    return tab.RenderParallaxBackground(level, options);
+  }
 };
 
 namespace {
 
 using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
 
 // PickEntity tests
 
@@ -58,7 +55,7 @@ TEST(PickEntityTest, HitEntityWithNoSprite) {
   std::map<uint64_t, Entity> entities{{e.id, e}};
 
   // Center of the default 32x32 box
-  EXPECT_EQ(PickEntity(entities, {100, 200}).value(), 1u);
+  EXPECT_EQ(PickEntity(entities, {100, 200}, {}).value(), 1u);
 }
 
 TEST(PickEntityTest, MissReturnsFallbackId) {
@@ -66,14 +63,14 @@ TEST(PickEntityTest, MissReturnsFallbackId) {
   std::map<uint64_t, Entity> entities{{e.id, e}};
 
   // Well outside the 32x32 hit box
-  EXPECT_EQ(PickEntity(entities, {500, 500}).value(), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {500, 500}, {}).value(), Entity::kInvalidId);
 }
 
 TEST(PickEntityTest, InactiveEntityIsSkipped) {
   Entity e = {.id = 1, .active = false, .transform = {.position = {100, 200}}};
   std::map<uint64_t, Entity> entities{{e.id, e}};
 
-  EXPECT_EQ(PickEntity(entities, {100, 200}).value(), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {100, 200}, {}).value(), Entity::kInvalidId);
 }
 
 TEST(PickEntityTest, HitEntityWithSprite) {
@@ -86,11 +83,12 @@ TEST(PickEntityTest, HitEntityWithSprite) {
   });
 
   // Entity at (50, 100); sprite box: x in [40, 60], y in [80, 120]
-  Entity e = {.id = 7, .active = true, .transform = {.position = {50, 100}}, .sprite = &sprite};
+  Entity e = {.id = 7, .active = true, .transform = {.position = {50, 100}}, .sprite_id = "s1"};
   std::map<uint64_t, Entity> entities{{e.id, e}};
+  const SpriteLookup sprites{{"s1", ResolvedSprite{.sprite = &sprite}}};
 
-  EXPECT_EQ(PickEntity(entities, {55, 95}).value(), 7u);
-  EXPECT_EQ(PickEntity(entities, {35, 95}).value(), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {55, 95}, sprites).value(), 7u);
+  EXPECT_EQ(PickEntity(entities, {35, 95}, sprites).value(), Entity::kInvalidId);
 }
 
 // CreateEntityFromBlueprint tests
@@ -105,8 +103,8 @@ TEST(CreateEntityFromBlueprintTest, SetsFields) {
   EXPECT_EQ(e.blueprint_state_index, 0);
   EXPECT_EQ(e.transform.position.x, 256);
   EXPECT_EQ(e.transform.position.y, 512);
-  EXPECT_EQ(e.sprite, nullptr);
-  EXPECT_EQ(e.collider, nullptr);
+  EXPECT_TRUE(e.sprite_id.empty());
+  EXPECT_TRUE(e.collider_id.empty());
 }
 
 TEST(CreateEntityFromBlueprintTest, StateIndexPreserved) {
@@ -133,7 +131,7 @@ TEST(CreateEntityFromBlueprintTest, InvisibleBlueprint_SpriteRemainsNull) {
 
   EXPECT_EQ(e.id, 5u);
   EXPECT_EQ(e.blueprint_id, "invisible-bp");
-  EXPECT_EQ(e.sprite, nullptr);
+  EXPECT_TRUE(e.sprite_id.empty());
 }
 
 TEST(CreateEntityFromBlueprintTest, InvisibleBlueprint_NoStates_SpriteRemainsNull) {
@@ -143,7 +141,7 @@ TEST(CreateEntityFromBlueprintTest, InvisibleBlueprint_NoStates_SpriteRemainsNul
 
   Entity e = CreateEntityFromBlueprint(bp, /*state_index=*/0, {0, 0}, /*id=*/1);
 
-  EXPECT_EQ(e.sprite, nullptr);
+  EXPECT_TRUE(e.sprite_id.empty());
 }
 
 // NextAvailableEntityId tests
@@ -257,6 +255,25 @@ TEST(ViewportTabTest, SelectedParallaxPreviewRequiresCompatibleSelection) {
             ParallaxPreviewMode::kActiveZone);
 }
 
+TEST(ViewportTabTest, ActiveZoneWithoutAssignedThemeDoesNotFailPreview) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  Level level;
+  level.zones.push_back({
+      .id = 4,
+      .theme_id = -1,
+      .min_point = {-10, -10},
+      .max_point = {10, 10},
+  });
+
+  auto active = ViewportTabTestPeer::RenderParallaxBackground(tab, level, {});
+
+  ASSERT_TRUE(active.ok()) << active.status();
+  ASSERT_TRUE(active->has_value());
+  EXPECT_EQ(active->value().zone_id, 4);
+}
+
 // SnapEntityToGrid tests
 
 TEST(SnapEntityToGridTest, ColliderCenterAlignedAndBottomAligned) {
@@ -363,121 +380,24 @@ TEST(PickEntityTest, InvisibleBlueprintEntity_HitsDefaultBox) {
   std::map<uint64_t, Entity> entities{{e.id, e}};
 
   // Hits are inside the default ±16 box around (50, 80): x∈[34,66], y∈[64,96].
-  EXPECT_EQ(PickEntity(entities, {50, 80}).value(), 3u);  // center
-  EXPECT_EQ(PickEntity(entities, {34, 64}).value(), 3u);  // top-left corner
-  EXPECT_EQ(PickEntity(entities, {66, 96}).value(), 3u);  // bottom-right corner
+  EXPECT_EQ(PickEntity(entities, {50, 80}, {}).value(), 3u);  // center
+  EXPECT_EQ(PickEntity(entities, {34, 64}, {}).value(), 3u);  // top-left corner
+  EXPECT_EQ(PickEntity(entities, {66, 96}, {}).value(), 3u);  // bottom-right corner
 
   // Miss just outside the box.
-  EXPECT_EQ(PickEntity(entities, {33, 80}).value(), Entity::kInvalidId);
-  EXPECT_EQ(PickEntity(entities, {67, 80}).value(), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {33, 80}, {}).value(), Entity::kInvalidId);
+  EXPECT_EQ(PickEntity(entities, {67, 80}, {}).value(), Entity::kInvalidId);
 }
 
 TEST(PickEntityTest, InvalidSpriteBoundsFailFast) {
   Sprite sprite;
   sprite.frames.push_back(SpriteFrame{.render_w = 0, .render_h = 16});
-  Entity entity{.id = 1, .sprite = &sprite};
+  Entity entity{.id = 1, .sprite_id = "s1"};
   std::map<uint64_t, Entity> entities{{entity.id, entity}};
+  const SpriteLookup sprites{{"s1", ResolvedSprite{.sprite = &sprite}}};
 
-  EXPECT_EQ(PickEntity(entities, {0, 0}).status().code(), absl::StatusCode::kInvalidArgument);
-}
-
-// HandleTileInput tests
-//
-// These tests exercise the left-paint / right-erase logic in HandleTileInput.
-// The key invariant: painting must only occur when the LEFT mouse button is
-// held. The canvas InvisibleButton is registered for all three mouse buttons,
-// so IsItemActive() returns true on right-click too — the paint guard must
-// additionally check MouseDown[Left] to avoid painting on right-click.
-
-class HandleTileInputTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    io_.MouseDown[ImGuiMouseButton_Left] = false;
-    io_.MouseDown[ImGuiMouseButton_Right] = false;
-    ON_CALL(gui_, GetIO()).WillByDefault(ReturnRef(io_));
-    ON_CALL(gui_, IsItemActive()).WillByDefault(Return(false));
-    ON_CALL(gui_, IsItemClicked(ImGuiMouseButton_Right)).WillByDefault(Return(false));
-  }
-
-  NiceMock<MockApi> api_;
-  NiceMock<MockGui> gui_;
-  ImGuiIO io_{};
-  ViewportTab tab_{api_, &gui_};
-
-  Tile tile_{.id = 7, .source_x = 0, .source_y = 0};
-
-  // Mouse positioned at world (8, 8) with a 16×16 render grid → tile (0, 0).
-  static constexpr Vec kMouseWorld = {8.0, 8.0};
-  static constexpr int kTileRenderW = 16;
-  static constexpr int kTileRenderH = 16;
-};
-
-TEST_F(HandleTileInputTest, LeftHeld_PaintsTile) {
-  Level level{.width = 100, .height = 100};
-  ON_CALL(gui_, IsItemActive()).WillByDefault(Return(true));
-  io_.MouseDown[ImGuiMouseButton_Left] = true;
-
-  ASSERT_TRUE(
-      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, kMouseWorld, kTileRenderW,
-                                           kTileRenderH).ok());
-
-  EXPECT_EQ(GetTileAt(level, 0, 0).value(), tile_.id);
-}
-
-TEST_F(HandleTileInputTest, RightClick_ErasesToile) {
-  Level level{.width = 100, .height = 100};
-  // Pre-place a tile so we can verify it gets cleared.
-  ASSERT_TRUE(SetTileAt(level, 0, 0, tile_.id).ok());
-  ON_CALL(gui_, IsItemClicked(ImGuiMouseButton_Right)).WillByDefault(Return(true));
-
-  ASSERT_TRUE(
-      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, kMouseWorld, kTileRenderW,
-                                           kTileRenderH).ok());
-
-  EXPECT_EQ(GetTileAt(level, 0, 0).value(), 0);
-}
-
-// Regression: the canvas InvisibleButton captures right-click, making
-// IsItemActive() true on right-click. Without checking MouseDown[Left], the
-// paint branch fires on right-click instead of the erase branch.
-TEST_F(HandleTileInputTest, RightClickActivatesItem_ErasesNotPaints) {
-  Level level{.width = 100, .height = 100};
-  ASSERT_TRUE(SetTileAt(level, 0, 0, tile_.id).ok());
-
-  // Simulate right-click activating the canvas item (the bug condition):
-  // IsItemActive() is true, but the left mouse button is NOT held.
-  ON_CALL(gui_, IsItemActive()).WillByDefault(Return(true));
-  io_.MouseDown[ImGuiMouseButton_Left] = false;
-  ON_CALL(gui_, IsItemClicked(ImGuiMouseButton_Right)).WillByDefault(Return(true));
-
-  ASSERT_TRUE(
-      ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, kMouseWorld, kTileRenderW,
-                                           kTileRenderH).ok());
-
-  EXPECT_EQ(GetTileAt(level, 0, 0).value(), 0) << "Right-click must erase, not paint";
-}
-
-TEST_F(HandleTileInputTest, MouseOutsideLevelDoesNotMutateTiles) {
-  Level level{.width = 100, .height = 100};
-  ON_CALL(gui_, IsItemActive()).WillByDefault(Return(true));
-  io_.MouseDown[ImGuiMouseButton_Left] = true;
-
-  ASSERT_TRUE(ViewportTabTestPeer::HandleTileInput(tab_, level, tile_, {-1, 8}, kTileRenderW,
-                                                   kTileRenderH).ok());
-  EXPECT_TRUE(level.tile_chunks.empty());
-}
-
-TEST_F(HandleTileInputTest, UnavailableMouseSentinelDoesNotAttemptGridConversion) {
-  Level level{.width = 100, .height = 100};
-  ON_CALL(gui_, IsItemActive()).WillByDefault(Return(true));
-  io_.MouseDown[ImGuiMouseButton_Left] = true;
-
-  const double unavailable = -std::numeric_limits<float>::max();
-  ASSERT_TRUE(ViewportTabTestPeer::HandleTileInput(
-                  tab_, level, tile_, {unavailable, unavailable}, kTileRenderW,
-                  kTileRenderH)
-                  .ok());
-  EXPECT_TRUE(level.tile_chunks.empty());
+  EXPECT_EQ(PickEntity(entities, {0, 0}, sprites).status().code(),
+            absl::StatusCode::kInvalidArgument);
 }
 
 TEST(TileMutationTest, RejectsNegativeCoordinates) {

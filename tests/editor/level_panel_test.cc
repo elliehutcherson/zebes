@@ -50,12 +50,23 @@ TEST_F(LevelPanelTest, RenderListShowsOrderedLevelNames) {
   model_.SetLevels(
       {{.id = "z-id", .name = "Zebra"}, {.id = "a-id", .name = "Alpha"}});
 
-  EXPECT_CALL(gui_, Selectable(StrEq("Alpha"), false, _, _)).WillOnce(Return(false));
-  EXPECT_CALL(gui_, Selectable(StrEq("Zebra"), false, _, _)).WillOnce(Return(false));
+  EXPECT_CALL(gui_, Selectable(StrEq("Alpha##level_a-id"), false, _, _))
+      .WillOnce(Return(false));
+  EXPECT_CALL(gui_, Selectable(StrEq("Zebra##level_z-id"), false, _, _))
+      .WillOnce(Return(false));
 
   absl::StatusOr<LevelPanelEvent> event = panel_->RenderList(model_);
   ASSERT_TRUE(event.ok());
   EXPECT_EQ(event->action, LevelPanelAction::kNone);
+}
+
+TEST_F(LevelPanelTest, RenderListUsesSafeLabelForEmptyLevelName) {
+  model_.SetLevels({{.id = "level-id", .name = ""}});
+
+  EXPECT_CALL(gui_, Selectable(StrEq("(unnamed level)##level_level-id"), false, _, _))
+      .WillOnce(Return(false));
+
+  EXPECT_TRUE(panel_->RenderList(model_).ok());
 }
 
 TEST_F(LevelPanelTest, CreateBeginsDraftAndReportsPersistenceIntent) {

@@ -29,6 +29,42 @@ target_link_libraries(viewport_model
   absl::statusor
 )
 
+add_library(terrain_brush
+  terrain_brush.cc
+)
+
+target_link_libraries(terrain_brush
+  PUBLIC
+  level
+  tileset
+  absl::flat_hash_map
+  absl::statusor
+  PRIVATE
+  status_macros
+  terrain_mask
+  viewport_model
+  absl::status
+  absl::strings
+)
+
+add_library(viewport_interaction
+  viewport_interaction.cc
+)
+
+target_link_libraries(viewport_interaction
+  PUBLIC
+  blueprint
+  entity
+  level
+  sprite
+  terrain_brush
+  viewport_model
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::status
+)
+
 add_library(viewport_scene
   viewport_scene.cc
 )
@@ -159,10 +195,26 @@ target_link_libraries(tile_palette_panel
   tileset
   imgui_scoped
   ${IMGUI_LIBRARIES}
-  SDL2-static
+  editor_texture_preview
   absl::status
   absl::memory
   absl::log
+  gui_interface
+)
+
+add_library(terrain_palette_panel
+  terrain_palette_panel.cc
+)
+
+target_link_libraries(terrain_palette_panel
+  api
+  tileset
+  imgui_scoped
+  ${IMGUI_LIBRARIES}
+  editor_texture_preview
+  absl::status
+  absl::memory
+  absl::strings
   gui_interface
 )
 
@@ -173,6 +225,7 @@ add_library(palette_panel
 target_link_libraries(palette_panel
   blueprint_palette_panel
   tile_palette_panel
+  terrain_palette_panel
   api
   imgui_scoped
   ${IMGUI_LIBRARIES}
@@ -193,6 +246,7 @@ target_link_libraries(viewport_tab
   level
   parallax_layout
   tileset
+  viewport_interaction
   viewport_model
   viewport_renderer
   viewport_scene

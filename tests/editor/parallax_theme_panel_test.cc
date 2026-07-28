@@ -50,12 +50,12 @@ class ParallaxThemePanelTest : public Test {
   void SetUp() override {
     level_.themes.clear();
 
-    textures_ = {// ID, Name, Path, SDL_Texture*
-                 {"t_001", "grass_ground", "assets/tiles/grass.png", {}},
-                 {"t_002", "stone_wall", "assets/tiles/stone.png", {}},
-                 {"t_003", "player_idle", "assets/chars/hero.png", {}},
-                 {"t_004", "enemy_slime", "assets/chars/slime.png", {}},
-                 {"t_005", "ui_button", "assets/ui/btn_ok.png", {}}};
+    textures_ = {// ID, Name, Path
+                 {"t_001", "grass_ground", "assets/tiles/grass.png"},
+                 {"t_002", "stone_wall", "assets/tiles/stone.png"},
+                 {"t_003", "player_idle", "assets/chars/hero.png"},
+                 {"t_004", "enemy_slime", "assets/chars/slime.png"},
+                 {"t_005", "ui_button", "assets/ui/btn_ok.png"}};
 
     ON_CALL(*api_, GetAllTextures()).WillByDefault(Return(textures_));
 
@@ -144,6 +144,7 @@ TEST_F(ParallaxThemePanelTest, AddLayerUpdatesThemeAndSelection) {
 
 TEST_F(ParallaxThemePanelTest, DeleteThemeRemovesIt) {
   level_.themes[1] = ParallaxTheme{.name = "Theme 1"};
+  level_.zones = {{.id = 1, .theme_id = 1}, {.id = 2, .theme_id = 2}};
   selection_.type = SelectionState::Type::kTheme;
   selection_.theme_id = 1;
 
@@ -152,6 +153,8 @@ TEST_F(ParallaxThemePanelTest, DeleteThemeRemovesIt) {
   ASSERT_TRUE(RenderThemeDetails().ok());
 
   EXPECT_TRUE(level_.themes.empty());
+  EXPECT_EQ(level_.zones[0].theme_id, -1);
+  EXPECT_EQ(level_.zones[1].theme_id, 2);
   EXPECT_EQ(selection_.type, SelectionState::Type::kNone);
 }
 
@@ -188,7 +191,7 @@ TEST_F(ParallaxThemePanelTest, SelectionChangesOnTreeNode) {
 
   // Updated to CollapsingHeader to match parallax_theme_panel.cc
   EXPECT_CALL(gui_, CollapsingHeader(_, _)).WillRepeatedly(Return(false));
-  EXPECT_CALL(gui_, CollapsingHeader(StrEq("Theme 1"), _)).WillOnce(Return(false));
+  EXPECT_CALL(gui_, CollapsingHeader(StrEq("Theme 1##theme_1"), _)).WillOnce(Return(false));
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
 
   ASSERT_TRUE(RenderNavigator().ok());
@@ -204,10 +207,10 @@ TEST_F(ParallaxThemePanelTest, SelectionChangesOnLayerSelect) {
 
   EXPECT_CALL(gui_, CollapsingHeader(_, _)).WillRepeatedly(Return(false));
   // Must return true here so the implementation steps into the layer loop
-  EXPECT_CALL(gui_, CollapsingHeader(StrEq("Theme 1"), _)).WillOnce(Return(true));
+  EXPECT_CALL(gui_, CollapsingHeader(StrEq("Theme 1##theme_1"), _)).WillOnce(Return(true));
 
   // Use Matcher<bool> to fix ambiguity, and add ##0 for ImGui unique IDs
-  EXPECT_CALL(gui_, Selectable(StrEq("Layer 0##0"), Matcher<bool>(false), _, _))
+  EXPECT_CALL(gui_, Selectable(StrEq("Layer 0##layer_1_0"), Matcher<bool>(false), _, _))
       .WillOnce(Return(true));
 
   ASSERT_TRUE(RenderNavigator().ok());
@@ -215,6 +218,26 @@ TEST_F(ParallaxThemePanelTest, SelectionChangesOnLayerSelect) {
   EXPECT_EQ(selection_.type, SelectionState::Type::kLayer);
   EXPECT_EQ(selection_.theme_id, 1);
   EXPECT_EQ(selection_.layer_index, 0);
+}
+
+TEST_F(ParallaxThemePanelTest, EmptyThemeNameUsesSafeStableLabel) {
+  level_.themes[1] = ParallaxTheme{.name = ""};
+
+  EXPECT_CALL(gui_, CollapsingHeader(StrEq("(unnamed theme)##theme_1"), _))
+      .WillOnce(Return(false));
+
+  EXPECT_TRUE(RenderNavigator().ok());
+}
+
+TEST_F(ParallaxThemePanelTest, EmptyLayerNameUsesSafeStableLabel) {
+  level_.themes[1] =
+      ParallaxTheme{.name = "Theme", .layers = {ParallaxLayer{.name = ""}}};
+
+  EXPECT_CALL(gui_, CollapsingHeader(StrEq("Theme##theme_1"), _)).WillOnce(Return(true));
+  EXPECT_CALL(gui_, Selectable(StrEq("(unnamed layer)##layer_1_0"), Matcher<bool>(false), _, _))
+      .WillOnce(Return(false));
+
+  EXPECT_TRUE(RenderNavigator().ok());
 }
 
 // Renamed slightly to reflect the new fallback behavior

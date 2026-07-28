@@ -9,11 +9,13 @@
 #include "editor/canvas/canvas.h"
 #include "editor/gui_interface.h"
 #include "editor/level_editor/parallax_layout.h"
+#include "editor/level_editor/viewport_interaction.h"
 #include "editor/level_editor/viewport_renderer.h"
 #include "objects/blueprint.h"
 #include "objects/camera.h"
 #include "objects/entity.h"
 #include "objects/level.h"
+#include "objects/sprite.h"
 #include "objects/tileset.h"
 #include "objects/vec.h"
 
@@ -30,6 +32,11 @@ enum class ParallaxPreviewMode {
 struct ViewportRenderOptions {
   // Level to render and interact with. Must outlive the Render() call.
   Level* level = nullptr;
+  // Terrain painted while dragging; empty = not in terrain-painting mode.
+  std::optional<int> paint_terrain_id;
+  // Terrain tables for the level's tileset. Must be non-null when
+  // paint_terrain_id is set.
+  const TerrainIndex* terrain_index = nullptr;
   // Blueprint to place on the next canvas click; nullptr = no placement mode.
   const Blueprint* placement_blueprint = nullptr;
   // Entity currently selected by the LevelEditor; kInvalidId = none.
@@ -68,7 +75,7 @@ class ViewportTab {
   // Main render loop for the viewport tab.
   absl::Status Render(const ViewportRenderOptions& options);
 
-  // Resets the viewport view (zoom/offset) to default.
+  // Resets the viewport camera and transient interaction state.
   void Reset();
 
   // Requests that the next viewport frame center and fit this zone.
@@ -84,9 +91,6 @@ class ViewportTab {
   // - any other value: click on that entity id (select).
   std::optional<uint64_t> TakeClickSelection();
 
-  // Returns true if an entity was moved by drag this frame, then clears the flag.
-  bool TakeEntityMoved();
-
   // Returns the ID of an entity the user right-clicked to delete (if any), then clears it.
   // Only populated when delete_mode is true in the render options.
   std::optional<uint64_t> TakeDeleteRequest();
@@ -94,20 +98,69 @@ class ViewportTab {
  private:
   friend class ViewportTabTestPeer;
 
+  // The tileset a frame draws with, resolved once together with its atlas so
+  // the scene and the placement preview cannot disagree about either.
+  struct ActiveTileset {
+    const Tileset* tileset = nullptr;
+    TextureHandle texture;
+  };
+
+  // What composing the scene leaves behind for the later phases: the zone the
+  // status bar names, and the sprite lookup interaction reuses for picking.
+  struct SceneFrame {
+    std::optional<ActiveParallaxZone> active_zone;
+    SpriteLookup entity_sprites;
+  };
+
+  // What the placement preview settles for the interaction phase. The preview
+  // owns the snapping, so the world position it commits to is the one clicks
+  // must use.
+  struct PlacementFrame {
+    Vec interaction_world;
+    ResolvedSprite sprite;
+  };
+
+  // Rejects option combinations that would render an undefined frame.
+  static absl::Status ValidateRenderOptions(const ViewportRenderOptions& options);
+
+  // Prefers the tileset being painted from, falling back to the level's own.
+  absl::StatusOr<ActiveTileset> ResolveActiveTileset(const Level& level,
+                                                     const ViewportRenderOptions& options);
+
+  // Frames the selected zone when the user presses F over the canvas.
+  void HandleFrameZoneShortcut(const Level& level, const ViewportRenderOptions& options,
+                               bool canvas_hovered);
+
+  // Draws background, grid, bounds, tiles, entities, and zone gizmos.
+  absl::StatusOr<SceneFrame> RenderScene(const Level& level,
+                                         const ViewportRenderOptions& options,
+                                         const ActiveTileset& active);
+
+  // Draws whichever preview the current mode calls for, and settles where a
+  // click would land.
+  absl::StatusOr<PlacementFrame> RenderPlacementPreview(const Level& level,
+                                                        const ViewportRenderOptions& options,
+                                                        const ActiveTileset& active,
+                                                        Vec mouse_world, bool mouse_in_level);
+
+  // Translates ImGui canvas state into a platform-neutral interaction frame and
+  // records whatever the controller reports back.
+  absl::Status UpdateInteraction(Level& level, const ViewportRenderOptions& options,
+                                 const PlacementFrame& placement, const SceneFrame& scene,
+                                 bool mouse_in_level);
+
+  // Renders the camera/zoom/zone readout and its inline controls. Runs after the
+  // canvas closes, so it takes the zoom captured beforehand.
+  void RenderStatusBar(const Level& level, const ViewportRenderOptions& options,
+                       const SceneFrame& scene, Vec mouse_world, float zoom);
+
   // Composes and renders a semi-transparent placement preview at world_pos.
-  absl::Status RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos);
+  absl::Status RenderPlacementGhost(Vec world_pos, const ResolvedSprite& resolved);
 
-  // Handles tile-painting input: left-held paints tile at snapped position,
-  // right-click erases (sets tile_id=0).
-  // tile_render_w/h are the world-space pixel dimensions used for grid snapping.
-  absl::Status HandleTileInput(Level& level, const Tile& tile, Vec mouse_world,
-                               int tile_render_w, int tile_render_h);
-
-  // Handles all entity-related mouse input for a single frame:
-  // placement clicks, selection clicks, and drag-to-move.
-  // Must be called after canvas_.HandleInput() so ImGui item queries target the canvas.
-  absl::Status HandleEntityInput(Level& level, const Blueprint* placement_blueprint,
-                                 Vec mouse_world, uint64_t selected_entity_id, bool delete_mode);
+  // Draws the tile the hovered cell would actually receive, so the brush shows
+  // its resolved edge or corner artwork rather than a generic swatch.
+  absl::Status RenderTerrainGhost(const ViewportRenderOptions& options, const Tileset* tileset,
+                                  TextureHandle texture, Vec world_pos);
 
   // Resolves and renders the requested environment, returning the actual active zone.
   absl::StatusOr<std::optional<ActiveParallaxZone>> RenderParallaxBackground(
@@ -130,10 +183,23 @@ class ViewportTab {
   // constant-screen-size reticle at the camera position.
   void RenderCameraGuide();
 
-  // Resolves the blueprint's collider and sprite via the Api, then delegates to
-  // SnapEntityToGrid. Returns mouse_world unchanged when snap is disabled.
+  // Resolves the blueprint collider and delegates platform-neutral grid snapping.
   absl::StatusOr<Vec> SnapBlueprintToGrid(Vec mouse_world, const Blueprint& blueprint,
-                                           int tile_render_w, int tile_render_h) const;
+                                          const Sprite* sprite, int tile_render_w,
+                                          int tile_render_h) const;
+
+  // Resolves the blueprint's optional managed sprite for preview and placement.
+  absl::StatusOr<ResolvedSprite> ResolveBlueprintSprite(const Blueprint& blueprint) const;
+
+  // Resolves a sprite's atlas handle. An unset or unloaded texture yields an
+  // invalid handle so the caller draws a placeholder instead of failing.
+  absl::StatusOr<TextureHandle> ResolveSpriteTexture(const Sprite& sprite) const;
+
+  // Resolves every referenced entity sprite once for the current frame.
+  // Entities store only IDs, so rendering and picking share this lookup rather
+  // than reading pointers off the level definition.
+  absl::StatusOr<SpriteLookup> ResolveEntitySprites(
+      const std::map<uint64_t, Entity>& entities) const;
 
   // Resolves the tileset's platform-neutral atlas handle. An empty texture ID
   // deliberately produces an invalid handle for placeholder-only rendering.
@@ -144,28 +210,14 @@ class ViewportTab {
   Canvas canvas_;
   Camera camera_;
   ViewportRenderer renderer_;
+  ViewportInteractionController interaction_;
   bool show_camera_guide_ = true;
   ParallaxPreviewMode parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
   std::optional<VisibleWorldBounds> pending_camera_frame_;
 
-  // Placement state
   std::optional<Entity> pending_entity_;
-  uint64_t next_entity_id_ = 1;
-
-  // Selection state (output to LevelEditor)
-  // nullopt = no click this frame; Some(kInvalidId) = deselect; Some(id) = select.
-  // Only valid for one frame; consumed via TakeClickSelection().
   std::optional<uint64_t> click_selected_entity_id_;
-
-  // Delete-mode state (output to LevelEditor)
-  // nullopt = no delete request this frame; Some(id) = entity to delete.
   std::optional<uint64_t> delete_requested_entity_id_;
-
-  // Drag state
-  bool dragging_entity_ = false;
-  bool entity_moved_ = false;
-  Vec drag_offset_;
-  uint64_t drag_entity_id_ = Entity::kInvalidId;
 };
 
 }  // namespace zebes

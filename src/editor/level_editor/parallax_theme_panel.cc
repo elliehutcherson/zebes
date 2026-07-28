@@ -41,7 +41,9 @@ absl::Status ParallaxThemePanel::RenderNavigator(Level& level, SelectionState& s
       theme_flags |= ImGuiTreeNodeFlags_Selected;
     }
 
-    bool theme_open = gui_->CollapsingHeader(theme.name.c_str(), theme_flags);
+    const std::string theme_label =
+        absl::StrCat(theme.name.empty() ? "(unnamed theme)" : theme.name, "##theme_", id);
+    bool theme_open = gui_->CollapsingHeader(theme_label.c_str(), theme_flags);
     if (gui_->IsItemClicked()) {
       selection.type = SelectionState::Type::kTheme;
       selection.theme_id = id;
@@ -57,7 +59,8 @@ absl::Status ParallaxThemePanel::RenderNavigator(Level& level, SelectionState& s
       bool is_selected = (selection.type == SelectionState::Type::kLayer &&
                           selection.theme_id == id && selection.layer_index == i);
 
-      std::string label = absl::StrCat(layer.name, "##", i);
+      std::string label = absl::StrCat(layer.name.empty() ? "(unnamed layer)" : layer.name,
+                                       "##layer_", id, "_", i);
       if (gui_->Selectable(label.c_str(), is_selected)) {
         selection.type = SelectionState::Type::kLayer;
         selection.theme_id = id;
@@ -104,6 +107,9 @@ absl::Status ParallaxThemePanel::RenderThemeDetails(Level& level, SelectionState
     ScopedStyleColor color =
         gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
     if (gui_->Button("Delete Theme")) {
+      for (ParallaxZone& zone : level.zones) {
+        if (zone.theme_id == selection.theme_id) zone.theme_id = -1;
+      }
       level.themes.erase(selection.theme_id);
       selection.Clear();
     }
@@ -164,7 +170,11 @@ absl::Status ParallaxThemePanel::RenderLayerDetails(Level& level, SelectionState
                                 [&](const Texture& candidate) {
                                   return candidate.id == layer.texture_id;
                                 });
-    if (texture == texture_cache_.end() || !texture->texture_handle) {
+    if (texture == texture_cache_.end()) {
+      return absl::FailedPreconditionError("selected layer texture is unavailable");
+    }
+    ASSIGN_OR_RETURN(TextureHandle handle, api_.GetTextureHandle(layer.texture_id));
+    if (!handle) {
       return absl::FailedPreconditionError("selected layer texture is unavailable");
     }
 
@@ -174,8 +184,7 @@ absl::Status ParallaxThemePanel::RenderLayerDetails(Level& level, SelectionState
         std::min(kMaximumPreviewWidth, gui_->GetContentRegionAvail().x);
     if (preview_width > 0.0f) {
       ASSIGN_OR_RETURN(TexturePreviewLayout preview,
-                       texture_preview_.Render(texture->texture_handle, preview_width,
-                                               kMaximumPreviewHeight));
+                       texture_preview_.Render(handle, preview_width, kMaximumPreviewHeight));
       gui_->Text("Source Size: %dx%d", preview.source_width, preview.source_height);
     }
   }
@@ -202,6 +211,7 @@ absl::Status ParallaxThemePanel::RefreshTextureCache() {
   return absl::OkStatus();
 }
 
+// static
 void ParallaxThemePanel::AddTheme(Level& level, SelectionState& selection) {
   std::string new_name = absl::StrCat("Theme ", level.themes.size());
   int new_id = 0;

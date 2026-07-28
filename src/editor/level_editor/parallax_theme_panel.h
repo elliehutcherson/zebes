@@ -36,7 +36,7 @@ class ParallaxThemePanel {
 
   explicit ParallaxThemePanel(Options options);
 
-  void AddTheme(Level& level, SelectionState& selection);
+  static void AddTheme(Level& level, SelectionState& selection);
 
   absl::Status RefreshTextureCache();
 

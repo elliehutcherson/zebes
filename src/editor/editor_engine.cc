@@ -56,10 +56,9 @@ absl::Status EditorEngine::Init() {
   ASSIGN_OR_RETURN(blueprint_manager_, BlueprintManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(blueprint_manager_->LoadAllBlueprints());
 
-  // Create Level Manager
-  ASSIGN_OR_RETURN(
-      level_manager_,
-      LevelManager::Create(sprite_manager_.get(), collider_manager_.get(), config_.paths.assets()));
+  // Create Level Manager. Levels reference sprites and colliders by ID, so it
+  // needs no asset managers.
+  ASSIGN_OR_RETURN(level_manager_, LevelManager::Create(config_.paths.assets()));
 
   RETURN_IF_ERROR(level_manager_->LoadAllLevels());
 

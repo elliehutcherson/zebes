@@ -6,6 +6,7 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/gui_interface.h"
+#include "editor/texture_preview.h"
 #include "objects/tileset.h"
 
 namespace zebes {
@@ -60,11 +61,13 @@ class TilePalettePanel {
 
   // Renders the scrollable thumbnail grid for the current tileset.
   // tile_render_w/h are forwarded from Render() to scale thumbnail proportions.
-  absl::Status RenderTileGrid(void* texture_handle, int tex_w, int tex_h,
-                              int tile_render_w, int tile_render_h, float overlay_opacity);
+  // An invalid atlas renders placeholder swatches.
+  absl::Status RenderTileGrid(const AtlasBinding& atlas, int tile_render_w, int tile_render_h,
+                              float overlay_opacity);
 
   Api& api_;
   GuiInterface* gui_;
+  TexturePreviewRenderer texture_preview_;
 
   // Stable pointers into the Api's tileset storage; valid as long as the Api
   // is alive and the tileset has not been modified.

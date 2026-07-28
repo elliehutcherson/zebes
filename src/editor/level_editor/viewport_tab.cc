@@ -5,6 +5,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
@@ -39,19 +40,14 @@ const char* ParallaxPreviewModeLabel(ParallaxPreviewMode mode) {
 }  // namespace
 
 absl::StatusOr<Vec> ViewportTab::SnapBlueprintToGrid(Vec mouse_world, const Blueprint& blueprint,
-                                                     int tile_render_w, int tile_render_h) const {
+                                                     const Sprite* sprite, int tile_render_w,
+                                                     int tile_render_h) const {
   if (!canvas_.GetSnap()) return mouse_world;
 
   Collider* collider = nullptr;
   std::optional<std::string> collider_id = blueprint.collider_id(0);
   if (collider_id.has_value()) {
     ASSIGN_OR_RETURN(collider, api_.GetCollider(*collider_id));
-  }
-
-  Sprite* sprite = nullptr;
-  std::optional<std::string> sprite_id = blueprint.sprite_id(0);
-  if (sprite_id.has_value()) {
-    ASSIGN_OR_RETURN(sprite, api_.GetSprite(*sprite_id));
   }
 
   return SnapEntityToGrid(mouse_world, tile_render_w, tile_render_h, collider, sprite);
@@ -72,6 +68,10 @@ ViewportTab::ViewportTab(Api& api, GuiInterface* gui)
 void ViewportTab::Reset() {
   camera_ = {};
   pending_camera_frame_.reset();
+  interaction_.Reset();
+  pending_entity_.reset();
+  click_selected_entity_id_.reset();
+  delete_requested_entity_id_.reset();
 }
 
 void ViewportTab::FrameZone(const ParallaxZone& zone) {
@@ -103,24 +103,22 @@ std::optional<uint64_t> ViewportTab::TakeClickSelection() {
   return std::exchange(click_selected_entity_id_, std::nullopt);
 }
 
-bool ViewportTab::TakeEntityMoved() {
-  bool moved = entity_moved_;
-  entity_moved_ = false;
-  return moved;
-}
-
 std::optional<uint64_t> ViewportTab::TakeDeleteRequest() {
   return std::exchange(delete_requested_entity_id_, std::nullopt);
 }
 
-absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
+absl::Status ViewportTab::ValidateRenderOptions(const ViewportRenderOptions& options) {
   if (options.level == nullptr) {
     return absl::InvalidArgumentError("viewport render requires a level");
   }
   if (options.placement_tile != nullptr && options.placement_tileset == nullptr) {
     return absl::InvalidArgumentError("tile placement requires its owning tileset");
   }
-  Level& level = *options.level;
+  if (options.paint_terrain_id.has_value() && options.terrain_index == nullptr) {
+    return absl::InvalidArgumentError("terrain placement requires a terrain index");
+  }
+
+  const Level& level = *options.level;
   if (!std::isfinite(level.width) || !std::isfinite(level.height) || level.width < 0.0 ||
       level.height < 0.0) {
     return absl::InvalidArgumentError("level world dimensions must be finite and non-negative");
@@ -128,148 +126,163 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
     return absl::InvalidArgumentError("level tile render dimensions must be positive");
   }
-  ReconcileParallaxPreviewMode(options);
+  return absl::OkStatus();
+}
 
-  // Ensure next_entity_id_ is always greater than every entity already in the
-  // level. This guards against collisions when a saved level is loaded whose
-  // existing IDs are higher than the counter's current value.
-  uint64_t available = NextAvailableEntityId(level.entities);
-  if (available > next_entity_id_) {
-    next_entity_id_ = available;
-  }
-
-  auto child = ScopedChild(gui_, "ViewportCanvas", ImVec2(0, 0), false,
-                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-
-  ImVec2 canvas_size = gui_->GetContentRegionAvail();
-  canvas_size.y -= 25;  // Leave room for the status bar
-
-  ApplyPendingCameraFrame(canvas_size,
-                          {.min = {0, 0}, .max = {level.width, level.height}});
-
-  canvas_.SetWorldBounds({0, 0}, {level.width, level.height});
-  canvas_.SetSnap(options.snap_to_grid);
-  canvas_.SetGridSize(static_cast<float>(level.tile_render_width));
-  canvas_.Begin("LevelCanvas", canvas_size, camera_);
-  auto canvas_end = absl::MakeCleanup([this] { canvas_.End(); });
-
-  // Capture canvas input before calculating any scene geometry so zoom and
-  // camera movement are reflected immediately in this frame.
-  canvas_.HandleInput();
-  const bool canvas_hovered = gui_->IsItemHovered();
-
-  if (options.selected_zone_id.has_value() && canvas_hovered &&
-      gui_->IsKeyPressed(ImGuiKey_F, false)) {
-    if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, *options.selected_zone_id);
-        zone != nullptr) {
-      FrameZone(*zone);
-    }
-  }
-
-  // Determine the active tileset: from options, or from the level's stored id.
-  const Tileset* active_tileset = options.placement_tileset;
-  if (active_tileset == nullptr && !level.tileset_id.empty()) {
+absl::StatusOr<ViewportTab::ActiveTileset> ViewportTab::ResolveActiveTileset(
+    const Level& level, const ViewportRenderOptions& options) {
+  ActiveTileset active;
+  active.tileset = options.placement_tileset;
+  if (active.tileset == nullptr && !level.tileset_id.empty()) {
     ASSIGN_OR_RETURN(Tileset * tileset, api_.GetTileset(level.tileset_id));
     if (tileset == nullptr) {
       return absl::FailedPreconditionError("level tileset resolved to null");
     }
-    active_tileset = tileset;
+    active.tileset = tileset;
   }
-
-  TextureHandle active_tileset_texture;
-  if (active_tileset != nullptr) {
-    ASSIGN_OR_RETURN(active_tileset_texture, ResolveTilesetTexture(*active_tileset));
+  if (active.tileset != nullptr) {
+    ASSIGN_OR_RETURN(active.texture, ResolveTilesetTexture(*active.tileset));
   }
+  return active;
+}
 
-  // 1. Render scene elements.
-  ASSIGN_OR_RETURN(std::optional<ActiveParallaxZone> active_zone,
-                   RenderParallaxBackground(level, options));
+void ViewportTab::HandleFrameZoneShortcut(const Level& level,
+                                          const ViewportRenderOptions& options,
+                                          bool canvas_hovered) {
+  if (!options.selected_zone_id.has_value() || !canvas_hovered) return;
+  if (!gui_->IsKeyPressed(ImGuiKey_F, false)) return;
+
+  const ParallaxZone* zone = FindParallaxZoneById(level.zones, *options.selected_zone_id);
+  if (zone == nullptr) return;
+  FrameZone(*zone);
+}
+
+absl::StatusOr<ViewportTab::SceneFrame> ViewportTab::RenderScene(
+    const Level& level, const ViewportRenderOptions& options, const ActiveTileset& active) {
+  SceneFrame scene;
+  ASSIGN_OR_RETURN(scene.active_zone, RenderParallaxBackground(level, options));
+
   canvas_.DrawGrid();
   RenderLevelBounds(level);
-  if (active_tileset != nullptr) {
-    ASSIGN_OR_RETURN(
-        TileRenderBatch tile_batch,
-        ComposeLevelTileRenderBatch(
-            level, *active_tileset, active_tileset_texture, camera_,
-            {.overlay_opacity = options.tile_overlay_opacity,
-             .show_frame = options.show_tile_frame,
-             .show_collision = options.show_tile_collision}));
+
+  if (active.tileset != nullptr) {
+    ASSIGN_OR_RETURN(TileRenderBatch tile_batch,
+                     ComposeLevelTileRenderBatch(
+                         level, *active.tileset, active.texture, camera_,
+                         {.overlay_opacity = options.tile_overlay_opacity,
+                          .show_frame = options.show_tile_frame,
+                          .show_collision = options.show_tile_collision}));
     RETURN_IF_ERROR(renderer_.RenderTiles(tile_batch));
   }
-  ASSIGN_OR_RETURN(
-      std::vector<EntityRenderItem> entity_items,
-      ComposeEntityRenderItems(
-          level.entities,
-          {.selected_entity_id = options.selected_entity_id,
-           .show_borders = options.show_entity_borders,
-           .overlay_opacity = options.entity_overlay_opacity}));
+
+  // Entities reference sprites by ID, so resolve them once for this frame.
+  ASSIGN_OR_RETURN(scene.entity_sprites, ResolveEntitySprites(level.entities));
+  ASSIGN_OR_RETURN(std::vector<EntityRenderItem> entity_items,
+                   ComposeEntityRenderItems(
+                       level.entities, scene.entity_sprites,
+                       {.selected_entity_id = options.selected_entity_id,
+                        .show_borders = options.show_entity_borders,
+                        .overlay_opacity = options.entity_overlay_opacity}));
   RETURN_IF_ERROR(renderer_.RenderEntities(entity_items));
 
-  ASSIGN_OR_RETURN(
-      std::vector<ZoneGizmoItem> zone_items,
-      ComposeZoneGizmoItems(level.zones, camera_, options.selected_zone_id,
-                            active_zone.has_value() ? std::optional<int>(active_zone->zone_id)
-                                                    : std::nullopt));
+  ASSIGN_OR_RETURN(std::vector<ZoneGizmoItem> zone_items,
+                   ComposeZoneGizmoItems(level.zones, camera_, options.selected_zone_id,
+                                         scene.active_zone.has_value()
+                                             ? std::optional<int>(scene.active_zone->zone_id)
+                                             : std::nullopt));
   renderer_.RenderZoneGizmos(zone_items);
+  return scene;
+}
 
-  // 2. Render placement ghost. Tile mode uses its own grid snap; blueprint mode
-  //    snaps to the blueprint's own collider/sprite dimensions.
-  Vec mouse_world = canvas_.ScreenToWorld(gui_->GetMousePos());
-  const bool mouse_in_level =
-      canvas_hovered && mouse_world.x >= 0.0 && mouse_world.y >= 0.0 &&
-      mouse_world.x < level.width && mouse_world.y < level.height;
-  if (options.placement_tile != nullptr && options.placement_tileset != nullptr &&
-      mouse_in_level) {
+absl::StatusOr<ViewportTab::PlacementFrame> ViewportTab::RenderPlacementPreview(
+    const Level& level, const ViewportRenderOptions& options, const ActiveTileset& active,
+    Vec mouse_world, bool mouse_in_level) {
+  // Tile mode uses the canvas grid snap; blueprint mode snaps to the
+  // blueprint's own collider/sprite dimensions, so it reports back a different
+  // interaction position.
+  PlacementFrame placement{.interaction_world = mouse_world};
+  if (!mouse_in_level) return placement;
+
+  if (options.placement_tile != nullptr && options.placement_tileset != nullptr) {
     ASSIGN_OR_RETURN(TileRenderBatch placement_batch,
                      ComposeTilePlacementBatch(*options.placement_tile,
-                                               *options.placement_tileset,
-                                               active_tileset_texture, mouse_world,
-                                               level.tile_render_width,
+                                               *options.placement_tileset, active.texture,
+                                               mouse_world, level.tile_render_width,
                                                level.tile_render_height));
     RETURN_IF_ERROR(renderer_.RenderTiles(placement_batch));
-  } else if (options.placement_blueprint != nullptr && mouse_in_level) {
-    ASSIGN_OR_RETURN(Vec snapped,
-                     SnapBlueprintToGrid(mouse_world, *options.placement_blueprint,
-                                         level.tile_render_width, level.tile_render_height));
-    RETURN_IF_ERROR(RenderPlacementGhost(*options.placement_blueprint, snapped));
+    return placement;
   }
 
-  // Camera guides are editor overlays and remain visible above scene and
-  // placement rendering.
-  if (show_camera_guide_) {
-    RenderCameraGuide();
+  if (options.paint_terrain_id.has_value()) {
+    RETURN_IF_ERROR(RenderTerrainGhost(options, active.tileset, active.texture, mouse_world));
+    return placement;
   }
 
-  // 3. Handle mode-specific interaction. Canvas input above created the
-  // invisible interaction surface, so its item state remains available here.
-  if (options.placement_tile != nullptr && options.placement_tileset != nullptr &&
-      mouse_in_level) {
-    RETURN_IF_ERROR(HandleTileInput(level, *options.placement_tile, mouse_world,
-                                    level.tile_render_width, level.tile_render_height));
-  } else if (options.placement_blueprint != nullptr && mouse_in_level) {
-    ASSIGN_OR_RETURN(Vec snapped,
-                     SnapBlueprintToGrid(mouse_world, *options.placement_blueprint,
-                                         level.tile_render_width, level.tile_render_height));
-    RETURN_IF_ERROR(HandleEntityInput(level, options.placement_blueprint, snapped,
-                                      options.selected_entity_id, options.delete_mode));
-  } else if (options.placement_blueprint == nullptr) {
-    RETURN_IF_ERROR(HandleEntityInput(level, nullptr, mouse_world, options.selected_entity_id,
-                                      options.delete_mode));
+  if (options.placement_blueprint == nullptr) return placement;
+
+  ASSIGN_OR_RETURN(placement.sprite, ResolveBlueprintSprite(*options.placement_blueprint));
+  ASSIGN_OR_RETURN(placement.interaction_world,
+                   SnapBlueprintToGrid(mouse_world, *options.placement_blueprint,
+                                       placement.sprite.sprite, level.tile_render_width,
+                                       level.tile_render_height));
+  RETURN_IF_ERROR(RenderPlacementGhost(placement.interaction_world, placement.sprite));
+  return placement;
+}
+
+absl::Status ViewportTab::UpdateInteraction(Level& level, const ViewportRenderOptions& options,
+                                            const PlacementFrame& placement,
+                                            const SceneFrame& scene, bool mouse_in_level) {
+  const bool interaction_active = gui_->IsItemActive();
+  const ImGuiIO& io = gui_->GetIO();
+
+  ASSIGN_OR_RETURN(
+      ViewportInteractionResult result,
+      interaction_.Update(
+          level,
+          {
+              .world_position = placement.interaction_world,
+              .pointer_in_level = mouse_in_level,
+              .primary_pressed = gui_->IsItemClicked(ImGuiMouseButton_Left),
+              .primary_down = interaction_active && io.MouseDown[ImGuiMouseButton_Left],
+              .secondary_pressed = gui_->IsItemClicked(ImGuiMouseButton_Right),
+              .secondary_down = interaction_active && io.MouseDown[ImGuiMouseButton_Right],
+          },
+          {
+              .paint_terrain_id = options.paint_terrain_id,
+              .terrain_index = options.terrain_index,
+              .paint_tile_id = options.placement_tile != nullptr
+                                   ? std::optional<int>(options.placement_tile->id)
+                                   : std::nullopt,
+              .placement_blueprint = options.placement_blueprint,
+              .placement_sprite = placement.sprite.sprite,
+              .selected_entity_id = options.selected_entity_id,
+              .entity_sprites = &scene.entity_sprites,
+              .delete_mode = options.delete_mode,
+          }));
+
+  if (result.placed_entity.has_value()) {
+    pending_entity_ = std::move(*result.placed_entity);
   }
+  if (result.selected_entity_id.has_value()) {
+    click_selected_entity_id_ = result.selected_entity_id;
+  }
+  if (result.delete_entity_id.has_value()) {
+    delete_requested_entity_id_ = result.delete_entity_id;
+  }
+  return absl::OkStatus();
+}
 
-  // 4. Capture zoom before End() nullifies the camera pointer.
-  float zoom = canvas_.GetZoom();
-
-  std::move(canvas_end).Invoke();
-
-  // 5. Status bar
+void ViewportTab::RenderStatusBar(const Level& level, const ViewportRenderOptions& options,
+                                  const SceneFrame& scene, Vec mouse_world, float zoom) {
   const char* active_zone_name = "None";
-  if (active_zone.has_value()) {
-    if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, active_zone->zone_id);
+  if (scene.active_zone.has_value()) {
+    if (const ParallaxZone* zone =
+            FindParallaxZoneById(level.zones, scene.active_zone->zone_id);
         zone != nullptr) {
       active_zone_name = zone->name.c_str();
     }
   }
+
   gui_->Text("Cam: (%.0f, %.0f) | Zoom: %.2f | Mouse: (%.0f, %.0f) | Zone: %s",
              camera_.position.x, camera_.position.y, zoom, mouse_world.x, mouse_world.y,
              active_zone_name);
@@ -281,91 +294,105 @@ absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
   gui_->SameLine();
   gui_->Checkbox("Camera Guide", &show_camera_guide_);
   RenderParallaxPreviewControls(options);
+}
 
+absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
+  RETURN_IF_ERROR(ValidateRenderOptions(options));
+  Level& level = *options.level;
+  ReconcileParallaxPreviewMode(options);
+
+  auto child = ScopedChild(gui_, "ViewportCanvas", ImVec2(0, 0), false,
+                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
+  ImVec2 canvas_size = gui_->GetContentRegionAvail();
+  canvas_size.y -= 25;  // Leave room for the status bar
+
+  ApplyPendingCameraFrame(canvas_size, {.min = {0, 0}, .max = {level.width, level.height}});
+
+  canvas_.SetWorldBounds({0, 0}, {level.width, level.height});
+  canvas_.SetSnap(options.snap_to_grid);
+  canvas_.SetGridSize(static_cast<float>(level.tile_render_width));
+  canvas_.Begin("LevelCanvas", canvas_size, camera_);
+  auto canvas_end = absl::MakeCleanup([this] { canvas_.End(); });
+
+  // Capture canvas input before calculating any scene geometry so zoom and
+  // camera movement are reflected immediately in this frame.
+  canvas_.HandleInput();
+  const bool canvas_hovered = gui_->IsItemHovered();
+  HandleFrameZoneShortcut(level, options, canvas_hovered);
+
+  ASSIGN_OR_RETURN(const ActiveTileset active, ResolveActiveTileset(level, options));
+  ASSIGN_OR_RETURN(const SceneFrame scene, RenderScene(level, options, active));
+
+  const Vec mouse_world = canvas_.ScreenToWorld(gui_->GetMousePos());
+  const bool mouse_in_level = canvas_hovered && mouse_world.x >= 0.0 && mouse_world.y >= 0.0 &&
+                              mouse_world.x < level.width && mouse_world.y < level.height;
+  ASSIGN_OR_RETURN(const PlacementFrame placement,
+                   RenderPlacementPreview(level, options, active, mouse_world, mouse_in_level));
+
+  // Camera guides are editor overlays and remain visible above scene and
+  // placement rendering.
+  if (show_camera_guide_) {
+    RenderCameraGuide();
+  }
+
+  RETURN_IF_ERROR(UpdateInteraction(level, options, placement, scene, mouse_in_level));
+
+  // Zoom must be captured before End() nullifies the camera pointer.
+  const float zoom = canvas_.GetZoom();
+  std::move(canvas_end).Invoke();
+
+  RenderStatusBar(level, options, scene, mouse_world, zoom);
   return absl::OkStatus();
 }
 
-absl::Status ViewportTab::HandleEntityInput(Level& level, const Blueprint* placement_blueprint,
-                                            Vec mouse_world, uint64_t selected_entity_id,
-                                            bool delete_mode) {
-  // --- Delete mode: a right-click removes the entity under the cursor ---
-  if (delete_mode && gui_->IsItemClicked(1)) {
-    ASSIGN_OR_RETURN(uint64_t picked, PickEntity(level.entities, mouse_world));
-    if (picked != Entity::kInvalidId) {
-      delete_requested_entity_id_ = picked;
-    }
-    return absl::OkStatus();
+absl::Status ViewportTab::RenderTerrainGhost(const ViewportRenderOptions& options,
+                                             const Tileset* tileset, TextureHandle texture,
+                                             Vec world_pos) {
+  if (tileset == nullptr) return absl::OkStatus();
+
+  const Level& level = *options.level;
+  const Terrain* terrain = options.terrain_index->FindById(*options.paint_terrain_id);
+  if (terrain == nullptr) {
+    return absl::NotFoundError(
+        absl::StrCat("unknown terrain ID ", *options.paint_terrain_id));
   }
 
-  // --- Placement mode: a left-click drops a new entity ---
-  if (placement_blueprint != nullptr) {
-    if (!gui_->IsItemClicked(0)) return absl::OkStatus();
+  ASSIGN_OR_RETURN(TileCoordinate coordinate,
+                   WorldToTileCoordinate(world_pos, level.tile_render_width,
+                                         level.tile_render_height));
+  ASSIGN_OR_RETURN(const uint8_t mask,
+                   ComputeTerrainMask(level, *options.terrain_index, *terrain, coordinate.x,
+                                      coordinate.y));
 
-    Entity entity =
-        CreateEntityFromBlueprint(*placement_blueprint, 0, mouse_world, next_entity_id_++);
+  const TerrainRule* rule = nullptr;
+  for (const TerrainRule& candidate : terrain->rules) {
+    if (candidate.mask == mask) rule = &candidate;
+  }
+  // A hand-edited terrain can be missing a mask. Previewing nothing is better
+  // than failing the frame on mouse movement; the paint itself still reports it.
+  if (rule == nullptr) return absl::OkStatus();
 
-    // Resolve sprite pointer from the blueprint's first state.
-    // Invisible blueprints have no sprite; leave entity.sprite null in that case.
-    std::optional<std::string> sprite_id = placement_blueprint->sprite_id(0);
-    if (sprite_id.has_value()) {
-      ASSIGN_OR_RETURN(Sprite * sprite, api_.GetSprite(*sprite_id));
-      entity.sprite = sprite;
-    }
-    pending_entity_ = entity;
-    return absl::OkStatus();
+  ASSIGN_OR_RETURN(const int tile_id,
+                   SelectVariant(*rule, coordinate.x, coordinate.y, terrain->id));
+  const Tile* tile = nullptr;
+  for (const Tile& candidate : tileset->tiles) {
+    if (candidate.id == tile_id) tile = &candidate;
+  }
+  if (tile == nullptr) {
+    return absl::NotFoundError(absl::StrCat("terrain '", terrain->name,
+                                            "' references missing tile ", tile_id));
   }
 
-  // --- Drag update: runs every frame while a drag is in progress ---
-  if (dragging_entity_) {
-    if (gui_->IsItemActive()) {
-      auto it = level.entities.find(drag_entity_id_);
-      if (it != level.entities.end()) {
-        it->second.transform.position = {mouse_world.x - drag_offset_.x,
-                                         mouse_world.y - drag_offset_.y};
-        entity_moved_ = true;
-      }
-      return absl::OkStatus();
-    }
-
-    // Mouse released — end drag.
-    dragging_entity_ = false;
-    drag_entity_id_ = Entity::kInvalidId;
-    return absl::OkStatus();
-  }
-
-  // --- Click: select entity or deselect, and optionally start a drag ---
-  if (gui_->IsItemClicked(0)) {
-    ASSIGN_OR_RETURN(uint64_t picked, PickEntity(level.entities, mouse_world));
-    click_selected_entity_id_ = picked;
-
-    // Begin dragging if the click landed on the already-selected entity.
-    if (picked != Entity::kInvalidId && picked == selected_entity_id) {
-      auto it = level.entities.find(picked);
-      if (it != level.entities.end()) {
-        dragging_entity_ = true;
-        drag_entity_id_ = picked;
-        drag_offset_ = {mouse_world.x - it->second.transform.position.x,
-                        mouse_world.y - it->second.transform.position.y};
-      }
-    }
-  }
-
-  return absl::OkStatus();
+  ASSIGN_OR_RETURN(TileRenderBatch batch,
+                   ComposeTilePlacementBatch(*tile, *tileset, texture, world_pos,
+                                             level.tile_render_width,
+                                             level.tile_render_height));
+  return renderer_.RenderTiles(batch);
 }
 
-absl::Status ViewportTab::RenderPlacementGhost(const Blueprint& blueprint, Vec world_pos) {
-  const Sprite* sprite = nullptr;
-  std::optional<std::string> sprite_id = blueprint.sprite_id(0);
-  if (sprite_id.has_value()) {
-    ASSIGN_OR_RETURN(Sprite * resolved_sprite, api_.GetSprite(*sprite_id));
-    if (resolved_sprite == nullptr) {
-      return absl::FailedPreconditionError("placement blueprint sprite resolved to null");
-    }
-    sprite = resolved_sprite;
-  }
-
-  ASSIGN_OR_RETURN(EntityRenderItem item,
-                   ComposeEntityPlacementItem(world_pos, sprite));
+absl::Status ViewportTab::RenderPlacementGhost(Vec world_pos, const ResolvedSprite& resolved) {
+  ASSIGN_OR_RETURN(EntityRenderItem item, ComposeEntityPlacementItem(world_pos, resolved));
   return renderer_.RenderEntities(std::span<const EntityRenderItem>(&item, 1));
 }
 
@@ -389,6 +416,7 @@ absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBac
       break;
   }
   if (!theme_id.has_value()) return active;
+  if (*theme_id == -1) return active;
 
   auto theme_it = level.themes.find(*theme_id);
   if (theme_it == level.themes.end()) {
@@ -402,11 +430,11 @@ absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBac
     if (layer.texture_id.empty()) continue;
     if (textures.contains(layer.texture_id)) continue;
 
-    ASSIGN_OR_RETURN(Texture * texture, api_.GetTexture(layer.texture_id));
-    if (texture == nullptr || !texture->texture_handle) {
+    ASSIGN_OR_RETURN(TextureHandle handle, api_.GetTextureHandle(layer.texture_id));
+    if (!handle) {
       return absl::FailedPreconditionError("parallax layer texture is unavailable");
     }
-    textures.emplace(layer.texture_id, texture->texture_handle);
+    textures.emplace(layer.texture_id, handle);
   }
 
   ASSIGN_OR_RETURN(ParallaxRenderBatch batch,
@@ -494,49 +522,53 @@ absl::StatusOr<TextureHandle> ViewportTab::ResolveTilesetTexture(
     const Tileset& tileset) const {
   if (tileset.texture_id.empty()) return TextureHandle{};
 
-  ASSIGN_OR_RETURN(Texture * texture, api_.GetTexture(tileset.texture_id));
-  if (texture == nullptr || !texture->texture_handle) {
+  ASSIGN_OR_RETURN(TextureHandle handle, api_.GetTextureHandle(tileset.texture_id));
+  if (!handle) {
     return absl::FailedPreconditionError("tileset texture has no renderer resource");
   }
-  return texture->texture_handle;
+  return handle;
 }
 
-absl::Status ViewportTab::HandleTileInput(Level& level, const Tile& tile, Vec mouse_world,
-                                          int tile_render_w, int tile_render_h) {
-  if (tile_render_w <= 0 || tile_render_h <= 0) {
-    return absl::InvalidArgumentError("tile render dimensions must be positive");
-  }
-  if (!std::isfinite(mouse_world.x) || !std::isfinite(mouse_world.y)) {
-    return absl::InvalidArgumentError("tile input position must be finite");
-  }
+absl::StatusOr<TextureHandle> ViewportTab::ResolveSpriteTexture(const Sprite& sprite) const {
+  if (sprite.texture_id.empty()) return TextureHandle{};
 
-  // ImGui uses a large negative sentinel when the mouse is unavailable. An
-  // off-level cursor is a normal no-op and must be rejected before conversion.
-  if (mouse_world.x < 0.0 || mouse_world.y < 0.0 || mouse_world.x >= level.width ||
-      mouse_world.y >= level.height) {
-    return absl::OkStatus();
+  // An unloaded texture is an authoring state, not a render failure: the sprite
+  // falls back to its placeholder bounds.
+  absl::StatusOr<TextureHandle> handle = api_.GetTextureHandle(sprite.texture_id);
+  if (!handle.ok()) return TextureHandle{};
+  return *handle;
+}
+
+absl::StatusOr<SpriteLookup> ViewportTab::ResolveEntitySprites(
+    const std::map<uint64_t, Entity>& entities) const {
+  SpriteLookup sprites;
+  for (const auto& [id, entity] : entities) {
+    if (entity.sprite_id.empty() || sprites.contains(entity.sprite_id)) continue;
+
+    // A missing sprite is an authoring state, not a render failure: the entity
+    // falls back to its placeholder bounds.
+    absl::StatusOr<Sprite*> sprite = api_.GetSprite(entity.sprite_id);
+    if (!sprite.ok() || *sprite == nullptr) {
+      sprites.emplace(entity.sprite_id, ResolvedSprite{});
+      continue;
+    }
+    ASSIGN_OR_RETURN(const TextureHandle texture, ResolveSpriteTexture(**sprite));
+    sprites.emplace(entity.sprite_id, ResolvedSprite{.sprite = *sprite, .texture = texture});
   }
+  return sprites;
+}
 
-  absl::StatusOr<TileCoordinate> coordinate =
-      WorldToTileCoordinate(mouse_world, tile_render_w, tile_render_h);
-  if (!coordinate.ok()) return coordinate.status();
+absl::StatusOr<ResolvedSprite> ViewportTab::ResolveBlueprintSprite(
+    const Blueprint& blueprint) const {
+  std::optional<std::string> sprite_id = blueprint.sprite_id(0);
+  if (!sprite_id.has_value()) return ResolvedSprite{};
 
-  // Left mouse held: paint. Guard against right-click activating the canvas
-  // InvisibleButton (which captures all three buttons), which would otherwise
-  // make IsItemActive() true on right-click and paint instead of erase.
-  if (gui_->IsItemActive() && gui_->GetIO().MouseDown[ImGuiMouseButton_Left]) {
-    return SetTileAt(level, coordinate->x, coordinate->y, tile.id);
+  ASSIGN_OR_RETURN(Sprite * sprite, api_.GetSprite(*sprite_id));
+  if (sprite == nullptr) {
+    return absl::FailedPreconditionError("placement blueprint sprite resolved to null");
   }
-
-  // Right click or right mouse held: erase. A single right-click is the primary
-  // erase gesture; the IsItemActive + MouseDown check allows dragging to erase
-  // across multiple tiles without re-clicking each one.
-  if (gui_->IsItemClicked(ImGuiMouseButton_Right) ||
-      (gui_->IsItemActive() && gui_->GetIO().MouseDown[ImGuiMouseButton_Right])) {
-    return SetTileAt(level, coordinate->x, coordinate->y, 0);
-  }
-
-  return absl::OkStatus();
+  ASSIGN_OR_RETURN(const TextureHandle texture, ResolveSpriteTexture(*sprite));
+  return ResolvedSprite{.sprite = sprite, .texture = texture};
 }
 
 }  // namespace zebes

@@ -4,6 +4,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "common/status_macros.h"
 #include "editor/gui_interface.h"
@@ -118,6 +119,7 @@ absl::Status LevelEditor::HandleLevelPanelEvent(LevelPanelEvent event) {
       selection_.type = SelectionState::Type::kLevel;
       return absl::OkStatus();
     case LevelPanelAction::kOpen:
+      viewport_tab_->Reset();
       selection_.Clear();
       selection_.type = SelectionState::Type::kLevel;
       return absl::OkStatus();
@@ -129,10 +131,12 @@ absl::Status LevelEditor::HandleLevelPanelEvent(LevelPanelEvent event) {
       }
       RETURN_IF_ERROR(api_->DeleteLevel(level_model_.selected_level_id()));
       level_model_.FinishDelete();
+      viewport_tab_->Reset();
       selection_.Clear();
       RefreshLevelCatalog();
       return absl::OkStatus();
     case LevelPanelAction::kClose:
+      viewport_tab_->Reset();
       selection_.Clear();
       save_error_.reset();
       return absl::OkStatus();
@@ -204,6 +208,7 @@ absl::Status LevelEditor::RenderNavigator() {
 
   if (gui_->Button("Close Level")) {
     level_model_.CloseActiveLevel();
+    viewport_tab_->Reset();
     selection_.Clear();
     save_error_.reset();
     return absl::OkStatus();
@@ -229,7 +234,9 @@ absl::Status LevelEditor::RenderNavigator() {
     root_flags |= ImGuiTreeNodeFlags_Selected;
   }
 
-  bool root_open = gui_->CollapsingHeader(level.name.c_str(), root_flags);
+  const std::string level_label = absl::StrCat(
+      level.name.empty() ? "(unnamed level)" : level.name, "##level_", level.id);
+  bool root_open = gui_->CollapsingHeader(level_label.c_str(), root_flags);
   if (gui_->IsItemClicked()) {
     selection_.Clear();
     selection_.type = SelectionState::Type::kLevel;
@@ -384,14 +391,29 @@ absl::Status LevelEditor::RenderViewport() {
     return absl::OkStatus();
   }
 
-  // Auto-associate the level with the selected tileset on first tile selection.
+  // Auto-associate the level with the selected tileset on first tile or terrain
+  // selection. Either palette mode can be the one that binds the level.
   const Tileset* selected_tileset = palette_panel_->GetSelectedTileset();
-  if (selected_tileset != nullptr && level->tileset_id.empty()) {
-    level->tileset_id = selected_tileset->id;
+  const Tileset* terrain_tileset = palette_panel_->GetSelectedTerrainTileset();
+  const Tileset* binding_tileset =
+      selected_tileset != nullptr ? selected_tileset : terrain_tileset;
+  if (binding_tileset != nullptr && level->tileset_id.empty()) {
+    level->tileset_id = binding_tileset->id;
   }
+
+  // Rebuilt every frame because the tileset's terrains can change in the
+  // Tileset Editor between frames.
+  std::optional<TerrainIndex> terrain_index;
+  std::optional<int> paint_terrain_id = palette_panel_->GetSelectedTerrainId();
+  if (paint_terrain_id.has_value() && terrain_tileset != nullptr) {
+    ASSIGN_OR_RETURN(terrain_index, TerrainIndex::Build(*terrain_tileset));
+  }
+  if (!terrain_index.has_value()) paint_terrain_id.reset();
 
   RETURN_IF_ERROR(viewport_tab_->Render({
       .level = level,
+      .paint_terrain_id = paint_terrain_id,
+      .terrain_index = terrain_index.has_value() ? &*terrain_index : nullptr,
       .placement_blueprint = palette_panel_->GetSelectedBlueprint(),
       .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
                                 ? selection_.entity_id

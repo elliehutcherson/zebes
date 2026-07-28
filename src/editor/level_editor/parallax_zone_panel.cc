@@ -1,6 +1,7 @@
 #include "editor/level_editor/parallax_zone_panel.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -22,7 +23,17 @@ absl::StatusOr<std::unique_ptr<ParallaxZonePanel>> ParallaxZonePanel::Create(Opt
 ParallaxZonePanel::ParallaxZonePanel(Options options) : gui_(options.gui) {}
 
 absl::Status ParallaxZonePanel::RenderNavigator(Level& level, SelectionState& selection) {
-  if (gui_->Button("Add Zone")) {
+  const bool can_add_zone = std::isfinite(level.width) && std::isfinite(level.height) &&
+                            level.width > 0.0 && level.height > 0.0;
+  gui_->BeginDisabled(!can_add_zone);
+  const bool add_zone = gui_->Button("Add Zone");
+  gui_->EndDisabled();
+
+  if (!can_add_zone) {
+    gui_->TextDisabled("Set a positive level width and height before adding a zone.");
+  }
+
+  if (add_zone && can_add_zone) {
     int new_id = 0;
     for (const ParallaxZone& z : level.zones) {
       new_id = std::max(new_id, z.id + 1);
@@ -41,13 +52,16 @@ absl::Status ParallaxZonePanel::RenderNavigator(Level& level, SelectionState& se
   }
 
   for (const ParallaxZone& zone : level.zones) {
-    std::string label = absl::StrCat(zone.name, "##zone_", zone.id);
+    std::string label = zone.name.empty() ? "(unnamed zone)" : zone.name;
 
     // Add theme name to label if it exists
     auto theme_it = level.themes.find(zone.theme_id);
     if (theme_it != level.themes.end()) {
-      absl::StrAppend(&label, " (", theme_it->second.name, ")");
+      absl::StrAppend(&label, " (",
+                      theme_it->second.name.empty() ? "unnamed theme" : theme_it->second.name,
+                      ")");
     }
+    absl::StrAppend(&label, "##zone_", zone.id);
 
     bool is_selected =
         (selection.type == SelectionState::Type::kZone && selection.zone_id == zone.id);
@@ -88,7 +102,9 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
   if (auto combo = gui_->CreateScopedCombo("Theme", theme_preview); combo) {
     for (const auto& [id, theme] : level.themes) {
       bool is_selected = (zone.theme_id == id);
-      if (gui_->Selectable(theme.name.c_str(), is_selected)) {
+      const std::string label = absl::StrCat(
+          theme.name.empty() ? "(unnamed theme)" : theme.name, "##theme_", id);
+      if (gui_->Selectable(label.c_str(), is_selected)) {
         zone.theme_id = id;
       }
       if (is_selected) gui_->SetItemDefaultFocus();

@@ -78,7 +78,14 @@ target_link_libraries(animator_test editor_animator gtest_main)
 gtest_discover_tests(animator_test)
 
 add_executable(tileset_editor_model_test tileset_editor_model_test.cc)
-target_link_libraries(tileset_editor_model_test tileset_editor_model gtest_main)
+target_link_libraries(tileset_editor_model_test
+  tileset_editor_model
+  blob47_compose
+  terrain_mask
+  gtest_main
+  gmock
+)
+target_include_directories(tileset_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(tileset_editor_model_test)
 
 # --- Parallax Theme Panel Test ---
@@ -144,6 +151,26 @@ target_link_libraries(viewport_scene_test
 )
 target_include_directories(viewport_scene_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(viewport_scene_test)
+
+add_executable(terrain_brush_test terrain_brush_test.cc)
+target_link_libraries(terrain_brush_test
+  gtest_main
+  terrain_brush
+  terrain_mask
+  viewport_model
+)
+target_include_directories(terrain_brush_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_brush_test)
+
+add_executable(viewport_interaction_test viewport_interaction_test.cc)
+target_link_libraries(viewport_interaction_test
+  gtest_main
+  terrain_mask
+  viewport_interaction
+  viewport_model
+)
+target_include_directories(viewport_interaction_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(viewport_interaction_test)
 
 # --- Parallax Layout Test ---
 add_executable(parallax_layout_test parallax_layout_test.cc)
@@ -214,6 +241,20 @@ target_link_libraries(tile_palette_panel_test
 )
 target_include_directories(tile_palette_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME tile_palette_panel_test COMMAND tile_palette_panel_test)
+
+# --- Terrain Palette Panel Test ---
+add_executable(terrain_palette_panel_test terrain_palette_panel_test.cc)
+target_link_libraries(terrain_palette_panel_test
+  gtest_main
+  gmock
+  api
+  terrain_palette_panel
+  gui_mock
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(terrain_palette_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME terrain_palette_panel_test COMMAND terrain_palette_panel_test)
 
 # --- Canvas Test ---
 add_executable(canvas_test canvas_test.cc)

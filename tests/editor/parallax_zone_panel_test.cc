@@ -96,6 +96,9 @@ class ParallaxZonePanelTest : public ::testing::Test {
 };
 
 TEST_F(ParallaxZonePanelTest, CreateZoneAddsToLevel) {
+  level_.width = 1024.0;
+  level_.height = 512.0;
+
   // Initial state
   EXPECT_TRUE(level_.zones.empty());
 
@@ -110,6 +113,22 @@ TEST_F(ParallaxZonePanelTest, CreateZoneAddsToLevel) {
   EXPECT_EQ(selection_.zone_id, 0);
   EXPECT_EQ(level_.zones[0].name, "Zone 0");
   EXPECT_EQ(level_.zones[0].id, 0);
+  EXPECT_DOUBLE_EQ(level_.zones[0].max_point.x, 256.0);
+  EXPECT_DOUBLE_EQ(level_.zones[0].max_point.y, 256.0);
+}
+
+TEST_F(ParallaxZonePanelTest, CreateZoneIsDisabledForLevelWithoutPositiveDimensions) {
+  level_.width = 0.0;
+  level_.height = 512.0;
+
+  // A disabled ImGui button cannot return true in production. Returning true
+  // here also verifies that the model-side guard preserves the invariant.
+  EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _)).WillOnce(Return(true));
+
+  ASSERT_TRUE(RenderNavigator().ok());
+
+  EXPECT_TRUE(level_.zones.empty());
+  EXPECT_EQ(selection_.type, SelectionState::Type::kNone);
 }
 
 TEST_F(ParallaxZonePanelTest, DeleteZoneRemovesFromLevel) {
@@ -140,6 +159,9 @@ TEST_F(ParallaxZonePanelTest, SelectionStateUpdatedOnSelect) {
 }
 
 TEST_F(ParallaxZonePanelTest, CreateZone_AssignsUniqueIds) {
+  level_.width = 1024.0;
+  level_.height = 512.0;
+
   // Add two zones via the Add Zone button
   EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _))
       .WillOnce(Return(true))
@@ -189,10 +211,20 @@ TEST_F(ParallaxZonePanelTest, NavigatorShowsThemeNameInLabel) {
   zone.theme_id = 1;  // Matches the theme added in SetUp
   level_.zones.push_back(zone);
 
-  EXPECT_CALL(gui_, Selectable(StrEq("My Zone##zone_0 (Theme1)"), false, _, _))
+  EXPECT_CALL(gui_, Selectable(StrEq("My Zone (Theme1)##zone_0"), false, _, _))
       .WillOnce(Return(false));
 
   ASSERT_TRUE(RenderNavigator().ok());
+}
+
+TEST_F(ParallaxZonePanelTest, NavigatorUsesSafeLabelsForEmptyNames) {
+  level_.themes[1].name.clear();
+  level_.zones.push_back(ParallaxZone{.id = 4, .name = "", .theme_id = 1});
+
+  EXPECT_CALL(gui_, Selectable(StrEq("(unnamed zone) (unnamed theme)##zone_4"), false, _, _))
+      .WillOnce(Return(false));
+
+  EXPECT_TRUE(RenderNavigator().ok());
 }
 
 TEST_F(ParallaxZonePanelTest, ComboPreviewShowsSelectedTheme) {

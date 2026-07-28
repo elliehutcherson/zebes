@@ -2,14 +2,14 @@
 
 #include <cmath>
 
-#include "SDL_render.h"
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
+#include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "editor/imgui_scoped.h"
+#include "editor/texture_preview.h"
 #include "imgui.h"
 #include "objects/texture.h"
-#include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
 
@@ -25,18 +25,17 @@ constexpr float kThumbnailPad = 4.0f;
 // the level's tile render dimensions have a non-square aspect ratio).
 // tile_w/tile_h are the source atlas dimensions used for UV sampling.
 // Isolated here to keep the per-tile loop body flat.
-void DrawTileThumbnail(ImDrawList* dl, ImVec2 cursor, const Tile& tile, void* texture_handle,
-                       int tex_w, int tex_h, float tile_w, float tile_h, float thumb_w,
-                       float thumb_h, bool is_selected, bool is_hovered, float overlay_opacity) {
+void DrawTileThumbnail(ImDrawList* dl, ImVec2 cursor, const Tile& tile, const AtlasBinding& atlas,
+                       float tile_w, float tile_h, float thumb_w, float thumb_h, bool is_selected,
+                       bool is_hovered, float overlay_opacity) {
   ImVec2 btn_max = ImVec2(cursor.x + thumb_w, cursor.y + thumb_h);
 
-  if (texture_handle != nullptr && tex_w > 0 && tex_h > 0) {
-    float u0 = static_cast<float>(tile.source_x) / tex_w;
-    float v0 = static_cast<float>(tile.source_y) / tex_h;
-    float u1 = static_cast<float>(tile.source_x + tile_w) / tex_w;
-    float v1 = static_cast<float>(tile.source_y + tile_h) / tex_h;
-    dl->AddImage(reinterpret_cast<ImTextureID>(texture_handle), cursor, btn_max, ImVec2(u0, v0),
-                 ImVec2(u1, v1));
+  if (atlas.IsValid()) {
+    float u0 = static_cast<float>(tile.source_x) / atlas.width;
+    float v0 = static_cast<float>(tile.source_y) / atlas.height;
+    float u1 = static_cast<float>(tile.source_x + tile_w) / atlas.width;
+    float v1 = static_cast<float>(tile.source_y + tile_h) / atlas.height;
+    dl->AddImage(atlas.texture_id, cursor, btn_max, ImVec2(u0, v0), ImVec2(u1, v1));
   } else {
     dl->AddRectFilled(cursor, btn_max, IM_COL32(80, 80, 80, 200));
   }
@@ -62,7 +61,8 @@ absl::StatusOr<std::unique_ptr<TilePalettePanel>> TilePalettePanel::Create(Optio
   return absl::WrapUnique(new TilePalettePanel(std::move(options)));
 }
 
-TilePalettePanel::TilePalettePanel(Options options) : api_(*options.api), gui_(options.gui) {}
+TilePalettePanel::TilePalettePanel(Options options)
+    : api_(*options.api), gui_(options.gui), texture_preview_(*options.gui) {}
 
 absl::Status TilePalettePanel::HandleTileClick(int tile_id, bool is_selected) {
   if (is_selected) {
@@ -79,9 +79,8 @@ absl::Status TilePalettePanel::HandleTileClick(int tile_id, bool is_selected) {
   return absl::OkStatus();
 }
 
-absl::Status TilePalettePanel::RenderTileGrid(void* texture_handle, int tex_w, int tex_h,
-                                              int tile_render_w, int tile_render_h,
-                                              float overlay_opacity) {
+absl::Status TilePalettePanel::RenderTileGrid(const AtlasBinding& atlas, int tile_render_w,
+                                              int tile_render_h, float overlay_opacity) {
   auto child = ScopedChild(gui_, "TileGrid", ImVec2(0, 0), false);
   if (!child) return absl::OkStatus();
 
@@ -109,8 +108,8 @@ absl::Status TilePalettePanel::RenderTileGrid(void* texture_handle, int tex_w, i
 
     ImDrawList* dl = gui_->GetWindowDrawList();
     if (dl != nullptr) {
-      DrawTileThumbnail(dl, cursor, tile, texture_handle, tex_w, tex_h, tile_w, tile_h, thumb_w,
-                        thumb_h, is_selected, hovered, overlay_opacity);
+      DrawTileThumbnail(dl, cursor, tile, atlas, tile_w, tile_h, thumb_w, thumb_h, is_selected,
+                        hovered, overlay_opacity);
     }
 
     if (clicked) {
@@ -136,7 +135,9 @@ absl::Status TilePalettePanel::Render(int tile_render_width, int tile_render_hei
   if (ScopedCombo combo = gui_->CreateScopedCombo("Tileset##tile_palette", preview); combo) {
     for (const Tileset& ts : tilesets) {
       bool is_selected = (selected_tileset_ != nullptr && selected_tileset_->id == ts.id);
-      if (!gui_->Selectable(ts.name.c_str(), is_selected)) continue;
+      const std::string label = absl::StrCat(
+          ts.name.empty() ? "(unnamed tileset)" : ts.name, "##tileset_", ts.id);
+      if (!gui_->Selectable(label.c_str(), is_selected)) continue;
 
       absl::StatusOr<Tileset*> ts_ptr = api_.GetTileset(ts.id);
       if (!ts_ptr.ok()) {
@@ -159,22 +160,17 @@ absl::Status TilePalettePanel::Render(int tile_render_width, int tile_render_hei
     return absl::OkStatus();
   }
 
-  // --- Resolve texture ---
-  void* texture_handle = nullptr;
-  int tex_w = 0;
-  int tex_h = 0;
-
+  // --- Resolve the atlas at the editor boundary ---
+  // An unset or unloaded texture is a valid authoring state; the grid falls back
+  // to placeholder swatches rather than failing the frame.
+  AtlasBinding atlas;
   if (!selected_tileset_->texture_id.empty()) {
-    ASSIGN_OR_RETURN(Texture* tex, api_.GetTexture(selected_tileset_->texture_id));
-    if (tex != nullptr && tex->texture_handle) {
-      texture_handle = SdlTextureHandleAdapter::ToNative(tex->texture_handle);
-      SDL_QueryTexture(reinterpret_cast<SDL_Texture*>(texture_handle), nullptr, nullptr, &tex_w,
-                       &tex_h);
-    }
+    ASSIGN_OR_RETURN(TextureHandle handle,
+                     api_.GetTextureHandle(selected_tileset_->texture_id));
+    ASSIGN_OR_RETURN(atlas, texture_preview_.BindAtlas(handle));
   }
 
-  return RenderTileGrid(texture_handle, tex_w, tex_h, tile_render_width, tile_render_height,
-                        tile_overlay_opacity_);
+  return RenderTileGrid(atlas, tile_render_width, tile_render_height, tile_overlay_opacity_);
 }
 
 }  // namespace zebes

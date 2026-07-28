@@ -5,6 +5,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "editor/imgui_scoped.h"
 #include "imgui.h"
@@ -45,7 +46,9 @@ absl::StatusOr<LevelPanelEvent> LevelPanel::RenderList(LevelPanelModel& model) {
     for (const auto& catalog_entry : model.levels()) {
       const Level& level = catalog_entry.second;
       const bool is_selected = model.selected_level_id() == level.id;
-      if (gui_->Selectable(level.name.c_str(), is_selected)) {
+      const std::string label = absl::StrCat(
+          level.name.empty() ? "(unnamed level)" : level.name, "##level_", level.id);
+      if (gui_->Selectable(label.c_str(), is_selected)) {
         RETURN_IF_ERROR(model.SelectLevel(level.id));
       }
       if (is_selected) gui_->SetItemDefaultFocus();
