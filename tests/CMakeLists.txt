@@ -81,5 +81,15 @@ add_executable(tileset_manager_test resources/tileset_manager_test.cc)
 target_link_libraries(tileset_manager_test tileset_manager macros gtest_main gmock)
 gtest_discover_tests(tileset_manager_test)
 
+# --- Shipped assets ---
+# Reads the repository's assets/ directly, so the path is baked in rather than
+# depending on ctest's working directory.
+add_executable(shipped_assets_test assets/shipped_assets_test.cc)
+target_link_libraries(shipped_assets_test tileset_manager texture_manager terrain_brush terrain_mask macros gtest_main)
+target_compile_definitions(shipped_assets_test
+  PRIVATE ZEBES_TEST_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+gtest_discover_tests(shipped_assets_test)
+
 add_subdirectory(editor)
+add_subdirectory(terrain)
 add_subdirectory(tools)

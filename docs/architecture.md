@@ -51,12 +51,14 @@ SdlTextureStore
 `TextureResourceStore` to load and unload runtime resources, but it does not
 create, cast, query, or destroy `SDL_Texture` objects itself.
 
-The serialized metadata contains only `id`, `name`, and `path`. The current
-in-memory `Texture` and `Sprite` structures also carry a transient
-`TextureHandle` for convenient editor rendering; that field is never serialized.
-This is a transitional runtime projection, not persistent asset data. If runtime
-and authoring models are separated later, move the handle into the runtime view
-without changing the stored JSON format.
+The serialized metadata contains only `id`, `name`, and `path`, and so do the
+in-memory `Texture` and `Sprite` structures. Neither carries a `TextureHandle`:
+handles live in the texture store and are fetched by ID through
+`Api::GetTextureHandle` at the point of use. Callers that need a definition and
+its handle together pair them explicitly — `ResolvedSprite` for entity
+rendering, `AtlasBinding` for palettes — rather than caching a handle on the
+definition, which previously meant a pure data struct had to include
+`engine/texture_handle.h`.
 
 `SdlTextureStore` owns every managed `SDL_Texture`. It allocates stable numeric
 resource IDs, stores the mapping from ID to native pointer, and destroys the
@@ -205,6 +207,18 @@ module. Entity picking and construction, stable ID allocation, tile mutation,
 and grid snapping do not depend on ImGui, SDL, or `Api`. `ViewportTab` resolves
 resources, draws the results, and translates UI gestures into those operations.
 
+Authoring modes are mutually exclusive and ordered terrain, tile, blueprint.
+Each write is deduplicated by cell and operation for the duration of a drag, so
+holding a button over one cell does not rewrite it every frame — which for
+terrain would also re-resolve its eight neighbours every frame.
+
+`ViewportTab` translates the canvas into a per-frame `ViewportInteractionInput`.
+`ViewportInteractionController` owns mode priority, continuous paint/erase and
+entity-drag state, and discrete placement, selection, and deletion results. The
+controller may mutate level tiles and existing entity positions, but it depends
+only on Zebes domain types; ImGui button state and `Api` resource lookup remain
+in `ViewportTab`.
+
 Viewport scene composition is separate from presentation. `ViewportScene`
 builds platform-neutral entity and zone render items with validated world-space
 bounds, selection state, and opaque `TextureHandle` values. `ViewportRenderer`
@@ -251,7 +265,90 @@ platform-neutral batch request, while native rendering remains unchanged.
 Managed texture thumbnails use `TexturePreviewRenderer` at the editor boundary.
 Panels supply an opaque `TextureHandle`; the renderer resolves SDL state,
 queries source dimensions, calculates an aspect-preserving layout, and emits
-the ImGui image. Panels and domain models never receive `SDL_Texture*` values.
+the ImGui image. Panels that compose their own draw-list geometry, such as the
+tile and terrain palettes sampling individual atlas cells, request an
+`AtlasBinding` instead: the renderer still performs every SDL query and hands
+back only an ImGui texture ID plus native dimensions. Panels and domain models
+never receive `SDL_Texture*` values.
+
+## Terrain
+
+`src/terrain/` holds the terrain autotiling rules, and depends only on Abseil
+and `objects/`. It is shared by the offline atlas tools and the level editor so
+generated artwork and painted levels cannot disagree about what a mask means.
+
+`terrain_mask` owns the neighbour bit layout, the normalization that clears a
+corner bit whose two flanking edges are absent, and the resulting table of 47
+distinct masks in ascending order. Atlas index *i* holds the artwork for
+`Blob47MaskTable()[i]`; that ordering is the contract binding the compositor,
+the importer, and the brush, so it is pinned by a golden test. The same module
+maps a mask and a quadrant to one of five appearances, which is what lets 20
+authored sprites generate all 47 tiles.
+
+`blob47_compose` composites a quadrant sheet into a finished atlas plus a
+manifest. Quadrants are authored at half tile size; a quadrant cell left
+transparent in a variant inherits from variant 0, so adding visual variety costs
+only the cells that differ. Composition happens offline and bakes concrete
+tiles, so rendering stays one draw per cell and level data keeps storing plain
+tile IDs.
+
+`terrain_detect` turns an atlas into a `Terrain`. Manifest import is the exact
+path and involves no guessing. The layout scan is the fallback for atlases with
+no manifest, and deliberately finds nothing in hand-authored tilesets of slopes
+and one-off pieces rather than reporting a false positive.
+
+Terrain resolution happens at paint time, not render time. `TerrainBrush` sits
+beside `ViewportModel` as a second platform-neutral authoring-rules module: it
+computes a cell's mask from its eight neighbours, picks a variant
+deterministically from the cell's coordinates so repainting never reshuffles
+artwork, writes a concrete tile ID, and re-resolves the neighbouring cells of
+the same terrain. A terrain missing a rule for a computed mask fails the paint
+rather than substituting wrong artwork. `TerrainIndex` is the reverse lookup
+from tile ID to owning terrain, rebuilt each frame from Api-owned storage.
+
+Because resolution is a paint-time rule, `ViewportScene` and `ViewportRenderer`
+are unchanged by terrains, and the game runtime never learns they exist.
+
+A terrain distinguishes the tiles it *paints* from the tiles it merely *counts*.
+Rules hold paintable tiles; `member_tile_ids` holds hand-placed pieces such as
+slope units. Both contribute to a neighbour mask, so painted ground reads a
+slope as the same material and continues into it instead of capping off with an
+edge. Only paintable cells are ever re-resolved, so refreshing around a slope
+never overwrites its artwork. Painting directly onto a member cell is a
+deliberate replacement and is allowed.
+
+Slopes are not an autotiling problem and no mask scheme produces them. They are
+modular units: one tile per `TileShape`, drawn at full size rather than composed
+from quadrants, because the diagonal surface band is exactly the detail that
+does not composite well. `compose_blob47` appends them to the same atlas and
+manifest, and the importer registers them as terrain members automatically. A
+long ramp is that unit repeated, which also keeps each tile's collision shape
+equal to its artwork.
+
+## Definition and runtime data
+
+Serialized definitions in `src/objects/` hold no runtime state. This boundary is
+deliberate and is the prerequisite for building the engine against stable data.
+It is now complete: `src/objects/` includes only Abseil and its own headers, so
+`grep -rn "engine/" src/objects/` returning nothing is the standing check.
+
+- `Texture` and `Sprite` carry an identity and reference their artwork by path
+  or ID. The GPU handle lives in the texture store and is fetched through
+  `Api::GetTextureHandle`.
+- `Entity` references its sprite and collider by ID. Rendering and picking
+  resolve those once per frame into a `SpriteLookup` — a map to `ResolvedSprite`,
+  which pairs the definition with its handle — and pass the result explicitly,
+  so `LevelManager` needs no asset managers to load a level.
+- `Body` holds authored physical properties — mass, drag, and whether the body
+  is static. Velocity and acceleration are simulation state, live in `Motion`,
+  and are never serialized: saving a level must not capture how fast something
+  happened to be moving.
+- `Entity` holds no animation playback state. A frame index and timer are
+  simulation state; `editor/animator.h` owns playback today, and the engine
+  should follow that pattern rather than reviving fields on the definition.
+
+Levels written before these splits still load; the removed keys — `vx`, `vy`,
+`ax`, `ay`, and `current_frame_index` — are ignored rather than restored.
 
 Named asset catalogs use the shared `AssetCatalogKey`, ordered by display name
 and then stable asset ID. This preserves duplicate names while providing

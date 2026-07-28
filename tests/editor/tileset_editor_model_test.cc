@@ -4,9 +4,12 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "objects/texture.h"
 #include "objects/tileset.h"
+#include "terrain/blob47_compose.h"
+#include "terrain/terrain_mask.h"
 
 namespace zebes {
 namespace {
@@ -112,6 +115,196 @@ TEST(TilesetEditorModelTest, TileIdExhaustionReturnsError) {
       Tile{.id = std::numeric_limits<int>::max(), .name = "Last"});
 
   EXPECT_EQ(model.AddTile().code(), absl::StatusCode::kResourceExhausted);
+}
+
+// --- Terrain authoring -------------------------------------------------------
+
+namespace {
+
+// A minimal but valid quadrant sheet, composed into a manifest the way the
+// compose_blob47 tool emits one.
+std::string MakeManifest(int variant_count) {
+  QuadrantSheet sheet;
+  sheet.quadrant_size = 8;
+  sheet.variant_count = variant_count;
+  sheet.image.width = sheet.quadrant_size * kQuadrantStateCount * variant_count;
+  sheet.image.height = sheet.quadrant_size * kQuadrantCount;
+  sheet.image.pixels.assign(
+      static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 255);
+
+  absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(sheet);
+  EXPECT_TRUE(atlas.ok()) << atlas.status();
+  return WriteBlob47Manifest(*atlas);
+}
+
+}  // namespace
+
+TEST(TilesetEditorModelTest, ImportTerrainAddsTilesAndOneTerrain) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+
+  EXPECT_EQ(model.active_tileset()->tiles.size(), kBlob47TileCount);
+  ASSERT_EQ(model.active_tileset()->terrains.size(), 1u);
+  EXPECT_EQ(model.active_tileset()->terrains[0].rules.size(), kBlob47TileCount);
+}
+
+// Importing must not renumber tiles that already exist in the tileset.
+TEST(TilesetEditorModelTest, ImportTerrainPreservesExistingTileIds) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  model.active_tileset()->tiles.push_back(Tile{.id = 4, .name = "Existing"});
+
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+
+  EXPECT_EQ(model.active_tileset()->tiles.front().id, 4);
+  EXPECT_EQ(model.active_tileset()->tiles.front().name, "Existing");
+  // Imported tiles start after the highest existing ID.
+  EXPECT_EQ(model.active_tileset()->tiles[1].id, 5);
+}
+
+TEST(TilesetEditorModelTest, ImportTerrainTwiceProducesDistinctTerrainIds) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+
+  ASSERT_EQ(model.active_tileset()->terrains.size(), 2u);
+  EXPECT_NE(model.active_tileset()->terrains[0].id, model.active_tileset()->terrains[1].id);
+  EXPECT_EQ(model.active_tileset()->tiles.size(), kBlob47TileCount * 2);
+}
+
+TEST(TilesetEditorModelTest, ImportTerrainGroupsVariantsUnderOneRule) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(2)).ok());
+
+  ASSERT_EQ(model.active_tileset()->terrains.size(), 1u);
+  for (const TerrainRule& rule : model.active_tileset()->terrains[0].rules) {
+    EXPECT_EQ(rule.variants.size(), 2u);
+  }
+}
+
+TEST(TilesetEditorModelTest, ImportTerrainRejectsMalformedManifest) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+
+  EXPECT_EQ(model.ImportTerrainManifest("{ nope").code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_TRUE(model.active_tileset()->terrains.empty());
+}
+
+TEST(TilesetEditorModelTest, ImportTerrainRequiresAnActiveTileset) {
+  TilesetEditorModel model;
+  EXPECT_EQ(model.ImportTerrainManifest(MakeManifest(1)).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST(TilesetEditorModelTest, DetectTerrainsFindsAnImportedBlock) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  model.active_tileset()->tile_width = 16;
+  model.active_tileset()->tile_height = 16;
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  // Drop the imported terrain so detection has to rediscover it from the tiles.
+  model.active_tileset()->terrains.clear();
+
+  absl::StatusOr<int> added = model.DetectTerrains();
+  ASSERT_TRUE(added.ok()) << added.status();
+  EXPECT_EQ(*added, 1);
+  EXPECT_EQ(model.active_tileset()->terrains.size(), 1u);
+}
+
+TEST(TilesetEditorModelTest, DetectTerrainsFindsNothingInAHandAuthoredTileset) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  for (int i = 1; i <= 9; ++i) {
+    model.active_tileset()->tiles.push_back(
+        Tile{.id = i, .name = "Grass", .source_x = (i % 3) * 16, .source_y = (i / 3) * 16});
+  }
+
+  absl::StatusOr<int> added = model.DetectTerrains();
+  ASSERT_TRUE(added.ok()) << added.status();
+  EXPECT_EQ(*added, 0);
+  EXPECT_TRUE(model.active_tileset()->terrains.empty());
+}
+
+TEST(TilesetEditorModelTest, TerrainMembershipAssignsAndClears) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  const int terrain_id = model.active_tileset()->terrains[0].id;
+
+  // A hand-drawn slope that the brush never paints.
+  model.active_tileset()->tiles.push_back(
+      Tile{.id = 900, .name = "Slope", .shape = TileShape::kSlope45BottomLeft});
+
+  EXPECT_FALSE(model.GetTileTerrainMembership(900).has_value());
+  ASSERT_TRUE(model.SetTileTerrainMembership(900, terrain_id).ok());
+  EXPECT_EQ(model.GetTileTerrainMembership(900), terrain_id);
+  EXPECT_THAT(model.active_tileset()->terrains[0].member_tile_ids, ::testing::ElementsAre(900));
+
+  ASSERT_TRUE(model.SetTileTerrainMembership(900, std::nullopt).ok());
+  EXPECT_FALSE(model.GetTileTerrainMembership(900).has_value());
+  EXPECT_TRUE(model.active_tileset()->terrains[0].member_tile_ids.empty());
+}
+
+// Membership is exclusive: assigning to a second terrain must not leave the
+// tile listed under the first, which TerrainIndex would reject.
+TEST(TilesetEditorModelTest, TerrainMembershipIsExclusive) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  const int first = model.active_tileset()->terrains[0].id;
+  const int second = model.active_tileset()->terrains[1].id;
+  model.active_tileset()->tiles.push_back(Tile{.id = 900, .name = "Slope"});
+
+  ASSERT_TRUE(model.SetTileTerrainMembership(900, first).ok());
+  ASSERT_TRUE(model.SetTileTerrainMembership(900, second).ok());
+
+  EXPECT_TRUE(model.active_tileset()->terrains[0].member_tile_ids.empty());
+  EXPECT_THAT(model.active_tileset()->terrains[1].member_tile_ids, ::testing::ElementsAre(900));
+  EXPECT_EQ(model.GetTileTerrainMembership(900), second);
+}
+
+TEST(TilesetEditorModelTest, TerrainMembershipRejectsAPaintedTile) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  const int terrain_id = model.active_tileset()->terrains[0].id;
+  const int painted_tile_id = model.active_tileset()->tiles[0].id;
+
+  absl::Status status = model.SetTileTerrainMembership(painted_tile_id, terrain_id);
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST(TilesetEditorModelTest, TerrainMembershipRejectsUnknownTerrain) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  model.active_tileset()->tiles.push_back(Tile{.id = 900, .name = "Slope"});
+
+  EXPECT_EQ(model.SetTileTerrainMembership(900, 42).code(), absl::StatusCode::kNotFound);
+}
+
+TEST(TilesetEditorModelTest, DeleteTerrainRemovesOnlyThatTerrain) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  const int removed_id = model.active_tileset()->terrains[0].id;
+  const int kept_id = model.active_tileset()->terrains[1].id;
+
+  ASSERT_TRUE(model.DeleteTerrain(removed_id).ok());
+
+  ASSERT_EQ(model.active_tileset()->terrains.size(), 1u);
+  EXPECT_EQ(model.active_tileset()->terrains[0].id, kept_id);
+
+  // Deleting an absent terrain is a no-op, not an error.
+  ASSERT_TRUE(model.DeleteTerrain(removed_id).ok());
+  EXPECT_EQ(model.active_tileset()->terrains.size(), 1u);
 }
 
 }  // namespace

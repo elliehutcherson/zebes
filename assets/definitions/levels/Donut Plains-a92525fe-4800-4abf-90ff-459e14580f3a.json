@@ -1,0 +1,48 @@
+{
+    "entities": [],
+    "height": 1024.0,
+    "id": "a92525fe-4800-4abf-90ff-459e14580f3a",
+    "name": "Donut Plains",
+    "parallax_layers": [],
+    "spawn_point": {
+        "x": 0.0,
+        "y": 0.0
+    },
+    "themes": [
+        {
+            "id": 0,
+            "layers": [
+                {
+                    "base_scale": 1.0,
+                    "name": "SkyMountainBackground",
+                    "offset_x": 0.0,
+                    "offset_y": 20.0,
+                    "repeat_x": true,
+                    "repeat_y": false,
+                    "scroll_factor_x": 1.0,
+                    "scroll_factor_y": 1.0,
+                    "texture_id": "5118d3ee-cb3c-46f3-a1e7-59d458f12c82"
+                }
+            ],
+            "name": "SkyBackground"
+        }
+    ],
+    "tile_chunks": [],
+    "tile_render_height": 32,
+    "tile_render_width": 32,
+    "tileset_id": "",
+    "width": 65536.0,
+    "zones": [
+        {
+            "fade_x": 10.0,
+            "fade_y": 10.0,
+            "id": 0,
+            "max_x": 65536.0,
+            "max_y": 1024.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "name": "Donut Plains",
+            "theme_id": 0
+        }
+    ]
+}
