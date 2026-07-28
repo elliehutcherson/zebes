@@ -1,5 +1,18 @@
 # Asset tools
 
+## Where art lives
+
+| Directory | Holds | Read by |
+|---|---|---|
+| `assets/source_art/` | Hand-drawn originals the tools crop and composite from | These scripts only |
+| `assets/textures/` | Finished artwork the game and editor sample | A texture definition, always |
+
+The split matters because every file in `assets/textures/` is expected to have a
+definition in `assets/definitions/textures/` pointing at it. Source art has no
+definition and never should: it is an input, not a shipped texture. Keeping the
+two in one directory is how a tileset once ended up referencing a file that had
+been replaced with unrelated artwork, with nothing to catch it.
+
 ## Author a terrain brush (blob-47)
 
 A terrain brush paints the correct edge, corner, and interior artwork based on
@@ -35,7 +48,7 @@ atlas tile coordinates:
 ```bash
 # Block at cell (1, 1), ring at cell (12, 19), 32px tiles.
 build/dev/bin/compose_blob47 seed \
-  assets/textures/pixel_32px.png 32 1 1 build/grass_quadrants.png \
+  assets/source_art/pixel_32px.png 32 1 1 build/grass_quadrants.png \
   --inner-corners 12 19
 ```
 
@@ -90,7 +103,7 @@ As with the quadrants, you draw them in the atlas and name their cells. The
 `TileShape`-derived internal contract you never have to reproduce:
 
 ```bash
-build/dev/bin/compose_blob47 slopes assets/textures/pixel_32px.png 32 \
+build/dev/bin/compose_blob47 slopes assets/source_art/pixel_32px.png 32 \
   build/grass_slopes.png \
   --tile kSlope45BottomLeft=10,11 \
   --tile kSlope45BottomRight=12,11
