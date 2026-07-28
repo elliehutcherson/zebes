@@ -142,8 +142,11 @@ absl::Status TilesetEditor::RenderViewport() {
   }
 
   const Texture* texture = model_.active_texture();
-  SDL_Texture* native_texture =
-      texture == nullptr ? nullptr : SdlTextureHandleAdapter::ToNative(texture->texture_handle);
+  TextureHandle handle;
+  if (texture != nullptr) {
+    ASSIGN_OR_RETURN(handle, api_->GetTextureHandle(texture->id));
+  }
+  SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(handle);
   if (native_texture == nullptr) {
     gui_->Text("Texture not loaded.");
     return absl::OkStatus();

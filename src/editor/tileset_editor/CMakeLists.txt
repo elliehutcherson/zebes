@@ -3,8 +3,12 @@ target_link_libraries(tileset_editor_model
   PUBLIC
   absl::status
   absl::statusor
+  absl::strings
   texture
   tileset
+  PRIVATE
+  status_macros
+  terrain_detect
 )
 
 add_library(tile_panel tile_panel.cc)

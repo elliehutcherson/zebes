@@ -39,6 +39,13 @@ absl::StatusOr<std::unique_ptr<PalettePanel>> PalettePanel::Create(Options optio
                      TilePalettePanel::Create({.api = options.api, .gui = options.gui}));
   }
 
+  if (options.terrain_panel) {
+    panel->terrain_panel_ = std::move(options.terrain_panel);
+  } else {
+    ASSIGN_OR_RETURN(panel->terrain_panel_,
+                     TerrainPalettePanel::Create({.api = options.api, .gui = options.gui}));
+  }
+
   return panel;
 }
 
@@ -51,6 +58,7 @@ absl::Status PalettePanel::Render(int tile_render_width, int tile_render_height)
     if (gui_->Button("Blueprints")) {
       mode_ = Mode::kBlueprints;
       tile_panel_->ClearSelection();
+      terrain_panel_->ClearSelection();
     }
   }
 
@@ -62,6 +70,19 @@ absl::Status PalettePanel::Render(int tile_render_width, int tile_render_height)
     if (gui_->Button("Tiles")) {
       mode_ = Mode::kTiles;
       blueprint_panel_->ClearSelection();
+      terrain_panel_->ClearSelection();
+    }
+  }
+
+  gui_->SameLine();
+
+  {
+    ScopedStyleColor color = gui_->CreateScopedStyleColor(
+        ImGuiCol_Button, mode_ == Mode::kTerrain ? kActiveButtonColor : kInactiveButtonColor);
+    if (gui_->Button("Terrain")) {
+      mode_ = Mode::kTerrain;
+      blueprint_panel_->ClearSelection();
+      tile_panel_->ClearSelection();
     }
   }
 
@@ -79,6 +100,7 @@ absl::Status PalettePanel::Render(int tile_render_width, int tile_render_height)
   gui_->Separator();
 
   if (mode_ == Mode::kBlueprints) return blueprint_panel_->Render();
+  if (mode_ == Mode::kTerrain) return terrain_panel_->Render();
   return tile_panel_->Render(tile_render_width, tile_render_height);
 }
 
@@ -101,6 +123,16 @@ const Tile* PalettePanel::GetSelectedTile() const {
 const Tileset* PalettePanel::GetSelectedTileset() const {
   if (mode_ != Mode::kTiles) return nullptr;
   return tile_panel_->GetSelectedTileset();
+}
+
+std::optional<int> PalettePanel::GetSelectedTerrainId() const {
+  if (mode_ != Mode::kTerrain) return std::nullopt;
+  return terrain_panel_->GetSelectedTerrainId();
+}
+
+const Tileset* PalettePanel::GetSelectedTerrainTileset() const {
+  if (mode_ != Mode::kTerrain) return nullptr;
+  return terrain_panel_->GetSelectedTileset();
 }
 
 bool PalettePanel::GetShowTileFrame() const { return tile_panel_->GetShowTileFrame(); }

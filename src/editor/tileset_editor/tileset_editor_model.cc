@@ -1,5 +1,8 @@
 #include "editor/tileset_editor/tileset_editor_model.h"
 
+#include "common/status_macros.h"
+#include "terrain/terrain_detect.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -142,6 +145,108 @@ absl::Status TilesetEditorModel::AddTile() {
   selected_tile_id_ = maximum_id + 1;
   active_tileset_->tiles.push_back(Tile{.id = selected_tile_id_});
   return absl::OkStatus();
+}
+
+absl::Status TilesetEditorModel::ImportTerrainManifest(absl::string_view manifest_json) {
+  if (!active_tileset_.has_value()) {
+    return absl::FailedPreconditionError("No tileset is being edited");
+  }
+
+  int maximum_tile_id = 0;
+  for (const Tile& tile : active_tileset_->tiles) {
+    maximum_tile_id = std::max(maximum_tile_id, tile.id);
+  }
+  int maximum_terrain_id = 0;
+  for (const Terrain& terrain : active_tileset_->terrains) {
+    maximum_terrain_id = std::max(maximum_terrain_id, terrain.id);
+  }
+
+  ASSIGN_OR_RETURN(TerrainCandidate candidate,
+                   ImportBlob47Manifest(manifest_json, maximum_tile_id + 1,
+                                        maximum_terrain_id + 1));
+
+  active_tileset_->tiles.insert(active_tileset_->tiles.end(), candidate.tiles.begin(),
+                                candidate.tiles.end());
+  active_tileset_->terrains.push_back(std::move(candidate.terrain));
+  return absl::OkStatus();
+}
+
+absl::StatusOr<int> TilesetEditorModel::DetectTerrains() {
+  if (!active_tileset_.has_value()) {
+    return absl::FailedPreconditionError("No tileset is being edited");
+  }
+
+  ASSIGN_OR_RETURN(std::vector<TerrainCandidate> candidates,
+                   DetectBlob47Terrains(*active_tileset_));
+
+  int maximum_terrain_id = 0;
+  for (const Terrain& terrain : active_tileset_->terrains) {
+    maximum_terrain_id = std::max(maximum_terrain_id, terrain.id);
+  }
+
+  for (TerrainCandidate& candidate : candidates) {
+    candidate.terrain.id = ++maximum_terrain_id;
+    active_tileset_->terrains.push_back(std::move(candidate.terrain));
+  }
+  return static_cast<int>(candidates.size());
+}
+
+absl::Status TilesetEditorModel::DeleteTerrain(int terrain_id) {
+  if (!active_tileset_.has_value()) {
+    return absl::FailedPreconditionError("No tileset is being edited");
+  }
+  std::vector<Terrain>& terrains = active_tileset_->terrains;
+  auto found = std::find_if(terrains.begin(), terrains.end(),
+                            [terrain_id](const Terrain& t) { return t.id == terrain_id; });
+  if (found == terrains.end()) return absl::OkStatus();
+  terrains.erase(found);
+  return absl::OkStatus();
+}
+
+absl::Status TilesetEditorModel::SetTileTerrainMembership(int tile_id,
+                                                          std::optional<int> terrain_id) {
+  if (!active_tileset_.has_value()) {
+    return absl::FailedPreconditionError("No tileset is being edited");
+  }
+  if (tile_id <= 0) {
+    return absl::InvalidArgumentError("Tile ID must be positive");
+  }
+
+  // Membership is exclusive, so drop any prior assignment first.
+  for (Terrain& terrain : active_tileset_->terrains) {
+    std::vector<int>& members = terrain.member_tile_ids;
+    members.erase(std::remove(members.begin(), members.end(), tile_id), members.end());
+  }
+  if (!terrain_id.has_value()) return absl::OkStatus();
+
+  Terrain* target = nullptr;
+  for (Terrain& terrain : active_tileset_->terrains) {
+    if (terrain.id == *terrain_id) target = &terrain;
+  }
+  if (target == nullptr) {
+    return absl::NotFoundError(absl::StrCat("Unknown terrain ID ", *terrain_id));
+  }
+
+  for (const TerrainRule& rule : target->rules) {
+    for (const TerrainVariant& variant : rule.variants) {
+      if (variant.tile_id != tile_id) continue;
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Tile ", tile_id, " is already painted by terrain '", target->name, "'"));
+    }
+  }
+
+  target->member_tile_ids.push_back(tile_id);
+  return absl::OkStatus();
+}
+
+std::optional<int> TilesetEditorModel::GetTileTerrainMembership(int tile_id) const {
+  if (!active_tileset_.has_value()) return std::nullopt;
+  for (const Terrain& terrain : active_tileset_->terrains) {
+    for (int member : terrain.member_tile_ids) {
+      if (member == tile_id) return terrain.id;
+    }
+  }
+  return std::nullopt;
 }
 
 absl::Status TilesetEditorModel::DeleteSelectedTile() {

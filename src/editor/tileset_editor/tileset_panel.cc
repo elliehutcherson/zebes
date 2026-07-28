@@ -1,5 +1,10 @@
 #include "editor/tileset_editor/tileset_panel.h"
 
+#include <cstring>
+#include <fstream>
+
+#include "absl/strings/str_cat.h"
+
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
@@ -10,6 +15,25 @@
 #include "objects/tileset.h"
 
 namespace zebes {
+namespace {
+
+// Buffer size for the manifest path input field.
+constexpr size_t kManifestPathCapacity = 512;
+
+// Reads a compose_blob47 manifest from disk and adds its terrain to the model.
+absl::Status ImportTerrainFromFile(TilesetEditorModel& model, const std::string& path) {
+  if (path.empty()) return absl::InvalidArgumentError("Manifest path is empty.");
+
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    return absl::NotFoundError(absl::StrCat("Cannot open manifest: ", path));
+  }
+  const std::string contents((std::istreambuf_iterator<char>(file)),
+                             std::istreambuf_iterator<char>());
+  return model.ImportTerrainManifest(contents);
+}
+
+}  // namespace
 
 absl::StatusOr<std::unique_ptr<TilesetPanel>> TilesetPanel::Create(GuiInterface* gui) {
   if (gui == nullptr) return absl::InvalidArgumentError("Gui cannot be null");
@@ -116,6 +140,81 @@ absl::Status TilesetPanel::RenderTileList(TilesetEditorModel& model) {
         RETURN_IF_ERROR(model.SelectTile(tile.id));
       }
       if (is_selected) gui_->SetItemDefaultFocus();
+    }
+  }
+
+  RETURN_IF_ERROR(RenderTerrainList(model));
+  return absl::OkStatus();
+}
+
+absl::Status TilesetPanel::RenderTerrainList(TilesetEditorModel& model) {
+  Tileset* tileset = model.active_tileset();
+  if (tileset == nullptr) return absl::FailedPreconditionError("No tileset is being edited");
+
+  gui_->Separator();
+  gui_->Text("Terrains");
+
+  manifest_path_.resize(kManifestPathCapacity);
+  gui_->InputText("Manifest##Terrain", manifest_path_.data(), manifest_path_.size());
+  manifest_path_.resize(std::strlen(manifest_path_.c_str()));
+
+  if (gui_->Button("Import##Terrain")) {
+    absl::Status status = ImportTerrainFromFile(model, manifest_path_);
+    terrain_status_ = status.ok() ? "Imported terrain." : std::string(status.message());
+  }
+  gui_->SameLine();
+  if (gui_->Button("Detect##Terrain")) {
+    absl::StatusOr<int> added = model.DetectTerrains();
+    terrain_status_ = added.ok() ? absl::StrFormat("Detected %d terrain(s).", *added)
+                                 : std::string(added.status().message());
+  }
+
+  if (!terrain_status_.empty()) gui_->TextWrapped("%s", terrain_status_.c_str());
+
+  if (tileset->terrains.empty()) {
+    gui_->TextDisabled("No terrains. Import a compose_blob47 manifest above.");
+    return absl::OkStatus();
+  }
+
+  for (const Terrain& terrain : tileset->terrains) {
+    ScopedId id = gui_->CreateScopedId(terrain.id);
+    gui_->Text("%s", absl::StrFormat("%s (%d masks)", terrain.name, terrain.rules.size()).c_str());
+    gui_->SameLine();
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    if (gui_->Button("Delete##Terrain")) RETURN_IF_ERROR(model.DeleteTerrain(terrain.id));
+  }
+
+  return RenderTerrainMembership(model, *tileset);
+}
+
+absl::Status TilesetPanel::RenderTerrainMembership(TilesetEditorModel& model,
+                                                   const Tileset& tileset) {
+  const Tile* tile = model.selected_tile();
+  if (tile == nullptr) return absl::OkStatus();
+
+  gui_->Separator();
+  gui_->Text("%s", absl::StrFormat("Selected tile: %s", tile->name).c_str());
+
+  const std::optional<int> current = model.GetTileTerrainMembership(tile->id);
+  std::string preview = "(not a terrain member)";
+  for (const Terrain& terrain : tileset.terrains) {
+    if (current.has_value() && terrain.id == *current) preview = terrain.name;
+  }
+
+  // Membership makes painted ground flow into hand-placed art such as slopes
+  // instead of capping off with an edge against it.
+  if (ScopedCombo combo = gui_->CreateScopedCombo("Member of##Terrain", preview.c_str()); combo) {
+    if (gui_->Selectable("(not a terrain member)", !current.has_value())) {
+      RETURN_IF_ERROR(model.SetTileTerrainMembership(tile->id, std::nullopt));
+    }
+    for (const Terrain& terrain : tileset.terrains) {
+      const bool is_selected = current.has_value() && terrain.id == *current;
+      ScopedId id = gui_->CreateScopedId(terrain.id);
+      if (!gui_->Selectable(terrain.name.c_str(), is_selected)) continue;
+
+      absl::Status status = model.SetTileTerrainMembership(tile->id, terrain.id);
+      terrain_status_ = status.ok() ? "" : std::string(status.message());
     }
   }
 

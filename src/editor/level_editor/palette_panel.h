@@ -7,6 +7,7 @@
 #include "api/api.h"
 #include "editor/gui_interface.h"
 #include "editor/level_editor/blueprint_palette_panel.h"
+#include "editor/level_editor/terrain_palette_panel.h"
 #include "editor/level_editor/tile_palette_panel.h"
 #include "objects/blueprint.h"
 #include "objects/tileset.h"
@@ -19,7 +20,9 @@ namespace zebes {
 // each frame.
 class PalettePanel {
  public:
-  enum class Mode { kBlueprints, kTiles };
+  // kStamp is reserved for the planned multi-tile stamp tool, which will
+  // reuse the same mode plumbing.
+  enum class Mode { kBlueprints, kTiles, kTerrain };
 
   struct Options {
     Api* api = nullptr;
@@ -27,6 +30,7 @@ class PalettePanel {
     // Optional pre-constructed sub-panels (used in tests to inject mocks).
     std::unique_ptr<BlueprintPalettePanel> blueprint_panel;
     std::unique_ptr<TilePalettePanel> tile_panel;
+    std::unique_ptr<TerrainPalettePanel> terrain_panel;
   };
 
   static absl::StatusOr<std::unique_ptr<PalettePanel>> Create(Options options);
@@ -47,6 +51,12 @@ class PalettePanel {
   const Tile* GetSelectedTile() const;
   // Returns the tileset owning the selected tile, or nullptr when not in tile mode.
   const Tileset* GetSelectedTileset() const;
+  // --- Terrain-mode getters ---
+  // Returns the selected terrain's ID, or empty when not in terrain mode.
+  std::optional<int> GetSelectedTerrainId() const;
+  // Returns the tileset owning the selected terrain, or nullptr.
+  const Tileset* GetSelectedTerrainTileset() const;
+
   bool GetShowTileFrame() const;
   bool GetShowTileCollision() const;
   float GetTileOverlayOpacity() const;
@@ -67,6 +77,7 @@ class PalettePanel {
   bool delete_mode_ = false;
   std::unique_ptr<BlueprintPalettePanel> blueprint_panel_;
   std::unique_ptr<TilePalettePanel> tile_panel_;
+  std::unique_ptr<TerrainPalettePanel> terrain_panel_;
   GuiInterface* gui_ = nullptr;
 };
 
