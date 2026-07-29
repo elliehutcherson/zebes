@@ -63,8 +63,7 @@ class LevelEditor {
 
   // Explains why a palette selection cannot be painted. Without this the
   // mismatch is invisible: the brush simply does nothing.
-  void RenderTilesetMismatchWarning(const Level& level, const Tileset* palette_tileset,
-                                    bool palette_matches_level);
+  void RenderTilesetMismatchWarning(const Level& level, const Tileset* rejected_tileset);
 
   // Renders the properties/details panel for the selected object.
   absl::Status RenderInspector();  // Right

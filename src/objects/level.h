@@ -13,7 +13,9 @@ namespace zebes {
 // Definition of a Tile Chunk (Optimized Storage)
 struct TileChunk {
   static constexpr int kSize = 32;
-  std::array<int, kSize * kSize> tiles;
+  // Zero-initialized: zero means "no tile", so a default-constructed chunk has
+  // to read as empty rather than as whatever the memory held.
+  std::array<int, kSize * kSize> tiles{};
 };
 
 // Definition of Parallax Layer (Visuals)

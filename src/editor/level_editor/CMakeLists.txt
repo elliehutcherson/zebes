@@ -16,6 +16,13 @@ add_library(camera_guide
   camera_guide.cc
 )
 
+add_library(level_tiles
+  level_tiles.cc
+)
+target_link_libraries(level_tiles
+  PUBLIC level
+)
+
 add_library(viewport_model
   viewport_model.cc
 )
@@ -138,6 +145,8 @@ target_link_libraries(level_panel_model
   level
   absl::status
   absl::statusor
+  PRIVATE
+  level_tiles
 )
 
 add_library(level_panel

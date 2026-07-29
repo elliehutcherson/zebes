@@ -7,85 +7,89 @@
 namespace zebes {
 namespace {
 
-TEST(LevelHasTilesTest, AnEmptyLevelHasNoTiles) {
-  Level level;
-  EXPECT_FALSE(LevelHasTiles(level));
-}
-
-// The editor allocates chunks eagerly, so an allocated chunk is not evidence
-// that any tile ID exists.
-TEST(LevelHasTilesTest, AllocatedButEmptyChunksDoNotCount) {
-  Level level;
-  level.tile_chunks[ChunkKey(0, 0)] = TileChunk{};
-  level.tile_chunks[ChunkKey(1, 0)] = TileChunk{};
-
-  EXPECT_FALSE(LevelHasTiles(level));
-}
-
-TEST(LevelHasTilesTest, OnePlacedTileCounts) {
-  Level level;
-  ASSERT_TRUE(SetTileAt(level, 3, 4, 7).ok());
-
-  EXPECT_TRUE(LevelHasTiles(level));
-}
-
-TEST(ResolveTilesetBindingTest, NoPaletteSelectionLeavesTheBindingAlone) {
+TEST(ResolvePaletteBindingTest, NoPaletteSelectionLeavesTheBindingAlone) {
   Level level;
   level.tileset_id = "sunny";
 
-  const TilesetBinding binding = ResolveTilesetBinding(level, nullptr);
+  const PaletteBinding binding = ResolvePaletteBinding(level, {});
 
   EXPECT_EQ(binding.tileset_id, "sunny");
-  EXPECT_FALSE(binding.palette_matches);
+  EXPECT_EQ(binding.tile, nullptr);
+  EXPECT_FALSE(binding.terrain_id.has_value());
+  EXPECT_EQ(binding.rejected_tileset, nullptr);
 }
 
-TEST(ResolveTilesetBindingTest, AnUnboundLevelAdoptsThePaletteTileset) {
+TEST(ResolvePaletteBindingTest, ANeverBoundLevelAdoptsThePaletteTileset) {
   Level level;
   const Tileset palette{.id = "grass"};
+  const Tile tile{.id = 3};
 
-  const TilesetBinding binding = ResolveTilesetBinding(level, &palette);
+  const PaletteBinding binding =
+      ResolvePaletteBinding(level, {.tile_tileset = &palette, .tile = &tile});
 
   EXPECT_EQ(binding.tileset_id, "grass");
-  EXPECT_TRUE(binding.palette_matches);
+  EXPECT_EQ(binding.tile, &tile);
+  EXPECT_EQ(binding.rejected_tileset, nullptr);
 }
 
-// Rebinding is safe while nothing is placed, which is what lets a level made
-// against one tileset be pointed at another before any painting happens.
-TEST(ResolveTilesetBindingTest, AnEmptyLevelRebindsToThePaletteTileset) {
+// Clicking a palette swatch must not repoint a level, even an empty one: the
+// level's Tileset field is the only place that decision is made.
+TEST(ResolvePaletteBindingTest, AnEmptyBoundLevelKeepsItsTileset) {
   Level level;
   level.tileset_id = "sunny";
   const Tileset palette{.id = "grass"};
+  const Tile tile{.id = 3};
 
-  const TilesetBinding binding = ResolveTilesetBinding(level, &palette);
+  const PaletteBinding binding =
+      ResolvePaletteBinding(level, {.tile_tileset = &palette, .tile = &tile});
 
-  EXPECT_EQ(binding.tileset_id, "grass");
-  EXPECT_TRUE(binding.palette_matches);
+  EXPECT_EQ(binding.tileset_id, "sunny");
+  EXPECT_EQ(binding.tile, nullptr);
+  EXPECT_EQ(binding.rejected_tileset, &palette);
 }
 
-// The bug this guards: tile IDs painted under one tileset name different
-// artwork under another, so a populated level keeps its binding.
-TEST(ResolveTilesetBindingTest, APopulatedLevelKeepsItsTilesetAndRejectsTheSelection) {
+// The reported bug: a terrain from another tileset resolved its rules against
+// the level's tileset, which does not have those tile IDs.
+TEST(ResolvePaletteBindingTest, ATerrainFromAnotherTilesetIsRefused) {
   Level level;
   level.tileset_id = "sunny";
   ASSERT_TRUE(SetTileAt(level, 0, 0, 5).ok());
   const Tileset palette{.id = "grass"};
 
-  const TilesetBinding binding = ResolveTilesetBinding(level, &palette);
+  const PaletteBinding binding =
+      ResolvePaletteBinding(level, {.terrain_tileset = &palette, .terrain_id = 1});
 
   EXPECT_EQ(binding.tileset_id, "sunny");
-  EXPECT_FALSE(binding.palette_matches);
+  EXPECT_FALSE(binding.terrain_id.has_value());
+  EXPECT_EQ(binding.rejected_tileset, &palette);
 }
 
-TEST(ResolveTilesetBindingTest, APopulatedLevelAcceptsItsOwnTileset) {
+TEST(ResolvePaletteBindingTest, ATerrainFromTheLevelsTilesetIsPaintable) {
+  Level level;
+  level.tileset_id = "grass";
+  ASSERT_TRUE(SetTileAt(level, 0, 0, 5).ok());
+  const Tileset palette{.id = "grass"};
+
+  const PaletteBinding binding =
+      ResolvePaletteBinding(level, {.terrain_tileset = &palette, .terrain_id = 1});
+
+  EXPECT_EQ(binding.tileset_id, "grass");
+  ASSERT_TRUE(binding.terrain_id.has_value());
+  EXPECT_EQ(*binding.terrain_id, 1);
+  EXPECT_EQ(binding.rejected_tileset, nullptr);
+}
+
+TEST(ResolvePaletteBindingTest, ATileFromTheLevelsTilesetIsPaintable) {
   Level level;
   level.tileset_id = "sunny";
-  ASSERT_TRUE(SetTileAt(level, 0, 0, 5).ok());
   const Tileset palette{.id = "sunny"};
+  const Tile tile{.id = 9};
 
-  const TilesetBinding binding = ResolveTilesetBinding(level, &palette);
+  const PaletteBinding binding =
+      ResolvePaletteBinding(level, {.tile_tileset = &palette, .tile = &tile});
 
-  EXPECT_EQ(binding.tileset_id, "sunny");
-  EXPECT_TRUE(binding.palette_matches);
+  EXPECT_EQ(binding.tile, &tile);
+  EXPECT_EQ(binding.rejected_tileset, nullptr);
 }
 
 }  // namespace

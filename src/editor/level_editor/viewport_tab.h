@@ -47,10 +47,11 @@ struct ViewportRenderOptions {
   bool show_entity_borders = false;
   // When true, a right-click on the canvas deletes the entity under the cursor.
   bool delete_mode = false;
-  // Tile to paint when non-null; nullptr = not in tile-painting mode.
+  // Tile to paint when non-null; nullptr = not in tile-painting mode. It must
+  // belong to the level's own tileset, which is the only one a frame resolves:
+  // levels store bare tile IDs, so a tile from elsewhere would be stored as
+  // whatever the level's tileset numbers the same.
   const Tile* placement_tile = nullptr;
-  // Tileset owning placement_tile. Must be non-null when placement_tile is set.
-  const Tileset* placement_tileset = nullptr;
   // Whether to draw a thin border around every placed tile cell in the viewport.
   bool show_tile_frame = false;
   // Whether to draw the collision-shape overlay on every placed tile.

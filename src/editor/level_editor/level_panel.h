@@ -22,6 +22,14 @@ class LevelPanel : public LevelPanelInterface {
  private:
   explicit LevelPanel(GuiInterface* gui);
 
+  // Renders the tileset the level's tile IDs are resolved against. Changing it
+  // is the only supported way to repoint a level, which is why it lives beside
+  // the level's other properties rather than in a palette.
+  absl::Status RenderTilesetField(LevelPanelModel& model, const Level& level);
+
+  // Renders the confirmation shown when the switch would strand placed tiles.
+  absl::Status RenderTilesetChangeConfirmation(LevelPanelModel& model);
+
   GuiInterface* gui_;
 };
 

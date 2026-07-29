@@ -38,8 +38,18 @@ class LevelPanelTest : public ::testing::Test {
           return ScopedListBox(&gui_, label, size);
         }));
     ON_CALL(gui_, BeginListBox(_, _)).WillByDefault(Return(true));
+    ON_CALL(gui_, CreateScopedCombo(_, _, _))
+        .WillByDefault(Invoke([this](const char* label, const char* preview, ImGuiComboFlags) {
+          return ScopedCombo(&gui_, label, preview);
+        }));
+    ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
+    ON_CALL(gui_, CreateScopedId(An<const char*>()))
+        .WillByDefault(Invoke([this](const char* id) { return ScopedId(&gui_, id); }));
     EXPECT_CALL(gui_, Button(_, _)).WillRepeatedly(Return(false));
   }
+
+  // Opens the tileset combo so its entries are drawn this frame.
+  void OpenTilesetCombo() { ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(true)); }
 
   NiceMock<MockGui> gui_;
   LevelPanelModel model_;
@@ -113,6 +123,101 @@ TEST_F(LevelPanelTest, BackClosesActiveLevel) {
   ASSERT_TRUE(event.ok());
   EXPECT_EQ(event->action, LevelPanelAction::kClose);
   EXPECT_FALSE(model_.has_active_level());
+}
+
+TEST_F(LevelPanelTest, TilesetComboPreviewsTheLevelsTilesetByName) {
+  model_.SetTilesetChoices({{.id = "grass-uuid", .name = "Grass"}});
+  model_.BeginEditingLevel(Level{.id = "alpha", .tileset_id = "grass-uuid"});
+
+  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Tileset"), StrEq("Grass"), _));
+
+  EXPECT_TRUE(panel_->RenderDetails(model_).ok());
+}
+
+TEST_F(LevelPanelTest, AnUnboundLevelPreviewsNone) {
+  model_.SetTilesetChoices({{.id = "grass-uuid", .name = "Grass"}});
+  model_.BeginEditingLevel(Level{.id = "alpha"});
+
+  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Tileset"), StrEq("(none)"), _));
+
+  EXPECT_TRUE(panel_->RenderDetails(model_).ok());
+}
+
+TEST_F(LevelPanelTest, PickingATilesetRebindsAnEmptyLevel) {
+  model_.SetTilesetChoices({{.id = "grass-uuid", .name = "Grass"}});
+  model_.BeginEditingLevel(Level{.id = "alpha", .tileset_id = "sunny-uuid"});
+  OpenTilesetCombo();
+  EXPECT_CALL(gui_, Selectable(StrEq("Grass"), false, _, _)).WillOnce(Return(true));
+
+  ASSERT_TRUE(panel_->RenderDetails(model_).ok());
+
+  EXPECT_EQ(model_.active_level()->tileset_id, "grass-uuid");
+  EXPECT_FALSE(model_.has_pending_tileset_change());
+}
+
+TEST_F(LevelPanelTest, PickingATilesetForAPopulatedLevelAsksFirst) {
+  model_.SetTilesetChoices({{.id = "grass-uuid", .name = "Grass"}});
+  Level level{.id = "alpha", .tileset_id = "sunny-uuid"};
+  TileChunk chunk{};
+  chunk.tiles[0] = 4;
+  level.tile_chunks[0] = chunk;
+  model_.BeginEditingLevel(std::move(level));
+  OpenTilesetCombo();
+  EXPECT_CALL(gui_, Selectable(StrEq("Grass"), false, _, _)).WillOnce(Return(true));
+  EXPECT_CALL(gui_, Button(StrEq("Discard tiles and switch"), _)).WillOnce(Return(false));
+
+  ASSERT_TRUE(panel_->RenderDetails(model_).ok());
+
+  EXPECT_TRUE(model_.has_pending_tileset_change());
+  EXPECT_EQ(model_.active_level()->tileset_id, "sunny-uuid");
+}
+
+TEST_F(LevelPanelTest, ConfirmingTheSwitchDiscardsTheTiles) {
+  model_.SetTilesetChoices({{.id = "grass-uuid", .name = "Grass"}});
+  Level level{.id = "alpha", .tileset_id = "sunny-uuid"};
+  TileChunk chunk{};
+  chunk.tiles[0] = 4;
+  level.tile_chunks[0] = chunk;
+  model_.BeginEditingLevel(std::move(level));
+  ASSERT_TRUE(model_.RequestTilesetChange("grass-uuid").ok());
+  ASSERT_TRUE(model_.has_pending_tileset_change());
+
+  EXPECT_CALL(gui_, Button(StrEq("Discard tiles and switch"), _)).WillOnce(Return(true));
+
+  ASSERT_TRUE(panel_->RenderDetails(model_).ok());
+
+  EXPECT_EQ(model_.active_level()->tileset_id, "grass-uuid");
+  EXPECT_EQ(model_.placed_tile_count(), 0);
+}
+
+TEST_F(LevelPanelTest, KeepingTheTilesetCancelsTheSwitch) {
+  model_.SetTilesetChoices({{.id = "grass-uuid", .name = "Grass"}});
+  Level level{.id = "alpha", .tileset_id = "sunny-uuid"};
+  TileChunk chunk{};
+  chunk.tiles[0] = 4;
+  level.tile_chunks[0] = chunk;
+  model_.BeginEditingLevel(std::move(level));
+  ASSERT_TRUE(model_.RequestTilesetChange("grass-uuid").ok());
+
+  EXPECT_CALL(gui_, Button(StrEq("Discard tiles and switch"), _)).WillOnce(Return(false));
+  EXPECT_CALL(gui_, Button(StrEq("Keep tileset"), _)).WillOnce(Return(true));
+
+  ASSERT_TRUE(panel_->RenderDetails(model_).ok());
+
+  EXPECT_FALSE(model_.has_pending_tileset_change());
+  EXPECT_EQ(model_.active_level()->tileset_id, "sunny-uuid");
+  EXPECT_EQ(model_.placed_tile_count(), 1);
+}
+
+// No confirmation is drawn when nothing is staged, so the row cannot be
+// clicked by accident on a later frame.
+TEST_F(LevelPanelTest, NoConfirmationWithoutAPendingChange) {
+  model_.SetTilesetChoices({{.id = "grass-uuid", .name = "Grass"}});
+  model_.BeginEditingLevel(Level{.id = "alpha", .tileset_id = "grass-uuid"});
+
+  EXPECT_CALL(gui_, Button(StrEq("Discard tiles and switch"), _)).Times(0);
+
+  EXPECT_TRUE(panel_->RenderDetails(model_).ok());
 }
 
 }  // namespace

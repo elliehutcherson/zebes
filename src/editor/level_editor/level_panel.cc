@@ -58,6 +58,47 @@ absl::StatusOr<LevelPanelEvent> LevelPanel::RenderList(LevelPanelModel& model) {
   return LevelPanelEvent{};
 }
 
+absl::Status LevelPanel::RenderTilesetField(LevelPanelModel& model, const Level& level) {
+  // A level's tiles are bare IDs into this tileset, so it is the one setting
+  // here that can invalidate everything already painted.
+  const std::string current = model.ActiveTilesetName();
+  if (ScopedCombo combo = gui_->CreateScopedCombo(
+          "Tileset", current.empty() ? "(none)" : current.c_str());
+      combo) {
+    for (const TilesetChoice& choice : model.tileset_choices()) {
+      const bool is_selected = choice.id == level.tileset_id;
+      ScopedId id = gui_->CreateScopedId(choice.id.c_str());
+      if (gui_->Selectable(choice.name.c_str(), is_selected)) {
+        RETURN_IF_ERROR(model.RequestTilesetChange(choice.id));
+      }
+      if (is_selected) gui_->SetItemDefaultFocus();
+    }
+  }
+
+  if (!model.has_pending_tileset_change()) return absl::OkStatus();
+  return RenderTilesetChangeConfirmation(model);
+}
+
+absl::Status LevelPanel::RenderTilesetChangeConfirmation(LevelPanelModel& model) {
+  // Switching cannot carry the tiles across: their IDs name different artwork
+  // in the new tileset, so the choice is discard-or-keep, not discard-or-not.
+  gui_->TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+                    "Switching tilesets discards this level's %d placed tile(s).",
+                    model.placed_tile_count());
+
+  {
+    ScopedStyleColor style =
+        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+    if (gui_->Button("Discard tiles and switch")) {
+      RETURN_IF_ERROR(model.ConfirmTilesetChange());
+      return absl::OkStatus();
+    }
+  }
+  gui_->SameLine();
+  if (gui_->Button("Keep tileset")) model.CancelTilesetChange();
+  return absl::OkStatus();
+}
+
 absl::StatusOr<LevelPanelEvent> LevelPanel::RenderDetails(LevelPanelModel& model) {
   Level* level = model.active_level();
   if (level == nullptr) return absl::FailedPreconditionError("No level is being edited");
@@ -77,6 +118,7 @@ absl::StatusOr<LevelPanelEvent> LevelPanel::RenderDetails(LevelPanelModel& model
 
   gui_->InputText("ID", &level->id, ImGuiInputTextFlags_ReadOnly);
   gui_->InputText("Name", &level->name);
+  RETURN_IF_ERROR(RenderTilesetField(model, *level));
   gui_->InputDouble("Width", &level->width);
   gui_->InputDouble("Height", &level->height);
   gui_->InputInt("Tile Render Width", &level->tile_render_width);

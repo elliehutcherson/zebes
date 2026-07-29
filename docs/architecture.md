@@ -309,6 +309,25 @@ from tile ID to owning terrain, rebuilt each frame from Api-owned storage.
 Because resolution is a paint-time rule, `ViewportScene` and `ViewportRenderer`
 are unchanged by terrains, and the game runtime never learns they exist.
 
+## One tileset per level
+
+A level stores bare tile IDs. Those IDs mean something only against the tileset
+the level is bound to, so a level resolves exactly one tileset and a palette
+selection from any other is unusable — painting one would store artwork the
+level cannot resolve, and the editor would show the palette's art while the
+saved data named something else.
+
+`ResolvePaletteBinding` is where that is decided, from the level alone: it
+returns the tileset the level should carry, the selections that may be painted,
+and the tileset being refused so the editor can explain the refusal instead of
+silently doing nothing. A level that has never been bound adopts the palette's
+tileset, since it has no IDs to reinterpret. Otherwise the binding changes only
+through the level's own `Tileset` field, which discards placed tiles on
+confirmation rather than reinterpreting them.
+
+`ViewportTab` therefore resolves one tileset per frame — the level's — for the
+scene, the placement preview, and the terrain ghost alike.
+
 A terrain distinguishes the tiles it *paints* from the tiles it merely *counts*.
 Rules hold paintable tiles; `member_tile_ids` holds hand-placed pieces such as
 slope units. Both contribute to a neighbour mask, so painted ground reads a

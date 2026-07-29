@@ -230,6 +230,29 @@ TEST(ViewportTabTest, RenderRejectsInvalidLevelGeometryBeforeOpeningCanvas) {
   EXPECT_EQ(tab.Render({.level = &level}).code(), absl::StatusCode::kInvalidArgument);
 }
 
+// A tile is stored as a bare ID resolved against the level's own tileset, so
+// there is nothing to resolve it against when the level has no tileset.
+TEST(ViewportTabTest, RenderRejectsTilePlacementIntoAnUnboundLevel) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  Level level{.tile_render_width = 16, .tile_render_height = 16, .width = 100, .height = 100};
+  const Tile tile{.id = 3};
+
+  EXPECT_EQ(tab.Render({.level = &level, .placement_tile = &tile}).code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ViewportTabTest, RenderRejectsTerrainPaintingWithoutATerrainIndex) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  Level level{.tile_render_width = 16, .tile_render_height = 16, .width = 100, .height = 100};
+
+  EXPECT_EQ(tab.Render({.level = &level, .paint_terrain_id = 1}).code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
 TEST(ViewportTabTest, SelectedParallaxPreviewRequiresCompatibleSelection) {
   NiceMock<MockApi> api;
   NiceMock<MockGui> gui;

@@ -144,23 +144,27 @@ absl::StatusOr<int> GetTileAt(const Level& level, int tile_x, int tile_y) {
   return chunk->second.tiles[local_y * kSize + local_x];
 }
 
-bool LevelHasTiles(const Level& level) {
-  for (const auto& [key, chunk] : level.tile_chunks) {
-    for (const int tile_id : chunk.tiles) {
-      if (tile_id != 0) return true;
-    }
-  }
-  return false;
-}
+PaletteBinding ResolvePaletteBinding(const Level& level, const PaletteSelection& selection) {
+  PaletteBinding binding{.tileset_id = level.tileset_id};
 
-TilesetBinding ResolveTilesetBinding(const Level& level, const Tileset* palette_tileset) {
-  TilesetBinding binding{.tileset_id = level.tileset_id};
+  // Exactly one palette mode reports a tileset, so whichever does is the one
+  // asking to paint.
+  const Tileset* palette_tileset = selection.tile_tileset != nullptr ? selection.tile_tileset
+                                                                    : selection.terrain_tileset;
   if (palette_tileset == nullptr) return binding;
 
-  if (palette_tileset->id != level.tileset_id && !LevelHasTiles(level)) {
-    binding.tileset_id = palette_tileset->id;
+  // A never-bound level takes the palette's tileset: there are no tile IDs yet
+  // for it to reinterpret, and it saves a round trip through the level panel
+  // just to start painting.
+  if (binding.tileset_id.empty()) binding.tileset_id = palette_tileset->id;
+
+  if (palette_tileset->id != binding.tileset_id) {
+    binding.rejected_tileset = palette_tileset;
+    return binding;
   }
-  binding.palette_matches = palette_tileset->id == binding.tileset_id;
+
+  binding.tile = selection.tile;
+  binding.terrain_id = selection.terrain_id;
   return binding;
 }
 

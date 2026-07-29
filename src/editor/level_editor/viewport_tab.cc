@@ -111,8 +111,8 @@ absl::Status ViewportTab::ValidateRenderOptions(const ViewportRenderOptions& opt
   if (options.level == nullptr) {
     return absl::InvalidArgumentError("viewport render requires a level");
   }
-  if (options.placement_tile != nullptr && options.placement_tileset == nullptr) {
-    return absl::InvalidArgumentError("tile placement requires its owning tileset");
+  if (options.placement_tile != nullptr && options.level->tileset_id.empty()) {
+    return absl::InvalidArgumentError("tile placement requires the level to have a tileset");
   }
   if (options.paint_terrain_id.has_value() && options.terrain_index == nullptr) {
     return absl::InvalidArgumentError("terrain placement requires a terrain index");
@@ -132,8 +132,7 @@ absl::Status ViewportTab::ValidateRenderOptions(const ViewportRenderOptions& opt
 absl::StatusOr<ViewportTab::ActiveTileset> ViewportTab::ResolveActiveTileset(
     const Level& level, const ViewportRenderOptions& options) {
   ActiveTileset active;
-  active.tileset = options.placement_tileset;
-  if (active.tileset == nullptr && !level.tileset_id.empty()) {
+  if (!level.tileset_id.empty()) {
     ASSIGN_OR_RETURN(Tileset * tileset, api_.GetTileset(level.tileset_id));
     if (tileset == nullptr) {
       return absl::FailedPreconditionError("level tileset resolved to null");
@@ -203,11 +202,11 @@ absl::StatusOr<ViewportTab::PlacementFrame> ViewportTab::RenderPlacementPreview(
   PlacementFrame placement{.interaction_world = mouse_world};
   if (!mouse_in_level) return placement;
 
-  if (options.placement_tile != nullptr && options.placement_tileset != nullptr) {
+  if (options.placement_tile != nullptr && active.tileset != nullptr) {
     ASSIGN_OR_RETURN(TileRenderBatch placement_batch,
-                     ComposeTilePlacementBatch(*options.placement_tile,
-                                               *options.placement_tileset, active.texture,
-                                               mouse_world, level.tile_render_width,
+                     ComposeTilePlacementBatch(*options.placement_tile, *active.tileset,
+                                               active.texture, mouse_world,
+                                               level.tile_render_width,
                                                level.tile_render_height));
     RETURN_IF_ERROR(renderer_.RenderTiles(placement_batch));
     return placement;

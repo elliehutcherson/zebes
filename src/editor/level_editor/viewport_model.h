@@ -104,26 +104,37 @@ absl::Status SetTileAt(Level& level, int tile_x, int tile_y, int tile_id);
 // Returns the tile at a world-tile coordinate, or zero when its chunk is absent.
 absl::StatusOr<int> GetTileAt(const Level& level, int tile_x, int tile_y);
 
-// Whether any tile is placed. Allocated chunks do not count: the editor
-// creates them eagerly, so their presence says nothing about whether tile IDs
-// exist that a different tileset would reinterpret.
-bool LevelHasTiles(const Level& level);
-
-// Which tileset a level's tiles belong to, and whether the palette's tileset
-// is the same one.
-struct TilesetBinding {
-  // The tileset ID the level should carry after this frame.
-  std::string tileset_id;
-  // Whether the palette selection can be painted into the level. Tiles are
-  // stored as bare IDs, so a selection from any other tileset would write
-  // artwork the level cannot resolve.
-  bool palette_matches = false;
+// What the palette is offering to paint this frame. Only one of the two modes
+// is ever active, and each carries the tileset that owns it.
+struct PaletteSelection {
+  // Tileset shown by the Tiles palette, and the tile picked from it.
+  const Tileset* tile_tileset = nullptr;
+  const Tile* tile = nullptr;
+  // Tileset shown by the Terrain palette, and the terrain picked from it.
+  const Tileset* terrain_tileset = nullptr;
+  std::optional<int> terrain_id;
 };
 
-// Resolves the binding for one frame. A level with no tiles adopts the
-// palette's tileset, since there are no IDs yet to reinterpret; once tiles
-// exist the binding is fixed and a foreign palette selection is unusable.
-TilesetBinding ResolveTilesetBinding(const Level& level, const Tileset* palette_tileset);
+// What the viewport may act on, after enforcing that a level's tiles are IDs
+// into exactly one tileset.
+struct PaletteBinding {
+  // The tileset ID the level should carry after this frame.
+  std::string tileset_id;
+  // Selections the level can store. Empty when the palette is showing some
+  // other tileset, since a bare tile ID from it would name different artwork
+  // under the level's own tileset.
+  const Tile* tile = nullptr;
+  std::optional<int> terrain_id;
+  // The tileset being refused, for the editor to explain. Null when there is
+  // nothing to explain.
+  const Tileset* rejected_tileset = nullptr;
+};
+
+// Resolves the binding for one frame. A level that has never been bound
+// adopts the palette's tileset; otherwise the level's tileset is authoritative
+// and is changed only through the level's own Tileset field, so that clicking
+// a palette swatch can never silently repoint a level.
+PaletteBinding ResolvePaletteBinding(const Level& level, const PaletteSelection& selection);
 
 // Centers an entity horizontally within the hovered tile and bottom-aligns
 // its collider or sprite bounds. Collider geometry takes priority.
