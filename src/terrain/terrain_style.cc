@@ -20,6 +20,10 @@ constexpr int kMaxTileSize = 256;
 constexpr int kMaxSupersample = 8;
 constexpr int kMaxVariantPeriod = 4;
 constexpr float kMaxReferenceMeasurement = 4096.0f;
+// Whether a magnified stamp actually fits its tile depends on the motif bank,
+// which this layer cannot see; TerrainRenderer::Create rejects that case. This
+// bound only keeps a programmatic configuration from asking for absurdities.
+constexpr int kMaxMotifScale = 4;
 
 int ScaleLayer(int value, float scale) {
   if (value <= 0) return 0;
@@ -75,7 +79,30 @@ bool Known(TerrainDetailSet value) {
   return false;
 }
 
+bool Known(TerrainAccentMode value) {
+  switch (value) {
+    case TerrainAccentMode::kMaterial:
+    case TerrainAccentMode::kAccent:
+    case TerrainAccentMode::kGradient:
+      return true;
+  }
+  return false;
+}
+
 }  // namespace
+
+TerrainAccentMode DefaultAccentModeFor(TerrainDetailSet details) {
+  switch (details) {
+    case TerrainDetailSet::kSnow:
+    case TerrainDetailSet::kCrystals:
+      return TerrainAccentMode::kAccent;
+    case TerrainDetailSet::kNone:
+    case TerrainDetailSet::kMeadow:
+    case TerrainDetailSet::kForestFloor:
+      break;
+  }
+  return TerrainAccentMode::kMaterial;
+}
 
 absl::Span<const TerrainPreset> BuiltInTerrainPresets() {
   static const std::vector<TerrainPreset> kPresets = [] {
@@ -226,6 +253,7 @@ absl::Span<const TerrainPreset> BuiltInTerrainPresets() {
       config.interior.pattern.density = preset.pattern == TerrainSubstratePattern::kNone ? 0 : 2;
       config.interior.details.family = preset.details;
       config.interior.details.density = preset.details == TerrainDetailSet::kNone ? 0 : 2;
+      config.interior.details.accent_mode = DefaultAccentModeFor(preset.details);
       presets.push_back({preset.material.name, config});
     }
     return presets;
@@ -296,6 +324,11 @@ absl::StatusOr<ResolvedTerrainStyle> ResolveTerrainStyle(const TerrainGenConfig&
                                 config.interior.details.margin)) {
     return absl::InvalidArgumentError("terrain pattern/detail placement settings are invalid");
   }
+  if (config.interior.pattern.scale < 1 || config.interior.pattern.scale > kMaxMotifScale ||
+      config.interior.details.scale < 1 || config.interior.details.scale > kMaxMotifScale) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("terrain motif size must be between 1 and ", kMaxMotifScale));
+  }
   const int64_t phase_count = static_cast<int64_t>(config.variant_period) * config.variant_period;
   const int64_t pattern_count = config.interior.pattern.density * phase_count;
   const int64_t detail_count = config.interior.details.density * phase_count;
@@ -304,7 +337,8 @@ absl::StatusOr<ResolvedTerrainStyle> ResolveTerrainStyle(const TerrainGenConfig&
         absl::StrCat("terrain pattern/detail placement count exceeds ", kMaxMotifPlacements));
   }
   if (!Known(config.material.surface_style) || !Known(config.interior.base.style) ||
-      !Known(config.interior.pattern.family) || !Known(config.interior.details.family)) {
+      !Known(config.interior.pattern.family) || !Known(config.interior.details.family) ||
+      !Known(config.interior.pattern.accent_mode) || !Known(config.interior.details.accent_mode)) {
     return absl::InvalidArgumentError("terrain configuration contains an unknown style");
   }
 
@@ -342,9 +376,17 @@ absl::StatusOr<ResolvedTerrainStyle> ResolveTerrainStyle(const TerrainGenConfig&
   style.interior_cells =
       std::max(1, static_cast<int>(std::lround(static_cast<float>(final_period) /
                                                static_cast<float>(style.interior_feature_size))));
-  style.pattern_spacing = ScaleLayer(config.interior.pattern.spacing, style.scale);
+  style.pattern_scale = config.interior.pattern.scale;
+  style.detail_scale = config.interior.details.scale;
+  // Spacing is centre to centre, so magnified stamps have to spread out by the
+  // same factor to keep the gaps between them. Without this, raising the size
+  // silently collapses a pattern into a blob and leaves the author to discover
+  // the coupling. At the default size of 1 this is the identity.
+  style.pattern_spacing =
+      ScaleLayer(config.interior.pattern.spacing, style.scale) * style.pattern_scale;
   style.pattern_margin = ScaleLayer(config.interior.pattern.margin, style.scale);
-  style.detail_spacing = ScaleLayer(config.interior.details.spacing, style.scale);
+  style.detail_spacing =
+      ScaleLayer(config.interior.details.spacing, style.scale) * style.detail_scale;
   style.detail_margin = ScaleLayer(config.interior.details.margin, style.scale);
   return style;
 }

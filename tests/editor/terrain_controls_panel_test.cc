@@ -12,6 +12,7 @@ namespace zebes {
 namespace {
 
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -32,6 +33,9 @@ class TerrainControlsPanelTest : public ::testing::Test {
           return ScopedCombo(&gui_, label, preview);
         }));
     ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
+    ON_CALL(gui_, CreateScopedDisabled(_)).WillByDefault(Invoke([this](bool disabled) {
+      return ScopedDisabled(&gui_, disabled);
+    }));
   }
 
   NiceMock<MockGui> gui_;
@@ -113,6 +117,10 @@ TEST_F(TerrainControlsPanelTest, HidesControlsForDisabledInteriorLayers) {
         return std::string(label) == "Interior##TerrainGen";
       }));
 
+  // The family combos themselves still render; it is the per-layer controls
+  // below them that must not.
+  EXPECT_CALL(gui_, CreateScopedCombo(_, _, _)).Times(AnyNumber());
+
   EXPECT_CALL(gui_, SliderFloat(StrEq("Mottle size##TerrainGen"), _, _, _, _, _)).Times(0);
   EXPECT_CALL(gui_, SliderFloat(StrEq("Mottle amount##TerrainGen"), _, _, _, _, _)).Times(0);
   EXPECT_CALL(gui_, SliderFloat(StrEq("Feature size##TerrainGen"), _, _, _, _, _)).Times(0);
@@ -122,8 +130,85 @@ TEST_F(TerrainControlsPanelTest, HidesControlsForDisabledInteriorLayers) {
   EXPECT_CALL(gui_, SliderFloat(StrEq("Pattern contrast##TerrainGen"), _, _, _, _, _)).Times(0);
   EXPECT_CALL(gui_, SliderInt(StrEq("Detail amount##TerrainGen"), _, _, _, _, _)).Times(0);
   EXPECT_CALL(gui_, SliderInt(StrEq("Detail spacing##TerrainGen"), _, _, _, _, _)).Times(0);
+  EXPECT_CALL(gui_, SliderInt(StrEq("Pattern size##TerrainGen"), _, _, _, _, _)).Times(0);
+  EXPECT_CALL(gui_, SliderInt(StrEq("Pattern margin##TerrainGen"), _, _, _, _, _)).Times(0);
+  EXPECT_CALL(gui_, SliderInt(StrEq("Detail size##TerrainGen"), _, _, _, _, _)).Times(0);
+  EXPECT_CALL(gui_, SliderInt(StrEq("Detail margin##TerrainGen"), _, _, _, _, _)).Times(0);
+  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Pattern accent##TerrainGen"), _, _)).Times(0);
+  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Detail accent##TerrainGen"), _, _)).Times(0);
 
   EXPECT_FALSE(panel_->Render(model_));
+}
+
+TEST_F(TerrainControlsPanelTest, ChangingMotifSizeMarksThePresetAsCustom) {
+  model_.config().interior.pattern.family = TerrainSubstratePattern::kDiamonds;
+  ASSERT_TRUE(model_.selected_preset().has_value());
+  ON_CALL(gui_, SliderInt(StrEq("Pattern size##TerrainGen"), _, _, _, _, _))
+      .WillByDefault(Invoke([](const char*, int* value, int, int, const char*, ImGuiSliderFlags) {
+        *value = 3;
+        return true;
+      }));
+
+  EXPECT_TRUE(panel_->Render(model_));
+  EXPECT_EQ(model_.config().interior.pattern.scale, 3);
+  EXPECT_FALSE(model_.selected_preset().has_value());
+}
+
+// The margin fields have always been honoured by the renderer but had no
+// widget, so a terrain could not be tuned away from the default clearance.
+TEST_F(TerrainControlsPanelTest, MotifMarginIsAdjustable) {
+  model_.config().interior.details.family = TerrainDetailSet::kCrystals;
+  ON_CALL(gui_, SliderInt(StrEq("Detail margin##TerrainGen"), _, _, _, _, _))
+      .WillByDefault(Invoke([](const char*, int* value, int, int, const char*, ImGuiSliderFlags) {
+        *value = 4;
+        return true;
+      }));
+
+  EXPECT_TRUE(panel_->Render(model_));
+  EXPECT_EQ(model_.config().interior.details.margin, 4);
+}
+
+TEST_F(TerrainControlsPanelTest, SelectsAnAccentModeForEachMotifLayer) {
+  model_.config().interior.pattern.family = TerrainSubstratePattern::kDiamonds;
+  ON_CALL(gui_, BeginCombo(StrEq("Pattern accent##TerrainGen"), _, _)).WillByDefault(Return(true));
+  ON_CALL(gui_, Selectable(StrEq("Gradient"), false, _, _)).WillByDefault(Return(true));
+
+  EXPECT_TRUE(panel_->Render(model_));
+  EXPECT_EQ(model_.config().interior.pattern.accent_mode, TerrainAccentMode::kGradient);
+  EXPECT_FALSE(model_.selected_preset().has_value());
+}
+
+// Contrast only shapes the substrate ramp, which the accent modes bypass. A
+// live slider that silently does nothing is worse than a disabled one.
+TEST_F(TerrainControlsPanelTest, PatternContrastIsDisabledInAccentModes) {
+  model_.config().interior.pattern.family = TerrainSubstratePattern::kDiamonds;
+  model_.config().interior.pattern.accent_mode = TerrainAccentMode::kGradient;
+
+  EXPECT_CALL(gui_, CreateScopedDisabled(true)).Times(1);
+
+  EXPECT_FALSE(panel_->Render(model_));
+}
+
+TEST_F(TerrainControlsPanelTest, PatternContrastStaysLiveInMaterialMode) {
+  model_.config().interior.pattern.family = TerrainSubstratePattern::kDiamonds;
+  model_.config().interior.pattern.accent_mode = TerrainAccentMode::kMaterial;
+
+  EXPECT_CALL(gui_, CreateScopedDisabled(true)).Times(0);
+  EXPECT_CALL(gui_, CreateScopedDisabled(false)).Times(1);
+
+  EXPECT_FALSE(panel_->Render(model_));
+}
+
+// Picking Crystals and getting substrate-tinted gems would be a surprise, so
+// the family carries its usual accent mode with it.
+TEST_F(TerrainControlsPanelTest, ChoosingADetailFamilyAdoptsItsUsualAccentMode) {
+  ASSERT_EQ(model_.config().interior.details.accent_mode, TerrainAccentMode::kMaterial);
+  ON_CALL(gui_, BeginCombo(StrEq("Details##TerrainGen"), _, _)).WillByDefault(Return(true));
+  ON_CALL(gui_, Selectable(StrEq("Crystals"), false, _, _)).WillByDefault(Return(true));
+
+  EXPECT_TRUE(panel_->Render(model_));
+  EXPECT_EQ(model_.config().interior.details.family, TerrainDetailSet::kCrystals);
+  EXPECT_EQ(model_.config().interior.details.accent_mode, TerrainAccentMode::kAccent);
 }
 
 TEST_F(TerrainControlsPanelTest, SelectsARicherSubstrateFamily) {

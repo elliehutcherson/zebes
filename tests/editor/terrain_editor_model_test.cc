@@ -8,6 +8,17 @@
 namespace zebes {
 namespace {
 
+TerrainRecipe SavedRecipe() {
+  TerrainRecipe recipe{.id = "recipe-1",
+                       .name = "Saved Meadow",
+                       .tileset_id = "tileset-1",
+                       .texture_id = "texture-1",
+                       .terrain_id = 3};
+  recipe.source_preset = "Cozy Meadow";
+  recipe.config.seed = 88;
+  return recipe;
+}
+
 // Small tiles keep every refresh in this test in the milliseconds.
 TerrainEditorModel MakeModel() {
   TerrainEditorModel model;
@@ -140,6 +151,39 @@ TEST(TerrainEditorModelTest, ReturningToGenerateRedrawsThePreview) {
 
   ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
   EXPECT_TRUE(model.preview().has_value());
+}
+
+TEST(TerrainEditorModelTest, LoadingARecipeRestoresConfigAndAssetBinding) {
+  TerrainEditorModel model;
+  const TerrainRecipe recipe = SavedRecipe();
+  model.LoadRecipe(recipe);
+
+  ASSERT_TRUE(model.active_recipe().has_value());
+  EXPECT_EQ(model.active_recipe()->id, recipe.id);
+  EXPECT_EQ(model.name(), recipe.name);
+  EXPECT_EQ(model.config().seed, 88u);
+  EXPECT_EQ(model.selected_preset(), recipe.source_preset);
+  EXPECT_EQ(model.source(), TerrainEditorModel::Source::kGenerate);
+}
+
+TEST(TerrainEditorModelTest, SaveAsCopyKeepsTheLookButDropsEveryAssetBinding) {
+  TerrainEditorModel model;
+  model.LoadRecipe(SavedRecipe());
+  model.StartRecipeCopy();
+
+  EXPECT_FALSE(model.active_recipe().has_value());
+  EXPECT_EQ(model.name(), "Saved Meadow copy");
+  EXPECT_EQ(model.config().seed, 88u);
+  EXPECT_FALSE(model.result().has_value());
+}
+
+TEST(TerrainEditorModelTest, SwitchingARecipeToImportDropsItsGeneratedAssetBinding) {
+  TerrainEditorModel model;
+  model.LoadRecipe(SavedRecipe());
+  model.SetSource(TerrainEditorModel::Source::kImportManifest);
+
+  EXPECT_FALSE(model.active_recipe().has_value());
+  EXPECT_FALSE(model.result().has_value());
 }
 
 }  // namespace

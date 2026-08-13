@@ -1,10 +1,13 @@
 #include "editor/terrain_editor/terrain_creation.h"
 
+#include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "terrain/blob47_compose.h"
 #include "terrain/terrain_mask.h"
 #include "tests/api_mock.h"
@@ -44,6 +47,21 @@ std::string ManifestFor(int variant_count) {
 
 class TerrainCreationTest : public ::testing::Test {
  protected:
+  NiceMock<MockApi> api_;
+};
+
+class RecipeTerrainCreationTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    path_ = std::filesystem::temp_directory_path() / "zebes-terrain-creation-recipes";
+    std::filesystem::remove_all(path_);
+    ASSERT_OK_AND_ASSIGN(recipes_, TerrainRecipeManager::Create(path_.string()));
+    ASSERT_TRUE(recipes_->LoadAllRecipes().ok());
+  }
+  void TearDown() override { std::filesystem::remove_all(path_); }
+
+  std::filesystem::path path_;
+  std::unique_ptr<TerrainRecipeManager> recipes_;
   NiceMock<MockApi> api_;
 };
 
@@ -140,8 +158,7 @@ TEST_F(TerrainCreationTest, ImportingUsesTheChosenTextureAndWritesNoArtwork) {
 TEST_F(TerrainCreationTest, ImportingRefusesWithoutATexture) {
   EXPECT_CALL(api_, CreateTileset(_)).Times(0);
 
-  absl::Status status =
-      CreateImportedTerrainTileset(api_, "drawn", "", ManifestFor(1)).status();
+  absl::Status status = CreateImportedTerrainTileset(api_, "drawn", "", ManifestFor(1)).status();
   EXPECT_FALSE(status.ok());
   EXPECT_THAT(std::string(status.message()), HasSubstr("texture"));
 }
@@ -149,6 +166,101 @@ TEST_F(TerrainCreationTest, ImportingRefusesWithoutATexture) {
 TEST_F(TerrainCreationTest, ImportingRejectsAMalformedManifest) {
   EXPECT_CALL(api_, CreateTileset(_)).Times(0);
   EXPECT_FALSE(CreateImportedTerrainTileset(api_, "drawn", "tex", "{not json").ok());
+}
+
+TEST_F(RecipeTerrainCreationTest, GeneratedTerrainRecordsAReopenableRecipe) {
+  EXPECT_CALL(api_, CreateTextureFromPixels("meadow", _, _, _))
+      .WillOnce(Return(std::string("texture-id")));
+  EXPECT_CALL(api_, CreateTileset(_)).WillOnce(Return(std::string("tileset-id")));
+
+  const TerrainGenConfig config = SmallConfig();
+  ASSERT_OK_AND_ASSIGN(CreatedTerrain created,
+                       CreateGeneratedTerrainTileset(api_, *recipes_, "meadow", config,
+                                                     std::optional<std::string>("Cozy Meadow")));
+  ASSERT_FALSE(created.recipe_id.empty());
+  ASSERT_OK_AND_ASSIGN(TerrainRecipe * recipe, recipes_->GetRecipe(created.recipe_id));
+  EXPECT_EQ(recipe->tileset_id, "tileset-id");
+  EXPECT_EQ(recipe->texture_id, "texture-id");
+  EXPECT_EQ(recipe->terrain_id, 1);
+  EXPECT_EQ(recipe->source_preset, std::optional<std::string>("Cozy Meadow"));
+  EXPECT_EQ(TerrainRecipeToJson(*recipe)["config"],
+            TerrainRecipeToJson(TerrainRecipe{.id = "x",
+                                              .name = "x",
+                                              .tileset_id = "x",
+                                              .texture_id = "x",
+                                              .terrain_id = 1,
+                                              .config = config})["config"]);
+}
+
+TEST_F(RecipeTerrainCreationTest, RegenerationReplacesOnlyPixelsAndPreservesIds) {
+  TerrainRecipe recipe{.name = "meadow",
+                       .tileset_id = "tileset-id",
+                       .texture_id = "texture-id",
+                       .terrain_id = 9,
+                       .config = SmallConfig()};
+  ASSERT_OK_AND_ASSIGN(recipe.id, recipes_->CreateRecipe(recipe));
+
+  Tileset tileset{.id = "tileset-id",
+                  .name = "meadow",
+                  .texture_id = "texture-id",
+                  .tile_width = 8,
+                  .tile_height = 8};
+  tileset.tiles.resize(kBlob47TileCount + kSlopeShapeCount);
+  tileset.terrains.push_back(Terrain{.id = 9, .variant_period = 1});
+  EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
+  EXPECT_CALL(api_, ReplaceTexturePixels("texture-id", _, _, _)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(api_, CreateTextureFromPixels(_, _, _, _)).Times(0);
+  EXPECT_CALL(api_, CreateTileset(_)).Times(0);
+  EXPECT_CALL(api_, UpdateTileset(_)).Times(0);
+
+  TerrainGenConfig edited = recipe.config;
+  edited.seed = 777;
+  ASSERT_TRUE(RegenerateTerrainTileset(api_, *recipes_, recipe, edited).ok());
+
+  ASSERT_OK_AND_ASSIGN(TerrainRecipe * saved, recipes_->GetRecipe(recipe.id));
+  EXPECT_EQ(saved->tileset_id, recipe.tileset_id);
+  EXPECT_EQ(saved->texture_id, recipe.texture_id);
+  EXPECT_EQ(saved->terrain_id, recipe.terrain_id);
+  EXPECT_EQ(saved->config.seed, 777u);
+}
+
+TEST_F(RecipeTerrainCreationTest, StructuralRegenerationRequiresSaveAsBeforeWrites) {
+  TerrainRecipe recipe{.id = "recipe-id",
+                       .name = "meadow",
+                       .tileset_id = "tileset-id",
+                       .texture_id = "texture-id",
+                       .terrain_id = 1,
+                       .config = SmallConfig()};
+  TerrainGenConfig edited = recipe.config;
+  edited.tile_size = 16;
+
+  EXPECT_CALL(api_, GetTileset(_)).Times(0);
+  EXPECT_CALL(api_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+  const absl::Status status = RegenerateTerrainTileset(api_, *recipes_, recipe, edited);
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Save As"));
+}
+
+TEST_F(RecipeTerrainCreationTest, ArtworkFailureRollsRecipeBack) {
+  TerrainRecipe recipe{.name = "meadow",
+                       .tileset_id = "tileset-id",
+                       .texture_id = "texture-id",
+                       .terrain_id = 1,
+                       .config = SmallConfig()};
+  ASSERT_OK_AND_ASSIGN(recipe.id, recipes_->CreateRecipe(recipe));
+  Tileset tileset{
+      .id = "tileset-id", .texture_id = "texture-id", .tile_width = 8, .tile_height = 8};
+  tileset.tiles.resize(kBlob47TileCount + kSlopeShapeCount);
+  tileset.terrains.push_back(Terrain{.id = 1, .variant_period = 1});
+  EXPECT_CALL(api_, GetTileset(_)).WillOnce(Return(&tileset));
+  EXPECT_CALL(api_, ReplaceTexturePixels(_, _, _, _))
+      .WillOnce(Return(absl::InternalError("disk full")));
+
+  TerrainGenConfig edited = recipe.config;
+  edited.seed = 999;
+  EXPECT_FALSE(RegenerateTerrainTileset(api_, *recipes_, recipe, edited).ok());
+  ASSERT_OK_AND_ASSIGN(TerrainRecipe * saved, recipes_->GetRecipe(recipe.id));
+  EXPECT_EQ(saved->config.seed, recipe.config.seed);
 }
 
 }  // namespace

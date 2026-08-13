@@ -52,6 +52,20 @@ enum class TerrainDetailSet : uint8_t {
   kCrystals = 4,
 };
 
+// How a motif layer colours the pixels a motif leaves to the renderer. Material
+// keeps the layer's own ramp, so marks read as the substrate they sit in. The
+// accent modes hand the layer over to the material's accent pair instead, which
+// is what lets a crystal read as a gem rather than as tinted dirt.
+//
+// Gradient sweeps the pair across each motif rather than across the terrain, so
+// the effect survives a motif being placed anywhere and does not depend on the
+// tile a mark happens to land in.
+enum class TerrainAccentMode : uint8_t {
+  kMaterial = 0,
+  kAccent = 1,
+  kGradient = 2,
+};
+
 struct TerrainInteriorBaseConfig {
   TerrainInteriorStyle style = TerrainInteriorStyle::kMottle;
   // Density is the approximate number of noise cells per tile. Coverage and
@@ -69,8 +83,15 @@ struct TerrainSubstratePatternConfig {
   int density = 2;
   int spacing = 13;
   int margin = 2;
-  // Zero blends marks into the substrate; one uses the full pattern ramp.
+  // Zero blends marks into the substrate; one uses the full pattern ramp. Has
+  // no effect unless accent_mode is kMaterial, since the accent modes bypass
+  // the pattern ramp entirely.
   float contrast = 0.70f;
+  // Integer magnification of the motif stamp. The banks are drawn once at each
+  // profile's reference size, so magnifying them keeps the pixel art crisp
+  // where redrawing every bank at every size would not.
+  int scale = 1;
+  TerrainAccentMode accent_mode = TerrainAccentMode::kMaterial;
 };
 
 struct TerrainSemanticDetailConfig {
@@ -80,6 +101,9 @@ struct TerrainSemanticDetailConfig {
   int density = 0;
   int spacing = 13;
   int margin = 2;
+  // See TerrainSubstratePatternConfig for both of these.
+  int scale = 1;
+  TerrainAccentMode accent_mode = TerrainAccentMode::kMaterial;
 };
 
 // The three interior concepts have independent switches and amounts. New
@@ -150,6 +174,12 @@ struct TerrainPreset {
   TerrainGenConfig config;
 };
 
+// The accent mode a detail set is normally authored with. Snow and crystals are
+// the sets whose colour is the whole point of choosing them, so selecting one
+// and getting substrate-tinted marks would be a surprise. This is a starting
+// point the author can override, not a constraint the renderer enforces.
+TerrainAccentMode DefaultAccentModeFor(TerrainDetailSet details);
+
 absl::Span<const TerrainPreset> BuiltInTerrainPresets();
 
 // Concrete raster measurements derived and validated once before rendering.
@@ -168,8 +198,10 @@ struct ResolvedTerrainStyle {
   int interior_cells = 0;
   int pattern_spacing = 0;
   int pattern_margin = 0;
+  int pattern_scale = 1;
   int detail_spacing = 0;
   int detail_margin = 0;
+  int detail_scale = 1;
   bool compact_palette = false;
 };
 

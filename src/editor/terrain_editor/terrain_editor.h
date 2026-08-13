@@ -13,6 +13,7 @@
 #include "editor/terrain_editor/terrain_editor_model.h"
 #include "editor/terrain_editor/terrain_output_panel.h"
 #include "objects/camera.h"
+#include "resources/terrain_recipe_manager.h"
 
 namespace zebes {
 
@@ -47,6 +48,8 @@ class TerrainEditor {
   // Runs the creation routine for the model's current source and records where
   // the assets landed.
   void CreateTerrain();
+  void OpenRecipe();
+  void RegenerateTerrain();
 
   // Centres the camera on the preview at a zoom that shows all of it with room
   // to spare. Called on the first preview and on demand, never every frame:
@@ -62,6 +65,7 @@ class TerrainEditor {
   bool frame_pending_ = true;
 
   TerrainEditorModel model_;
+  std::unique_ptr<TerrainRecipeManager> recipe_manager_;
   std::unique_ptr<TerrainControlsPanel> controls_panel_;
   std::unique_ptr<TerrainOutputPanel> output_panel_;
   std::optional<std::string> error_message_;

@@ -7,6 +7,7 @@
 #include "editor/terrain_editor/terrain_creation.h"
 #include "terrain/blob47_compose.h"
 #include "terrain/terrain_generator.h"
+#include "terrain/terrain_recipe.h"
 
 namespace zebes {
 
@@ -35,6 +36,15 @@ class TerrainEditorModel {
   const std::optional<std::string>& selected_preset() const { return selected_preset_; }
   void ApplyPreset(const TerrainPreset& preset);
   void MarkConfigCustom() { selected_preset_.reset(); }
+
+  // A loaded recipe keeps the immutable asset binding used by Regenerate.
+  // Starting a copy deliberately drops that binding so Create allocates fresh
+  // IDs instead of overwriting the source.
+  void LoadRecipe(const TerrainRecipe& recipe);
+  void StartNewRecipe();
+  void StartRecipeCopy();
+  const std::optional<TerrainRecipe>& active_recipe() const { return active_recipe_; }
+  std::string& recipe_to_open() { return recipe_to_open_; }
 
   Source source() const { return source_; }
   void SetSource(Source source);
@@ -73,6 +83,8 @@ class TerrainEditorModel {
 
   TerrainGenConfig config_;
   std::optional<std::string> selected_preset_ = "Classic Grass";
+  std::optional<TerrainRecipe> active_recipe_;
+  std::string recipe_to_open_;
   Source source_ = Source::kGenerate;
   std::string name_ = "terrain";
   std::string manifest_path_;

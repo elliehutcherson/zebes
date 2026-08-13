@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <map>
 #include <set>
 #include <vector>
 
@@ -337,6 +338,31 @@ TEST(TerrainGeneratorTest, RejectsUnusableConfigurations) {
   EXPECT_FALSE(TerrainRenderer::Create(config).ok());
 
   config = FlatInteriorConfig(/*variant_period=*/1);
+  config.interior.pattern.accent_mode = static_cast<TerrainAccentMode>(255);
+  EXPECT_FALSE(TerrainRenderer::Create(config).ok());
+
+  config = FlatInteriorConfig(/*variant_period=*/1);
+  config.interior.details.accent_mode = static_cast<TerrainAccentMode>(255);
+  EXPECT_FALSE(TerrainRenderer::Create(config).ok());
+
+  config = FlatInteriorConfig(/*variant_period=*/1);
+  config.interior.pattern.scale = 0;
+  EXPECT_FALSE(TerrainRenderer::Create(config).ok());
+
+  config = FlatInteriorConfig(/*variant_period=*/1);
+  config.interior.details.scale = 9;
+  EXPECT_FALSE(TerrainRenderer::Create(config).ok());
+
+  // A stamp magnified past the tile can never satisfy the interior test, so it
+  // would place nothing and render an empty layer rather than failing.
+  config = FlatInteriorConfig(/*variant_period=*/1);
+  config.tile_size = 8;
+  config.interior.details.family = TerrainDetailSet::kSnow;
+  config.interior.details.density = 2;
+  config.interior.details.scale = 4;
+  EXPECT_FALSE(TerrainRenderer::Create(config).ok());
+
+  config = FlatInteriorConfig(/*variant_period=*/1);
   config.interior.details.family = static_cast<TerrainDetailSet>(255);
   EXPECT_FALSE(TerrainRenderer::Create(config).ok());
 
@@ -437,6 +463,37 @@ TEST(TerrainGeneratorTest, SubstratePatternDoesNotMoveWhenTheNeighborMaskChanges
       const Pixel a = At(*enclosed, x, y);
       const Pixel b = At(*exposed, x, y);
       EXPECT_EQ(a, b) << "substrate pattern moved at " << x << "," << y
+                      << " when only the northern edge changed";
+      colors.insert({a.r, a.g, a.b, a.a});
+    }
+  }
+  EXPECT_GT(colors.size(), 1u) << "comparison region did not exercise the substrate pattern";
+}
+
+// Magnified stamps do their own wrapping and clipping arithmetic, so the
+// property that a mark is anchored to the field rather than to the tile has to
+// hold at size > 1 as well.
+TEST(TerrainGeneratorTest, MagnifiedSubstratePatternDoesNotMoveWhenTheNeighborMaskChanges) {
+  TerrainGenConfig config = FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/1);
+  config.interior.base.style = TerrainInteriorStyle::kFlat;
+  config.interior.pattern.family = TerrainSubstratePattern::kPebbles;
+  config.interior.pattern.density = 10;
+  config.interior.pattern.spacing = 1;
+  config.interior.pattern.margin = 0;
+  config.interior.pattern.scale = 3;
+
+  const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
+  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  const absl::StatusOr<RgbaImage> enclosed = renderer->RenderBlobTile(/*mask=*/255, 0);
+  const absl::StatusOr<RgbaImage> exposed = renderer->RenderBlobTile(kFlatTopMask, 0);
+  ASSERT_TRUE(enclosed.ok() && exposed.ok());
+
+  std::set<std::array<uint8_t, 4>> colors;
+  for (int y = 20; y < 32; ++y) {
+    for (int x = 0; x < 32; ++x) {
+      const Pixel a = At(*enclosed, x, y);
+      const Pixel b = At(*exposed, x, y);
+      EXPECT_EQ(a, b) << "magnified substrate pattern moved at " << x << "," << y
                       << " when only the northern edge changed";
       colors.insert({a.r, a.g, a.b, a.a});
     }
@@ -545,6 +602,219 @@ TEST(TerrainGeneratorTest, PatternContrastCanHideMarksWithoutChangingTheirFamily
   ASSERT_TRUE(blank_tile.ok() && quiet_tile.ok() && strong_tile.ok());
   EXPECT_EQ(quiet_tile->pixels, blank_tile->pixels);
   EXPECT_NE(strong_tile->pixels, blank_tile->pixels);
+}
+
+// A tile whose interior is deliberately featureless, so any pixel that is not
+// the interior colour is a motif and can be counted.
+TerrainGenConfig MotifOnlyConfig() {
+  TerrainGenConfig config = FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/1);
+  config.interior.base.style = TerrainInteriorStyle::kFlat;
+  config.interior.pattern.family = TerrainSubstratePattern::kNone;
+  config.interior.details.family = TerrainDetailSet::kNone;
+  return config;
+}
+
+// Colours covering the interior of a fully enclosed tile, and how many pixels
+// each covers. The interior colour itself is excluded, so what is left is
+// exactly the motif layer.
+std::map<std::array<uint8_t, 4>, int> MotifColors(const RgbaImage& tile) {
+  const Pixel interior = At(tile, tile.width / 2, tile.height / 2);
+  std::map<std::array<uint8_t, 4>, int> colors;
+  for (int y = 0; y < tile.height; ++y) {
+    for (int x = 0; x < tile.width; ++x) {
+      const Pixel pixel = At(tile, x, y);
+      if (pixel == interior) continue;
+      ++colors[{pixel.r, pixel.g, pixel.b, pixel.a}];
+    }
+  }
+  return colors;
+}
+
+int TotalPixels(const std::map<std::array<uint8_t, 4>, int>& colors) {
+  int total = 0;
+  for (const auto& [color, count] : colors) total += count;
+  return total;
+}
+
+// A single mark, so the comparison isolates the size of a stamp from how many
+// of them the placement builder fits. Spacing grows with size deliberately, so
+// at a higher density a larger size draws fewer, bigger marks.
+TEST(TerrainGeneratorTest, MotifSizeQuadruplesTheAreaAMarkCovers) {
+  TerrainGenConfig small = MotifOnlyConfig();
+  small.interior.pattern.family = TerrainSubstratePattern::kDiamonds;
+  small.interior.pattern.density = 1;
+  small.interior.pattern.margin = 0;
+
+  TerrainGenConfig large = small;
+  large.interior.pattern.scale = 2;
+
+  const absl::StatusOr<TerrainRenderer> small_renderer = TerrainRenderer::Create(small);
+  const absl::StatusOr<TerrainRenderer> large_renderer = TerrainRenderer::Create(large);
+  ASSERT_TRUE(small_renderer.ok()) << small_renderer.status();
+  ASSERT_TRUE(large_renderer.ok()) << large_renderer.status();
+
+  const absl::StatusOr<RgbaImage> small_tile = small_renderer->RenderBlobTile(/*mask=*/255, 0);
+  const absl::StatusOr<RgbaImage> large_tile = large_renderer->RenderBlobTile(/*mask=*/255, 0);
+  ASSERT_TRUE(small_tile.ok()) << small_tile.status();
+  ASSERT_TRUE(large_tile.ok()) << large_tile.status();
+
+  const int small_covered = TotalPixels(MotifColors(*small_tile));
+  const int large_covered = TotalPixels(MotifColors(*large_tile));
+  ASSERT_GT(small_covered, 0) << "the size-1 tile drew no mark to compare against";
+  // Doubling both axes of a stamp quadruples the pixels it covers.
+  EXPECT_EQ(large_covered, small_covered * 4)
+      << "size 2 covered " << large_covered << " pixels, not four times size 1's " << small_covered;
+}
+
+// Magnifying a stamp must magnify its shape, not resample it. Every colour a
+// magnified diamond uses has to be one the unmagnified diamond already used.
+TEST(TerrainGeneratorTest, MotifSizeIntroducesNoNewColours) {
+  TerrainGenConfig small = MotifOnlyConfig();
+  small.interior.pattern.family = TerrainSubstratePattern::kDiamonds;
+  small.interior.pattern.density = 4;
+  small.interior.pattern.margin = 0;
+
+  TerrainGenConfig large = small;
+  large.interior.pattern.scale = 3;
+
+  const absl::StatusOr<TerrainRenderer> small_renderer = TerrainRenderer::Create(small);
+  const absl::StatusOr<TerrainRenderer> large_renderer = TerrainRenderer::Create(large);
+  ASSERT_TRUE(small_renderer.ok()) << small_renderer.status();
+  ASSERT_TRUE(large_renderer.ok()) << large_renderer.status();
+
+  const absl::StatusOr<RgbaImage> small_tile = small_renderer->RenderBlobTile(/*mask=*/255, 0);
+  const absl::StatusOr<RgbaImage> large_tile = large_renderer->RenderBlobTile(/*mask=*/255, 0);
+  ASSERT_TRUE(small_tile.ok() && large_tile.ok());
+
+  const std::map<std::array<uint8_t, 4>, int> small_colors = MotifColors(*small_tile);
+  const std::map<std::array<uint8_t, 4>, int> large_colors = MotifColors(*large_tile);
+  ASSERT_FALSE(small_colors.empty());
+  ASSERT_FALSE(large_colors.empty());
+  for (const auto& [color, count] : large_colors) {
+    EXPECT_TRUE(small_colors.count(color) != 0)
+        << "magnifying the stamp invented a colour the source art does not contain";
+  }
+}
+
+// The substrate pattern had no route to the accent colours at all before the
+// accent mode existed: it was hardcoded to the snow and crystal detail sets.
+TEST(TerrainGeneratorTest, SubstratePatternsCanUseAccentColours) {
+  TerrainGenConfig material = MotifOnlyConfig();
+  material.interior.pattern.family = TerrainSubstratePattern::kDiamonds;
+  material.interior.pattern.density = 6;
+  material.interior.pattern.margin = 0;
+  material.material.accent_primary = 0xff0000;
+  material.material.accent_secondary = 0x0000ff;
+
+  TerrainGenConfig accented = material;
+  accented.interior.pattern.accent_mode = TerrainAccentMode::kAccent;
+
+  const absl::StatusOr<TerrainRenderer> material_renderer = TerrainRenderer::Create(material);
+  const absl::StatusOr<TerrainRenderer> accent_renderer = TerrainRenderer::Create(accented);
+  ASSERT_TRUE(material_renderer.ok()) << material_renderer.status();
+  ASSERT_TRUE(accent_renderer.ok()) << accent_renderer.status();
+
+  const absl::StatusOr<RgbaImage> material_tile = material_renderer->RenderBlobTile(255, 0);
+  const absl::StatusOr<RgbaImage> accent_tile = accent_renderer->RenderBlobTile(255, 0);
+  ASSERT_TRUE(material_tile.ok() && accent_tile.ok());
+
+  const std::array<uint8_t, 4> red{0xff, 0x00, 0x00, 0xff};
+  const std::array<uint8_t, 4> blue{0x00, 0x00, 0xff, 0xff};
+  const std::map<std::array<uint8_t, 4>, int> material_colors = MotifColors(*material_tile);
+  const std::map<std::array<uint8_t, 4>, int> accent_colors = MotifColors(*accent_tile);
+  ASSERT_FALSE(material_colors.empty()) << "no marks were drawn to colour";
+
+  EXPECT_EQ(material_colors.count(red), 0u);
+  EXPECT_EQ(material_colors.count(blue), 0u);
+  EXPECT_GT(accent_colors.count(red) + accent_colors.count(blue), 0u)
+      << "accent mode left the substrate marks on the material ramp";
+}
+
+// The point of the gradient: a swept motif holds more than the two endpoint
+// colours a flat accent gives it.
+TEST(TerrainGeneratorTest, GradientAccentSweepsBetweenTheAccentColours) {
+  TerrainGenConfig flat = MotifOnlyConfig();
+  flat.interior.details.family = TerrainDetailSet::kCrystals;
+  flat.interior.details.density = 6;
+  flat.interior.details.margin = 0;
+  flat.interior.details.scale = 2;
+  flat.interior.details.accent_mode = TerrainAccentMode::kAccent;
+  flat.material.accent_primary = 0xffd000;
+  flat.material.accent_secondary = 0x00b0ff;
+
+  TerrainGenConfig swept = flat;
+  swept.interior.details.accent_mode = TerrainAccentMode::kGradient;
+
+  const absl::StatusOr<TerrainRenderer> flat_renderer = TerrainRenderer::Create(flat);
+  const absl::StatusOr<TerrainRenderer> swept_renderer = TerrainRenderer::Create(swept);
+  ASSERT_TRUE(flat_renderer.ok()) << flat_renderer.status();
+  ASSERT_TRUE(swept_renderer.ok()) << swept_renderer.status();
+
+  const absl::StatusOr<RgbaImage> flat_tile = flat_renderer->RenderBlobTile(/*mask=*/255, 0);
+  const absl::StatusOr<RgbaImage> swept_tile = swept_renderer->RenderBlobTile(/*mask=*/255, 0);
+  ASSERT_TRUE(flat_tile.ok() && swept_tile.ok());
+
+  const std::map<std::array<uint8_t, 4>, int> flat_colors = MotifColors(*flat_tile);
+  const std::map<std::array<uint8_t, 4>, int> swept_colors = MotifColors(*swept_tile);
+  ASSERT_FALSE(flat_colors.empty()) << "no crystals were drawn to colour";
+  EXPECT_EQ(flat_colors.size(), 2u) << "flat accent should use exactly the two accent colours";
+  EXPECT_GT(swept_colors.size(), flat_colors.size())
+      << "the gradient produced no more colours than the flat accent pair";
+
+  // The ramp's endpoints must be the authored colours exactly, so introducing
+  // it changed nothing about how flat accent shading already looked.
+  const std::array<uint8_t, 4> primary{0xff, 0xd0, 0x00, 0xff};
+  const std::array<uint8_t, 4> secondary{0x00, 0xb0, 0xff, 0xff};
+  EXPECT_EQ(flat_colors.count(primary), 1u) << "flat accent lost the authored primary colour";
+  EXPECT_EQ(flat_colors.count(secondary), 1u) << "flat accent lost the authored secondary colour";
+  // The sweep runs between those same endpoints rather than beside them.
+  EXPECT_EQ(swept_colors.count(primary), 1u) << "the gradient never reaches the primary colour";
+  EXPECT_EQ(swept_colors.count(secondary), 1u) << "the gradient never reaches the secondary colour";
+}
+
+// A sweep between two saturated colours must not pass through grey; that is the
+// whole reason the ramp is mixed in HSV along the shorter hue arc.
+TEST(TerrainGeneratorTest, TheAccentGradientStaysSaturated) {
+  TerrainGenConfig config = MotifOnlyConfig();
+  config.interior.details.family = TerrainDetailSet::kCrystals;
+  config.interior.details.density = 6;
+  config.interior.details.margin = 0;
+  config.interior.details.scale = 2;
+  config.interior.details.accent_mode = TerrainAccentMode::kGradient;
+  config.material.accent_primary = 0xffd000;
+  config.material.accent_secondary = 0x00b0ff;
+
+  const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
+  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/255, 0);
+  ASSERT_TRUE(tile.ok()) << tile.status();
+
+  const std::map<std::array<uint8_t, 4>, int> colors = MotifColors(*tile);
+  ASSERT_GT(colors.size(), 2u) << "the gradient did not produce intermediate steps to check";
+  for (const auto& [color, count] : colors) {
+    const int high = std::max({color[0], color[1], color[2]});
+    const int low = std::min({color[0], color[1], color[2]});
+    // Both endpoints are fully saturated, so every step between them should be
+    // too. An RGB blend would collapse to near-grey in the middle.
+    EXPECT_GT(high - low, 100) << "a gradient step desaturated to " << high - low
+                               << "; the mix is passing through grey";
+  }
+}
+
+// Turning both layers back to material colours must reproduce the artwork the
+// generator drew before accent modes existed.
+TEST(TerrainGeneratorTest, MaterialAccentModeIsTheDefaultForNonAccentFamilies) {
+  EXPECT_EQ(DefaultAccentModeFor(TerrainDetailSet::kMeadow), TerrainAccentMode::kMaterial);
+  EXPECT_EQ(DefaultAccentModeFor(TerrainDetailSet::kForestFloor), TerrainAccentMode::kMaterial);
+  EXPECT_EQ(DefaultAccentModeFor(TerrainDetailSet::kNone), TerrainAccentMode::kMaterial);
+  EXPECT_EQ(DefaultAccentModeFor(TerrainDetailSet::kSnow), TerrainAccentMode::kAccent);
+  EXPECT_EQ(DefaultAccentModeFor(TerrainDetailSet::kCrystals), TerrainAccentMode::kAccent);
+
+  const TerrainGenConfig defaults;
+  EXPECT_EQ(defaults.interior.pattern.accent_mode, TerrainAccentMode::kMaterial);
+  EXPECT_EQ(defaults.interior.details.accent_mode, TerrainAccentMode::kMaterial);
+  EXPECT_EQ(defaults.interior.pattern.scale, 1);
+  EXPECT_EQ(defaults.interior.details.scale, 1);
 }
 
 // The atlas has to be laid out exactly the way ComposeBlob47 lays out

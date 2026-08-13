@@ -54,6 +54,9 @@ absl::StatusOr<std::unique_ptr<TerrainEditor>> TerrainEditor::Create(Api* api, G
 }
 
 absl::Status TerrainEditor::Init() {
+  ASSIGN_OR_RETURN(recipe_manager_,
+                   TerrainRecipeManager::Create(api_->GetConfig()->paths.assets()));
+  RETURN_IF_ERROR(recipe_manager_->LoadAllRecipes());
   ASSIGN_OR_RETURN(controls_panel_, TerrainControlsPanel::Create(gui_));
   ASSIGN_OR_RETURN(output_panel_, TerrainOutputPanel::Create(gui_));
   return absl::OkStatus();
@@ -118,8 +121,8 @@ absl::Status TerrainEditor::RenderViewport() {
 
   if (ImDrawList* draw_list = canvas_.GetDrawList(); draw_list != nullptr) {
     const ImVec2 min = canvas_.WorldToScreen({0, 0});
-    const ImVec2 max =
-        canvas_.WorldToScreen({static_cast<double>(image.width), static_cast<double>(image.height)});
+    const ImVec2 max = canvas_.WorldToScreen(
+        {static_cast<double>(image.width), static_cast<double>(image.height)});
     draw_list->AddImage(texture, min, max);
     canvas_.DrawGrid();
   }
@@ -135,11 +138,11 @@ absl::Status TerrainEditor::RenderViewport() {
 }
 
 void TerrainEditor::CreateTerrain() {
-  absl::StatusOr<CreatedTerrain> created =
-      absl::InternalError("Unknown terrain source");
+  absl::StatusOr<CreatedTerrain> created = absl::InternalError("Unknown terrain source");
 
   if (model_.source() == TerrainEditorModel::Source::kGenerate) {
-    created = CreateGeneratedTerrainTileset(*api_, model_.name(), model_.config());
+    created = CreateGeneratedTerrainTileset(*api_, *recipe_manager_, model_.name(), model_.config(),
+                                            model_.selected_preset());
   } else {
     absl::StatusOr<std::string> manifest = ReadFile(model_.manifest_path());
     created = manifest.ok() ? CreateImportedTerrainTileset(*api_, model_.name(),
@@ -152,7 +155,39 @@ void TerrainEditor::CreateTerrain() {
     return;
   }
   model_.SetResult(*created);
+  if (!created->recipe_id.empty()) {
+    absl::StatusOr<TerrainRecipe*> recipe = recipe_manager_->GetRecipe(created->recipe_id);
+    if (recipe.ok()) model_.LoadRecipe(**recipe);
+  }
   model_.SetStatus(absl::StrCat("Created '", model_.name(), "'. Open it in the Tileset Editor."));
+}
+
+void TerrainEditor::OpenRecipe() {
+  absl::StatusOr<TerrainRecipe*> recipe = recipe_manager_->GetRecipe(model_.recipe_to_open());
+  if (!recipe.ok()) {
+    model_.SetStatus(std::string(recipe.status().message()));
+    return;
+  }
+  model_.LoadRecipe(**recipe);
+  frame_pending_ = true;
+  model_.SetStatus(absl::StrCat("Opened '", (*recipe)->name, "'."));
+}
+
+void TerrainEditor::RegenerateTerrain() {
+  if (!model_.active_recipe().has_value()) {
+    model_.SetStatus("Open a terrain recipe before regenerating it.");
+    return;
+  }
+  const TerrainRecipe recipe = *model_.active_recipe();
+  const absl::Status status =
+      RegenerateTerrainTileset(*api_, *recipe_manager_, recipe, model_.config());
+  if (!status.ok()) {
+    model_.SetStatus(std::string(status.message()));
+    return;
+  }
+  absl::StatusOr<TerrainRecipe*> saved = recipe_manager_->GetRecipe(recipe.id);
+  if (saved.ok()) model_.LoadRecipe(**saved);
+  model_.SetStatus(absl::StrCat("Regenerated '", recipe.name, "' without changing asset IDs."));
 }
 
 absl::Status TerrainEditor::RenderOutput() {
@@ -163,8 +198,27 @@ absl::Status TerrainEditor::RenderOutput() {
   }
 
   ASSIGN_OR_RETURN(const TerrainOutputPanel::Action action,
-                   output_panel_->Render(model_, textures));
-  if (action == TerrainOutputPanel::Action::kCreate) CreateTerrain();
+                   output_panel_->Render(model_, textures, recipe_manager_->GetAllRecipes()));
+  switch (action) {
+    case TerrainOutputPanel::Action::kNone:
+      break;
+    case TerrainOutputPanel::Action::kCreate:
+      CreateTerrain();
+      break;
+    case TerrainOutputPanel::Action::kOpenRecipe:
+      OpenRecipe();
+      break;
+    case TerrainOutputPanel::Action::kNewRecipe:
+      model_.StartNewRecipe();
+      frame_pending_ = true;
+      break;
+    case TerrainOutputPanel::Action::kCopyRecipe:
+      model_.StartRecipeCopy();
+      break;
+    case TerrainOutputPanel::Action::kRegenerate:
+      RegenerateTerrain();
+      break;
+  }
   return absl::OkStatus();
 }
 

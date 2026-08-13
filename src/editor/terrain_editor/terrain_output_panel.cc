@@ -57,19 +57,52 @@ void TerrainOutputPanel::RenderSummary(TerrainEditorModel& model) {
   }
 
   const TerrainGenConfig& config = model.config();
-  gui_->TextDisabled("%s", absl::StrFormat("%d tiles at %dpx", model.TileCount(),
-                                           config.tile_size)
-                               .c_str());
+  gui_->TextDisabled(
+      "%s", absl::StrFormat("%d tiles at %dpx", model.TileCount(), config.tile_size).c_str());
+}
+
+TerrainOutputPanel::Action TerrainOutputPanel::RenderRecipeSelector(
+    TerrainEditorModel& model, const std::vector<TerrainRecipe>& recipes) {
+  const char* preview = "New recipe";
+  if (model.active_recipe().has_value()) preview = model.active_recipe()->name.c_str();
+
+  ScopedCombo combo = gui_->CreateScopedCombo("Recipe##TerrainOut", preview);
+  if (!combo.IsActive()) return Action::kNone;
+  for (const TerrainRecipe& recipe : recipes) {
+    const bool selected =
+        model.active_recipe().has_value() && model.active_recipe()->id == recipe.id;
+    if (!gui_->Selectable(recipe.name.c_str(), selected)) continue;
+    model.recipe_to_open() = recipe.id;
+    return Action::kOpenRecipe;
+  }
+  return Action::kNone;
 }
 
 absl::StatusOr<TerrainOutputPanel::Action> TerrainOutputPanel::Render(
-    TerrainEditorModel& model, const std::vector<Texture>& textures) {
+    TerrainEditorModel& model, const std::vector<Texture>& textures,
+    const std::vector<TerrainRecipe>& recipes) {
   gui_->Text("Output");
 
   RenderSourceSelector(model);
 
+  Action action = Action::kNone;
+  if (model.source() == TerrainEditorModel::Source::kGenerate) {
+    action = RenderRecipeSelector(model, recipes);
+    if (model.active_recipe().has_value()) {
+      if (gui_->Button("New##TerrainOut")) action = Action::kNewRecipe;
+      gui_->SameLine();
+      if (gui_->Button("Save As##TerrainOut")) action = Action::kCopyRecipe;
+    }
+  }
+
   gui_->SetNextItemWidth(kFieldWidth);
-  gui_->InputText("Name##TerrainOut", &model.name());
+  if (model.active_recipe().has_value()) {
+    gui_->BeginDisabled(true);
+    gui_->InputText("Name##TerrainOut", &model.name());
+    gui_->EndDisabled();
+  } else {
+    gui_->InputText("Name##TerrainOut", &model.name());
+  }
   if (gui_->IsItemHovered()) {
     gui_->SetTooltip("Names the tileset, the terrain, and the artwork file.");
   }
@@ -84,7 +117,8 @@ absl::StatusOr<TerrainOutputPanel::Action> TerrainOutputPanel::Render(
     gui_->SetNextItemWidth(kFieldWidth);
     gui_->SliderInt("Quality##TerrainOut", &model.config().supersample, 1, 4);
     if (gui_->IsItemHovered()) {
-      gui_->SetTooltip("Samples per pixel when the artwork is written. Does not affect the preview.");
+      gui_->SetTooltip(
+          "Samples per pixel when the artwork is written. Does not affect the preview.");
     }
   }
 
@@ -96,9 +130,12 @@ absl::StatusOr<TerrainOutputPanel::Action> TerrainOutputPanel::Render(
   const bool missing_manifest = importing && model.manifest_path().empty();
   const bool blocked = model.name().empty() || missing_texture || missing_manifest;
 
-  Action action = Action::kNone;
   gui_->BeginDisabled(blocked);
-  if (gui_->Button("Create##TerrainOut")) action = Action::kCreate;
+  if (model.active_recipe().has_value()) {
+    if (gui_->Button("Regenerate##TerrainOut")) action = Action::kRegenerate;
+  } else if (gui_->Button("Create##TerrainOut")) {
+    action = Action::kCreate;
+  }
   gui_->EndDisabled();
 
   // Say which requirement is unmet rather than leaving a dead button.
@@ -109,10 +146,10 @@ absl::StatusOr<TerrainOutputPanel::Action> TerrainOutputPanel::Render(
   if (!model.status().empty()) gui_->TextWrapped("%s", model.status().c_str());
 
   if (model.result().has_value()) {
-    gui_->TextDisabled("%s", absl::StrFormat("Tileset %s, %d tiles",
-                                             model.result()->tileset_id.c_str(),
-                                             model.result()->tile_count)
-                                 .c_str());
+    gui_->TextDisabled("%s",
+                       absl::StrFormat("Tileset %s, %d tiles", model.result()->tileset_id.c_str(),
+                                       model.result()->tile_count)
+                           .c_str());
   }
   return action;
 }

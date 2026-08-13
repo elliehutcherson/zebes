@@ -83,6 +83,21 @@ target_link_libraries(terrain_style
   absl::strings
 )
 
+add_library(terrain_recipe
+  terrain_recipe.cc
+)
+
+target_link_libraries(terrain_recipe
+  PUBLIC
+  terrain_style
+  absl::statusor
+  nlohmann_json::nlohmann_json
+  PRIVATE
+  status_macros
+  absl::status
+  absl::strings
+)
+
 add_library(blob47_compose
   blob47_compose.cc
 )

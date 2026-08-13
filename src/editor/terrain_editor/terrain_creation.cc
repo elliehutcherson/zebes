@@ -57,13 +57,93 @@ absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(Api& api, const std
   ASSIGN_OR_RETURN(const Blob47Atlas atlas, GenerateBlob47Atlas(config));
   // Artwork first: if the name collides with existing artwork this fails before
   // anything has been written, leaving no half-made tileset behind.
-  ASSIGN_OR_RETURN(const std::string texture_id,
-                   api.CreateTextureFromPixels(name, atlas.image.width, atlas.image.height,
-                                               atlas.image.pixels));
+  ASSIGN_OR_RETURN(
+      const std::string texture_id,
+      api.CreateTextureFromPixels(name, atlas.image.width, atlas.image.height, atlas.image.pixels));
   ASSIGN_OR_RETURN(TerrainCandidate candidate,
                    BuildTerrainCandidate(atlas, /*first_tile_id=*/1, /*terrain_id=*/1));
 
   return SaveTilesetForCandidate(api, name, texture_id, std::move(candidate));
+}
+
+absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(
+    Api& api, TerrainRecipeManager& recipes, const std::string& name,
+    const TerrainGenConfig& config, const std::optional<std::string>& source_preset) {
+  ASSIGN_OR_RETURN(CreatedTerrain created, CreateGeneratedTerrainTileset(api, name, config));
+
+  TerrainRecipe recipe{
+      .name = name,
+      .tileset_id = created.tileset_id,
+      .texture_id = created.texture_id,
+      .terrain_id = 1,
+      .source_preset = source_preset,
+      .config = config,
+  };
+  absl::StatusOr<std::string> recipe_id = recipes.CreateRecipe(std::move(recipe));
+  if (!recipe_id.ok()) {
+    // Definition rollback is best-effort but ordered: the tileset must stop
+    // referencing the texture before the texture definition can disappear.
+    api.DeleteTileset(created.tileset_id).IgnoreError();
+    api.DeleteTexture(created.texture_id).IgnoreError();
+    return recipe_id.status();
+  }
+  created.recipe_id = *recipe_id;
+  return created;
+}
+
+absl::Status RegenerateTerrainTileset(Api& api, TerrainRecipeManager& recipes,
+                                      const TerrainRecipe& recipe, const TerrainGenConfig& config) {
+  if (config.tile_size != recipe.config.tile_size ||
+      config.variant_period != recipe.config.variant_period) {
+    return absl::FailedPreconditionError(
+        "tile size and repeat period change atlas topology; use Save As to create new IDs");
+  }
+
+  ASSIGN_OR_RETURN(Tileset * tileset, api.GetTileset(recipe.tileset_id));
+  if (tileset->texture_id != recipe.texture_id) {
+    return absl::FailedPreconditionError(
+        "terrain recipe texture no longer matches its tileset; refusing to overwrite artwork");
+  }
+  if (tileset->tile_width != recipe.config.tile_size ||
+      tileset->tile_height != recipe.config.tile_size) {
+    return absl::FailedPreconditionError(
+        "terrain tileset cell size changed after generation; use Save As");
+  }
+
+  const Terrain* terrain = nullptr;
+  for (const Terrain& candidate : tileset->terrains) {
+    if (candidate.id == recipe.terrain_id) terrain = &candidate;
+  }
+  if (terrain == nullptr || terrain->variant_period != recipe.config.variant_period) {
+    return absl::FailedPreconditionError(
+        "terrain recipe target is missing or its repeat period has changed");
+  }
+
+  const int expected_tiles =
+      kBlob47TileCount * recipe.config.variant_period * recipe.config.variant_period +
+      kSlopeShapeCount;
+  if (tileset->tiles.size() != static_cast<size_t>(expected_tiles)) {
+    return absl::FailedPreconditionError(
+        "terrain tileset structure changed after generation; use Save As to preserve existing IDs");
+  }
+
+  ASSIGN_OR_RETURN(const Blob47Atlas atlas, GenerateBlob47Atlas(config));
+
+  TerrainRecipe updated = recipe;
+  updated.config = config;
+  RETURN_IF_ERROR(recipes.SaveRecipe(updated));
+
+  const absl::Status replaced = api.ReplaceTexturePixels(recipe.texture_id, atlas.image.width,
+                                                         atlas.image.height, atlas.image.pixels);
+  if (replaced.ok()) return absl::OkStatus();
+
+  const absl::Status rolled_back = recipes.SaveRecipe(recipe);
+  if (!rolled_back.ok()) {
+    return absl::InternalError(absl::StrCat("artwork replacement failed (", replaced.message(),
+                                            ") and the recipe rollback also failed (",
+                                            rolled_back.message(), ")"));
+  }
+  return replaced;
 }
 
 absl::StatusOr<CreatedTerrain> CreateImportedTerrainTileset(Api& api, const std::string& name,

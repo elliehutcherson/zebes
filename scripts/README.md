@@ -22,6 +22,13 @@ artwork, registers its texture, and saves a finished tileset -- nothing needs to
 exist first and nothing is left unsaved afterwards. Open it in the Tileset
 Editor if you want to rename tiles or adjust shapes.
 
+Generated terrains also save a versioned recipe. Choose one from **Recipe** to
+reopen every generator control and use **Regenerate** to update its artwork
+without changing texture, tileset, terrain, or tile IDs. **Save As** starts a
+copy with the same look and fresh IDs. Changes to tile size or **Repeat over**
+must use Save As because they change the atlas structure and cannot safely keep
+the old tile-ID mapping.
+
 The **Source** control picks between the two routes:
 
 - **Generate** draws the artwork procedurally from the controls on the left.
@@ -52,6 +59,19 @@ Two controls are worth understanding before the rest:
 - **Quality** is supersampling, and it sits with the output rather than the
   tuning controls because it only affects what **Create** writes: the preview
   always draws at draft quality so it can keep up with a slider.
+- **Pattern accent** and **Detail accent** decide where a motif layer takes its
+  colour. *Material* tints the marks like the substrate they sit in. *Accent*
+  uses the two accent colours flat. *Gradient* sweeps between them across each
+  mark, which is how a crystal or a diamond reads as holographic rather than as
+  two flat tones. The accent colours are the material's, so both layers can use
+  them; **Pattern contrast** only shapes the material ramp and is disabled in
+  the two accent modes.
+- **Pattern size** and **Detail size** magnify each mark by a whole number. The
+  motif banks are drawn once per pixel style, so this enlarges the art rather
+  than resampling it, and spacing grows to match so raising the size does not
+  turn a pattern into a blob. A size that would make a mark wider than a tile is
+  refused, because such a mark could never be placed and the layer would come
+  out empty.
 
 Both routes meet at the same place -- each produces a `Blob47Atlas`, and
 `BuildTerrainCandidate` turns either into tiles and rules -- so nothing

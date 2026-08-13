@@ -3,6 +3,7 @@ target_link_libraries(terrain_creation
   PUBLIC
   api
   terrain_generator
+  terrain_recipe_manager
   absl::statusor
   PRIVATE
   status_macros
@@ -16,6 +17,7 @@ target_link_libraries(terrain_editor_model
   PUBLIC
   terrain_creation
   terrain_generator
+  terrain_recipe
   absl::status
   PRIVATE
   status_macros
@@ -62,6 +64,7 @@ target_link_libraries(terrain_editor
   terrain_creation
   terrain_editor_model
   terrain_output_panel
+  terrain_recipe_manager
   absl::statusor
   PRIVATE
   imgui_scoped

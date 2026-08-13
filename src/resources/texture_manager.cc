@@ -21,8 +21,7 @@ constexpr char kImagesPath[] = "textures";
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<TextureManager>> TextureManager::Create(
-    TextureResourceStore* resources,
-                                                                       std::string root_path) {
+    TextureResourceStore* resources, std::string root_path) {
   if (resources == nullptr) {
     return absl::InvalidArgumentError("TextureResourceStore must not be null");
   }
@@ -129,9 +128,8 @@ absl::StatusOr<std::string> TextureManager::CreateTextureFromPixels(
 
   const std::string image_path = absl::StrCat(images_path_, "/", name, ".png");
   if (std::filesystem::exists(image_path)) {
-    return absl::AlreadyExistsError(
-        absl::StrCat("Artwork already exists at ", image_path,
-                     "; choose another name rather than replacing it"));
+    return absl::AlreadyExistsError(absl::StrCat("Artwork already exists at ", image_path,
+                                                 "; choose another name rather than replacing it"));
   }
 
   RETURN_IF_ERROR(WritePng(image_path, width, height, pixels));
@@ -139,6 +137,39 @@ absl::StatusOr<std::string> TextureManager::CreateTextureFromPixels(
   // CreateTexture copies from a source path into the images directory; the file
   // is already there, which it detects and leaves alone.
   return CreateTexture(Texture{.name = name, .path = image_path});
+}
+
+absl::Status TextureManager::ReplaceTexturePixels(const std::string& id, int width, int height,
+                                                  absl::Span<const uint8_t> pixels) {
+  auto texture = textures_.find(id);
+  if (texture == textures_.end()) {
+    return absl::NotFoundError(absl::StrCat("Texture with id ", id, " not found."));
+  }
+
+  const std::string target = GetImagesPath(texture->second->path);
+  const std::string temporary = absl::StrCat(target, ".replacement.png");
+  RETURN_IF_ERROR(WritePng(temporary, width, height, pixels));
+
+  absl::StatusOr<TextureHandle> replacement = resources_->Load(temporary);
+  if (!replacement.ok()) {
+    std::filesystem::remove(temporary);
+    return replacement.status();
+  }
+
+  std::error_code error;
+  std::filesystem::rename(temporary, target, error);
+  if (error) {
+    resources_->Unload(*replacement).IgnoreError();
+    std::filesystem::remove(temporary);
+    return absl::InternalError(
+        absl::StrCat("failed to replace generated texture artwork: ", error.message()));
+  }
+
+  if (auto old = handles_.find(id); old != handles_.end() && old->second) {
+    resources_->Unload(old->second).IgnoreError();
+  }
+  handles_[id] = *replacement;
+  return absl::OkStatus();
 }
 
 absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {

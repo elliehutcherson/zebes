@@ -331,6 +331,24 @@ roots or flowers. Every pattern family has a compact bank capped at three-pixel
 motifs for `Chunky16`; the 32px/64px policy is free to use the larger five-pixel
 crosses and diamonds rather than relying on image scaling.
 
+Both motif layers carry a `TerrainAccentMode` and an integer size. The mode
+decides whether a layer's auto-shaded pixels take the layer's own material ramp,
+the material's accent pair flat, or a gradient swept between that pair across
+each motif. It is configuration rather than a property of a motif bank, so any
+family can reach the accent colours; the detail sets that are normally authored
+in accent colours say so through `DefaultAccentModeFor` instead of the renderer
+hardcoding a list. The gradient occupies a fixed-length palette ramp whose
+endpoints are exactly the two authored colours, is mixed in HSV along the
+shorter hue arc so intermediate steps stay as saturated as the endpoints, and is
+normalised over each motif's opaque extent rather than its bounding box so a
+shape with transparent corners still reaches both ends. Size magnifies a stamp
+by reading source pixels at `sx / scale`, which keeps the banks pixel art at
+every size and keeps a magnified motif's lighting and gradient derived from the
+stamp alone, so every wrapped copy of it agrees across a tile seam. Placement
+spacing scales with size; whether a magnified stamp still fits its tile depends
+on the motif bank, so `TerrainRenderer::Create` rejects that case rather than
+`ResolveTerrainStyle`, which cannot see the banks without a dependency cycle.
+
 Those responsibilities are also separate build units. `terrain_style` owns
 authoring configuration, preset construction, validation and resolution;
 `terrain_motifs` owns typed, profile-specific pixel motifs; `terrain_field`
@@ -338,6 +356,21 @@ owns reusable wrapping numerical fields; and `terrain_generator` applies those
 resolved inputs to Blob47 geometry. Motif pixels name semantic colour roles
 rather than private palette-array offsets, so adding a motif cannot silently
 couple its data to renderer implementation order.
+
+Generated terrain authoring state is a separate, versioned `TerrainRecipe`
+resource under `definitions/terrain_recipes`. A recipe records the complete
+`TerrainGenConfig` plus the texture, tileset and terrain IDs it produced;
+runtime `Terrain` objects remain limited to the rules needed by the brush.
+Recipe parsing is strict within a schema version, so adding a generator field
+requires an explicit persistence decision instead of silently substituting a
+new default when old work is reopened.
+
+Regeneration preserves all resource and tile IDs by replacing only the atlas
+pixels. It validates the recipe's asset binding before writing and rejects tile
+size or variant-period changes because those alter atlas topology; the editor's
+Save As path creates new IDs for those changes. Recipe persistence is committed
+atomically, texture replacement is decoded before its atomic file swap, and a
+failed texture swap rolls the recipe back to its prior configuration.
 
 Surface texture, interior structure and both motif placement layers sample
 atlas-global, wrapping coordinates. Substrate motifs and semantic details are

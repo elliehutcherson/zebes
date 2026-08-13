@@ -66,6 +66,20 @@ class TerrainRenderer {
     size_t motif = 0;
   };
 
+  // Everything one interior motif layer needs in order to stamp itself. The
+  // substrate pattern and the semantic details differ only in these values, so
+  // they share the whole placement and wrapping path.
+  struct MotifLayer {
+    absl::Span<const TerrainMotif> stamps;
+    absl::Span<const MotifPlacement> placements;
+    int margin = 0;
+    // Integer magnification. Source pixels are read at sx / scale, so a stamp
+    // stays pixel art rather than being resampled.
+    int scale = 1;
+    TerrainAccentMode accent_mode = TerrainAccentMode::kMaterial;
+    bool substrate_layer = false;
+  };
+
   TerrainRenderer(TerrainGenConfig config, ResolvedTerrainStyle style, RuffleField ruffle,
                   ValueNoiseField surface_texture, ValueNoiseField mottle,
                   PeriodicPatternGrid surface_pattern, CellularField cellular,
@@ -89,9 +103,18 @@ class TerrainRenderer {
   void PlaceSubstratePattern(std::vector<uint8_t>& indices, int origin_x, int origin_y) const;
   void PlaceDetails(std::vector<uint8_t>& indices, int origin_x, int origin_y) const;
   void ApplyMotifs(std::vector<uint8_t>& indices, int origin_x, int origin_y,
-                   absl::Span<const TerrainMotif> motifs,
-                   absl::Span<const MotifPlacement> placements, int margin, bool substrate_layer,
-                   bool auto_as_accent) const;
+                   const MotifLayer& layer) const;
+
+  // Marks the pixels a motif may cover: interior pixels whose whole margin
+  // neighbourhood is also interior. This is what keeps details off the surface
+  // band instead of letting them spill over the edge.
+  std::vector<uint8_t> LegalMotifPixels(const std::vector<uint8_t>& indices, int margin) const;
+
+  // Draws one motif with its top-left corner at (x0, y0), or draws nothing if
+  // any pixel it would cover is not clear interior. Placement is all or
+  // nothing: a partially drawn motif reads as damage rather than as detail.
+  void StampMotif(std::vector<uint8_t>& indices, const std::vector<uint8_t>& legal,
+                  const TerrainMotif& stamp, int x0, int y0, const MotifLayer& layer) const;
 
   RgbaImage Colorize(const std::vector<uint8_t>& indices) const;
 

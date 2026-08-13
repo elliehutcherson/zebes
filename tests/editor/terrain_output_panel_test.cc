@@ -31,9 +31,7 @@ class TerrainOutputPanelTest : public ::testing::Test {
     ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
   }
 
-  absl::StatusOr<TerrainOutputPanel::Action> Render() {
-    return panel_->Render(model_, textures_);
-  }
+  absl::StatusOr<TerrainOutputPanel::Action> Render() { return panel_->Render(model_, textures_); }
 
   NiceMock<MockGui> gui_;
   std::unique_ptr<TerrainOutputPanel> panel_;
@@ -118,6 +116,32 @@ TEST_F(TerrainOutputPanelTest, OffersQualityOnlyWhenGenerating) {
   model_.SetSource(TerrainEditorModel::Source::kImportManifest);
   EXPECT_CALL(gui_, SliderInt(StrEq("Quality##TerrainOut"), _, _, _, _, _)).Times(0);
   ASSERT_TRUE(Render().ok());
+}
+
+TEST_F(TerrainOutputPanelTest, LoadedRecipeRegeneratesInsteadOfCreatingNewIds) {
+  model_.LoadRecipe(TerrainRecipe{.id = "recipe-1",
+                                  .name = "Meadow",
+                                  .tileset_id = "tileset-1",
+                                  .texture_id = "texture-1",
+                                  .terrain_id = 1});
+  ON_CALL(gui_, Button(StrEq("Regenerate##TerrainOut"), _)).WillByDefault(Return(true));
+
+  const absl::StatusOr<TerrainOutputPanel::Action> action = Render();
+  ASSERT_TRUE(action.ok()) << action.status();
+  EXPECT_EQ(*action, TerrainOutputPanel::Action::kRegenerate);
+}
+
+TEST_F(TerrainOutputPanelTest, SaveAsTurnsALoadedRecipeIntoACopyAction) {
+  model_.LoadRecipe(TerrainRecipe{.id = "recipe-1",
+                                  .name = "Meadow",
+                                  .tileset_id = "tileset-1",
+                                  .texture_id = "texture-1",
+                                  .terrain_id = 1});
+  ON_CALL(gui_, Button(StrEq("Save As##TerrainOut"), _)).WillByDefault(Return(true));
+
+  const absl::StatusOr<TerrainOutputPanel::Action> action = Render();
+  ASSERT_TRUE(action.ok()) << action.status();
+  EXPECT_EQ(*action, TerrainOutputPanel::Action::kCopyRecipe);
 }
 
 }  // namespace

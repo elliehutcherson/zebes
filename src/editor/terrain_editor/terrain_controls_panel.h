@@ -32,6 +32,10 @@ class TerrainControlsPanel {
   bool RenderThemeSection(TerrainEditorModel& model);
   bool RenderSurfaceSection(TerrainGenConfig& config);
   bool RenderInteriorSection(TerrainGenConfig& config);
+
+  // The accent mode combo, shared by both motif layers because the choice means
+  // the same thing for a substrate mark as for a crystal.
+  bool RenderAccentMode(const char* label, TerrainAccentMode& mode);
   bool RenderPatternSection(TerrainEditorModel& model);
   bool RenderManifestSection(TerrainEditorModel& model);
 

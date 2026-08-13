@@ -32,6 +32,12 @@ uint32_t FromColor(const ImVec4& color) {
   return (r << 16) | (g << 8) | b;
 }
 
+constexpr std::array<std::pair<TerrainAccentMode, const char*>, 3> kAccentModes = {{
+    {TerrainAccentMode::kMaterial, "Material"},
+    {TerrainAccentMode::kAccent, "Accent"},
+    {TerrainAccentMode::kGradient, "Gradient"},
+}};
+
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<TerrainControlsPanel>> TerrainControlsPanel::Create(
@@ -209,6 +215,29 @@ bool TerrainControlsPanel::RenderSurfaceSection(TerrainGenConfig& config) {
   return changed;
 }
 
+bool TerrainControlsPanel::RenderAccentMode(const char* label, TerrainAccentMode& mode) {
+  const char* mode_name = "Unknown";
+  for (const auto& [value, name] : kAccentModes) {
+    if (value == mode) mode_name = name;
+  }
+
+  bool changed = false;
+  {
+    ScopedCombo combo = gui_->CreateScopedCombo(label, mode_name);
+    if (combo.IsActive()) {
+      for (const auto& [value, name] : kAccentModes) {
+        if (!gui_->Selectable(name, value == mode)) continue;
+        mode = value;
+        changed = true;
+      }
+    }
+  }
+  Explain(
+      "Material tints these marks like the substrate they sit in. Accent uses the two accent "
+      "colours flat, and Gradient sweeps between them across each mark.");
+  return changed;
+}
+
 bool TerrainControlsPanel::RenderInteriorSection(TerrainGenConfig& config) {
   if (!gui_->CollapsingHeader("Interior##TerrainGen", kSectionFlags)) return false;
 
@@ -290,12 +319,28 @@ bool TerrainControlsPanel::RenderInteriorSection(TerrainGenConfig& config) {
     gui_->SetNextItemWidth(kControlWidth);
     changed |=
         gui_->SliderInt("Pattern spacing##TerrainGen", &config.interior.pattern.spacing, 1, 24);
-    Explain("Smallest gap between substrate motifs.");
+    Explain("Smallest gap between substrate motifs. Grows with the pattern size.");
 
     gui_->SetNextItemWidth(kControlWidth);
-    changed |= gui_->SliderFloat("Pattern contrast##TerrainGen", &config.interior.pattern.contrast,
-                                 0.0f, 1.0f);
-    Explain("How strongly the marks separate from the interior colour.");
+    changed |= gui_->SliderInt("Pattern size##TerrainGen", &config.interior.pattern.scale, 1, 4);
+    Explain("Magnifies each mark. The art stays crisp; spacing grows to match.");
+
+    gui_->SetNextItemWidth(kControlWidth);
+    changed |= gui_->SliderInt("Pattern margin##TerrainGen", &config.interior.pattern.margin, 0, 4);
+    Explain("Clearance a mark needs from the surface band before it will be placed at all.");
+
+    changed |= RenderAccentMode("Pattern accent##TerrainGen", config.interior.pattern.accent_mode);
+
+    // Contrast only shapes the substrate ramp, which the accent modes bypass.
+    // A live slider that does nothing is worse than a disabled one.
+    {
+      ScopedDisabled disabled = gui_->CreateScopedDisabled(config.interior.pattern.accent_mode !=
+                                                           TerrainAccentMode::kMaterial);
+      gui_->SetNextItemWidth(kControlWidth);
+      changed |= gui_->SliderFloat("Pattern contrast##TerrainGen",
+                                   &config.interior.pattern.contrast, 0.0f, 1.0f);
+    }
+    Explain("How strongly the marks separate from the interior colour. Material accent only.");
   }
 
   static constexpr std::array<std::pair<TerrainDetailSet, const char*>, 5> kDetailSets = {{
@@ -315,6 +360,11 @@ bool TerrainControlsPanel::RenderInteriorSection(TerrainGenConfig& config) {
       for (const auto& [value, name] : kDetailSets) {
         if (!gui_->Selectable(name, value == config.interior.details.family)) continue;
         config.interior.details.family = value;
+        // Changing the family is choosing a different material, so the accent
+        // mode follows it to that family's usual reading. Picking Crystals and
+        // getting dirt-tinted gems would be a surprise; the mode stays
+        // overridable afterwards.
+        config.interior.details.accent_mode = DefaultAccentModeFor(value);
         changed = true;
       }
     }
@@ -330,7 +380,17 @@ bool TerrainControlsPanel::RenderInteriorSection(TerrainGenConfig& config) {
     gui_->SetNextItemWidth(kControlWidth);
     changed |=
         gui_->SliderInt("Detail spacing##TerrainGen", &config.interior.details.spacing, 1, 24);
-    Explain("Smallest gap between semantic details.");
+    Explain("Smallest gap between semantic details. Grows with the detail size.");
+
+    gui_->SetNextItemWidth(kControlWidth);
+    changed |= gui_->SliderInt("Detail size##TerrainGen", &config.interior.details.scale, 1, 4);
+    Explain("Magnifies each object. The art stays crisp; spacing grows to match.");
+
+    gui_->SetNextItemWidth(kControlWidth);
+    changed |= gui_->SliderInt("Detail margin##TerrainGen", &config.interior.details.margin, 0, 4);
+    Explain("Clearance an object needs from the surface band before it will be placed at all.");
+
+    changed |= RenderAccentMode("Detail accent##TerrainGen", config.interior.details.accent_mode);
   }
 
   return changed;

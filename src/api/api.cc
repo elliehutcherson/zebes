@@ -58,6 +58,11 @@ absl::StatusOr<std::string> Api::CreateTextureFromPixels(const std::string& name
   return texture_manager_->CreateTextureFromPixels(name, width, height, pixels);
 }
 
+absl::Status Api::ReplaceTexturePixels(const std::string& texture_id, int width, int height,
+                                       absl::Span<const uint8_t> pixels) {
+  return texture_manager_->ReplaceTexturePixels(texture_id, width, height, pixels);
+}
+
 absl::Status Api::UpdateTexture(const Texture& texture) {
   return texture_manager_->UpdateTexture(texture);
 }
@@ -159,9 +164,7 @@ absl::StatusOr<std::string> Api::CreateTileset(Tileset tileset) {
   return tileset_manager_->CreateTileset(std::move(tileset));
 }
 
-absl::Status Api::UpdateTileset(Tileset tileset) {
-  return tileset_manager_->SaveTileset(tileset);
-}
+absl::Status Api::UpdateTileset(Tileset tileset) { return tileset_manager_->SaveTileset(tileset); }
 
 absl::Status Api::DeleteTileset(const std::string& tileset_id) {
   return tileset_manager_->DeleteTileset(tileset_id);

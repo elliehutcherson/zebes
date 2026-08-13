@@ -16,6 +16,15 @@
 namespace zebes {
 namespace {
 
+// How many palette entries the accent gradient spans. Eight is enough for a
+// sweep to read as continuous at these tile sizes without the palette growing
+// past what a pixel-art tileset should hold.
+constexpr int kAccentRampSteps = 8;
+// A compact palette carries the same ramp quantised to this many colours, so
+// chunky artwork gets genuinely fewer tones rather than eight near-identical
+// ones.
+constexpr int kCompactAccentRampSteps = 4;
+
 // Semantic pixel indices. Everything stays in this space until the very last
 // step, which keeps palette changes independent from the geometry passes.
 enum PixelIndex : uint8_t {
@@ -36,9 +45,15 @@ enum PixelIndex : uint8_t {
   kIndexInteriorHigh = 14,
   kIndexBotanical = 15,
   kIndexBotanicalShade = 16,
-  kIndexAccentPrimary = 17,
-  kIndexAccentSecondary = 18,
-  kIndexCount = 19,
+  // The accent pair is a ramp rather than two entries so a motif can be swept
+  // between them. Its length is fixed even for compact palettes, which keeps
+  // both endpoints constant expressions: flat accent shading stays a two-entry
+  // lookup, and no pass has to know how many steps are in use. A compact
+  // palette quantises the ramp instead of shortening it.
+  kIndexAccentRamp = 17,
+  kIndexAccentPrimary = kIndexAccentRamp,
+  kIndexAccentSecondary = kIndexAccentRamp + kAccentRampSteps - 1,
+  kIndexCount = kIndexAccentRamp + kAccentRampSteps,
 };
 
 // Where the light comes from, as a pixel offset. Only decoration shading uses
@@ -137,6 +152,26 @@ Rgba ToRgba(const Hsv& hsv) {
               static_cast<uint8_t>(std::lround(b * 255.0f)), 255};
 }
 
+// Blends two colours in HSV, taking the shorter way around the hue circle.
+//
+// The hue arc is the whole reason this is not a component-wise RGB mix. Between
+// a warm gold and a cool blue, RGB passes through desaturated grey and the
+// sweep reads as dirt; rotating the hue instead keeps every intermediate step
+// as saturated as its endpoints, which is what makes the result read as
+// iridescent rather than as two colours fading into each other.
+Hsv MixHsv(const Hsv& from, const Hsv& to, float t) {
+  float arc = to.h - from.h;
+  arc -= std::floor(arc);
+  if (arc > 0.5f) arc -= 1.0f;
+
+  Hsv mixed;
+  mixed.h = from.h + arc * t;
+  mixed.h -= std::floor(mixed.h);
+  mixed.s = from.s + (to.s - from.s) * t;
+  mixed.v = from.v + (to.v - from.v) * t;
+  return mixed;
+}
+
 // One step along a theme ramp. Negative steps are lighter and warmer, positive
 // darker and cooler; the hue drift is the point, not a side effect.
 Rgba Ramp(uint32_t base, float step, float hue_shift, float saturation_shift = 0.10f) {
@@ -186,30 +221,84 @@ std::array<Rgba, kIndexCount> BuildPalette(const TerrainMaterial& material, floa
                       : Ramp(material.surface, 0.65f * contrast, material.hue_shift);
   palette[kIndexBotanical] = Ramp(material.surface, -0.25f * contrast, material.hue_shift);
   palette[kIndexBotanicalShade] = Ramp(material.surface, 0.9f * contrast, material.hue_shift);
-  palette[kIndexAccentPrimary] = ToRgba(ToHsv(material.accent_primary));
-  palette[kIndexAccentSecondary] = ToRgba(ToHsv(material.accent_secondary));
+  // The endpoints land on the authored colours exactly, so flat accent shading
+  // is unchanged by the ramp existing.
+  const Hsv accent_from = ToHsv(material.accent_primary);
+  const Hsv accent_to = ToHsv(material.accent_secondary);
+  const int distinct = compact_palette ? kCompactAccentRampSteps : kAccentRampSteps;
+  for (int step = 0; step < kAccentRampSteps; ++step) {
+    // Quantising the position before mixing, rather than the colour after,
+    // keeps the two endpoints exact at every quantisation.
+    const int bucket = step * (distinct - 1) / (kAccentRampSteps - 1);
+    const float t = static_cast<float>(bucket) / static_cast<float>(distinct - 1);
+    palette[kIndexAccentRamp + step] = ToRgba(MixHsv(accent_from, accent_to, t));
+  }
   return palette;
 }
 
-uint8_t MotifPixelIndex(TerrainMotifPixel pixel, bool lit, bool substrate_layer,
-                        bool auto_as_accent) {
+// The lowest and highest position along the light diagonal that a motif
+// actually paints, in source pixels.
+//
+// The sweep is normalised over this rather than over the stamp's bounding box
+// because the corners of a diamond are transparent: measured against the box, a
+// diamond's sweep would stop three quarters of the way along and the second
+// accent colour would never appear on it. Derived from the stamp alone, so
+// every wrapped copy of a motif agrees about its gradient across a tile seam.
+std::pair<int, int> MotifGradientSpan(const TerrainMotif& stamp) {
+  int lowest = stamp.width + stamp.height;
+  int highest = 0;
+  for (int y = 0; y < stamp.height; ++y) {
+    for (int x = 0; x < stamp.width; ++x) {
+      if (stamp.pixels[static_cast<size_t>(y) * stamp.width + x] ==
+          TerrainMotifPixel::kTransparent) {
+        continue;
+      }
+      lowest = std::min(lowest, x + y);
+      highest = std::max(highest, x + y);
+    }
+  }
+  return {lowest, highest};
+}
+
+// The three indices a motif may be drawn over. Anything else is surface, band
+// or outline, which motifs must never touch.
+bool IsInteriorIndex(uint8_t value) {
+  return value == kIndexInterior || value == kIndexInteriorShade || value == kIndexInteriorHigh;
+}
+
+// How one motif layer paints the pixels its motifs leave to the renderer.
+struct MotifPaint {
+  TerrainAccentMode accent_mode = TerrainAccentMode::kMaterial;
+  bool substrate_layer = false;
+};
+
+// gradient_t runs from 0 at the lit corner of a motif to 1 at its shadowed one,
+// so the two accent modes agree about which end is which.
+uint8_t MotifPixelIndex(TerrainMotifPixel pixel, bool lit, float gradient_t,
+                        const MotifPaint& paint) {
   switch (pixel) {
     case TerrainMotifPixel::kTransparent:
       return kIndexEmpty;
     case TerrainMotifPixel::kAutoShaded:
-      if (auto_as_accent) {
+      if (paint.accent_mode == TerrainAccentMode::kGradient) {
+        const int step = static_cast<int>(gradient_t * kAccentRampSteps);
+        return kIndexAccentRamp + std::clamp(step, 0, kAccentRampSteps - 1);
+      }
+      if (paint.accent_mode == TerrainAccentMode::kAccent) {
         return lit ? kIndexAccentPrimary : kIndexAccentSecondary;
       }
-      if (substrate_layer) return lit ? kIndexPattern : kIndexPatternShade;
+      if (paint.substrate_layer) return lit ? kIndexPattern : kIndexPatternShade;
       return lit ? kIndexDecor : kIndexDecorShade;
     case TerrainMotifPixel::kDecor:
-      return substrate_layer ? kIndexPattern : kIndexDecor;
+      return paint.substrate_layer ? kIndexPattern : kIndexDecor;
     case TerrainMotifPixel::kDecorShade:
-      return substrate_layer ? kIndexPatternShade : kIndexDecorShade;
+      return paint.substrate_layer ? kIndexPatternShade : kIndexDecorShade;
     case TerrainMotifPixel::kBotanical:
       return kIndexBotanical;
     case TerrainMotifPixel::kBotanicalShade:
       return kIndexBotanicalShade;
+    // A motif that names an accent explicitly is an author's choice about that
+    // mark, so it keeps the endpoint colour in every mode.
     case TerrainMotifPixel::kAccentPrimary:
       return kIndexAccentPrimary;
     case TerrainMotifPixel::kAccentSecondary:
@@ -390,6 +479,26 @@ absl::StatusOr<TerrainRenderer> TerrainRenderer::Create(TerrainGenConfig config)
       TerrainDetailMotifsFor(config.interior.details.family, config.pixel_profile);
   RETURN_IF_ERROR(ValidateTerrainMotifs(pattern_motifs));
   RETURN_IF_ERROR(ValidateTerrainMotifs(detail_motifs));
+
+  // A magnified stamp wider than a tile can never satisfy the interior test, so
+  // it would place nothing and render an empty layer. Refusing here names the
+  // cause instead of leaving the author to wonder where the pattern went. The
+  // check lives with the renderer because terrain_style.cc cannot see the motif
+  // banks without a dependency cycle.
+  const auto largest_stamp = [](absl::Span<const TerrainMotif> motifs) {
+    int largest = 0;
+    for (const TerrainMotif& motif : motifs)
+      largest = std::max({largest, motif.width, motif.height});
+    return largest;
+  };
+  const int pattern_extent = largest_stamp(pattern_motifs) * config.interior.pattern.scale;
+  const int detail_extent = largest_stamp(detail_motifs) * config.interior.details.scale;
+  if (pattern_extent > config.tile_size || detail_extent > config.tile_size) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "motif size ", std::max(config.interior.pattern.scale, config.interior.details.scale),
+        " needs ", std::max(pattern_extent, detail_extent), " pixels, more than the ",
+        config.tile_size, " pixel tile"));
+  }
 
   const int resolution = config.tile_size * config.supersample;
   const int period = resolution * config.variant_period;
@@ -647,102 +756,136 @@ void TerrainRenderer::ApplyInteriorTexture(std::vector<uint8_t>& indices, int or
 
 void TerrainRenderer::PlaceSubstratePattern(std::vector<uint8_t>& indices, int origin_x,
                                             int origin_y) const {
-  ApplyMotifs(indices, origin_x, origin_y,
-              TerrainSubstrateMotifsFor(config_.interior.pattern.family, config_.pixel_profile),
-              pattern_placements_, style_.pattern_margin, /*substrate_layer=*/true,
-              /*auto_as_accent=*/false);
+  const MotifLayer layer{
+      .stamps = TerrainSubstrateMotifsFor(config_.interior.pattern.family, config_.pixel_profile),
+      .placements = pattern_placements_,
+      .margin = style_.pattern_margin,
+      .scale = style_.pattern_scale,
+      .accent_mode = config_.interior.pattern.accent_mode,
+      .substrate_layer = true};
+  ApplyMotifs(indices, origin_x, origin_y, layer);
 }
 
 void TerrainRenderer::PlaceDetails(std::vector<uint8_t>& indices, int origin_x,
                                    int origin_y) const {
-  const TerrainDetailSet family = config_.interior.details.family;
-  ApplyMotifs(indices, origin_x, origin_y, TerrainDetailMotifsFor(family, config_.pixel_profile),
-              detail_placements_, style_.detail_margin, /*substrate_layer=*/false,
-              /*auto_as_accent=*/family == TerrainDetailSet::kSnow ||
-                  family == TerrainDetailSet::kCrystals);
+  const MotifLayer layer{
+      .stamps = TerrainDetailMotifsFor(config_.interior.details.family, config_.pixel_profile),
+      .placements = detail_placements_,
+      .margin = style_.detail_margin,
+      .scale = style_.detail_scale,
+      .accent_mode = config_.interior.details.accent_mode,
+      .substrate_layer = false};
+  ApplyMotifs(indices, origin_x, origin_y, layer);
 }
 
-void TerrainRenderer::ApplyMotifs(std::vector<uint8_t>& indices, int origin_x, int origin_y,
-                                  absl::Span<const TerrainMotif> stamps,
-                                  absl::Span<const MotifPlacement> placements, int margin,
-                                  bool substrate_layer, bool auto_as_accent) const {
-  if (placements.empty() || stamps.empty()) return;
-
+std::vector<uint8_t> TerrainRenderer::LegalMotifPixels(const std::vector<uint8_t>& indices,
+                                                       int margin) const {
   const int tile = config_.tile_size;
-  const auto is_interior = [](uint8_t value) {
-    return value == kIndexInterior || value == kIndexInteriorShade || value == kIndexInteriorHigh;
-  };
-
   std::vector<uint8_t> legal(indices.size(), 0);
   for (int y = 0; y < tile; ++y) {
     for (int x = 0; x < tile; ++x) {
       const size_t index = static_cast<size_t>(y) * tile + x;
-      if (!is_interior(indices[index])) continue;
+      if (!IsInteriorIndex(indices[index])) continue;
       bool clear = true;
       for (int oy = -margin; oy <= margin && clear; ++oy) {
         for (int ox = -margin; ox <= margin && clear; ++ox) {
           const int ny = y + oy;
           const int nx = x + ox;
           if (ny < 0 || nx < 0 || ny >= tile || nx >= tile) continue;
-          clear = is_interior(indices[static_cast<size_t>(ny) * tile + nx]);
+          clear = IsInteriorIndex(indices[static_cast<size_t>(ny) * tile + nx]);
         }
       }
       legal[index] = clear ? 1 : 0;
     }
   }
+  return legal;
+}
 
+void TerrainRenderer::StampMotif(std::vector<uint8_t>& indices, const std::vector<uint8_t>& legal,
+                                 const TerrainMotif& stamp, int x0, int y0,
+                                 const MotifLayer& layer) const {
+  const int tile = config_.tile_size;
+  const int scale = layer.scale;
+  const int drawn_width = stamp.width * scale;
+  const int drawn_height = stamp.height * scale;
+  if (x0 >= tile || y0 >= tile || x0 + drawn_width <= 0 || y0 + drawn_height <= 0) return;
+
+  // Source coordinates, so magnifying a motif magnifies its shape rather than
+  // resampling it.
+  const auto source_at = [&stamp, scale](int sx, int sy) {
+    return stamp.pixels[static_cast<size_t>(sy / scale) * stamp.width + sx / scale];
+  };
+
+  bool visible = false;
+  for (int sy = 0; sy < drawn_height; ++sy) {
+    for (int sx = 0; sx < drawn_width; ++sx) {
+      if (source_at(sx, sy) == TerrainMotifPixel::kTransparent) continue;
+      const int px = x0 + sx;
+      const int py = y0 + sy;
+      if (px < 0 || py < 0 || px >= tile || py >= tile) continue;
+      if (legal[static_cast<size_t>(py) * tile + px] == 0) return;
+      visible = true;
+    }
+  }
+  if (!visible) return;
+
+  const MotifPaint paint{.accent_mode = layer.accent_mode,
+                         .substrate_layer = layer.substrate_layer};
+  // The sweep runs along the light axis so the two accent modes agree about
+  // which end of a motif is lit.
+  const auto [gradient_low, gradient_high] = MotifGradientSpan(stamp);
+  const float gradient_span = static_cast<float>(std::max(1, gradient_high - gradient_low));
+  for (int sy = 0; sy < drawn_height; ++sy) {
+    for (int sx = 0; sx < drawn_width; ++sx) {
+      const TerrainMotifPixel stamp_pixel = source_at(sx, sy);
+      if (stamp_pixel == TerrainMotifPixel::kTransparent) continue;
+      const int px = x0 + sx;
+      const int py = y0 + sy;
+      if (px < 0 || py < 0 || px >= tile || py >= tile) continue;
+
+      // Lighting is measured in source pixels, so a magnified motif gets a
+      // shade edge scale pixels thick rather than a hairline lost on it.
+      const int source_x = sx / scale;
+      const int source_y = sy / scale;
+      const int lx = source_x - kLightDx;
+      const int ly = source_y - kLightDy;
+      const bool lit = lx >= 0 && ly >= 0 && lx < stamp.width && ly < stamp.height &&
+                       stamp.pixels[static_cast<size_t>(ly) * stamp.width + lx] !=
+                           TerrainMotifPixel::kTransparent;
+      const float gradient_t =
+          static_cast<float>(source_x + source_y - gradient_low) / gradient_span;
+      indices[static_cast<size_t>(py) * tile + px] =
+          MotifPixelIndex(stamp_pixel, lit, std::clamp(gradient_t, 0.0f, 1.0f), paint);
+    }
+  }
+}
+
+void TerrainRenderer::ApplyMotifs(std::vector<uint8_t>& indices, int origin_x, int origin_y,
+                                  const MotifLayer& layer) const {
+  if (layer.placements.empty() || layer.stamps.empty()) return;
+
+  const std::vector<uint8_t> legal = LegalMotifPixels(indices, layer.margin);
+
+  const int tile = config_.tile_size;
   const int period = tile * config_.variant_period;
   const int tile_origin_x = origin_x / config_.supersample;
   const int tile_origin_y = origin_y / config_.supersample;
-  for (const MotifPlacement& placement : placements) {
-    const TerrainMotif& stamp = stamps[placement.motif];
+  for (const MotifPlacement& placement : layer.placements) {
+    const TerrainMotif& stamp = layer.stamps[placement.motif];
+    const int drawn_width = stamp.width * layer.scale;
+    const int drawn_height = stamp.height * layer.scale;
+
     int centre_x = placement.x - tile_origin_x;
     int centre_y = placement.y - tile_origin_y;
-    while (centre_x < -stamp.width) centre_x += period;
-    while (centre_x >= tile + stamp.width) centre_x -= period;
-    while (centre_y < -stamp.height) centre_y += period;
-    while (centre_y >= tile + stamp.height) centre_y -= period;
+    while (centre_x < -drawn_width) centre_x += period;
+    while (centre_x >= tile + drawn_width) centre_x -= period;
+    while (centre_y < -drawn_height) centre_y += period;
+    while (centre_y >= tile + drawn_height) centre_y -= period;
 
     for (const int wrap_y : {-period, 0, period}) {
       for (const int wrap_x : {-period, 0, period}) {
-        const int x0 = centre_x + wrap_x - stamp.width / 2;
-        const int y0 = centre_y + wrap_y - stamp.height / 2;
-        if (x0 >= tile || y0 >= tile || x0 + stamp.width <= 0 || y0 + stamp.height <= 0) continue;
-
-        bool fits = true;
-        bool visible = false;
-        for (int sy = 0; sy < stamp.height && fits; ++sy) {
-          for (int sx = 0; sx < stamp.width && fits; ++sx) {
-            const TerrainMotifPixel stamp_pixel =
-                stamp.pixels[static_cast<size_t>(sy) * stamp.width + sx];
-            if (stamp_pixel == TerrainMotifPixel::kTransparent) continue;
-            const int px = x0 + sx;
-            const int py = y0 + sy;
-            if (px < 0 || py < 0 || px >= tile || py >= tile) continue;
-            visible = true;
-            fits = legal[static_cast<size_t>(py) * tile + px] != 0;
-          }
-        }
-        if (!fits || !visible) continue;
-
-        for (int sy = 0; sy < stamp.height; ++sy) {
-          for (int sx = 0; sx < stamp.width; ++sx) {
-            const TerrainMotifPixel stamp_pixel =
-                stamp.pixels[static_cast<size_t>(sy) * stamp.width + sx];
-            if (stamp_pixel == TerrainMotifPixel::kTransparent) continue;
-            const int px = x0 + sx;
-            const int py = y0 + sy;
-            if (px < 0 || py < 0 || px >= tile || py >= tile) continue;
-
-            const int lx = sx - kLightDx;
-            const int ly = sy - kLightDy;
-            const bool lit = lx >= 0 && ly >= 0 && lx < stamp.width && ly < stamp.height &&
-                             stamp.pixels[static_cast<size_t>(ly) * stamp.width + lx] !=
-                                 TerrainMotifPixel::kTransparent;
-            indices[static_cast<size_t>(py) * tile + px] =
-                MotifPixelIndex(stamp_pixel, lit, substrate_layer, auto_as_accent);
-          }
-        }
+        StampMotif(indices, legal, stamp, centre_x + wrap_x - drawn_width / 2,
+                   centre_y + wrap_y - drawn_height / 2, layer);
       }
     }
   }

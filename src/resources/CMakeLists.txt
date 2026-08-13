@@ -56,3 +56,17 @@ target_link_libraries(tileset_manager absl::flat_hash_map)
 target_link_libraries(tileset_manager absl::flat_hash_set)
 target_link_libraries(tileset_manager tileset)
 target_link_libraries(tileset_manager resource_utils)
+
+add_library(terrain_recipe_manager terrain_recipe_manager.cc)
+target_link_libraries(terrain_recipe_manager
+  PUBLIC
+  terrain_recipe
+  absl::status
+  absl::statusor
+  PRIVATE
+  common
+  status_macros
+  absl::flat_hash_map
+  absl::strings
+  nlohmann_json::nlohmann_json
+)

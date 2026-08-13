@@ -15,6 +15,32 @@ constexpr int kDraftSupersample = 1;
 
 }  // namespace
 
+void TerrainEditorModel::LoadRecipe(const TerrainRecipe& recipe) {
+  active_recipe_ = recipe;
+  config_ = recipe.config;
+  name_ = recipe.name;
+  selected_preset_ = recipe.source_preset;
+  source_ = Source::kGenerate;
+  recipe_to_open_ = recipe.id;
+  result_ = CreatedTerrain{.texture_id = recipe.texture_id,
+                           .tileset_id = recipe.tileset_id,
+                           .recipe_id = recipe.id,
+                           .tile_count = TileCount()};
+  preview_stale_ = true;
+  status_.clear();
+}
+
+void TerrainEditorModel::StartNewRecipe() { *this = TerrainEditorModel(); }
+
+void TerrainEditorModel::StartRecipeCopy() {
+  if (!active_recipe_.has_value()) return;
+  active_recipe_.reset();
+  recipe_to_open_.clear();
+  result_.reset();
+  name_ += " copy";
+  status_ = "This copy will create new texture, tileset, terrain, and tile IDs.";
+}
+
 void TerrainEditorModel::ApplyPreset(const TerrainPreset& preset) {
   const int supersample = config_.supersample;
   const uint64_t seed = config_.seed;
@@ -31,6 +57,12 @@ void TerrainEditorModel::SetSource(Source source) {
   // here; dropping the image stops a stale generated scene from being shown
   // beside manifest controls that did not produce it.
   if (source_ == Source::kImportManifest) {
+    // An imported manifest is not generated from this recipe. Keeping the
+    // binding would turn its Create button into Regenerate and could overwrite
+    // unrelated generated artwork.
+    active_recipe_.reset();
+    recipe_to_open_.clear();
+    result_.reset();
     preview_.reset();
     return;
   }

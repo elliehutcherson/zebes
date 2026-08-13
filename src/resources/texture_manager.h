@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -18,8 +19,7 @@ namespace zebes {
 // already begins with "textures/". Both are accepted so existing definitions
 // keep loading. Exposed so callers that need to check artwork exists resolve it
 // the same way loading does, instead of reimplementing the rule.
-std::string ResolveTextureImagePath(const std::string& root_path,
-                                    const std::string& declared_path);
+std::string ResolveTextureImagePath(const std::string& root_path, const std::string& declared_path);
 
 class TextureManager {
  public:
@@ -64,6 +64,12 @@ class TextureManager {
   virtual absl::StatusOr<std::string> CreateTextureFromPixels(const std::string& name, int width,
                                                               int height,
                                                               absl::Span<const uint8_t> pixels);
+
+  // Atomically replaces generated artwork without changing the texture's ID,
+  // definition path, or references. The replacement is decoded before the
+  // durable file is committed, so a bad image cannot evict the live texture.
+  virtual absl::Status ReplaceTexturePixels(const std::string& id, int width, int height,
+                                            absl::Span<const uint8_t> pixels);
 
   /**
    * @brief Retrieves a loaded texture by its ID.

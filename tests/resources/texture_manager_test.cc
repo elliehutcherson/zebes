@@ -192,6 +192,26 @@ TEST_F(TextureManagerTest, CreateTextureFromPixelsRefusesToReplaceExistingArtwor
   EXPECT_EQ(status.code(), absl::StatusCode::kAlreadyExists);
 }
 
+TEST_F(TextureManagerTest, ReplaceTexturePixelsKeepsIdentityAndReloadsTheRuntimeHandle) {
+  const std::vector<uint8_t> original(4 * 4 * 4, 0x22);
+  ASSERT_OK_AND_ASSIGN(const std::string id,
+                       manager_->CreateTextureFromPixels("generated", 4, 4, original));
+  ASSERT_OK_AND_ASSIGN(Texture * texture_before, manager_->GetTexture(id));
+  const Texture definition_before = *texture_before;
+  ASSERT_OK_AND_ASSIGN(const TextureHandle handle_before, manager_->GetTextureHandle(id));
+
+  const std::vector<uint8_t> replacement(4 * 4 * 4, 0xDD);
+  ASSERT_TRUE(manager_->ReplaceTexturePixels(id, 4, 4, replacement).ok());
+
+  ASSERT_OK_AND_ASSIGN(Texture * texture_after, manager_->GetTexture(id));
+  ASSERT_OK_AND_ASSIGN(const TextureHandle handle_after, manager_->GetTextureHandle(id));
+  EXPECT_EQ(texture_after->id, definition_before.id);
+  EXPECT_EQ(texture_after->path, definition_before.path);
+  EXPECT_NE(handle_after, handle_before);
+  EXPECT_EQ(resources_->unloaded_ids, std::vector<uint64_t>{handle_before.id()});
+  EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/textures/generated.png.replacement.png"));
+}
+
 TEST_F(TextureManagerTest, CreateTextureFromPixelsRejectsBadInput) {
   const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
   EXPECT_FALSE(manager_->CreateTextureFromPixels("", 4, 4, pixels).ok());
@@ -300,9 +320,8 @@ TEST_F(TextureManagerTest, CreateTextureIdIsNonEmpty) {
     f << "dummy";
   }
 
-  ASSERT_OK_AND_ASSIGN(
-      std::string id,
-      manager_->CreateTexture({.path = std::filesystem::absolute(img_path).string()}));
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTexture(
+                                           {.path = std::filesystem::absolute(img_path).string()}));
   EXPECT_FALSE(id.empty());
 
   // The texture cached in the manager must carry the same non-empty id.

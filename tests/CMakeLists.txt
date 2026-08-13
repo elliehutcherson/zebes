@@ -86,6 +86,15 @@ add_executable(tileset_manager_test resources/tileset_manager_test.cc)
 target_link_libraries(tileset_manager_test tileset_manager macros gtest_main gmock)
 gtest_discover_tests(tileset_manager_test)
 
+add_executable(terrain_recipe_manager_test resources/terrain_recipe_manager_test.cc)
+target_link_libraries(terrain_recipe_manager_test
+  terrain_recipe_manager
+  macros
+  gtest_main
+  nlohmann_json::nlohmann_json
+)
+gtest_discover_tests(terrain_recipe_manager_test)
+
 # --- Shipped assets ---
 # Reads the repository's assets/ directly, so the path is baked in rather than
 # depending on ctest's working directory.
