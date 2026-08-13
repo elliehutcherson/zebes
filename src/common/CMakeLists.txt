@@ -25,6 +25,12 @@ target_link_libraries(logging absl::log_sink)
 target_link_libraries(logging absl::flags)
 target_link_libraries(logging absl::strings)
 
+add_library(image_io image_io.cc)
+target_link_libraries(image_io absl::status)
+target_link_libraries(image_io absl::span)
+target_link_libraries(image_io absl::strings)
+target_include_directories(image_io PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../include/stb)
+
 add_library(sdl_wrapper sdl_wrapper.cc)
 target_link_libraries(sdl_wrapper config)
 target_link_libraries(sdl_wrapper absl::status)

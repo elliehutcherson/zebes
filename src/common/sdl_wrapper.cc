@@ -27,6 +27,41 @@ absl::StatusOr<SDL_Texture*> SdlWrapper::CreateTexture(const std::string& path) 
   return texture;
 }
 
+absl::StatusOr<SDL_Texture*> SdlWrapper::CreateTextureFromPixels(int width, int height,
+                                                                 const uint8_t* pixels) {
+  if (!window_ || !renderer_) {
+    return absl::FailedPreconditionError("SDL resources not initialized");
+  }
+  if (width <= 0 || height <= 0 || pixels == nullptr) {
+    return absl::InvalidArgumentError("Cannot create a texture from an empty image");
+  }
+
+  SDL_Texture* texture = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ABGR8888,
+                                           SDL_TEXTUREACCESS_STREAMING, width, height);
+  if (texture == nullptr) {
+    return absl::InternalError(absl::StrCat("Failed to create texture: ", SDL_GetError()));
+  }
+  SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+
+  absl::Status updated = UpdateTexturePixels(texture, width, height, pixels);
+  if (!updated.ok()) {
+    SDL_DestroyTexture(texture);
+    return updated;
+  }
+  return texture;
+}
+
+absl::Status SdlWrapper::UpdateTexturePixels(SDL_Texture* texture, int width, int height,
+                                             const uint8_t* pixels) {
+  if (texture == nullptr || pixels == nullptr) {
+    return absl::InvalidArgumentError("Cannot update a null texture");
+  }
+  if (SDL_UpdateTexture(texture, nullptr, pixels, width * 4) != 0) {
+    return absl::InternalError(absl::StrCat("Failed to update texture: ", SDL_GetError()));
+  }
+  return absl::OkStatus();
+}
+
 void SdlWrapper::DestroyTexture(SDL_Texture* texture) {
   if (texture) {
     SDL_DestroyTexture(texture);

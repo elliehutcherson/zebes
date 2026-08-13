@@ -88,6 +88,43 @@ target_link_libraries(tileset_editor_model_test
 target_include_directories(tileset_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(tileset_editor_model_test)
 
+# --- Terrain Editor ---
+add_executable(terrain_creation_test terrain_creation_test.cc)
+target_link_libraries(terrain_creation_test
+  terrain_creation
+  gtest_main
+  gmock
+)
+target_include_directories(terrain_creation_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_creation_test)
+
+add_executable(terrain_editor_model_test terrain_editor_model_test.cc)
+target_link_libraries(terrain_editor_model_test
+  terrain_editor_model
+  gtest_main
+  gmock
+)
+target_include_directories(terrain_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_editor_model_test)
+
+add_executable(terrain_controls_panel_test terrain_controls_panel_test.cc)
+target_link_libraries(terrain_controls_panel_test
+  terrain_controls_panel
+  gtest_main
+  gmock
+)
+target_include_directories(terrain_controls_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_controls_panel_test)
+
+add_executable(terrain_output_panel_test terrain_output_panel_test.cc)
+target_link_libraries(terrain_output_panel_test
+  terrain_output_panel
+  gtest_main
+  gmock
+)
+target_include_directories(terrain_output_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_output_panel_test)
+
 # --- Tileset Panel Test ---
 add_executable(tileset_panel_test tileset_panel_test.cc)
 target_link_libraries(tileset_panel_test

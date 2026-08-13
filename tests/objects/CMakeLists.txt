@@ -1,0 +1,7 @@
+add_executable(tile_shape_geometry_test tile_shape_geometry_test.cc)
+target_link_libraries(tile_shape_geometry_test
+  gtest_main
+  tile_shape_geometry
+)
+target_include_directories(tile_shape_geometry_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(tile_shape_geometry_test)

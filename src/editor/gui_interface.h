@@ -96,6 +96,9 @@ class GuiInterface {
                            const char* format = "%.3f", ImGuiSliderFlags flags = 0) = 0;
   virtual bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d",
                          ImGuiSliderFlags flags = 0) = 0;
+  // Edits three floats in [0,1] as a colour swatch. col must point at three
+  // contiguous floats.
+  virtual bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags = 0) = 0;
   virtual bool InputText(const char* label, char* buf, size_t buf_size,
                          ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr,
                          void* user_data = nullptr) = 0;
@@ -153,6 +156,12 @@ class GuiInterface {
   virtual ImGuiIO& GetIO() = 0;
   virtual ImGuiStyle& GetStyle() = 0;
   virtual bool IsItemHovered(ImGuiHoveredFlags flags = 0) = 0;
+  // Whether any widget at all is being interacted with this frame. IsItemActive
+  // only answers for the item rendered last, which is the wrong question when a
+  // panel wants to know whether the user is mid-drag anywhere in it.
+  virtual bool IsAnyItemActive() = 0;
+  // Shows a tooltip for the item just rendered. Pair with IsItemHovered.
+  virtual void SetTooltip(const char* fmt, ...) = 0;
   // Claims an input for the last item while it is hovered or active. This is
   // required for custom widgets such as Canvas to prevent handled mouse-wheel
   // input from also scrolling an ancestor window.

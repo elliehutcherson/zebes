@@ -52,6 +52,12 @@ absl::StatusOr<std::string> Api::CreateTexture(Texture texture) {
   return texture_manager_->CreateTexture(texture);
 }
 
+absl::StatusOr<std::string> Api::CreateTextureFromPixels(const std::string& name, int width,
+                                                         int height,
+                                                         absl::Span<const uint8_t> pixels) {
+  return texture_manager_->CreateTextureFromPixels(name, width, height, pixels);
+}
+
 absl::Status Api::UpdateTexture(const Texture& texture) {
   return texture_manager_->UpdateTexture(texture);
 }

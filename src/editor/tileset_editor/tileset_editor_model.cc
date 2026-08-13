@@ -147,28 +147,39 @@ absl::Status TilesetEditorModel::AddTile() {
   return absl::OkStatus();
 }
 
-absl::Status TilesetEditorModel::ImportTerrainManifest(absl::string_view manifest_json) {
+int TilesetEditorModel::NextTileId() const {
+  int maximum = 0;
+  for (const Tile& tile : active_tileset_->tiles) maximum = std::max(maximum, tile.id);
+  return maximum + 1;
+}
+
+int TilesetEditorModel::NextTerrainId() const {
+  int maximum = 0;
+  for (const Terrain& terrain : active_tileset_->terrains) {
+    maximum = std::max(maximum, terrain.id);
+  }
+  return maximum + 1;
+}
+
+absl::Status TilesetEditorModel::AddTerrainCandidate(TerrainCandidate candidate) {
   if (!active_tileset_.has_value()) {
     return absl::FailedPreconditionError("No tileset is being edited");
   }
-
-  int maximum_tile_id = 0;
-  for (const Tile& tile : active_tileset_->tiles) {
-    maximum_tile_id = std::max(maximum_tile_id, tile.id);
-  }
-  int maximum_terrain_id = 0;
-  for (const Terrain& terrain : active_tileset_->terrains) {
-    maximum_terrain_id = std::max(maximum_terrain_id, terrain.id);
-  }
-
-  ASSIGN_OR_RETURN(TerrainCandidate candidate,
-                   ImportBlob47Manifest(manifest_json, maximum_tile_id + 1,
-                                        maximum_terrain_id + 1));
 
   active_tileset_->tiles.insert(active_tileset_->tiles.end(), candidate.tiles.begin(),
                                 candidate.tiles.end());
   active_tileset_->terrains.push_back(std::move(candidate.terrain));
   return absl::OkStatus();
+}
+
+absl::Status TilesetEditorModel::ImportTerrainManifest(absl::string_view manifest_json) {
+  if (!active_tileset_.has_value()) {
+    return absl::FailedPreconditionError("No tileset is being edited");
+  }
+
+  ASSIGN_OR_RETURN(TerrainCandidate candidate,
+                   ImportBlob47Manifest(manifest_json, NextTileId(), NextTerrainId()));
+  return AddTerrainCandidate(std::move(candidate));
 }
 
 absl::StatusOr<int> TilesetEditorModel::DetectTerrains() {

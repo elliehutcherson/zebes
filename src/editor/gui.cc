@@ -159,6 +159,10 @@ bool Gui::SliderFloat(const char* label, float* v, float v_min, float v_max, con
   return ImGui::SliderFloat(label, v, v_min, v_max, format, flags);
 }
 
+bool Gui::ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags) {
+  return ImGui::ColorEdit3(label, col, flags);
+}
+
 bool Gui::SliderInt(const char* label, int* v, int v_min, int v_max, const char* format,
                     ImGuiSliderFlags flags) {
   return ImGui::SliderInt(label, v, v_min, v_max, format, flags);
@@ -266,6 +270,15 @@ void Gui::SetItemKeyOwner(ImGuiKey key) { ImGui::SetItemKeyOwner(key); }
 bool Gui::IsItemHovered(ImGuiHoveredFlags flags) { return ImGui::IsItemHovered(flags); }
 
 bool Gui::IsItemActive() { return ImGui::IsItemActive(); }
+
+bool Gui::IsAnyItemActive() { return ImGui::IsAnyItemActive(); }
+
+void Gui::SetTooltip(const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  ImGui::SetTooltipV(fmt, args);
+  va_end(args);
+}
 
 bool Gui::IsItemClicked(ImGuiMouseButton mouse_button) {
   return ImGui::IsItemClicked(mouse_button);

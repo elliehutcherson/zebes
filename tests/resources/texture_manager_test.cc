@@ -164,6 +164,40 @@ TEST_F(TextureManagerTest, DeleteTexture) {
   EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/definitions/textures/del-" + *id + ".json"));
 }
 
+// Generated artwork has no file to import from, so the manager has to write one
+// before a definition can point at it.
+TEST_F(TextureManagerTest, CreateTextureFromPixelsWritesArtworkAndRegistersIt) {
+  const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
+
+  auto id = manager_->CreateTextureFromPixels("generated", 4, 4, pixels);
+  ASSERT_TRUE(id.ok()) << id.status();
+
+  EXPECT_TRUE(std::filesystem::exists(test_dir_ + "/textures/generated.png"));
+
+  auto texture = manager_->GetTexture(*id);
+  ASSERT_TRUE(texture.ok()) << texture.status();
+  EXPECT_EQ((*texture)->name, "generated");
+  EXPECT_EQ((*texture)->path, "textures/generated.png");
+}
+
+// Silently replacing artwork would repoint every tileset already using it at a
+// different picture, which is exactly the failure the source_art split exists
+// to prevent.
+TEST_F(TextureManagerTest, CreateTextureFromPixelsRefusesToReplaceExistingArtwork) {
+  const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
+  ASSERT_TRUE(manager_->CreateTextureFromPixels("generated", 4, 4, pixels).ok());
+
+  absl::Status status = manager_->CreateTextureFromPixels("generated", 4, 4, pixels).status();
+  EXPECT_FALSE(status.ok());
+  EXPECT_EQ(status.code(), absl::StatusCode::kAlreadyExists);
+}
+
+TEST_F(TextureManagerTest, CreateTextureFromPixelsRejectsBadInput) {
+  const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
+  EXPECT_FALSE(manager_->CreateTextureFromPixels("", 4, 4, pixels).ok());
+  EXPECT_FALSE(manager_->CreateTextureFromPixels("wrong_size", 8, 8, pixels).ok());
+}
+
 TEST_F(TextureManagerTest, CreateTextureWithCopy) {
   // Create a dummy image file outside the test assets directory
   std::string external_img_path = test_dir_ + "/external_image.png";

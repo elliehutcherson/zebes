@@ -214,6 +214,7 @@ std::string WriteBlob47Manifest(const Blob47Atlas& atlas) {
   nlohmann::json json;
   json["scheme"] = "blob47";
   json["tile_size"] = atlas.tile_size;
+  json["variant_period"] = atlas.variant_period;
   json["atlas_width"] = atlas.image.width;
   json["atlas_height"] = atlas.image.height;
 

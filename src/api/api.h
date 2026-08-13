@@ -39,6 +39,11 @@ class Api {
   virtual absl::Status SaveConfig(const EngineConfig& config);
 
   virtual absl::StatusOr<std::string> CreateTexture(Texture texture);
+  // Registers artwork the editor generated rather than loaded from disk. See
+  // TextureManager::CreateTextureFromPixels.
+  virtual absl::StatusOr<std::string> CreateTextureFromPixels(const std::string& name, int width,
+                                                              int height,
+                                                              absl::Span<const uint8_t> pixels);
   virtual absl::Status DeleteTexture(const std::string& texture_id);
   virtual absl::StatusOr<std::vector<Texture>> GetAllTextures();
   virtual absl::Status UpdateTexture(const Texture& texture);

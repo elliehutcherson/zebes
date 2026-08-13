@@ -16,6 +16,11 @@ add_executable(common_config_test common_config_test.cc)
 target_link_libraries(common_config_test config gtest_main)
 gtest_discover_tests(common_config_test)
 
+add_executable(image_io_test common/image_io_test.cc)
+target_link_libraries(image_io_test image_io gtest_main)
+target_include_directories(image_io_test PRIVATE ${CMAKE_SOURCE_DIR}/include/stb)
+gtest_discover_tests(image_io_test)
+
 # --- Texture Manager ---
 add_executable(texture_manager_test resources/texture_manager_test.cc)
 target_link_libraries(texture_manager_test texture_manager macros gtest_main)
@@ -91,5 +96,6 @@ target_compile_definitions(shipped_assets_test
 gtest_discover_tests(shipped_assets_test)
 
 add_subdirectory(editor)
+add_subdirectory(objects)
 add_subdirectory(terrain)
 add_subdirectory(tools)

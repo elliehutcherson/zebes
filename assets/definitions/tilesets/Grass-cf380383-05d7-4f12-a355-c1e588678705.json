@@ -435,7 +435,8 @@
                 }
             ],
             "scheme": 0,
-            "solid_outside_level": true
+            "solid_outside_level": true,
+            "variant_period": 0
         }
     ],
     "texture_id": "34795fb1-95f6-438a-afaf-dad041d7c224",

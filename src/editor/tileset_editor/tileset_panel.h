@@ -31,14 +31,9 @@ class TilesetPanel {
   absl::Status RenderTilesetFields(TilesetEditorModel& model);
   absl::Status RenderTileList(TilesetEditorModel& model);
 
-  // Height the terrain section will occupy this frame. The tile list above it
-  // reserves this much so the import controls stay on screen without
-  // scrolling; when the window is too short to honour it, the panel scrolls.
-  float TerrainSectionHeight(const Tileset& tileset, bool has_selected_tile) const;
-
-  // Renders the terrain list plus the import and detect controls. Defining a
-  // 47-tile terrain by hand is impractical, so these are the authoring entry
-  // points for the terrain brush.
+  // Renders the terrains this tileset carries, plus Detect. Authoring a terrain
+  // happens in the Terrain tab, which has room for the preview that tuning one
+  // requires; what belongs here is only what needs the tiles beside it.
   absl::Status RenderTerrainList(TilesetEditorModel& model);
 
   // Assigns the selected tile to a terrain for neighbour-masking only. This is
@@ -46,9 +41,7 @@ class TilesetPanel {
   // already registered.
   absl::Status RenderTerrainMembership(TilesetEditorModel& model, const Tileset& tileset);
 
-  // Path typed into the manifest import field, persisted across frames.
-  std::string manifest_path_;
-  // Outcome of the last import or detect, shown until the next attempt.
+  // Outcome of the last detect, shown until the next attempt.
   std::string terrain_status_;
 
   GuiInterface* gui_;

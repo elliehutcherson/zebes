@@ -2,7 +2,9 @@
 
 #include <set>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "nlohmann/json.hpp"
 #include "terrain/blob47_compose.h"
 #include "terrain/terrain_mask.h"
 
@@ -121,6 +123,34 @@ TEST(TerrainDetectTest, ImportTilesPointAtTheManifestSourceRects) {
   EXPECT_EQ(candidate->tiles[0].source_y, 0);
   EXPECT_EQ(candidate->tiles[kBlob47Columns].source_x, 0);
   EXPECT_EQ(candidate->tiles[kBlob47Columns].source_y, kTileSize);
+}
+
+// A manifest written before variant_period existed cannot say whether its
+// variants are interchangeable or phases of a pattern, and guessing wrong lays
+// artwork down out of phase. Refusing is the honest answer.
+TEST(TerrainDetectTest, ImportRejectsAManifestWithoutAVariantPeriod) {
+  nlohmann::json json = nlohmann::json::parse(ManifestFor(1));
+  json.erase("variant_period");
+
+  absl::StatusOr<TerrainCandidate> candidate = ImportBlob47Manifest(json.dump(), 1, 1);
+  EXPECT_FALSE(candidate.ok());
+  EXPECT_THAT(candidate.status().message(), ::testing::HasSubstr("variant_period"));
+}
+
+TEST(TerrainDetectTest, ImportCarriesTheVariantPeriodOntoTheTerrain) {
+  nlohmann::json json = nlohmann::json::parse(ManifestFor(4));
+  json["variant_period"] = 2;
+
+  absl::StatusOr<TerrainCandidate> candidate = ImportBlob47Manifest(json.dump(), 1, 1);
+  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  EXPECT_EQ(candidate->terrain.variant_period, 2);
+}
+
+TEST(TerrainDetectTest, ImportRejectsANegativeVariantPeriod) {
+  nlohmann::json json = nlohmann::json::parse(ManifestFor(1));
+  json["variant_period"] = -1;
+
+  EXPECT_FALSE(ImportBlob47Manifest(json.dump(), 1, 1).ok());
 }
 
 TEST(TerrainDetectTest, ImportRejectsMalformedJson) {

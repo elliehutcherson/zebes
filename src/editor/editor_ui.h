@@ -13,6 +13,8 @@
 #include "editor/level_editor/level_editor.h"
 #include "editor/sprite_editor/sprite_editor.h"
 #include "editor/texture_editor/texture_editor.h"
+#include "editor/sdl_preview_texture.h"
+#include "editor/terrain_editor/terrain_editor.h"
 #include "editor/tileset_editor/tileset_editor.h"
 
 namespace zebes {
@@ -43,7 +45,11 @@ class EditorUi {
   std::unique_ptr<SpriteEditor> sprite_editor_;
   std::unique_ptr<BlueprintEditor> blueprint_editor_;
   std::unique_ptr<LevelEditor> level_editor_;
+  // Declared before the editor that uses it so it outlives the panel holding
+  // the pointer.
+  std::unique_ptr<SdlPreviewTexture> terrain_preview_;
   std::unique_ptr<TilesetEditor> tileset_editor_;
+  std::unique_ptr<TerrainEditor> terrain_editor_;
 
   // Debug state
   bool show_debug_metrics_ = false;

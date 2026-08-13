@@ -373,7 +373,7 @@ absl::Status ViewportTab::RenderTerrainGhost(const ViewportRenderOptions& option
   if (rule == nullptr) return absl::OkStatus();
 
   ASSIGN_OR_RETURN(const int tile_id,
-                   SelectVariant(*rule, coordinate.x, coordinate.y, terrain->id));
+                   SelectVariant(*terrain, *rule, coordinate.x, coordinate.y));
   const Tile* tile = nullptr;
   for (const Tile& candidate : tileset->tiles) {
     if (candidate.id == tile_id) tile = &candidate;

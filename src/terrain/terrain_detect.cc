@@ -209,36 +209,33 @@ void AppendVariant(const std::vector<int>& tile_ids, std::vector<TerrainRule>& r
 
 }  // namespace
 
-absl::StatusOr<TerrainCandidate> ImportBlob47Manifest(absl::string_view manifest_json,
-                                                      int first_tile_id, int terrain_id) {
+absl::StatusOr<TerrainCandidate> BuildTerrainCandidate(const Blob47Atlas& atlas, int first_tile_id,
+                                                       int terrain_id) {
   if (first_tile_id <= 0) {
     return absl::InvalidArgumentError("first tile ID must be positive; 0 is reserved for empty");
   }
 
-  ASSIGN_OR_RETURN(nlohmann::json json, ParseManifestDocument(manifest_json));
-  ASSIGN_OR_RETURN(std::vector<ManifestEntry> entries, ParseManifest(json));
-  RETURN_IF_ERROR(ValidateManifestCoverage(entries));
-  ASSIGN_OR_RETURN(std::vector<ManifestSlope> slopes, ParseManifestSlopes(json));
-
   TerrainCandidate candidate;
   candidate.suggested_name = "Terrain";
+  candidate.tile_size = atlas.tile_size;
   candidate.terrain.id = terrain_id;
   candidate.terrain.name = candidate.suggested_name;
   candidate.terrain.scheme = TerrainScheme::kBlob47;
+  candidate.terrain.variant_period = atlas.variant_period;
 
-  // Rules are keyed by mask and accumulate one variant per manifest variant.
+  // Rules are keyed by mask and accumulate one variant per atlas variant.
   std::map<uint8_t, std::vector<TerrainVariant>> variants_by_mask;
   int next_tile_id = first_tile_id;
-  for (const ManifestEntry& entry : entries) {
+  for (const ComposedTile& tile : atlas.tiles) {
     const int tile_id = next_tile_id++;
     candidate.tiles.push_back(Tile{
         .id = tile_id,
-        .name = absl::StrCat("Mask", static_cast<int>(entry.mask), "_v", entry.variant),
-        .source_x = entry.source_x,
-        .source_y = entry.source_y,
+        .name = absl::StrCat("Mask", static_cast<int>(tile.mask), "_v", tile.variant),
+        .source_x = tile.source_x,
+        .source_y = tile.source_y,
         .shape = TileShape::kFullBlock,
     });
-    variants_by_mask[entry.mask].push_back(TerrainVariant{.tile_id = tile_id, .weight = 1});
+    variants_by_mask[tile.mask].push_back(TerrainVariant{.tile_id = tile_id, .weight = 1});
   }
 
   for (auto& [mask, variants] : variants_by_mask) {
@@ -249,7 +246,7 @@ absl::StatusOr<TerrainCandidate> ImportBlob47Manifest(absl::string_view manifest
   // Slope units are placed by hand, never by the brush, so they become terrain
   // members rather than rules. Registering them here is what stops painted
   // ground from capping off with an edge against a slope.
-  for (const ManifestSlope& slope : slopes) {
+  for (const ComposedSlope& slope : atlas.slopes) {
     const int tile_id = next_tile_id++;
     candidate.tiles.push_back(Tile{
         .id = tile_id,
@@ -262,6 +259,46 @@ absl::StatusOr<TerrainCandidate> ImportBlob47Manifest(absl::string_view manifest
   }
 
   return candidate;
+}
+
+absl::StatusOr<TerrainCandidate> ImportBlob47Manifest(absl::string_view manifest_json,
+                                                      int first_tile_id, int terrain_id) {
+  ASSIGN_OR_RETURN(nlohmann::json json, ParseManifestDocument(manifest_json));
+  ASSIGN_OR_RETURN(std::vector<ManifestEntry> entries, ParseManifest(json));
+  RETURN_IF_ERROR(ValidateManifestCoverage(entries));
+  ASSIGN_OR_RETURN(std::vector<ManifestSlope> slopes, ParseManifestSlopes(json));
+
+  // The manifest describes an atlas that was written earlier; rebuilding that
+  // description lets the generated and composed paths share everything past
+  // this point.
+  Blob47Atlas atlas;
+  atlas.tile_size = json.value("tile_size", 0);
+  if (!json.contains("variant_period")) {
+    return absl::InvalidArgumentError(
+        "terrain manifest has no variant_period; regenerate it with a current tool");
+  }
+  atlas.variant_period = json.at("variant_period").get<int>();
+  if (atlas.variant_period < 0) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("terrain manifest has a negative variant period: ", atlas.variant_period));
+  }
+  for (const ManifestEntry& entry : entries) {
+    atlas.tiles.push_back(ComposedTile{
+        .mask = entry.mask,
+        .variant = entry.variant,
+        .source_x = entry.source_x,
+        .source_y = entry.source_y,
+    });
+  }
+  for (const ManifestSlope& slope : slopes) {
+    atlas.slopes.push_back(ComposedSlope{
+        .shape = slope.shape,
+        .source_x = slope.source_x,
+        .source_y = slope.source_y,
+    });
+  }
+
+  return BuildTerrainCandidate(atlas, first_tile_id, terrain_id);
 }
 
 absl::StatusOr<std::vector<TerrainCandidate>> DetectBlob47Terrains(const Tileset& tileset) {

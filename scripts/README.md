@@ -13,6 +13,50 @@ definition and never should: it is an input, not a shipped texture. Keeping the
 two in one directory is how a tileset once ended up referencing a file that had
 been replaced with unrelated artwork, with nothing to catch it.
 
+## Make a terrain in the editor
+
+The **Terrain Editor** tab is where terrains are authored, either way of making
+one. Controls sit on the left, a pannable preview of painted ground fills the
+viewport, and the right column says what will be produced. **Create** writes the
+artwork, registers its texture, and saves a finished tileset -- nothing needs to
+exist first and nothing is left unsaved afterwards. Open it in the Tileset
+Editor if you want to rename tiles or adjust shapes.
+
+The **Source** control picks between the two routes:
+
+- **Generate** draws the artwork procedurally from the controls on the left.
+- **Import manifest** takes a `.json` written by `compose_blob47` (below). Import
+  its atlas as a texture first, then name that texture in the Output column --
+  a manifest describes artwork, it does not contain any.
+
+Two controls are worth understanding before the rest:
+
+- **Preset** applies a complete visual recipe, not only two colours. **Cozy
+  Meadow** is the richer 32px starting point with scalloped grass, soil clods
+  and meadow details. **Chunky Grass 16** deliberately uses a smaller palette,
+  broad clusters and at most one detail per tile; it is authored for 16px rather
+  than downsampled from the 32px recipe. Quality and seed are preserved when a
+  preset is selected.
+- **Pixel style** controls how material intent is quantised. It is separate from
+  tile size so a clean 32px set or an enlarged chunky set remains possible.
+  Texture and feature sizes are written in the profile's reference pixels and
+  resolved to the chosen tile size by the generator.
+
+- **Repeat over** is how many tiles the surface pattern takes to repeat. At 1,
+  every tile is drawn from the same one-tile pattern and a long run has a
+  visible rhythm at the tile size. At 2 the set carries 4 phases of a two-tile
+  pattern and the brush lays them back down in phase, which costs 4x the tiles
+  (188 instead of 47) and removes the rhythm. This is
+  `Terrain::variant_period`, and it is why the field is required in every
+  tileset definition.
+- **Quality** is supersampling, and it sits with the output rather than the
+  tuning controls because it only affects what **Create** writes: the preview
+  always draws at draft quality so it can keep up with a slider.
+
+Both routes meet at the same place -- each produces a `Blob47Atlas`, and
+`BuildTerrainCandidate` turns either into tiles and rules -- so nothing
+downstream can tell a generated terrain from a drawn one.
+
 ## Author a terrain brush (blob-47)
 
 A terrain brush paints the correct edge, corner, and interior artwork based on
@@ -62,9 +106,9 @@ build/dev/bin/compose_blob47 compose build/grass_quadrants.png 1 build/grass_blo
 ```
 
 This writes `build/grass_blob47.png` and `build/grass_blob47.json`. Import the
-PNG as a texture, create a tileset pointing at it, then use **Import** in the
-Tileset Editor's Terrains section with the manifest path. That creates all 47
-tiles and the terrain in one step.
+PNG in the Texture Editor, then in the **Terrain Editor** set Source to *Import
+manifest*, point it at the `.json`, and choose that texture. Create makes the
+tileset, all 47 tiles and the terrain in one step.
 
 Omitting `--inner-corners` leaves column 3 blank and `compose` then refuses the
 sheet, rather than emitting art that looks finished but is not. To exercise a

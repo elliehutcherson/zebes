@@ -11,6 +11,7 @@
 #include "objects/texture.h"
 #include "absl/strings/string_view.h"
 #include "objects/tileset.h"
+#include "terrain/terrain_detect.h"
 
 namespace zebes {
 
@@ -66,6 +67,14 @@ class TilesetEditorModel {
   // Defining a 47-tile terrain by hand would take 47 add-and-click cycles, so
   // this is the only practical way to author one.
   absl::Status ImportTerrainManifest(absl::string_view manifest_json);
+
+  // Splices an already-built terrain into the active tileset. Callers that
+  // build their own candidate -- the procedural generator does -- must number
+  // it with NextTileId() and NextTerrainId() first, so that adding a terrain
+  // never renumbers the tiles already defined.
+  absl::Status AddTerrainCandidate(TerrainCandidate candidate);
+  int NextTileId() const;
+  int NextTerrainId() const;
 
   // Fallback for atlases with no manifest: scans the tiles already defined on
   // the active tileset for blob-47 blocks and adds a terrain for each. Returns

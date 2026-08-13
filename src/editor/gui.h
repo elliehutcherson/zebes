@@ -71,6 +71,7 @@ class Gui : public GuiInterface {
                    const char* format = "%.3f", ImGuiSliderFlags flags = 0) override;
   bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d",
                  ImGuiSliderFlags flags = 0) override;
+  bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags = 0) override;
   bool InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags = 0,
                  ImGuiInputTextCallback callback = nullptr, void* user_data = nullptr) override;
   bool InputText(const char* label, std::string* str, ImGuiInputTextFlags flags = 0,
@@ -121,6 +122,8 @@ class Gui : public GuiInterface {
   ImGuiIO& GetIO() override;
   ImGuiStyle& GetStyle() override;
   bool IsItemHovered(ImGuiHoveredFlags flags = 0) override;
+  bool IsAnyItemActive() override;
+  void SetTooltip(const char* fmt, ...) override;
   void SetItemKeyOwner(ImGuiKey key) override;
   void SetItemDefaultFocus() override;
   bool IsItemActive() override;

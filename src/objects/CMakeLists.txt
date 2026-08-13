@@ -39,6 +39,13 @@ target_link_libraries(tileset INTERFACE
   absl::strings
 )
 
+add_library(tile_shape_geometry INTERFACE)
+target_include_directories(tile_shape_geometry INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(tile_shape_geometry INTERFACE
+  tileset
+  absl::span
+)
+
 add_library(body INTERFACE)
 target_include_directories(body INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(body INTERFACE

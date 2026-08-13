@@ -20,34 +20,12 @@
 namespace zebes {
 namespace {
 
-// Names the manifest browser so its result cannot be picked up by another
-// panel's file dialog.
-constexpr const char* kManifestDialogKey = "TerrainManifestDlg";
-
-// Width of the manifest path field, leaving room for the Browse button.
-constexpr float kManifestPathWidth = 220.0f;
-
 // Width of the terrain name field, leaving room for the mask count and the
 // delete button on the same row.
 constexpr float kTerrainNameWidth = 160.0f;
 
-// Smallest tile list worth keeping. Once the window is short enough that the
-// terrain section cannot fit above this, the panel scrolls rather than
-// shrinking the list into uselessness.
-constexpr float kMinTileListRows = 4.0f;
-
-// Reads a compose_blob47 manifest from disk and adds its terrain to the model.
-absl::Status ImportTerrainFromFile(TilesetEditorModel& model, const std::string& path) {
-  if (path.empty()) return absl::InvalidArgumentError("Manifest path is empty.");
-
-  std::ifstream file(path);
-  if (!file.is_open()) {
-    return absl::NotFoundError(absl::StrCat("Cannot open manifest: ", path));
-  }
-  const std::string contents((std::istreambuf_iterator<char>(file)),
-                             std::istreambuf_iterator<char>());
-  return model.ImportTerrainManifest(contents);
-}
+// How many tiles the list shows before it scrolls internally.
+constexpr float kTileListRows = 10.0f;
 
 }  // namespace
 
@@ -96,7 +74,11 @@ absl::StatusOr<TilesetPanel::Action> TilesetPanel::RenderDetails(TilesetEditorMo
   gui_->SameLine();
   if (gui_->Button("Save")) return Action::kSave;
 
+  // Back and Save stay outside the scroll region: they are how you leave and
+  // how you keep your work, and a column too short to show everything must not
+  // be able to hide them.
   gui_->Separator();
+  ScopedChild body = gui_->CreateScopedChild("TilesetDetailsBody", ImVec2(0, 0), false);
   RETURN_IF_ERROR(RenderTilesetFields(model));
 
   gui_->Separator();
@@ -145,12 +127,12 @@ absl::Status TilesetPanel::RenderTileList(TilesetEditorModel& model) {
     if (gui_->Button("Delete##Tile")) RETURN_IF_ERROR(model.DeleteSelectedTile());
   }
 
-  // The list gives back exactly the height the terrain section needs. Taking
-  // all of it (-FLT_MIN) is what pushed Import below the window bottom, where
-  // the only way to reach it was to scroll.
-  const float reserved = TerrainSectionHeight(*tileset, model.selected_tile() != nullptr);
-  const float minimum = kMinTileListRows * gui_->GetTextLineHeightWithSpacing();
-  const float list_height = std::max(minimum, gui_->GetContentRegionAvail().y - reserved);
+  // A fixed number of rows, not "whatever is left". Sizing this list against
+  // the remaining space needs a prediction of everything below it, and a
+  // prediction that has to stay in sync with four other render functions is how
+  // the terrain controls ended up off the bottom of the window. The enclosing
+  // child scrolls instead.
+  const float list_height = kTileListRows * gui_->GetTextLineHeightWithSpacing();
 
   if (ScopedListBox list_box = gui_->CreateScopedListBox("##Tiles", ImVec2(-FLT_MIN, list_height));
       list_box) {
@@ -170,23 +152,6 @@ absl::Status TilesetPanel::RenderTileList(TilesetEditorModel& model) {
   return absl::OkStatus();
 }
 
-float TilesetPanel::TerrainSectionHeight(const Tileset& tileset, bool has_selected_tile) const {
-  const float text_row = gui_->GetTextLineHeightWithSpacing();
-  const float widget_row = gui_->GetFrameHeightWithSpacing();
-
-  // Heading and the status line.
-  float height = 2.0f * text_row;
-  // The manifest field and the import/detect row.
-  height += 2.0f * widget_row;
-  // One row per terrain, or the hint shown when there are none.
-  height += tileset.terrains.empty()
-                ? text_row
-                : static_cast<float>(tileset.terrains.size()) * widget_row;
-  // Membership appears only while a tile is selected: a label and a combo.
-  if (has_selected_tile) height += text_row + widget_row;
-  return height;
-}
-
 absl::Status TilesetPanel::RenderTerrainList(TilesetEditorModel& model) {
   Tileset* tileset = model.active_tileset();
   if (tileset == nullptr) return absl::FailedPreconditionError("No tileset is being edited");
@@ -194,24 +159,10 @@ absl::Status TilesetPanel::RenderTerrainList(TilesetEditorModel& model) {
   gui_->Separator();
   gui_->Text("Terrains");
 
-  gui_->SetNextItemWidth(kManifestPathWidth);
-  gui_->InputText("Manifest##Terrain", &manifest_path_);
-  gui_->SameLine();
-  if (gui_->Button("Browse##Terrain")) {
-    gui_->OpenFileDialog(kManifestDialogKey, "Choose Terrain Manifest", ".json", ".");
-  }
-
-  // Drawn every frame because the dialog outlives the frame that opened it.
-  if (std::optional<std::string> chosen = gui_->DisplayFileDialog(kManifestDialogKey);
-      chosen.has_value()) {
-    manifest_path_ = *std::move(chosen);
-  }
-
-  if (gui_->Button("Import##Terrain")) {
-    absl::Status status = ImportTerrainFromFile(model, manifest_path_);
-    terrain_status_ = status.ok() ? "Imported terrain." : std::string(status.message());
-  }
-  gui_->SameLine();
+  // Authoring a terrain lives in the Terrain tab, which has the room for a
+  // preview. What remains here is what only makes sense beside the tiles:
+  // recognising a terrain in artwork that already has tiles, and saying which
+  // hand-placed tiles belong to one.
   if (gui_->Button("Detect##Terrain")) {
     absl::StatusOr<int> added = model.DetectTerrains();
     terrain_status_ = added.ok() ? absl::StrFormat("Detected %d terrain(s).", *added)
@@ -221,7 +172,7 @@ absl::Status TilesetPanel::RenderTerrainList(TilesetEditorModel& model) {
   if (!terrain_status_.empty()) gui_->TextWrapped("%s", terrain_status_.c_str());
 
   if (tileset->terrains.empty()) {
-    gui_->TextDisabled("No terrains. Import a compose_blob47 manifest above.");
+    gui_->TextDisabled("No terrains. Make one in the Terrain tab.");
     return absl::OkStatus();
   }
 

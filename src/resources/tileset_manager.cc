@@ -54,6 +54,10 @@ nlohmann::json ToJson(const Terrain& terrain) {
   j["name"] = terrain.name;
   j["scheme"] = static_cast<int>(terrain.scheme);
   j["solid_outside_level"] = terrain.solid_outside_level;
+  // Always written, and required on read below: how a terrain picks variants
+  // changes what a level looks like, so a definition that leaves it unsaid is
+  // ambiguous rather than defaulted.
+  j["variant_period"] = terrain.variant_period;
 
   std::vector<nlohmann::json> rules_json;
   for (const TerrainRule& rule : terrain.rules) {
@@ -85,6 +89,7 @@ absl::StatusOr<Terrain> GetTerrainFromJson(const nlohmann::json& j) {
     j.at("name").get_to(terrain.name);
     terrain.scheme = static_cast<TerrainScheme>(j.value("scheme", 0));
     terrain.solid_outside_level = j.value("solid_outside_level", true);
+    j.at("variant_period").get_to(terrain.variant_period);
 
     if (j.contains("member_tile_ids")) {
       j.at("member_tile_ids").get_to(terrain.member_tile_ids);
@@ -188,6 +193,11 @@ absl::Status ValidateTerrainRules(const Terrain& terrain,
     }
   }
 
+  if (terrain.variant_period < 0) {
+    return absl::InvalidArgumentError(absl::StrCat("Terrain '", terrain.name,
+                                                   "' has a negative variant period."));
+  }
+
   absl::flat_hash_set<int> seen_masks;
   for (const TerrainRule& rule : terrain.rules) {
     if (!seen_masks.insert(rule.mask).second) {
@@ -198,6 +208,16 @@ absl::Status ValidateTerrainRules(const Terrain& terrain,
       return absl::InvalidArgumentError(absl::StrCat(
           "Terrain '", terrain.name, "' mask ", static_cast<int>(rule.mask),
           " must have at least one variant."));
+    }
+    // A periodic terrain's variants are the phases of one pattern, so a missing
+    // phase is not a smaller set to choose from -- it is a hole the brush would
+    // hit the first time a cell landed on it.
+    const int expected = terrain.variant_period * terrain.variant_period;
+    if (terrain.variant_period > 0 && static_cast<int>(rule.variants.size()) != expected) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Terrain '", terrain.name, "' repeats every ", terrain.variant_period,
+          " tiles and so needs ", expected, " variants for mask ", static_cast<int>(rule.mask),
+          ", but has ", rule.variants.size(), "."));
     }
     for (const TerrainVariant& variant : rule.variants) {
       if (variant.weight <= 0) {

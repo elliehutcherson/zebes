@@ -64,7 +64,12 @@ absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const TerrainInde
 //
 // The same cell always yields the same tile, so repainting a region never
 // reshuffles its artwork and tests observe stable results.
-absl::StatusOr<int> SelectVariant(const TerrainRule& rule, int tile_x, int tile_y, int terrain_id);
+//
+// Terrain::variant_period decides how: zero picks by weight from a hash of the
+// coordinates, and a positive period lays the variants down as fixed phases of
+// one repeating pattern instead.
+absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rule, int tile_x,
+                                  int tile_y);
 
 // Recomputes the artwork for a cell already owned by terrain, without changing
 // which terrain occupies it. Exposed for tests and for bulk refresh after a

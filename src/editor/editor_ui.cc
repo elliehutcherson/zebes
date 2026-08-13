@@ -45,6 +45,8 @@ absl::Status EditorUi::Init() {
   ASSIGN_OR_RETURN(blueprint_editor_, BlueprintEditor::Create(api_, gui_));
   ASSIGN_OR_RETURN(level_editor_, LevelEditor::Create({.api = api_, .gui = gui_}));
   ASSIGN_OR_RETURN(tileset_editor_, TilesetEditor::Create(api_, gui_));
+  terrain_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
+  ASSIGN_OR_RETURN(terrain_editor_, TerrainEditor::Create(api_, gui_, terrain_preview_.get()));
   return absl::OkStatus();
 }
 
@@ -71,6 +73,7 @@ void EditorUi::Render() {
     RenderTab("Blueprint Editor", [this]() { return blueprint_editor_->Render(); });
     RenderTab("Level Editor", [this]() { return level_editor_->Render(); });
     RenderTab("Tileset Editor", [this]() { return tileset_editor_->Render(); });
+    RenderTab("Terrain Editor", [this]() { return terrain_editor_->Render(); });
     RenderTab("Config Editor", [this]() {
       config_editor_->Render();
       return absl::OkStatus();

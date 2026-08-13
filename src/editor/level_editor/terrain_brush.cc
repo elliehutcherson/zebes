@@ -172,10 +172,27 @@ absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const TerrainInde
   return NormalizeNeighborMask(mask);
 }
 
-absl::StatusOr<int> SelectVariant(const TerrainRule& rule, int tile_x, int tile_y, int terrain_id) {
+absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rule, int tile_x,
+                                  int tile_y) {
   if (rule.variants.empty()) {
     return absl::InvalidArgumentError(
         absl::StrCat("terrain rule for mask ", static_cast<int>(rule.mask), " has no variants"));
+  }
+
+  // A periodic terrain's variants are phases of one pattern, so which one a
+  // cell gets is fixed by where the cell sits in the period. Picking by weight
+  // here would tear the pattern at every tile border.
+  if (terrain.variant_period > 0) {
+    const int period = terrain.variant_period;
+    if (static_cast<int>(rule.variants.size()) != period * period) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "terrain '", terrain.name, "' repeats every ", period, " tiles and so needs ",
+          period * period, " variants for mask ", static_cast<int>(rule.mask), ", but has ",
+          rule.variants.size()));
+    }
+    const int phase_x = ((tile_x % period) + period) % period;
+    const int phase_y = ((tile_y % period) + period) % period;
+    return rule.variants[phase_y * period + phase_x].tile_id;
   }
 
   int total_weight = 0;
@@ -186,7 +203,7 @@ absl::StatusOr<int> SelectVariant(const TerrainRule& rule, int tile_x, int tile_
     total_weight += variant.weight;
   }
 
-  int remaining = static_cast<int>(HashCell(tile_x, tile_y, terrain_id) % total_weight);
+  int remaining = static_cast<int>(HashCell(tile_x, tile_y, terrain.id) % total_weight);
   for (const TerrainVariant& variant : rule.variants) {
     remaining -= variant.weight;
     if (remaining < 0) return variant.tile_id;
@@ -204,7 +221,7 @@ absl::Status ResolveTerrainCell(Level& level, const TerrainIndex& index, const T
                                             static_cast<int>(mask)));
   }
 
-  ASSIGN_OR_RETURN(const int tile_id, SelectVariant(*rule, tile_x, tile_y, terrain.id));
+  ASSIGN_OR_RETURN(const int tile_id, SelectVariant(terrain, *rule, tile_x, tile_y));
   return SetTileAt(level, tile_x, tile_y, tile_id);
 }
 

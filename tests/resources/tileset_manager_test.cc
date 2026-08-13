@@ -455,6 +455,60 @@ TEST_F(TilesetManagerTest, LegacyTilesetWithoutTerrainsLoads) {
   EXPECT_TRUE(loaded->terrains.empty());
 }
 
+// How a terrain picks variants decides what a painted region looks like, so it
+// is written every time and demanded on read rather than defaulted. A
+// definition that predates the field is a definition nobody can interpret.
+TEST_F(TilesetManagerTest, TerrainVariantPeriodRoundTrips) {
+  Tileset tileset = MakeTerrainTileset();
+  tileset.terrains[0].variant_period = 2;
+  // A 2x2 pattern needs all four phases for every mask it covers.
+  for (TerrainRule& rule : tileset.terrains[0].rules) {
+    rule.variants = {{.tile_id = 1, .weight = 1},
+                     {.tile_id = 2, .weight = 1},
+                     {.tile_id = 3, .weight = 1},
+                     {.tile_id = 1, .weight = 1}};
+  }
+
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTileset(tileset));
+  ReloadFromDisk();
+
+  ASSERT_OK_AND_ASSIGN(Tileset * loaded, manager_->GetTileset(id));
+  ASSERT_EQ(loaded->terrains.size(), 1);
+  EXPECT_EQ(loaded->terrains[0].variant_period, 2);
+}
+
+TEST_F(TilesetManagerTest, TerrainMissingVariantPeriodFailsToLoad) {
+  std::string file_path = test_dir_ + "/definitions/tilesets/unversioned.json";
+  std::ofstream out(file_path);
+  out << R"({
+    "id": "unversioned-id",
+    "name": "Unversioned",
+    "texture_id": "tx",
+    "tile_width": 32,
+    "tile_height": 32,
+    "tiles": [{"id": 1, "name": "Solid", "source_x": 0, "source_y": 0, "shape": 1}],
+    "terrains": [{
+      "id": 1,
+      "name": "Grass",
+      "scheme": 0,
+      "solid_outside_level": true,
+      "rules": [{"mask": 0, "variants": [{"tile_id": 1, "weight": 1}]}]
+    }]
+  })";
+  out.close();
+
+  EXPECT_FALSE(manager_->LoadTileset("unversioned.json").ok());
+}
+
+TEST_F(TilesetManagerTest, SaveTileset_PeriodicTerrainMissingAPhase_Fails) {
+  Tileset tileset = MakeTerrainTileset();
+  tileset.terrains[0].variant_period = 2;
+
+  absl::Status status = manager_->CreateTileset(tileset).status();
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(), HasSubstr("needs 4 variants"));
+}
+
 // A tileset with no terrains must not gain a "terrains" key on disk.
 TEST_F(TilesetManagerTest, TilesetWithoutTerrainsOmitsTheKey) {
   ASSERT_OK_AND_ASSIGN(std::string id,

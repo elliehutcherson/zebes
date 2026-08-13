@@ -6,9 +6,9 @@ target_link_libraries(tileset_editor_model
   absl::strings
   texture
   tileset
+  terrain_detect
   PRIVATE
   status_macros
-  terrain_detect
 )
 
 add_library(tile_panel tile_panel.cc)

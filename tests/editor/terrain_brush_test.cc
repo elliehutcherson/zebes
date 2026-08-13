@@ -249,20 +249,27 @@ TEST_F(TerrainBrushTest, EraseOnEmptyCellIsHarmless) {
 
 // --- Variants ----------------------------------------------------------------
 
+// Variants with no imposed phase: the brush is free to pick per cell.
+Terrain UnstructuredTerrain() {
+  return Terrain{.id = kTerrainId, .name = "Test", .variant_period = 0};
+}
+
 TEST(TerrainVariantTest, SelectionIsStableAcrossRepeatedCalls) {
+  const Terrain terrain = UnstructuredTerrain();
   TerrainRule rule{.mask = 255,
                    .variants = {{.tile_id = 10, .weight = 1},
                                 {.tile_id = 11, .weight = 1},
                                 {.tile_id = 12, .weight = 1}}};
 
-  absl::StatusOr<int> first = SelectVariant(rule, 3, 9, kTerrainId);
+  absl::StatusOr<int> first = SelectVariant(terrain, rule, 3, 9);
   ASSERT_TRUE(first.ok()) << first.status();
   for (int i = 0; i < 10; ++i) {
-    EXPECT_EQ(SelectVariant(rule, 3, 9, kTerrainId).value(), *first);
+    EXPECT_EQ(SelectVariant(terrain, rule, 3, 9).value(), *first);
   }
 }
 
 TEST(TerrainVariantTest, SelectionSpreadsAcrossVariants) {
+  const Terrain terrain = UnstructuredTerrain();
   TerrainRule rule{.mask = 255,
                    .variants = {{.tile_id = 10, .weight = 1},
                                 {.tile_id = 11, .weight = 1},
@@ -270,25 +277,27 @@ TEST(TerrainVariantTest, SelectionSpreadsAcrossVariants) {
 
   std::set<int> chosen;
   for (int y = 0; y < 16; ++y) {
-    for (int x = 0; x < 16; ++x) chosen.insert(SelectVariant(rule, x, y, kTerrainId).value());
+    for (int x = 0; x < 16; ++x) chosen.insert(SelectVariant(terrain, rule, x, y).value());
   }
   EXPECT_EQ(chosen.size(), 3u) << "every variant should appear across a 16x16 area";
 }
 
 TEST(TerrainVariantTest, SingleVariantAlwaysWins) {
+  const Terrain terrain = UnstructuredTerrain();
   TerrainRule rule{.mask = 0, .variants = {{.tile_id = 42, .weight = 1}}};
-  EXPECT_EQ(SelectVariant(rule, 1, 1, kTerrainId).value(), 42);
-  EXPECT_EQ(SelectVariant(rule, 99, 4, kTerrainId).value(), 42);
+  EXPECT_EQ(SelectVariant(terrain, rule, 1, 1).value(), 42);
+  EXPECT_EQ(SelectVariant(terrain, rule, 99, 4).value(), 42);
 }
 
 TEST(TerrainVariantTest, WeightsBiasSelection) {
+  const Terrain terrain = UnstructuredTerrain();
   TerrainRule rule{.mask = 255,
                    .variants = {{.tile_id = 10, .weight = 9}, {.tile_id = 11, .weight = 1}}};
 
   int heavy = 0;
   for (int y = 0; y < 32; ++y) {
     for (int x = 0; x < 32; ++x) {
-      if (SelectVariant(rule, x, y, kTerrainId).value() == 10) ++heavy;
+      if (SelectVariant(terrain, rule, x, y).value() == 10) ++heavy;
     }
   }
   // Far from exact, but a 9:1 weighting must clearly favour the heavy variant.
@@ -297,10 +306,72 @@ TEST(TerrainVariantTest, WeightsBiasSelection) {
 }
 
 TEST(TerrainVariantTest, RejectsEmptyAndWeightlessRules) {
-  EXPECT_FALSE(SelectVariant(TerrainRule{.mask = 0}, 0, 0, kTerrainId).ok());
+  const Terrain terrain = UnstructuredTerrain();
+  EXPECT_FALSE(SelectVariant(terrain, TerrainRule{.mask = 0}, 0, 0).ok());
 
   TerrainRule zero_weight{.mask = 0, .variants = {{.tile_id = 1, .weight = 0}}};
-  EXPECT_FALSE(SelectVariant(zero_weight, 0, 0, kTerrainId).ok());
+  EXPECT_FALSE(SelectVariant(terrain, zero_weight, 0, 0).ok());
+}
+
+// --- Periodic variants -------------------------------------------------------
+
+// A terrain whose four variants are the phases of a 2x2 pattern.
+Terrain PeriodicTerrain() {
+  return Terrain{.id = kTerrainId, .name = "Periodic", .variant_period = 2};
+}
+
+TerrainRule PeriodicRule() {
+  return TerrainRule{.mask = 255,
+                     .variants = {{.tile_id = 10, .weight = 1},
+                                  {.tile_id = 11, .weight = 1},
+                                  {.tile_id = 12, .weight = 1},
+                                  {.tile_id = 13, .weight = 1}}};
+}
+
+// The phase has to follow the cell's position, or the pattern tears at every
+// tile border -- which is the whole reason the mode exists.
+TEST(TerrainVariantTest, PeriodicSelectionFollowsCellPosition) {
+  const Terrain terrain = PeriodicTerrain();
+  const TerrainRule rule = PeriodicRule();
+
+  EXPECT_EQ(SelectVariant(terrain, rule, 0, 0).value(), 10);
+  EXPECT_EQ(SelectVariant(terrain, rule, 1, 0).value(), 11);
+  EXPECT_EQ(SelectVariant(terrain, rule, 0, 1).value(), 12);
+  EXPECT_EQ(SelectVariant(terrain, rule, 1, 1).value(), 13);
+
+  // And it repeats, so a wide run lays the same pattern down over and over.
+  EXPECT_EQ(SelectVariant(terrain, rule, 2, 2).value(), 10);
+  EXPECT_EQ(SelectVariant(terrain, rule, 7, 4).value(), 11);
+}
+
+// Levels extend into negative coordinates, where a naive modulo returns a
+// negative phase and indexes off the front of the variant list.
+TEST(TerrainVariantTest, PeriodicSelectionHandlesNegativeCoordinates) {
+  const Terrain terrain = PeriodicTerrain();
+  const TerrainRule rule = PeriodicRule();
+
+  EXPECT_EQ(SelectVariant(terrain, rule, -2, -2).value(), 10);
+  EXPECT_EQ(SelectVariant(terrain, rule, -1, -2).value(), 11);
+  EXPECT_EQ(SelectVariant(terrain, rule, -2, -1).value(), 12);
+  EXPECT_EQ(SelectVariant(terrain, rule, -1, -1).value(), 13);
+}
+
+TEST(TerrainVariantTest, PeriodicSelectionIgnoresWeights) {
+  const Terrain terrain = PeriodicTerrain();
+  TerrainRule rule = PeriodicRule();
+  rule.variants[0].weight = 99;
+
+  EXPECT_EQ(SelectVariant(terrain, rule, 1, 1).value(), 13)
+      << "a phase is a position, not a preference";
+}
+
+TEST(TerrainVariantTest, PeriodicSelectionRejectsAMissingPhase) {
+  const Terrain terrain = PeriodicTerrain();
+  TerrainRule rule = PeriodicRule();
+  rule.variants.pop_back();
+
+  EXPECT_FALSE(SelectVariant(terrain, rule, 0, 0).ok())
+      << "three variants cannot cover a 2x2 pattern";
 }
 
 // Repainting an already-painted region must not reshuffle its artwork.

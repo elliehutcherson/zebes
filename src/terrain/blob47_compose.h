@@ -77,6 +77,13 @@ struct ComposedSlope {
 struct Blob47Atlas {
   RgbaImage image;
   int tile_size = 0;
+
+  // How many tiles the artwork repeats over; see Terrain::variant_period. Zero
+  // means the variants are interchangeable, which is what compositing
+  // hand-drawn quadrants produces: a variant there is a different drawing of
+  // the same cell, not a phase of a larger pattern.
+  int variant_period = 0;
+
   std::vector<ComposedTile> tiles;
 
   // Appended below the blob blocks. Empty when no slope sheet was supplied.

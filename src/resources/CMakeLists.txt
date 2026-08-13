@@ -12,6 +12,7 @@ target_link_libraries(texture_manager absl::flat_hash_map)
 target_link_libraries(texture_manager texture_resource_store)
 target_link_libraries(texture_manager texture)
 target_link_libraries(texture_manager resource_utils)
+target_link_libraries(texture_manager image_io)
 
 add_library(sprite_manager sprite_manager.cc)
 target_link_libraries(sprite_manager common)

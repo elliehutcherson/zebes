@@ -292,7 +292,80 @@ only the cells that differ. Composition happens offline and bakes concrete
 tiles, so rendering stays one draw per cell and level data keeps storing plain
 tile IDs.
 
-`terrain_detect` turns an atlas into a `Terrain`. Manifest import is the exact
+`terrain_generator` draws an atlas instead of compositing one. It renders each
+tile inside a 3x3 block of its neighbours and measures depth into the solid with
+a distance transform, so a flat top, a 45-degree hypotenuse and a concave notch
+all get a correct surface band from identical code -- which is why slopes cost
+almost nothing here. Band width is modulated by a field that is exactly periodic
+(`terrain_field`), so two adjacent tiles sample the same phase and agree along
+their shared border with no seam bookkeeping. It holds no SDL or ImGui
+dependency by rule: it is an algorithm the editor drives, and its tests run
+headless. `tile_shape_geometry` is the single definition of every `TileShape`
+polygon, shared with the editor's collision overlay so drawn artwork and
+declared geometry cannot drift apart.
+
+Generator appearance separates artistic intent from raster policy.
+`TerrainMaterial` owns the palette and surface treatment;
+`TerrainInteriorConfig` owns the independently selectable interior passes;
+`TerrainPixelProfile` says how that intent should be quantised for chunky 16px,
+balanced 32px or detailed 64px art; and `ResolvedTerrainStyle` validates the
+configuration and turns reference measurements into concrete pixels once
+before rasterisation. Rendering passes consume only the resolved measurements.
+This keeps a 16px material deliberately designed rather than a noisy downsample
+of a 32px result, and gives future passes one place to make their scale policy
+explicit.
+
+The interior itself has three ordered concepts: a continuous base treatment
+(flat, mottle, soil clods or cobbles), a repeating substrate pattern (pebbles,
+flecks, crosses, diamonds or a weighted mixed-earth bank), and sparse semantic
+details (flowers, roots, flakes or crystals). Each concept has its own
+configuration, motif bank where applicable, cached periodic placements and
+render pass. A new substrate family therefore does not expand the cellular base
+algorithm or masquerade as a decorative object. The semantic pass treats
+already-painted substrate motifs as occupied, preserving the lower layer
+instead of overwriting it.
+
+Substrate marks also own palette roles separate from semantic decorations.
+Pattern contrast can therefore fade marks into the interior without flattening
+roots or flowers. Every pattern family has a compact bank capped at three-pixel
+motifs for `Chunky16`; the 32px/64px policy is free to use the larger five-pixel
+crosses and diamonds rather than relying on image scaling.
+
+Those responsibilities are also separate build units. `terrain_style` owns
+authoring configuration, preset construction, validation and resolution;
+`terrain_motifs` owns typed, profile-specific pixel motifs; `terrain_field`
+owns reusable wrapping numerical fields; and `terrain_generator` applies those
+resolved inputs to Blob47 geometry. Motif pixels name semantic colour roles
+rather than private palette-array offsets, so adding a motif cannot silently
+couple its data to renderer implementation order.
+
+Surface texture, interior structure and both motif placement layers sample
+atlas-global, wrapping coordinates. Substrate motifs and semantic details are
+chosen independently once for the whole variant period and then clipped by each
+tile's semantic regions, so changing a cell's Blob47 mask does not reshuffle
+either layer in otherwise unchanged material. Those passes may change colour
+indices inside the collision silhouette but never its alpha; artwork and
+`TileShape` geometry therefore keep the same boundary.
+
+All discrete motif grids fit a whole cell count into that same variant period.
+A requested five-pixel feature does not necessarily divide a 96-pixel repeat;
+fitting the grid prevents the final phase from resetting midway through a
+scallop or tuft. Cellular interiors, substrate placements and semantic-detail
+placements are likewise built once when the renderer is created, then reused by
+every mask in the atlas.
+
+Terrain authoring is its own editor tab rather than a section of the tileset
+editor. Tuning a terrain is a picture-first activity -- the controls only mean
+anything beside a preview large enough to judge -- so it needs a viewport, and a
+navigator column at a fifth of the window cannot give it one. The tab produces a
+finished tileset, which is why it needs nothing to exist beforehand: a tileset
+names exactly one texture, so a generated terrain and the tileset carrying it
+are made together or not at all.
+
+`terrain_detect` turns an atlas into a `Terrain`. Both sources converge on
+`BuildTerrainCandidate`, which is the only place tile naming, rule ordering and
+slope membership are decided; manifest import parses a described atlas back into
+the same shape the generator produces in memory. Manifest import is the exact
 path and involves no guessing. The layout scan is the fallback for atlases with
 no manifest, and deliberately finds nothing in hand-authored tilesets of slopes
 and one-off pieces rather than reporting a false positive.

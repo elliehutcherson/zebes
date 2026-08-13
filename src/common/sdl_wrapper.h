@@ -26,6 +26,20 @@ class SdlWrapper {
 
   // Texture Management
   virtual absl::StatusOr<SDL_Texture*> CreateTexture(const std::string& path);
+
+  // Creates a texture from pixels held in memory, for artwork that has no file
+  // behind it. A live preview regenerates its image every time a control moves,
+  // so round-tripping it through disk would be both slow and litter.
+  //
+  // The texture is created streaming so the same one can be rewritten in place;
+  // see UpdateTexturePixels.
+  virtual absl::StatusOr<SDL_Texture*> CreateTextureFromPixels(int width, int height,
+                                                               const uint8_t* pixels);
+
+  // Rewrites a texture created by CreateTextureFromPixels. Sizes must match.
+  virtual absl::Status UpdateTexturePixels(SDL_Texture* texture, int width, int height,
+                                           const uint8_t* pixels);
+
   virtual void DestroyTexture(SDL_Texture* texture);
 
   // Resource Access

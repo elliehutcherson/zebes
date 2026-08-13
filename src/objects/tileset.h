@@ -23,7 +23,9 @@ enum TileShape : uint8_t {
   kHalfBlockRight = 5,
 
   // --- 45-DEGREE SLOPES (1x1 Ratio) ---
-  // The name indicates where the "solid" right-angle corner of the triangle is.
+  // "Bottom"/"Top" is the edge the solid mass hugs; "Left"/"Right" is the side
+  // the wedge tapers away to nothing on, so the right angle sits at the
+  // opposite corner. The exact polygons live in objects/tile_shape_geometry.h.
   kSlope45BottomLeft = 6,   // /| shape (walking up to the right)
   kSlope45BottomRight = 7,  // |\ shape (walking up to the left)
   kSlope45TopLeft = 8,      // \| shape (ceiling slope)
@@ -159,6 +161,18 @@ struct Terrain {
   // Whether cells outside the level bounds count as this terrain. True keeps
   // ground continuous at the level border instead of drawing an edge there.
   bool solid_outside_level = true;
+
+  // How many tiles the artwork's pattern takes to repeat, on both axes.
+  //
+  // Zero means the variants are interchangeable and one is picked per cell by a
+  // hash of its coordinates: unstructured variety, any number of variants.
+  //
+  // A positive P means the variants are P x P phases of one larger pattern, and
+  // the cell at (x, y) must use phase (y mod P) * P + (x mod P) or the pattern
+  // will not line up across tile borders. Every rule then needs exactly P * P
+  // variants. This is what lets generated artwork carry a surface pattern
+  // longer than a single tile without seams.
+  int variant_period = 0;
 
   // Unique by mask, ascending.
   std::vector<TerrainRule> rules;

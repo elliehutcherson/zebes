@@ -71,6 +71,7 @@ target_link_libraries(editor_canvas
   canvas_elements
   ${IMGUI_LIBRARIES}
   gui_interface
+  tile_shape_geometry
 )
 
 # Texture Editor
@@ -124,17 +125,32 @@ add_subdirectory(level_editor)
 
 # Tileset Editor
 add_subdirectory(tileset_editor)
+add_subdirectory(terrain_editor)
 
 
 # Editor UI
+add_library(sdl_preview_texture sdl_preview_texture.cc)
+target_link_libraries(sdl_preview_texture
+  gui_interface
+  blob47_compose
+  sdl_wrapper
+  status_macros
+  SDL2-static
+  ${IMGUI_LIBRARIES}
+  absl::status
+  absl::statusor
+)
+
 add_library(editor_ui editor_ui.cc)
 target_link_libraries(editor_ui
+  sdl_preview_texture
   blueprint_editor
   editor_config
   editor_sprite
   editor_texture
   level_editor
   tileset_editor
+  terrain_editor
   api
   gui_interface
   imgui_scoped

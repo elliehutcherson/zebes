@@ -6,6 +6,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/common.h"
+#include "common/image_io.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
@@ -118,6 +119,26 @@ absl::StatusOr<Texture*> TextureManager::LoadTexture(const std::string& path_jso
   handles_[id] = texture_handle;
   textures_[id] = std::move(texture);
   return textures_[id].get();
+}
+
+absl::StatusOr<std::string> TextureManager::CreateTextureFromPixels(
+    const std::string& name, int width, int height, absl::Span<const uint8_t> pixels) {
+  if (name.empty()) {
+    return absl::InvalidArgumentError("Generated artwork needs a name");
+  }
+
+  const std::string image_path = absl::StrCat(images_path_, "/", name, ".png");
+  if (std::filesystem::exists(image_path)) {
+    return absl::AlreadyExistsError(
+        absl::StrCat("Artwork already exists at ", image_path,
+                     "; choose another name rather than replacing it"));
+  }
+
+  RETURN_IF_ERROR(WritePng(image_path, width, height, pixels));
+
+  // CreateTexture copies from a source path into the images directory; the file
+  // is already there, which it detects and leaves alone.
+  return CreateTexture(Texture{.name = name, .path = image_path});
 }
 
 absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {

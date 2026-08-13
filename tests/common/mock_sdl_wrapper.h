@@ -13,6 +13,10 @@ class MockSdlWrapper : public SdlWrapper {
   MOCK_METHOD(int, PollEvent, (SDL_Event * event), (override));
   MOCK_METHOD(const uint8_t*, GetKeyboardState, (int* numkeys), (override));
   MOCK_METHOD(absl::StatusOr<SDL_Texture*>, CreateTexture, (const std::string& path), (override));
+  MOCK_METHOD(absl::StatusOr<SDL_Texture*>, CreateTextureFromPixels,
+              (int width, int height, const uint8_t* pixels), (override));
+  MOCK_METHOD(absl::Status, UpdateTexturePixels,
+              (SDL_Texture * texture, int width, int height, const uint8_t* pixels), (override));
   MOCK_METHOD(void, DestroyTexture, (SDL_Texture * texture), (override));
 };
 

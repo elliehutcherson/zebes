@@ -1,7 +1,5 @@
 #include "editor/tileset_editor/tileset_panel.h"
 
-#include <cstdio>
-#include <fstream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -10,7 +8,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "objects/tileset.h"
-#include "terrain/blob47_compose.h"
 #include "tests/editor/mock_gui.h"
 
 namespace zebes {
@@ -22,28 +19,13 @@ using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrEq;
 
-// The manifest a real compose_blob47 run emits, at its smallest valid size.
-std::string MakeManifest() {
-  QuadrantSheet sheet;
-  sheet.quadrant_size = 8;
-  sheet.variant_count = 1;
-  sheet.image.width = sheet.quadrant_size * kQuadrantStateCount;
-  sheet.image.height = sheet.quadrant_size * kQuadrantCount;
-  sheet.image.pixels.assign(static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 255);
-
-  absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(sheet);
-  EXPECT_TRUE(atlas.ok()) << atlas.status();
-  return WriteBlob47Manifest(*atlas);
-}
-
 constexpr float kTextRow = 20.0f;
 constexpr float kWidgetRow = 26.0f;
 constexpr float kWindowHeight = 500.0f;
 
 class TilesetPanelTest : public ::testing::Test {
  protected:
-  // Records the height the tile list asks for, which is what leaves room for
-  // the terrain section below it.
+  // Records the height the tile list asks for.
   void CaptureTileListHeight(float* height) {
     ON_CALL(gui_, CreateScopedListBox(StrEq("##Tiles"), _))
         .WillByDefault(Invoke([this, height](const char* label, ImVec2 size) {
@@ -71,6 +53,15 @@ class TilesetPanelTest : public ::testing::Test {
         }));
     ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
 
+    // The details body scrolls, so its child has to report open or nothing
+    // below the header renders at all.
+    ON_CALL(gui_, CreateScopedChild(_, _, _, _))
+        .WillByDefault(
+            Invoke([this](const char* id, ImVec2 size, bool border, ImGuiWindowFlags flags) {
+              return ScopedChild(&gui_, id, size, border, flags);
+            }));
+    ON_CALL(gui_, BeginChild(_, _, _, _)).WillByDefault(Return(true));
+
     ON_CALL(gui_, CreateScopedId(::testing::An<int>()))
         .WillByDefault(Invoke([this](int int_id) { return ScopedId(&gui_, int_id); }));
     ON_CALL(gui_, CreateScopedStyleColor(_, ::testing::An<const ImVec4&>()))
@@ -81,8 +72,6 @@ class TilesetPanelTest : public ::testing::Test {
     ON_CALL(gui_, Button(_, _)).WillByDefault(Return(false));
     ON_CALL(gui_, DisplayFileDialog(_)).WillByDefault(Return(std::nullopt));
 
-    // Layout metrics stand in for a real ImGui frame so height reservation is
-    // checkable arithmetic rather than a guess about font size.
     ON_CALL(gui_, GetTextLineHeightWithSpacing()).WillByDefault(Return(kTextRow));
     ON_CALL(gui_, GetFrameHeightWithSpacing()).WillByDefault(Return(kWidgetRow));
     ON_CALL(gui_, GetContentRegionAvail()).WillByDefault(Return(ImVec2(200.0f, kWindowHeight)));
@@ -93,9 +82,8 @@ class TilesetPanelTest : public ::testing::Test {
   // Makes exactly one button report a click, so a render exercises one action.
   void ClickOnly(std::string label) {
     ON_CALL(gui_, Button(_, _))
-        .WillByDefault(Invoke([label](const char* pressed, const ImVec2&) {
-          return label == pressed;
-        }));
+        .WillByDefault(Invoke(
+            [label](const char* pressed, const ImVec2&) { return label == pressed; }));
   }
 
   void RenderDetails() {
@@ -108,88 +96,33 @@ class TilesetPanelTest : public ::testing::Test {
   std::unique_ptr<TilesetPanel> panel_;
 };
 
-TEST_F(TilesetPanelTest, BrowseOpensAJsonFileDialog) {
-  ClickOnly("Browse##Terrain");
-  EXPECT_CALL(gui_, OpenFileDialog(StrEq("TerrainManifestDlg"), _, StrEq(".json"), _));
-
-  RenderDetails();
-}
-
-TEST_F(TilesetPanelTest, NoDialogOpensWithoutBrowse) {
+// Authoring a terrain moved to the Terrain tab, which has room for the preview
+// that tuning one needs. Nothing here should be asking for a manifest any more.
+TEST_F(TilesetPanelTest, NoManifestControlsRemain) {
   EXPECT_CALL(gui_, OpenFileDialog(_, _, _, _)).Times(0);
+  ClickOnly("Browse##Terrain");
 
   RenderDetails();
 }
 
-TEST_F(TilesetPanelTest, ChosenPathPopulatesTheManifestField) {
-  ON_CALL(gui_, DisplayFileDialog(StrEq("TerrainManifestDlg")))
-      .WillByDefault(Return(std::optional<std::string>("/manifests/grass.json")));
+TEST_F(TilesetPanelTest, DetectAddsTerrainsFoundInTheTilesAlready) {
+  ClickOnly("Detect##Terrain");
+
+  // A tileset with no tiles has nothing to detect; the point is that the button
+  // still runs the model rather than having been removed with the import path.
   RenderDetails();
-
-  // The dialog reports its result once; the field must hold it afterwards.
-  ON_CALL(gui_, DisplayFileDialog(_)).WillByDefault(Return(std::nullopt));
-  std::string field;
-  ON_CALL(gui_, InputText(StrEq("Manifest##Terrain"), ::testing::An<std::string*>(), _, _, _))
-      .WillByDefault(Invoke([&field](const char*, std::string* value, ImGuiInputTextFlags,
-                                     ImGuiInputTextCallback, void*) {
-        field = *value;
-        return false;
-      }));
-
-  RenderDetails();
-
-  EXPECT_EQ(field, "/manifests/grass.json");
-}
-
-TEST_F(TilesetPanelTest, ImportReadsTheManifestTheDialogChose) {
-  const std::string path = std::string(::testing::TempDir()) + "/tileset_panel_manifest.json";
-  std::ofstream file(path);
-  ASSERT_TRUE(file.is_open());
-  file << MakeManifest();
-  file.close();
-
-  ON_CALL(gui_, DisplayFileDialog(_))
-      .WillByDefault(Return(std::optional<std::string>(path)));
-  RenderDetails();
-
-  ClickOnly("Import##Terrain");
-  RenderDetails();
-
-  ASSERT_NE(model_.active_tileset(), nullptr);
-  ASSERT_EQ(model_.active_tileset()->terrains.size(), 1u);
-  EXPECT_EQ(model_.active_tileset()->terrains[0].rules.size(), kBlob47TileCount);
-  std::remove(path.c_str());
-}
-
-TEST_F(TilesetPanelTest, ImportingAMissingFileAddsNoTerrain) {
-  ON_CALL(gui_, DisplayFileDialog(_))
-      .WillByDefault(Return(std::optional<std::string>("/nonexistent/manifest.json")));
-  RenderDetails();
-
-  ClickOnly("Import##Terrain");
-  RenderDetails();
-
   ASSERT_NE(model_.active_tileset(), nullptr);
   EXPECT_TRUE(model_.active_tileset()->terrains.empty());
 }
 
-// Import used to sit below the window bottom because the tile list claimed
-// every remaining pixel.
-TEST_F(TilesetPanelTest, TileListLeavesRoomForTheTerrainSection) {
-  float list_height = 0.0f;
-  CaptureTileListHeight(&list_height);
-
-  RenderDetails();
-
-  // Heading and status text, the manifest and import rows, and the empty hint.
-  const float reserved = 2.0f * kTextRow + 2.0f * kWidgetRow + kTextRow;
-  EXPECT_FLOAT_EQ(list_height, kWindowHeight - reserved);
-}
-
-TEST_F(TilesetPanelTest, EachTerrainWidensTheReservation) {
+// The tile list used to size itself against a prediction of everything below
+// it, which is how the terrain controls ended up off the bottom of the window.
+// It now takes a fixed height and the enclosing child scrolls.
+TEST_F(TilesetPanelTest, TileListHeightDoesNotDependOnWhatIsBelowIt) {
   float without_terrains = 0.0f;
   CaptureTileListHeight(&without_terrains);
   RenderDetails();
+  EXPECT_GT(without_terrains, 0.0f);
 
   model_.active_tileset()->terrains.push_back(Terrain{.id = 1, .name = "Grass"});
   model_.active_tileset()->terrains.push_back(Terrain{.id = 2, .name = "Stone"});
@@ -198,19 +131,49 @@ TEST_F(TilesetPanelTest, EachTerrainWidensTheReservation) {
   CaptureTileListHeight(&with_terrains);
   RenderDetails();
 
-  // Two terrain rows replace the one-line empty hint.
-  EXPECT_FLOAT_EQ(with_terrains, without_terrains + kTextRow - 2.0f * kWidgetRow);
+  EXPECT_FLOAT_EQ(with_terrains, without_terrains);
 }
 
-// Below a minimum the panel scrolls instead of shrinking the list away.
-TEST_F(TilesetPanelTest, ShortWindowKeepsAMinimumTileList) {
+TEST_F(TilesetPanelTest, TileListHeightDoesNotDependOnWindowHeight) {
+  float tall = 0.0f;
+  CaptureTileListHeight(&tall);
+  RenderDetails();
+
   ON_CALL(gui_, GetContentRegionAvail()).WillByDefault(Return(ImVec2(200.0f, 30.0f)));
-  float list_height = 0.0f;
-  CaptureTileListHeight(&list_height);
+  float shortened = 0.0f;
+  CaptureTileListHeight(&shortened);
+  RenderDetails();
+
+  EXPECT_FLOAT_EQ(shortened, tall);
+}
+
+// Back and Save sit outside the scroll region: a column too short to show
+// everything must not be able to hide the way out or the way to keep your work.
+TEST_F(TilesetPanelTest, SaveIsReachableWithoutScrolling) {
+  bool save_before_body = false;
+  bool body_started = false;
+  ON_CALL(gui_, CreateScopedChild(_, _, _, _))
+      .WillByDefault(
+          Invoke([&](const char* id, ImVec2 size, bool border, ImGuiWindowFlags flags) {
+            body_started = true;
+            return ScopedChild(&gui_, id, size, border, flags);
+          }));
+  ON_CALL(gui_, Button(_, _)).WillByDefault(Invoke([&](const char* label, const ImVec2&) {
+    if (std::string(label) == "Save" && !body_started) save_before_body = true;
+    return false;
+  }));
 
   RenderDetails();
 
-  EXPECT_FLOAT_EQ(list_height, 4.0f * kTextRow);
+  EXPECT_TRUE(save_before_body);
+}
+
+TEST_F(TilesetPanelTest, SaveIsReported) {
+  ClickOnly("Save");
+
+  absl::StatusOr<TilesetPanel::Action> action = panel_->RenderDetails(model_);
+  ASSERT_TRUE(action.ok()) << action.status();
+  EXPECT_EQ(*action, TilesetPanel::Action::kSave);
 }
 
 TEST_F(TilesetPanelTest, TerrainNameIsEditable) {

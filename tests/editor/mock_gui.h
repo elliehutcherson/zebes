@@ -84,11 +84,14 @@ class MockGui : public GuiInterface {
   void TextDisabled(const char* fmt, ...) override {}
   void TextWrapped(const char* fmt, ...) override {}
   void LabelText(const char* label, const char* fmt, ...) override {}
+  void SetTooltip(const char* fmt, ...) override {}
 
   MOCK_METHOD(bool, Checkbox, (const char* label, bool* v), (override));
   MOCK_METHOD(bool, SliderFloat,
               (const char* label, float* v, float v_min, float v_max, const char* format,
                ImGuiSliderFlags flags),
+              (override));
+  MOCK_METHOD(bool, ColorEdit3, (const char* label, float col[3], ImGuiColorEditFlags flags),
               (override));
   MOCK_METHOD(bool, SliderInt,
               (const char* label, int* v, int v_min, int v_max, const char* format,
@@ -160,6 +163,7 @@ class MockGui : public GuiInterface {
   MOCK_METHOD(ImGuiIO&, GetIO, (), (override));
   MOCK_METHOD(ImGuiStyle&, GetStyle, (), (override));
   MOCK_METHOD(bool, IsItemHovered, (ImGuiHoveredFlags flags), (override));
+  MOCK_METHOD(bool, IsAnyItemActive, (), (override));
   MOCK_METHOD(void, SetItemKeyOwner, (ImGuiKey key), (override));
   MOCK_METHOD(void, SetItemDefaultFocus, (), (override));
   MOCK_METHOD(bool, IsItemActive, (), (override));

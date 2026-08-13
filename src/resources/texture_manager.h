@@ -5,6 +5,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "objects/texture.h"
 #include "resources/texture_resource_store.h"
 
@@ -47,6 +48,22 @@ class TextureManager {
    * @return The ID of the created texture.
    */
   virtual absl::StatusOr<std::string> CreateTexture(Texture texture);
+
+  /**
+   * @brief Writes generated artwork into the images directory and registers it.
+   *
+   * Artwork the editor produces itself -- a procedurally generated terrain
+   * atlas, for instance -- has no source file to copy from, so it becomes a
+   * real PNG here before a definition can point at it. Refuses to overwrite
+   * existing artwork, since a name collision means two tilesets would end up
+   * sharing one atlas.
+   *
+   * @param name Base name for both the PNG and the definition.
+   * @return The ID of the created texture.
+   */
+  virtual absl::StatusOr<std::string> CreateTextureFromPixels(const std::string& name, int width,
+                                                              int height,
+                                                              absl::Span<const uint8_t> pixels);
 
   /**
    * @brief Retrieves a loaded texture by its ID.
