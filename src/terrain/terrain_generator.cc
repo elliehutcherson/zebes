@@ -77,11 +77,10 @@ float HashUnit(uint64_t value) {
   return static_cast<float>(MixBits(value) >> 40) / static_cast<float>(1ULL << 24);
 }
 
-// Neighbour slots, in the same order as the Neighbor bits in terrain_mask.h so
-// a blob mask can be walked bit by bit.
-constexpr int kNeighborCount = 8;
-constexpr int kNeighborCellX[kNeighborCount] = {1, 2, 2, 2, 1, 0, 0, 0};
-constexpr int kNeighborCellY[kNeighborCount] = {0, 0, 1, 2, 2, 2, 1, 0};
+// Which cell of the 3x3 canvas a neighbour occupies. kNeighborOffsets is
+// centred on the tile, so recentring it on the canvas is the whole conversion.
+constexpr int NeighborCellX(int neighbor) { return kNeighborOffsets[neighbor].dx + 1; }
+constexpr int NeighborCellY(int neighbor) { return kNeighborOffsets[neighbor].dy + 1; }
 
 struct Rgba {
   uint8_t r = 0;
@@ -609,7 +608,7 @@ std::vector<uint8_t> TerrainRenderer::Occupancy(
   RasterizePolygon(polygon, resolution_, 1, 1, canvas_, occupancy);
   for (int i = 0; i < kNeighborCount; ++i) {
     if (neighbors[i].empty()) continue;
-    RasterizePolygon(neighbors[i], resolution_, kNeighborCellX[i], kNeighborCellY[i], canvas_,
+    RasterizePolygon(neighbors[i], resolution_, NeighborCellX(i), NeighborCellY(i), canvas_,
                      occupancy);
   }
   return occupancy;
@@ -1115,6 +1114,31 @@ absl::StatusOr<RgbaImage> TerrainRenderer::RenderShapeTile(TileShape shape, int 
   return RenderTile(polygon, neighbors, variant);
 }
 
+absl::StatusOr<RgbaImage> TerrainRenderer::RenderShapeTileInContext(
+    TileShape shape, absl::Span<const TileShape> neighbors, int variant) const {
+  if (variant < 0 || variant >= variant_count()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("variant ", variant, " is outside the ", variant_count(), " this set holds"));
+  }
+  if (neighbors.size() != kNeighborCount) {
+    return absl::InvalidArgumentError(absl::StrCat("a neighbourhood is ", kNeighborCount,
+                                                   " shapes, not ", neighbors.size()));
+  }
+  const absl::Span<const TilePoint> polygon = TileShapePolygon(shape);
+  if (polygon.empty()) {
+    return absl::InvalidArgumentError("kNone has no artwork to render");
+  }
+
+  // TileShapePolygon returns an empty span for kNone, which is exactly what
+  // Occupancy reads as air, so no branch is needed here.
+  std::vector<absl::Span<const TilePoint>> polygons(kNeighborCount);
+  for (int i = 0; i < kNeighborCount; ++i) {
+    polygons[i] = TileShapePolygon(neighbors[i]);
+  }
+
+  return RenderTile(polygon, polygons, variant);
+}
+
 absl::StatusOr<RgbaImage> RenderTerrainPreviewScene(const TerrainRenderer& renderer) {
   // Chosen to exercise every edge case the brush can produce: a long flat run
   // for the surface rhythm, a step, a one-cell pillar, an overhang, and a
@@ -1146,13 +1170,77 @@ absl::StatusOr<RgbaImage> RenderTerrainPreviewScene(const TerrainRenderer& rende
 
       uint8_t mask = 0;
       for (int i = 0; i < kNeighborCount; ++i) {
-        // kNeighborCellX/Y are 3x3 cell positions; recentre them on the tile.
-        if (solid(x + kNeighborCellX[i] - 1, y + kNeighborCellY[i] - 1)) mask |= 1 << i;
+        if (solid(x + kNeighborOffsets[i].dx, y + kNeighborOffsets[i].dy)) mask |= 1 << i;
       }
       mask = NormalizeNeighborMask(mask);
 
       const int variant = period > 0 ? (y % period) * period + (x % period) : 0;
       ASSIGN_OR_RETURN(const RgbaImage cell, renderer.RenderBlobTile(mask, variant));
+      RETURN_IF_ERROR(CopyTile(cell, 0, 0, tile, image, x * tile, y * tile));
+    }
+  }
+  return image;
+}
+
+TileShape ShapeScene::At(int x, int y) const {
+  if (x < 0 || y < 0 || x >= width || y >= height) return TileShape::kNone;
+  return cells[static_cast<size_t>(y) * width + x];
+}
+
+absl::StatusOr<RgbaImage> RenderSceneCell(const TerrainRenderer& renderer,
+                                          const ShapeScene& scene, int x, int y,
+                                          SceneContext context) {
+  if (scene.width <= 0 || scene.height <= 0 ||
+      scene.cells.size() != static_cast<size_t>(scene.width) * scene.height) {
+    return absl::InvalidArgumentError("scene dimensions do not match its cells");
+  }
+
+  const TileShape shape = scene.At(x, y);
+  if (shape == TileShape::kNone) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("scene cell (", x, ", ", y, ") is air and has no artwork"));
+  }
+
+  std::vector<TileShape> neighbors(kNeighborCount, TileShape::kNone);
+  for (int i = 0; i < kNeighborCount; ++i) {
+    neighbors[i] = scene.At(x + kNeighborOffsets[i].dx, y + kNeighborOffsets[i].dy);
+  }
+
+  const int period = renderer.config().variant_period;
+  const int variant = period > 0 ? (y % period) * period + (x % period) : 0;
+
+  if (context == SceneContext::kTrueNeighbors) {
+    return renderer.RenderShapeTileInContext(shape, neighbors, variant);
+  }
+
+  // The atlas holds exactly one drawing per slope shape, rendered at variant 0
+  // from an inferred neighbourhood. Reproducing that faithfully -- rather than
+  // asking for the phase this cell would prefer -- is what makes the comparison
+  // against kTrueNeighbors mean anything.
+  if (shape != TileShape::kFullBlock) {
+    return renderer.RenderShapeTile(shape, /*variant=*/0);
+  }
+
+  uint8_t mask = 0;
+  for (int i = 0; i < kNeighborCount; ++i) {
+    if (neighbors[i] != TileShape::kNone) mask |= 1 << i;
+  }
+  return renderer.RenderBlobTile(NormalizeNeighborMask(mask), variant);
+}
+
+absl::StatusOr<RgbaImage> RenderShapeScene(const TerrainRenderer& renderer,
+                                           const ShapeScene& scene, SceneContext context) {
+  const int tile = renderer.config().tile_size;
+
+  RgbaImage image;
+  image.width = scene.width * tile;
+  image.height = scene.height * tile;
+  image.pixels.assign(static_cast<size_t>(image.width) * image.height * 4, 0);
+
+  for (int y = 0; y < scene.height; ++y) {
+    for (int x = 0; x < scene.width; ++x) {
+      if (scene.At(x, y) == TileShape::kNone) continue;
+      ASSIGN_OR_RETURN(const RgbaImage cell, RenderSceneCell(renderer, scene, x, y, context));
       RETURN_IF_ERROR(CopyTile(cell, 0, 0, tile, image, x * tile, y * tile));
     }
   }

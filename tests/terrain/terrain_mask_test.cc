@@ -135,5 +135,28 @@ TEST(TerrainMaskTest, QuadrantStateSeparatesVerticalAndHorizontalEdges) {
             QuadrantState::kEdgeHorizontal);
 }
 
+TEST(TerrainMaskTest, EachOffsetPointsWhereItsBitIsNamed) {
+  // The generator walks a 3x3 canvas and the brush walks a level grid, both off
+  // this one table. If an offset and its bit ever disagreed, generated artwork
+  // and painted levels would stop matching with nothing to say so -- the two
+  // used to keep private copies of this table and agreeing was a coincidence.
+  struct Named {
+    Neighbor bit;
+    int dx;
+    int dy;
+  };
+  constexpr Named kExpected[] = {
+      {kNorth, 0, -1},    {kNorthEast, 1, -1}, {kEast, 1, 0},  {kSouthEast, 1, 1},
+      {kSouth, 0, 1},     {kSouthWest, -1, 1}, {kWest, -1, 0}, {kNorthWest, -1, -1},
+  };
+  ASSERT_EQ(std::size(kExpected), kNeighborCount);
+
+  for (int i = 0; i < kNeighborCount; ++i) {
+    EXPECT_EQ(1 << i, kExpected[i].bit) << "bit position " << i;
+    EXPECT_EQ(kNeighborOffsets[i].dx, kExpected[i].dx) << "bit position " << i;
+    EXPECT_EQ(kNeighborOffsets[i].dy, kExpected[i].dy) << "bit position " << i;
+  }
+}
+
 }  // namespace
 }  // namespace zebes

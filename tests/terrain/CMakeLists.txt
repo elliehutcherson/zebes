@@ -40,6 +40,34 @@ target_link_libraries(terrain_generator_test
 target_include_directories(terrain_generator_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(terrain_generator_test)
 
+add_executable(terrain_placement_test terrain_placement_test.cc)
+target_link_libraries(terrain_placement_test
+  gtest_main
+  gmock
+  terrain_placement
+)
+target_include_directories(terrain_placement_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_placement_test)
+
+add_executable(terrain_cell_key_test terrain_cell_key_test.cc)
+target_link_libraries(terrain_cell_key_test
+  gtest_main
+  gmock
+  terrain_cell_key
+  absl::flat_hash_set
+)
+target_include_directories(terrain_cell_key_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_cell_key_test)
+
+add_executable(terrain_slope_join_test terrain_slope_join_test.cc)
+target_link_libraries(terrain_slope_join_test
+  gtest_main
+  terrain_generator
+  tileset
+)
+target_include_directories(terrain_slope_join_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_slope_join_test)
+
 add_executable(terrain_detect_test terrain_detect_test.cc)
 target_link_libraries(terrain_detect_test
   gtest_main

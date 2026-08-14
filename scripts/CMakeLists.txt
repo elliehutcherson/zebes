@@ -13,6 +13,13 @@ target_link_libraries(
   PRIVATE blob47_compose status_macros absl::log absl::log_initialize absl::status absl::strings
 )
 
+add_executable(render_slope_matrix render_slope_matrix.cc)
+target_link_libraries(
+  render_slope_matrix
+  PRIVATE terrain_generator terrain_style image_io tileset status_macros absl::log
+          absl::log_initialize absl::status absl::statusor absl::strings
+)
+
 add_executable(generate_blob47_mask generate_blob47_mask.cc)
 target_include_directories(generate_blob47_mask PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include/stb)
 target_link_libraries(

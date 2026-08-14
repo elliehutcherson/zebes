@@ -37,9 +37,13 @@ Next:
 
 1. Perform the Autumn comparison above.
 2. Decide whether the `lucinda_cave` assets belong in their own commit.
-3. Begin Phase 4 design for slope-connectivity variants only after the current
-   atlas contract and selection policy are written down; it is a topology and
-   manifest change, not just another renderer pass.
+3. The next phase is [`docs/terrain-derived-artwork.md`](terrain-derived-artwork.md).
+   Slope connectivity was scoped as more artwork plus a way to choose it;
+   measuring it first showed the defect is that the atlas is a cache of a pure
+   function keyed on something that cannot represent the function's domain.
+   Generated artwork becomes derived from collision geometry and cached by
+   content. That doc supersedes the slope-connectivity plan and lists what gets
+   deleted rather than kept.
 
 Phase 3's deliberate limitations remain: edge motifs inherit the material's
 surface palette rather than owning a separate tint, and short/dry grass plus
@@ -209,15 +213,19 @@ settles at full quality, and that settling pass is roughly a one-second hitch at
 
 ### Terrain features deliberately deferred
 
-- **Slope connectivity variants (~40 tiles).** Slope-meets-slope currently looks
-  identical to slope-meets-flat. Slope units are hand-placed and the brush is
-  not involved, so this is more generated art plus a way to choose between
-  variants. The manifest has no per-slope variant field, so it needs a schema
-  change.
-- **Half-blocks as terrain members.** `ParseManifestSlopes`
-  (`src/terrain/terrain_detect.cc:53`) accepts only `TileShape` 6-25, so the
-  four half-blocks cannot be imported as members. Widening the range is one line
-  plus a test; nothing needs it yet.
+- **Slope connectivity.** Measured rather than assumed, and the assumption was
+  wrong: two ramps meeting at a peak are already drawn correctly, because along
+  the face they share both shapes are full height and `AutoContext`'s square
+  substitution is exact there. What is actually wrong is a slope ending at air
+  (16-19% of the tile, drawn as buried interior) and the ground beside any slope
+  (3-11%, and it is a blob tile, so no slope artwork reaches it). Both are
+  symptoms of the lossy atlas key, and
+  [`docs/terrain-derived-artwork.md`](terrain-derived-artwork.md) removes the
+  cause instead of adding variants. `scripts/render_slope_matrix.cc` reproduces
+  the measurement and `tests/terrain/terrain_slope_join_test.cc` pins it.
+- **Half-blocks as terrain members.** Dissolved by the same design: once a cell's
+  artwork is derived from its shape there is nothing special about a slope, and
+  the `TileShape` 6-25 range check in `ParseManifestSlopes` goes with it.
 - **Renaming the `kSlope45*` enumerators** so the names match the geometry.
   `kTileShapeIdentifiers` (`src/objects/tileset.h:70-97`) is a declared tool
   contract that asset pipelines parse off the command line, so correcting the

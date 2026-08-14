@@ -1,7 +1,5 @@
 #include "editor/level_editor/terrain_brush.h"
 
-#include <array>
-
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "editor/level_editor/viewport_model.h"
@@ -9,25 +7,6 @@
 
 namespace zebes {
 namespace {
-
-// One neighbour direction and the mask bit it contributes.
-struct NeighborOffset {
-  int dx;
-  int dy;
-  uint8_t bit;
-};
-
-// Screen-space directions: negative y is north.
-constexpr std::array<NeighborOffset, 8> kNeighbors = {{
-    {.dx = 0, .dy = -1, .bit = kNorth},
-    {.dx = 1, .dy = -1, .bit = kNorthEast},
-    {.dx = 1, .dy = 0, .bit = kEast},
-    {.dx = 1, .dy = 1, .bit = kSouthEast},
-    {.dx = 0, .dy = 1, .bit = kSouth},
-    {.dx = -1, .dy = 1, .bit = kSouthWest},
-    {.dx = -1, .dy = 0, .bit = kWest},
-    {.dx = -1, .dy = -1, .bit = kNorthWest},
-}};
 
 // Returns whether a tile coordinate falls outside the level's authored bounds.
 // Cells inside the level but never painted are empty, not outside.
@@ -76,7 +55,7 @@ absl::Status ValidateCell(const Level& level, int tile_x, int tile_y) {
 // replace hand-placed artwork with a blob tile.
 absl::Status RefreshNeighbors(Level& level, const TerrainIndex& index, const Terrain& terrain,
                               int tile_x, int tile_y) {
-  for (const NeighborOffset& offset : kNeighbors) {
+  for (const NeighborOffset& offset : kNeighborOffsets) {
     const int x = tile_x + offset.dx;
     const int y = tile_y + offset.dy;
     if (IsOutsideLevel(level, x, y)) continue;
@@ -156,17 +135,18 @@ absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const TerrainInde
   RETURN_IF_ERROR(ValidateCell(level, tile_x, tile_y));
 
   uint8_t mask = 0;
-  for (const NeighborOffset& offset : kNeighbors) {
-    const int x = tile_x + offset.dx;
-    const int y = tile_y + offset.dy;
+  for (int i = 0; i < kNeighborCount; ++i) {
+    const uint8_t bit = static_cast<uint8_t>(1 << i);
+    const int x = tile_x + kNeighborOffsets[i].dx;
+    const int y = tile_y + kNeighborOffsets[i].dy;
 
     if (IsOutsideLevel(level, x, y)) {
-      if (terrain.solid_outside_level) mask |= offset.bit;
+      if (terrain.solid_outside_level) mask |= bit;
       continue;
     }
 
     ASSIGN_OR_RETURN(const int neighbor_tile, GetTileAt(level, x, y));
-    if (index.FindByTileId(neighbor_tile) == &terrain) mask |= offset.bit;
+    if (index.FindByTileId(neighbor_tile) == &terrain) mask |= bit;
   }
 
   return NormalizeNeighborMask(mask);

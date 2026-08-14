@@ -56,6 +56,17 @@ class TerrainRenderer {
   // between the halves of a ramp.
   absl::StatusOr<RgbaImage> RenderShapeTile(TileShape shape, int variant) const;
 
+  // Artwork for one cell whose eight neighbours are known exactly.
+  //
+  // neighbors is indexed by Neighbor bit position -- N, NE, E, SE, S, SW, W,
+  // NW -- and kNone means air. Nothing is inferred, so this is the only way to
+  // draw a cell that knows what it actually joins. The shipped atlas cannot use
+  // it: artwork is baked before any level exists, which is exactly the gap
+  // slope connectivity has to close.
+  absl::StatusOr<RgbaImage> RenderShapeTileInContext(TileShape shape,
+                                                     absl::Span<const TileShape> neighbors,
+                                                     int variant) const;
+
   int variant_count() const { return config_.variant_period * config_.variant_period; }
   const TerrainGenConfig& config() const { return config_; }
 
@@ -166,5 +177,47 @@ absl::StatusOr<Blob47Atlas> GenerateBlob47Atlas(const TerrainGenConfig& config);
 // could look right while the painted result did not. Cells outside the scene
 // count as air so the silhouette is visible.
 absl::StatusOr<RgbaImage> RenderTerrainPreviewScene(const TerrainRenderer& renderer);
+
+// A rectangle of authored tile shapes, row-major. kNone is air.
+//
+// Unlike the preview scene's character map this names shapes directly, because
+// there are twenty slope units and no set of mnemonic characters for them would
+// survive adding the twenty-first.
+struct ShapeScene {
+  int width = 0;
+  int height = 0;
+  std::vector<TileShape> cells;
+
+  // Cells outside the rectangle are air, so a scene's silhouette is visible and
+  // callers need not pad their scenes with an empty border.
+  TileShape At(int x, int y) const;
+};
+
+// How a scene resolves each cell's neighbourhood.
+enum class SceneContext : uint8_t {
+  // Draw each cell the way the shipped atlas draws it: a full block from its
+  // normalized blob mask, a slope from the single drawing RenderShapeTile
+  // infers. This is what a painted level looks like today.
+  kAsAtlas,
+  // Draw each cell against its neighbours' actual polygons. No atlas can hold
+  // this, because it depends on the level; it is the reference the atlas is
+  // measured against.
+  kTrueNeighbors,
+};
+
+// Artwork for one solid cell of a scene. Air is an error rather than a
+// transparent tile, so a caller that loses track of its own scene finds out.
+//
+// Variants follow the brush: phase (y mod P, x mod P) of a periodic terrain.
+// Slope units under kAsAtlas ignore that and use variant 0, because that is the
+// only phase the atlas holds for them -- run a scene at variant_period 1 to
+// compare neighbourhoods without that difference in the way.
+absl::StatusOr<RgbaImage> RenderSceneCell(const TerrainRenderer& renderer,
+                                          const ShapeScene& scene, int x, int y,
+                                          SceneContext context);
+
+// Renders every solid cell of a scene into one image, air left transparent.
+absl::StatusOr<RgbaImage> RenderShapeScene(const TerrainRenderer& renderer,
+                                           const ShapeScene& scene, SceneContext context);
 
 }  // namespace zebes

@@ -22,6 +22,26 @@ enum Neighbor : uint8_t {
   kNorthWest = 1 << 7,
 };
 
+inline constexpr int kNeighborCount = 8;
+
+// Where each neighbour sits relative to a cell, indexed by the bit position
+// above. Screen space, so negative y is north.
+//
+// This is the only definition. The generator walks a 3x3 canvas and the brush
+// walks a level's tile grid, but if the two ever disagreed about which
+// direction bit 3 meant, generated artwork and painted levels would silently
+// stop matching -- which is precisely the failure this header exists to
+// prevent.
+struct NeighborOffset {
+  int dx = 0;
+  int dy = 0;
+};
+
+inline constexpr NeighborOffset kNeighborOffsets[kNeighborCount] = {
+    {.dx = 0, .dy = -1},  {.dx = 1, .dy = -1}, {.dx = 1, .dy = 0},  {.dx = 1, .dy = 1},
+    {.dx = 0, .dy = 1},   {.dx = -1, .dy = 1}, {.dx = -1, .dy = 0}, {.dx = -1, .dy = -1},
+};
+
 // Distinct masks surviving normalization, and the atlas grid the offline tools
 // lay them out in. 47 of the 48 cells are used.
 inline constexpr int kBlob47TileCount = 47;

@@ -7,6 +7,30 @@ target_link_libraries(terrain_mask
   absl::span
 )
 
+add_library(terrain_cell_key
+  terrain_cell_key.cc
+)
+
+target_link_libraries(terrain_cell_key
+  PUBLIC
+  terrain_mask
+  tileset
+  absl::hash
+  PRIVATE
+  absl::strings
+)
+
+add_library(terrain_placement
+  terrain_placement.cc
+)
+
+target_link_libraries(terrain_placement
+  PUBLIC
+  tileset
+  absl::flat_hash_set
+  absl::span
+)
+
 add_library(terrain_field
   terrain_field.cc
 )
