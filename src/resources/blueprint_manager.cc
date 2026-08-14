@@ -41,17 +41,11 @@ absl::StatusOr<Blueprint> GetBlueprintFromJson(const nlohmann::json& j) {
   try {
     j.at("id").get_to(blueprint.id);
     j.at("name").get_to(blueprint.name);
-    if (!j.contains("states")) return blueprint;
-
-    for (const auto& state_json : j["states"]) {
+    for (const auto& state_json : j.at("states")) {
       Blueprint::State state;
       state_json.at("name").get_to(state.name);
-      if (state_json.contains("collider_id")) {
-        state_json.at("collider_id").get_to(state.collider_id);
-      }
-      if (state_json.contains("sprite_id")) {
-        state_json.at("sprite_id").get_to(state.sprite_id);
-      }
+      state_json.at("collider_id").get_to(state.collider_id);
+      state_json.at("sprite_id").get_to(state.sprite_id);
       blueprint.states.push_back(state);
     }
   } catch (const nlohmann::json::exception& e) {
@@ -103,15 +97,17 @@ absl::Status BlueprintManager::LoadAllBlueprints() {
         absl::StrCat("Blueprint root directory not found: ", definitions_path_));
   }
 
+  ResourceLoadFailures failures;
   for (const std::filesystem::directory_entry& entry :
        std::filesystem::directory_iterator(definitions_path_)) {
     if (entry.path().extension() != ".json") continue;
     auto status = LoadBlueprint(entry.path().filename().string());
     if (!status.ok()) {
       LOG(WARNING) << "Failed to load blueprint from " << entry.path() << ": " << status.status();
+      failures.Add(entry.path().filename().string(), status.status());
     }
   }
-  return absl::OkStatus();
+  return failures.ToStatus("blueprint");
 }
 
 absl::StatusOr<std::string> BlueprintManager::CreateBlueprint(Blueprint blueprint) {

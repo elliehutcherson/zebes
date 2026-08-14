@@ -28,7 +28,7 @@ gtest_discover_tests(texture_manager_test) # <--- REGISTERS THE TEST
 
 # --- Sprite Manager ---
 add_executable(sprite_manager_test resources/sprite_manager_test.cc)
-target_link_libraries(sprite_manager_test sprite_manager texture_manager macros gtest_main)
+target_link_libraries(sprite_manager_test sprite_manager texture_manager macros gtest_main gmock)
 gtest_discover_tests(sprite_manager_test) # <--- REGISTERS THE TEST
 
 # --- Collider Manager ---
@@ -91,6 +91,7 @@ target_link_libraries(terrain_recipe_manager_test
   terrain_recipe_manager
   macros
   gtest_main
+  gmock
   nlohmann_json::nlohmann_json
 )
 gtest_discover_tests(terrain_recipe_manager_test)
@@ -99,9 +100,22 @@ gtest_discover_tests(terrain_recipe_manager_test)
 # Reads the repository's assets/ directly, so the path is baked in rather than
 # depending on ctest's working directory.
 add_executable(shipped_assets_test assets/shipped_assets_test.cc)
-target_link_libraries(shipped_assets_test tileset_manager texture_manager terrain_brush terrain_mask macros gtest_main)
+target_link_libraries(shipped_assets_test
+  tileset_manager
+  texture_manager
+  level_manager
+  sprite_manager
+  blueprint_manager
+  collider_manager
+  terrain_brush
+  terrain_mask
+  macros
+  gtest_main
+)
 target_compile_definitions(shipped_assets_test
   PRIVATE ZEBES_TEST_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+# For the fake texture store SpriteManager needs in place of a live SDL one.
+target_include_directories(shipped_assets_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 gtest_discover_tests(shipped_assets_test)
 
 add_subdirectory(editor)

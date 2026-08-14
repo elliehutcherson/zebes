@@ -34,13 +34,11 @@ absl::StatusOr<Tile> GetTileFromJson(const nlohmann::json& j) {
   try {
     j.at("id").get_to(tile_def.id);
     j.at("name").get_to(tile_def.name);
-    tile_def.source_x = j.value("source_x", 0);
-    tile_def.source_y = j.value("source_y", 0);
-    tile_def.shape = static_cast<TileShape>(j.value("shape", 0));
-    tile_def.is_one_way = j.value("is_one_way", false);
-    if (j.contains("tags")) {
-      j.at("tags").get_to(tile_def.tags);
-    }
+    j.at("source_x").get_to(tile_def.source_x);
+    j.at("source_y").get_to(tile_def.source_y);
+    tile_def.shape = static_cast<TileShape>(j.at("shape").get<int>());
+    j.at("is_one_way").get_to(tile_def.is_one_way);
+    j.at("tags").get_to(tile_def.tags);
   } catch (const nlohmann::json::exception& e) {
     return absl::InternalError(
         absl::StrCat("JSON parsing error for Tile: ", e.what()));
@@ -72,12 +70,10 @@ nlohmann::json ToJson(const Terrain& terrain) {
     rules_json.push_back(std::move(rule_j));
   }
   j["rules"] = rules_json;
-
-  // Omitted when unused so terrains with no hand-placed pieces keep their
-  // existing on-disk shape.
-  if (!terrain.member_tile_ids.empty()) {
-    j["member_tile_ids"] = terrain.member_tile_ids;
-  }
+  // Written even when empty. An absent field and an empty list would mean the
+  // same thing here, and offering the reader two spellings of one state is what
+  // forces it to guess.
+  j["member_tile_ids"] = terrain.member_tile_ids;
 
   return j;
 }
@@ -87,22 +83,18 @@ absl::StatusOr<Terrain> GetTerrainFromJson(const nlohmann::json& j) {
   try {
     j.at("id").get_to(terrain.id);
     j.at("name").get_to(terrain.name);
-    terrain.scheme = static_cast<TerrainScheme>(j.value("scheme", 0));
-    terrain.solid_outside_level = j.value("solid_outside_level", true);
+    terrain.scheme = static_cast<TerrainScheme>(j.at("scheme").get<int>());
+    j.at("solid_outside_level").get_to(terrain.solid_outside_level);
     j.at("variant_period").get_to(terrain.variant_period);
+    j.at("member_tile_ids").get_to(terrain.member_tile_ids);
 
-    if (j.contains("member_tile_ids")) {
-      j.at("member_tile_ids").get_to(terrain.member_tile_ids);
-    }
-
-    if (!j.contains("rules")) return terrain;
     for (const nlohmann::json& rule_j : j.at("rules")) {
       TerrainRule rule;
       rule.mask = static_cast<uint8_t>(rule_j.at("mask").get<int>());
       for (const nlohmann::json& variant_j : rule_j.at("variants")) {
         rule.variants.push_back(TerrainVariant{
             .tile_id = variant_j.at("tile_id").get<int>(),
-            .weight = variant_j.value("weight", 1),
+            .weight = variant_j.at("weight").get<int>(),
         });
       }
       terrain.rules.push_back(std::move(rule));
@@ -129,15 +121,12 @@ nlohmann::json ToJson(const Tileset& tileset) {
   }
   j["tiles"] = tiles_json;
 
-  // Omitted entirely when unused so hand-placed tilesets keep their existing
-  // on-disk shape.
-  if (!tileset.terrains.empty()) {
-    std::vector<nlohmann::json> terrains_json;
-    for (const Terrain& terrain : tileset.terrains) {
-      terrains_json.push_back(ToJson(terrain));
-    }
-    j["terrains"] = terrains_json;
+  std::vector<nlohmann::json> terrains_json;
+  for (const Terrain& terrain : tileset.terrains) {
+    terrains_json.push_back(ToJson(terrain));
   }
+  // Written even when empty, for the same reason as member_tile_ids above.
+  j["terrains"] = terrains_json;
 
   return j;
 }
@@ -148,22 +137,23 @@ absl::StatusOr<Tileset> GetTilesetFromJson(const nlohmann::json& j) {
     j.at("id").get_to(tileset.id);
     j.at("name").get_to(tileset.name);
     j.at("texture_id").get_to(tileset.texture_id);
-    tileset.tile_width = j.value("tile_width", 16);
-    tileset.tile_height = j.value("tile_height", 16);
+    j.at("tile_width").get_to(tileset.tile_width);
+    j.at("tile_height").get_to(tileset.tile_height);
+    // Presence is checked here so a malformed document fails as a Tileset
+    // parse error rather than further down as a bare nlohmann exception.
+    if (!j.contains("tiles") || !j.contains("terrains")) {
+      return absl::InvalidArgumentError(
+          "Tileset definition must list both 'tiles' and 'terrains', even when empty");
+    }
   } catch (const nlohmann::json::exception& e) {
     return absl::InternalError(
         absl::StrCat("JSON parsing error for Tileset: ", e.what()));
   }
 
-  if (j.contains("tiles")) {
-    for (const nlohmann::json& tile_j : j["tiles"]) {
-      ASSIGN_OR_RETURN(Tile tile_def, GetTileFromJson(tile_j));
-      tileset.tiles.push_back(std::move(tile_def));
-    }
+  for (const nlohmann::json& tile_j : j["tiles"]) {
+    ASSIGN_OR_RETURN(Tile tile_def, GetTileFromJson(tile_j));
+    tileset.tiles.push_back(std::move(tile_def));
   }
-
-  // Absent for every tileset authored before terrains existed.
-  if (!j.contains("terrains")) return tileset;
 
   for (const nlohmann::json& terrain_j : j["terrains"]) {
     ASSIGN_OR_RETURN(Terrain terrain, GetTerrainFromJson(terrain_j));
@@ -331,6 +321,7 @@ absl::Status TilesetManager::LoadAllTilesets() {
         absl::StrCat("Tileset root directory not found: ", definitions_path_));
   }
 
+  ResourceLoadFailures failures;
   for (const std::filesystem::directory_entry& entry :
        std::filesystem::directory_iterator(definitions_path_)) {
     if (entry.path().extension() != ".json") continue;
@@ -338,9 +329,10 @@ absl::Status TilesetManager::LoadAllTilesets() {
     if (!status.ok()) {
       LOG(WARNING) << "Failed to load tileset from " << entry.path() << ": "
                    << status.status();
+      failures.Add(entry.path().filename().string(), status.status());
     }
   }
-  return absl::OkStatus();
+  return failures.ToStatus("tileset");
 }
 
 absl::StatusOr<std::string> TilesetManager::CreateTileset(Tileset tileset) {

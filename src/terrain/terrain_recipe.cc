@@ -103,7 +103,7 @@ nlohmann::json ConfigToJson(const TerrainGenConfig& config) {
   };
 }
 
-absl::StatusOr<TerrainGenConfig> ConfigFromJson(const nlohmann::json& json, int schema_version) {
+absl::StatusOr<TerrainGenConfig> ConfigFromJson(const nlohmann::json& json) {
   TerrainGenConfig config;
   ASSIGN_OR_RETURN(config.tile_size, Required<int>(json, "tile_size"));
   ASSIGN_OR_RETURN(config.supersample, Required<int>(json, "supersample"));
@@ -111,40 +111,14 @@ absl::StatusOr<TerrainGenConfig> ConfigFromJson(const nlohmann::json& json, int 
   ASSIGN_OR_RETURN(config.pixel_profile, RequiredEnum<TerrainPixelProfile>(json, "pixel_profile"));
 
   ASSIGN_OR_RETURN(const nlohmann::json surface, Required<nlohmann::json>(json, "surface"));
-  if (schema_version == 1) {
-    float grass_band = 0.0f;
-    float bottom_bias = 0.0f;
-    ASSIGN_OR_RETURN(grass_band, Required<float>(surface, "grass_band"));
-    ASSIGN_OR_RETURN(bottom_bias, Required<float>(surface, "grass_bottom_bias"));
-    if (!std::isfinite(bottom_bias) || bottom_bias < 0.0f || bottom_bias > 1.0f) {
-      return absl::InvalidArgumentError(
-          "terrain recipe field 'grass_bottom_bias' must be finite and in [0, 1]");
-    }
-    // v1 multiplied one depth by a linear facing bias. These three samples
-    // reproduce that line exactly under v2's piecewise interpolation.
-    config.surface.top_depth = grass_band;
-    config.surface.side_depth = grass_band * (0.5f + 0.5f * bottom_bias);
-    config.surface.underside_depth = grass_band * bottom_bias;
-    ASSIGN_OR_RETURN(config.surface.outline_depth, Required<int>(surface, "outline_width"));
-    ASSIGN_OR_RETURN(config.surface.highlight_depth, Required<int>(surface, "grass_hi_depth"));
-    ASSIGN_OR_RETURN(config.surface.shade_depth, Required<int>(surface, "grass_shade_depth"));
-    // A zero-depth wall is the v1 behaviour. Its colour is irrelevant until
-    // the author explicitly enables the new layer.
-    config.surface.wall_depth = 0;
-    config.surface.wall_darkness = 1.0f;
-  } else if (schema_version == 2 || schema_version == 3) {
-    ASSIGN_OR_RETURN(config.surface.top_depth, Required<float>(surface, "top_depth"));
-    ASSIGN_OR_RETURN(config.surface.side_depth, Required<float>(surface, "side_depth"));
-    ASSIGN_OR_RETURN(config.surface.underside_depth, Required<float>(surface, "underside_depth"));
-    ASSIGN_OR_RETURN(config.surface.outline_depth, Required<int>(surface, "outline_depth"));
-    ASSIGN_OR_RETURN(config.surface.highlight_depth, Required<int>(surface, "highlight_depth"));
-    ASSIGN_OR_RETURN(config.surface.shade_depth, Required<int>(surface, "shade_depth"));
-    ASSIGN_OR_RETURN(config.surface.wall_depth, Required<int>(surface, "wall_depth"));
-    ASSIGN_OR_RETURN(config.surface.wall_darkness, Required<float>(surface, "wall_darkness"));
-  } else {
-    return absl::FailedPreconditionError(
-        absl::StrCat("terrain recipe has no config parser for schema version ", schema_version));
-  }
+  ASSIGN_OR_RETURN(config.surface.top_depth, Required<float>(surface, "top_depth"));
+  ASSIGN_OR_RETURN(config.surface.side_depth, Required<float>(surface, "side_depth"));
+  ASSIGN_OR_RETURN(config.surface.underside_depth, Required<float>(surface, "underside_depth"));
+  ASSIGN_OR_RETURN(config.surface.outline_depth, Required<int>(surface, "outline_depth"));
+  ASSIGN_OR_RETURN(config.surface.highlight_depth, Required<int>(surface, "highlight_depth"));
+  ASSIGN_OR_RETURN(config.surface.shade_depth, Required<int>(surface, "shade_depth"));
+  ASSIGN_OR_RETURN(config.surface.wall_depth, Required<int>(surface, "wall_depth"));
+  ASSIGN_OR_RETURN(config.surface.wall_darkness, Required<float>(surface, "wall_darkness"));
   ASSIGN_OR_RETURN(config.surface.ruffle_amplitude, Required<float>(surface, "ruffle_amplitude"));
   ASSIGN_OR_RETURN(config.surface.ruffle_density, Required<float>(surface, "ruffle_density"));
   ASSIGN_OR_RETURN(config.surface.ruffle_sharpness, Required<float>(surface, "ruffle_sharpness"));
@@ -152,21 +126,14 @@ absl::StatusOr<TerrainGenConfig> ConfigFromJson(const nlohmann::json& json, int 
   ASSIGN_OR_RETURN(config.surface.contact_depth, Required<int>(surface, "contact_depth"));
   ASSIGN_OR_RETURN(config.surface.texture_size, Required<float>(surface, "texture_size"));
   ASSIGN_OR_RETURN(config.surface.texture_amount, Required<float>(surface, "texture_amount"));
-  if (schema_version >= 3) {
-    ASSIGN_OR_RETURN(const nlohmann::json edge, Required<nlohmann::json>(surface, "edge_detail"));
-    ASSIGN_OR_RETURN(config.surface.edge_detail.family,
-                     RequiredEnum<TerrainEdgeDetailSet>(edge, "family"));
-    ASSIGN_OR_RETURN(config.surface.edge_detail.amount, Required<float>(edge, "amount"));
-    ASSIGN_OR_RETURN(config.surface.edge_detail.length, Required<int>(edge, "length"));
-    ASSIGN_OR_RETURN(config.surface.edge_detail.clump_size, Required<int>(edge, "clump_size"));
-    ASSIGN_OR_RETURN(config.surface.edge_detail.lean, Required<float>(edge, "lean"));
-    ASSIGN_OR_RETURN(config.surface.edge_detail.highlight, Required<float>(edge, "highlight"));
-  } else {
-    // Older recipes predate edge decoration. Explicitly selecting None keeps
-    // their pixels stable even if future defaults choose a visible family.
-    config.surface.edge_detail = TerrainEdgeDetailConfig{};
-    config.surface.edge_detail.family = TerrainEdgeDetailSet::kNone;
-  }
+  ASSIGN_OR_RETURN(const nlohmann::json edge, Required<nlohmann::json>(surface, "edge_detail"));
+  ASSIGN_OR_RETURN(config.surface.edge_detail.family,
+                   RequiredEnum<TerrainEdgeDetailSet>(edge, "family"));
+  ASSIGN_OR_RETURN(config.surface.edge_detail.amount, Required<float>(edge, "amount"));
+  ASSIGN_OR_RETURN(config.surface.edge_detail.length, Required<int>(edge, "length"));
+  ASSIGN_OR_RETURN(config.surface.edge_detail.clump_size, Required<int>(edge, "clump_size"));
+  ASSIGN_OR_RETURN(config.surface.edge_detail.lean, Required<float>(edge, "lean"));
+  ASSIGN_OR_RETURN(config.surface.edge_detail.highlight, Required<float>(edge, "highlight"));
 
   ASSIGN_OR_RETURN(const nlohmann::json interior, Required<nlohmann::json>(json, "interior"));
   ASSIGN_OR_RETURN(const nlohmann::json base, Required<nlohmann::json>(interior, "base"));
@@ -236,12 +203,10 @@ nlohmann::json TerrainRecipeToJson(const TerrainRecipe& recipe) {
 
 absl::StatusOr<TerrainRecipe> TerrainRecipeFromJson(const nlohmann::json& json) {
   ASSIGN_OR_RETURN(const int schema_version, Required<int>(json, "schema_version"));
-  if (schema_version < kOldestTerrainRecipeSchemaVersion ||
-      schema_version > kTerrainRecipeSchemaVersion) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("unsupported terrain recipe schema version ", schema_version,
-                     "; this editor supports versions ", kOldestTerrainRecipeSchemaVersion,
-                     " through ", kTerrainRecipeSchemaVersion));
+  if (schema_version != kTerrainRecipeSchemaVersion) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "terrain recipe schema version ", schema_version, " is not version ",
+        kTerrainRecipeSchemaVersion, "; run scripts/migrate_definitions.py to bring it forward"));
   }
 
   TerrainRecipe recipe;
@@ -255,7 +220,7 @@ absl::StatusOr<TerrainRecipe> TerrainRecipeFromJson(const nlohmann::json& json) 
     recipe.source_preset = std::move(source_preset);
   }
   ASSIGN_OR_RETURN(const nlohmann::json config, Required<nlohmann::json>(json, "config"));
-  ASSIGN_OR_RETURN(recipe.config, ConfigFromJson(config, schema_version));
+  ASSIGN_OR_RETURN(recipe.config, ConfigFromJson(config));
 
   if (recipe.id.empty() || recipe.name.empty() || recipe.tileset_id.empty() ||
       recipe.texture_id.empty() || recipe.terrain_id <= 0) {

@@ -1,0 +1,239 @@
+import importlib.util
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "migrate_definitions.py"
+SPEC = importlib.util.spec_from_file_location("migrate_definitions", SCRIPT_PATH)
+migrate_definitions = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+sys.modules[SPEC.name] = migrate_definitions
+SPEC.loader.exec_module(migrate_definitions)
+
+
+class MigrateDefinitionsTest(unittest.TestCase):
+    def setUp(self):
+        self._temp = tempfile.TemporaryDirectory()
+        self.root = Path(self._temp.name)
+        (self.root / "sprites").mkdir()
+        (self.root / "terrain_recipes").mkdir()
+        (self.root / "tilesets").mkdir()
+        self.addCleanup(self._temp.cleanup)
+
+    def write_tileset(self, name, document):
+        path = self.root / "tilesets" / name
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
+    def write_recipe(self, name, document):
+        path = self.root / "terrain_recipes" / name
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
+    @staticmethod
+    def v2_recipe():
+        return {
+            "id": "r",
+            "name": "Cave",
+            "schema_version": 2,
+            "config": {"surface": {"top_depth": 9.0}},
+        }
+
+    def write_sprite(self, name, document):
+        path = self.root / "sprites" / name
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
+    def read_sprite(self, path):
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def test_missing_offsets_become_explicit_zeros(self):
+        path = self.write_sprite(
+            "walk.json",
+            {"id": "a", "name": "Walk", "texture_id": "t", "frames": [{"index": 0}]},
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "sprites", dry_run=False)
+
+        self.assertEqual(changed, [path])
+        frame = self.read_sprite(path)["frames"][0]
+        self.assertEqual(frame["offset_x"], 0)
+        self.assertEqual(frame["offset_y"], 0)
+
+    # An authored offset is the whole reason the field exists; a migration that
+    # overwrote one would silently move artwork.
+    def test_authored_offsets_are_left_alone(self):
+        path = self.write_sprite(
+            "idle.json",
+            {
+                "id": "b",
+                "name": "Idle",
+                "texture_id": "t",
+                "frames": [{"index": 0, "offset_x": -4, "offset_y": 7}],
+            },
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "sprites", dry_run=False)
+
+        self.assertEqual(changed, [])
+        frame = self.read_sprite(path)["frames"][0]
+        self.assertEqual(frame["offset_x"], -4)
+        self.assertEqual(frame["offset_y"], 7)
+
+    def test_a_half_migrated_frame_gains_only_the_missing_field(self):
+        path = self.write_sprite(
+            "jump.json",
+            {"id": "c", "name": "Jump", "texture_id": "t", "frames": [{"offset_x": 3}]},
+        )
+
+        migrate_definitions.migrate_directory(self.root, "sprites", dry_run=False)
+
+        frame = self.read_sprite(path)["frames"][0]
+        self.assertEqual(frame["offset_x"], 3)
+        self.assertEqual(frame["offset_y"], 0)
+
+    def test_running_twice_changes_nothing_the_second_time(self):
+        self.write_sprite(
+            "walk.json",
+            {"id": "a", "name": "Walk", "texture_id": "t", "frames": [{"index": 0}]},
+        )
+
+        migrate_definitions.migrate_directory(self.root, "sprites", dry_run=False)
+        again = migrate_definitions.migrate_directory(self.root, "sprites", dry_run=False)
+
+        self.assertEqual(again, [])
+
+    def test_dry_run_reports_without_writing(self):
+        path = self.write_sprite(
+            "walk.json",
+            {"id": "a", "name": "Walk", "texture_id": "t", "frames": [{"index": 0}]},
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "sprites", dry_run=True)
+
+        self.assertEqual(changed, [path])
+        self.assertNotIn("offset_x", self.read_sprite(path)["frames"][0])
+
+    def test_a_missing_directory_fails_fast(self):
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            migrate_definitions.migrate_directory(self.root / "nope", "sprites", dry_run=False)
+
+    # The managers write with nlohmann's dump(4), which sorts keys and appends
+    # no terminator. A migrated file that differs in layout would make the next
+    # editor save look like a whole-file rewrite.
+    def test_output_matches_what_the_manager_writes(self):
+        path = self.write_sprite(
+            "walk.json",
+            {"texture_id": "t", "name": "Walk", "id": "a", "frames": [{"index": 0}]},
+        )
+
+        migrate_definitions.migrate_directory(self.root, "sprites", dry_run=False)
+
+        text = path.read_text(encoding="utf-8")
+        self.assertFalse(text.endswith("\n"))
+        self.assertIn('\n    "frames": [', text)
+        self.assertLess(text.index('"frames"'), text.index('"id"'))
+
+
+    def test_a_v2_recipe_gains_edge_detail_switched_off(self):
+        path = self.write_recipe("cave.json", self.v2_recipe())
+
+        changed = migrate_definitions.migrate_directory(
+            self.root, "terrain_recipes", dry_run=False
+        )
+
+        self.assertEqual(changed, [path])
+        document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(document["schema_version"], 3)
+        edge = document["config"]["surface"]["edge_detail"]
+        # Family None is the whole point: a v2 recipe drew no edge decoration,
+        # and inheriting a future default would change its pixels.
+        self.assertEqual(edge["family"], 0)
+        self.assertEqual(edge["length"], 4)
+
+    def test_the_rest_of_the_recipe_is_untouched(self):
+        path = self.write_recipe("cave.json", self.v2_recipe())
+
+        migrate_definitions.migrate_directory(self.root, "terrain_recipes", dry_run=False)
+
+        document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(document["config"]["surface"]["top_depth"], 9.0)
+        self.assertEqual(document["name"], "Cave")
+
+    def test_a_current_recipe_is_left_alone(self):
+        document = self.v2_recipe()
+        document["schema_version"] = 3
+        document["config"]["surface"]["edge_detail"] = {"family": 2, "length": 9}
+        path = self.write_recipe("cave.json", document)
+
+        changed = migrate_definitions.migrate_directory(
+            self.root, "terrain_recipes", dry_run=False
+        )
+
+        self.assertEqual(changed, [])
+        edge = json.loads(path.read_text(encoding="utf-8"))["config"]["surface"]["edge_detail"]
+        self.assertEqual(edge["family"], 2)
+
+    # v1 stored a different surface record and none has ever existed here.
+    # Guessing at one would silently invent a look nobody authored.
+    def test_an_unmigratable_version_fails_fast(self):
+        document = self.v2_recipe()
+        document["schema_version"] = 1
+        self.write_recipe("old.json", document)
+
+        with self.assertRaisesRegex(ValueError, "only 2 is supported"):
+            migrate_definitions.migrate_directory(self.root, "terrain_recipes", dry_run=False)
+
+
+    # An absent list and an empty one always meant the same thing. Writing both
+    # unconditionally is what lets the reader require them.
+    def test_a_tileset_without_terrains_gains_an_empty_list(self):
+        path = self.write_tileset(
+            "grass.json", {"id": "t", "name": "Grass", "texture_id": "x", "tiles": []}
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "tilesets", dry_run=False)
+
+        self.assertEqual(changed, [path])
+        self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["terrains"], [])
+
+    def test_a_terrain_without_members_gains_an_empty_list(self):
+        path = self.write_tileset(
+            "grass.json",
+            {
+                "id": "t",
+                "name": "Grass",
+                "texture_id": "x",
+                "tiles": [],
+                "terrains": [{"id": 1, "name": "Dirt", "member_tile_ids": [7]}, {"id": 2}],
+            },
+        )
+
+        migrate_definitions.migrate_directory(self.root, "tilesets", dry_run=False)
+
+        terrains = json.loads(path.read_text(encoding="utf-8"))["terrains"]
+        self.assertEqual(terrains[0]["member_tile_ids"], [7])
+        self.assertEqual(terrains[1]["member_tile_ids"], [])
+
+    def test_a_current_tileset_is_left_alone(self):
+        self.write_tileset(
+            "grass.json",
+            {
+                "id": "t",
+                "name": "Grass",
+                "texture_id": "x",
+                "tiles": [],
+                "terrains": [{"id": 1, "member_tile_ids": []}],
+            },
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "tilesets", dry_run=False)
+
+        self.assertEqual(changed, [])
+
+
+if __name__ == "__main__":
+    unittest.main()

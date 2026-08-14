@@ -437,7 +437,11 @@ TEST_F(TilesetManagerTest, TerrainSurvivesSerializationRoundTrip) {
 }
 
 // Every tileset authored before terrains existed must keep loading unchanged.
-TEST_F(TilesetManagerTest, LegacyTilesetWithoutTerrainsLoads) {
+// An empty terrain list is written as an empty list, so a definition with no
+// 'terrains' key at all is one this editor cannot interpret. Defaulting it to
+// empty would silently discard terrains from a document that meant to have
+// them but was truncated.
+TEST_F(TilesetManagerTest, TilesetWithoutATerrainsKeyIsRefused) {
   std::string file_path = test_dir_ + "/definitions/tilesets/legacy.json";
   std::ofstream out(file_path);
   out << R"({
@@ -446,13 +450,38 @@ TEST_F(TilesetManagerTest, LegacyTilesetWithoutTerrainsLoads) {
     "texture_id": "tx",
     "tile_width": 32,
     "tile_height": 32,
-    "tiles": [{"id": 1, "name": "Solid", "source_x": 0, "source_y": 0, "shape": 1}]
+    "tiles": [{"id": 1, "name": "Solid", "source_x": 0, "source_y": 0, "shape": 1,
+               "is_one_way": false, "tags": []}]
   })";
   out.close();
 
-  ASSERT_OK_AND_ASSIGN(Tileset * loaded, manager_->LoadTileset("legacy.json"));
-  EXPECT_EQ(loaded->tiles.size(), 1);
-  EXPECT_TRUE(loaded->terrains.empty());
+  absl::StatusOr<Tileset*> loaded = manager_->LoadTileset("legacy.json");
+
+  ASSERT_FALSE(loaded.ok());
+  EXPECT_THAT(std::string(loaded.status().message()), HasSubstr("terrains"));
+}
+
+// A tile whose shape is absent used to load as kNone, which collides with
+// nothing. That is the failure this strictness exists to prevent.
+TEST_F(TilesetManagerTest, TileWithoutAShapeIsRefused) {
+  std::string file_path = test_dir_ + "/definitions/tilesets/shapeless.json";
+  std::ofstream out(file_path);
+  out << R"({
+    "id": "shapeless-id",
+    "name": "Shapeless",
+    "texture_id": "tx",
+    "tile_width": 32,
+    "tile_height": 32,
+    "tiles": [{"id": 1, "name": "Solid", "source_x": 0, "source_y": 0,
+               "is_one_way": false, "tags": []}],
+    "terrains": []
+  })";
+  out.close();
+
+  absl::StatusOr<Tileset*> loaded = manager_->LoadTileset("shapeless.json");
+
+  ASSERT_FALSE(loaded.ok());
+  EXPECT_THAT(std::string(loaded.status().message()), HasSubstr("shape"));
 }
 
 // How a terrain picks variants decides what a painted region looks like, so it
@@ -510,7 +539,9 @@ TEST_F(TilesetManagerTest, SaveTileset_PeriodicTerrainMissingAPhase_Fails) {
 }
 
 // A tileset with no terrains must not gain a "terrains" key on disk.
-TEST_F(TilesetManagerTest, TilesetWithoutTerrainsOmitsTheKey) {
+// An absent list and an empty one would mean the same thing, and offering the
+// reader two spellings of one state is exactly what forces it to guess.
+TEST_F(TilesetManagerTest, TilesetWithoutTerrainsStillWritesTheKey) {
   ASSERT_OK_AND_ASSIGN(std::string id,
                        manager_->CreateTileset(Tileset{
                            .name = "Plain",
@@ -521,7 +552,10 @@ TEST_F(TilesetManagerTest, TilesetWithoutTerrainsOmitsTheKey) {
   std::ifstream in(test_dir_ + "/definitions/tilesets/Plain-" + id + ".json");
   ASSERT_TRUE(in.is_open());
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  EXPECT_THAT(contents, ::testing::Not(HasSubstr("terrains")));
+  EXPECT_THAT(contents, HasSubstr("terrains"));
+
+  ASSERT_OK_AND_ASSIGN(Tileset * loaded, manager_->LoadTileset("Plain-" + id + ".json"));
+  EXPECT_TRUE(loaded->terrains.empty());
 }
 
 TEST_F(TilesetManagerTest, SaveTileset_TerrainReferencingUnknownTile_Fails) {
@@ -574,13 +608,16 @@ TEST_F(TilesetManagerTest, TerrainMemberTileIdsSurviveRoundTrip) {
 }
 
 // A terrain with no hand-placed pieces must not gain the key on disk.
-TEST_F(TilesetManagerTest, TerrainWithoutMembersOmitsTheKey) {
+TEST_F(TilesetManagerTest, TerrainWithoutMembersStillWritesTheKey) {
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTileset(MakeTerrainTileset()));
 
   std::ifstream in(test_dir_ + "/definitions/tilesets/GrassTerrain-" + id + ".json");
   ASSERT_TRUE(in.is_open());
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  EXPECT_THAT(contents, ::testing::Not(HasSubstr("member_tile_ids")));
+  EXPECT_THAT(contents, HasSubstr("member_tile_ids"));
+
+  ASSERT_OK_AND_ASSIGN(Tileset * loaded, manager_->LoadTileset("GrassTerrain-" + id + ".json"));
+  EXPECT_TRUE(loaded->terrains[0].member_tile_ids.empty());
 }
 
 TEST_F(TilesetManagerTest, SaveTileset_TerrainMemberReferencingUnknownTile_Fails) {

@@ -39,15 +39,15 @@ void ToJson(nlohmann::json& j, const ParallaxLayer& layer) {
 }
 
 void FromJson(const nlohmann::json& j, ParallaxLayer& layer) {
-  layer.name = j.value("name", "");
+  j.at("name").get_to(layer.name);
   j.at("texture_id").get_to(layer.texture_id);
   j.at("scroll_factor_x").get_to(layer.scroll_factor.x);
   j.at("scroll_factor_y").get_to(layer.scroll_factor.y);
-  layer.offset.x = j.value("offset_x", 0.0);
-  layer.offset.y = j.value("offset_y", 0.0);
-  layer.repeat_x = j.value("repeat_x", false);
-  layer.repeat_y = j.value("repeat_y", false);
-  layer.base_scale = j.value("base_scale", 1.0f);
+  j.at("offset_x").get_to(layer.offset.x);
+  j.at("offset_y").get_to(layer.offset.y);
+  j.at("repeat_x").get_to(layer.repeat_x);
+  j.at("repeat_y").get_to(layer.repeat_y);
+  j.at("base_scale").get_to(layer.base_scale);
 }
 
 // Helper for ParallaxTheme
@@ -64,14 +64,12 @@ void ToJson(nlohmann::json& j, const ParallaxTheme& theme) {
 }
 
 void FromJson(const nlohmann::json& j, ParallaxTheme& theme) {
-  theme.id = j.value("id", -1);
+  j.at("id").get_to(theme.id);
   j.at("name").get_to(theme.name);
-  if (j.contains("layers")) {
-    for (const auto& item : j["layers"]) {
-      ParallaxLayer layer;
-      FromJson(item, layer);
-      theme.layers.push_back(layer);
-    }
+  for (const auto& item : j.at("layers")) {
+    ParallaxLayer layer;
+    FromJson(item, layer);
+    theme.layers.push_back(layer);
   }
 }
 
@@ -94,12 +92,12 @@ void FromJson(const nlohmann::json& j, ParallaxZone& zone) {
   j.at("id").get_to(zone.id);
   j.at("name").get_to(zone.name);
   j.at("theme_id").get_to(zone.theme_id);
-  zone.min_point.x = j.value("min_x", 0.0f);
-  zone.min_point.y = j.value("min_y", 0.0f);
-  zone.max_point.x = j.value("max_x", 0.0f);
-  zone.max_point.y = j.value("max_y", 0.0f);
-  zone.fade_length.x = j.value("fade_x", 0.0f);
-  zone.fade_length.y = j.value("fade_y", 0.0f);
+  j.at("min_x").get_to(zone.min_point.x);
+  j.at("min_y").get_to(zone.min_point.y);
+  j.at("max_x").get_to(zone.max_point.x);
+  j.at("max_y").get_to(zone.max_point.y);
+  j.at("fade_x").get_to(zone.fade_length.x);
+  j.at("fade_y").get_to(zone.fade_length.y);
 }
 
 void ToJson(nlohmann::json& j, const Entity& entity) {
@@ -124,44 +122,37 @@ void ToJson(nlohmann::json& j, const Entity& entity) {
            {"mass", entity.body.mass},
        }},
   };
-  if (!entity.sprite_id.empty()) {
-    j["sprite_id"] = entity.sprite_id;
-  }
-  if (!entity.collider_id.empty()) {
-    j["collider_id"] = entity.collider_id;
-  }
+  // Written even when empty. An unbound reference is a state the level means to
+  // record, not one to leave the reader inferring from an absent key.
+  j["sprite_id"] = entity.sprite_id;
+  j["collider_id"] = entity.collider_id;
 }
 
 absl::Status FromJson(const nlohmann::json& j, Entity& entity) {
   j.at("id").get_to(entity.id);
-  entity.active = j.value("active", true);
-  entity.blueprint_id = j.value("blueprint_id", "");
-  entity.blueprint_state_index = j.value("blueprint_state_index", 0);
+  j.at("active").get_to(entity.active);
+  j.at("blueprint_id").get_to(entity.blueprint_id);
+  j.at("blueprint_state_index").get_to(entity.blueprint_state_index);
 
-  if (j.contains("transform")) {
-    auto& t = j["transform"];
-    entity.transform.position.x = t.value("x", 0.0);
-    entity.transform.position.y = t.value("y", 0.0);
-    entity.transform.rotation = t.value("rotation", 0.0);
-  }
+  const nlohmann::json& t = j.at("transform");
+  t.at("x").get_to(entity.transform.position.x);
+  t.at("y").get_to(entity.transform.position.y);
+  t.at("rotation").get_to(entity.transform.rotation);
 
-  // Levels written before the split carry current_frame_index. Like the body's
-  // vx/vy/ax/ay, it is simulation state and is ignored rather than restored.
-
-  if (j.contains("body")) {
-    // Levels written before the split carry vx/vy/ax/ay. Those keys are
-    // simulation state and are ignored rather than restored.
-    auto& b = j["body"];
-    entity.body.drag.x = b.value("drag_x", 0.0);
-    entity.body.drag.y = b.value("drag_y", 0.0);
-    entity.body.is_static = b.value("is_static", false);
-    entity.body.mass = b.value("mass", 0.0);
-  }
+  // Levels written before the split carry current_frame_index alongside the
+  // body's vx/vy/ax/ay. Those keys are simulation state; extra keys are ignored
+  // here rather than rejected, since the writer stopped emitting them and
+  // nothing reads them.
+  const nlohmann::json& b = j.at("body");
+  b.at("drag_x").get_to(entity.body.drag.x);
+  b.at("drag_y").get_to(entity.body.drag.y);
+  b.at("is_static").get_to(entity.body.is_static);
+  b.at("mass").get_to(entity.body.mass);
 
   // Asset references are kept as IDs. Resolving them is the renderer's job, so
   // a level can be loaded without the sprite or collider managers.
-  entity.sprite_id = j.value("sprite_id", "");
-  entity.collider_id = j.value("collider_id", "");
+  j.at("sprite_id").get_to(entity.sprite_id);
+  j.at("collider_id").get_to(entity.collider_id);
   return absl::OkStatus();
 }
 
@@ -225,19 +216,21 @@ nlohmann::json ToJson(const Level& level) {
   return j;
 }
 
-absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j) {
+// Reads a level document, assuming every field the writer emits is present.
+// Throws nlohmann::json::exception when one is not; GetLevelFromJson turns that
+// into a Status so a stale definition names the missing field instead of
+// terminating the editor.
+absl::StatusOr<Level> ParseLevel(const nlohmann::json& j) {
   Level level;
   j.at("id").get_to(level.id);
   j.at("name").get_to(level.name);
-  level.width = j.value("width", 0.0);
-  level.height = j.value("height", 0.0);
-  level.tile_render_width = j.value("tile_render_width", 16);
-  level.tile_render_height = j.value("tile_render_height", 16);
-  level.tileset_id = j.value("tileset_id", "");
-  if (j.contains("spawn_point")) {
-    level.spawn_point.x = j["spawn_point"].value("x", 0.0);
-    level.spawn_point.y = j["spawn_point"].value("y", 0.0);
-  }
+  j.at("width").get_to(level.width);
+  j.at("height").get_to(level.height);
+  j.at("tile_render_width").get_to(level.tile_render_width);
+  j.at("tile_render_height").get_to(level.tile_render_height);
+  j.at("tileset_id").get_to(level.tileset_id);
+  j.at("spawn_point").at("x").get_to(level.spawn_point.x);
+  j.at("spawn_point").at("y").get_to(level.spawn_point.y);
 
   // Validation
   if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
@@ -250,10 +243,10 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j) {
                      level.tile_render_width, " x ", level.tile_render_height, ")"));
   }
 
-  if (j.contains("parallax_layers")) {
+  {
     absl::flat_hash_set<std::string> existing_names;
     int index = 0;
-    for (const nlohmann::json& item : j["parallax_layers"]) {
+    for (const nlohmann::json& item : j.at("parallax_layers")) {
       ParallaxLayer layer;
       FromJson(item, layer);
 
@@ -275,8 +268,8 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j) {
     }
   }
 
-  if (j.contains("themes")) {
-    for (const auto& item : j["themes"]) {
+  {
+    for (const auto& item : j.at("themes")) {
       ParallaxTheme theme;
       FromJson(item, theme);
       if (theme.id < 0) {
@@ -286,9 +279,9 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j) {
     }
   }
 
-  if (j.contains("zones")) {
+  {
     absl::flat_hash_set<int> zone_ids;
-    for (const auto& item : j["zones"]) {
+    for (const auto& item : j.at("zones")) {
       ParallaxZone zone;
       try {
         FromJson(item, zone);
@@ -328,24 +321,28 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j) {
     return absl::InvalidArgumentError("Spawn point is outside level boundaries.");
   }
 
-  if (j.contains("tile_chunks")) {
-    for (const nlohmann::json& item : j["tile_chunks"]) {
-      int64_t id = item["chunk_id"];
-      TileChunk chunk;
-      FromJson(item, chunk);
-      level.tile_chunks[id] = chunk;
-    }
+  for (const nlohmann::json& item : j.at("tile_chunks")) {
+    const int64_t id = item.at("chunk_id").get<int64_t>();
+    TileChunk chunk;
+    FromJson(item, chunk);
+    level.tile_chunks[id] = chunk;
   }
 
-  if (j.contains("entities")) {
-    for (const nlohmann::json& item : j["entities"]) {
-      Entity entity;
-      RETURN_IF_ERROR(FromJson(item, entity));
-      level.AddEntity(std::move(entity));
-    }
+  for (const nlohmann::json& item : j.at("entities")) {
+    Entity entity;
+    RETURN_IF_ERROR(FromJson(item, entity));
+    level.AddEntity(std::move(entity));
   }
 
   return level;
+}
+
+absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j) {
+  try {
+    return ParseLevel(j);
+  } catch (const nlohmann::json::exception& e) {
+    return absl::InvalidArgumentError(absl::StrCat("JSON parsing error for Level: ", e.what()));
+  }
 }
 
 }  // namespace
@@ -386,15 +383,17 @@ absl::Status LevelManager::LoadAllLevels() {
     return absl::NotFoundError(absl::StrCat("Level root directory not found: ", definitions_path_));
   }
 
+  ResourceLoadFailures failures;
   for (const std::filesystem::directory_entry& entry :
        std::filesystem::directory_iterator(definitions_path_)) {
     if (entry.path().extension() != ".json") continue;
     auto status = LoadLevel(entry.path().filename().string());
     if (!status.ok()) {
-      LOG(WARNING) << "Failed to load level from " << entry.path() << ": " << status;
+      LOG(WARNING) << "Failed to load level from " << entry.path() << ": " << status.status();
+      failures.Add(entry.path().filename().string(), status.status());
     }
   }
-  return absl::OkStatus();
+  return failures.ToStatus("level");
 }
 
 absl::StatusOr<std::string> LevelManager::CreateLevel(Level level) {

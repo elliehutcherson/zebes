@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
 #include "nlohmann/json.hpp"
@@ -107,58 +108,24 @@ TEST_F(TerrainRecipeManagerTest, RoundTripsEveryConfigurationField) {
   EXPECT_EQ(TerrainRecipeToJson(*loaded), TerrainRecipeToJson(recipe));
 }
 
-TEST_F(TerrainRecipeManagerTest, MigratesV1FacingBiasWithoutChangingItsCoverageLine) {
-  TerrainRecipe recipe = CompleteRecipe();
-  recipe.id = "legacy";
-  nlohmann::json json = TerrainRecipeToJson(recipe);
-  json["schema_version"] = 1;
-  json["config"]["surface"] = {
-      {"grass_band", 8.0f},       {"ruffle_amplitude", 2.0f}, {"ruffle_density", 2.5f},
-      {"ruffle_sharpness", 0.4f}, {"ruffle_octaves", 2},      {"grass_bottom_bias", 0.25f},
-      {"outline_width", 2},       {"grass_hi_depth", 1},      {"grass_shade_depth", 2},
-      {"contact_depth", 1},       {"texture_size", 3.5f},     {"texture_amount", 0.6f},
-  };
+// Only the current version is read. An older document is brought forward by
+// scripts/migrate_definitions.py, so the parser has exactly one shape rather
+// than one per version that has ever existed. Refusing by name is what points
+// the author at the migration instead of leaving them with a parse error.
+TEST_F(TerrainRecipeManagerTest, RejectsASupersededSchemaAndNamesTheMigration) {
+  for (const int superseded : {1, 2}) {
+    TerrainRecipe recipe = CompleteRecipe();
+    recipe.id = "legacy";
+    nlohmann::json json = TerrainRecipeToJson(recipe);
+    json["schema_version"] = superseded;
 
-  ASSERT_OK_AND_ASSIGN(TerrainRecipe migrated, TerrainRecipeFromJson(json));
-  EXPECT_FLOAT_EQ(migrated.config.surface.top_depth, 8.0f);
-  EXPECT_FLOAT_EQ(migrated.config.surface.side_depth, 5.0f);
-  EXPECT_FLOAT_EQ(migrated.config.surface.underside_depth, 2.0f);
-  EXPECT_EQ(migrated.config.surface.wall_depth, 0);
+    absl::StatusOr<TerrainRecipe> parsed = TerrainRecipeFromJson(json);
 
-  // Saving upgrades the document once. Reading that v3 document again must be
-  // lossless, rather than repeatedly applying migration math.
-  const nlohmann::json upgraded = TerrainRecipeToJson(migrated);
-  EXPECT_EQ(upgraded.at("schema_version"), 3);
-  EXPECT_FALSE(upgraded.at("config").at("surface").contains("grass_bottom_bias"));
-  ASSERT_OK_AND_ASSIGN(TerrainRecipe reopened, TerrainRecipeFromJson(upgraded));
-  EXPECT_EQ(TerrainRecipeToJson(reopened), upgraded);
-}
-
-TEST_F(TerrainRecipeManagerTest, MigratesV2WithEdgeDetailsDisabled) {
-  TerrainRecipe recipe = CompleteRecipe();
-  recipe.id = "phase-two";
-  nlohmann::json json = TerrainRecipeToJson(recipe);
-  json["schema_version"] = 2;
-  json["config"]["surface"].erase("edge_detail");
-
-  ASSERT_OK_AND_ASSIGN(TerrainRecipe migrated, TerrainRecipeFromJson(json));
-  EXPECT_EQ(migrated.config.surface.edge_detail.family, TerrainEdgeDetailSet::kNone);
-  EXPECT_EQ(TerrainRecipeToJson(migrated).at("schema_version"), 3);
-}
-
-TEST_F(TerrainRecipeManagerTest, RejectsInvalidV1FacingBiasDuringMigration) {
-  TerrainRecipe recipe = CompleteRecipe();
-  recipe.id = "legacy-broken";
-  nlohmann::json json = TerrainRecipeToJson(recipe);
-  json["schema_version"] = 1;
-  json["config"]["surface"] = {
-      {"grass_band", 8.0f},       {"ruffle_amplitude", 2.0f}, {"ruffle_density", 2.5f},
-      {"ruffle_sharpness", 0.4f}, {"ruffle_octaves", 2},      {"grass_bottom_bias", 1.25f},
-      {"outline_width", 2},       {"grass_hi_depth", 1},      {"grass_shade_depth", 2},
-      {"contact_depth", 1},       {"texture_size", 3.5f},     {"texture_amount", 0.6f},
-  };
-
-  EXPECT_EQ(TerrainRecipeFromJson(json).status().code(), absl::StatusCode::kInvalidArgument);
+    ASSERT_FALSE(parsed.ok()) << "schema version " << superseded;
+    EXPECT_EQ(parsed.status().code(), absl::StatusCode::kFailedPrecondition);
+    EXPECT_THAT(std::string(parsed.status().message()),
+                ::testing::HasSubstr("migrate_definitions.py"));
+  }
 }
 
 TEST_F(TerrainRecipeManagerTest, SavingAnEditReplacesTheRecipeWithoutChangingItsId) {

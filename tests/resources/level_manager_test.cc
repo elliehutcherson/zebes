@@ -690,13 +690,18 @@ TEST_F(LevelManagerTest, EntityAssetReferencesRoundTripAsIds) {
 
 // Levels written before the split carry vx/vy/ax/ay and current_frame_index.
 // They must keep loading, with those keys ignored rather than restored.
-TEST_F(LevelManagerTest, LegacyLevelWithSimulationStateStillLoads) {
+// Velocity, acceleration and animation playback are outputs of the running
+// game, not authored content. Documents written before that split carry them,
+// and they are dropped on load rather than restored -- a saved level must not
+// resurrect how fast something happened to be moving.
+TEST_F(LevelManagerTest, SimulationStateInADocumentIsIgnored) {
   const std::string path =
       "test_data/level_manager_test/definitions/levels/Legacy-legacy-id.json";
   std::ofstream out(path);
   out << R"({
     "id": "legacy-id",
     "name": "Legacy",
+    "tileset_id": "",
     "width": 320.0,
     "height": 320.0,
     "tile_render_width": 16,
@@ -705,9 +710,14 @@ TEST_F(LevelManagerTest, LegacyLevelWithSimulationStateStillLoads) {
     "entities": [{
       "id": 9,
       "active": true,
+      "blueprint_id": "",
+      "blueprint_state_index": 0,
+      "sprite_id": "",
+      "collider_id": "",
       "transform": {"x": 32.0, "y": 48.0, "rotation": 0.0},
       "current_frame_index": 4,
-      "body": {"vx": 5.0, "vy": -3.0, "ax": 1.0, "ay": 2.0, "mass": 1.5, "is_static": false}
+      "body": {"vx": 5.0, "vy": -3.0, "ax": 1.0, "ay": 2.0,
+               "drag_x": 0.0, "drag_y": 0.0, "mass": 1.5, "is_static": false}
     }],
     "themes": [], "zones": [], "parallax_layers": [], "tile_chunks": []
   })";
@@ -720,6 +730,30 @@ TEST_F(LevelManagerTest, LegacyLevelWithSimulationStateStillLoads) {
   EXPECT_EQ(entity.transform.position.x, 32);
   EXPECT_EQ(entity.body.mass, 1.5);
   EXPECT_FALSE(entity.body.is_static);
+}
+
+// A field the writer always emits is a field the reader requires. Substituting
+// a default here would reinterpret the level rather than report the problem.
+TEST_F(LevelManagerTest, ALevelMissingARequiredFieldIsRefused) {
+  const std::string path =
+      "test_data/level_manager_test/definitions/levels/Partial-partial-id.json";
+  std::ofstream out(path);
+  out << R"({
+    "id": "partial-id",
+    "name": "Partial",
+    "width": 320.0,
+    "height": 320.0,
+    "tile_render_width": 16,
+    "tile_render_height": 16,
+    "spawn_point": {"x": 0.0, "y": 0.0},
+    "entities": [], "themes": [], "zones": [], "parallax_layers": [], "tile_chunks": []
+  })";
+  out.close();
+
+  absl::StatusOr<Level*> loaded = manager_->LoadLevel("Partial-partial-id.json");
+
+  ASSERT_FALSE(loaded.ok());
+  EXPECT_THAT(std::string(loaded.status().message()), ::testing::HasSubstr("tileset_id"));
 }
 
 }  // namespace

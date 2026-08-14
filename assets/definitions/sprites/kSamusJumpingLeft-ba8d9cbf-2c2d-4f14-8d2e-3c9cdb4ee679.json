@@ -3,6 +3,8 @@
         {
             "frames_per_cycle": 4,
             "index": 0,
+            "offset_x": 0,
+            "offset_y": 0,
             "render_h": 80,
             "render_w": 46,
             "texture_h": 40,
@@ -13,6 +15,8 @@
         {
             "frames_per_cycle": 4,
             "index": 1,
+            "offset_x": 0,
+            "offset_y": 0,
             "render_h": 82,
             "render_w": 48,
             "texture_h": 41,

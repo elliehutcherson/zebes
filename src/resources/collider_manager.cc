@@ -52,16 +52,14 @@ absl::StatusOr<Collider> GetColliderFromJson(const nlohmann::json& j) {
     j.at("id").get_to(collider.id);
     j.at("name").get_to(collider.name);
 
-    if (j.contains("polygons")) {
-      for (const auto& poly_json : j["polygons"]) {
-        Polygon poly;
-        for (const auto& point_json : poly_json) {
-          Vec point;
-          FromJson(point_json, point);
-          poly.push_back(point);
-        }
-        collider.polygons.push_back(poly);
+    for (const auto& poly_json : j.at("polygons")) {
+      Polygon poly;
+      for (const auto& point_json : poly_json) {
+        Vec point;
+        FromJson(point_json, point);
+        poly.push_back(point);
       }
+      collider.polygons.push_back(poly);
     }
   } catch (const nlohmann::json::exception& e) {
     return absl::InternalError(absl::StrCat("JSON parsing error for Collider: ", e.what()));
@@ -109,15 +107,17 @@ absl::Status ColliderManager::LoadAllColliders() {
         absl::StrCat("Collider root directory not found: ", definitions_path_));
   }
 
+  ResourceLoadFailures failures;
   for (const std::filesystem::directory_entry& entry :
        std::filesystem::directory_iterator(definitions_path_)) {
     if (entry.path().extension() != ".json") continue;
     auto status = LoadCollider(entry.path().filename().string());
     if (!status.ok()) {
       LOG(WARNING) << "Failed to load collider from " << entry.path() << ": " << status.status();
+      failures.Add(entry.path().filename().string(), status.status());
     }
   }
-  return absl::OkStatus();
+  return failures.ToStatus("collider");
 }
 
 absl::StatusOr<std::string> ColliderManager::CreateCollider(Collider collider) {

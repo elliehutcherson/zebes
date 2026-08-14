@@ -39,9 +39,8 @@ absl::Status GetSpriteFrameFromJson(const nlohmann::json& j, SpriteFrame& frame)
     j.at("render_w").get_to(frame.render_w);
     j.at("render_h").get_to(frame.render_h);
     j.at("frames_per_cycle").get_to(frame.frames_per_cycle);
-    // Optional fields for backward compatibility
-    frame.offset_x = j.value("offset_x", 0);
-    frame.offset_y = j.value("offset_y", 0);
+    j.at("offset_x").get_to(frame.offset_x);
+    j.at("offset_y").get_to(frame.offset_y);
   } catch (const nlohmann::json::exception& e) {
     return absl::InternalError(absl::StrCat("JSON parsing error for SpriteFrame: ", e.what()));
   }
@@ -73,11 +72,7 @@ absl::StatusOr<Sprite> GetSpriteFromJson(const nlohmann::json& j) {
     j.at("name").get_to(sprite.name);
     j.at("texture_id").get_to(sprite.texture_id);
 
-    if (!j.contains("frames")) {
-      return sprite;
-    }
-
-    for (const auto& item : j["frames"]) {
+    for (const auto& item : j.at("frames")) {
       SpriteFrame frame;
       RETURN_IF_ERROR(GetSpriteFrameFromJson(item, frame));
       sprite.frames.push_back(frame);
@@ -138,15 +133,17 @@ absl::Status SpriteManager::LoadAllSprites() {
         absl::StrCat("Sprite root directory not found: ", definitions_path_));
   }
 
+  ResourceLoadFailures failures;
   for (const std::filesystem::directory_entry& entry :
        std::filesystem::directory_iterator(definitions_path_)) {
     if (entry.path().extension() != ".json") continue;
     auto status = LoadSprite(entry.path().filename().string());
     if (!status.ok()) {
       LOG(WARNING) << "Failed to load sprite from " << entry.path() << ": " << status.status();
+      failures.Add(entry.path().filename().string(), status.status());
     }
   }
-  return absl::OkStatus();
+  return failures.ToStatus("sprite");
 }
 
 absl::StatusOr<std::string> SpriteManager::CreateSprite(Sprite sprite) {

@@ -3,6 +3,8 @@
         {
             "frames_per_cycle": 0,
             "index": 0,
+            "offset_x": 0,
+            "offset_y": 0,
             "render_h": 64,
             "render_w": 64,
             "texture_h": 32,

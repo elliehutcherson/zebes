@@ -22,13 +22,17 @@ struct TerrainRecipe {
   TerrainGenConfig config;
 };
 
-inline constexpr int kOldestTerrainRecipeSchemaVersion = 1;
+// Only the current version is read. Versions 1 and 2 were migrated in
+// `scripts/migrate_definitions.py`, which is where an older document is brought
+// forward; carrying a translation for a version no file uses would mean the
+// parser's shape was decided by data that no longer exists.
+inline constexpr int kOldestTerrainRecipeSchemaVersion = 3;
 inline constexpr int kTerrainRecipeSchemaVersion = 3;
 
 // JSON conversion is explicit rather than reflection-based so renaming a C++
-// member cannot silently change the on-disk format. Every supported version is
-// parsed strictly: migration may translate old meaning, but a missing field is
-// corruption rather than permission to substitute today's default.
+// member cannot silently change the on-disk format. Parsing is strict: a
+// missing field is corruption rather than permission to substitute today's
+// default.
 nlohmann::json TerrainRecipeToJson(const TerrainRecipe& recipe);
 absl::StatusOr<TerrainRecipe> TerrainRecipeFromJson(const nlohmann::json& json);
 

@@ -1,5 +1,6 @@
 #include "resources/sprite_manager.h"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <filesystem>
@@ -247,9 +248,13 @@ TEST_F(SpriteManagerTest, LoadPartialSpriteFrame) {
     f << json_content;
   }
 
-  // With strict parsing, this should fail to load the sprite
-  // LoadAllSprites returns OK but logs warning for failed files
-  ASSERT_TRUE(manager_->LoadAllSprites().ok());
+  // A bulk load reads every file so one bad definition cannot hide the others,
+  // then reports what it could not read. Returning OK here would make the
+  // sprite vanish from the catalog with nothing but a terminal warning to say
+  // why, which is the failure strict parsing exists to surface.
+  const absl::Status loaded = manager_->LoadAllSprites();
+  EXPECT_FALSE(loaded.ok());
+  EXPECT_THAT(std::string(loaded.message()), ::testing::HasSubstr("partial-id"));
 
   auto sprite_or = manager_->GetSprite(id);
   // It should NOT be found

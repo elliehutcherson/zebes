@@ -11,6 +11,7 @@
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
 #include "objects/texture.h"
+#include "resources/resource_utils.h"
 
 namespace zebes {
 namespace {
@@ -68,14 +69,16 @@ absl::Status TextureManager::LoadAllTextures() {
         absl::StrCat("Texture root directory not found: ", definitions_path_));
   }
 
+  ResourceLoadFailures failures;
   for (const auto& entry : std::filesystem::directory_iterator(definitions_path_)) {
     if (entry.path().extension() != ".json") continue;
     auto status = LoadTexture(entry.path().filename().string());
     if (!status.ok()) {
       LOG(WARNING) << "Failed to load texture from " << entry.path() << ": " << status.status();
+      failures.Add(entry.path().filename().string(), status.status());
     }
   }
-  return absl::OkStatus();
+  return failures.ToStatus("texture");
 }
 
 absl::StatusOr<Texture*> TextureManager::LoadTexture(const std::string& path_json) {

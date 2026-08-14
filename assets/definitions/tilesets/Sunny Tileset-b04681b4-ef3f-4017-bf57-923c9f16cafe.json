@@ -1,6 +1,7 @@
 {
     "id": "b04681b4-ef3f-4017-bf57-923c9f16cafe",
     "name": "Sunny Tileset",
+    "terrains": [],
     "texture_id": "dfe2596b-f2e1-403e-adb5-fe8da22502bf",
     "tile_height": 16,
     "tile_width": 16,
