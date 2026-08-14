@@ -20,6 +20,21 @@ target_link_libraries(terrain_cell_key
   absl::strings
 )
 
+add_library(terrain_content_index
+  terrain_content_index.cc
+)
+
+target_link_libraries(terrain_content_index
+  PUBLIC
+  image_io
+  tileset
+  absl::flat_hash_map
+  absl::status
+  absl::statusor
+  PRIVATE
+  absl::strings
+)
+
 add_library(terrain_placement
   terrain_placement.cc
 )
@@ -128,6 +143,7 @@ add_library(blob47_compose
 
 target_link_libraries(blob47_compose
   PUBLIC
+  image_io
   terrain_mask
   tileset
   absl::statusor

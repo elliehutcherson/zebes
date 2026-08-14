@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "common/image_io.h"
 #include "objects/tileset.h"
 #include "terrain/terrain_mask.h"
 
@@ -15,18 +16,6 @@ namespace zebes {
 inline constexpr int kFirstSlopeShape = static_cast<int>(TileShape::kSlope45BottomLeft);
 inline constexpr int kSlopeShapeCount =
     static_cast<int>(TileShape::kSteepSlopeTopRight_Top) - kFirstSlopeShape + 1;
-
-// A tightly packed RGBA8 image: row-major, four bytes per pixel, no padding.
-struct RgbaImage {
-  int width = 0;
-  int height = 0;
-  std::vector<uint8_t> pixels;
-
-  bool IsValid() const {
-    return width > 0 && height > 0 &&
-           pixels.size() == static_cast<size_t>(width) * height * 4;
-  }
-};
 
 // The authored quadrant source. Rows are quadrant positions in Quadrant order;
 // columns are QuadrantState order, repeated once per variant.

@@ -1,12 +1,10 @@
 #include "common/image_io.h"
 
 #include <filesystem>
+#include <fstream>
 #include <vector>
 
 #include "gtest/gtest.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 
 namespace zebes {
 namespace {
@@ -37,21 +35,29 @@ TEST(ImageIoTest, WrittenPixelsReadBackExactly) {
 
   ASSERT_TRUE(WritePng(path, 8, 6, pixels).ok());
 
-  int width = 0;
-  int height = 0;
-  int channels = 0;
-  uint8_t* loaded = stbi_load(path.c_str(), &width, &height, &channels, 4);
-  ASSERT_NE(loaded, nullptr);
-  EXPECT_EQ(width, 8);
-  EXPECT_EQ(height, 6);
+  const absl::StatusOr<RgbaImage> loaded = ReadPng(path);
+  ASSERT_TRUE(loaded.ok()) << loaded.status();
+  EXPECT_EQ(loaded->width, 8);
+  EXPECT_EQ(loaded->height, 6);
 
   // PNG is lossless, and alpha has to survive: a terrain atlas is mostly
-  // transparent and a writer that flattened it would ruin every tile.
-  for (size_t i = 0; i < pixels.size(); ++i) {
-    EXPECT_EQ(loaded[i], pixels[i]) << "byte " << i << " changed on the round trip";
-  }
-  stbi_image_free(loaded);
+  // transparent and a writer that flattened it would ruin every tile. Derived
+  // artwork is identified by hashing exactly these bytes, so a round trip that
+  // altered one would make a tile stop matching itself between sessions.
+  EXPECT_EQ(loaded->pixels, pixels);
   std::filesystem::remove(path);
+}
+
+TEST(ImageIoTest, ReadingSomethingThatIsNotAnImageFails) {
+  const std::string path = TempPath("image_io_not_an_image.png");
+  std::ofstream(path) << "this is not a PNG";
+
+  EXPECT_FALSE(ReadPng(path).ok());
+  std::filesystem::remove(path);
+}
+
+TEST(ImageIoTest, ReadingAMissingFileFails) {
+  EXPECT_FALSE(ReadPng(TempPath("image_io_absent.png")).ok());
 }
 
 TEST(ImageIoTest, CreatesMissingDirectories) {

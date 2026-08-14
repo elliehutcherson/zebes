@@ -7,10 +7,10 @@ target_include_directories(resize_image PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../i
 target_link_libraries(resize_image PRIVATE absl::log absl::status absl::strings absl::str_format)
 
 add_executable(compose_blob47 compose_blob47.cc)
-target_include_directories(compose_blob47 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include/stb)
 target_link_libraries(
   compose_blob47
-  PRIVATE blob47_compose status_macros absl::log absl::log_initialize absl::status absl::strings
+  PRIVATE blob47_compose image_io status_macros absl::log absl::log_initialize absl::status
+          absl::strings
 )
 
 add_executable(render_slope_matrix render_slope_matrix.cc)

@@ -27,6 +27,7 @@ target_link_libraries(logging absl::strings)
 
 add_library(image_io image_io.cc)
 target_link_libraries(image_io absl::status)
+target_link_libraries(image_io absl::statusor)
 target_link_libraries(image_io absl::span)
 target_link_libraries(image_io absl::strings)
 target_include_directories(image_io PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../include/stb)

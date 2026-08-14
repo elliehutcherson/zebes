@@ -10,47 +10,22 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "common/image_io.h"
 #include "common/status_macros.h"
 #include "terrain/blob47_compose.h"
-
-// stb is header-only. Keep both implementations in this standalone tool.
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
 
 namespace {
 
 using ::zebes::Blob47Atlas;
 using ::zebes::ComposeBlob47;
 using ::zebes::QuadrantSheet;
+using ::zebes::ReadPng;
 using ::zebes::RgbaImage;
 using ::zebes::SeedQuadrantSheetFrom3x3;
 using ::zebes::WriteBlob47Manifest;
 
-absl::StatusOr<RgbaImage> LoadPng(const std::string& path) {
-  int width = 0;
-  int height = 0;
-  int channels = 0;
-  uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
-  if (data == nullptr) {
-    return absl::NotFoundError(absl::StrCat("Failed to read image: ", path));
-  }
-
-  RgbaImage image;
-  image.width = width;
-  image.height = height;
-  image.pixels.assign(data, data + static_cast<size_t>(width) * height * 4);
-  stbi_image_free(data);
-  return image;
-}
-
 absl::Status WritePng(const std::string& path, const RgbaImage& image) {
-  if (!stbi_write_png(path.c_str(), image.width, image.height, 4, image.pixels.data(),
-                      image.width * 4)) {
-    return absl::InternalError(absl::StrCat("Failed to write image: ", path));
-  }
-  return absl::OkStatus();
+  return zebes::WritePng(path, image.width, image.height, image.pixels);
 }
 
 absl::Status WriteTextFile(const std::string& path, const std::string& contents) {
@@ -126,7 +101,7 @@ absl::Status RunSeed(int argc, char* argv[]) {
   }
 
   ASSIGN_OR_RETURN(const SeedOptions options, ParseSeedOptions(argc, argv, 7));
-  ASSIGN_OR_RETURN(RgbaImage atlas, LoadPng(argv[2]));
+  ASSIGN_OR_RETURN(RgbaImage atlas, ReadPng(argv[2]));
   ASSIGN_OR_RETURN(const int tile_size, ParsePositiveInt(argv[3], "tile_size"));
 
   int origin_x = 0;
@@ -214,7 +189,7 @@ absl::Status RunSlopes(int argc, char* argv[]) {
         "[--tile <ShapeName>=<x>,<y>]...");
   }
 
-  ASSIGN_OR_RETURN(RgbaImage atlas, LoadPng(argv[2]));
+  ASSIGN_OR_RETURN(RgbaImage atlas, ReadPng(argv[2]));
   ASSIGN_OR_RETURN(const int tile_size, ParsePositiveInt(argv[3], "tile_size"));
 
   RgbaImage sheet;
@@ -249,7 +224,7 @@ absl::Status RunCompose(int argc, char* argv[]) {
         "[--slopes <slope_sheet.png>]");
   }
 
-  ASSIGN_OR_RETURN(RgbaImage image, LoadPng(argv[2]));
+  ASSIGN_OR_RETURN(RgbaImage image, ReadPng(argv[2]));
   ASSIGN_OR_RETURN(const int variant_count, ParsePositiveInt(argv[3], "variant_count"));
 
   const int expected_columns = zebes::kQuadrantStateCount * variant_count;
@@ -270,7 +245,7 @@ absl::Status RunCompose(int argc, char* argv[]) {
       return absl::InvalidArgumentError(
           absl::StrCat("Unknown flag '", argv[5], "'; expected --slopes"));
     }
-    ASSIGN_OR_RETURN(RgbaImage slope_image, LoadPng(argv[6]));
+    ASSIGN_OR_RETURN(RgbaImage slope_image, ReadPng(argv[6]));
     slopes = zebes::SlopeSheet{.image = std::move(slope_image),
                                .tile_size = sheet.quadrant_size * 2};
   }

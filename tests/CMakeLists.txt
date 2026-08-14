@@ -18,7 +18,7 @@ gtest_discover_tests(common_config_test)
 
 add_executable(image_io_test common/image_io_test.cc)
 target_link_libraries(image_io_test image_io gtest_main)
-target_include_directories(image_io_test PRIVATE ${CMAKE_SOURCE_DIR}/include/stb)
+
 gtest_discover_tests(image_io_test)
 
 # --- Texture Manager ---
