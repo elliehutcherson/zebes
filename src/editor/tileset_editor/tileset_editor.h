@@ -18,6 +18,10 @@ namespace zebes {
 
 class TilesetEditor {
  public:
+  // Reaches the private render entry points so the atlas gestures can be driven
+  // headlessly, the way LevelEditorTestPeer does for the level editor.
+  friend class TilesetEditorTestPeer;
+
   static absl::StatusOr<std::unique_ptr<TilesetEditor>> Create(Api* api, GuiInterface* gui);
 
   ~TilesetEditor() = default;

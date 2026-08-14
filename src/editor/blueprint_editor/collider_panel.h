@@ -8,6 +8,7 @@
 #include "absl/status/statusor.h"
 #include "editor/blueprint_editor/collider_panel_model.h"
 #include "editor/canvas/canvas_collider.h"
+#include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
 
 namespace zebes {
@@ -40,6 +41,12 @@ class ColliderPanel {
   absl::StatusOr<bool> RenderPolygonDetails(ColliderPanelModel& model,
                                             std::size_t polygon_index);
   void SyncCanvas(ColliderPanelModel& model);
+
+  // Deleting a collider destroys its polygons, detaching one with edits throws
+  // those away, and Reset does the same on purpose. All three ask first.
+  ConfirmPrompt delete_collider_prompt_;
+  ConfirmPrompt discard_edits_prompt_;
+  ConfirmPrompt reset_prompt_;
 
   std::unique_ptr<CanvasCollider> canvas_collider_;
   std::uint64_t canvas_revision_ = std::numeric_limits<std::uint64_t>::max();

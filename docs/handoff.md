@@ -1,15 +1,16 @@
 # Handoff: procedural terrain
 
 State of the terrain work as of 2026-08-14, and the things it uncovered.
-Development is on `main`; 538 C++ tests and 7 Python tests pass through
+Development is on `main`; 559 C++ tests and 21 Python tests pass through
 `scripts/build_and_test.sh`.
 
 ---
 
 ## Starting point
 
-Terrain Phase 2/3 and the editor UX work are committed, in that order and
-separately.
+Terrain Phase 2/3, the editor UX work, the asset-format invariants and the
+editor-consistency pass are all committed, in that order and separately. The
+tree is ready for Phase 4.
 
 **Outstanding visual check.** Reopen **Autumn Forest** in the Terrain tab and
 confirm the wall treatment on the same dark-material scene used previously.
@@ -21,21 +22,22 @@ inspected for the 32px Autumn and 16px Chunky presets across the preview scene
 and all twenty slope shapes. Nothing automated can judge whether it now looks
 right, which is why this is still open.
 
-The editor work is worth walking too, since none of it is covered end to end:
-the Tileset tab's disabled controls and delete confirmations, double-click to
-open, a middle-mouse drag in each of the four viewports, a rectangle drag across
-the atlas, and a deliberately failing Create in the Texture tab.
+The editor work is worth walking too, since the model and panel layers are
+tested but no test drives a real window: every tab's delete confirmations and
+greyed-out controls, `Back` prompting only after an edit, double-click to open
+a tileset, a middle-mouse drag in each viewport, a rectangle drag across the
+atlas, and a deliberately failing save in the Sprite tab.
 
 The generated `lucinda_cave` texture, tileset definition and recipe are
 untracked user work. Preserve them; decide separately whether they are a test
-asset worth committing.
+asset worth committing. The recipe has been migrated to schema v3 in place, so
+it still opens.
 
 Next:
 
 1. Perform the Autumn comparison above.
-2. Pay down the remaining format and editor debt — see **Still open** below.
-3. Decide whether the `lucinda_cave` assets belong in their own commit.
-4. Begin Phase 4 design for slope-connectivity variants only after the current
+2. Decide whether the `lucinda_cave` assets belong in their own commit.
+3. Begin Phase 4 design for slope-connectivity variants only after the current
    atlas contract and selection policy are written down; it is a topology and
    manifest change, not just another renderer pass.
 
@@ -282,6 +284,48 @@ assets.
 
 One item from the original list is deliberately still open: **Create blocks for
 seconds with no progress indication**, above.
+
+---
+
+## Debt cleared afterwards
+
+Two further passes, prompted by asking what "a clean repo" would mean.
+
+### The formats have no optional fields
+
+The readers tolerated fields their writers can no longer omit — a tile without
+`shape` loaded as `kNone`, solid artwork colliding with nothing. Every
+`j.value(field, default)` in `src/resources/` is now a required read, and the
+three collections that were omitted when empty are written either way, so an
+absent list and an empty one are no longer two spellings of one state.
+`scripts/migrate_definitions.py` moved the data that would otherwise have held
+this back, and the terrain recipe parser dropped its schema 1 and 2 branches
+once no file used them. See `docs/architecture.md`.
+
+Three things fell out of that:
+
+- `shipped_assets_test` now loads every level, sprite, blueprint and collider
+  as well as tilesets, checking counts against the files on disk. Strict
+  parsing without that test is a trap rather than an invariant.
+- Every `LoadAll*` swallowed per-file failures into a `LOG(WARNING)` and
+  returned OK, so a definition the editor could not read simply vanished from
+  the catalog. They now report all failures at once.
+- Two tracked collider definitions shared one ID with different geometry, so
+  Samus's collision box depended on directory iteration order. The unnamed
+  leftover from a rename was removed.
+
+### Every tab behaves the same way
+
+The first editor pass fixed confirmations, unsaved-edit guards and silent
+failures in the Tileset and Texture tabs only, which left six tabs behaving two
+ways — worse than uniformly badly. `ConfirmPrompt` (`src/editor/confirm_prompt.h`)
+now backs every destructive button in the editor, every panel model can say
+whether closing would discard work, and the Sprite, Blueprint and Config tabs
+have the same dismissible error banner as the rest. The Sprite tab had no error
+surface at all and nine `LOG(ERROR)`-only paths.
+
+`tests/editor/tileset_editor_test.cc` covers the atlas drag gestures through a
+live `Canvas`, using the `LevelEditorTestPeer` pattern.
 
 ---
 

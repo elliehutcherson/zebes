@@ -5,6 +5,7 @@
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
 #include "editor/tileset_editor/tileset_editor_model.h"
 
@@ -55,13 +56,12 @@ class TilesetPanel {
   // Outcome of the last detect, shown until the next attempt.
   std::string terrain_status_;
 
-  // Destructive actions confirm in place rather than through a modal: the
-  // button is replaced by a question and a Confirm/Cancel pair until answered.
-  // Each field holds the target awaiting confirmation, so a stale confirmation
-  // cannot be applied to whatever happens to be selected later.
-  std::optional<std::string> confirm_delete_tileset_;
-  std::optional<int> confirm_delete_terrain_;
-  bool confirm_discard_ = false;
+  // One prompt per destructive action. Terrains share a single prompt because
+  // only one row's question can be open at a time, and ConfirmPrompt drops it
+  // as soon as it is rendered against a different terrain.
+  ConfirmPrompt delete_tileset_prompt_;
+  ConfirmPrompt delete_terrain_prompt_;
+  ConfirmPrompt discard_edits_prompt_;
 
   GuiInterface* gui_;
 };

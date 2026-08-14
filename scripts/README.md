@@ -77,6 +77,28 @@ Both routes meet at the same place -- each produces a `Blob47Atlas`, and
 `BuildTerrainCandidate` turns either into tiles and rules -- so nothing
 downstream can tell a generated terrain from a drawn one.
 
+## Cut a tileset by hand
+
+Generating or importing a terrain is the fast path, but a sheet of one-off
+pieces still has to be cut by hand in the **Tileset Editor**. Three gestures do
+most of it:
+
+- **Drag a rectangle across the atlas** to add one tile per cell it covers.
+  Cells an existing tile already sources from are skipped, so dragging back over
+  work already done adds only what is missing. Tiles added this way are
+  `kFullBlock`, since a cut cell is usually solid and a shape of `kNone`
+  collides with nothing; fix the exceptions in the inspector.
+- **Click a single cell** with a tile selected to repoint that tile's source,
+  which is what clicking has always done. Both gestures resolve when the mouse
+  button comes up, because that is the first moment a click and a drag can be
+  told apart.
+- **Double-click a tileset** in the navigator to open it, and **middle-drag** to
+  pan any viewport in the editor.
+
+Deleting a tileset or a terrain asks first, and leaving one with unsaved edits
+asks before discarding them. Deleting a single tile does not ask: it is an Add
+and a click away.
+
 ## Author a terrain brush (blob-47)
 
 A terrain brush paints the correct edge, corner, and interior artwork based on

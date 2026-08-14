@@ -63,12 +63,22 @@ class LevelPanelModel {
   void BeginEditingLevel(Level level);
   void CloseActiveLevel();
   bool has_active_level() const { return active_level_.has_value(); }
+
+  // Whether the level being edited differs from the state it was opened or last
+  // saved at. Only asked on the frame the user tries to leave, so comparing the
+  // whole level -- tile chunks included -- costs nothing per frame and cannot
+  // miss an edit the way a flag some mutating path forgot to set would.
+  bool has_unsaved_changes() const;
   bool is_new_level() const;
   Level* active_level();
   const Level* active_level() const;
 
   absl::StatusOr<Level> BuildSaveRequest() const;
   absl::Status FinishCreate(const std::string& saved_id);
+  // Makes the current state the clean one. Called after a successful write, so
+  // further edits compare against what is on disk rather than against how the
+  // level looked when it was opened.
+  void MarkSaved();
   void FinishDelete();
 
  private:
@@ -77,6 +87,8 @@ class LevelPanelModel {
   LevelCatalog levels_;
   std::string selected_level_id_;
   std::optional<Level> active_level_;
+  // The active level as it stood when editing began or when it was last saved.
+  std::optional<Level> baseline_level_;
   std::vector<TilesetChoice> tileset_choices_;
   // Set only while a tileset change is waiting on confirmation.
   std::optional<std::string> pending_tileset_id_;

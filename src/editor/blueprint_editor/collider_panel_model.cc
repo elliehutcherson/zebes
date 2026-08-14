@@ -46,8 +46,17 @@ absl::Status ColliderPanelModel::BeginEditingCollider(const std::string& id) {
 
 void ColliderPanelModel::CloseActiveCollider() {
   active_collider_.reset();
+  baseline_collider_.reset();
   ++active_revision_;
 }
+
+bool ColliderPanelModel::has_unsaved_changes() const {
+  if (!active_collider_.has_value()) return false;
+  if (!baseline_collider_.has_value()) return true;
+  return *active_collider_ != *baseline_collider_;
+}
+
+void ColliderPanelModel::MarkSaved() { baseline_collider_ = active_collider_; }
 
 bool ColliderPanelModel::is_new_collider() const {
   return active_collider_.has_value() && active_collider_->id.empty();
@@ -78,6 +87,7 @@ absl::Status ColliderPanelModel::FinishCreate(const std::string& saved_id) {
   if (saved_id.empty()) return absl::InvalidArgumentError("Saved collider ID cannot be empty");
   active_collider_->id = saved_id;
   selected_collider_id_ = saved_id;
+  MarkSaved();
   return absl::OkStatus();
 }
 
@@ -160,6 +170,11 @@ const Collider* ColliderPanelModel::FindCollider(const std::string& id) const {
 
 void ColliderPanelModel::ReplaceActiveCollider(Collider collider) {
   active_collider_ = std::move(collider);
+  // Every path that installs an active collider comes through here -- opening
+  // one, starting a new one, and resetting -- so this is the one place the
+  // clean baseline has to be taken. After a reset the state is clean by
+  // definition, which falls out of that for free.
+  baseline_collider_ = active_collider_;
   ++active_revision_;
 }
 

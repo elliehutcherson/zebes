@@ -196,14 +196,10 @@ def verify_and_apply_fixes(file_path, unused_lines, build_dir, dry_run=False):
         # 2. Build
         if run_build(build_dir):
             print(f"{GREEN}Build PASS. Removing.{RESET}")
-            # Build passed, we can remove this line permanently (or keep it commented? User said remove)
-            # We will mark it for final writing.
-            # Currently it is commented out in 'lines'.
-            # If we want to delete it completely:
-            # We must be careful about indices if we delete now.
-            # Easiest: keep it commented in 'lines' for now, or replace with empty string?
-            # Replace with empty string or specific marker to filter later.
-            lines[idx] = "" # Mark for deletion
+            # Blanked rather than deleted, because later candidates are held as
+            # indices into this same list and erasing an element now would shift
+            # every one of them. The final pass drops the blanks.
+            lines[idx] = ""
             confirmed_removals += 1
         else:
             print(f"{RED}Build FAIL. Keeping.{RESET}")

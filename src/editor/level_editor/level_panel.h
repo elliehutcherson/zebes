@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "absl/status/statusor.h"
+#include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
 #include "editor/level_editor/level_panel_interface.h"
 #include "editor/level_editor/level_panel_model.h"
@@ -29,6 +30,11 @@ class LevelPanel : public LevelPanelInterface {
 
   // Renders the confirmation shown when the switch would strand placed tiles.
   absl::Status RenderTilesetChangeConfirmation(LevelPanelModel& model);
+
+  // Deleting a level destroys every tile placed in it, and closing one with
+  // edits throws those away. Both ask first, against a remembered target.
+  ConfirmPrompt delete_level_prompt_;
+  ConfirmPrompt discard_edits_prompt_;
 
   GuiInterface* gui_;
 };

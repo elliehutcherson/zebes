@@ -63,6 +63,15 @@ absl::Status BlueprintEditor::ExitBlueprintStateMode() {
 }
 
 absl::Status BlueprintEditor::Render() {
+  // Same banner the tileset and texture tabs use, deliberately: an authoring
+  // tab that reports failure differently from the one beside it is one more
+  // thing to learn.
+  if (error_message_.has_value()) {
+    gui_->TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Error: %s", error_message_->c_str());
+    gui_->SameLine();
+    if (gui_->Button("Dismiss")) error_message_.reset();
+  }
+
   ScopedTable table =
       gui_->CreateScopedTable(/*str_id=*/"BlueprintEditorTable", /*columns=*/3,
                               /*flags=*/ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders);
@@ -259,6 +268,7 @@ absl::StatusOr<ColliderResult> BlueprintEditor::HandleColliderPanelAction(
     case ColliderPanel::Action::kSave: {
       ASSIGN_OR_RETURN(Collider collider, collider_model_.BuildSaveRequest());
       RETURN_IF_ERROR(api_->UpdateCollider(std::move(collider)));
+      collider_model_.MarkSaved();
       RefreshColliderCatalog();
       return ColliderResult{};
     }
@@ -324,15 +334,19 @@ void BlueprintEditor::SaveBlueprint() {
   Blueprint* blueprint = blueprint_model_.active_blueprint();
   if (blueprint == nullptr) {
     LOG(ERROR) << "No blueprint is active in state mode";
+    error_message_ = "No blueprint is open, so there is nothing to save";
     return;
   }
   const std::string name = blueprint->name;
   absl::Status status = SaveActiveBlueprint();
   if (status.ok()) {
     LOG(INFO) << "Saved blueprint: " << name;
-  } else {
-    LOG(ERROR) << "Failed to save: " << status.message();
+    blueprint_model_.MarkSaved();
+    error_message_.reset();
+    return;
   }
+  LOG(ERROR) << "Failed to save: " << status.message();
+  error_message_ = absl::StrCat("Could not save blueprint: ", status.message());
 }
 
 }  // namespace zebes

@@ -26,6 +26,9 @@ void SpriteEditorModel::SetTextures(std::vector<Texture> textures) {
 absl::Status SpriteEditorModel::SelectSprite(const std::string& id) {
   for (const auto& [key, sprite] : sprites_) {
     if (sprite.id != id) continue;
+    // Moving to a different sprite abandons whatever the last one failed at,
+    // so the banner must not outlive the attempt it describes.
+    ClearError();
     sprite_ = sprite;
     // The caller resolves the new sprite's texture; until then there is none.
     texture_ = {};
@@ -39,6 +42,7 @@ absl::Status SpriteEditorModel::SelectSprite(const std::string& id) {
 }
 
 void SpriteEditorModel::BeginNewSprite() {
+  ClearError();
   sprite_ = {};
   texture_ = {};
   is_new_sprite_ = true;
@@ -48,6 +52,7 @@ void SpriteEditorModel::BeginNewSprite() {
 }
 
 void SpriteEditorModel::ClearSelection() {
+  ClearError();
   sprite_ = {};
   texture_ = {};
   is_new_sprite_ = false;
@@ -82,10 +87,15 @@ absl::StatusOr<Sprite> SpriteEditorModel::BuildUpdateRequest() const {
 }
 
 void SpriteEditorModel::FinishSave() {
+  ClearError();
   sprite_.name = edit_name_buffer_.c_str();
   ReindexFrames();
   original_frames_ = sprite_.frames;
 }
+
+void SpriteEditorModel::SetError(absl::string_view message) { error_ = std::string(message); }
+
+void SpriteEditorModel::ClearError() { error_.reset(); }
 
 void SpriteEditorModel::ToggleActiveFrame(int index) {
   active_frame_index_ = active_frame_index_ == index ? -1 : index;

@@ -323,6 +323,31 @@ target_include_directories(terrain_palette_panel_test PRIVATE ${CMAKE_SOURCE_DIR
 add_test(NAME terrain_palette_panel_test COMMAND terrain_palette_panel_test)
 
 # --- Canvas Test ---
+# --- Tileset Editor Test ---
+add_executable(tileset_editor_test tileset_editor_test.cc)
+target_link_libraries(tileset_editor_test
+  gtest_main
+  gmock
+  api
+  tileset_editor
+  gui_mock
+  absl::flags
+  absl::flags_parse
+)
+target_include_directories(tileset_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME tileset_editor_test COMMAND tileset_editor_test)
+
+# --- Confirm Prompt Test ---
+add_executable(confirm_prompt_test confirm_prompt_test.cc)
+target_link_libraries(confirm_prompt_test
+  gtest_main
+  gmock
+  confirm_prompt
+  gui_mock
+)
+target_include_directories(confirm_prompt_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME confirm_prompt_test COMMAND confirm_prompt_test)
+
 add_executable(canvas_test canvas_test.cc)
 target_link_libraries(canvas_test
   gtest_main

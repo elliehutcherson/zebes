@@ -16,6 +16,17 @@ target_link_libraries(imgui_scoped
 )
 
 
+# Inline confirmation for destructive buttons, shared by every panel that has
+# one so the interaction cannot drift between tabs.
+add_library(confirm_prompt confirm_prompt.cc)
+target_link_libraries(confirm_prompt
+  gui_interface
+  imgui_scoped
+  absl::strings
+  ${IMGUI_LIBRARIES}
+)
+
+
 # Gui Implementation
 add_library(editor_gui gui.cc)
 target_link_libraries(editor_gui
@@ -97,16 +108,19 @@ add_subdirectory(blueprint_editor)
 
 # Sprite Editor
 add_library(sprite_editor_model sprite_editor/sprite_editor_model.cc)
-target_link_libraries(sprite_editor_model PUBLIC sprite texture absl::status absl::statusor)
+target_link_libraries(sprite_editor_model
+  PUBLIC sprite texture absl::status absl::statusor absl::strings)
 
 add_library(editor_sprite sprite_editor/sprite_editor.cc)
 target_link_libraries(editor_sprite
   editor_animator
   sprite_editor_model
   sprite_panel
+  confirm_prompt
   api
   ${IMGUI_LIBRARIES}
   absl::status
+  absl::strings
 )
 
 

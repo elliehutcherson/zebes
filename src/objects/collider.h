@@ -16,6 +16,8 @@ struct Collider {
   // requirement is that the polygon is Convex (no internal angles > 180°).
   std::vector<Polygon> polygons;
 
+  bool operator==(const Collider& other) const = default;
+
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 };
 

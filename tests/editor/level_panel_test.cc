@@ -33,6 +33,9 @@ class LevelPanelTest : public ::testing::Test {
     ON_CALL(gui_, CreateScopedStyleColor(_, An<const ImVec4&>()))
         .WillByDefault(
             [&](ImGuiCol index, const ImVec4& color) { return ScopedStyleColor(&gui_, {}, {}); });
+    ON_CALL(gui_, CreateScopedDisabled(_)).WillByDefault(Invoke([this](bool disabled) {
+      return ScopedDisabled(&gui_, disabled);
+    }));
     ON_CALL(gui_, CreateScopedListBox(_, _))
         .WillByDefault(Invoke([this](const char* label, ImVec2 size) {
           return ScopedListBox(&gui_, label, size);

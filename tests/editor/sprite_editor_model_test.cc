@@ -107,5 +107,48 @@ TEST(SpriteEditorModelTest, AnimationPreviewRejectsInvalidCurrentFrame) {
       absl::StatusCode::kOutOfRange);
 }
 
+// This tab had no in-UI error surface at all: nine failure paths were a
+// LOG(ERROR) and nothing else, so a sprite that failed to save looked exactly
+// like one that saved.
+TEST(SpriteEditorModelTest, AnErrorIsRememberedUntilDismissed) {
+  SpriteEditorModel model;
+  EXPECT_FALSE(model.error().has_value());
+
+  model.SetError("Could not save sprite");
+  ASSERT_TRUE(model.error().has_value());
+  EXPECT_EQ(*model.error(), "Could not save sprite");
+
+  model.ClearError();
+  EXPECT_FALSE(model.error().has_value());
+}
+
+// A banner that outlives the attempt it describes is its own kind of lie.
+TEST(SpriteEditorModelTest, MovingToAnotherSpriteClearsTheError) {
+  SpriteEditorModel model;
+  model.SetSprites({Sprite{.id = "a", .name = "Walk"}});
+
+  model.SetError("Could not save sprite");
+  ASSERT_TRUE(model.SelectSprite("a").ok());
+  EXPECT_FALSE(model.error().has_value());
+
+  model.SetError("Could not save sprite");
+  model.BeginNewSprite();
+  EXPECT_FALSE(model.error().has_value());
+
+  model.SetError("Could not save sprite");
+  model.ClearSelection();
+  EXPECT_FALSE(model.error().has_value());
+}
+
+TEST(SpriteEditorModelTest, SucceedingClearsAPreviousError) {
+  SpriteEditorModel model;
+  model.SetSprites({Sprite{.id = "a", .name = "Walk"}});
+  ASSERT_TRUE(model.SelectSprite("a").ok());
+
+  model.SetError("Could not save sprite");
+  model.FinishSave();
+  EXPECT_FALSE(model.error().has_value());
+}
+
 }  // namespace
 }  // namespace zebes

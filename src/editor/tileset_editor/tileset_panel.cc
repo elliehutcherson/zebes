@@ -51,9 +51,9 @@ absl::StatusOr<std::unique_ptr<TilesetPanel>> TilesetPanel::Create(GuiInterface*
 TilesetPanel::TilesetPanel(GuiInterface* gui) : gui_(gui) {}
 
 void TilesetPanel::CancelPendingConfirmations() {
-  confirm_delete_tileset_.reset();
-  confirm_delete_terrain_.reset();
-  confirm_discard_ = false;
+  delete_tileset_prompt_.Disarm();
+  delete_terrain_prompt_.Disarm();
+  discard_edits_prompt_.Disarm();
 }
 
 absl::StatusOr<TilesetPanel::Action> TilesetPanel::RenderList(TilesetEditorModel& model) {
@@ -106,56 +106,43 @@ absl::StatusOr<TilesetPanel::Action> TilesetPanel::RenderList(TilesetEditorModel
 
 absl::StatusOr<TilesetPanel::Action> TilesetPanel::RenderDeleteTilesetControl(
     TilesetEditorModel& model) {
-  // A pending confirmation belongs to the tileset it was raised against. If the
-  // selection moved on, the question is stale and the plain button comes back.
-  if (confirm_delete_tileset_.has_value() &&
-      *confirm_delete_tileset_ != model.selected_tileset_id()) {
-    confirm_delete_tileset_.reset();
-  }
+  const std::string& selected = model.selected_tileset_id();
+  const std::string question =
+      absl::StrCat("Delete '", TilesetDisplayName(model, selected), "'? This cannot be undone.");
 
-  if (!confirm_delete_tileset_.has_value()) {
+  // The prompt only grows to a question once armed, so the disabled guard
+  // belongs on the plain button and not on the answer.
+  if (!delete_tileset_prompt_.armed()) {
     ScopedDisabled disabled = gui_->CreateScopedDisabled(!model.has_tileset_selection());
-    ScopedStyleColor style = gui_->CreateScopedStyleColor(ImGuiCol_Button, kDestructiveColor);
-    if (gui_->Button("Delete")) confirm_delete_tileset_ = model.selected_tileset_id();
+    if (delete_tileset_prompt_.Render(*gui_, "Delete", selected, question, "Tileset")) {
+      return Action::kDelete;
+    }
     return Action::kNone;
   }
 
-  gui_->TextWrapped("Delete '%s'? This cannot be undone.",
-                    TilesetDisplayName(model, *confirm_delete_tileset_).c_str());
-  {
-    ScopedStyleColor style = gui_->CreateScopedStyleColor(ImGuiCol_Button, kDestructiveColor);
-    if (gui_->Button("Confirm delete")) {
-      confirm_delete_tileset_.reset();
-      return Action::kDelete;
-    }
+  if (delete_tileset_prompt_.Render(*gui_, "Delete", selected, question, "Tileset")) {
+    return Action::kDelete;
   }
-  gui_->SameLine();
-  if (gui_->Button("Cancel delete")) confirm_delete_tileset_.reset();
   return Action::kNone;
 }
 
 absl::StatusOr<TilesetPanel::Action> TilesetPanel::RenderDetails(TilesetEditorModel& model) {
-  if (confirm_discard_) {
-    gui_->TextWrapped("Discard unsaved changes to this tileset?");
-    {
-      ScopedStyleColor style = gui_->CreateScopedStyleColor(ImGuiCol_Button, kDestructiveColor);
-      if (gui_->Button("Discard changes")) {
-        confirm_discard_ = false;
-        model.CloseActiveTileset();
-        return Action::kNone;
-      }
+  // Leaving is only destructive when there is something to lose, so a clean
+  // tileset closes on the first click as it always did. The prompt is only
+  // involved once there are edits to discard.
+  if (discard_edits_prompt_.armed()) {
+    if (discard_edits_prompt_.Render(*gui_, "Back", model.selected_tileset_id(),
+                                     "Discard unsaved changes to this tileset?", "Back")) {
+      model.CloseActiveTileset();
+      return Action::kNone;
     }
-    gui_->SameLine();
-    if (gui_->Button("Keep editing")) confirm_discard_ = false;
   } else if (gui_->Button("Back")) {
-    // Leaving is only destructive when there is something to lose, so a clean
-    // tileset closes on the first click as it always did.
     if (!model.has_unsaved_changes()) {
       CancelPendingConfirmations();
       model.CloseActiveTileset();
       return Action::kNone;
     }
-    confirm_discard_ = true;
+    discard_edits_prompt_.Arm(model.selected_tileset_id());
   }
   gui_->SameLine();
   if (gui_->Button("Save")) {
@@ -211,6 +198,10 @@ absl::Status TilesetPanel::RenderTileList(TilesetEditorModel& model) {
   if (gui_->Button("Add")) RETURN_IF_ERROR(model.AddTile());
   gui_->SameLine();
   {
+    // Deliberately not confirmed, unlike deleting a tileset or a terrain. The
+    // line those draw is whether the work can be trivially recreated: one tile
+    // is an Add and a click away, while a 47-mask rule table is not. Asking
+    // here would only add friction to the list you are actively editing.
     ScopedDisabled disabled = gui_->CreateScopedDisabled(model.selected_tile() == nullptr);
     ScopedStyleColor style = gui_->CreateScopedStyleColor(ImGuiCol_Button, kDestructiveColor);
     if (gui_->Button("Delete##Tile")) RETURN_IF_ERROR(model.DeleteSelectedTile());
@@ -281,24 +272,13 @@ absl::Status TilesetPanel::RenderTerrainList(TilesetEditorModel& model) {
     gui_->SameLine();
 
     // Deleting a terrain throws away a whole 47-mask rule table that cannot be
-    // rebuilt by hand, so it asks first, in place, naming the terrain.
-    if (confirm_delete_terrain_ == terrain.id) {
-      {
-        ScopedStyleColor style = gui_->CreateScopedStyleColor(ImGuiCol_Button, kDestructiveColor);
-        if (gui_->Button("Confirm##Terrain")) {
-          confirm_delete_terrain_.reset();
-          RETURN_IF_ERROR(model.DeleteTerrain(terrain.id));
-          // The loop is iterating the vector DeleteTerrain just erased from.
-          return absl::OkStatus();
-        }
-      }
-      gui_->SameLine();
-      if (gui_->Button("Cancel##Terrain")) confirm_delete_terrain_.reset();
-      continue;
+    // rebuilt by hand, so it asks first. The row already names the terrain, so
+    // the compact form with no question line is enough here.
+    if (delete_terrain_prompt_.Render(*gui_, "Delete", absl::StrCat(terrain.id), "", "Terrain")) {
+      RETURN_IF_ERROR(model.DeleteTerrain(terrain.id));
+      // The loop is iterating the vector DeleteTerrain just erased from.
+      return absl::OkStatus();
     }
-
-    ScopedStyleColor style = gui_->CreateScopedStyleColor(ImGuiCol_Button, kDestructiveColor);
-    if (gui_->Button("Delete##Terrain")) confirm_delete_terrain_ = terrain.id;
   }
 
   return RenderTerrainMembership(model, *tileset);

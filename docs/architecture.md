@@ -196,6 +196,35 @@ and calculations such as preview bounds or atlas-cell snapping. They must not
 depend on ImGui, SDL, or `Api`. Panels render model state and report persistence
 intents; the containing editor coordinates those intents with `Api`.
 
+Two rules are uniform across every editor tab, so that authoring one asset kind
+teaches you the others.
+
+**A destructive action asks before it acts, against a remembered target.**
+`ConfirmPrompt` (`src/editor/confirm_prompt.h`) replaces the button with a
+question the moment it is pressed and returns true only once the user answers.
+The target is remembered rather than a bare flag: a question belongs to the
+thing it was raised against, and without that, moving the selection while a
+Confirm is on screen would leave it primed to destroy whatever is selected now.
+Asking in place rather than through a modal is deliberate — `GuiInterface` has
+no `OpenPopup`/`BeginPopupModal`, and growing the interface, `Gui`, and
+`MockGui` for one dialog buys nothing an inline question does not, while
+costing the ability to drive the whole interaction from a panel test. The line
+for what needs asking is whether the work can be trivially recreated: a tile is
+an Add and a click away and is not confirmed; a 47-mask rule table is not.
+
+**Closing an editor compares against a snapshot, not a dirty flag.** Each panel
+model holds the asset as it stood when editing began or was last saved, and
+`has_unsaved_changes()` compares. No mutating path can forget to mark itself —
+which matters most for level painting, since tiles go straight into the chunk
+map — and editing a value back to its original correctly reports clean. The
+comparison only runs on the frame the user tries to leave, so even a whole-level
+compare costs nothing per frame. It is why the pure aggregates in
+`src/objects/` carry defaulted `operator==`.
+
+Failures follow the same uniformity: every tab surfaces them in the UI through
+a dismissible banner, with the message held on the panel model wherever one
+exists so the failure logic stays testable without SDL or ImGui.
+
 Rendering layout follows the same boundary when it can be expressed as pure
 geometry. For example, the level viewport calculates a `ParallaxLayout` from a
 Zebes `Camera`, layer settings, and texture dimensions. The ImGui/SDL view only
@@ -510,6 +539,42 @@ It is now complete: `src/objects/` includes only Abseil and its own headers, so
 
 Levels written before these splits still load; the removed keys — `vx`, `vy`,
 `ax`, `ay`, and `current_frame_index` — are ignored rather than restored.
+
+### The formats have no optional fields
+
+Every writer in `src/resources/` emits every field unconditionally, and every
+reader requires it with `.at()`. A definition missing a field is corruption, not
+permission to substitute today's default. This was settled once for
+`Terrain::variant_period` and then extended to the whole format, because the
+alternative is silent reinterpretation: a tile whose `shape` was absent used to
+load as `kNone` — solid artwork that collides with nothing.
+
+Two consequences are load-bearing:
+
+- **An absent list and an empty one must not both be spellable.** Collections
+  that used to be omitted when empty — a terrain's `member_tile_ids`, an
+  entity's `sprite_id` and `collider_id`, a tileset's `terrains` — are written
+  either way. Offering the reader two spellings of one state is exactly what
+  forces it to guess.
+- **Something has to notice.** `tests/assets/shipped_assets_test.cc` loads every
+  shipped definition of every kind and checks the count against the files on
+  disk, so a definition left behind by a format change fails there rather than
+  in front of whoever opens the editor next. Strict parsing without that test is
+  a trap rather than an invariant.
+
+Data that would otherwise hold the invariant back is migrated rather than
+tolerated. `scripts/migrate_definitions.py` holds one migration per field,
+naming the value that reproduces what the old file did; migrations are
+idempotent and match the managers' own JSON layout so a migrated file and one
+the editor re-saves are byte-identical. The terrain recipe parser therefore
+reads exactly one schema version: carrying a translation for a version no file
+uses would mean the parser's shape was decided by data that is not there.
+
+Bulk loads report what they could not read. Each `LoadAll*` reads every file, so
+one bad definition cannot hide the others, then returns an error naming all the
+failures at once. Returning OK and logging a warning made a definition the
+editor could not parse simply vanish from the catalog, which is the failure
+strict parsing exists to surface.
 
 Named asset catalogs use the shared `AssetCatalogKey`, ordered by display name
 and then stable asset ID. This preserves duplicate names while providing

@@ -42,11 +42,16 @@ void SpriteEditor::LoadSpriteTexture(const std::string& texture_id) {
   if (!handle.ok()) {
     model_.ClearTexture();
     LOG(ERROR) << "Failed to load sprite texture: " << handle.status();
+    model_.SetError(
+        absl::StrCat("Could not load this sprite's texture: ", handle.status().message()));
     return;
   }
 
   absl::Status status = model_.SelectTexture(texture_id, *handle);
-  if (!status.ok()) LOG(ERROR) << "Failed to select sprite texture: " << status;
+  if (!status.ok()) {
+    LOG(ERROR) << "Failed to select sprite texture: " << status;
+    model_.SetError(absl::StrCat("Could not use that texture: ", status.message()));
+  }
 }
 
 void SpriteEditor::RefreshSpriteList() {
@@ -56,6 +61,7 @@ void SpriteEditor::RefreshSpriteList() {
   absl::StatusOr<std::vector<Texture>> textures = api_->GetAllTextures();
   if (!textures.ok()) {
     LOG(ERROR) << "Failed to load textures: " << textures.status();
+    model_.SetError(absl::StrCat("Could not list textures: ", textures.status().message()));
     model_.SetTextures({});
   } else {
     model_.SetTextures(std::move(*textures));
@@ -67,6 +73,7 @@ void SpriteEditor::SelectSprite(const std::string& sprite_id) {
   absl::Status status = model_.SelectSprite(sprite_id);
   if (!status.ok()) {
     LOG(ERROR) << "Selected sprite not found in list: " << sprite_id << ": " << status;
+    model_.SetError(absl::StrCat("Could not open sprite ", sprite_id, ": ", status.message()));
     return;
   }
   LoadSpriteTexture(model_.sprite().texture_id);
@@ -81,12 +88,14 @@ void SpriteEditor::CreateSprite() {
   absl::StatusOr<Sprite> request = model_.BuildCreateRequest();
   if (!request.ok()) {
     LOG(ERROR) << "Cannot create sprite: " << request.status();
+    model_.SetError(request.status().message());
     return;
   }
 
   absl::StatusOr<std::string> new_id = api_->CreateSprite(*request);
   if (!new_id.ok()) {
     LOG(ERROR) << "Failed to create sprite: " << new_id.status();
+    model_.SetError(absl::StrCat("Could not create sprite: ", new_id.status().message()));
     return;
   }
 
@@ -99,12 +108,14 @@ void SpriteEditor::UpdateSprite() {
   absl::StatusOr<Sprite> request = model_.BuildUpdateRequest();
   if (!request.ok()) {
     LOG(ERROR) << "Cannot update sprite: " << request.status();
+    model_.SetError(request.status().message());
     return;
   }
 
   absl::Status status = api_->UpdateSprite(*request);
   if (!status.ok()) {
     LOG(ERROR) << "Failed to update sprite: " << status;
+    model_.SetError(absl::StrCat("Could not save sprite: ", status.message()));
     return;
   }
 
@@ -117,6 +128,7 @@ void SpriteEditor::DeleteSprite(const std::string& sprite_id) {
   absl::Status status = api_->DeleteSprite(sprite_id);
   if (!status.ok()) {
     LOG(ERROR) << "Failed to delete sprite: " << status;
+    model_.SetError(absl::StrCat("Could not delete sprite: ", status.message()));
     return;
   }
 
@@ -128,6 +140,15 @@ void SpriteEditor::DeleteSprite(const std::string& sprite_id) {
 void SpriteEditor::SaveSpriteFrames() { UpdateSprite(); }
 
 void SpriteEditor::Render() {
+  // Same banner the tileset, texture and blueprint tabs use. This tab had no
+  // in-UI error surface at all, so a sprite that failed to save looked exactly
+  // like one that saved unless you happened to be watching a terminal.
+  if (model_.error().has_value()) {
+    gui_->TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Error: %s", model_.error()->c_str());
+    gui_->SameLine();
+    if (gui_->Button("Dismiss")) model_.ClearError();
+  }
+
   RenderSpriteSelection();
   RenderSpriteFrameList();
   RenderFullTextureView();
@@ -255,12 +276,10 @@ void SpriteEditor::RenderSpriteMeta() {
   }
   gui_->SameLine();
 
-  {
-    ScopedStyleColor style =
-        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-    if (gui_->Button("Delete Sprite")) {
-      DeleteSprite(sprite.id);
-    }
+  if (delete_sprite_prompt_.Render(*gui_, "Delete Sprite", sprite.id,
+                                   "Delete this sprite? Every frame authored on it goes too.",
+                                   "Sprite")) {
+    DeleteSprite(sprite.id);
   }
 }
 

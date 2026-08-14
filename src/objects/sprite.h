@@ -18,6 +18,8 @@ struct SpriteFrame {
   int frames_per_cycle = 0;
   int offset_x = 0;
   int offset_y = 0;
+
+  bool operator==(const SpriteFrame& other) const = default;
 };
 
 struct Sprite {
@@ -29,6 +31,8 @@ struct Sprite {
   std::string texture_id;
   // Sprite frames
   std::vector<SpriteFrame> frames;
+
+  bool operator==(const Sprite& other) const = default;
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 };

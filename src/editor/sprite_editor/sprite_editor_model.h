@@ -2,11 +2,13 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "editor/asset_catalog.h"
 #include "engine/texture_handle.h"
 #include "objects/sprite.h"
@@ -66,6 +68,16 @@ class SpriteEditorModel {
   absl::StatusOr<Sprite> BuildUpdateRequest() const;
   void FinishSave();
 
+  // The last failure, shown in the tab until dismissed or superseded.
+  //
+  // Every failure path here used to be a LOG(ERROR) and nothing else, so a
+  // sprite that failed to save looked exactly like one that saved. The message
+  // lives on the model rather than the view so the failure logic is testable
+  // without SDL or ImGui.
+  void SetError(absl::string_view message);
+  void ClearError();
+  const std::optional<std::string>& error() const { return error_; }
+
   int active_frame_index() const { return active_frame_index_; }
   void ToggleActiveFrame(int index);
   absl::Status AddFrame();
@@ -95,6 +107,7 @@ class SpriteEditorModel {
   TextureHandle texture_;
   bool is_new_sprite_ = false;
   std::string edit_name_buffer_;
+  std::optional<std::string> error_;
   std::vector<SpriteFrame> original_frames_;
   int active_frame_index_ = -1;
   float texture_zoom_ = 1.0f;

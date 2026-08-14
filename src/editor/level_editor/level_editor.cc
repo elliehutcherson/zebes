@@ -114,6 +114,7 @@ absl::Status LevelEditor::SaveActiveLevel() {
     RETURN_IF_ERROR(level_model_.FinishCreate(id));
   } else {
     RETURN_IF_ERROR(api_->UpdateLevel(std::move(level)));
+    level_model_.MarkSaved();
   }
   RefreshLevelCatalog();
   return absl::OkStatus();

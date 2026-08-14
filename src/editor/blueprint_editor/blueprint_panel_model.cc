@@ -25,6 +25,7 @@ void BlueprintPanelModel::ClearBlueprintSelection() { selected_blueprint_id_.cle
 
 void BlueprintPanelModel::BeginNewBlueprint() {
   active_blueprint_ = Blueprint{.name = "New Blueprint"};
+  baseline_blueprint_ = active_blueprint_;
 }
 
 absl::Status BlueprintPanelModel::BeginEditingSelectedBlueprint() {
@@ -33,10 +34,22 @@ absl::Status BlueprintPanelModel::BeginEditingSelectedBlueprint() {
     return absl::FailedPreconditionError("No blueprint is selected");
   }
   active_blueprint_ = *selected;
+  baseline_blueprint_ = *selected;
   return absl::OkStatus();
 }
 
-void BlueprintPanelModel::CloseActiveBlueprint() { active_blueprint_.reset(); }
+void BlueprintPanelModel::CloseActiveBlueprint() {
+  active_blueprint_.reset();
+  baseline_blueprint_.reset();
+}
+
+bool BlueprintPanelModel::has_unsaved_changes() const {
+  if (!active_blueprint_.has_value()) return false;
+  if (!baseline_blueprint_.has_value()) return true;
+  return *active_blueprint_ != *baseline_blueprint_;
+}
+
+void BlueprintPanelModel::MarkSaved() { baseline_blueprint_ = active_blueprint_; }
 
 bool BlueprintPanelModel::is_new_blueprint() const {
   return active_blueprint_.has_value() && active_blueprint_->id.empty();
@@ -67,6 +80,7 @@ absl::Status BlueprintPanelModel::FinishCreate(const std::string& saved_id) {
   if (saved_id.empty()) return absl::InvalidArgumentError("Saved blueprint ID cannot be empty");
   active_blueprint_->id = saved_id;
   selected_blueprint_id_ = saved_id;
+  MarkSaved();
   return absl::OkStatus();
 }
 

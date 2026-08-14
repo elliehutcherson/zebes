@@ -39,6 +39,8 @@ struct Entity {
   // simulation state, not authored data, and keeping it here meant every saved
   // level carried a frame index nothing ever read. See editor/animator.h for
   // how playback state is owned today.
+
+  bool operator==(const Entity& other) const = default;
 };
 
 }  // namespace zebes

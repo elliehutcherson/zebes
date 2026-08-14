@@ -13,11 +13,15 @@ struct Blueprint {
     std::string name;
     std::string collider_id;
     std::string sprite_id;
+
+    bool operator==(const State& other) const = default;
   };
 
   std::string id;
   std::string name;
   std::vector<State> states;
+
+  bool operator==(const Blueprint& other) const = default;
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 

@@ -97,5 +97,61 @@ TEST(BlueprintPanelModelTest, DeleteClearsSelectionAndEditingState) {
             absl::StatusCode::kFailedPrecondition);
 }
 
+// Back used to discard edits with no prompt. Knowing whether there is anything
+// to lose is what lets it only ask when asking is warranted.
+TEST(BlueprintPanelModelTest, AFreshlyOpenedBlueprintHasNothingToLose) {
+  BlueprintPanelModel model;
+  EXPECT_FALSE(model.has_unsaved_changes()) << "nothing is being edited";
+
+  model.SetBlueprints({Blueprint{.id = "a", .name = "Samus"}});
+  ASSERT_TRUE(model.SelectBlueprint("a").ok());
+  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
+TEST(BlueprintPanelModelTest, EditsToAnyPartOfABlueprintCount) {
+  BlueprintPanelModel model;
+  model.SetBlueprints({Blueprint{.id = "a", .name = "Samus"}});
+  ASSERT_TRUE(model.SelectBlueprint("a").ok());
+
+  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+  model.active_blueprint()->name = "Renamed";
+  EXPECT_TRUE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+  ASSERT_TRUE(model.AddState().ok());
+  EXPECT_TRUE(model.has_unsaved_changes());
+}
+
+TEST(BlueprintPanelModelTest, UndoingAnEditByHandIsCleanAgain) {
+  BlueprintPanelModel model;
+  model.SetBlueprints({Blueprint{.id = "a", .name = "Samus"}});
+  ASSERT_TRUE(model.SelectBlueprint("a").ok());
+  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+
+  model.active_blueprint()->name = "Renamed";
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  model.active_blueprint()->name = "Samus";
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
+TEST(BlueprintPanelModelTest, SavingMakesTheCurrentStateTheCleanOne) {
+  BlueprintPanelModel model;
+  model.BeginNewBlueprint();
+  model.active_blueprint()->name = "Metroid";
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.FinishCreate("metroid-id").ok());
+  EXPECT_FALSE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.AddState().ok());
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  model.MarkSaved();
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
 }  // namespace
 }  // namespace zebes

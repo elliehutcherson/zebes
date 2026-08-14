@@ -12,6 +12,20 @@
 #include "objects/level.h"
 
 namespace zebes {
+namespace {
+
+// The display name of a level in the catalog, or its ID when the catalog no
+// longer holds it. A confirmation has to name what it will destroy, and naming
+// the wrong thing is worse than naming it awkwardly.
+std::string LevelDisplayName(const LevelPanelModel& model, const std::string& level_id) {
+  for (const auto& catalog_entry : model.levels()) {
+    if (catalog_entry.second.id != level_id) continue;
+    return catalog_entry.second.name.empty() ? "(unnamed level)" : catalog_entry.second.name;
+  }
+  return level_id;
+}
+
+}  // namespace
 
 absl::StatusOr<std::unique_ptr<LevelPanel>> LevelPanel::Create(GuiInterface* gui) {
   if (gui == nullptr) return absl::InvalidArgumentError("Gui can not be null.");
@@ -22,21 +36,32 @@ LevelPanel::LevelPanel(GuiInterface* gui) : gui_(gui) {}
 
 absl::StatusOr<LevelPanelEvent> LevelPanel::RenderList(LevelPanelModel& model) {
   if (gui_->Button("Create")) {
+    delete_level_prompt_.Disarm();
     model.BeginNewLevel();
     return LevelPanelEvent{.action = LevelPanelAction::kCreate};
   }
   gui_->SameLine();
 
-  if (gui_->Button("Edit") && model.has_level_selection()) {
-    RETURN_IF_ERROR(model.BeginEditingSelectedLevel());
-    return LevelPanelEvent{.action = LevelPanelAction::kOpen};
+  // Disabled rather than guarded: a button that is enabled, does nothing when
+  // pressed, and reports nothing teaches that the editor is broken.
+  {
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(!model.has_level_selection());
+    if (gui_->Button("Edit")) {
+      delete_level_prompt_.Disarm();
+      RETURN_IF_ERROR(model.BeginEditingSelectedLevel());
+      return LevelPanelEvent{.action = LevelPanelAction::kOpen};
+    }
   }
   gui_->SameLine();
 
   {
-    ScopedStyleColor style =
-        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-    if (gui_->Button("Delete") && model.has_level_selection()) {
+    const std::string question =
+        absl::StrCat("Delete '", LevelDisplayName(model, model.selected_level_id()),
+                     "'? Every tile placed in it goes too.");
+    ScopedDisabled disabled =
+        gui_->CreateScopedDisabled(!model.has_level_selection() && !delete_level_prompt_.armed());
+    if (delete_level_prompt_.Render(*gui_, "Delete", model.selected_level_id(), question,
+                                    "Level")) {
       return LevelPanelEvent{.action = LevelPanelAction::kDelete};
     }
   }
@@ -103,13 +128,25 @@ absl::StatusOr<LevelPanelEvent> LevelPanel::RenderDetails(LevelPanelModel& model
   Level* level = model.active_level();
   if (level == nullptr) return absl::FailedPreconditionError("No level is being edited");
 
-  if (gui_->Button("Back")) {
-    model.CloseActiveLevel();
-    return LevelPanelEvent{.action = LevelPanelAction::kClose};
+  // Leaving is only destructive when there is something to lose, so a level
+  // with no edits closes on the first click as it always did.
+  if (discard_edits_prompt_.armed()) {
+    if (discard_edits_prompt_.Render(*gui_, "Back", model.selected_level_id(),
+                                     "Discard unsaved changes to this level?", "Back")) {
+      model.CloseActiveLevel();
+      return LevelPanelEvent{.action = LevelPanelAction::kClose};
+    }
+  } else if (gui_->Button("Back")) {
+    if (!model.has_unsaved_changes()) {
+      model.CloseActiveLevel();
+      return LevelPanelEvent{.action = LevelPanelAction::kClose};
+    }
+    discard_edits_prompt_.Arm(model.selected_level_id());
   }
 
   gui_->SameLine();
   if (gui_->Button("Save")) {
+    discard_edits_prompt_.Disarm();
     return LevelPanelEvent{.action = LevelPanelAction::kSave};
   }
 

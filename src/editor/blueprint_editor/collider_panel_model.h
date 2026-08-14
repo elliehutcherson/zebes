@@ -37,8 +37,15 @@ class ColliderPanelModel {
   Collider* active_collider();
   const Collider* active_collider() const;
 
+  // Whether the collider being edited differs from the state it was opened or
+  // last saved at. Comparing against a snapshot rather than latching a flag
+  // means dragging a vertex and dragging it back correctly reports clean.
+  bool has_unsaved_changes() const;
+
   absl::StatusOr<Collider> BuildSaveRequest() const;
   absl::Status FinishCreate(const std::string& saved_id);
+  // Makes the current state the clean one, after a successful write.
+  void MarkSaved();
   void FinishDelete();
   absl::Status ResetActiveCollider();
 
@@ -59,6 +66,8 @@ class ColliderPanelModel {
   ColliderCatalog colliders_;
   std::string selected_collider_id_;
   std::optional<Collider> active_collider_;
+  // The active collider as it stood when editing began or was last saved.
+  std::optional<Collider> baseline_collider_;
   std::uint64_t active_revision_ = 0;
 };
 

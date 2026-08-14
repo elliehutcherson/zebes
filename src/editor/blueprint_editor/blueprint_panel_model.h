@@ -34,8 +34,16 @@ class BlueprintPanelModel {
   Blueprint* active_blueprint();
   const Blueprint* active_blueprint() const;
 
+  // Whether the blueprint being edited differs from the state it was opened or
+  // last saved at. Comparing against a snapshot rather than latching a flag
+  // means no mutating path can forget to mark itself, and undoing an edit by
+  // hand correctly reports clean again.
+  bool has_unsaved_changes() const;
+
   absl::StatusOr<Blueprint> BuildSaveRequest() const;
   absl::Status FinishCreate(const std::string& saved_id);
+  // Makes the current state the clean one, after a successful write.
+  void MarkSaved();
   void FinishDelete();
 
   absl::Status AddState();
@@ -48,6 +56,8 @@ class BlueprintPanelModel {
   BlueprintCatalog blueprints_;
   std::string selected_blueprint_id_;
   std::optional<Blueprint> active_blueprint_;
+  // The active blueprint as it stood when editing began or was last saved.
+  std::optional<Blueprint> baseline_blueprint_;
 };
 
 }  // namespace zebes

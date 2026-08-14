@@ -14,6 +14,8 @@ struct Body {
 
   // Static bodies are never integrated and never moved by collision response.
   bool is_static = false;
+
+  bool operator==(const Body& other) const = default;
 };
 
 // Per-frame simulation state. Deliberately not part of Body and never

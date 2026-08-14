@@ -8,6 +8,7 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/animator.h"
+#include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
 #include "editor/sprite_editor/sprite_editor_model.h"
 #include "imgui.h"
@@ -58,6 +59,9 @@ class SpriteEditor {
   GuiInterface* gui_;
 
   SpriteEditorModel model_;
+
+  // Deleting a sprite destroys every frame authored on it, so it asks first.
+  ConfirmPrompt delete_sprite_prompt_;
 
   // Animation state
   std::unique_ptr<Animator> animator_ = std::make_unique<Animator>();

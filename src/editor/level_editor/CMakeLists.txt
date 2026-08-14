@@ -156,10 +156,13 @@ add_library(level_panel
 target_link_libraries(level_panel
   level_panel_model
   level
+  confirm_prompt
+  imgui_scoped
   status_macros
   ${IMGUI_LIBRARIES}
   absl::status
   absl::memory
+  absl::strings
   gui_interface
 )
 

@@ -5,6 +5,7 @@
 
 #include "absl/status/statusor.h"
 #include "editor/blueprint_editor/blueprint_panel_model.h"
+#include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
 
 namespace zebes {
@@ -37,6 +38,11 @@ class BlueprintPanel {
   absl::StatusOr<int> RenderStateList(BlueprintPanelModel& model);
   bool RenderStateDetails(const Blueprint::State& state, int state_index,
                           int* selected_state_index);
+
+  // Deleting a blueprint destroys every state authored on it, and closing one
+  // with edits throws those away. Both ask first, against a remembered target.
+  ConfirmPrompt delete_blueprint_prompt_;
+  ConfirmPrompt discard_edits_prompt_;
 
   GuiInterface* gui_;
 };

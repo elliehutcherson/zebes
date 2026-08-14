@@ -13,7 +13,9 @@ target_link_libraries(blueprint_panel_model
 add_library(blueprint_panel blueprint_panel.cc)
 target_link_libraries(blueprint_panel
   blueprint_panel_model
+  confirm_prompt
   editor_utils
+  imgui_scoped
   ${IMGUI_LIBRARIES}
   absl::status
   gui_interface
@@ -35,7 +37,9 @@ target_link_libraries(collider_panel_model
 add_library(collider_panel collider_panel.cc)
 target_link_libraries(collider_panel
   collider_panel_model
+  confirm_prompt
   editor_utils
+  imgui_scoped
   ${IMGUI_LIBRARIES}
   absl::status
   gui_interface

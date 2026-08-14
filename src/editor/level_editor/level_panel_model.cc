@@ -92,14 +92,24 @@ absl::Status LevelPanelModel::BeginEditingSelectedLevel() {
 
 void LevelPanelModel::BeginEditingLevel(Level level) {
   active_level_ = std::move(level);
+  baseline_level_ = active_level_;
   // A staged tileset change belongs to the level it was requested for.
   pending_tileset_id_.reset();
 }
 
 void LevelPanelModel::CloseActiveLevel() {
   active_level_.reset();
+  baseline_level_.reset();
   pending_tileset_id_.reset();
 }
+
+bool LevelPanelModel::has_unsaved_changes() const {
+  if (!active_level_.has_value()) return false;
+  if (!baseline_level_.has_value()) return true;
+  return *active_level_ != *baseline_level_;
+}
+
+void LevelPanelModel::MarkSaved() { baseline_level_ = active_level_; }
 
 bool LevelPanelModel::is_new_level() const {
   return active_level_.has_value() && active_level_->id.empty();
@@ -130,6 +140,7 @@ absl::Status LevelPanelModel::FinishCreate(const std::string& saved_id) {
   if (saved_id.empty()) return absl::InvalidArgumentError("Saved level ID cannot be empty");
   active_level_->id = saved_id;
   selected_level_id_ = saved_id;
+  MarkSaved();
   return absl::OkStatus();
 }
 

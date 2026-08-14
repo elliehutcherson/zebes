@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,10 @@ class ConfigEditor {
   const EngineConfig& current_config_;
   EngineConfig local_config_;
   std::string window_title_buffer_;
+
+  // The last failure, shown until dismissed or superseded. Pressing Save
+  // Config and being told nothing when the write failed is what this is for.
+  std::optional<std::string> error_message_;
 };
 
 }  // namespace zebes

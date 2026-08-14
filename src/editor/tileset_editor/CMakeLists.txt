@@ -22,6 +22,7 @@ target_link_libraries(tile_panel
 add_library(tileset_panel tileset_panel.cc)
 target_link_libraries(tileset_panel
   tileset_editor_model
+  confirm_prompt
   gui_interface
   imgui_scoped
   status_macros

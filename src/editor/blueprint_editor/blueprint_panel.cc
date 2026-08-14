@@ -27,18 +27,29 @@ absl::StatusOr<BlueprintPanel::Event> BlueprintPanel::Render(BlueprintPanelModel
 }
 
 absl::StatusOr<BlueprintPanel::Event> BlueprintPanel::RenderList(BlueprintPanelModel& model) {
-  if (gui_->Button("Create")) model.BeginNewBlueprint();
+  if (gui_->Button("Create")) {
+    delete_blueprint_prompt_.Disarm();
+    model.BeginNewBlueprint();
+  }
   gui_->SameLine();
 
-  if (gui_->Button("Edit") && model.has_blueprint_selection()) {
-    RETURN_IF_ERROR(model.BeginEditingSelectedBlueprint());
+  // Disabled rather than guarded: a button that is enabled, does nothing when
+  // pressed, and reports nothing teaches that the editor is broken.
+  {
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(!model.has_blueprint_selection());
+    if (gui_->Button("Edit")) {
+      delete_blueprint_prompt_.Disarm();
+      RETURN_IF_ERROR(model.BeginEditingSelectedBlueprint());
+    }
   }
   gui_->SameLine();
 
   {
-    ScopedStyleColor style =
-        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-    if (gui_->Button("Delete") && model.has_blueprint_selection()) {
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(!model.has_blueprint_selection() &&
+                                                         !delete_blueprint_prompt_.armed());
+    if (delete_blueprint_prompt_.Render(*gui_, "Delete", model.selected_blueprint_id(),
+                                        "Delete this blueprint? This cannot be undone.",
+                                        "Blueprint")) {
       return Event{.action = Action::kDelete};
     }
   }
@@ -59,9 +70,20 @@ absl::StatusOr<BlueprintPanel::Event> BlueprintPanel::RenderList(BlueprintPanelM
 }
 
 absl::StatusOr<BlueprintPanel::Event> BlueprintPanel::RenderDetails(BlueprintPanelModel& model) {
-  if (gui_->Button("Back")) {
-    model.CloseActiveBlueprint();
-    return Event{};
+  // Leaving is only destructive when there is something to lose, so a blueprint
+  // with no edits closes on the first click as it always did.
+  if (discard_edits_prompt_.armed()) {
+    if (discard_edits_prompt_.Render(*gui_, "Back", model.selected_blueprint_id(),
+                                     "Discard unsaved changes to this blueprint?", "Back")) {
+      model.CloseActiveBlueprint();
+      return Event{};
+    }
+  } else if (gui_->Button("Back")) {
+    if (!model.has_unsaved_changes()) {
+      model.CloseActiveBlueprint();
+      return Event{};
+    }
+    discard_edits_prompt_.Arm(model.selected_blueprint_id());
   }
 
   Blueprint* blueprint = model.active_blueprint();
@@ -75,6 +97,7 @@ absl::StatusOr<BlueprintPanel::Event> BlueprintPanel::RenderDetails(BlueprintPan
   gui_->Separator();
   const float button_width = CalculateButtonWidth(gui_, /*num_buttons=*/1);
   if (gui_->Button("Save", ImVec2(button_width, 0))) {
+    discard_edits_prompt_.Disarm();
     return Event{.action = Action::kSave};
   }
 

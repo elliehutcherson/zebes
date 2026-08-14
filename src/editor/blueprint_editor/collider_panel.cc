@@ -39,16 +39,26 @@ absl::StatusOr<ColliderPanel::Action> ColliderPanel::RenderList(ColliderPanelMod
   }
   gui_->SameLine();
 
-  if (gui_->Button("Attach") && model.has_collider_selection()) {
-    RETURN_IF_ERROR(model.BeginEditingSelectedCollider());
-    return Action::kAttach;
+  // Disabled rather than guarded: a button that is enabled, does nothing when
+  // pressed, and reports nothing teaches that the editor is broken.
+  {
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(!model.has_collider_selection());
+    if (gui_->Button("Attach")) {
+      delete_collider_prompt_.Disarm();
+      RETURN_IF_ERROR(model.BeginEditingSelectedCollider());
+      return Action::kAttach;
+    }
   }
   gui_->SameLine();
 
   {
-    ScopedStyleColor style =
-        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-    if (gui_->Button("Delete") && model.has_collider_selection()) return Action::kDelete;
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(!model.has_collider_selection() &&
+                                                         !delete_collider_prompt_.armed());
+    if (delete_collider_prompt_.Render(*gui_, "Delete", model.selected_collider_id(),
+                                       "Delete this collider? This cannot be undone.",
+                                       "Collider")) {
+      return Action::kDelete;
+    }
   }
 
   if (auto list_box = gui_->CreateScopedListBox("Colliders", ImVec2(-FLT_MIN, -FLT_MIN));
@@ -81,22 +91,32 @@ absl::StatusOr<ColliderPanel::Action> ColliderPanel::RenderDetails(ColliderPanel
   if (gui_->Button("Save", ImVec2(button_width, 0))) return Action::kSave;
   gui_->SameLine();
 
-  {
+  // Detaching is only destructive when there is something to lose, so a
+  // collider with no edits detaches on the first click as it always did.
+  if (discard_edits_prompt_.armed()) {
+    if (discard_edits_prompt_.Render(*gui_, "Detach", model.selected_collider_id(),
+                                     "Discard unsaved changes to this collider?", "Detach")) {
+      model.CloseActiveCollider();
+      return Action::kDetach;
+    }
+  } else {
     ScopedStyleColor style =
         gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
     if (gui_->Button("Detach", ImVec2(button_width, 0))) {
-      model.CloseActiveCollider();
-      return Action::kDetach;
+      if (!model.has_unsaved_changes()) {
+        model.CloseActiveCollider();
+        return Action::kDetach;
+      }
+      discard_edits_prompt_.Arm(model.selected_collider_id());
     }
   }
   gui_->SameLine();
 
-  {
-    ScopedStyleColor style =
-        gui_->CreateScopedStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-    if (gui_->Button("Reset", ImVec2(button_width, 0))) {
-      RETURN_IF_ERROR(model.ResetActiveCollider());
-    }
+  // Reset exists to throw the edits away, which is exactly why a misclick on it
+  // is expensive enough to be worth one question.
+  if (reset_prompt_.Render(*gui_, "Reset", model.selected_collider_id(),
+                           "Discard every edit and reload this collider from disk?", "Reset")) {
+    RETURN_IF_ERROR(model.ResetActiveCollider());
   }
 
   return Action::kNone;

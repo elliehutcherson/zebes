@@ -184,7 +184,9 @@ void TextureEditor::RenderTextureDetails() {
   // Name Field
   gui_->InputText("Name", model_.edit_name_buffer().data(), model_.edit_name_buffer().size());
 
-  // Path Field (Read-only for now, consistent with existing logic usually)
+  // Read-only once imported: the path is what every tileset and sprite
+  // resolves artwork through, so repointing it here would silently change
+  // what they render. Import the new file as its own texture instead.
   gui_->LabelText("Path", "%s", selected_texture->path.c_str());
 
   if (model_.is_new_texture()) {
@@ -294,7 +296,6 @@ void TextureEditor::RenderPreview() {
   }
 
   // Mouse wheel zoom when hovering over preview
-  // Note: IsWindowHovered is not yet in GuiInterface, assuming ImGui::
   if (gui_->IsWindowHovered()) {
     float wheel = gui_->GetIO().MouseWheel;
     if (wheel != 0.0f) {

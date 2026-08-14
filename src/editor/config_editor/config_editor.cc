@@ -2,6 +2,7 @@
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "common/sdl_wrapper.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
@@ -36,12 +37,22 @@ ConfigEditor::ConfigEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui)
 void ConfigEditor::Render() {
   window_title_buffer_ = local_config_.window.title;
 
+  // Same banner every other authoring tab uses.
+  if (error_message_.has_value()) {
+    gui_->TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Error: %s", error_message_->c_str());
+    gui_->SameLine();
+    if (gui_->Button("Dismiss")) error_message_.reset();
+  }
+
   if (gui_->Button("Save Config")) {
     // Update title from buffer before saving
     local_config_.window.title = window_title_buffer_.c_str();
     absl::Status status = api_->SaveConfig(local_config_);
-    if (!status.ok()) {
+    if (status.ok()) {
+      error_message_.reset();
+    } else {
       LOG(ERROR) << "Failed to save config: " << status;
+      error_message_ = absl::StrCat("Could not save config: ", status.message());
     }
   }
 
@@ -74,14 +85,22 @@ void ConfigEditor::Render() {
         gui_->InputInt("Position Y", &local_config_.window.y);
       }
 
+      // The checkbox has already moved, so a failure here leaves the control
+      // disagreeing with the window until the user is told why.
       if (gui_->Checkbox("Fullscreen", &local_config_.window.fullscreen)) {
         absl::Status s = sdl_->SetWindowFullscreen(local_config_.window.fullscreen);
-        if (!s.ok()) LOG(ERROR) << "Failed to set fullscreen: " << s;
+        if (!s.ok()) {
+          LOG(ERROR) << "Failed to set fullscreen: " << s;
+          error_message_ = absl::StrCat("Could not change fullscreen: ", s.message());
+        }
       }
 
       if (gui_->Checkbox("Resizable", &local_config_.window.resizable)) {
         absl::Status s = sdl_->SetWindowResizable(local_config_.window.resizable);
-        if (!s.ok()) LOG(ERROR) << "Failed to set resizable: " << s;
+        if (!s.ok()) {
+          LOG(ERROR) << "Failed to set resizable: " << s;
+          error_message_ = absl::StrCat("Could not change resizable: ", s.message());
+        }
       }
 
       gui_->Checkbox("High DPI", &local_config_.window.high_dpi);

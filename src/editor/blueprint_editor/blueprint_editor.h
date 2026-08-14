@@ -80,6 +80,11 @@ class BlueprintEditor {
   BlueprintPanelModel blueprint_model_;
   ColliderPanelModel collider_model_;
 
+  // The last failure, shown in the tab until dismissed or superseded. Pressing
+  // Save and being told nothing when the write failed is the case this exists
+  // for; a LOG(ERROR) reaches a terminal nobody is watching.
+  std::optional<std::string> error_message_;
+
   Mode mode_ = Mode::kBlueprint;
 };
 

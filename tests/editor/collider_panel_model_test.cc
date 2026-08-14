@@ -105,5 +105,63 @@ TEST(ColliderPanelModelTest, CloseAndDeleteClearAuthoringState) {
             absl::StatusCode::kFailedPrecondition);
 }
 
+// Detaching used to discard edits with no prompt. Knowing whether there is
+// anything to lose is what lets it only ask when asking is warranted.
+TEST(ColliderPanelModelTest, AFreshlyOpenedColliderHasNothingToLose) {
+  ColliderPanelModel model;
+  EXPECT_FALSE(model.has_unsaved_changes()) << "nothing is being edited";
+
+  model.SetColliders({Collider{.id = "a", .name = "Standing"}});
+  ASSERT_TRUE(model.SelectCollider("a").ok());
+  ASSERT_TRUE(model.BeginEditingSelectedCollider().ok());
+
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
+TEST(ColliderPanelModelTest, MovingAVertexCounts) {
+  ColliderPanelModel model;
+  model.SetColliders({Collider{.id = "a", .name = "Standing", .polygons = {{{0, 0}, {1, 0}}}}});
+  ASSERT_TRUE(model.SelectCollider("a").ok());
+  ASSERT_TRUE(model.BeginEditingSelectedCollider().ok());
+
+  model.active_collider()->polygons[0][1].x = 5.0;
+  EXPECT_TRUE(model.has_unsaved_changes());
+
+  // Dragging it back is clean again, which a latched flag could not report.
+  model.active_collider()->polygons[0][1].x = 1.0;
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
+// Reset reloads from disk, so the state it leaves behind is clean by
+// definition rather than by anyone remembering to say so.
+TEST(ColliderPanelModelTest, ResettingIsCleanAgain) {
+  ColliderPanelModel model;
+  model.SetColliders({Collider{.id = "a", .name = "Standing", .polygons = {{{0, 0}, {1, 0}}}}});
+  ASSERT_TRUE(model.SelectCollider("a").ok());
+  ASSERT_TRUE(model.BeginEditingSelectedCollider().ok());
+
+  ASSERT_TRUE(model.AddPolygon().ok());
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.ResetActiveCollider().ok());
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
+TEST(ColliderPanelModelTest, SavingMakesTheCurrentStateTheCleanOne) {
+  ColliderPanelModel model;
+  model.BeginNewCollider();
+  ASSERT_TRUE(model.AddPolygon().ok());
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.FinishCreate("new-id").ok());
+  EXPECT_FALSE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.AddPolygon().ok());
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  model.MarkSaved();
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
 }  // namespace
 }  // namespace zebes

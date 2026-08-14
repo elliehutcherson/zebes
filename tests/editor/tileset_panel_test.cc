@@ -249,18 +249,18 @@ TEST_F(TilesetPanelTest, DeletingATilesetAsksBeforeDestroyingIt) {
   BeginListView();
   ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
 
-  ClickOnly("Delete");
+  ClickOnly("Delete##Tileset");
   EXPECT_EQ(RenderList(), TilesetPanel::Action::kNone);
 
   // The next frame offers the answer instead of the original button.
   std::vector<std::string> labels;
   CaptureButtons(&labels);
   RenderList();
-  EXPECT_THAT(labels, ::testing::Contains("Confirm delete"));
-  EXPECT_THAT(labels, ::testing::Contains("Cancel delete"));
-  EXPECT_THAT(labels, ::testing::Not(::testing::Contains("Delete")));
+  EXPECT_THAT(labels, ::testing::Contains("Confirm##Tileset"));
+  EXPECT_THAT(labels, ::testing::Contains("Cancel##Tileset"));
+  EXPECT_THAT(labels, ::testing::Not(::testing::Contains("Delete##Tileset")));
 
-  ClickOnly("Confirm delete");
+  ClickOnly("Confirm##Tileset");
   EXPECT_EQ(RenderList(), TilesetPanel::Action::kDelete);
 }
 
@@ -268,17 +268,17 @@ TEST_F(TilesetPanelTest, CancellingADeleteRestoresThePlainButton) {
   BeginListView();
   ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
 
-  ClickOnly("Delete");
+  ClickOnly("Delete##Tileset");
   RenderList();
 
-  ClickOnly("Cancel delete");
+  ClickOnly("Cancel##Tileset");
   EXPECT_EQ(RenderList(), TilesetPanel::Action::kNone);
 
   std::vector<std::string> labels;
   CaptureButtons(&labels);
   RenderList();
-  EXPECT_THAT(labels, ::testing::Contains("Delete"));
-  EXPECT_THAT(labels, ::testing::Not(::testing::Contains("Confirm delete")));
+  EXPECT_THAT(labels, ::testing::Contains("Delete##Tileset"));
+  EXPECT_THAT(labels, ::testing::Not(::testing::Contains("Confirm##Tileset")));
 }
 
 // A confirmation belongs to the tileset it was raised against. Selecting a
@@ -287,11 +287,11 @@ TEST_F(TilesetPanelTest, ChangingSelectionDropsAPendingDelete) {
   BeginListView();
   ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
 
-  ClickOnly("Delete");
+  ClickOnly("Delete##Tileset");
   RenderList();
 
   ASSERT_TRUE(model_.SelectTileset("stone-2").ok());
-  ClickOnly("Confirm delete");
+  ClickOnly("Confirm##Tileset");
   EXPECT_EQ(RenderList(), TilesetPanel::Action::kNone);
 }
 
@@ -338,13 +338,13 @@ TEST_F(TilesetPanelTest, BackAsksBeforeDiscardingUnsavedEdits) {
   RenderDetails();
   ASSERT_NE(model_.active_tileset(), nullptr) << "Back closed the tileset without asking";
 
-  ClickOnly("Keep editing");
+  ClickOnly("Cancel##Back");
   RenderDetails();
   EXPECT_NE(model_.active_tileset(), nullptr);
 
   ClickOnly("Back");
   RenderDetails();
-  ClickOnly("Discard changes");
+  ClickOnly("Confirm##Back");
   RenderDetails();
   EXPECT_EQ(model_.active_tileset(), nullptr);
 }

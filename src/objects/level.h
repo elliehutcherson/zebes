@@ -16,6 +16,8 @@ struct TileChunk {
   // Zero-initialized: zero means "no tile", so a default-constructed chunk has
   // to read as empty rather than as whatever the memory held.
   std::array<int, kSize * kSize> tiles{};
+
+  bool operator==(const TileChunk& other) const = default;
 };
 
 // Definition of Parallax Layer (Visuals)
@@ -27,12 +29,16 @@ struct ParallaxLayer {
   float base_scale = 1.0f;
   bool repeat_x = false;
   bool repeat_y = false;
+
+  bool operator==(const ParallaxLayer& other) const = default;
 };
 
 struct ParallaxTheme {
   int id = 0;
   std::string name;
   std::vector<ParallaxLayer> layers;
+
+  bool operator==(const ParallaxTheme& other) const = default;
 };
 
 struct ParallaxZone {
@@ -45,6 +51,8 @@ struct ParallaxZone {
 
   // Transition settings
   Vec fade_length;  // x = horizontal fade width, y = vertical fade height
+
+  bool operator==(const ParallaxZone& other) const = default;
 };
 
 struct Level {
@@ -81,6 +89,12 @@ struct Level {
   std::vector<ParallaxZone> zones;
 
   std::vector<ParallaxLayer> parallax_layers;
+
+  // Value equality over every authored field, tile chunks included. The editor
+  // compares a level against the copy it opened to know whether closing would
+  // discard work, so equality has to mean identical in every respect a save
+  // would write.
+  bool operator==(const Level& other) const = default;
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 

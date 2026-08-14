@@ -189,5 +189,69 @@ TEST(LevelPanelModelTilesetTest, ClosingTheLevelDropsAStagedChange) {
   EXPECT_FALSE(model.has_pending_tileset_change());
 }
 
+// Back used to discard edits with no prompt. Knowing whether there is anything
+// to lose is what lets it only ask when asking is warranted.
+TEST(LevelPanelModelTest, AFreshlyOpenedLevelHasNothingToLose) {
+  LevelPanelModel model;
+  EXPECT_FALSE(model.has_unsaved_changes()) << "nothing is being edited";
+
+  model.SetLevels({Level{.id = "a", .name = "Alpha"}});
+  ASSERT_TRUE(model.SelectLevel("a").ok());
+  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
+TEST(LevelPanelModelTest, EditsToAnyPartOfALevelCount) {
+  LevelPanelModel model;
+  model.SetLevels({Level{.id = "a", .name = "Alpha"}});
+  ASSERT_TRUE(model.SelectLevel("a").ok());
+
+  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  model.active_level()->name = "Renamed";
+  EXPECT_TRUE(model.has_unsaved_changes());
+
+  // Painting is the edit that matters most and the one a flag is most likely
+  // to miss, since it goes straight into the chunk map.
+  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  model.active_level()->tile_chunks[0].tiles[5] = 7;
+  EXPECT_TRUE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  model.active_level()->entities[1] = Entity{.id = 1};
+  EXPECT_TRUE(model.has_unsaved_changes());
+}
+
+// Comparing against a snapshot rather than latching a flag means painting a
+// tile and erasing it again correctly reports clean.
+TEST(LevelPanelModelTest, UndoingAnEditByHandIsCleanAgain) {
+  LevelPanelModel model;
+  model.SetLevels({Level{.id = "a", .name = "Alpha"}});
+  ASSERT_TRUE(model.SelectLevel("a").ok());
+  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+
+  model.active_level()->tile_chunks[0].tiles[5] = 7;
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  model.active_level()->tile_chunks.erase(0);
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
+TEST(LevelPanelModelTest, SavingMakesTheCurrentStateTheCleanOne) {
+  LevelPanelModel model;
+  model.BeginNewLevel();
+  model.active_level()->name = "Cavern";
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.FinishCreate("cavern-id").ok());
+  EXPECT_FALSE(model.has_unsaved_changes());
+
+  model.active_level()->name = "Renamed";
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  model.MarkSaved();
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
 }  // namespace
 }  // namespace zebes
