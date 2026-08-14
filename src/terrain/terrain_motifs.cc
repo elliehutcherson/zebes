@@ -80,6 +80,33 @@ constexpr TerrainMotif kCompactSnowSet[] = {{3, 3, kCompactFlakePixels}, {1, 1, 
 constexpr TerrainMotif kCompactCrystalSet[] = {{3, 3, kCompactCrystalPixels},
                                                {2, 2, kCompactPebblePixels}};
 
+// Edge profiles are deliberately tiny pixel-art decisions, not sampled noise.
+// Rich profiles carry secondary blades and rounded shoulders; compact profiles
+// keep one readable gesture so a 16px tile does not turn into visual static.
+constexpr uint8_t kShortGrassA[] = {0, 2, 4, 1, 0};
+constexpr uint8_t kShortGrassB[] = {1, 3, 1, 2, 0};
+constexpr uint8_t kDryGrassA[] = {0, 1, 4, 2, 0};
+constexpr uint8_t kDryGrassB[] = {0, 3, 1, 4, 1, 0};
+constexpr uint8_t kMossA[] = {1, 3, 4, 4, 2, 0};
+constexpr uint8_t kMossB[] = {0, 2, 4, 3, 4, 1};
+constexpr uint8_t kSnowA[] = {1, 2, 4, 4, 3, 1, 0};
+constexpr uint8_t kSnowB[] = {0, 2, 3, 4, 3, 2, 1};
+
+constexpr uint8_t kCompactGrassA[] = {0, 4, 1};
+constexpr uint8_t kCompactGrassB[] = {1, 3, 0};
+constexpr uint8_t kCompactDryA[] = {0, 4, 1};
+constexpr uint8_t kCompactMossA[] = {2, 4, 3, 1};
+constexpr uint8_t kCompactSnowA[] = {1, 4, 4, 1};
+
+constexpr TerrainEdgeMotif kShortGrassSet[] = {{kShortGrassA}, {kShortGrassB}};
+constexpr TerrainEdgeMotif kDryGrassSet[] = {{kDryGrassA}, {kDryGrassB}};
+constexpr TerrainEdgeMotif kMossSet[] = {{kMossA}, {kMossB}};
+constexpr TerrainEdgeMotif kSnowLipSet[] = {{kSnowA}, {kSnowB}};
+constexpr TerrainEdgeMotif kCompactGrassSet[] = {{kCompactGrassA}, {kCompactGrassB}};
+constexpr TerrainEdgeMotif kCompactDrySet[] = {{kCompactDryA}};
+constexpr TerrainEdgeMotif kCompactMossSet[] = {{kCompactMossA}};
+constexpr TerrainEdgeMotif kCompactSnowLipSet[] = {{kCompactSnowA}};
+
 }  // namespace
 
 absl::Span<const TerrainMotif> TerrainSubstrateMotifsFor(TerrainSubstratePattern pattern,
@@ -140,6 +167,24 @@ absl::Span<const TerrainMotif> TerrainDetailMotifsFor(TerrainDetailSet detail_se
   return {};
 }
 
+absl::Span<const TerrainEdgeMotif> TerrainEdgeMotifsFor(TerrainEdgeDetailSet detail_set,
+                                                        TerrainPixelProfile profile) {
+  const bool compact = profile == TerrainPixelProfile::kChunky16;
+  switch (detail_set) {
+    case TerrainEdgeDetailSet::kNone:
+      return {};
+    case TerrainEdgeDetailSet::kShortGrass:
+      return compact ? absl::MakeConstSpan(kCompactGrassSet) : absl::MakeConstSpan(kShortGrassSet);
+    case TerrainEdgeDetailSet::kDryGrass:
+      return compact ? absl::MakeConstSpan(kCompactDrySet) : absl::MakeConstSpan(kDryGrassSet);
+    case TerrainEdgeDetailSet::kMossFringe:
+      return compact ? absl::MakeConstSpan(kCompactMossSet) : absl::MakeConstSpan(kMossSet);
+    case TerrainEdgeDetailSet::kSnowLip:
+      return compact ? absl::MakeConstSpan(kCompactSnowLipSet) : absl::MakeConstSpan(kSnowLipSet);
+  }
+  return {};
+}
+
 absl::Status ValidateTerrainMotifs(absl::Span<const TerrainMotif> motifs) {
   for (size_t i = 0; i < motifs.size(); ++i) {
     const TerrainMotif& motif = motifs[i];
@@ -166,6 +211,21 @@ absl::Status ValidateTerrainMotifs(absl::Span<const TerrainMotif> motifs) {
       }
       return absl::InvalidArgumentError(
           absl::StrCat("terrain motif ", i, " contains an unknown semantic pixel"));
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateTerrainEdgeMotifs(absl::Span<const TerrainEdgeMotif> motifs) {
+  for (size_t i = 0; i < motifs.size(); ++i) {
+    if (motifs[i].depths.empty()) {
+      return absl::InvalidArgumentError(absl::StrCat("terrain edge motif ", i, " is empty"));
+    }
+    for (const uint8_t depth : motifs[i].depths) {
+      if (depth > 4) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("terrain edge motif ", i, " has depth outside [0, 4]"));
+      }
     }
   }
   return absl::OkStatus();

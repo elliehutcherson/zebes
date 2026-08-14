@@ -138,6 +138,7 @@ bool TerrainControlsPanel::RenderSurfaceSection(TerrainGenConfig& config) {
   if (!gui_->CollapsingHeader("Surface##TerrainGen", kSectionFlags)) return false;
 
   bool changed = false;
+  TerrainSurfaceConfig& surface = config.surface;
   static constexpr std::array<std::pair<TerrainSurfaceStyle, const char*>, 4> kSurfaceStyles = {{
       {TerrainSurfaceStyle::kSmooth, "Smooth"},
       {TerrainSurfaceStyle::kTufted, "Tufted"},
@@ -161,56 +162,117 @@ bool TerrainControlsPanel::RenderSurfaceSection(TerrainGenConfig& config) {
   Explain("How the surface colour is clustered without changing the collision silhouette.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderFloat("Depth##TerrainGen", &config.grass_band, 1.0f, 20.0f);
-  Explain("How far the surface band reaches into the material, in profile reference pixels.");
+  changed |= gui_->SliderFloat("Top depth##TerrainGen", &surface.top_depth, 1.0f, 20.0f);
+  Explain("Surface coverage on upward-facing ground, in profile reference pixels.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderFloat("Waviness##TerrainGen", &config.ruffle_amplitude, 0.0f, 8.0f);
+  changed |= gui_->SliderFloat("Side depth##TerrainGen", &surface.side_depth, 0.0f, 20.0f);
+  Explain("Surface coverage on vertical walls. Slopes blend continuously between this and top.");
+
+  gui_->SetNextItemWidth(kControlWidth);
+  changed |=
+      gui_->SliderFloat("Underside depth##TerrainGen", &surface.underside_depth, 0.0f, 20.0f);
+  Explain("Surface coverage below overhangs. Zero leaves their undersides bare.");
+
+  gui_->SetNextItemWidth(kControlWidth);
+  changed |= gui_->SliderFloat("Waviness##TerrainGen", &surface.ruffle_amplitude, 0.0f, 8.0f);
   Explain("How much the inner edge of the band wanders. Zero gives a band of even depth.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderFloat("Wave size##TerrainGen", &config.ruffle_density, 0.5f, 6.0f);
-  Explain("Roughly how many waves span one tile. Higher is busier.");
+  changed |= gui_->SliderFloat("Wave size##TerrainGen", &surface.ruffle_density, 0.5f, 6.0f);
+  Explain(
+      "Roughly how many waves span one tile. Lower values form broad organic clumps; high "
+      "values can read as grass teeth on a 32px edge.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderFloat("Wave shape##TerrainGen", &config.ruffle_sharpness, 0.2f, 3.0f);
-  Explain("Below 1 rounds the waves into blobs; above 1 makes them spiky.");
+  changed |= gui_->SliderFloat("Wave shape##TerrainGen", &surface.ruffle_sharpness, 0.2f, 3.0f);
+  Explain("Below 1 rounds the waves into soft clumps; above 1 holds sharper peaks and troughs.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderInt("Wave detail##TerrainGen", &config.ruffle_octaves, 1, 3);
+  changed |= gui_->SliderInt("Wave detail##TerrainGen", &surface.ruffle_octaves, 1, 3);
   Explain("Adds finer waves on top of the coarse ones.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderFloat("Underside##TerrainGen", &config.grass_bottom_bias, 0.0f, 1.0f);
-  Explain(
-      "How thick the band is on downward-facing surfaces. Low values leave overhangs nearly "
-      "bare, which is what makes ground look lit from above.");
-
-  gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderInt("Outline##TerrainGen", &config.outline_width, 0, 3);
+  changed |= gui_->SliderInt("Outline##TerrainGen", &surface.outline_depth, 0, 3);
   Explain("Width of the dark line around the silhouette, in profile reference pixels.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderInt("Highlight##TerrainGen", &config.grass_hi_depth, 0, 8);
+  changed |= gui_->SliderInt("Highlight##TerrainGen", &surface.highlight_depth, 0, 8);
   Explain("Depth of the lit edge just inside the outline.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderInt("Shade##TerrainGen", &config.grass_shade_depth, 0, 8);
+  changed |= gui_->SliderInt("Shade##TerrainGen", &surface.shade_depth, 0, 8);
   Explain("Depth of the darker band where the surface meets the interior.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |= gui_->SliderInt("Contact shadow##TerrainGen", &config.contact_depth, 0, 8);
+  changed |= gui_->SliderInt("Contact shadow##TerrainGen", &surface.contact_depth, 0, 8);
   Explain("How far the surface casts a shadow down into the interior.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |=
-      gui_->SliderFloat("Texture size##TerrainGen", &config.surface_texture_size, 1.0f, 12.0f);
+  changed |= gui_->SliderInt("Wall depth##TerrainGen", &surface.wall_depth, 0, 16);
+  Explain("Depth of the dark wall treatment on vertical and downward-facing edges.");
+
+  gui_->SetNextItemWidth(kControlWidth);
+  changed |= gui_->SliderFloat("Wall darkness##TerrainGen", &surface.wall_darkness, 0.0f, 3.0f);
+  Explain(
+      "How strongly walls blend from the interior toward the outline colour. The blend is "
+      "bounded, so dark materials keep their hue instead of clipping to black.");
+
+  gui_->SetNextItemWidth(kControlWidth);
+  changed |= gui_->SliderFloat("Texture size##TerrainGen", &surface.texture_size, 1.0f, 12.0f);
   Explain("Feature size in the selected pixel profile's reference pixels.");
 
   gui_->SetNextItemWidth(kControlWidth);
-  changed |=
-      gui_->SliderFloat("Texture amount##TerrainGen", &config.surface_texture_amount, 0.0f, 1.0f);
+  changed |= gui_->SliderFloat("Texture amount##TerrainGen", &surface.texture_amount, 0.0f, 1.0f);
   Explain("How strongly tufts, scallops or moss break up the flat surface colour.");
+
+  static constexpr std::array<std::pair<TerrainEdgeDetailSet, const char*>, 5> kEdgeDetails = {{
+      {TerrainEdgeDetailSet::kNone, "None"},
+      {TerrainEdgeDetailSet::kShortGrass, "Short grass"},
+      {TerrainEdgeDetailSet::kDryGrass, "Dry grass"},
+      {TerrainEdgeDetailSet::kMossFringe, "Moss fringe"},
+      {TerrainEdgeDetailSet::kSnowLip, "Snow lip"},
+  }};
+  const char* edge_detail_name = "Unknown";
+  for (const auto& [value, name] : kEdgeDetails) {
+    if (value == surface.edge_detail.family) edge_detail_name = name;
+  }
+  {
+    ScopedCombo combo = gui_->CreateScopedCombo("Edge details##TerrainSurface", edge_detail_name);
+    if (combo.IsActive()) {
+      for (const auto& [value, name] : kEdgeDetails) {
+        if (!gui_->Selectable(name, value == surface.edge_detail.family)) continue;
+        surface.edge_detail.family = value;
+        changed = true;
+      }
+    }
+  }
+  Explain(
+      "Pixel motifs hanging from the inner surface edge. They never change the collision outline.");
+
+  if (surface.edge_detail.family != TerrainEdgeDetailSet::kNone) {
+    gui_->SetNextItemWidth(kControlWidth);
+    changed |=
+        gui_->SliderFloat("Edge amount##TerrainGen", &surface.edge_detail.amount, 0.0f, 1.0f);
+    Explain("Fraction of repeating edge cells occupied by a clump.");
+
+    gui_->SetNextItemWidth(kControlWidth);
+    changed |= gui_->SliderInt("Edge length##TerrainGen", &surface.edge_detail.length, 0, 12);
+    Explain("Maximum fringe depth in profile reference pixels.");
+
+    gui_->SetNextItemWidth(kControlWidth);
+    changed |= gui_->SliderInt("Clump size##TerrainGen", &surface.edge_detail.clump_size, 2, 16);
+    Explain("Width of one edge-motif cell. The grid fits exactly into the repeat period.");
+
+    gui_->SetNextItemWidth(kControlWidth);
+    changed |= gui_->SliderFloat("Edge lean##TerrainGen", &surface.edge_detail.lean, -1.0f, 1.0f);
+    Explain("Tilts hanging blades along the local edge tangent.");
+
+    gui_->SetNextItemWidth(kControlWidth);
+    changed |=
+        gui_->SliderFloat("Edge highlight##TerrainGen", &surface.edge_detail.highlight, 0.0f, 1.0f);
+    Explain("Chance that a clump root catches the surface highlight.");
+  }
 
   return changed;
 }

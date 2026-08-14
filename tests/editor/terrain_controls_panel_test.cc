@@ -52,7 +52,7 @@ TEST_F(TerrainControlsPanelTest, ReportsNoChangeWhenNothingMoves) {
 }
 
 TEST_F(TerrainControlsPanelTest, ReportsAChangeWhenASliderMoves) {
-  ON_CALL(gui_, SliderFloat(StrEq("Depth##TerrainGen"), _, _, _, _, _))
+  ON_CALL(gui_, SliderFloat(StrEq("Top depth##TerrainGen"), _, _, _, _, _))
       .WillByDefault(
           Invoke([](const char*, float* value, float, float, const char*, ImGuiSliderFlags) {
             *value = 12.0f;
@@ -60,7 +60,23 @@ TEST_F(TerrainControlsPanelTest, ReportsAChangeWhenASliderMoves) {
           }));
 
   EXPECT_TRUE(panel_->Render(model_));
-  EXPECT_EQ(model_.config().grass_band, 12.0f);
+  EXPECT_EQ(model_.config().surface.top_depth, 12.0f);
+}
+
+TEST_F(TerrainControlsPanelTest, EdgeDetailFamilyAndShapeAreEditable) {
+  ON_CALL(gui_, BeginCombo(StrEq("Edge details##TerrainSurface"), _, _))
+      .WillByDefault(Return(true));
+  ON_CALL(gui_, Selectable(StrEq("Dry grass"), false, _, _)).WillByDefault(Return(true));
+  ON_CALL(gui_, SliderInt(StrEq("Edge length##TerrainGen"), _, _, _, _, _))
+      .WillByDefault(Invoke([](const char*, int* value, int, int, const char*, ImGuiSliderFlags) {
+        *value = 7;
+        return true;
+      }));
+
+  EXPECT_TRUE(panel_->Render(model_));
+  EXPECT_EQ(model_.config().surface.edge_detail.family, TerrainEdgeDetailSet::kDryGrass);
+  EXPECT_EQ(model_.config().surface.edge_detail.length, 7);
+  EXPECT_FALSE(model_.selected_preset().has_value());
 }
 
 TEST_F(TerrainControlsPanelTest, AVisualPresetReplacesTheWholeArtConfiguration) {
@@ -239,7 +255,7 @@ TEST_F(TerrainControlsPanelTest, ShowsManifestControlsWhenImporting) {
   model_.SetSource(TerrainEditorModel::Source::kImportManifest);
 
   EXPECT_CALL(gui_, Button(StrEq("Browse##TerrainManifest"), _)).Times(1);
-  EXPECT_CALL(gui_, SliderFloat(StrEq("Depth##TerrainGen"), _, _, _, _, _)).Times(0);
+  EXPECT_CALL(gui_, SliderFloat(StrEq("Top depth##TerrainGen"), _, _, _, _, _)).Times(0);
 
   panel_->Render(model_);
 }

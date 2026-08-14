@@ -66,6 +66,15 @@ class TerrainRenderer {
     size_t motif = 0;
   };
 
+  // Per-supersample surface measurements shared by classification passes.
+  // Keeping the normal-derived upness beside the band prevents wall styles
+  // from re-deriving orientation with subtly different seam behaviour.
+  struct SurfaceField {
+    std::vector<float> band;
+    std::vector<float> normal_x;
+    std::vector<float> upness;
+  };
+
   // Everything one interior motif layer needs in order to stamp itself. The
   // substrate pattern and the semantic details differ only in these values, so
   // they share the whole placement and wrapping path.
@@ -83,22 +92,28 @@ class TerrainRenderer {
   TerrainRenderer(TerrainGenConfig config, ResolvedTerrainStyle style, RuffleField ruffle,
                   ValueNoiseField surface_texture, ValueNoiseField mottle,
                   PeriodicPatternGrid surface_pattern, CellularField cellular,
-                  std::vector<MotifPlacement> pattern_placements,
+                  PeriodicPatternGrid edge_pattern, std::vector<MotifPlacement> pattern_placements,
                   std::vector<MotifPlacement> detail_placements);
 
   // Rasterises the tile and its eight neighbours at supersampled resolution.
   std::vector<uint8_t> Occupancy(absl::Span<const TilePoint> polygon,
                                  absl::Span<const absl::Span<const TilePoint>> neighbors) const;
 
-  // Band width per supersampled pixel, ruffled and biased by surface facing.
-  std::vector<float> SurfaceBand(const std::vector<float>& depth, int origin_x, int origin_y) const;
+  // Band width and orientation per supersampled pixel. Explicit top/side/
+  // underside depths are blended continuously, so slopes are not special
+  // cases and adjacent tiles share exactly the same facing calculation.
+  SurfaceField MeasureSurface(const std::vector<float>& depth, int origin_x, int origin_y) const;
 
   // Turns depth and band width into semantic pixel indices for the centre tile.
   std::vector<uint8_t> Classify(const std::vector<uint8_t>& occupancy,
-                                const std::vector<float>& depth,
-                                const std::vector<float>& band) const;
+                                const std::vector<float>& depth, const SurfaceField& surface) const;
 
   void ApplySurfaceTexture(std::vector<uint8_t>& indices, int origin_x, int origin_y) const;
+  // Extends authored fringe profiles from the inner edge of the surface band.
+  // The pass only recolours solid pixels, so visual detail cannot alter the
+  // collision silhouette or introduce alpha seams.
+  void ApplyEdgeDetails(std::vector<uint8_t>& indices, const std::vector<float>& depth,
+                        const SurfaceField& surface, int origin_x, int origin_y) const;
   void ApplyInteriorTexture(std::vector<uint8_t>& indices, int origin_x, int origin_y) const;
   void PlaceSubstratePattern(std::vector<uint8_t>& indices, int origin_x, int origin_y) const;
   void PlaceDetails(std::vector<uint8_t>& indices, int origin_x, int origin_y) const;
@@ -128,6 +143,7 @@ class TerrainRenderer {
   ValueNoiseField mottle_;
   PeriodicPatternGrid surface_pattern_;
   CellularField cellular_;
+  PeriodicPatternGrid edge_pattern_;
   std::vector<MotifPlacement> pattern_placements_;
   std::vector<MotifPlacement> detail_placements_;
   // Supersampled pixels per tile, and the 3x3 canvas edge that implies.

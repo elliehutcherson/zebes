@@ -22,11 +22,13 @@ struct TerrainRecipe {
   TerrainGenConfig config;
 };
 
-inline constexpr int kTerrainRecipeSchemaVersion = 1;
+inline constexpr int kOldestTerrainRecipeSchemaVersion = 1;
+inline constexpr int kTerrainRecipeSchemaVersion = 3;
 
 // JSON conversion is explicit rather than reflection-based so renaming a C++
-// member cannot silently change the on-disk format. Parsing v1 is strict: a
-// missing field is corruption, not permission to substitute today's default.
+// member cannot silently change the on-disk format. Every supported version is
+// parsed strictly: migration may translate old meaning, but a missing field is
+// corruption rather than permission to substitute today's default.
 nlohmann::json TerrainRecipeToJson(const TerrainRecipe& recipe);
 absl::StatusOr<TerrainRecipe> TerrainRecipeFromJson(const nlohmann::json& json);
 

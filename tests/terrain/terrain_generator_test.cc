@@ -8,6 +8,7 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "terrain/terrain_detect.h"
 #include "terrain/terrain_mask.h"
 
@@ -68,6 +69,23 @@ int BandDepth(const RgbaImage& image, int x) {
   return depth;
 }
 
+// Distance from one edge to the first pixel matching the tile centre. Used on
+// isolated, flat-interior tiles where the centre is the unambiguous substrate
+// colour and every edge has air immediately outside it.
+int EdgeTreatmentDepth(const RgbaImage& image, int dx, int dy) {
+  const Pixel interior = At(image, image.width / 2, image.height / 2);
+  int x = dx > 0 ? 0 : (dx < 0 ? image.width - 1 : image.width / 2);
+  int y = dy > 0 ? 0 : (dy < 0 ? image.height - 1 : image.height / 2);
+  int depth = 0;
+  while (x >= 0 && y >= 0 && x < image.width && y < image.height &&
+         !(At(image, x, y) == interior)) {
+    ++depth;
+    x += dx;
+    y += dy;
+  }
+  return depth;
+}
+
 TEST(TerrainGeneratorTest, RendersAFullTileForASolidNeighbourhood) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/1));
@@ -103,6 +121,133 @@ TEST(TerrainGeneratorTest, AnIsolatedTileIsSurfaceOnEverySide) {
     EXPECT_FALSE(At(*tile, 0, i) == center);
     EXPECT_FALSE(At(*tile, 31, i) == center);
   }
+}
+
+TEST(TerrainGeneratorTest, SurfaceDepthIsControlledIndependentlyForEachFacing) {
+  TerrainGenConfig config = FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/4);
+  config.surface.top_depth = 10.0f;
+  config.surface.side_depth = 5.0f;
+  config.surface.underside_depth = 2.0f;
+  config.surface.ruffle_amplitude = 0.0f;
+  config.surface.contact_depth = 0;
+  config.surface.wall_depth = 0;
+  config.surface.texture_amount = 0.0f;
+
+  const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
+  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/0, /*variant=*/0);
+  ASSERT_TRUE(tile.ok()) << tile.status();
+
+  const int top = EdgeTreatmentDepth(*tile, /*dx=*/0, /*dy=*/1);
+  const int side = EdgeTreatmentDepth(*tile, /*dx=*/1, /*dy=*/0);
+  const int underside = EdgeTreatmentDepth(*tile, /*dx=*/0, /*dy=*/-1);
+  EXPECT_GT(top, side);
+  EXPECT_GT(side, underside);
+  EXPECT_NEAR(top, 10, 1);
+  EXPECT_NEAR(side, 5, 1);
+  EXPECT_NEAR(underside, 2, 1);
+}
+
+TEST(TerrainGeneratorTest, WallTreatmentDarkensSidesWithoutContaminatingTheTop) {
+  TerrainGenConfig config = FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/4);
+  config.surface.top_depth = 2.0f;
+  config.surface.side_depth = 2.0f;
+  config.surface.underside_depth = 2.0f;
+  config.surface.ruffle_amplitude = 0.0f;
+  config.surface.contact_depth = 0;
+  config.surface.wall_depth = 6;
+  config.surface.wall_darkness = 2.5f;
+  config.surface.texture_amount = 0.0f;
+
+  const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
+  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/0, /*variant=*/0);
+  ASSERT_TRUE(tile.ok()) << tile.status();
+
+  const Pixel interior = At(*tile, 16, 16);
+  EXPECT_EQ(At(*tile, 16, 5), interior) << "up-facing ground unexpectedly received wall shade";
+  EXPECT_NE(At(*tile, 5, 16), interior) << "vertical wall did not receive its own shade";
+  EXPECT_NE(At(*tile, 16, 26), interior) << "underside did not receive its own shade";
+}
+
+TEST(TerrainGeneratorTest, DarkWallsApproachTheOutlineWithoutClippingToBlack) {
+  TerrainGenConfig config = FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/4);
+  config.surface.top_depth = 2.0f;
+  config.surface.side_depth = 2.0f;
+  config.surface.underside_depth = 2.0f;
+  config.surface.ruffle_amplitude = 0.0f;
+  config.surface.contact_depth = 0;
+  config.surface.wall_depth = 7;
+  config.surface.wall_darkness = 4.0f;
+  config.surface.texture_amount = 0.0f;
+  config.material.substrate = 0x2d2922;
+  config.material.outline = 0x17150f;
+  config.material.contrast = 1.1f;
+
+  const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
+  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/0, /*variant=*/0);
+  ASSERT_TRUE(tile.ok()) << tile.status();
+
+  const Pixel interior = At(*tile, 16, 16);
+  const Pixel outline = At(*tile, 0, 16);
+  const Pixel wall = At(*tile, 5, 16);
+  EXPECT_GT(static_cast<int>(wall.r) + wall.g + wall.b, 0)
+      << "a dark but coloured material was clipped to RGB black";
+  EXPECT_LT(ColorDistance(wall, outline), ColorDistance(interior, outline))
+      << "raising wall darkness did not move the wall toward the authored outline";
+}
+
+TEST(TerrainGeneratorTest, ZeroWallDarknessMatchesTheInteriorColour) {
+  TerrainGenConfig config = FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/4);
+  config.surface.top_depth = 2.0f;
+  config.surface.side_depth = 2.0f;
+  config.surface.underside_depth = 2.0f;
+  config.surface.ruffle_amplitude = 0.0f;
+  config.surface.contact_depth = 0;
+  config.surface.wall_depth = 7;
+  config.surface.wall_darkness = 0.0f;
+  config.surface.texture_amount = 0.0f;
+
+  const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
+  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/0, /*variant=*/0);
+  ASSERT_TRUE(tile.ok()) << tile.status();
+
+  EXPECT_EQ(At(*tile, 5, 16), At(*tile, 16, 16));
+}
+
+TEST(TerrainGeneratorTest, EdgeDetailsAddReadablePixelsWithoutChangingTheSilhouette) {
+  TerrainGenConfig plain = FlatInteriorConfig(/*variant_period=*/2, /*supersample=*/2);
+  plain.surface.ruffle_amplitude = 0.0f;
+  plain.surface.texture_amount = 0.0f;
+  TerrainGenConfig decorated = plain;
+  decorated.surface.edge_detail = TerrainEdgeDetailConfig{
+      .family = TerrainEdgeDetailSet::kDryGrass,
+      .amount = 1.0f,
+      .length = 6,
+      .clump_size = 5,
+      .lean = 0.3f,
+      .highlight = 0.5f,
+  };
+
+  ASSERT_OK_AND_ASSIGN(const TerrainRenderer plain_renderer, TerrainRenderer::Create(plain));
+  ASSERT_OK_AND_ASSIGN(const TerrainRenderer decorated_renderer,
+                       TerrainRenderer::Create(decorated));
+  ASSERT_OK_AND_ASSIGN(const RgbaImage plain_tile, plain_renderer.RenderBlobTile(kFlatTopMask, 0));
+  ASSERT_OK_AND_ASSIGN(const RgbaImage decorated_tile,
+                       decorated_renderer.RenderBlobTile(kFlatTopMask, 0));
+
+  int changed = 0;
+  for (int y = 0; y < plain.tile_size; ++y) {
+    for (int x = 0; x < plain.tile_size; ++x) {
+      const Pixel before = At(plain_tile, x, y);
+      const Pixel after = At(decorated_tile, x, y);
+      EXPECT_EQ(after.a, before.a) << "edge detail changed collision alpha at " << x << "," << y;
+      changed += after == before ? 0 : 1;
+    }
+  }
+  EXPECT_GT(changed, 0) << "enabled dry-grass motifs did not paint the surface edge";
 }
 
 // The seam guarantee. Two tiles that meet in a level must arrive at their
@@ -165,9 +310,9 @@ TEST(TerrainGeneratorTest, SurfaceColourDoesNotJumpAtTheHorizontalOrVerticalPeri
         TerrainSurfaceStyle::kMossy}) {
     TerrainGenConfig config = FlatInteriorConfig(kPeriod, /*supersample=*/1);
     config.material.surface_style = surface_style;
-    config.surface_texture_amount = 1.0f;
-    config.surface_texture_size = 5.0f;  // Does not divide the 96px period.
-    config.ruffle_amplitude = 0.0f;
+    config.surface.texture_amount = 1.0f;
+    config.surface.texture_size = 5.0f;  // Does not divide the 96px period.
+    config.surface.ruffle_amplitude = 0.0f;
     const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
     ASSERT_TRUE(renderer.ok()) << renderer.status();
 
@@ -251,6 +396,38 @@ TEST(TerrainGeneratorTest, SlopeArtworkFollowsItsPolygonExactly) {
   }
 }
 
+TEST(TerrainGeneratorTest, SlopesBlendTowardTheirUpwardOrDownwardSurfaceDepth) {
+  TerrainGenConfig config = FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/4);
+  config.surface.top_depth = 10.0f;
+  config.surface.side_depth = 3.0f;
+  config.surface.underside_depth = 1.0f;
+  config.surface.ruffle_amplitude = 0.0f;
+  config.surface.contact_depth = 0;
+  config.surface.wall_depth = 0;
+  config.surface.texture_amount = 0.0f;
+
+  const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
+  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  const absl::StatusOr<RgbaImage> floor =
+      renderer->RenderShapeTile(TileShape::kSlope45BottomLeft, 0);
+  const absl::StatusOr<RgbaImage> ceiling =
+      renderer->RenderShapeTile(TileShape::kSlope45TopLeft, 0);
+  ASSERT_TRUE(floor.ok() && ceiling.ok());
+
+  const Pixel substrate{0x8a, 0x5a, 0x3b, 255};
+  const auto treated_pixels = [&](const RgbaImage& image) {
+    int count = 0;
+    for (int y = 0; y < image.height; ++y) {
+      for (int x = 0; x < image.width; ++x) {
+        const Pixel pixel = At(image, x, y);
+        if (pixel.a != 0 && !(pixel == substrate)) ++count;
+      }
+    }
+    return count;
+  };
+  EXPECT_GT(treated_pixels(*floor), treated_pixels(*ceiling));
+}
+
 TEST(TerrainGeneratorTest, EverySlopeShapeRenders) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/1));
@@ -306,7 +483,7 @@ TEST(TerrainGeneratorTest, RejectsUnusableConfigurations) {
   EXPECT_FALSE(TerrainRenderer::Create(config).ok());
 
   config = FlatInteriorConfig(/*variant_period=*/1);
-  config.surface_texture_amount = 1.1f;
+  config.surface.texture_amount = 1.1f;
   EXPECT_FALSE(TerrainRenderer::Create(config).ok());
 
   config = FlatInteriorConfig(/*variant_period=*/1);
@@ -314,15 +491,31 @@ TEST(TerrainGeneratorTest, RejectsUnusableConfigurations) {
   EXPECT_FALSE(TerrainRenderer::Create(config).ok());
 
   config = FlatInteriorConfig(/*variant_period=*/1);
-  config.ruffle_density = 0.0f;
+  config.surface.ruffle_density = 0.0f;
   EXPECT_FALSE(TerrainRenderer::Create(config).ok());
 
   config = FlatInteriorConfig(/*variant_period=*/1);
-  config.grass_bottom_bias = 1.1f;
+  config.surface.underside_depth = -0.1f;
   EXPECT_FALSE(TerrainRenderer::Create(config).ok());
 
   config = FlatInteriorConfig(/*variant_period=*/1);
-  config.outline_width = -1;
+  config.surface.wall_darkness = 4.1f;
+  EXPECT_FALSE(TerrainRenderer::Create(config).ok());
+
+  config = FlatInteriorConfig(/*variant_period=*/1);
+  config.surface.outline_depth = -1;
+  EXPECT_FALSE(TerrainRenderer::Create(config).ok());
+
+  config = FlatInteriorConfig(/*variant_period=*/1);
+  config.surface.edge_detail.amount = 1.1f;
+  EXPECT_FALSE(TerrainRenderer::Create(config).ok());
+
+  config = FlatInteriorConfig(/*variant_period=*/1);
+  config.surface.edge_detail.lean = -1.1f;
+  EXPECT_FALSE(TerrainRenderer::Create(config).ok());
+
+  config = FlatInteriorConfig(/*variant_period=*/1);
+  config.surface.edge_detail.family = static_cast<TerrainEdgeDetailSet>(255);
   EXPECT_FALSE(TerrainRenderer::Create(config).ok());
 
   config = FlatInteriorConfig(/*variant_period=*/1);
@@ -376,14 +569,14 @@ TEST(TerrainGeneratorTest, ResolvesMeasurementsThroughThePixelProfile) {
   TerrainGenConfig config;
   config.tile_size = 16;
   config.pixel_profile = TerrainPixelProfile::kChunky16;
-  config.grass_band = 5.0f;
-  config.surface_texture_size = 3.0f;
+  config.surface.top_depth = 5.0f;
+  config.surface.texture_size = 3.0f;
   config.interior.base.feature_size = 4.0f;
 
   const absl::StatusOr<ResolvedTerrainStyle> compact = ResolveTerrainStyle(config);
   ASSERT_TRUE(compact.ok()) << compact.status();
   EXPECT_TRUE(compact->compact_palette);
-  EXPECT_FLOAT_EQ(compact->grass_band, 5.0f);
+  EXPECT_FLOAT_EQ(compact->surface_top_depth, 5.0f);
   EXPECT_EQ(compact->surface_texture_size, 3);
   EXPECT_EQ(compact->interior_feature_size, 4);
 
@@ -394,7 +587,7 @@ TEST(TerrainGeneratorTest, ResolvesMeasurementsThroughThePixelProfile) {
   const absl::StatusOr<ResolvedTerrainStyle> enlarged = ResolveTerrainStyle(config);
   ASSERT_TRUE(enlarged.ok()) << enlarged.status();
   EXPECT_TRUE(enlarged->compact_palette);
-  EXPECT_FLOAT_EQ(enlarged->grass_band, 10.0f);
+  EXPECT_FLOAT_EQ(enlarged->surface_top_depth, 10.0f);
   EXPECT_EQ(enlarged->surface_texture_size, 6);
   EXPECT_EQ(enlarged->interior_feature_size, 8);
 }
@@ -407,8 +600,12 @@ TEST(TerrainGeneratorTest, ShipsRichAndChunkyPresetsAsCompleteConfigurations) {
   const auto chunky = std::find_if(presets.begin(), presets.end(), [](const TerrainPreset& preset) {
     return preset.name == "Chunky Grass 16";
   });
+  const auto autumn = std::find_if(presets.begin(), presets.end(), [](const TerrainPreset& preset) {
+    return preset.name == "Autumn Forest";
+  });
   ASSERT_NE(cozy, presets.end());
   ASSERT_NE(chunky, presets.end());
+  ASSERT_NE(autumn, presets.end());
 
   EXPECT_EQ(cozy->config.pixel_profile, TerrainPixelProfile::kBalanced32);
   EXPECT_EQ(cozy->config.material.surface_style, TerrainSurfaceStyle::kScalloped);
@@ -421,6 +618,12 @@ TEST(TerrainGeneratorTest, ShipsRichAndChunkyPresetsAsCompleteConfigurations) {
   EXPECT_EQ(chunky->config.pixel_profile, TerrainPixelProfile::kChunky16);
   EXPECT_LE(chunky->config.interior.pattern.density, 1);
   EXPECT_LE(chunky->config.interior.details.density, 1);
+
+  EXPECT_GT(autumn->config.surface.top_depth, autumn->config.surface.side_depth);
+  EXPECT_GT(autumn->config.surface.side_depth, autumn->config.surface.underside_depth);
+  EXPECT_GT(autumn->config.surface.wall_depth, 0);
+  EXPECT_EQ(autumn->config.surface.edge_detail.family, TerrainEdgeDetailSet::kDryGrass);
+  EXPECT_LT(autumn->config.material.substrate, 0x404040u);
 
   TerrainGenConfig quick = chunky->config;
   quick.supersample = 1;

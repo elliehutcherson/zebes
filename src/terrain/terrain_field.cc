@@ -164,10 +164,24 @@ absl::StatusOr<RuffleField> RuffleField::Create(int period_px, int tile_px, floa
 
   float weight = 0.0f;
   for (int octave = 0; octave < octaves; ++octave) {
-    const int frequency = base * (1 << octave);
-    const float amplitude = 1.0f / static_cast<float>(1 << octave);
+    const int octave_scale = 1 << octave;
+    const int frequency = base * octave_scale;
+    const int lower_frequency = std::max(1, base - 1) * octave_scale;
+    const int upper_frequency = (base + 1) * octave_scale;
+    const float amplitude = 1.0f / static_cast<float>(octave_scale);
+
+    // Using {f,0}, {0,f}, {f,f}, {f,-f} looks varied in two dimensions but
+    // collapses to one perfect sine when sampled along any straight edge: at
+    // fixed y every x-dependent term has frequency f. A flat terrain top then
+    // becomes an identical row of teeth, especially when the repeat is one
+    // tile. Nearby integer frequencies keep the field exactly periodic while
+    // giving each axis a genuinely irregular harmonic profile.
     const int directions[4][2] = {
-        {frequency, 0}, {0, frequency}, {frequency, frequency}, {frequency, -frequency}};
+        {frequency, 0},
+        {0, upper_frequency},
+        {lower_frequency, upper_frequency},
+        {upper_frequency, -frequency},
+    };
 
     for (const int* direction : directions) {
       const float phase = phases(generator);

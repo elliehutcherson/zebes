@@ -306,6 +306,7 @@ declared geometry cannot drift apart.
 
 Generator appearance separates artistic intent from raster policy.
 `TerrainMaterial` owns the palette and surface treatment;
+`TerrainSurfaceConfig` owns facing-aware edge coverage and wall treatment;
 `TerrainInteriorConfig` owns the independently selectable interior passes;
 `TerrainPixelProfile` says how that intent should be quantised for chunky 16px,
 balanced 32px or detailed 64px art; and `ResolvedTerrainStyle` validates the
@@ -314,6 +315,33 @@ before rasterisation. Rendering passes consume only the resolved measurements.
 This keeps a 16px material deliberately designed rather than a noisy downsample
 of a 32px result, and gives future passes one place to make their scale policy
 explicit.
+
+Surface coverage is sampled from the distance-field normal rather than from a
+tile-edge label. `TerrainSurfaceConfig` authors independent top, side and
+underside depths; the renderer interpolates between them with a continuous
+up-facing amount, so a slope naturally falls between a flat top and a vertical
+wall. The same orientation field controls an optional wall layer after the
+contact shadow. Surface, contact, wall and interior remain separate semantic
+palette roles, which lets later rocky or rooted wall styles change artwork
+without duplicating Blob47 geometry or reimplementing normal calculation.
+Wall darkness is a bounded exponential blend from the substrate toward the
+authored outline colour. It is deliberately not an unbounded ramp step: very
+dark substrates otherwise reach RGB zero midway through the control and lose
+both their hue and the material's warm outline choice.
+The wrapping ruffle field mixes nearby whole frequencies rather than using the
+same frequency in every direction. It remains exactly periodic, but a straight
+top edge no longer reduces the two-dimensional field to one repeated sine and
+an artificial comb of identical teeth.
+
+Edge details are a semantic pass after surface classification, not another
+distortion of the band field. `terrain_motifs` owns normalized fringe profiles
+for short grass, dry grass, moss and snow, including reduced-complexity
+`Chunky16` banks. The renderer projects each profile along the dominant local
+tangent and extends it from the band's inner boundary along the distance-field
+normal. Its clump grid is fitted to the full atlas period and keyed by the
+global cell, so motif choice and occupancy remain stable across tile seams.
+The pass may replace colour indices only where occupancy is already solid; it
+cannot add alpha outside the collision silhouette.
 
 The interior itself has three ordered concepts: a continuous base treatment
 (flat, mottle, soil clods or cobbles), a repeating substrate pattern (pebbles,
@@ -364,6 +392,14 @@ runtime `Terrain` objects remain limited to the rules needed by the brush.
 Recipe parsing is strict within a schema version, so adding a generator field
 requires an explicit persistence decision instead of silently substituting a
 new default when old work is reopened.
+
+Recipe schema v3 stores top, side and underside depths plus edge-detail family,
+amount, length, clump size, lean and highlight. Its explicit v1 migration
+converts the former surface depth and underside bias into the three samples of
+the same linear facing curve and disables the new wall layer. The v2 migration
+disables edge details, preserving its pixels. Saving either migrated format
+writes v3 once; unknown future schemas and incomplete documents still fail
+rather than falling back to current defaults.
 
 Regeneration preserves all resource and tile IDs by replacing only the atlas
 pixels. It validates the recipe's asset binding before writing and rejects tile

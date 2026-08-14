@@ -54,6 +54,18 @@ bool Known(TerrainInteriorStyle value) {
   return false;
 }
 
+bool Known(TerrainEdgeDetailSet value) {
+  switch (value) {
+    case TerrainEdgeDetailSet::kNone:
+    case TerrainEdgeDetailSet::kShortGrass:
+    case TerrainEdgeDetailSet::kDryGrass:
+    case TerrainEdgeDetailSet::kMossFringe:
+    case TerrainEdgeDetailSet::kSnowLip:
+      return true;
+  }
+  return false;
+}
+
 bool Known(TerrainSubstratePattern value) {
   switch (value) {
     case TerrainSubstratePattern::kNone:
@@ -114,14 +126,23 @@ absl::Span<const TerrainPreset> BuiltInTerrainPresets() {
 
     TerrainGenConfig meadow;
     meadow.variant_period = 3;
-    meadow.grass_band = 10.0f;
-    meadow.ruffle_amplitude = 3.2f;
-    meadow.ruffle_density = 2.5f;
-    meadow.grass_bottom_bias = 0.20f;
-    meadow.grass_hi_depth = 2;
-    meadow.grass_shade_depth = 2;
-    meadow.surface_texture_size = 5.0f;
-    meadow.surface_texture_amount = 0.65f;
+    meadow.surface.top_depth = 10.0f;
+    meadow.surface.side_depth = 6.0f;
+    meadow.surface.underside_depth = 2.0f;
+    meadow.surface.ruffle_amplitude = 3.2f;
+    meadow.surface.ruffle_density = 2.5f;
+    meadow.surface.highlight_depth = 2;
+    meadow.surface.shade_depth = 2;
+    meadow.surface.texture_size = 5.0f;
+    meadow.surface.texture_amount = 0.65f;
+    meadow.surface.edge_detail = TerrainEdgeDetailConfig{
+        .family = TerrainEdgeDetailSet::kShortGrass,
+        .amount = 0.55f,
+        .length = 3,
+        .clump_size = 5,
+        .lean = 0.05f,
+        .highlight = 0.45f,
+    };
     meadow.interior.base = TerrainInteriorBaseConfig{
         .style = TerrainInteriorStyle::kSoilClods,
         .mottle_coverage = 0.18f,
@@ -152,19 +173,86 @@ absl::Span<const TerrainPreset> BuiltInTerrainPresets() {
     };
     presets.push_back({meadow.material.name, meadow});
 
+    // A thin, light-catching cap over a dark earthen body. Sparse leaning dry
+    // grass adds the ragged harvest edge without changing the collision line.
+    TerrainGenConfig autumn;
+    autumn.variant_period = 3;
+    autumn.surface.top_depth = 6.0f;
+    autumn.surface.side_depth = 2.0f;
+    autumn.surface.underside_depth = 0.5f;
+    autumn.surface.ruffle_amplitude = 2.5f;
+    autumn.surface.ruffle_density = 1.8f;
+    autumn.surface.ruffle_sharpness = 0.75f;
+    autumn.surface.highlight_depth = 1;
+    autumn.surface.shade_depth = 2;
+    autumn.surface.contact_depth = 2;
+    autumn.surface.wall_depth = 7;
+    autumn.surface.wall_darkness = 1.2f;
+    autumn.surface.texture_size = 3.5f;
+    autumn.surface.texture_amount = 0.60f;
+    autumn.surface.edge_detail = TerrainEdgeDetailConfig{
+        .family = TerrainEdgeDetailSet::kDryGrass,
+        .amount = 0.72f,
+        .length = 5,
+        .clump_size = 5,
+        .lean = 0.28f,
+        .highlight = 0.30f,
+    };
+    autumn.interior.base = TerrainInteriorBaseConfig{
+        .style = TerrainInteriorStyle::kMottle,
+        .mottle_density = 2.0f,
+        .mottle_coverage = 0.10f,
+        .feature_size = 7.0f,
+        .relief = 0.25f,
+    };
+    autumn.interior.pattern = TerrainSubstratePatternConfig{
+        .family = TerrainSubstratePattern::kFlecks,
+        .density = 1,
+        .spacing = 15,
+        .margin = 3,
+        .contrast = 0.30f,
+    };
+    autumn.interior.details = TerrainSemanticDetailConfig{
+        .family = TerrainDetailSet::kForestFloor,
+        .density = 1,
+        .spacing = 16,
+        .margin = 3,
+    };
+    autumn.material = TerrainMaterial{
+        .name = "Autumn Forest",
+        .surface = 0xc99a3b,
+        .substrate = 0x2d2922,
+        .outline = 0x17150f,
+        .accent_primary = 0xe06b32,
+        .accent_secondary = 0xf0c34f,
+        .hue_shift = 0.025f,
+        .contrast = 1.10f,
+        .surface_style = TerrainSurfaceStyle::kTufted,
+    };
+    presets.push_back({autumn.material.name, autumn});
+
     TerrainGenConfig chunky;
     chunky.tile_size = 16;
     chunky.variant_period = 2;
     chunky.pixel_profile = TerrainPixelProfile::kChunky16;
-    chunky.grass_band = 5.0f;
-    chunky.ruffle_amplitude = 1.3f;
-    chunky.ruffle_density = 1.5f;
-    chunky.outline_width = 1;
-    chunky.grass_hi_depth = 1;
-    chunky.grass_shade_depth = 1;
-    chunky.contact_depth = 1;
-    chunky.surface_texture_size = 3.0f;
-    chunky.surface_texture_amount = 0.35f;
+    chunky.surface.top_depth = 5.0f;
+    chunky.surface.side_depth = 4.0f;
+    chunky.surface.underside_depth = 3.0f;
+    chunky.surface.ruffle_amplitude = 1.3f;
+    chunky.surface.ruffle_density = 1.5f;
+    chunky.surface.outline_depth = 1;
+    chunky.surface.highlight_depth = 1;
+    chunky.surface.shade_depth = 1;
+    chunky.surface.contact_depth = 1;
+    chunky.surface.texture_size = 3.0f;
+    chunky.surface.texture_amount = 0.35f;
+    chunky.surface.edge_detail = TerrainEdgeDetailConfig{
+        .family = TerrainEdgeDetailSet::kShortGrass,
+        .amount = 0.42f,
+        .length = 2,
+        .clump_size = 4,
+        .highlight = 0.25f,
+    };
     chunky.interior.base = TerrainInteriorBaseConfig{
         .style = TerrainInteriorStyle::kMottle,
         .mottle_density = 2.0f,
@@ -254,6 +342,24 @@ absl::Span<const TerrainPreset> BuiltInTerrainPresets() {
       config.interior.details.family = preset.details;
       config.interior.details.density = preset.details == TerrainDetailSet::kNone ? 0 : 2;
       config.interior.details.accent_mode = DefaultAccentModeFor(preset.details);
+      if (preset.material.name == "Snow") {
+        config.surface.edge_detail = TerrainEdgeDetailConfig{
+            .family = TerrainEdgeDetailSet::kSnowLip,
+            .amount = 0.92f,
+            .length = 4,
+            .clump_size = 7,
+            .highlight = 0.65f,
+        };
+      } else if (preset.material.name == "Cave") {
+        config.surface.edge_detail = TerrainEdgeDetailConfig{
+            .family = TerrainEdgeDetailSet::kMossFringe,
+            .amount = 0.58f,
+            .length = 5,
+            .clump_size = 6,
+            .lean = -0.08f,
+            .highlight = 0.25f,
+        };
+      }
       presets.push_back({preset.material.name, config});
     }
     return presets;
@@ -277,38 +383,55 @@ absl::StatusOr<ResolvedTerrainStyle> ResolveTerrainStyle(const TerrainGenConfig&
     return absl::InvalidArgumentError(absl::StrCat("terrain repeat field edge exceeds ",
                                                    kMaxFieldEdge, " pixels; got ", field_edge));
   }
-  if (!Finite(config.grass_band) || config.grass_band <= 0.0f || !Finite(config.ruffle_amplitude) ||
-      config.ruffle_amplitude < 0.0f || config.grass_band > kMaxReferenceMeasurement ||
-      config.ruffle_amplitude > kMaxReferenceMeasurement || !Finite(config.ruffle_density) ||
-      config.ruffle_density <= 0.0f || config.ruffle_density > 64.0f ||
-      !Finite(config.ruffle_sharpness) || config.ruffle_sharpness <= 0.0f ||
-      config.ruffle_sharpness > 16.0f || config.ruffle_octaves < 1 || config.ruffle_octaves > 8 ||
-      !Finite(config.grass_bottom_bias) || config.grass_bottom_bias < 0.0f ||
-      config.grass_bottom_bias > 1.0f) {
+  const TerrainSurfaceConfig& surface = config.surface;
+  if (!Finite(surface.top_depth) || surface.top_depth <= 0.0f || !Finite(surface.side_depth) ||
+      surface.side_depth < 0.0f || !Finite(surface.underside_depth) ||
+      surface.underside_depth < 0.0f || surface.top_depth > kMaxReferenceMeasurement ||
+      surface.side_depth > kMaxReferenceMeasurement ||
+      surface.underside_depth > kMaxReferenceMeasurement || !Finite(surface.ruffle_amplitude) ||
+      surface.ruffle_amplitude < 0.0f || surface.ruffle_amplitude > kMaxReferenceMeasurement ||
+      !Finite(surface.ruffle_density) || surface.ruffle_density <= 0.0f ||
+      surface.ruffle_density > 64.0f || !Finite(surface.ruffle_sharpness) ||
+      surface.ruffle_sharpness <= 0.0f || surface.ruffle_sharpness > 16.0f ||
+      surface.ruffle_octaves < 1 || surface.ruffle_octaves > 8) {
     return absl::InvalidArgumentError("terrain surface-band settings are invalid");
   }
-  if (config.outline_width < 0 || config.grass_hi_depth < 0 || config.grass_shade_depth < 0 ||
-      config.contact_depth < 0 || config.outline_width > kMaxReferenceMeasurement ||
-      config.grass_hi_depth > kMaxReferenceMeasurement ||
-      config.grass_shade_depth > kMaxReferenceMeasurement ||
-      config.contact_depth > kMaxReferenceMeasurement) {
+  if (surface.outline_depth < 0 || surface.highlight_depth < 0 || surface.shade_depth < 0 ||
+      surface.contact_depth < 0 || surface.wall_depth < 0 ||
+      surface.outline_depth > kMaxReferenceMeasurement ||
+      surface.highlight_depth > kMaxReferenceMeasurement ||
+      surface.shade_depth > kMaxReferenceMeasurement ||
+      surface.contact_depth > kMaxReferenceMeasurement ||
+      surface.wall_depth > kMaxReferenceMeasurement) {
     return absl::InvalidArgumentError("terrain layer depths cannot be negative");
   }
-  if (!Finite(config.surface_texture_size) || config.surface_texture_size <= 0.0f ||
+  if (!Finite(surface.wall_darkness) || surface.wall_darkness < 0.0f ||
+      surface.wall_darkness > 4.0f) {
+    return absl::InvalidArgumentError("terrain wall darkness must be finite and in [0, 4]");
+  }
+  if (!Finite(surface.texture_size) || surface.texture_size <= 0.0f ||
       !Finite(config.interior.base.feature_size) || config.interior.base.feature_size <= 0.0f ||
-      config.surface_texture_size > kMaxReferenceMeasurement ||
+      surface.texture_size > kMaxReferenceMeasurement ||
       config.interior.base.feature_size > kMaxReferenceMeasurement ||
       !Finite(config.interior.base.mottle_density) || config.interior.base.mottle_density <= 0.0f ||
       config.interior.base.mottle_density > 64.0f) {
     return absl::InvalidArgumentError("terrain texture feature sizes must be positive and finite");
   }
-  if (!Finite(config.surface_texture_amount) || config.surface_texture_amount < 0.0f ||
-      config.surface_texture_amount > 1.0f || !Finite(config.interior.base.mottle_coverage) ||
+  if (!Finite(surface.texture_amount) || surface.texture_amount < 0.0f ||
+      surface.texture_amount > 1.0f || !Finite(config.interior.base.mottle_coverage) ||
       config.interior.base.mottle_coverage < 0.0f || config.interior.base.mottle_coverage > 1.0f ||
       !Finite(config.interior.base.relief) || config.interior.base.relief < 0.0f ||
       config.interior.base.relief > 1.0f || !Finite(config.interior.pattern.contrast) ||
       config.interior.pattern.contrast < 0.0f || config.interior.pattern.contrast > 1.0f) {
     return absl::InvalidArgumentError("terrain texture amounts must be finite and in [0, 1]");
+  }
+  const TerrainEdgeDetailConfig& edge = surface.edge_detail;
+  if (!Finite(edge.amount) || edge.amount < 0.0f || edge.amount > 1.0f || edge.length < 0 ||
+      edge.length > kMaxReferenceMeasurement || edge.clump_size < 1 ||
+      edge.clump_size > kMaxReferenceMeasurement || !Finite(edge.lean) || edge.lean < -1.0f ||
+      edge.lean > 1.0f || !Finite(edge.highlight) || edge.highlight < 0.0f ||
+      edge.highlight > 1.0f) {
+    return absl::InvalidArgumentError("terrain edge-detail settings are invalid");
   }
   if (!Finite(config.material.hue_shift) || std::abs(config.material.hue_shift) > 1.0f ||
       !Finite(config.material.contrast) || config.material.contrast <= 0.0f ||
@@ -336,9 +459,10 @@ absl::StatusOr<ResolvedTerrainStyle> ResolveTerrainStyle(const TerrainGenConfig&
     return absl::InvalidArgumentError(
         absl::StrCat("terrain pattern/detail placement count exceeds ", kMaxMotifPlacements));
   }
-  if (!Known(config.material.surface_style) || !Known(config.interior.base.style) ||
-      !Known(config.interior.pattern.family) || !Known(config.interior.details.family) ||
-      !Known(config.interior.pattern.accent_mode) || !Known(config.interior.details.accent_mode)) {
+  if (!Known(config.material.surface_style) || !Known(surface.edge_detail.family) ||
+      !Known(config.interior.base.style) || !Known(config.interior.pattern.family) ||
+      !Known(config.interior.details.family) || !Known(config.interior.pattern.accent_mode) ||
+      !Known(config.interior.details.accent_mode)) {
     return absl::InvalidArgumentError("terrain configuration contains an unknown style");
   }
 
@@ -359,18 +483,26 @@ absl::StatusOr<ResolvedTerrainStyle> ResolveTerrainStyle(const TerrainGenConfig&
   }
 
   style.scale = static_cast<float>(config.tile_size) / style.reference_tile_size;
-  style.grass_band = config.grass_band * style.scale;
-  style.ruffle_amplitude = config.ruffle_amplitude * style.scale;
-  style.outline_width = ScaleLayer(config.outline_width, style.scale);
-  style.grass_hi_depth = ScaleLayer(config.grass_hi_depth, style.scale);
-  style.grass_shade_depth = ScaleLayer(config.grass_shade_depth, style.scale);
-  style.contact_depth = ScaleLayer(config.contact_depth, style.scale);
+  style.surface_top_depth = surface.top_depth * style.scale;
+  style.surface_side_depth = surface.side_depth * style.scale;
+  style.surface_underside_depth = surface.underside_depth * style.scale;
+  style.ruffle_amplitude = surface.ruffle_amplitude * style.scale;
+  style.outline_depth = ScaleLayer(surface.outline_depth, style.scale);
+  style.highlight_depth = ScaleLayer(surface.highlight_depth, style.scale);
+  style.shade_depth = ScaleLayer(surface.shade_depth, style.scale);
+  style.contact_depth = ScaleLayer(surface.contact_depth, style.scale);
+  style.wall_depth = ScaleLayer(surface.wall_depth, style.scale);
   style.surface_texture_size =
-      std::max(1, static_cast<int>(std::lround(config.surface_texture_size * style.scale)));
+      std::max(1, static_cast<int>(std::lround(surface.texture_size * style.scale)));
   const int final_period = config.tile_size * config.variant_period;
   style.surface_pattern_cells =
       std::max(1, static_cast<int>(std::lround(static_cast<float>(final_period) /
                                                static_cast<float>(style.surface_texture_size))));
+  style.edge_detail_length = ScaleLayer(edge.length, style.scale);
+  const int edge_clump_size = ScaleLayer(edge.clump_size, style.scale);
+  style.edge_pattern_cells =
+      std::max(1, static_cast<int>(std::lround(static_cast<float>(final_period) /
+                                               static_cast<float>(edge_clump_size))));
   style.interior_feature_size =
       std::max(2, static_cast<int>(std::lround(config.interior.base.feature_size * style.scale)));
   style.interior_cells =

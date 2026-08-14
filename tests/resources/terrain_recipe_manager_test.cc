@@ -23,18 +23,27 @@ TerrainRecipe CompleteRecipe() {
   recipe.config.supersample = 2;
   recipe.config.variant_period = 2;
   recipe.config.pixel_profile = TerrainPixelProfile::kChunky16;
-  recipe.config.grass_band = 4.25f;
-  recipe.config.ruffle_amplitude = 1.5f;
-  recipe.config.ruffle_density = 2.5f;
-  recipe.config.ruffle_sharpness = 0.4f;
-  recipe.config.ruffle_octaves = 2;
-  recipe.config.grass_bottom_bias = 0.3f;
-  recipe.config.outline_width = 2;
-  recipe.config.grass_hi_depth = 1;
-  recipe.config.grass_shade_depth = 2;
-  recipe.config.contact_depth = 1;
-  recipe.config.surface_texture_size = 3.5f;
-  recipe.config.surface_texture_amount = 0.6f;
+  recipe.config.surface.top_depth = 4.25f;
+  recipe.config.surface.side_depth = 2.75f;
+  recipe.config.surface.underside_depth = 1.25f;
+  recipe.config.surface.ruffle_amplitude = 1.5f;
+  recipe.config.surface.ruffle_density = 2.5f;
+  recipe.config.surface.ruffle_sharpness = 0.4f;
+  recipe.config.surface.ruffle_octaves = 2;
+  recipe.config.surface.outline_depth = 2;
+  recipe.config.surface.highlight_depth = 1;
+  recipe.config.surface.shade_depth = 2;
+  recipe.config.surface.contact_depth = 1;
+  recipe.config.surface.wall_depth = 3;
+  recipe.config.surface.wall_darkness = 1.7f;
+  recipe.config.surface.texture_size = 3.5f;
+  recipe.config.surface.texture_amount = 0.6f;
+  recipe.config.surface.edge_detail.family = TerrainEdgeDetailSet::kDryGrass;
+  recipe.config.surface.edge_detail.amount = 0.75f;
+  recipe.config.surface.edge_detail.length = 5;
+  recipe.config.surface.edge_detail.clump_size = 6;
+  recipe.config.surface.edge_detail.lean = 0.4f;
+  recipe.config.surface.edge_detail.highlight = 0.2f;
   recipe.config.interior.base.style = TerrainInteriorStyle::kSoilClods;
   recipe.config.interior.base.mottle_density = 3.0f;
   recipe.config.interior.base.mottle_coverage = 0.2f;
@@ -96,6 +105,60 @@ TEST_F(TerrainRecipeManagerTest, RoundTripsEveryConfigurationField) {
 
   recipe.id = id;
   EXPECT_EQ(TerrainRecipeToJson(*loaded), TerrainRecipeToJson(recipe));
+}
+
+TEST_F(TerrainRecipeManagerTest, MigratesV1FacingBiasWithoutChangingItsCoverageLine) {
+  TerrainRecipe recipe = CompleteRecipe();
+  recipe.id = "legacy";
+  nlohmann::json json = TerrainRecipeToJson(recipe);
+  json["schema_version"] = 1;
+  json["config"]["surface"] = {
+      {"grass_band", 8.0f},       {"ruffle_amplitude", 2.0f}, {"ruffle_density", 2.5f},
+      {"ruffle_sharpness", 0.4f}, {"ruffle_octaves", 2},      {"grass_bottom_bias", 0.25f},
+      {"outline_width", 2},       {"grass_hi_depth", 1},      {"grass_shade_depth", 2},
+      {"contact_depth", 1},       {"texture_size", 3.5f},     {"texture_amount", 0.6f},
+  };
+
+  ASSERT_OK_AND_ASSIGN(TerrainRecipe migrated, TerrainRecipeFromJson(json));
+  EXPECT_FLOAT_EQ(migrated.config.surface.top_depth, 8.0f);
+  EXPECT_FLOAT_EQ(migrated.config.surface.side_depth, 5.0f);
+  EXPECT_FLOAT_EQ(migrated.config.surface.underside_depth, 2.0f);
+  EXPECT_EQ(migrated.config.surface.wall_depth, 0);
+
+  // Saving upgrades the document once. Reading that v3 document again must be
+  // lossless, rather than repeatedly applying migration math.
+  const nlohmann::json upgraded = TerrainRecipeToJson(migrated);
+  EXPECT_EQ(upgraded.at("schema_version"), 3);
+  EXPECT_FALSE(upgraded.at("config").at("surface").contains("grass_bottom_bias"));
+  ASSERT_OK_AND_ASSIGN(TerrainRecipe reopened, TerrainRecipeFromJson(upgraded));
+  EXPECT_EQ(TerrainRecipeToJson(reopened), upgraded);
+}
+
+TEST_F(TerrainRecipeManagerTest, MigratesV2WithEdgeDetailsDisabled) {
+  TerrainRecipe recipe = CompleteRecipe();
+  recipe.id = "phase-two";
+  nlohmann::json json = TerrainRecipeToJson(recipe);
+  json["schema_version"] = 2;
+  json["config"]["surface"].erase("edge_detail");
+
+  ASSERT_OK_AND_ASSIGN(TerrainRecipe migrated, TerrainRecipeFromJson(json));
+  EXPECT_EQ(migrated.config.surface.edge_detail.family, TerrainEdgeDetailSet::kNone);
+  EXPECT_EQ(TerrainRecipeToJson(migrated).at("schema_version"), 3);
+}
+
+TEST_F(TerrainRecipeManagerTest, RejectsInvalidV1FacingBiasDuringMigration) {
+  TerrainRecipe recipe = CompleteRecipe();
+  recipe.id = "legacy-broken";
+  nlohmann::json json = TerrainRecipeToJson(recipe);
+  json["schema_version"] = 1;
+  json["config"]["surface"] = {
+      {"grass_band", 8.0f},       {"ruffle_amplitude", 2.0f}, {"ruffle_density", 2.5f},
+      {"ruffle_sharpness", 0.4f}, {"ruffle_octaves", 2},      {"grass_bottom_bias", 1.25f},
+      {"outline_width", 2},       {"grass_hi_depth", 1},      {"grass_shade_depth", 2},
+      {"contact_depth", 1},       {"texture_size", 3.5f},     {"texture_amount", 0.6f},
+  };
+
+  EXPECT_EQ(TerrainRecipeFromJson(json).status().code(), absl::StatusCode::kInvalidArgument);
 }
 
 TEST_F(TerrainRecipeManagerTest, SavingAnEditReplacesTheRecipeWithoutChangingItsId) {

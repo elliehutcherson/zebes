@@ -25,6 +25,16 @@ enum class TerrainSurfaceStyle : uint8_t {
   kMossy = 3,
 };
 
+// Small forms which hang from the inner edge of the surface band. They are
+// painted inside solid terrain, never outside the collision silhouette.
+enum class TerrainEdgeDetailSet : uint8_t {
+  kNone = 0,
+  kShortGrass = 1,
+  kDryGrass = 2,
+  kMossFringe = 3,
+  kSnowLip = 4,
+};
+
 enum class TerrainInteriorStyle : uint8_t {
   kFlat = 0,
   kMottle = 1,
@@ -115,6 +125,57 @@ struct TerrainInteriorConfig {
   TerrainSemanticDetailConfig details;
 };
 
+struct TerrainEdgeDetailConfig {
+  TerrainEdgeDetailSet family = TerrainEdgeDetailSet::kNone;
+  // Amount is the fraction of atlas-global clump cells which are occupied.
+  float amount = 0.65f;
+  // Length and clump size use the selected pixel profile's reference pixels.
+  int length = 4;
+  int clump_size = 5;
+  // Signed tangent offset per unit of depth. Negative and positive values lean
+  // in opposite directions without changing where the terrain collides.
+  float lean = 0.0f;
+  // Probability that the lit root of a motif receives the surface highlight.
+  float highlight = 0.35f;
+};
+
+// Resolution-independent description of the material around an exposed edge.
+//
+// Top, side, and underside depths are authored independently and blended from
+// the distance-field normal. This is deliberately material-agnostic: grass,
+// snow, moss, and sand can all share the same facing calculation while choosing
+// very different coverage. Wall shading begins after the contact shadow and is
+// restricted to side- and downward-facing edges.
+struct TerrainSurfaceConfig {
+  float top_depth = 9.0f;
+  float side_depth = 7.0f;
+  float underside_depth = 5.0f;
+
+  float ruffle_amplitude = 3.0f;
+  float ruffle_density = 2.0f;
+  float ruffle_sharpness = 0.65f;
+  int ruffle_octaves = 1;
+
+  int outline_depth = 1;
+  int highlight_depth = 3;
+  int shade_depth = 3;
+  int contact_depth = 2;
+  int wall_depth = 0;
+  // Strength of the blend from substrate toward the authored outline colour.
+  // Zero matches the interior; larger values approach, but never overshoot,
+  // the outline. This keeps very dark materials from clipping to black.
+  float wall_darkness = 1.0f;
+
+  float texture_size = 5.0f;
+  // Zero disables colour clustering without changing the selected style.
+  float texture_amount = 0.45f;
+
+  // A separate semantic layer so adding blades or a snow lip does not distort
+  // the surface-band field. This boundary is what lets future motif families
+  // grow independently of the geometry algorithm.
+  TerrainEdgeDetailConfig edge_detail;
+};
+
 // Artistic choices which do not depend on an output resolution. Concrete pixel
 // widths and profile-specific motif sprites are selected by ResolveTerrainStyle.
 struct TerrainMaterial {
@@ -141,24 +202,8 @@ struct TerrainGenConfig {
   int variant_period = 1;
   TerrainPixelProfile pixel_profile = TerrainPixelProfile::kBalanced32;
 
-  // --- Surface band; measurements use the profile's reference pixels. ---
-  float grass_band = 9.0f;
-  float ruffle_amplitude = 3.0f;
-  float ruffle_density = 2.0f;
-  float ruffle_sharpness = 0.65f;
-  int ruffle_octaves = 1;
-  // One is a uniform band; zero leaves downward-facing overhangs nearly bare.
-  float grass_bottom_bias = 0.55f;
-
-  // Layer widths in the selected profile's reference pixels.
-  int outline_width = 1;
-  int grass_hi_depth = 3;
-  int grass_shade_depth = 3;
-  int contact_depth = 2;
-
-  float surface_texture_size = 5.0f;
-  // Zero disables colour clustering without changing the selected style.
-  float surface_texture_amount = 0.45f;
+  // --- Facing-aware surface and wall treatment ---
+  TerrainSurfaceConfig surface;
 
   // --- Interior base, substrate pattern, and semantic details ---
   TerrainInteriorConfig interior;
@@ -186,14 +231,19 @@ absl::Span<const TerrainPreset> BuiltInTerrainPresets();
 struct ResolvedTerrainStyle {
   int reference_tile_size = 32;
   float scale = 1.0f;
-  float grass_band = 0.0f;
+  float surface_top_depth = 0.0f;
+  float surface_side_depth = 0.0f;
+  float surface_underside_depth = 0.0f;
   float ruffle_amplitude = 0.0f;
-  int outline_width = 0;
-  int grass_hi_depth = 0;
-  int grass_shade_depth = 0;
+  int outline_depth = 0;
+  int highlight_depth = 0;
+  int shade_depth = 0;
   int contact_depth = 0;
+  int wall_depth = 0;
   int surface_texture_size = 0;
   int surface_pattern_cells = 0;
+  int edge_detail_length = 0;
+  int edge_pattern_cells = 0;
   int interior_feature_size = 0;
   int interior_cells = 0;
   int pattern_spacing = 0;

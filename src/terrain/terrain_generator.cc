@@ -53,13 +53,29 @@ enum PixelIndex : uint8_t {
   kIndexAccentRamp = 17,
   kIndexAccentPrimary = kIndexAccentRamp,
   kIndexAccentSecondary = kIndexAccentRamp + kAccentRampSteps - 1,
-  kIndexCount = kIndexAccentRamp + kAccentRampSteps,
+  // Kept after the accent ramp so adding wall treatment cannot renumber any
+  // existing semantic pixel. That makes legacy-output comparisons easier to
+  // reason about even though indices never leave the renderer.
+  kIndexWall = kIndexAccentRamp + kAccentRampSteps,
+  kIndexCount = kIndexWall + 1,
 };
 
 // Where the light comes from, as a pixel offset. Only decoration shading uses
 // it; everything else takes its shading from surface orientation.
 constexpr int kLightDx = -1;
 constexpr int kLightDy = -1;
+
+uint64_t MixBits(uint64_t value) {
+  value ^= value >> 30;
+  value *= 0xbf58476d1ce4e5b9ULL;
+  value ^= value >> 27;
+  value *= 0x94d049bb133111ebULL;
+  return value ^ (value >> 31);
+}
+
+float HashUnit(uint64_t value) {
+  return static_cast<float>(MixBits(value) >> 40) / static_cast<float>(1ULL << 24);
+}
 
 // Neighbour slots, in the same order as the Neighbor bits in terrain_mask.h so
 // a blob mask can be walked bit by bit.
@@ -183,7 +199,7 @@ Rgba Ramp(uint32_t base, float step, float hue_shift, float saturation_shift = 0
 }
 
 std::array<Rgba, kIndexCount> BuildPalette(const TerrainMaterial& material, float pattern_contrast,
-                                           bool compact_palette) {
+                                           float wall_darkness, bool compact_palette) {
   std::array<Rgba, kIndexCount> palette{};
   palette[kIndexEmpty] = Rgba{0, 0, 0, 0};
   const float contrast = material.contrast;
@@ -233,6 +249,15 @@ std::array<Rgba, kIndexCount> BuildPalette(const TerrainMaterial& material, floa
     const float t = static_cast<float>(bucket) / static_cast<float>(distinct - 1);
     palette[kIndexAccentRamp + step] = ToRgba(MixHsv(accent_from, accent_to, t));
   }
+  // Wall darkness is a bounded material transition, not another open-ended
+  // ramp step. Subtractive shading clipped dark substrates to RGB black long
+  // before the slider reached its maximum (Autumn Forest clipped around 1.2),
+  // erasing both hue and authored outline warmth. An exponential approach
+  // keeps the existing 0..4 strength range useful while guaranteeing that the
+  // wall stays between the substrate and the explicitly authored outline.
+  const float wall_mix = 1.0f - std::exp(-wall_darkness);
+  palette[kIndexWall] =
+      ToRgba(MixHsv(ToHsv(material.substrate), ToHsv(material.outline), wall_mix));
   return palette;
 }
 
@@ -443,7 +468,7 @@ void ApplyPartner(TileShape shape, std::vector<absl::Span<const TilePoint>>& nei
 TerrainRenderer::TerrainRenderer(TerrainGenConfig config, ResolvedTerrainStyle style,
                                  RuffleField ruffle, ValueNoiseField surface_texture,
                                  ValueNoiseField mottle, PeriodicPatternGrid surface_pattern,
-                                 CellularField cellular,
+                                 CellularField cellular, PeriodicPatternGrid edge_pattern,
                                  std::vector<MotifPlacement> pattern_placements,
                                  std::vector<MotifPlacement> detail_placements)
     : config_(std::move(config)),
@@ -453,6 +478,7 @@ TerrainRenderer::TerrainRenderer(TerrainGenConfig config, ResolvedTerrainStyle s
       mottle_(std::move(mottle)),
       surface_pattern_(std::move(surface_pattern)),
       cellular_(std::move(cellular)),
+      edge_pattern_(std::move(edge_pattern)),
       pattern_placements_(std::move(pattern_placements)),
       detail_placements_(std::move(detail_placements)),
       resolution_(config_.tile_size * config_.supersample),
@@ -477,8 +503,11 @@ absl::StatusOr<TerrainRenderer> TerrainRenderer::Create(TerrainGenConfig config)
       TerrainSubstrateMotifsFor(config.interior.pattern.family, config.pixel_profile);
   const absl::Span<const TerrainMotif> detail_motifs =
       TerrainDetailMotifsFor(config.interior.details.family, config.pixel_profile);
+  const absl::Span<const TerrainEdgeMotif> edge_motifs =
+      TerrainEdgeMotifsFor(config.surface.edge_detail.family, config.pixel_profile);
   RETURN_IF_ERROR(ValidateTerrainMotifs(pattern_motifs));
   RETURN_IF_ERROR(ValidateTerrainMotifs(detail_motifs));
+  RETURN_IF_ERROR(ValidateTerrainEdgeMotifs(edge_motifs));
 
   // A magnified stamp wider than a tile can never satisfy the interior test, so
   // it would place nothing and render an empty layer. Refusing here names the
@@ -503,10 +532,10 @@ absl::StatusOr<TerrainRenderer> TerrainRenderer::Create(TerrainGenConfig config)
   const int resolution = config.tile_size * config.supersample;
   const int period = resolution * config.variant_period;
 
-  ASSIGN_OR_RETURN(
-      RuffleField ruffle,
-      RuffleField::Create(period, resolution, config.ruffle_density, config.ruffle_sharpness,
-                          config.ruffle_octaves, config.seed));
+  ASSIGN_OR_RETURN(RuffleField ruffle,
+                   RuffleField::Create(period, resolution, config.surface.ruffle_density,
+                                       config.surface.ruffle_sharpness,
+                                       config.surface.ruffle_octaves, config.seed));
   const int surface_cells = std::max(
       1, static_cast<int>(std::lround(static_cast<float>(config.tile_size * config.variant_period) /
                                       style.surface_texture_size)));
@@ -524,6 +553,8 @@ absl::StatusOr<TerrainRenderer> TerrainRenderer::Create(TerrainGenConfig config)
   const int final_period = config.tile_size * config.variant_period;
   ASSIGN_OR_RETURN(PeriodicPatternGrid surface_pattern,
                    PeriodicPatternGrid::Create(final_period, style.surface_pattern_cells));
+  ASSIGN_OR_RETURN(PeriodicPatternGrid edge_pattern,
+                   PeriodicPatternGrid::Create(final_period, style.edge_pattern_cells));
 
   CellularField cellular;
   if (config.interior.base.style == TerrainInteriorStyle::kSoilClods ||
@@ -567,8 +598,8 @@ absl::StatusOr<TerrainRenderer> TerrainRenderer::Create(TerrainGenConfig config)
                        config.seed ^ 0x85ebca6b);
   return TerrainRenderer(std::move(config), std::move(style), std::move(ruffle),
                          std::move(surface_texture), std::move(mottle), std::move(surface_pattern),
-                         std::move(cellular), std::move(pattern_placements),
-                         std::move(detail_placements));
+                         std::move(cellular), std::move(edge_pattern),
+                         std::move(pattern_placements), std::move(detail_placements));
 }
 
 std::vector<uint8_t> TerrainRenderer::Occupancy(
@@ -584,10 +615,12 @@ std::vector<uint8_t> TerrainRenderer::Occupancy(
   return occupancy;
 }
 
-std::vector<float> TerrainRenderer::SurfaceBand(const std::vector<float>& depth, int origin_x,
-                                                int origin_y) const {
-  std::vector<float> band(depth.size(), 0.0f);
-  const float bias = config_.grass_bottom_bias;
+TerrainRenderer::SurfaceField TerrainRenderer::MeasureSurface(const std::vector<float>& depth,
+                                                              int origin_x, int origin_y) const {
+  SurfaceField surface;
+  surface.band.resize(depth.size(), 0.0f);
+  surface.normal_x.resize(depth.size(), 0.0f);
+  surface.upness.resize(depth.size(), 0.0f);
 
   for (int y = 0; y < canvas_; ++y) {
     for (int x = 0; x < canvas_; ++x) {
@@ -608,20 +641,125 @@ std::vector<float> TerrainRenderer::SurfaceBand(const std::vector<float>& depth,
 
       const float length = std::hypot(dx, dy) + 1e-6f;
       const float upness = std::clamp(dy / length, -1.0f, 1.0f);
-      const float facing = bias + (1.0f - bias) * (0.5f + 0.5f * upness);
+      surface.normal_x[index] = std::clamp(dx / length, -1.0f, 1.0f);
+      surface.upness[index] = upness;
+      const float facing_depth =
+          upness >= 0.0f
+              ? style_.surface_side_depth +
+                    (style_.surface_top_depth - style_.surface_side_depth) * upness
+              : style_.surface_side_depth +
+                    (style_.surface_underside_depth - style_.surface_side_depth) * -upness;
+
+      // Ruffle strength tracks local coverage. This exactly represents the v1
+      // underside-bias model after migration, while still allowing newly
+      // authored side and underside depths to vary independently.
+      const float ruffle_scale = facing_depth / style_.surface_top_depth;
 
       // Sampled in atlas-global coordinates so neighbouring tiles agree.
       const float ruffle = ruffle_.Value(origin_x + x - resolution_, origin_y + y - resolution_);
-      band[index] = static_cast<float>(config_.supersample) * facing *
-                    (style_.grass_band + style_.ruffle_amplitude * (ruffle * 2.0f - 1.0f));
+      surface.band[index] =
+          static_cast<float>(config_.supersample) *
+          (facing_depth + style_.ruffle_amplitude * ruffle_scale * (ruffle * 2.0f - 1.0f));
     }
   }
-  return band;
+  return surface;
+}
+
+void TerrainRenderer::ApplyEdgeDetails(std::vector<uint8_t>& indices,
+                                       const std::vector<float>& depth, const SurfaceField& surface,
+                                       int origin_x, int origin_y) const {
+  const TerrainEdgeDetailConfig& config = config_.surface.edge_detail;
+  if (config.family == TerrainEdgeDetailSet::kNone || config.amount <= 0.0f ||
+      style_.edge_detail_length <= 0) {
+    return;
+  }
+
+  const absl::Span<const TerrainEdgeMotif> motifs =
+      TerrainEdgeMotifsFor(config.family, config_.pixel_profile);
+  if (motifs.empty()) return;  // Create validated this, but keep the pass total.
+
+  const int tile = config_.tile_size;
+  const int step = config_.supersample;
+  const float sample_count = static_cast<float>(step * step);
+  const float cell_width = static_cast<float>(edge_pattern_.period_px()) /
+                           static_cast<float>(edge_pattern_.cells_per_period());
+  const int tile_origin_x = origin_x / step;
+  const int tile_origin_y = origin_y / step;
+
+  for (int y = 0; y < tile; ++y) {
+    for (int x = 0; x < tile; ++x) {
+      const size_t pixel = static_cast<size_t>(y) * tile + x;
+      if (indices[pixel] == kIndexEmpty || indices[pixel] == kIndexOutline) continue;
+
+      float depth_sum = 0.0f;
+      float band_sum = 0.0f;
+      float normal_x_sum = 0.0f;
+      float upness_sum = 0.0f;
+      for (int sy = 0; sy < step; ++sy) {
+        for (int sx = 0; sx < step; ++sx) {
+          const size_t at = static_cast<size_t>(resolution_ + y * step + sy) * canvas_ +
+                            (resolution_ + x * step + sx);
+          depth_sum += depth[at];
+          band_sum += surface.band[at];
+          normal_x_sum += surface.normal_x[at];
+          upness_sum += surface.upness[at];
+        }
+      }
+      const float d = depth_sum / sample_count / static_cast<float>(step);
+      const float band = band_sum / sample_count / static_cast<float>(step);
+      const float extension = d - band;
+      if (extension <= 0.0f || extension > static_cast<float>(style_.edge_detail_length)) continue;
+
+      const float normal_x = std::clamp(normal_x_sum / sample_count, -1.0f, 1.0f);
+      const float upness = std::clamp(upness_sum / sample_count, -1.0f, 1.0f);
+      // Grass and snow belong on ground-facing edges. Moss is the family that
+      // deliberately wraps down walls, but still stops short of undersides.
+      const float minimum_upness =
+          config.family == TerrainEdgeDetailSet::kMossFringe ? -0.35f : 0.15f;
+      if (upness < minimum_upness) continue;
+
+      // The dominant tangent axis gives crisp pixel stamps on cardinal edges
+      // while the distance-field extension makes them follow arbitrary slopes.
+      const bool tangent_is_x = std::abs(upness) >= std::abs(normal_x);
+      const int tangent = tangent_is_x ? tile_origin_x + x : tile_origin_y + y;
+      const int orientation = (tangent_is_x ? 0 : 2) + ((tangent_is_x ? upness : normal_x) < 0);
+      const int cell = edge_pattern_.Cell(tangent);
+      const uint64_t key = config_.seed ^ 0xd6e8feb86659fd93ULL ^
+                           (static_cast<uint64_t>(cell) * 0x9e3779b97f4a7c15ULL) ^
+                           (static_cast<uint64_t>(orientation) << 56);
+      if (HashUnit(key) >= config.amount) continue;
+
+      const TerrainEdgeMotif& motif = motifs[MixBits(key ^ 0xa0761d6478bd642fULL) % motifs.size()];
+      float phase = edge_pattern_.Phase(tangent);
+      phase -= config.lean * extension / std::max(1.0f, cell_width);
+      if (phase < -0.5f || phase >= 0.5f) continue;
+      const int source_x =
+          std::min(static_cast<int>(motif.depths.size()) - 1,
+                   static_cast<int>((phase + 0.5f) * static_cast<float>(motif.depths.size())));
+      const uint8_t relative_depth = motif.depths[static_cast<size_t>(source_x)];
+      if (relative_depth == 0) continue;
+      const int painted_depth =
+          std::max(1, static_cast<int>(std::lround(static_cast<float>(style_.edge_detail_length) *
+                                                   static_cast<float>(relative_depth) / 4.0f)));
+      if (extension > static_cast<float>(painted_depth)) continue;
+
+      const float along = extension / static_cast<float>(painted_depth);
+      const float highlight_roll =
+          HashUnit(key ^ (static_cast<uint64_t>(source_x + 1) * 0xe7037ed1a0b428dbULL));
+      if (along <= 0.38f && highlight_roll < config.highlight) {
+        indices[pixel] = kIndexSurfaceTextureHigh;
+      } else if (along >= 0.78f) {
+        indices[pixel] = kIndexSurfaceShade;
+      } else {
+        indices[pixel] = kIndexSurface;
+      }
+    }
+  }
 }
 
 std::vector<uint8_t> TerrainRenderer::Classify(const std::vector<uint8_t>& occupancy,
                                                const std::vector<float>& depth,
-                                               const std::vector<float>& band) const {
+                                               const SurfaceField& surface) const {
   const int tile = config_.tile_size;
   const int step = config_.supersample;
   const float samples = static_cast<float>(step) * step;
@@ -632,13 +770,15 @@ std::vector<uint8_t> TerrainRenderer::Classify(const std::vector<uint8_t>& occup
       float solid_sum = 0.0f;
       float depth_sum = 0.0f;
       float band_sum = 0.0f;
+      float upness_sum = 0.0f;
       for (int sy = 0; sy < step; ++sy) {
         for (int sx = 0; sx < step; ++sx) {
           const size_t at = static_cast<size_t>(resolution_ + y * step + sy) * canvas_ +
                             (resolution_ + x * step + sx);
           solid_sum += occupancy[at];
           depth_sum += depth[at];
-          band_sum += band[at];
+          band_sum += surface.band[at];
+          upness_sum += surface.upness[at];
         }
       }
       if (solid_sum / samples < 0.5f) continue;
@@ -647,18 +787,27 @@ std::vector<uint8_t> TerrainRenderer::Classify(const std::vector<uint8_t>& occup
       // the caller configured are in final ones.
       const float d = depth_sum / samples / static_cast<float>(step);
       const float b = band_sum / samples / static_cast<float>(step);
+      const float upness = std::clamp(upness_sum / samples, -1.0f, 1.0f);
       const size_t index = static_cast<size_t>(y) * tile + x;
 
       indices[index] = kIndexInterior;
-      if (d > b + static_cast<float>(style_.contact_depth)) continue;
+      if (d > b + static_cast<float>(style_.contact_depth)) {
+        // Up-facing ground remains the ordinary interior. Vertical and
+        // downward faces can carry a deeper, independently shaded wall.
+        const float wall_facing = 1.0f - std::max(0.0f, upness);
+        const float wall_end = b + static_cast<float>(style_.contact_depth) +
+                               static_cast<float>(style_.wall_depth) * wall_facing;
+        if (d <= wall_end) indices[index] = kIndexWall;
+        continue;
+      }
       indices[index] = kIndexContact;
       if (d > b) continue;
       indices[index] = kIndexSurfaceShade;
-      if (d <= b - static_cast<float>(style_.grass_shade_depth)) indices[index] = kIndexSurface;
-      if (d <= static_cast<float>(style_.outline_width + style_.grass_hi_depth)) {
+      if (d <= b - static_cast<float>(style_.shade_depth)) indices[index] = kIndexSurface;
+      if (d <= static_cast<float>(style_.outline_depth + style_.highlight_depth)) {
         indices[index] = kIndexSurfaceHigh;
       }
-      if (d <= static_cast<float>(style_.outline_width)) indices[index] = kIndexOutline;
+      if (d <= static_cast<float>(style_.outline_depth)) indices[index] = kIndexOutline;
     }
   }
   return indices;
@@ -667,13 +816,13 @@ std::vector<uint8_t> TerrainRenderer::Classify(const std::vector<uint8_t>& occup
 void TerrainRenderer::ApplySurfaceTexture(std::vector<uint8_t>& indices, int origin_x,
                                           int origin_y) const {
   if (config_.material.surface_style == TerrainSurfaceStyle::kSmooth ||
-      config_.surface_texture_amount <= 0.0f) {
+      config_.surface.texture_amount <= 0.0f) {
     return;
   }
 
   const int tile = config_.tile_size;
   const int step = config_.supersample;
-  const float amount = config_.surface_texture_amount;
+  const float amount = config_.surface.texture_amount;
   for (int y = 0; y < tile; ++y) {
     for (int x = 0; x < tile; ++x) {
       const size_t index = static_cast<size_t>(y) * tile + x;
@@ -893,7 +1042,8 @@ void TerrainRenderer::ApplyMotifs(std::vector<uint8_t>& indices, int origin_x, i
 
 RgbaImage TerrainRenderer::Colorize(const std::vector<uint8_t>& indices) const {
   const std::array<Rgba, kIndexCount> palette =
-      BuildPalette(config_.material, config_.interior.pattern.contrast, style_.compact_palette);
+      BuildPalette(config_.material, config_.interior.pattern.contrast,
+                   config_.surface.wall_darkness, style_.compact_palette);
 
   RgbaImage image;
   image.width = config_.tile_size;
@@ -919,8 +1069,9 @@ RgbaImage TerrainRenderer::RenderTile(absl::Span<const TilePoint> polygon,
   std::vector<float> depth = SquaredDistanceTransform(occupancy, canvas_, canvas_);
   for (float& value : depth) value = std::sqrt(value);
 
-  const std::vector<float> band = SurfaceBand(depth, origin_x, origin_y);
-  std::vector<uint8_t> indices = Classify(occupancy, depth, band);
+  const SurfaceField surface = MeasureSurface(depth, origin_x, origin_y);
+  std::vector<uint8_t> indices = Classify(occupancy, depth, surface);
+  ApplyEdgeDetails(indices, depth, surface, origin_x, origin_y);
   ApplySurfaceTexture(indices, origin_x, origin_y);
   ApplyInteriorTexture(indices, origin_x, origin_y);
   PlaceSubstratePattern(indices, origin_x, origin_y);

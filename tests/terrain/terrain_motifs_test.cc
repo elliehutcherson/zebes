@@ -26,6 +26,14 @@ TEST(TerrainMotifsTest, EverySupportedProfileAndFamilyHasValidTypedArtwork) {
       ASSERT_FALSE(motifs.empty());
       EXPECT_TRUE(ValidateTerrainMotifs(motifs).ok());
     }
+
+    for (const TerrainEdgeDetailSet detail :
+         {TerrainEdgeDetailSet::kShortGrass, TerrainEdgeDetailSet::kDryGrass,
+          TerrainEdgeDetailSet::kMossFringe, TerrainEdgeDetailSet::kSnowLip}) {
+      const absl::Span<const TerrainEdgeMotif> motifs = TerrainEdgeMotifsFor(detail, profile);
+      ASSERT_FALSE(motifs.empty());
+      EXPECT_TRUE(ValidateTerrainEdgeMotifs(motifs).ok());
+    }
   }
 }
 
@@ -79,6 +87,10 @@ TEST(TerrainMotifsTest, ValidationRejectsMalformedExternalMotifData) {
 
   const TerrainMotif invalid_value{2, 1, invalid_pixels};
   EXPECT_FALSE(ValidateTerrainMotifs(absl::MakeConstSpan(&invalid_value, 1)).ok());
+
+  const uint8_t excessive_depth[] = {0, 5};
+  const TerrainEdgeMotif invalid_edge{excessive_depth};
+  EXPECT_FALSE(ValidateTerrainEdgeMotifs(absl::MakeConstSpan(&invalid_edge, 1)).ok());
 }
 
 }  // namespace

@@ -28,6 +28,13 @@ struct TerrainMotif {
   absl::Span<const TerrainMotifPixel> pixels;
 };
 
+// A normalized fringe stamp. Each entry is the relative depth (0..4) painted
+// at one tangent position. The renderer scales this small authored profile to
+// the configured clump width and length, then rotates it with the local edge.
+struct TerrainEdgeMotif {
+  absl::Span<const uint8_t> depths;
+};
+
 // Substrate marks and semantic objects use separate banks even though they
 // share placement machinery. Changing the dirt pattern must not quietly alter
 // the flower population, and vice versa.
@@ -35,6 +42,9 @@ absl::Span<const TerrainMotif> TerrainSubstrateMotifsFor(TerrainSubstratePattern
                                                          TerrainPixelProfile profile);
 absl::Span<const TerrainMotif> TerrainDetailMotifsFor(TerrainDetailSet detail_set,
                                                       TerrainPixelProfile profile);
+absl::Span<const TerrainEdgeMotif> TerrainEdgeMotifsFor(TerrainEdgeDetailSet detail_set,
+                                                        TerrainPixelProfile profile);
 absl::Status ValidateTerrainMotifs(absl::Span<const TerrainMotif> motifs);
+absl::Status ValidateTerrainEdgeMotifs(absl::Span<const TerrainEdgeMotif> motifs);
 
 }  // namespace zebes

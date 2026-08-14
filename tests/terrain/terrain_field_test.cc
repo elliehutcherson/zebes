@@ -123,6 +123,26 @@ TEST(RuffleFieldTest, AMultiTilePeriodDoesNotCollapseToOneTile) {
   }
 }
 
+TEST(RuffleFieldTest, OneOctaveDoesNotCollapseToIdenticalBumpsAlongStraightEdges) {
+  constexpr int kPeriod = 32;
+  constexpr int kOldSingleFrequencyRepeat = 8;
+  const absl::StatusOr<RuffleField> field =
+      RuffleField::Create(kPeriod, kPeriod, /*density=*/4.0f,
+                          /*sharpness=*/1.0f, /*octaves=*/1, /*seed=*/1234);
+  ASSERT_TRUE(field.ok()) << field.status();
+
+  bool horizontal_differs = false;
+  bool vertical_differs = false;
+  for (int i = 0; i < kPeriod; ++i) {
+    horizontal_differs |=
+        std::abs(field->Value(i, 7) - field->Value(i + kOldSingleFrequencyRepeat, 7)) > 1e-5f;
+    vertical_differs |=
+        std::abs(field->Value(11, i) - field->Value(11, i + kOldSingleFrequencyRepeat)) > 1e-5f;
+  }
+  EXPECT_TRUE(horizontal_differs);
+  EXPECT_TRUE(vertical_differs);
+}
+
 TEST(RuffleFieldTest, StaysWithinTheUnitRange) {
   const absl::StatusOr<RuffleField> field = RuffleField::Create(96, 32, 3.0f, 1.0f, 1, 99);
   ASSERT_TRUE(field.ok()) << field.status();
