@@ -55,6 +55,10 @@ class Canvas {
   // Helper to force camera inside bounds
   void ClampCamera();
 
+  // Drags the camera with the middle mouse button. Panning follows the cursor
+  // exactly, so the world point under the pointer stays under it at any zoom.
+  void HandleMousePan(bool is_hovered);
+
   GuiInterface* gui_;
   bool snap_grid_ = false;
   float grid_size_ = 50.0f;
@@ -69,6 +73,12 @@ class Canvas {
   // Bounds State
   std::optional<Vec> world_min_;
   std::optional<Vec> world_max_;
+
+  // Cursor position on the previous frame of a middle-button drag. Held only
+  // for the duration of the drag: a drag that begins on this canvas keeps
+  // panning it even once the pointer leaves, which is what makes panning to
+  // off-screen content possible at all.
+  std::optional<ImVec2> pan_cursor_;
 };
 
 }  // namespace zebes

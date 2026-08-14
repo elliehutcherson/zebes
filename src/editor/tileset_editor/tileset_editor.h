@@ -39,6 +39,25 @@ class TilesetEditor {
   // Renders the main editing viewport (middle column).
   absl::Status RenderViewport();
 
+  // Turns clicks and drags over the atlas into tile edits, and draws the
+  // highlight for whichever gesture is in progress. Must be called after
+  // Canvas::HandleInput, which leaves the canvas as the current ImGui item.
+  //
+  // A release covering one cell re-points the selected tile, exactly as
+  // clicking always has. A release covering more adds a tile per cell. Acting
+  // on release rather than on press is what lets the two share one gesture:
+  // there is no way to tell them apart before the button comes up.
+  absl::Status HandleAtlasInteraction(ImDrawList* draw_list, int texture_width,
+                                      int texture_height);
+
+  // Applies a finished gesture: one cell re-points the selected tile, more than
+  // one adds a tile per cell.
+  absl::Status CommitAtlasGesture(AtlasCell anchor, AtlasCell end);
+
+  // Outlines an inclusive rectangle of atlas cells on the canvas.
+  void DrawCellRegion(ImDrawList* draw_list, AtlasCell first, AtlasCell last, ImU32 fill,
+                      ImU32 border) const;
+
   // Renders the selected tile's properties in the right column.
   absl::Status RenderInspector();
 
@@ -52,6 +71,14 @@ class TilesetEditor {
   std::unique_ptr<TilePanel> tile_panel_;
   TilesetEditorModel model_;
   std::optional<std::string> error_message_;
+
+  // The cell a drag began on and the cell it currently covers. Both are set
+  // only while the mouse is held over the atlas.
+  std::optional<AtlasCell> drag_anchor_;
+  std::optional<AtlasCell> drag_current_;
+
+  // What the last atlas gesture did, shown in the status bar under the canvas.
+  std::string viewport_status_;
 };
 
 }  // namespace zebes

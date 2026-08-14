@@ -41,8 +41,6 @@ TEST(TilesetEditorModelTest, NewAndExistingSaveTransitionsAreExplicit) {
   model.BeginNewTileset();
   ASSERT_TRUE(model.has_active_tileset());
   EXPECT_TRUE(model.is_new_tileset());
-  EXPECT_EQ(model.active_tileset()->tile_width, 16);
-  EXPECT_EQ(model.active_tileset()->tile_height, 16);
   ASSERT_TRUE(model.BuildSaveRequest().ok());
 
   ASSERT_TRUE(model.FinishSave("generated-id").ok());
@@ -305,6 +303,186 @@ TEST(TilesetEditorModelTest, DeleteTerrainRemovesOnlyThatTerrain) {
   // Deleting an absent terrain is a no-op, not an error.
   ASSERT_TRUE(model.DeleteTerrain(removed_id).ok());
   EXPECT_EQ(model.active_tileset()->terrains.size(), 1u);
+}
+
+// Every terrain atlas the generator writes is 32px. A tileset that slices the
+// wrong grid looks fine in the navigator and wrong only once tiles render.
+TEST(TilesetEditorModelTest, NewTilesetsUseTheSizeTerrainArtIsAuthoredAt) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+
+  ASSERT_NE(model.active_tileset(), nullptr);
+  EXPECT_EQ(model.active_tileset()->tile_width, 32);
+  EXPECT_EQ(model.active_tileset()->tile_height, 32);
+}
+
+TEST(TilesetEditorModelTest, ANewlyOpenedTilesetHasNothingToLose) {
+  TilesetEditorModel model;
+  EXPECT_FALSE(model.has_unsaved_changes()) << "nothing is being edited";
+
+  model.SetTilesets({{.id = "grass", .name = "Grass", .tile_width = 32, .tile_height = 32}});
+  ASSERT_TRUE(model.SelectTileset("grass").ok());
+  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
+TEST(TilesetEditorModelTest, EditsToAnyPartOfATilesetCount) {
+  TilesetEditorModel model;
+  model.SetTilesets({{.id = "grass", .name = "Grass", .tile_width = 32, .tile_height = 32}});
+  ASSERT_TRUE(model.SelectTileset("grass").ok());
+
+  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+  model.active_tileset()->name = "Renamed";
+  EXPECT_TRUE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+  ASSERT_TRUE(model.AddTile().ok());
+  EXPECT_TRUE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+  model.active_tileset()->terrains.push_back(Terrain{.id = 1, .name = "Dirt"});
+  EXPECT_TRUE(model.has_unsaved_changes());
+}
+
+// Comparing against a snapshot rather than latching a flag means undoing an
+// edit by hand correctly reports clean again.
+TEST(TilesetEditorModelTest, RestoringAnEditedFieldIsCleanAgain) {
+  TilesetEditorModel model;
+  model.SetTilesets({{.id = "grass", .name = "Grass", .tile_width = 32, .tile_height = 32}});
+  ASSERT_TRUE(model.SelectTileset("grass").ok());
+  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+
+  model.active_tileset()->name = "Renamed";
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  model.active_tileset()->name = "Grass";
+  EXPECT_FALSE(model.has_unsaved_changes());
+}
+
+TEST(TilesetEditorModelTest, SavingMakesTheCurrentStateTheCleanOne) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  model.active_tileset()->name = "Cavern";
+  ASSERT_TRUE(model.has_unsaved_changes());
+
+  ASSERT_TRUE(model.FinishSave("cavern-id").ok());
+  EXPECT_FALSE(model.has_unsaved_changes());
+
+  model.active_tileset()->tile_width = 16;
+  EXPECT_TRUE(model.has_unsaved_changes());
+}
+
+// Cutting an atlas by hand costs roughly four interactions per tile, so a
+// forty-cell sheet was not worth doing. One drag replaces the first two.
+TEST(TilesetEditorModelTest, ARegionAddsOneTilePerCell) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+
+  absl::StatusOr<int> added = model.AddTilesForRegion({.source_x = 0, .source_y = 0},
+                                                      {.source_x = 64, .source_y = 32});
+  ASSERT_TRUE(added.ok()) << added.status();
+  EXPECT_EQ(*added, 6);
+
+  const std::vector<Tile>& tiles = model.active_tileset()->tiles;
+  ASSERT_EQ(tiles.size(), 6u);
+
+  // Row-major across the region, numbered from the next free ID.
+  EXPECT_EQ(tiles[0].id, 1);
+  EXPECT_EQ(tiles[0].source_x, 0);
+  EXPECT_EQ(tiles[0].source_y, 0);
+  EXPECT_EQ(tiles[2].source_x, 64);
+  EXPECT_EQ(tiles[2].source_y, 0);
+  EXPECT_EQ(tiles[3].source_x, 0);
+  EXPECT_EQ(tiles[3].source_y, 32);
+  EXPECT_EQ(tiles[5].id, 6);
+  EXPECT_EQ(tiles[5].source_x, 64);
+  EXPECT_EQ(tiles[5].source_y, 32);
+}
+
+// A drag runs in whatever direction the user moved, so neither corner leads.
+TEST(TilesetEditorModelTest, RegionCornersMayBeGivenInAnyOrder) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  ASSERT_TRUE(model.AddTilesForRegion({.source_x = 64, .source_y = 32},
+                                      {.source_x = 0, .source_y = 0})
+                  .ok());
+
+  std::vector<std::pair<int, int>> sources;
+  for (const Tile& tile : model.active_tileset()->tiles) {
+    sources.push_back({tile.source_x, tile.source_y});
+  }
+  EXPECT_THAT(sources,
+              ::testing::UnorderedElementsAre(std::pair(0, 0), std::pair(32, 0), std::pair(64, 0),
+                                              std::pair(0, 32), std::pair(32, 32),
+                                              std::pair(64, 32)));
+}
+
+// Dragging back over work already done should add what is missing, not a second
+// tile pointing at the same artwork.
+TEST(TilesetEditorModelTest, ARegionSkipsCellsThatAlreadyHaveATile) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  ASSERT_TRUE(model.AddTile().ok());
+  model.selected_tile()->source_x = 32;
+  model.selected_tile()->source_y = 0;
+
+  absl::StatusOr<int> added = model.AddTilesForRegion({.source_x = 0, .source_y = 0},
+                                                      {.source_x = 64, .source_y = 0});
+  ASSERT_TRUE(added.ok()) << added.status();
+  EXPECT_EQ(*added, 2);
+  EXPECT_EQ(model.active_tileset()->tiles.size(), 3u);
+
+  // Dragging the same region again adds nothing at all.
+  absl::StatusOr<int> again = model.AddTilesForRegion({.source_x = 0, .source_y = 0},
+                                                      {.source_x = 64, .source_y = 0});
+  ASSERT_TRUE(again.ok()) << again.status();
+  EXPECT_EQ(*again, 0);
+}
+
+// kNone means no collision at all. Handing someone a screenful of silently
+// non-colliding tiles is the worse default; a wrong shape is at least visible
+// in the overlay.
+TEST(TilesetEditorModelTest, BulkAddedTilesAreSolidByDefault) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  ASSERT_TRUE(model.AddTilesForRegion({.source_x = 0, .source_y = 0},
+                                      {.source_x = 32, .source_y = 0})
+                  .ok());
+
+  for (const Tile& tile : model.active_tileset()->tiles) {
+    EXPECT_EQ(tile.shape, TileShape::kFullBlock);
+  }
+}
+
+TEST(TilesetEditorModelTest, ARegionSelectsTheLastTileItAdded) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+  ASSERT_TRUE(model.AddTilesForRegion({.source_x = 0, .source_y = 0},
+                                      {.source_x = 32, .source_y = 32})
+                  .ok());
+
+  ASSERT_NE(model.selected_tile(), nullptr);
+  EXPECT_EQ(model.selected_tile()->source_x, 32);
+  EXPECT_EQ(model.selected_tile()->source_y, 32);
+}
+
+TEST(TilesetEditorModelTest, ARegionOffTheCellGridIsRejected) {
+  TilesetEditorModel model;
+  model.BeginNewTileset();
+
+  absl::StatusOr<int> added = model.AddTilesForRegion({.source_x = 5, .source_y = 0},
+                                                      {.source_x = 32, .source_y = 0});
+  EXPECT_EQ(added.status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_TRUE(model.active_tileset()->tiles.empty());
+}
+
+TEST(TilesetEditorModelTest, ARegionNeedsATilesetToAddTo) {
+  TilesetEditorModel model;
+
+  absl::StatusOr<int> added = model.AddTilesForRegion({.source_x = 0, .source_y = 0},
+                                                      {.source_x = 0, .source_y = 0});
+  EXPECT_EQ(added.status().code(), absl::StatusCode::kFailedPrecondition);
 }
 
 }  // namespace

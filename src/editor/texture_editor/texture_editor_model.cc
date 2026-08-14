@@ -15,12 +15,16 @@ void TextureEditorModel::SetTextures(std::vector<Texture> textures) {
 }
 
 void TextureEditorModel::BeginNewTexture() {
+  // Moving to a different texture abandons whatever the last one failed at, so
+  // the banner must not outlive the attempt it describes.
+  ClearError();
   selected_texture_ = {};
   is_new_texture_ = true;
   SetEditName("");
 }
 
 void TextureEditorModel::SelectTexture(Texture texture) {
+  ClearError();
   selected_texture_ = std::move(texture);
   is_new_texture_ = false;
   SetEditName(selected_texture_.name);
@@ -68,10 +72,15 @@ absl::StatusOr<Texture> TextureEditorModel::BuildTextureForUpdate() const {
 void TextureEditorModel::FinishCreate(Texture texture) { SelectTexture(std::move(texture)); }
 
 void TextureEditorModel::FinishUpdate() {
+  ClearError();
   if (!is_new_texture_ && !selected_texture_.id.empty()) {
     selected_texture_.name = edit_name_buffer_.c_str();
   }
 }
+
+void TextureEditorModel::SetError(absl::string_view message) { error_ = std::string(message); }
+
+void TextureEditorModel::ClearError() { error_.reset(); }
 
 void TextureEditorModel::ZoomIn() { zoom_ = ClampZoom(zoom_ * 1.25f); }
 

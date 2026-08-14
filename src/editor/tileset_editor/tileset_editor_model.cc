@@ -8,6 +8,7 @@
 #include <limits>
 #include <utility>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 
 namespace zebes {
@@ -38,7 +39,13 @@ absl::Status TilesetEditorModel::SelectTileset(const std::string& id) {
 void TilesetEditorModel::ClearTilesetSelection() { selected_tileset_id_.clear(); }
 
 void TilesetEditorModel::BeginNewTileset() {
-  active_tileset_ = Tileset{.name = "New Tileset", .tile_width = 16, .tile_height = 16};
+  // 32x32, not 16x16: every terrain atlas the project generates is 32px, and a
+  // cell size that does not match the artwork is invisible until tiles render
+  // sliced across neighbouring cells. Defaulting to the size actually in use
+  // fails loudly for the rarer hand-cut 16px sheet instead of silently for the
+  // common case.
+  active_tileset_ = Tileset{.name = "New Tileset", .tile_width = 32, .tile_height = 32};
+  baseline_tileset_ = active_tileset_;
   selected_tile_id_ = 0;
 }
 
@@ -46,13 +53,21 @@ absl::Status TilesetEditorModel::BeginEditingSelectedTileset() {
   const Tileset* selected = FindTileset(selected_tileset_id_);
   if (selected == nullptr) return absl::FailedPreconditionError("No tileset is selected");
   active_tileset_ = *selected;
+  baseline_tileset_ = *selected;
   selected_tile_id_ = 0;
   return absl::OkStatus();
 }
 
 void TilesetEditorModel::CloseActiveTileset() {
   active_tileset_.reset();
+  baseline_tileset_.reset();
   selected_tile_id_ = 0;
+}
+
+bool TilesetEditorModel::has_unsaved_changes() const {
+  if (!active_tileset_.has_value()) return false;
+  if (!baseline_tileset_.has_value()) return true;
+  return *active_tileset_ != *baseline_tileset_;
 }
 
 bool TilesetEditorModel::is_new_tileset() const {
@@ -81,6 +96,9 @@ absl::Status TilesetEditorModel::FinishSave(const std::string& saved_id) {
   if (saved_id.empty()) return absl::InvalidArgumentError("Saved tileset ID cannot be empty");
   active_tileset_->id = saved_id;
   selected_tileset_id_ = saved_id;
+  // What was just written is the new clean state, so further edits compare
+  // against it rather than against how the tileset looked when it was opened.
+  baseline_tileset_ = active_tileset_;
   return absl::OkStatus();
 }
 
@@ -297,6 +315,64 @@ absl::StatusOr<AtlasCell> TilesetEditorModel::CalculateAtlasCell(double world_x,
     return absl::OutOfRangeError("Atlas cell is outside the texture");
   }
   return AtlasCell{.source_x = static_cast<int>(cell_x), .source_y = static_cast<int>(cell_y)};
+}
+
+absl::StatusOr<int> TilesetEditorModel::AddTilesForRegion(AtlasCell first, AtlasCell last) {
+  if (!active_tileset_.has_value()) {
+    return absl::FailedPreconditionError("No tileset is being edited");
+  }
+  const int cell_width = active_tileset_->tile_width;
+  const int cell_height = active_tileset_->tile_height;
+  if (cell_width <= 0 || cell_height <= 0) {
+    return absl::InvalidArgumentError("Tile dimensions must be positive");
+  }
+  if (first.source_x % cell_width != 0 || last.source_x % cell_width != 0 ||
+      first.source_y % cell_height != 0 || last.source_y % cell_height != 0) {
+    return absl::InvalidArgumentError("Region corners must sit on atlas cell boundaries");
+  }
+
+  // The drag may run in any direction, so neither corner is privileged.
+  const int min_x = std::min(first.source_x, last.source_x);
+  const int max_x = std::max(first.source_x, last.source_x);
+  const int min_y = std::min(first.source_y, last.source_y);
+  const int max_y = std::max(first.source_y, last.source_y);
+
+  absl::flat_hash_set<std::pair<int, int>> occupied;
+  for (const Tile& tile : active_tileset_->tiles) {
+    occupied.insert({tile.source_x, tile.source_y});
+  }
+
+  // Decide the whole result before writing any of it. A drag that added half a
+  // region and then failed would leave the tileset in a state the user never
+  // asked for and cannot see the shape of.
+  std::vector<AtlasCell> cells;
+  for (int y = min_y; y <= max_y; y += cell_height) {
+    for (int x = min_x; x <= max_x; x += cell_width) {
+      if (!occupied.insert({x, y}).second) continue;
+      cells.push_back(AtlasCell{.source_x = x, .source_y = y});
+    }
+  }
+  if (cells.empty()) return 0;
+
+  const int first_id = NextTileId();
+  if (std::numeric_limits<int>::max() - first_id < static_cast<int>(cells.size()) - 1) {
+    return absl::ResourceExhaustedError("No tile IDs remain");
+  }
+
+  for (size_t i = 0; i < cells.size(); ++i) {
+    // kFullBlock rather than the kNone a single Add leaves. A cut atlas cell is
+    // a solid block far more often than not, and kNone means no collision at
+    // all -- handing someone a screenful of silently non-colliding tiles is the
+    // worse default, and a wrong shape is at least visible in the overlay.
+    active_tileset_->tiles.push_back(Tile{
+        .id = first_id + static_cast<int>(i),
+        .source_x = cells[i].source_x,
+        .source_y = cells[i].source_y,
+        .shape = TileShape::kFullBlock,
+    });
+  }
+  selected_tile_id_ = active_tileset_->tiles.back().id;
+  return static_cast<int>(cells.size());
 }
 
 absl::Status TilesetEditorModel::SetSelectedTileSource(AtlasCell cell) {

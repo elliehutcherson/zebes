@@ -128,6 +128,7 @@ class Gui : public GuiInterface {
   void SetItemDefaultFocus() override;
   bool IsItemActive() override;
   bool IsItemClicked(ImGuiMouseButton mouse_button = 0) override;
+  bool IsMouseDoubleClicked(ImGuiMouseButton button) override;
   bool IsItemDeactivatedAfterEdit() override;
   bool IsMouseDragging(ImGuiMouseButton button, float lock_threshold = -1.0f) override;
   ImVec2 GetWindowSize() const override;

@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstdio>
 
-#include "absl/log/log.h"
 #include "editor/gui_interface.h"
 
 namespace zebes {
@@ -111,26 +110,48 @@ void Canvas::HandleInput() {
     float move_step = (kEditorPanSpeed * dt) / camera_->zoom;
 
     if (gui_->IsKeyDown(ImGuiKey_UpArrow) || gui_->IsKeyDown(ImGuiKey_W)) {
-      LOG(INFO) << __func__ << ": up";
       camera_->position.y -= move_step;
     }
     if (gui_->IsKeyDown(ImGuiKey_DownArrow) || gui_->IsKeyDown(ImGuiKey_S)) {
-      LOG(INFO) << __func__ << ": down";
       camera_->position.y += move_step;
     }
     if (gui_->IsKeyDown(ImGuiKey_LeftArrow) || gui_->IsKeyDown(ImGuiKey_A)) {
-      LOG(INFO) << __func__ << ": left";
       camera_->position.x -= move_step;
     }
     if (gui_->IsKeyDown(ImGuiKey_RightArrow) || gui_->IsKeyDown(ImGuiKey_D)) {
-      LOG(INFO) << __func__ << ": right";
       camera_->position.x += move_step;
     }
   }
 
+  // 3. Handle Panning (Middle mouse drag)
+  HandleMousePan(is_hovered);
+
   // Input changes apply to this frame's rendering. Keep the updated camera
   // within the same bounds enforced at Begin().
   ClampCamera();
+}
+
+void Canvas::HandleMousePan(bool is_hovered) {
+  if (!gui_->IsMouseDragging(ImGuiMouseButton_Middle)) {
+    pan_cursor_.reset();
+    return;
+  }
+
+  const ImVec2 cursor = gui_->GetMousePos();
+
+  // A drag only claims this canvas if it started over it. Without that check
+  // every canvas on screen would pan together, since drag state is global.
+  if (!pan_cursor_.has_value()) {
+    if (!is_hovered) return;
+    pan_cursor_ = cursor;
+    return;
+  }
+
+  // Dividing by zoom converts a screen-space delta into world units, which is
+  // what keeps the grabbed point pinned to the cursor as the view scales.
+  camera_->position.x -= (cursor.x - pan_cursor_->x) / camera_->zoom;
+  camera_->position.y -= (cursor.y - pan_cursor_->y) / camera_->zoom;
+  pan_cursor_ = cursor;
 }
 
 ImVec2 Canvas::WorldToScreen(const Vec& v) const {

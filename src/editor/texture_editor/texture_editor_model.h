@@ -1,10 +1,12 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "objects/texture.h"
 
 namespace zebes {
@@ -46,6 +48,17 @@ class TextureEditorModel {
 
   TexturePreviewSize CalculatePreviewSize(int texture_width, int texture_height) const;
 
+  // The last failure, shown in the tab until the user dismisses it or the next
+  // attempt succeeds.
+  //
+  // Every failure path here used to be a LOG(ERROR) and nothing else, so an
+  // import that failed looked exactly like one that worked unless you happened
+  // to be watching a terminal. The message lives on the model rather than the
+  // view so the failure logic is testable without SDL or ImGui.
+  void SetError(absl::string_view message);
+  void ClearError();
+  const std::optional<std::string>& error() const { return error_; }
+
  private:
   void SetEditName(const std::string& name);
   static float ClampZoom(float zoom);
@@ -54,6 +67,7 @@ class TextureEditorModel {
   Texture selected_texture_;
   bool is_new_texture_ = false;
   std::string edit_name_buffer_;
+  std::optional<std::string> error_;
   float zoom_ = 1.0f;
 };
 

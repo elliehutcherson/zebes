@@ -6,6 +6,7 @@
 #include "SDL_render.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "common/common.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
@@ -45,6 +46,7 @@ void TextureEditor::RefreshTextures() {
   absl::StatusOr<std::vector<Texture>> result = api_->GetAllTextures();
   if (!result.ok()) {
     LOG(ERROR) << "Failed to fetch textures for importer: " << result.status();
+    model_.SetError(absl::StrCat("Could not list textures: ", result.status().message()));
     model_.SetTextures({});
     return;
   }
@@ -61,6 +63,7 @@ void TextureEditor::LoadPreview(const std::string& path) {
   absl::StatusOr<SDL_Texture*> texture = sdl_->CreateTexture(path);
   if (!texture.ok()) {
     LOG(ERROR) << "Failed to load preview for importer: " << texture.status();
+    model_.SetError(absl::StrCat("Could not open '", path, "': ", texture.status().message()));
     return;
   }
 
@@ -86,6 +89,15 @@ SDL_Texture* TextureEditor::PreviewTexture() const {
 }
 
 void TextureEditor::Render() {
+  // Same shape as the tileset editor's banner, deliberately: an authoring tab
+  // that reports failure differently from the tab beside it is one more thing
+  // to learn.
+  if (model_.error().has_value()) {
+    gui_->TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Error: %s", model_.error()->c_str());
+    gui_->SameLine();
+    if (gui_->Button("Dismiss")) model_.ClearError();
+  }
+
   // Use tables for list and inspector
   auto table_flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
   if (ScopedTable table = gui_->CreateScopedTable("TextureEditorTable", 2, table_flags); table) {
@@ -188,12 +200,14 @@ void TextureEditor::RenderTextureDetails() {
     absl::StatusOr<Texture> texture = model_.BuildTextureForCreate();
     if (!texture.ok()) {
       LOG(ERROR) << texture.status();
+      model_.SetError(texture.status().message());
       return;
     }
 
     absl::StatusOr<std::string> result = api_->CreateTexture(*texture);
     if (!result.ok()) {
       LOG(ERROR) << "Failed to create texture: " << result.status();
+      model_.SetError(absl::StrCat("Could not create texture: ", result.status().message()));
       return;
     }
 
@@ -203,7 +217,11 @@ void TextureEditor::RenderTextureDetails() {
     absl::StatusOr<Texture*> loaded = api_->GetTexture(*result);
     if (!loaded.ok()) {
       LOG(ERROR) << "Created texture but failed to reload: " << loaded.status();
+      // The texture exists; only the canonical reload failed. Say so rather
+      // than reporting nothing, because the two states differ on disk.
       model_.FinishCreate(*texture);
+      model_.SetError(absl::StrCat("Created the texture but could not reload it: ",
+                                   loaded.status().message()));
     } else {
       model_.FinishCreate(**loaded);
     }
@@ -218,11 +236,13 @@ void TextureEditor::RenderTextureDetails() {
     absl::StatusOr<Texture> texture = model_.BuildTextureForUpdate();
     if (!texture.ok()) {
       LOG(ERROR) << texture.status();
+      model_.SetError(texture.status().message());
       return;
     }
     absl::Status status = api_->UpdateTexture(*texture);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to update texture: " << status;
+      model_.SetError(absl::StrCat("Could not save texture: ", status.message()));
       return;
     }
 

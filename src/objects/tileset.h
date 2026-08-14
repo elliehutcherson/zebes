@@ -126,6 +126,11 @@ struct Tile {
   // Keep tags for high-level gameplay logic (e.g., "lethal", "ice", "water")
   // which are checked less frequently than physical collisions.
   std::vector<std::string> tags;
+
+  // Value equality over every field. The editor compares an in-progress tileset
+  // against the copy it started from to know whether closing would discard
+  // work, so equality has to mean "identical in every authored respect".
+  bool operator==(const Tile& other) const = default;
 };
 
 // One tile eligible for a neighbour mask. Listing several variants for the same
@@ -135,12 +140,16 @@ struct TerrainVariant {
 
   // Relative likelihood among the variants of one rule. Must be positive.
   int weight = 1;
+
+  bool operator==(const TerrainVariant& other) const = default;
 };
 
 // The tiles eligible for one normalized neighbour mask.
 struct TerrainRule {
   uint8_t mask = 0;
   std::vector<TerrainVariant> variants;
+
+  bool operator==(const TerrainRule& other) const = default;
 };
 
 // How a terrain's rule table is indexed. Smaller schemes expand into the same
@@ -182,12 +191,17 @@ struct Terrain {
   // so painted ground continues into them instead of capping off with an edge.
   // A tile must not appear both here and in rules.
   std::vector<int> member_tile_ids;
+
+  bool operator==(const Terrain& other) const = default;
 };
 
 // A named texture atlas paired with an ordered table of tile definitions.
 //
-// Tilesets are immutable design-time assets. Levels reference a tileset by
-// ID; TileChunk integer values are indices into the tileset's tile table.
+// Tilesets are immutable design-time assets. Levels reference a tileset by ID;
+// TileChunk integer values are tile IDs, not positions in the table below.
+// viewport_scene.cc resolves them through a lookup keyed on Tile::id and fails
+// with "level references unknown tile ID" when one is missing, so reordering
+// the table never invalidates a level but deleting a tile does.
 struct Tileset {
   std::string id;
   std::string name;
@@ -206,6 +220,8 @@ struct Tileset {
   // Terrain brushes defined over the tiles above. Empty for tilesets that are
   // only placed by hand.
   std::vector<Terrain> terrains;
+
+  bool operator==(const Tileset& other) const = default;
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 };

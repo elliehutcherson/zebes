@@ -284,6 +284,10 @@ bool Gui::IsItemClicked(ImGuiMouseButton mouse_button) {
   return ImGui::IsItemClicked(mouse_button);
 }
 
+bool Gui::IsMouseDoubleClicked(ImGuiMouseButton button) {
+  return ImGui::IsMouseDoubleClicked(button);
+}
+
 bool Gui::IsItemDeactivatedAfterEdit() { return ImGui::IsItemDeactivatedAfterEdit(); }
 
 bool Gui::IsMouseDragging(ImGuiMouseButton button, float lock_threshold) {

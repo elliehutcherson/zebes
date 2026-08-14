@@ -1,5 +1,7 @@
 #include "editor/tileset_editor/tileset_editor.h"
 
+#include <algorithm>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -7,6 +9,7 @@
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_format.h"
 #include "common/status_macros.h"
 #include "editor/canvas/tile_draw.h"
 #include "editor/imgui_scoped.h"
@@ -203,38 +206,99 @@ absl::Status TilesetEditor::RenderViewport() {
     // the last ImGui item, so IsItemHovered/IsItemClicked refer to it.
     canvas_.HandleInput();
 
-    // Click-to-pick: when a tile is selected and the user clicks anywhere on
-    // the atlas, snap the source coordinates to the clicked tile cell.
-    if (tile != nullptr && gui_->IsItemHovered()) {
-      const ImVec2 mouse = gui_->GetMousePos();
-      const Vec world = canvas_.ScreenToWorld(mouse);
-
-      absl::StatusOr<AtlasCell> cell = model_.CalculateAtlasCell(world.x, world.y, tex_w, tex_h);
-      if (cell.ok()) {
-        // Cyan hover highlight for the cell under the cursor.
-        const ImVec2 h_min = canvas_.WorldToScreen(
-            {static_cast<double>(cell->source_x), static_cast<double>(cell->source_y)});
-        const ImVec2 h_max = canvas_.WorldToScreen(
-            {static_cast<double>(cell->source_x) + tw, static_cast<double>(cell->source_y) + th});
-        dl->AddRectFilled(h_min, h_max, IM_COL32(0, 200, 255, 40));
-        dl->AddRect(h_min, h_max, IM_COL32(0, 200, 255, 220), 0.0f, 0, 2.0f);
-
-        if (gui_->IsItemClicked(ImGuiMouseButton_Left)) {
-          RETURN_IF_ERROR(model_.SetSelectedTileSource(*cell));
-        }
-      }
-    }
+    RETURN_IF_ERROR(HandleAtlasInteraction(dl, tex_w, tex_h));
   }
 
   float zoom = canvas_.GetZoom();
   canvas_.End();
 
-  Tile* tile = model_.selected_tile();
-  if (tile != nullptr)
-    gui_->Text("Click atlas to set tile source  |  Zoom: %.2f", zoom);
-  else
-    gui_->Text("Zoom: %.2f", zoom);
+  if (!viewport_status_.empty()) {
+    gui_->Text("%s  |  Zoom: %.2f", viewport_status_.c_str(), zoom);
+  } else {
+    gui_->Text("Click a cell to set the selected tile's source, drag to add tiles  |  Zoom: %.2f",
+               zoom);
+  }
 
+  return absl::OkStatus();
+}
+
+void TilesetEditor::DrawCellRegion(ImDrawList* draw_list, AtlasCell first, AtlasCell last,
+                                   ImU32 fill, ImU32 border) const {
+  const Tileset* tileset = model_.active_tileset();
+  if (draw_list == nullptr || tileset == nullptr) return;
+
+  const double tw = tileset->tile_width;
+  const double th = tileset->tile_height;
+  const double min_x = std::min(first.source_x, last.source_x);
+  const double min_y = std::min(first.source_y, last.source_y);
+  const double max_x = std::max(first.source_x, last.source_x) + tw;
+  const double max_y = std::max(first.source_y, last.source_y) + th;
+
+  const ImVec2 screen_min = canvas_.WorldToScreen({min_x, min_y});
+  const ImVec2 screen_max = canvas_.WorldToScreen({max_x, max_y});
+  draw_list->AddRectFilled(screen_min, screen_max, fill);
+  draw_list->AddRect(screen_min, screen_max, border, 0.0f, 0, 2.0f);
+}
+
+absl::Status TilesetEditor::HandleAtlasInteraction(ImDrawList* draw_list, int texture_width,
+                                                   int texture_height) {
+  std::optional<AtlasCell> hovered;
+  if (gui_->IsItemHovered()) {
+    const Vec world = canvas_.ScreenToWorld(gui_->GetMousePos());
+    absl::StatusOr<AtlasCell> cell =
+        model_.CalculateAtlasCell(world.x, world.y, texture_width, texture_height);
+    // A cursor off the edge of the atlas is not an error; there is simply no
+    // cell there to act on.
+    if (cell.ok()) hovered = *cell;
+  }
+
+  if (gui_->IsItemClicked(ImGuiMouseButton_Left) && hovered.has_value()) {
+    drag_anchor_ = hovered;
+    drag_current_ = hovered;
+  }
+
+  // IsItemActive answers for the canvas button, which stays active for exactly
+  // as long as the button is held. That is the only signal here that
+  // distinguishes a drag still in progress from one the user has finished.
+  if (drag_anchor_.has_value() && gui_->IsItemActive()) {
+    if (hovered.has_value()) drag_current_ = hovered;
+    DrawCellRegion(draw_list, *drag_anchor_, *drag_current_, IM_COL32(0, 200, 255, 40),
+                   IM_COL32(0, 200, 255, 220));
+    return absl::OkStatus();
+  }
+
+  if (drag_anchor_.has_value()) {
+    const AtlasCell anchor = *drag_anchor_;
+    const AtlasCell end = *drag_current_;
+    drag_anchor_.reset();
+    drag_current_.reset();
+    return CommitAtlasGesture(anchor, end);
+  }
+
+  if (hovered.has_value()) {
+    DrawCellRegion(draw_list, *hovered, *hovered, IM_COL32(0, 200, 255, 40),
+                   IM_COL32(0, 200, 255, 220));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status TilesetEditor::CommitAtlasGesture(AtlasCell anchor, AtlasCell end) {
+  if (anchor == end) {
+    // One cell is the gesture this viewport has always had: re-point the
+    // selected tile. With nothing selected there is nothing to re-point, and
+    // silently adding a tile instead would make a stray click destructive.
+    if (model_.selected_tile() == nullptr) {
+      viewport_status_ = "Select a tile first, or drag to add tiles";
+      return absl::OkStatus();
+    }
+    RETURN_IF_ERROR(model_.SetSelectedTileSource(anchor));
+    viewport_status_ = "Set tile source";
+    return absl::OkStatus();
+  }
+
+  ASSIGN_OR_RETURN(const int added, model_.AddTilesForRegion(anchor, end));
+  viewport_status_ = added == 0 ? "Every cell in that region already has a tile"
+                                : absl::StrFormat("Added %d tile(s)", added);
   return absl::OkStatus();
 }
 

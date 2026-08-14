@@ -1,32 +1,39 @@
 # Handoff: procedural terrain
 
-State of the terrain work as of 2026-08-13, and the things it uncovered but did
-not fix. Development is on `main`; 511 C++ tests and 7 Python tests pass through
+State of the terrain work as of 2026-08-14, and the things it uncovered.
+Development is on `main`; 538 C++ tests and 7 Python tests pass through
 `scripts/build_and_test.sh`.
 
 ---
 
-## Tomorrow's starting point
+## Starting point
 
-Phase 3 is implemented and polished in the working tree, but the combined
-Phase 2/3 work is not committed yet. Start by reopening **Autumn Forest** in the
-Terrain tab and confirming the wall treatment on the same dark-material scene
-used today. Wall darkness no longer subtracts value until it clips to RGB
-black: it now approaches the authored outline colour asymptotically, and the
-preset was retuned from `1.8` to `1.2`. Focused tests pin both endpoints—zero
-matches the substrate and the maximum stays coloured—and a generated visual
-matrix was inspected for the 32px Autumn and 16px Chunky presets across the
-preview scene and all twenty slope shapes.
+Terrain Phase 2/3 and the editor UX work are committed, in that order and
+separately.
+
+**Outstanding visual check.** Reopen **Autumn Forest** in the Terrain tab and
+confirm the wall treatment on the same dark-material scene used previously.
+Wall darkness no longer subtracts value until it clips to RGB black: it now
+approaches the authored outline colour asymptotically, and the preset was
+retuned from `1.8` to `1.2`. Focused tests pin both endpoints—zero matches the
+substrate and the maximum stays coloured—and a generated visual matrix was
+inspected for the 32px Autumn and 16px Chunky presets across the preview scene
+and all twenty slope shapes. Nothing automated can judge whether it now looks
+right, which is why this is still open.
+
+The editor work is worth walking too, since none of it is covered end to end:
+the Tileset tab's disabled controls and delete confirmations, double-click to
+open, a middle-mouse drag in each of the four viewports, a rectangle drag across
+the atlas, and a deliberately failing Create in the Texture tab.
 
 The generated `lucinda_cave` texture, tileset definition and recipe are
-untracked user work. Preserve them. Decide separately whether they are a test
-asset worth committing; do not let a terrain-code commit absorb or delete them
-by accident.
+untracked user work. Preserve them; decide separately whether they are a test
+asset worth committing.
 
-Recommended order tomorrow:
+Next:
 
-1. Perform the quick in-editor Autumn comparison above.
-2. Review `git diff` and commit the Phase 2/3 generator, editor, tests and docs.
+1. Perform the Autumn comparison above.
+2. Pay down the remaining format and editor debt — see **Still open** below.
 3. Decide whether the `lucinda_cave` assets belong in their own commit.
 4. Begin Phase 4 design for slope-connectivity variants only after the current
    atlas contract and selection policy are written down; it is a topology and
@@ -215,49 +222,66 @@ settles at full quality, and that settling pass is roughly a one-second hitch at
   prose was the right-cost fix. A rename means changing that contract
   deliberately.
 
-### Editor UX problems, pre-existing
+### Create blocks for seconds with no progress indication
 
-Found while critiquing the terrain flow. None are caused by this work; all of
-them bite anyone authoring assets.
+The frame simply stops. It is a one-shot authoring action, so this is tolerable,
+but it reads as a hang. A real fix means moving generation off the render
+thread.
 
-- **Destructive actions have no confirmation.** Deleting a tileset
-  (`tileset_panel.cc:51`) or a terrain (`tileset_panel.cc:195`) destroys it on
-  one click. Separately, the tileset list's `Edit` and `Delete`
-  (`tileset_panel.cc:43, 51`) are enabled with nothing selected and guarded by a
-  short-circuited `&& model.has_tileset_selection()`, so clicking either with no
-  selection does nothing and says nothing. Disabling them would be truthful.
-- **`Back` discards unsaved edits with no prompt.** `tileset_panel.cc:70-73`
-  calls `CloseActiveTileset()` directly.
-- **The Texture tab reports nothing.** Every failure path is `LOG(ERROR)` only
-  (`texture_editor.cc:190, 196, 205, 220`), so an import that fails looks
-  identical to one that worked unless you are watching a terminal. It is the
-  only editor with no in-UI error surface; the tileset editor's dismissible
-  banner is the pattern to copy.
-- **A new tileset defaults to 16x16** (`tileset_editor_model.cc:41`) while all
-  terrain art is 32x32, so a hand-built tileset silently slices the wrong grid
-  until someone notices.
-- **Create blocks for seconds with no progress indication** — the frame simply
-  stops. It is a one-shot authoring action, so this is tolerable, but it reads
-  as a hang.
-- **Hand-authoring tiles is ~4 interactions each, across 3 columns**: Add in the
-  navigator, click the atlas in the viewport, then name it and pick a shape in
-  the inspector. There is no drag-select, no shift-click range, and no bulk add,
-  which is why the import and generate paths exist at all. A rectangle-select in
-  the atlas viewport would collapse most of it.
-- **Selecting a tileset does not open it** — you select, then press Edit. No
-  double-click handler.
-- **Canvas panning is keyboard-only.** `HandleInput` (`canvas.cc:113-121`) reads
-  WASD and the arrow keys; there is no middle-mouse drag, despite a comment in
-  `blueprint_editor.cc` implying otherwise. Every viewport in the editor
-  inherits this.
+---
 
-### Stale documentation
+## Editor UX debt, cleared
 
-- `src/objects/tileset.h:189-190` says "TileChunk integer values are indices
-  into the tileset's tile table". They are tile **IDs** — `viewport_scene.cc`
-  resolves them through a lookup keyed on `tile.id`, and rendering fails with
-  "level references unknown tile ID" when one is missing. The comment predates
-  the change and has been wrong for a while.
+Found while critiquing the terrain flow, and fixed as its own phase afterwards.
+None of it was caused by the terrain work; all of it bit anyone authoring
+assets.
+
+- **Destructive actions confirm in place.** Deleting a tileset or a terrain
+  swaps the button for a named question and a Confirm/Cancel pair, and a pending
+  confirmation is dropped the moment the user does anything else — so a primed
+  Confirm can never land on a target they have since moved away from. A modal
+  was rejected: `GuiInterface` has no `OpenPopup`/`BeginPopupModal`, and growing
+  the interface, `Gui` and `MockGui` for one dialog buys nothing an in-place
+  question does not.
+- **Controls with nothing to act on are disabled**, not enabled-and-silent. The
+  tileset list's `Edit` and `Delete`, and the tile list's `Delete`, use
+  `ScopedDisabled` instead of the old short-circuited
+  `&& model.has_tileset_selection()`.
+- **`Back` asks before discarding unsaved edits.**
+  `TilesetEditorModel::has_unsaved_changes()` compares the tileset being edited
+  against a snapshot taken when it was opened or last saved, which is why
+  editing a field back to its original value correctly reports clean again. It
+  needed defaulted `operator==` on `Tile`, `Terrain`, `TerrainRule`,
+  `TerrainVariant` and `Tileset`.
+- **The Texture tab reports failures in the UI.** The message lives on
+  `TextureEditorModel` rather than the view, so the failure paths are testable
+  without a fake `SdlWrapper`; `TextureEditor::Render` draws the same
+  dismissible banner the tileset editor uses. It clears on the next success and
+  whenever the selection moves, so the banner cannot outlive the attempt it
+  describes.
+- **A new tileset defaults to 32x32**, the size every generated terrain atlas is
+  authored at. The old 16x16 default sliced the wrong grid silently.
+- **Canvas pans on a middle-mouse drag**, at any zoom, in every viewport that
+  embeds `Canvas`. A drag only claims the canvas it started over, because ImGui
+  drag state is global and otherwise every viewport on screen would move
+  together.
+- **Double-clicking a tileset opens it.** Needed one new seam method,
+  `GuiInterface::IsMouseDoubleClicked`.
+- **Rectangle-select adds tiles in bulk.** Dragging across the atlas calls
+  `TilesetEditorModel::AddTilesForRegion`, which skips cells an existing tile
+  already sources from and gives what it adds `kFullBlock` rather than the
+  `kNone` a single `Add` leaves — a screenful of silently non-colliding tiles is
+  the worse default, and a wrong shape is at least visible in the overlay. The
+  gesture is resolved on release, which is the only point at which a click and a
+  drag can be told apart: one cell re-points the selected tile exactly as
+  clicking always did, more than one adds tiles.
+- **`TileChunk` values are tile IDs, not table indices.** The comment on
+  `Tileset` had said otherwise for long enough that it predated the change;
+  `viewport_scene.cc` has always resolved them through a lookup keyed on
+  `Tile::id`.
+
+One item from the original list is deliberately still open: **Create blocks for
+seconds with no progress indication**, above.
 
 ---
 

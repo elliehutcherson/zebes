@@ -18,6 +18,8 @@ namespace zebes {
 struct AtlasCell {
   int source_x = 0;
   int source_y = 0;
+
+  bool operator==(const AtlasCell& other) const = default;
 };
 
 // Owns TilesetEditor's authoring state and calculations without depending on
@@ -41,6 +43,12 @@ class TilesetEditorModel {
   absl::Status BeginEditingSelectedTileset();
   void CloseActiveTileset();
   bool has_active_tileset() const { return active_tileset_.has_value(); }
+
+  // Whether the tileset being edited differs from the state it was opened or
+  // last saved at. Closing the editor throws those edits away, so the panel
+  // needs to know whether there is anything to warn about; asking the model
+  // keeps that judgement out of the view.
+  bool has_unsaved_changes() const;
   bool is_new_tileset() const;
   Tileset* active_tileset();
   const Tileset* active_tileset() const;
@@ -98,6 +106,19 @@ class TilesetEditorModel {
                                                int texture_height) const;
   absl::Status SetSelectedTileSource(AtlasCell cell);
 
+  // Adds one tile per atlas cell in the rectangle spanned by two corners, given
+  // in either order, and returns how many were added.
+  //
+  // Cutting an atlas by hand costs roughly four interactions per tile: Add in
+  // the navigator, click the cell in the viewport, then name it and pick a
+  // shape. A sheet of forty cells is therefore not worth doing, which is why
+  // the import and generate paths exist at all. One drag replaces the first two
+  // steps for the whole region.
+  //
+  // Cells an existing tile already sources from are skipped, so dragging over
+  // work already done adds only what is missing rather than duplicating it.
+  absl::StatusOr<int> AddTilesForRegion(AtlasCell first, AtlasCell last);
+
  private:
   const Tileset* FindTileset(const std::string& id) const;
   const Texture* FindTexture(const std::string& id) const;
@@ -106,6 +127,11 @@ class TilesetEditorModel {
   TextureCatalog textures_;
   std::string selected_tileset_id_;
   std::optional<Tileset> active_tileset_;
+  // The active tileset as it stood when editing began or when it was last
+  // saved. Comparing against a snapshot rather than setting a dirty flag means
+  // no mutating path can forget to mark itself, and editing a field back to its
+  // original value correctly reports clean.
+  std::optional<Tileset> baseline_tileset_;
   int selected_tile_id_ = 0;
 };
 

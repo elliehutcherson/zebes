@@ -68,6 +68,9 @@ class TilesetPanelTest : public ::testing::Test {
         .WillByDefault(Invoke([this](ImGuiCol idx, const ImVec4& col) {
           return ScopedStyleColor(&gui_, idx, col);
         }));
+    ON_CALL(gui_, CreateScopedDisabled(_)).WillByDefault(Invoke([this](bool disabled) {
+      return ScopedDisabled(&gui_, disabled);
+    }));
 
     ON_CALL(gui_, Button(_, _)).WillByDefault(Return(false));
     ON_CALL(gui_, DisplayFileDialog(_)).WillByDefault(Return(std::nullopt));
@@ -90,6 +93,33 @@ class TilesetPanelTest : public ::testing::Test {
     absl::StatusOr<TilesetPanel::Action> action = panel_->RenderDetails(model_);
     ASSERT_TRUE(action.ok()) << action.status();
   }
+
+  // Records every label the panel drew a button for during one render.
+  void CaptureButtons(std::vector<std::string>* labels) {
+    ON_CALL(gui_, Button(_, _)).WillByDefault(Invoke([labels](const char* label, const ImVec2&) {
+      labels->push_back(label);
+      return false;
+    }));
+  }
+
+  // Leaves the list view with two tilesets in the catalog and nothing open.
+  void BeginListView() {
+    model_.CloseActiveTileset();
+    model_.SetTilesets({Tileset{.id = "grass-1", .name = "Grass"},
+                        Tileset{.id = "stone-2", .name = "Stone"}});
+  }
+
+  // Renders the list-view navigator, which is a different entry point from the
+  // details view every other test in this file drives.
+  TilesetPanel::Action RenderList() {
+    absl::StatusOr<TilesetPanel::Action> action = panel_->RenderList(model_);
+    EXPECT_TRUE(action.ok()) << action.status();
+    return action.ok() ? *action : TilesetPanel::Action::kNone;
+  }
+
+  // Opens the list body so entries render, which the default closed container
+  // deliberately skips.
+  void OpenTilesetList() { ON_CALL(gui_, BeginListBox(_, _)).WillByDefault(Return(true)); }
 
   NiceMock<MockGui> gui_;
   TilesetEditorModel model_;
@@ -191,6 +221,159 @@ TEST_F(TilesetPanelTest, TerrainNameIsEditable) {
 
   ASSERT_NE(name_field, nullptr);
   EXPECT_EQ(name_field, &model_.active_tileset()->terrains[0].name);
+}
+
+// A button that is enabled, does nothing when pressed, and reports nothing is
+// worse than no button: it teaches that the editor is broken. Edit and Delete
+// have nothing to act on until a tileset is selected, so they say so.
+TEST_F(TilesetPanelTest, EditAndDeleteAreDisabledWithNoSelection) {
+  BeginListView();
+
+  EXPECT_CALL(gui_, CreateScopedDisabled(true)).Times(2);
+  EXPECT_CALL(gui_, CreateScopedDisabled(false)).Times(0);
+
+  RenderList();
+}
+
+TEST_F(TilesetPanelTest, EditAndDeleteAreEnabledOnceATilesetIsSelected) {
+  BeginListView();
+  ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
+
+  EXPECT_CALL(gui_, CreateScopedDisabled(false)).Times(2);
+  EXPECT_CALL(gui_, CreateScopedDisabled(true)).Times(0);
+
+  RenderList();
+}
+
+TEST_F(TilesetPanelTest, DeletingATilesetAsksBeforeDestroyingIt) {
+  BeginListView();
+  ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
+
+  ClickOnly("Delete");
+  EXPECT_EQ(RenderList(), TilesetPanel::Action::kNone);
+
+  // The next frame offers the answer instead of the original button.
+  std::vector<std::string> labels;
+  CaptureButtons(&labels);
+  RenderList();
+  EXPECT_THAT(labels, ::testing::Contains("Confirm delete"));
+  EXPECT_THAT(labels, ::testing::Contains("Cancel delete"));
+  EXPECT_THAT(labels, ::testing::Not(::testing::Contains("Delete")));
+
+  ClickOnly("Confirm delete");
+  EXPECT_EQ(RenderList(), TilesetPanel::Action::kDelete);
+}
+
+TEST_F(TilesetPanelTest, CancellingADeleteRestoresThePlainButton) {
+  BeginListView();
+  ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
+
+  ClickOnly("Delete");
+  RenderList();
+
+  ClickOnly("Cancel delete");
+  EXPECT_EQ(RenderList(), TilesetPanel::Action::kNone);
+
+  std::vector<std::string> labels;
+  CaptureButtons(&labels);
+  RenderList();
+  EXPECT_THAT(labels, ::testing::Contains("Delete"));
+  EXPECT_THAT(labels, ::testing::Not(::testing::Contains("Confirm delete")));
+}
+
+// A confirmation belongs to the tileset it was raised against. Selecting a
+// different one must not leave a primed Confirm pointing at the new selection.
+TEST_F(TilesetPanelTest, ChangingSelectionDropsAPendingDelete) {
+  BeginListView();
+  ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
+
+  ClickOnly("Delete");
+  RenderList();
+
+  ASSERT_TRUE(model_.SelectTileset("stone-2").ok());
+  ClickOnly("Confirm delete");
+  EXPECT_EQ(RenderList(), TilesetPanel::Action::kNone);
+}
+
+TEST_F(TilesetPanelTest, DoubleClickingAListEntryOpensIt) {
+  BeginListView();
+  OpenTilesetList();
+
+  ON_CALL(gui_, Selectable(StrEq("Grass"), ::testing::An<bool>(), _, _))
+      .WillByDefault(Return(true));
+  ON_CALL(gui_, IsMouseDoubleClicked(ImGuiMouseButton_Left)).WillByDefault(Return(true));
+
+  RenderList();
+
+  ASSERT_NE(model_.active_tileset(), nullptr);
+  EXPECT_EQ(model_.active_tileset()->id, "grass-1");
+}
+
+TEST_F(TilesetPanelTest, SingleClickingAListEntryOnlySelectsIt) {
+  BeginListView();
+  OpenTilesetList();
+
+  ON_CALL(gui_, Selectable(StrEq("Grass"), ::testing::An<bool>(), _, _))
+      .WillByDefault(Return(true));
+  ON_CALL(gui_, IsMouseDoubleClicked(_)).WillByDefault(Return(false));
+
+  RenderList();
+
+  EXPECT_EQ(model_.selected_tileset_id(), "grass-1");
+  EXPECT_EQ(model_.active_tileset(), nullptr);
+}
+
+// Leaving is only destructive when there is something to lose.
+TEST_F(TilesetPanelTest, BackClosesATilesetWithNoEdits) {
+  ClickOnly("Back");
+  RenderDetails();
+
+  EXPECT_EQ(model_.active_tileset(), nullptr);
+}
+
+TEST_F(TilesetPanelTest, BackAsksBeforeDiscardingUnsavedEdits) {
+  model_.active_tileset()->name = "Renamed";
+
+  ClickOnly("Back");
+  RenderDetails();
+  ASSERT_NE(model_.active_tileset(), nullptr) << "Back closed the tileset without asking";
+
+  ClickOnly("Keep editing");
+  RenderDetails();
+  EXPECT_NE(model_.active_tileset(), nullptr);
+
+  ClickOnly("Back");
+  RenderDetails();
+  ClickOnly("Discard changes");
+  RenderDetails();
+  EXPECT_EQ(model_.active_tileset(), nullptr);
+}
+
+TEST_F(TilesetPanelTest, DeletingATerrainAsksBeforeDestroyingIt) {
+  model_.active_tileset()->terrains.push_back(Terrain{.id = 1, .name = "Grass"});
+
+  ClickOnly("Delete##Terrain");
+  RenderDetails();
+  ASSERT_EQ(model_.active_tileset()->terrains.size(), 1u)
+      << "the terrain was destroyed on the first click";
+
+  ClickOnly("Confirm##Terrain");
+  RenderDetails();
+  EXPECT_TRUE(model_.active_tileset()->terrains.empty());
+}
+
+TEST_F(TilesetPanelTest, CancellingATerrainDeleteKeepsIt) {
+  model_.active_tileset()->terrains.push_back(Terrain{.id = 1, .name = "Grass"});
+
+  ClickOnly("Delete##Terrain");
+  RenderDetails();
+
+  ClickOnly("Cancel##Terrain");
+  RenderDetails();
+
+  ClickOnly("Confirm##Terrain");
+  RenderDetails();
+  EXPECT_EQ(model_.active_tileset()->terrains.size(), 1u);
 }
 
 }  // namespace

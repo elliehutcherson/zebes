@@ -169,6 +169,10 @@ class GuiInterface {
   virtual void SetItemDefaultFocus() = 0;
   virtual bool IsItemActive() = 0;
   virtual bool IsItemClicked(ImGuiMouseButton mouse_button = 0) = 0;
+  // Whether the last click was the second of a double-click. Pair with a
+  // Selectable created with ImGuiSelectableFlags_AllowDoubleClick, which is
+  // what makes the widget report the second click at all.
+  virtual bool IsMouseDoubleClicked(ImGuiMouseButton button) = 0;
   virtual bool IsItemDeactivatedAfterEdit() = 0;
   virtual bool IsMouseDragging(ImGuiMouseButton button, float lock_threshold = -1.0f) = 0;
   virtual ImVec2 GetWindowSize() const = 0;

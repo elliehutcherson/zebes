@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "absl/status/statusor.h"
 #include "editor/gui_interface.h"
@@ -28,6 +30,10 @@ class TilesetPanel {
  private:
   explicit TilesetPanel(GuiInterface* gui);
 
+  // Renders either the Delete button or the confirmation that replaces it.
+  // Returns kDelete only once the user has confirmed.
+  absl::StatusOr<Action> RenderDeleteTilesetControl(TilesetEditorModel& model);
+
   absl::Status RenderTilesetFields(TilesetEditorModel& model);
   absl::Status RenderTileList(TilesetEditorModel& model);
 
@@ -41,8 +47,21 @@ class TilesetPanel {
   // already registered.
   absl::Status RenderTerrainMembership(TilesetEditorModel& model, const Tileset& tileset);
 
+  // Clears every pending confirmation. Called whenever the user does something
+  // other than answer the question in front of them, so a Confirm click can
+  // never land on a target the user has since moved away from.
+  void CancelPendingConfirmations();
+
   // Outcome of the last detect, shown until the next attempt.
   std::string terrain_status_;
+
+  // Destructive actions confirm in place rather than through a modal: the
+  // button is replaced by a question and a Confirm/Cancel pair until answered.
+  // Each field holds the target awaiting confirmation, so a stale confirmation
+  // cannot be applied to whatever happens to be selected later.
+  std::optional<std::string> confirm_delete_tileset_;
+  std::optional<int> confirm_delete_terrain_;
+  bool confirm_discard_ = false;
 
   GuiInterface* gui_;
 };
