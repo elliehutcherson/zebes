@@ -436,10 +436,17 @@ absl::Status LevelEditor::RenderViewport() {
   }
   if (!terrain_index.has_value()) paint_terrain_id.reset();
 
+  // Owned here rather than inside the viewport because the provider is what a
+  // scheme plugs into: a derived terrain's renders artwork and appends to the
+  // atlas, so it cannot be rebuilt per call the way this one can.
+  std::optional<Blob47TileProvider> terrain_provider;
+  if (terrain_index.has_value()) terrain_provider.emplace(*terrain_index);
+
   RETURN_IF_ERROR(viewport_tab_->Render({
       .level = level,
       .paint_terrain_id = paint_terrain_id,
       .terrain_index = terrain_index.has_value() ? &*terrain_index : nullptr,
+      .terrain_provider = terrain_provider.has_value() ? &*terrain_provider : nullptr,
       .placement_blueprint = palette_panel_->GetSelectedBlueprint(),
       .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
                                 ? selection_.entity_id

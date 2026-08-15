@@ -333,7 +333,9 @@ Tileset MakeTerrainTileset() {
   absl::Span<const uint8_t> masks = Blob47MaskTable();
   for (int i = 0; i < kBlob47TileCount; ++i) {
     const int tile_id = 100 + i;
-    tileset.tiles.push_back(Tile{.id = tile_id, .name = "T"});
+    // Full blocks, as BuildTerrainCandidate emits them: the brush reads a
+    // cell's geometry back off its tile when refreshing neighbours.
+    tileset.tiles.push_back(Tile{.id = tile_id, .name = "T", .shape = TileShape::kFullBlock});
     terrain.rules.push_back(
         TerrainRule{.mask = masks[i], .variants = {TerrainVariant{.tile_id = tile_id}}});
   }
@@ -347,6 +349,7 @@ TEST(ViewportInteractionTerrainTest, PaintsAndErasesThroughTheBrush) {
   Tileset tileset = MakeTerrainTileset();
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
   ASSERT_TRUE(index.ok()) << index.status();
+  Blob47TileProvider provider(*index);
 
   ViewportInteractionController controller;
   Level level = MakeLevel();
@@ -356,7 +359,7 @@ TEST(ViewportInteractionTerrainTest, PaintsAndErasesThroughTheBrush) {
                           {.world_position = {8, 8},
                            .pointer_in_level = true,
                            .primary_down = true},
-                          {.paint_terrain_id = kTerrainId, .terrain_index = &*index})
+                          {.paint_terrain_id = kTerrainId, .terrain_index = &*index, .terrain_provider = &provider})
                   .ok());
   // Isolated cell resolves to mask 0, which is table index 0.
   EXPECT_EQ(GetTileAt(level, 0, 0).value(), 100);
@@ -367,7 +370,7 @@ TEST(ViewportInteractionTerrainTest, PaintsAndErasesThroughTheBrush) {
                            .pointer_in_level = true,
                            .secondary_pressed = true,
                            .secondary_down = true},
-                          {.paint_terrain_id = kTerrainId, .terrain_index = &*index})
+                          {.paint_terrain_id = kTerrainId, .terrain_index = &*index, .terrain_provider = &provider})
                   .ok());
   EXPECT_EQ(GetTileAt(level, 0, 0).value(), 0);
 }
@@ -376,11 +379,12 @@ TEST(ViewportInteractionTerrainTest, PaintingANeighbourReresolvesTheExistingCell
   Tileset tileset = MakeTerrainTileset();
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
   ASSERT_TRUE(index.ok()) << index.status();
+  Blob47TileProvider provider(*index);
 
   ViewportInteractionController controller;
   Level level = MakeLevel();
-  const ViewportInteractionOptions options{.paint_terrain_id = kTerrainId,
-                                           .terrain_index = &*index};
+  const ViewportInteractionOptions options{
+      .paint_terrain_id = kTerrainId, .terrain_index = &*index, .terrain_provider = &provider};
 
   ASSERT_TRUE(controller
                   .Update(level,

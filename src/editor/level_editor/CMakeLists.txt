@@ -44,6 +44,7 @@ add_library(terrain_brush
 target_link_libraries(terrain_brush
   PUBLIC
   level
+  terrain_cell_key
   tileset
   absl::flat_hash_map
   absl::statusor

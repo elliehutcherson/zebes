@@ -248,7 +248,9 @@ absl::Status ViewportTab::UpdateInteraction(Level& level, const ViewportRenderOp
           },
           {
               .paint_terrain_id = options.paint_terrain_id,
+              .paint_shape = options.paint_shape,
               .terrain_index = options.terrain_index,
+              .terrain_provider = options.terrain_provider,
               .paint_tile_id = options.placement_tile != nullptr
                                    ? std::optional<int>(options.placement_tile->id)
                                    : std::nullopt,
@@ -360,20 +362,20 @@ absl::Status ViewportTab::RenderTerrainGhost(const ViewportRenderOptions& option
   ASSIGN_OR_RETURN(TileCoordinate coordinate,
                    WorldToTileCoordinate(world_pos, level.tile_render_width,
                                          level.tile_render_height));
-  ASSIGN_OR_RETURN(const uint8_t mask,
-                   ComputeTerrainMask(level, *options.terrain_index, *terrain, coordinate.x,
-                                      coordinate.y));
+  ASSIGN_OR_RETURN(const TerrainCellKey key,
+                   ComputeTerrainCellKey(level, *options.terrain_index, *terrain,
+                                         options.paint_shape, coordinate.x, coordinate.y));
 
-  const TerrainRule* rule = nullptr;
-  for (const TerrainRule& candidate : terrain->rules) {
-    if (candidate.mask == mask) rule = &candidate;
-  }
-  // A hand-edited terrain can be missing a mask. Previewing nothing is better
-  // than failing the frame on mouse movement; the paint itself still reports it.
-  if (rule == nullptr) return absl::OkStatus();
+  // The ghost resolves through the same provider the paint will, so what is
+  // previewed and what lands cannot disagree. A hand-edited terrain can be
+  // missing a mask; previewing nothing is better than failing the frame on
+  // mouse movement, and the paint itself still reports it.
+  if (options.terrain_provider == nullptr) return absl::OkStatus();
+  const absl::StatusOr<int> resolved =
+      options.terrain_provider->TileForKey(*terrain, key, coordinate.x, coordinate.y);
+  if (!resolved.ok()) return absl::OkStatus();
 
-  ASSIGN_OR_RETURN(const int tile_id,
-                   SelectVariant(*terrain, *rule, coordinate.x, coordinate.y));
+  const int tile_id = *resolved;
   const Tile* tile = nullptr;
   for (const Tile& candidate : tileset->tiles) {
     if (candidate.id == tile_id) tile = &candidate;

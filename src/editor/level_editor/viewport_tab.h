@@ -34,9 +34,16 @@ struct ViewportRenderOptions {
   Level* level = nullptr;
   // Terrain painted while dragging; empty = not in terrain-painting mode.
   std::optional<int> paint_terrain_id;
+  // Collision geometry the terrain brush lays down. Authored by the user, never
+  // inferred from the gesture, and the artwork follows from it.
+  TileShape paint_shape = TileShape::kFullBlock;
   // Terrain tables for the level's tileset. Must be non-null when
   // paint_terrain_id is set.
   const TerrainIndex* terrain_index = nullptr;
+  // Resolves a cell's artwork once its geometry is decided. The ghost and the
+  // paint share it so a preview and what lands cannot disagree. Must be non-null
+  // when paint_terrain_id is set.
+  TerrainTileProvider* terrain_provider = nullptr;
   // Blueprint to place on the next canvas click; nullptr = no placement mode.
   const Blueprint* placement_blueprint = nullptr;
   // Entity currently selected by the LevelEditor; kInvalidId = none.

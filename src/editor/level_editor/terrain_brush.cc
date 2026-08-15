@@ -54,7 +54,7 @@ absl::Status ValidateCell(const Level& level, int tile_x, int tile_y) {
 // — counts toward masks but is never rewritten, because re-resolving it would
 // replace hand-placed artwork with a blob tile.
 absl::Status RefreshNeighbors(Level& level, const TerrainIndex& index, const Terrain& terrain,
-                              int tile_x, int tile_y) {
+                              TerrainTileProvider& provider, int tile_x, int tile_y) {
   for (const NeighborOffset& offset : kNeighborOffsets) {
     const int x = tile_x + offset.dx;
     const int y = tile_y + offset.dy;
@@ -62,7 +62,13 @@ absl::Status RefreshNeighbors(Level& level, const TerrainIndex& index, const Ter
 
     ASSIGN_OR_RETURN(const int neighbor_tile, GetTileAt(level, x, y));
     if (index.FindPaintableByTileId(neighbor_tile) != &terrain) continue;
-    RETURN_IF_ERROR(ResolveTerrainCell(level, index, terrain, x, y));
+
+    // The neighbour is handed back the geometry it already has. A refresh may
+    // change how a cell looks; it must never change what the player collides
+    // with, and passing the shape we just read is what makes that structural
+    // rather than a rule to remember.
+    RETURN_IF_ERROR(ResolveTerrainCell(level, index, terrain, provider,
+                                       index.ShapeOfTile(neighbor_tile), x, y));
   }
   return absl::OkStatus();
 }
@@ -77,14 +83,23 @@ absl::StatusOr<TerrainIndex> TerrainIndex::Build(const Tileset& tileset) {
           absl::StrCat("duplicate terrain ID ", terrain.id, " in tileset '", tileset.name, "'"));
     }
 
-    RETURN_IF_ERROR(index.IndexTerrainTiles(terrain));
+    RETURN_IF_ERROR(index.IndexTerrainTiles(terrain, tileset));
   }
   return index;
 }
 
-absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain, bool paintable) {
+absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain, bool paintable,
+                                     const Tileset& tileset) {
+  TileShape shape = TileShape::kNone;
+  for (const Tile& tile : tileset.tiles) {
+    if (tile.id == tile_id) {
+      shape = tile.shape;
+      break;
+    }
+  }
+
   auto [entry, inserted] = tile_ownership_.emplace(
-      tile_id, TileOwnership{.terrain = &terrain, .paintable = paintable});
+      tile_id, TileOwnership{.terrain = &terrain, .paintable = paintable, .shape = shape});
   if (inserted) return absl::OkStatus();
 
   if (entry->second.terrain != &terrain) {
@@ -100,14 +115,24 @@ absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain, bool p
   return absl::OkStatus();
 }
 
-absl::Status TerrainIndex::IndexTerrainTiles(const Terrain& terrain) {
+absl::Status TerrainIndex::IndexTerrainTiles(const Terrain& terrain, const Tileset& tileset) {
   for (const TerrainRule& rule : terrain.rules) {
     for (const TerrainVariant& variant : rule.variants) {
-      RETURN_IF_ERROR(ClaimTile(variant.tile_id, terrain, /*paintable=*/true));
+      RETURN_IF_ERROR(ClaimTile(variant.tile_id, terrain, /*paintable=*/true, tileset));
     }
   }
   for (int tile_id : terrain.member_tile_ids) {
-    RETURN_IF_ERROR(ClaimTile(tile_id, terrain, /*paintable=*/false));
+    RETURN_IF_ERROR(ClaimTile(tile_id, terrain, /*paintable=*/false, tileset));
+
+    // A terrain declaring two tiles for one shape leaves which of them a cell
+    // gets to iteration order, so the first wins and the second is refused.
+    const TileShape shape = ShapeOfTile(tile_id);
+    auto [entry, inserted] = shape_tiles_.emplace(std::make_pair(terrain.id, shape), tile_id);
+    if (!inserted && entry->second != tile_id) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "terrain '", terrain.name, "' declares tiles ", entry->second, " and ", tile_id,
+          " for the same shape ", kTileShapeIdentifiers[static_cast<size_t>(shape)]));
+    }
   }
   return absl::OkStatus();
 }
@@ -130,26 +155,81 @@ const Terrain* TerrainIndex::FindById(int terrain_id) const {
   return found->second;
 }
 
-absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const TerrainIndex& index,
-                                           const Terrain& terrain, int tile_x, int tile_y) {
+TileShape TerrainIndex::ShapeOfTile(int tile_id) const {
+  auto found = tile_ownership_.find(tile_id);
+  if (found == tile_ownership_.end()) return TileShape::kNone;
+  return found->second.shape;
+}
+
+std::optional<int> TerrainIndex::FindShapeTile(const Terrain& terrain, TileShape shape) const {
+  auto found = shape_tiles_.find(std::make_pair(terrain.id, shape));
+  if (found == shape_tiles_.end()) return std::nullopt;
+  return found->second;
+}
+
+absl::StatusOr<TerrainCellKey> ComputeTerrainCellKey(const Level& level, const TerrainIndex& index,
+                                                     const Terrain& terrain, TileShape shape,
+                                                     int tile_x, int tile_y) {
   RETURN_IF_ERROR(ValidateCell(level, tile_x, tile_y));
 
-  uint8_t mask = 0;
+  TerrainCellKey key;
+  key.shape = shape;
   for (int i = 0; i < kNeighborCount; ++i) {
-    const uint8_t bit = static_cast<uint8_t>(1 << i);
     const int x = tile_x + kNeighborOffsets[i].dx;
     const int y = tile_y + kNeighborOffsets[i].dy;
 
     if (IsOutsideLevel(level, x, y)) {
-      if (terrain.solid_outside_level) mask |= bit;
+      // Outside the level reads as solid ground of this terrain, which is what
+      // stops a coastline being drawn along the world border.
+      key.neighbors[i] = terrain.solid_outside_level ? TileShape::kFullBlock : TileShape::kNone;
       continue;
     }
 
     ASSIGN_OR_RETURN(const int neighbor_tile, GetTileAt(level, x, y));
-    if (index.FindByTileId(neighbor_tile) == &terrain) mask |= bit;
+    key.neighbors[i] = index.FindByTileId(neighbor_tile) == &terrain
+                           ? index.ShapeOfTile(neighbor_tile)
+                           : TileShape::kNone;
   }
 
-  return NormalizeNeighborMask(mask);
+  // A periodic terrain's artwork is one pattern laid down in phases, so which
+  // phase a cell shows is fixed by where the cell sits rather than chosen.
+  const int period = terrain.variant_period;
+  if (period > 0) {
+    const int phase_x = ((tile_x % period) + period) % period;
+    const int phase_y = ((tile_y % period) + period) % period;
+    key.phase = phase_y * period + phase_x;
+  }
+  return key;
+}
+
+absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const TerrainIndex& index,
+                                           const Terrain& terrain, int tile_x, int tile_y) {
+  ASSIGN_OR_RETURN(
+      const TerrainCellKey key,
+      ComputeTerrainCellKey(level, index, terrain, TileShape::kFullBlock, tile_x, tile_y));
+  return NormalizeNeighborMask(NeighborMaskOf(key));
+}
+
+absl::StatusOr<int> Blob47TileProvider::TileForKey(const Terrain& terrain,
+                                                   const TerrainCellKey& key, int tile_x,
+                                                   int tile_y) {
+  if (key.shape != TileShape::kFullBlock) {
+    const std::optional<int> tile = index_.FindShapeTile(terrain, key.shape);
+    if (!tile.has_value()) {
+      return absl::NotFoundError(
+          absl::StrCat("terrain '", terrain.name, "' has no artwork for shape ",
+                       kTileShapeIdentifiers[static_cast<size_t>(key.shape)]));
+    }
+    return *tile;
+  }
+
+  const uint8_t mask = NormalizeNeighborMask(NeighborMaskOf(key));
+  const TerrainRule* rule = FindRule(terrain, mask);
+  if (rule == nullptr) {
+    return absl::NotFoundError(absl::StrCat("terrain '", terrain.name, "' has no rule for mask ",
+                                            static_cast<int>(mask)));
+  }
+  return SelectVariant(terrain, *rule, tile_x, tile_y);
 }
 
 absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rule, int tile_x,
@@ -192,21 +272,16 @@ absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rul
 }
 
 absl::Status ResolveTerrainCell(Level& level, const TerrainIndex& index, const Terrain& terrain,
-                                int tile_x, int tile_y) {
-  ASSIGN_OR_RETURN(const uint8_t mask, ComputeTerrainMask(level, index, terrain, tile_x, tile_y));
-
-  const TerrainRule* rule = FindRule(terrain, mask);
-  if (rule == nullptr) {
-    return absl::NotFoundError(absl::StrCat("terrain '", terrain.name, "' has no rule for mask ",
-                                            static_cast<int>(mask)));
-  }
-
-  ASSIGN_OR_RETURN(const int tile_id, SelectVariant(terrain, *rule, tile_x, tile_y));
+                                TerrainTileProvider& provider, TileShape shape, int tile_x,
+                                int tile_y) {
+  ASSIGN_OR_RETURN(const TerrainCellKey key,
+                   ComputeTerrainCellKey(level, index, terrain, shape, tile_x, tile_y));
+  ASSIGN_OR_RETURN(const int tile_id, provider.TileForKey(terrain, key, tile_x, tile_y));
   return SetTileAt(level, tile_x, tile_y, tile_id);
 }
 
-absl::Status PaintTerrain(Level& level, const TerrainIndex& index, int terrain_id, int tile_x,
-                          int tile_y) {
+absl::Status PaintTerrain(Level& level, const TerrainIndex& index, TerrainTileProvider& provider,
+                          int terrain_id, TileShape shape, int tile_x, int tile_y) {
   RETURN_IF_ERROR(ValidateCell(level, tile_x, tile_y));
 
   const Terrain* terrain = index.FindById(terrain_id);
@@ -214,14 +289,15 @@ absl::Status PaintTerrain(Level& level, const TerrainIndex& index, int terrain_i
     return absl::NotFoundError(absl::StrCat("unknown terrain ID ", terrain_id));
   }
 
-  // A cell's mask is computed from its neighbours only, so resolving the centre
+  // A cell's key is computed from its neighbours only, so resolving the centre
   // first both claims it and gives it correct artwork. The neighbours then see
   // it as occupied and re-resolve against it.
-  RETURN_IF_ERROR(ResolveTerrainCell(level, index, *terrain, tile_x, tile_y));
-  return RefreshNeighbors(level, index, *terrain, tile_x, tile_y);
+  RETURN_IF_ERROR(ResolveTerrainCell(level, index, *terrain, provider, shape, tile_x, tile_y));
+  return RefreshNeighbors(level, index, *terrain, provider, tile_x, tile_y);
 }
 
-absl::Status EraseTerrain(Level& level, const TerrainIndex& index, int tile_x, int tile_y) {
+absl::Status EraseTerrain(Level& level, const TerrainIndex& index, TerrainTileProvider& provider,
+                          int tile_x, int tile_y) {
   RETURN_IF_ERROR(ValidateCell(level, tile_x, tile_y));
 
   ASSIGN_OR_RETURN(const int existing, GetTileAt(level, tile_x, tile_y));
@@ -229,7 +305,7 @@ absl::Status EraseTerrain(Level& level, const TerrainIndex& index, int tile_x, i
   RETURN_IF_ERROR(SetTileAt(level, tile_x, tile_y, 0));
 
   if (terrain == nullptr) return absl::OkStatus();
-  return RefreshNeighbors(level, index, *terrain, tile_x, tile_y);
+  return RefreshNeighbors(level, index, *terrain, provider, tile_x, tile_y);
 }
 
 }  // namespace zebes

@@ -7,6 +7,7 @@
 #include "absl/status/statusor.h"
 #include "objects/level.h"
 #include "objects/tileset.h"
+#include "terrain/terrain_cell_key.h"
 
 namespace zebes {
 
@@ -35,28 +36,95 @@ class TerrainIndex {
 
   const Terrain* FindById(int terrain_id) const;
 
+  // The collision shape of a tile, or kNone when it belongs to no terrain.
+  //
+  // This is what lets a neighbourhood be described by shape rather than by a
+  // single "same terrain" bit, and what lets a refresh hand a cell back the
+  // geometry it already had instead of choosing new geometry for it.
+  TileShape ShapeOfTile(int tile_id) const;
+
+  // The tile a terrain uses for a shape its mask-keyed rules do not produce,
+  // such as an authored slope unit.
+  std::optional<int> FindShapeTile(const Terrain& terrain, TileShape shape) const;
+
  private:
   // What a tile ID means to the terrain that claims it.
   struct TileOwnership {
     const Terrain* terrain = nullptr;
     // False for member-only tiles, which the brush reads but never writes.
     bool paintable = false;
+    TileShape shape = TileShape::kNone;
   };
 
   // Records every tile a terrain paints or counts, rejecting tiles claimed
   // twice or listed as both paintable and member.
-  absl::Status IndexTerrainTiles(const Terrain& terrain);
-  absl::Status ClaimTile(int tile_id, const Terrain& terrain, bool paintable);
+  absl::Status IndexTerrainTiles(const Terrain& terrain, const Tileset& tileset);
+  absl::Status ClaimTile(int tile_id, const Terrain& terrain, bool paintable,
+                         const Tileset& tileset);
 
   absl::flat_hash_map<int, TileOwnership> tile_ownership_;
   absl::flat_hash_map<int, const Terrain*> terrain_by_id_;
+  // (terrain id, shape) -> tile, for shapes the rule table does not cover.
+  absl::flat_hash_map<std::pair<int, TileShape>, int> shape_tiles_;
 };
 
-// Returns the normalized neighbour mask for a cell painted with terrain.
+// Resolves the artwork for a cell whose collision geometry is already decided.
 //
-// A neighbour contributes its bit only when it holds a tile of the same
-// terrain. Coordinates outside the level follow Terrain::solid_outside_level,
-// which is what keeps ground continuous at the world border.
+// Two schemes answer this differently -- a blob-47 terrain looks the key's mask
+// up in its rule table, a derived terrain renders the artwork on demand -- and
+// the brush must not know which. Keeping it an interface is also what keeps
+// terrain_brush free of the generator: rendering is an algorithm with its own
+// build unit and headless tests, and painting a cell should not link it.
+class TerrainTileProvider {
+ public:
+  virtual ~TerrainTileProvider() = default;
+
+  // The tile whose artwork depicts `key`.
+  //
+  // tile_x and tile_y say which cell is asking. They do not change what the
+  // artwork must depict -- that is entirely `key` -- but a terrain carrying
+  // several interchangeable drawings of one neighbourhood picks between them by
+  // coordinate, so the same cell always gets the same one and repainting a
+  // region never reshuffles it.
+  virtual absl::StatusOr<int> TileForKey(const Terrain& terrain, const TerrainCellKey& key,
+                                         int tile_x, int tile_y) = 0;
+};
+
+// The provider for terrain whose artwork was authored against a neighbour mask.
+//
+// A mask is the complete truth about a drawing made from quadrants, so nothing
+// is lost by projecting the key down to one here. Shapes the rule table does
+// not cover resolve through the terrain's authored shape tiles.
+class Blob47TileProvider : public TerrainTileProvider {
+ public:
+  explicit Blob47TileProvider(const TerrainIndex& index) : index_(index) {}
+
+  absl::StatusOr<int> TileForKey(const Terrain& terrain, const TerrainCellKey& key, int tile_x,
+                                 int tile_y) override;
+
+ private:
+  const TerrainIndex& index_;
+};
+
+// Describes what artwork the cell at (tile_x, tile_y) must depict.
+//
+// A neighbour contributes its own shape when it holds a tile of the same
+// terrain, and air otherwise, so the key says "a wedge is there" where a mask
+// could only say "something of mine is there". Coordinates outside the level
+// follow Terrain::solid_outside_level, which is what keeps ground continuous at
+// the world border.
+//
+// `shape` is the cell's own collision geometry and belongs to the caller: on a
+// fresh paint it comes from the placement unit, and on a refresh it is what the
+// cell already has. The brush reads geometry and never chooses it.
+absl::StatusOr<TerrainCellKey> ComputeTerrainCellKey(const Level& level, const TerrainIndex& index,
+                                                     const Terrain& terrain, TileShape shape,
+                                                     int tile_x, int tile_y);
+
+// The normalized neighbour mask for a cell painted with terrain.
+//
+// This is ComputeTerrainCellKey projected down to one bit per neighbour, which
+// is all a blob-47 terrain's artwork was authored against.
 absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const TerrainIndex& index,
                                            const Terrain& terrain, int tile_x, int tile_y);
 
@@ -72,18 +140,24 @@ absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rul
                                   int tile_y);
 
 // Recomputes the artwork for a cell already owned by terrain, without changing
-// which terrain occupies it. Exposed for tests and for bulk refresh after a
-// tileset edit.
+// which terrain occupies it or the geometry it holds. Exposed for tests and for
+// bulk refresh after a tileset edit.
 absl::Status ResolveTerrainCell(Level& level, const TerrainIndex& index, const Terrain& terrain,
-                                int tile_x, int tile_y);
+                                TerrainTileProvider& provider, TileShape shape, int tile_x,
+                                int tile_y);
 
-// Writes terrain_id at (tile_x, tile_y) and re-resolves the neighbouring cells
-// of the same terrain so their edges and corners stay consistent.
-absl::Status PaintTerrain(Level& level, const TerrainIndex& index, int terrain_id, int tile_x,
-                          int tile_y);
+// Writes terrain_id at (tile_x, tile_y) with the given collision geometry, and
+// re-resolves the neighbouring cells of the same terrain so their edges and
+// corners stay consistent.
+//
+// A refresh may change a neighbour's artwork; it can never change a neighbour's
+// shape, because it hands each cell back the geometry that cell already had.
+absl::Status PaintTerrain(Level& level, const TerrainIndex& index, TerrainTileProvider& provider,
+                          int terrain_id, TileShape shape, int tile_x, int tile_y);
 
 // Clears the cell and re-resolves the neighbours that belonged to whatever
 // terrain occupied it. Erasing a cell holding no terrain still clears it.
-absl::Status EraseTerrain(Level& level, const TerrainIndex& index, int tile_x, int tile_y);
+absl::Status EraseTerrain(Level& level, const TerrainIndex& index, TerrainTileProvider& provider,
+                          int tile_x, int tile_y);
 
 }  // namespace zebes

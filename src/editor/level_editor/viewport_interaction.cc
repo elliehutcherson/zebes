@@ -104,6 +104,9 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateT
   if (options.terrain_index == nullptr) {
     return absl::InvalidArgumentError("terrain painting requires a terrain index");
   }
+  if (options.terrain_provider == nullptr) {
+    return absl::InvalidArgumentError("terrain painting requires a tile provider");
+  }
   if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
     return absl::InvalidArgumentError("tile render dimensions must be positive");
   }
@@ -117,11 +120,13 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateT
   if (!ClaimPaintCell(coordinate, erasing)) return ViewportInteractionResult{};
 
   if (!erasing) {
-    RETURN_IF_ERROR(PaintTerrain(level, *options.terrain_index, *options.paint_terrain_id,
-                                 coordinate.x, coordinate.y));
+    RETURN_IF_ERROR(PaintTerrain(level, *options.terrain_index, *options.terrain_provider,
+                                 *options.paint_terrain_id, options.paint_shape, coordinate.x,
+                                 coordinate.y));
     return ViewportInteractionResult{};
   }
-  RETURN_IF_ERROR(EraseTerrain(level, *options.terrain_index, coordinate.x, coordinate.y));
+  RETURN_IF_ERROR(EraseTerrain(level, *options.terrain_index, *options.terrain_provider,
+                               coordinate.x, coordinate.y));
   return ViewportInteractionResult{};
 }
 
