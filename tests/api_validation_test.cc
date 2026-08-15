@@ -212,6 +212,132 @@ TEST_F(ApiValidationTest, CheckTileDeletable_IgnoresLevelsBoundToAnotherTileset)
   EXPECT_OK(api_->CheckTileDeletable("test_tileset", 7));
 }
 
+// --- Bundle deletion ---------------------------------------------------------
+
+// The three records of one build product. Only the recipe knows they belong
+// together, so the bundle is resolved from it.
+class GeneratedTerrainTest : public ApiValidationTest {
+ protected:
+  void SetUp() override {
+    ApiValidationTest::SetUp();
+    recipe_.id = "rc";
+    recipe_.name = "lucinda_cave";
+    recipe_.tileset_id = "ts";
+    recipe_.texture_id = "tx";
+    ON_CALL(terrain_recipe_manager_, GetRecipe("rc")).WillByDefault(Return(&recipe_));
+  }
+
+  // The bundle as the catalogue sees it: a recipe naming both, and a tileset
+  // naming the artwork. None of these are outside references.
+  //
+  // The catalogue is stateful because the ordering is the whole point. Each
+  // delete re-scans, so a member that has been removed must stop appearing --
+  // and a fixed catalogue would report the recipe as still blocking the tileset,
+  // which is a state production cannot reach.
+  void CatalogueHoldsTheBundle() {
+    recipes_ = {recipe_};
+    tilesets_ = {Tileset{.id = "ts", .name = "lucinda_cave", .texture_id = "tx"}};
+
+    ON_CALL(terrain_recipe_manager_, GetAllRecipes()).WillByDefault([this] { return recipes_; });
+    ON_CALL(tileset_manager_, GetAllTilesets()).WillByDefault([this] { return tilesets_; });
+    ON_CALL(terrain_recipe_manager_, DeleteRecipe(_)).WillByDefault([this](const std::string&) {
+      recipes_.clear();
+      return absl::OkStatus();
+    });
+    ON_CALL(tileset_manager_, DeleteTileset(_)).WillByDefault([this](const std::string&) {
+      tilesets_.clear();
+      return absl::OkStatus();
+    });
+  }
+
+  TerrainRecipe recipe_;
+  std::vector<TerrainRecipe> recipes_;
+  std::vector<Tileset> tilesets_;
+};
+
+TEST_F(GeneratedTerrainTest, DeletesRecipeThenTilesetThenArtwork) {
+  CatalogueHoldsTheBundle();
+
+  // Ordered, because each member has to stop blocking the next. Times(1) rather
+  // than WillOnce, so the fixture's stateful defaults still run and each delete
+  // actually leaves the catalogue.
+  ::testing::InSequence sequence;
+  EXPECT_CALL(terrain_recipe_manager_, DeleteRecipe("rc")).Times(1);
+  EXPECT_CALL(tileset_manager_, DeleteTileset("ts")).Times(1);
+  EXPECT_CALL(texture_manager_, DeleteTexture("tx")).WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_OK(api_->DeleteGeneratedTerrain("rc"));
+}
+
+// Nothing is deleted, because the sequence cannot be unwound: removing the
+// recipe first and then finding the level would leave the un-regenerable pair
+// this operation exists to prevent.
+TEST_F(GeneratedTerrainTest, RefusesAndChangesNothingWhenALevelUsesTheTileset) {
+  CatalogueHoldsTheBundle();
+  ON_CALL(level_manager_, GetAllLevels())
+      .WillByDefault(Return(std::vector<Level>{LevelUsingTileset("ts")}));
+
+  EXPECT_CALL(terrain_recipe_manager_, DeleteRecipe(_)).Times(0);
+  EXPECT_CALL(tileset_manager_, DeleteTileset(_)).Times(0);
+  EXPECT_CALL(texture_manager_, DeleteTexture(_)).Times(0);
+
+  const absl::Status status = api_->DeleteGeneratedTerrain("rc");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Cave Level"));
+}
+
+// Artwork a sprite also draws from is not this terrain's alone to delete, even
+// though the recipe generated it.
+TEST_F(GeneratedTerrainTest, RefusesWhenASpriteAlsoUsesTheArtwork) {
+  CatalogueHoldsTheBundle();
+  ON_CALL(sprite_manager_, GetAllSprites())
+      .WillByDefault(
+          Return(std::vector<Sprite>{Sprite{.id = "sp", .name = "Crystal", .texture_id = "tx"}}));
+
+  EXPECT_CALL(terrain_recipe_manager_, DeleteRecipe(_)).Times(0);
+
+  const absl::Status status = api_->DeleteGeneratedTerrain("rc");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Crystal"));
+}
+
+// The members reference each other by construction. Counting those as blockers
+// would make every bundle undeletable.
+TEST_F(GeneratedTerrainTest, TheBundlesOwnReferencesDoNotBlockIt) {
+  CatalogueHoldsTheBundle();
+  EXPECT_CALL(terrain_recipe_manager_, DeleteRecipe("rc")).Times(1);
+  EXPECT_CALL(tileset_manager_, DeleteTileset("ts")).Times(1);
+  EXPECT_CALL(texture_manager_, DeleteTexture("tx")).WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_OK(api_->DeleteGeneratedTerrain("rc"));
+}
+
+// A half-finished bundle has to stay finishable, so a member already gone is the
+// postcondition rather than a failure. Here the tileset was removed by hand
+// earlier: it is absent from the catalogue and its delete reports NotFound.
+TEST_F(GeneratedTerrainTest, ToleratesAMemberThatIsAlreadyGone) {
+  CatalogueHoldsTheBundle();
+  tilesets_.clear();
+
+  EXPECT_CALL(terrain_recipe_manager_, DeleteRecipe("rc")).Times(1);
+  EXPECT_CALL(tileset_manager_, DeleteTileset("ts"))
+      .WillOnce(Return(absl::NotFoundError("Tileset not found")));
+  EXPECT_CALL(texture_manager_, DeleteTexture("tx")).WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_OK(api_->DeleteGeneratedTerrain("rc"));
+}
+
+// Deleting a generated tileset on its own is blocked by its recipe, which is
+// correct and useless on its own: there is nothing to unbind.
+TEST_F(GeneratedTerrainTest, ARecipeBlockingATilesetPointsAtTheTerrainEditor) {
+  CatalogueHoldsTheBundle();
+  EXPECT_CALL(tileset_manager_, DeleteTileset(_)).Times(0);
+
+  const absl::Status status = api_->DeleteTileset("ts");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Terrain Editor"));
+}
+
 TEST_F(ApiValidationTest, DeleteBlueprint_PlacedInALevel_ReturnsError) {
   const std::string blueprint_id = "test_blueprint";
   Level level = LevelUsingTileset("");

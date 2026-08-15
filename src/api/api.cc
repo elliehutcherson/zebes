@@ -14,9 +14,21 @@ namespace {
 // two the user wants is not a decision this layer can make for them. The message
 // names every referrer because the whole point is telling them what to change.
 absl::Status RefuseIfReferenced(std::string_view subject,
-                                const std::vector<AssetReference>& referrers) {
+                                const std::vector<AssetReference>& referrers,
+                                std::string_view hint = "") {
   if (referrers.empty()) return absl::OkStatus();
-  return absl::FailedPreconditionError(DescribeBlockedDeletion(subject, referrers));
+  std::string message = DescribeBlockedDeletion(subject, referrers);
+  if (!hint.empty()) absl::StrAppend(&message, "\n", hint);
+  return absl::FailedPreconditionError(message);
+}
+
+// True when a recipe is among the referrers, which means the blocked asset is
+// half of a generated terrain rather than something the user can simply unbind.
+bool AnyRecipeReferrer(const std::vector<AssetReference>& referrers) {
+  for (const AssetReference& referrer : referrers) {
+    if (referrer.kind == AssetKind::kTerrainRecipe) return true;
+  }
+  return false;
 }
 
 }  // namespace
@@ -221,8 +233,17 @@ absl::Status Api::UpdateTileset(Tileset tileset) { return tileset_manager_->Save
 
 absl::Status Api::DeleteTileset(const std::string& tileset_id) {
   const CatalogSnapshot catalog = SnapshotCatalog();
-  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("tileset '", tileset_id, "'"),
-                                     FindTilesetReferrers(catalog.View(), tileset_id)));
+  const std::vector<AssetReference> referrers = FindTilesetReferrers(catalog.View(), tileset_id);
+  // A recipe blocking the delete means this tileset is half of a generated
+  // terrain, and there is nothing to unbind: the recipe exists to regenerate
+  // exactly this tileset. Without the hint the refusal is a dead end, since
+  // removing all three is a different operation in a different tab.
+  RETURN_IF_ERROR(RefuseIfReferenced(
+      absl::StrCat("tileset '", tileset_id, "'"), referrers,
+      AnyRecipeReferrer(referrers)
+          ? "This tileset was generated. Use the Terrain Editor to delete the terrain, "
+            "its tileset and its artwork together."
+          : ""));
   return tileset_manager_->DeleteTileset(tileset_id);
 }
 
@@ -248,6 +269,50 @@ absl::Status Api::SaveTerrainRecipe(const TerrainRecipe& recipe) {
 
 absl::Status Api::DeleteTerrainRecipe(const std::string& recipe_id) {
   return terrain_recipe_manager_->DeleteRecipe(recipe_id);
+}
+
+absl::Status Api::DeleteGeneratedTerrain(const std::string& recipe_id) {
+  ASSIGN_OR_RETURN(const TerrainRecipe* recipe, terrain_recipe_manager_->GetRecipe(recipe_id));
+  // Copied, because deleting the recipe invalidates the pointer well before the
+  // tileset and texture have been dealt with.
+  const std::string name = recipe->name;
+  const std::string tileset_id = recipe->tileset_id;
+  const std::string texture_id = recipe->texture_id;
+
+  // Pre-flight, because the sequence below cannot be unwound. Deleting the
+  // recipe and then discovering a level is bound to the tileset would leave
+  // exactly the un-regenerable pair this operation exists to prevent.
+  //
+  // A bundle member referencing another is not an outside reference: the recipe
+  // naming the tileset, and the recipe and tileset naming the artwork, are what
+  // make these three one thing.
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  std::vector<AssetReference> outside;
+  for (const AssetReference& referrer : FindTilesetReferrers(catalog.View(), tileset_id)) {
+    if (referrer.kind == AssetKind::kTerrainRecipe && referrer.id == recipe_id) continue;
+    outside.push_back(referrer);
+  }
+  for (const AssetReference& referrer : FindTextureReferrers(catalog.View(), texture_id)) {
+    if (referrer.kind == AssetKind::kTerrainRecipe && referrer.id == recipe_id) continue;
+    if (referrer.kind == AssetKind::kTileset && referrer.id == tileset_id) continue;
+    outside.push_back(referrer);
+  }
+  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("terrain '", name, "'"), outside));
+
+  // Recipe, then tileset, then artwork. That order is what lets each member go
+  // through its own checked delete rather than around it: the recipe is gone
+  // before it can block the tileset, and both are gone before they can block the
+  // texture. The bundle is an ordering over the existing guards, not a bypass.
+  RETURN_IF_ERROR(DeleteTerrainRecipe(recipe_id));
+
+  // A member already missing is not a failure. The postcondition is that none of
+  // the three remain, and a half-finished bundle has to stay finishable.
+  const absl::Status tileset_deleted = DeleteTileset(tileset_id);
+  if (!tileset_deleted.ok() && !absl::IsNotFound(tileset_deleted)) return tileset_deleted;
+
+  const absl::Status texture_deleted = DeleteTexture(texture_id);
+  if (!texture_deleted.ok() && !absl::IsNotFound(texture_deleted)) return texture_deleted;
+  return absl::OkStatus();
 }
 
 std::vector<TerrainRecipe> Api::GetAllTerrainRecipes() const {

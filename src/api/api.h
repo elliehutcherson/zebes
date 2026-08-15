@@ -112,6 +112,17 @@ class Api {
   virtual absl::StatusOr<std::string> CreateTerrainRecipe(TerrainRecipe recipe);
   virtual absl::Status SaveTerrainRecipe(const TerrainRecipe& recipe);
   virtual absl::Status DeleteTerrainRecipe(const std::string& recipe_id);
+  // Removes a generated terrain whole: its recipe, the tileset it produced, and
+  // the artwork behind that tileset.
+  //
+  // The three are one build product with three records, so they go together or
+  // not at all. Deleting only the recipe would leave a tileset nothing can
+  // regenerate, which is the state this exists to stop anyone reaching.
+  //
+  // Refuses, changing nothing, when anything outside the bundle still references
+  // a member -- a level bound to the tileset, or a sprite or parallax layer
+  // naming the artwork.
+  virtual absl::Status DeleteGeneratedTerrain(const std::string& recipe_id);
   virtual std::vector<TerrainRecipe> GetAllTerrainRecipes() const;
   virtual absl::StatusOr<TerrainRecipe*> GetTerrainRecipe(const std::string& recipe_id);
 

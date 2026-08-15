@@ -67,6 +67,7 @@ class MockApi : public Api {
   MOCK_METHOD(absl::StatusOr<std::string>, CreateTerrainRecipe, (TerrainRecipe), (override));
   MOCK_METHOD(absl::Status, SaveTerrainRecipe, (const TerrainRecipe&), (override));
   MOCK_METHOD(absl::Status, DeleteTerrainRecipe, (const std::string&), (override));
+  MOCK_METHOD(absl::Status, DeleteGeneratedTerrain, (const std::string&), (override));
   MOCK_METHOD(std::vector<TerrainRecipe>, GetAllTerrainRecipes, (), (const, override));
   MOCK_METHOD(absl::StatusOr<TerrainRecipe*>, GetTerrainRecipe, (const std::string&), (override));
   MOCK_METHOD(absl::StatusOr<std::optional<TerrainRecipe>>, FindTerrainRecipeForTileset,
