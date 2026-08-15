@@ -1,15 +1,20 @@
 # Deleting an asset something else might be using
 
-**Status: analysis, not implemented.**
+**Status: §§1-8 implemented. §9 steps 1-3 are done; steps 4-5 are not.**
 
-The editor can delete a tileset, a level, a sprite, a collider and a blueprint.
-It cannot delete a texture or a terrain recipe at all: `Api::DeleteTexture`
-(`src/api/api.h:59`) and `Api::DeleteTerrainRecipe` (`:107`) both exist and no UI
-calls either. The only `DeleteTexture` call anywhere in the editor is a rollback
-path when recipe creation fails (`terrain_creation.cc:140`).
+Every delete now refuses when something still references what it would remove,
+and says what. What is still missing is the ability to delete a texture or a
+terrain recipe at all: `Api::DeleteTexture` and `Api::DeleteTerrainRecipe` exist
+and are now safe, but no UI calls either. The only `DeleteTexture` call in the
+editor remains a rollback path when recipe creation fails
+(`terrain_creation.cc:140`).
 
-None of the deletes that do exist check whether anything still references what
-they are removing.
+Bundle deletion (§4, a recipe-owned texture + tileset + recipe going together) is
+also not built. Until it is, removing a generated terrain means deleting the
+tileset first, which unbinds the texture, and then the texture — which the editor
+cannot yet do.
+
+The rest of this document is the analysis the implementation followed.
 
 ## 1. What actually references what
 
@@ -72,6 +77,22 @@ So the axis is **provenance, not type**. A texture that a recipe names is derive
 artwork owned by that recipe. A texture that was imported is authored input that
 anything may reference. The format already distinguishes them; nothing reads the
 distinction yet.
+
+Running the scan over the shipped catalogue makes both cases concrete:
+
+```
+texture of 'lucinda_cave':  2 referrers
+  Tileset 'lucinda_cave' (texture_id)
+  Terrain recipe 'lucinda_cave' (texture_id)     <- the bundle
+
+texture of 'Sunny Tileset': 6 referrers
+  Tileset 'Sunny Tileset' (texture_id)
+  Sprite 'kGrass1' (texture_id)                  <- and four more sprites
+```
+
+The second is the counterexample in shipped data. A sprite-only check would have
+found the five sprites and missed the tileset; assuming the texture belongs to
+the tileset would have done the reverse.
 
 ## 4. The rule
 
@@ -160,15 +181,23 @@ it should still say what it is about to disconnect.
 
 ## 9. Sequence
 
-1. `Api::FindReferrers` plus its tests. No UI, no behaviour change.
-2. Make `DeleteTexture` delete the image with its definition, and clean up the
-   three existing orphans.
-3. Block the deletes that already exist — tileset, sprite, collider, blueprint,
-   tile — on a referrer check.
+1. **Done.** `src/resources/asset_references.{h,cc}` — a pure scan over the
+   loaded definitions, one function per referenced kind.
+2. **Done.** `DeleteTexture` removes the image with its definition. The three
+   orphans were resolved rather than deleted: `samus.png` is the ripped sheet the
+   shipped `samus-*.png` frames were cut from, so it moved to `source_art/` where
+   inputs belong; `arrow.png` and the clouds background are finished single
+   images like `sky_mountains_background` beside them, so they got definitions. A
+   test in `shipped_assets_test` now holds the invariant.
+3. **Done.** Every `Api` delete refuses with its referrer list, and tile deletion
+   is checked through `Api::CheckTileDeletable`. Four narrow "is it used" queries
+   were removed rather than left beside the scan — `BlueprintManager::IsSpriteUsed`
+   and `IsColliderUsed`, `SpriteManager::IsTextureUsed`,
+   `TilesetManager::IsTextureUsed` — because two mechanisms answering one
+   question is how a future delete gets wired to the incomplete one.
 4. Add Delete to the Texture Editor and the Terrain Editor, behind the existing
    `ConfirmPrompt` pattern.
 5. Bundle deletion for a recipe-owned texture + tileset + recipe, per §4.
 
-Steps 1-3 remove the ways a level can currently be broken. Steps 4-5 add the
-capability that is missing. Doing them in that order means the new buttons are
-safe on the day they appear.
+Steps 1-3 removed the ways a level could be broken. Steps 4-5 add the capability
+that is missing, and are safe to build now that the checks are in place.
