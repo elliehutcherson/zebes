@@ -20,6 +20,23 @@ absl::StatusOr<TextureHandle> SdlTextureStore::Load(const std::string& path) {
   return MakeHandle(id);
 }
 
+absl::StatusOr<TextureHandle> SdlTextureStore::LoadFromPixels(int width, int height,
+                                                              absl::Span<const uint8_t> pixels) {
+  const size_t expected = static_cast<size_t>(width) * height * 4;
+  if (width <= 0 || height <= 0 || pixels.size() != expected) {
+    return absl::InvalidArgumentError(absl::StrCat("expected ", expected, " bytes for a ", width,
+                                                   "x", height, " RGBA image, got ",
+                                                   pixels.size()));
+  }
+
+  absl::StatusOr<SDL_Texture*> texture = sdl_.CreateTextureFromPixels(width, height, pixels.data());
+  if (!texture.ok()) return texture.status();
+
+  const uint64_t id = next_id_++;
+  textures_.emplace(id, *texture);
+  return MakeHandle(id);
+}
+
 absl::Status SdlTextureStore::Unload(TextureHandle handle) {
   if (TextureHandleAccess::Owner(handle) != this) {
     return absl::InvalidArgumentError("Texture handle belongs to another resource store");

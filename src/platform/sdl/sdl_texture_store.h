@@ -7,6 +7,7 @@
 #include "SDL_render.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "common/sdl_wrapper.h"
 #include "engine/texture_handle.h"
 #include "resources/texture_resource_store.h"
@@ -19,6 +20,8 @@ class SdlTextureStore : public TextureResourceStore {
   ~SdlTextureStore() override;
 
   absl::StatusOr<TextureHandle> Load(const std::string& path) override;
+  absl::StatusOr<TextureHandle> LoadFromPixels(int width, int height,
+                                               absl::Span<const uint8_t> pixels) override;
   absl::Status Unload(TextureHandle handle) override;
 
  private:

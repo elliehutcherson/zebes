@@ -212,6 +212,36 @@ TEST_F(TextureManagerTest, ReplaceTexturePixelsKeepsIdentityAndReloadsTheRuntime
   EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/textures/generated.png.replacement.png"));
 }
 
+TEST_F(TextureManagerTest, ShowTexturePixelsSwapsTheHandleAndLeavesTheFileAlone) {
+  // The split that lets a derived terrain grow its atlas mid-edit. A cell the
+  // level references must be on screen immediately, but nothing is durable
+  // until the level is saved, so abandoning an edit leaves no artwork behind
+  // that nothing references.
+  const std::vector<uint8_t> original(4 * 4 * 4, 0x22);
+  ASSERT_OK_AND_ASSIGN(const std::string id,
+                       manager_->CreateTextureFromPixels("generated", 4, 4, original));
+  ASSERT_OK_AND_ASSIGN(const TextureHandle handle_before, manager_->GetTextureHandle(id));
+  const std::string image_path = test_dir_ + "/textures/generated.png";
+  const auto written_at = std::filesystem::last_write_time(image_path);
+
+  const std::vector<uint8_t> grown(4 * 4 * 4, 0xDD);
+  ASSERT_TRUE(manager_->ShowTexturePixels(id, 4, 4, grown).ok());
+
+  ASSERT_OK_AND_ASSIGN(const TextureHandle handle_after, manager_->GetTextureHandle(id));
+  EXPECT_NE(handle_after, handle_before) << "the viewport must sample the new artwork";
+  EXPECT_EQ(resources_->unloaded_ids, std::vector<uint64_t>{handle_before.id()});
+  EXPECT_EQ(std::filesystem::last_write_time(image_path), written_at)
+      << "showing artwork must not touch the durable file";
+  ASSERT_EQ(resources_->loaded_pixel_sizes.size(), 1);
+  EXPECT_EQ(resources_->loaded_pixel_sizes.front(), std::make_pair(4, 4));
+}
+
+TEST_F(TextureManagerTest, ShowTexturePixelsRejectsAnUnknownTexture) {
+  const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
+
+  EXPECT_FALSE(manager_->ShowTexturePixels("missing", 4, 4, pixels).ok());
+}
+
 TEST_F(TextureManagerTest, CreateTextureFromPixelsRejectsBadInput) {
   const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
   EXPECT_FALSE(manager_->CreateTextureFromPixels("", 4, 4, pixels).ok());

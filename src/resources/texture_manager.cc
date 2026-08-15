@@ -175,6 +175,24 @@ absl::Status TextureManager::ReplaceTexturePixels(const std::string& id, int wid
   return absl::OkStatus();
 }
 
+absl::Status TextureManager::ShowTexturePixels(const std::string& id, int width, int height,
+                                               absl::Span<const uint8_t> pixels) {
+  if (!textures_.contains(id)) {
+    return absl::NotFoundError(absl::StrCat("Texture with id ", id, " not found."));
+  }
+
+  // Decode-then-swap, as ReplaceTexturePixels does: a rejected image leaves the
+  // live texture alone rather than blanking the viewport.
+  ASSIGN_OR_RETURN(const TextureHandle replacement,
+                   resources_->LoadFromPixels(width, height, pixels));
+
+  if (auto old = handles_.find(id); old != handles_.end() && old->second) {
+    resources_->Unload(old->second).IgnoreError();
+  }
+  handles_[id] = replacement;
+  return absl::OkStatus();
+}
+
 absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
   // Generate GUID
   std::string id = GenerateGuid();

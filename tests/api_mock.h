@@ -18,6 +18,8 @@ class MockApi : public Api {
               (const std::string&, int, int, absl::Span<const uint8_t>), (override));
   MOCK_METHOD(absl::Status, ReplaceTexturePixels,
               (const std::string&, int, int, absl::Span<const uint8_t>), (override));
+  MOCK_METHOD(absl::Status, ShowTexturePixels,
+              (const std::string&, int, int, absl::Span<const uint8_t>), (override));
   MOCK_METHOD(absl::Status, DeleteTexture, (const std::string&), (override));
   MOCK_METHOD(absl::StatusOr<std::vector<Texture>>, GetAllTextures, (), (override));
   MOCK_METHOD(absl::Status, UpdateTexture, (const Texture&), (override));

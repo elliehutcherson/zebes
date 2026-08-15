@@ -48,6 +48,11 @@ class Api {
                                                               absl::Span<const uint8_t> pixels);
   virtual absl::Status ReplaceTexturePixels(const std::string& texture_id, int width, int height,
                                             absl::Span<const uint8_t> pixels);
+  // Makes artwork visible without making it durable. See
+  // TextureManager::ShowTexturePixels: a derived terrain's atlas grows while a
+  // level is painted, and the paint is not saved until the level is.
+  virtual absl::Status ShowTexturePixels(const std::string& texture_id, int width, int height,
+                                         absl::Span<const uint8_t> pixels);
   virtual absl::Status DeleteTexture(const std::string& texture_id);
   virtual absl::StatusOr<std::vector<Texture>> GetAllTextures();
   virtual absl::Status UpdateTexture(const Texture& texture);

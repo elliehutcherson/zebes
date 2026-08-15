@@ -2,10 +2,12 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "resources/texture_resource_store.h"
 
 namespace zebes {
@@ -17,6 +19,12 @@ class FakeTextureResourceStore : public TextureResourceStore {
     return MakeHandle(next_id_++);
   }
 
+  absl::StatusOr<TextureHandle> LoadFromPixels(int width, int height,
+                                               absl::Span<const uint8_t> pixels) override {
+    loaded_pixel_sizes.push_back({width, height});
+    return MakeHandle(next_id_++);
+  }
+
   absl::Status Unload(TextureHandle handle) override {
     if (!handle) return absl::InvalidArgumentError("Invalid texture handle");
     unloaded_ids.push_back(handle.id());
@@ -24,6 +32,7 @@ class FakeTextureResourceStore : public TextureResourceStore {
   }
 
   std::vector<std::string> loaded_paths;
+  std::vector<std::pair<int, int>> loaded_pixel_sizes;
   std::vector<uint64_t> unloaded_ids;
 
  private:

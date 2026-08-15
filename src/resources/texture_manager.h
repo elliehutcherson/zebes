@@ -71,6 +71,19 @@ class TextureManager {
   virtual absl::Status ReplaceTexturePixels(const std::string& id, int width, int height,
                                             absl::Span<const uint8_t> pixels);
 
+  // Shows new artwork without making it durable.
+  //
+  // Derived terrain grows its atlas as a level is painted, and the artwork must
+  // be on screen the moment a cell references it -- a tile the GPU has not seen
+  // renders as a hole. Durability is a separate decision with a separate
+  // trigger: unsaved paint stays unsaved, its artwork included, so abandoning
+  // an edit leaves no tiles behind on disk that nothing references.
+  //
+  // The file keeps whatever it held. Follow with ReplaceTexturePixels to make
+  // the same pixels durable.
+  virtual absl::Status ShowTexturePixels(const std::string& id, int width, int height,
+                                         absl::Span<const uint8_t> pixels);
+
   /**
    * @brief Retrieves a loaded texture by its ID.
    *
