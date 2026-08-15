@@ -40,7 +40,8 @@ Terrain MakeTerrain(int id, std::string name, int tile_id) {
   terrain.id = id;
   terrain.name = std::move(name);
   terrain.scheme = TerrainScheme::kBlob47;
-  terrain.rules.push_back(TerrainRule{.mask = 255, .variants = {TerrainVariant{.tile_id = tile_id}}});
+  terrain.rules.push_back(
+      TerrainRule{.mask = 255, .variants = {TerrainVariant{.tile_id = tile_id}}});
   return terrain;
 }
 
@@ -76,8 +77,9 @@ class TerrainPalettePanelTest : public ::testing::Test {
     ON_CALL(gui_, IsItemClicked(_)).WillByDefault(Return(false));
     ON_CALL(gui_, IsItemHovered(_)).WillByDefault(Return(false));
     ON_CALL(gui_, SameLine(_, _)).WillByDefault(Return());
-    ON_CALL(gui_, CreateScopedId(An<int>()))
-        .WillByDefault(Invoke([this](int id) { return ScopedId(&gui_, id); }));
+    ON_CALL(gui_, CreateScopedId(An<int>())).WillByDefault(Invoke([this](int id) {
+      return ScopedId(&gui_, id);
+    }));
   }
 
   // Selects a tileset without driving the combo, matching how the tile palette
@@ -312,11 +314,11 @@ TEST_F(TerrainPalettePanelTest, ADerivedTerrainOffersShapesItHasNoArtworkForYet)
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
   ASSERT_TRUE(Render().ok());
 
-  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSteepSlopeTopRight_Top);
+  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSteepSlopeTopRightTop);
 
   ASSERT_TRUE(Render().ok());
 
-  EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kSteepSlopeTopRight_Top)
+  EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kSteepSlopeTopRightTop)
       << "a derived terrain can render any shape, so none should be stranded";
 }
 

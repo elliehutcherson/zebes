@@ -33,8 +33,8 @@ struct TilePoint {
 //
 // Ceiling shapes are exact vertical mirrors of their floor counterparts. For
 // the two-tile steep families the mirror also swaps the halves, since flipping
-// a 1x2 unit turns its lower tile into its upper one: kSteepSlopeTopLeft_Bottom
-// mirrors kSteepSlopeBottomLeft_Top, not ..._Bottom.
+// a 1x2 unit turns its lower tile into its upper one: kSteepSlopeTopLeftBottom
+// mirrors kSteepSlopeBottomLeftTop, not ..._Bottom.
 //
 // kNone yields an empty span.
 inline absl::Span<const TilePoint> TileShapePolygon(TileShape shape) {
@@ -84,69 +84,69 @@ inline absl::Span<const TilePoint> TileShapePolygon(TileShape shape) {
     }
 
     // --- Gentle slopes (2:1). Lower spans heights 0 to 1/2, Upper 1/2 to 1. ---
-    case TileShape::kGentleSlopeBottomLeft_Lower: {
+    case TileShape::kGentleSlopeBottomLeftLower: {
       static constexpr TilePoint kPoly[] = {{0, 1}, {1, .5f}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeBottomLeft_Upper: {
+    case TileShape::kGentleSlopeBottomLeftUpper: {
       static constexpr TilePoint kPoly[] = {{0, .5f}, {1, 0}, {1, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeBottomRight_Lower: {
+    case TileShape::kGentleSlopeBottomRightLower: {
       static constexpr TilePoint kPoly[] = {{0, .5f}, {1, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeBottomRight_Upper: {
+    case TileShape::kGentleSlopeBottomRightUpper: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, .5f}, {1, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeTopLeft_Lower: {
+    case TileShape::kGentleSlopeTopLeftLower: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {1, .5f}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeTopLeft_Upper: {
+    case TileShape::kGentleSlopeTopLeftUpper: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {1, 1}, {0, .5f}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeTopRight_Lower: {
+    case TileShape::kGentleSlopeTopRightLower: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {0, .5f}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeTopRight_Upper: {
+    case TileShape::kGentleSlopeTopRightUpper: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {1, .5f}, {0, 1}};
       return kPoly;
     }
 
     // --- Steep slopes (1:2). Bottom rests on the ground, Top stacks above. ---
-    case TileShape::kSteepSlopeBottomLeft_Bottom: {
+    case TileShape::kSteepSlopeBottomLeftBottom: {
       static constexpr TilePoint kPoly[] = {{0, 1}, {.5f, 0}, {1, 0}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeBottomLeft_Top: {
+    case TileShape::kSteepSlopeBottomLeftTop: {
       static constexpr TilePoint kPoly[] = {{.5f, 1}, {1, 0}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeBottomRight_Bottom: {
+    case TileShape::kSteepSlopeBottomRightBottom: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {.5f, 0}, {1, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeBottomRight_Top: {
+    case TileShape::kSteepSlopeBottomRightTop: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {.5f, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeTopLeft_Bottom: {
+    case TileShape::kSteepSlopeTopLeftBottom: {
       static constexpr TilePoint kPoly[] = {{.5f, 0}, {1, 0}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeTopLeft_Top: {
+    case TileShape::kSteepSlopeTopLeftTop: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {1, 1}, {.5f, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeTopRight_Bottom: {
+    case TileShape::kSteepSlopeTopRightBottom: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {.5f, 0}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeTopRight_Top: {
+    case TileShape::kSteepSlopeTopRightTop: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {.5f, 1}, {0, 1}};
       return kPoly;
     }

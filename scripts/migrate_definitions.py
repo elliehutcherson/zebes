@@ -61,14 +61,48 @@ def migrate_level(document: dict) -> bool:
     return changed
 
 
+# The slope enumerators lost the underscore before their final segment when
+# TileShape was brought in line with the kPascalCase constant rule. Derived
+# artwork names a tile "<terrain name> <shape identifier>", so a tileset written
+# before the rename carries the old spelling in tile names and would no longer
+# match what the editor regenerates. The `shape` field is a number and is
+# unaffected.
+SLOPE_IDENTIFIER_RENAMES = {
+    "kGentleSlopeBottomLeft_Lower": "kGentleSlopeBottomLeftLower",
+    "kGentleSlopeBottomLeft_Upper": "kGentleSlopeBottomLeftUpper",
+    "kGentleSlopeBottomRight_Lower": "kGentleSlopeBottomRightLower",
+    "kGentleSlopeBottomRight_Upper": "kGentleSlopeBottomRightUpper",
+    "kGentleSlopeTopLeft_Lower": "kGentleSlopeTopLeftLower",
+    "kGentleSlopeTopLeft_Upper": "kGentleSlopeTopLeftUpper",
+    "kGentleSlopeTopRight_Lower": "kGentleSlopeTopRightLower",
+    "kGentleSlopeTopRight_Upper": "kGentleSlopeTopRightUpper",
+    "kSteepSlopeBottomLeft_Bottom": "kSteepSlopeBottomLeftBottom",
+    "kSteepSlopeBottomLeft_Top": "kSteepSlopeBottomLeftTop",
+    "kSteepSlopeBottomRight_Bottom": "kSteepSlopeBottomRightBottom",
+    "kSteepSlopeBottomRight_Top": "kSteepSlopeBottomRightTop",
+    "kSteepSlopeTopLeft_Bottom": "kSteepSlopeTopLeftBottom",
+    "kSteepSlopeTopLeft_Top": "kSteepSlopeTopLeftTop",
+    "kSteepSlopeTopRight_Bottom": "kSteepSlopeTopRightBottom",
+    "kSteepSlopeTopRight_Top": "kSteepSlopeTopRightTop",
+}
+
+
 def migrate_tileset(document: dict) -> bool:
-    """Materialises collections that used to be omitted when empty.
+    """Materialises collections that used to be omitted when empty, and brings
+    tile names onto the current slope identifier spellings.
 
     An absent list and an empty one always meant the same thing, and offering
     the reader two spellings of one state is what forced it to guess. The writer
     now emits both unconditionally.
     """
     changed = False
+    for tile in document.get("tiles", []):
+        name = tile["name"]
+        for old, new in SLOPE_IDENTIFIER_RENAMES.items():
+            name = name.replace(old, new)
+        if name != tile["name"]:
+            tile["name"] = name
+            changed = True
     if "terrains" not in document:
         document["terrains"] = []
         changed = True

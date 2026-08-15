@@ -43,18 +43,27 @@ using ::zebes::WritePng;
 // in a case below fails instead of quietly rendering a hole.
 absl::StatusOr<TileShape> ShapeFromChar(char c) {
   switch (c) {
-    case '.': return TileShape::kNone;
-    case '#': return TileShape::kFullBlock;
-    case 'h': return TileShape::kHalfBlockBottom;
+    case '.':
+      return TileShape::kNone;
+    case '#':
+      return TileShape::kFullBlock;
+    case 'h':
+      return TileShape::kHalfBlockBottom;
     // 45-degree floor units. '/' rises to the right, '\' rises to the left.
-    case '/': return TileShape::kSlope45BottomLeft;
-    case '\\': return TileShape::kSlope45BottomRight;
+    case '/':
+      return TileShape::kSlope45BottomLeft;
+    case '\\':
+      return TileShape::kSlope45BottomRight;
     // Gentle floor ramp rising to the right: the lower half leads.
-    case 'a': return TileShape::kGentleSlopeBottomLeft_Lower;
-    case 'b': return TileShape::kGentleSlopeBottomLeft_Upper;
+    case 'a':
+      return TileShape::kGentleSlopeBottomLeftLower;
+    case 'b':
+      return TileShape::kGentleSlopeBottomLeftUpper;
     // Steep floor ramp rising to the right, stacked top over bottom.
-    case 't': return TileShape::kSteepSlopeBottomLeft_Top;
-    case 'u': return TileShape::kSteepSlopeBottomLeft_Bottom;
+    case 't':
+      return TileShape::kSteepSlopeBottomLeftTop;
+    case 'u':
+      return TileShape::kSteepSlopeBottomLeftBottom;
     default:
       return absl::InvalidArgumentError(
           absl::StrCat("unknown scene character '", std::string(1, c), "'"));
@@ -119,9 +128,8 @@ absl::Status Render(const std::string& preset_name, const std::string& output_pa
     if (candidate.name == preset_name) preset = &candidate;
   }
   if (preset == nullptr) {
-    return absl::InvalidArgumentError(absl::StrCat("unknown preset '", preset_name,
-                                                   "'; known presets are ",
-                                                   absl::StrJoin(known, ", ")));
+    return absl::InvalidArgumentError(absl::StrCat(
+        "unknown preset '", preset_name, "'; known presets are ", absl::StrJoin(known, ", ")));
   }
 
   // One phase, so a band's shape is what the joins do rather than which phase

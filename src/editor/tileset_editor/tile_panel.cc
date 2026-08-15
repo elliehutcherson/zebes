@@ -13,32 +13,32 @@ namespace {
 // Display strings for TileShape, indexed by numeric value (0..25).
 // Must stay in sync with the TileShape enum in src/objects/tileset.h.
 constexpr const char* kTileShapeNames[] = {
-    "None",                       // 0  kNone
-    "Full Block",                 // 1  kFullBlock
-    "Half Block Bottom",          // 2  kHalfBlockBottom
-    "Half Block Top",             // 3  kHalfBlockTop
-    "Half Block Left",            // 4  kHalfBlockLeft
-    "Half Block Right",           // 5  kHalfBlockRight
-    "Slope 45 Bottom-Left",       // 6  kSlope45BottomLeft
-    "Slope 45 Bottom-Right",      // 7  kSlope45BottomRight
-    "Slope 45 Top-Left",          // 8  kSlope45TopLeft
-    "Slope 45 Top-Right",         // 9  kSlope45TopRight
-    "Gentle Slope BL Lower",      // 10 kGentleSlopeBottomLeft_Lower
-    "Gentle Slope BL Upper",      // 11 kGentleSlopeBottomLeft_Upper
-    "Gentle Slope BR Lower",      // 12 kGentleSlopeBottomRight_Lower
-    "Gentle Slope BR Upper",      // 13 kGentleSlopeBottomRight_Upper
-    "Gentle Slope TL Lower",      // 14 kGentleSlopeTopLeft_Lower
-    "Gentle Slope TL Upper",      // 15 kGentleSlopeTopLeft_Upper
-    "Gentle Slope TR Lower",      // 16 kGentleSlopeTopRight_Lower
-    "Gentle Slope TR Upper",      // 17 kGentleSlopeTopRight_Upper
-    "Steep Slope BL Bottom",      // 18 kSteepSlopeBottomLeft_Bottom
-    "Steep Slope BL Top",         // 19 kSteepSlopeBottomLeft_Top
-    "Steep Slope BR Bottom",      // 20 kSteepSlopeBottomRight_Bottom
-    "Steep Slope BR Top",         // 21 kSteepSlopeBottomRight_Top
-    "Steep Slope TL Bottom",      // 22 kSteepSlopeTopLeft_Bottom
-    "Steep Slope TL Top",         // 23 kSteepSlopeTopLeft_Top
-    "Steep Slope TR Bottom",      // 24 kSteepSlopeTopRight_Bottom
-    "Steep Slope TR Top",         // 25 kSteepSlopeTopRight_Top
+    "None",                   // 0  kNone
+    "Full Block",             // 1  kFullBlock
+    "Half Block Bottom",      // 2  kHalfBlockBottom
+    "Half Block Top",         // 3  kHalfBlockTop
+    "Half Block Left",        // 4  kHalfBlockLeft
+    "Half Block Right",       // 5  kHalfBlockRight
+    "Slope 45 Bottom-Left",   // 6  kSlope45BottomLeft
+    "Slope 45 Bottom-Right",  // 7  kSlope45BottomRight
+    "Slope 45 Top-Left",      // 8  kSlope45TopLeft
+    "Slope 45 Top-Right",     // 9  kSlope45TopRight
+    "Gentle Slope BL Lower",  // 10 kGentleSlopeBottomLeftLower
+    "Gentle Slope BL Upper",  // 11 kGentleSlopeBottomLeftUpper
+    "Gentle Slope BR Lower",  // 12 kGentleSlopeBottomRightLower
+    "Gentle Slope BR Upper",  // 13 kGentleSlopeBottomRightUpper
+    "Gentle Slope TL Lower",  // 14 kGentleSlopeTopLeftLower
+    "Gentle Slope TL Upper",  // 15 kGentleSlopeTopLeftUpper
+    "Gentle Slope TR Lower",  // 16 kGentleSlopeTopRightLower
+    "Gentle Slope TR Upper",  // 17 kGentleSlopeTopRightUpper
+    "Steep Slope BL Bottom",  // 18 kSteepSlopeBottomLeftBottom
+    "Steep Slope BL Top",     // 19 kSteepSlopeBottomLeftTop
+    "Steep Slope BR Bottom",  // 20 kSteepSlopeBottomRightBottom
+    "Steep Slope BR Top",     // 21 kSteepSlopeBottomRightTop
+    "Steep Slope TL Bottom",  // 22 kSteepSlopeTopLeftBottom
+    "Steep Slope TL Top",     // 23 kSteepSlopeTopLeftTop
+    "Steep Slope TR Bottom",  // 24 kSteepSlopeTopRightBottom
+    "Steep Slope TR Top",     // 25 kSteepSlopeTopRightTop
 };
 constexpr int kTileShapeCount = static_cast<int>(std::size(kTileShapeNames));
 
@@ -58,10 +58,9 @@ absl::Status TilePanel::RenderDetails(Tile& tile) {
 
   // Shape combo — indexed directly by the enum's numeric value.
   int shape_index = static_cast<int>(tile.shape);
-  const char* shape_preview =
-      (shape_index >= 0 && shape_index < kTileShapeCount)
-          ? kTileShapeNames[shape_index]
-          : "Unknown";
+  const char* shape_preview = (shape_index >= 0 && shape_index < kTileShapeCount)
+                                  ? kTileShapeNames[shape_index]
+                                  : "Unknown";
   if (ScopedCombo combo = gui_->CreateScopedCombo("Shape", shape_preview); combo) {
     for (int i = 0; i < kTileShapeCount; ++i) {
       bool is_selected = (shape_index == i);

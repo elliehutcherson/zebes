@@ -1,10 +1,9 @@
-#include "objects/tileset.h"
-
 #include <string>
 
 #include "absl/container/flat_hash_set.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "objects/tileset.h"
 
 namespace zebes {
 namespace {
@@ -73,12 +72,12 @@ TEST(TerrainCellKeyTest, AnAllAirNeighbourhoodProjectsToAnEmptyMask) {
 TEST(TerrainCellKeyTest, DebugStringNamesShapesRatherThanNumbers) {
   TerrainCellKey key = GroundKey();
   key.shape = TileShape::kSlope45BottomLeft;
-  key.neighbors[4] = TileShape::kGentleSlopeBottomLeft_Upper;
+  key.neighbors[4] = TileShape::kGentleSlopeBottomLeftUpper;
 
   const std::string described = DebugString(key);
 
   EXPECT_THAT(described, HasSubstr("kSlope45BottomLeft"));
-  EXPECT_THAT(described, HasSubstr("kGentleSlopeBottomLeft_Upper"));
+  EXPECT_THAT(described, HasSubstr("kGentleSlopeBottomLeftUpper"));
 }
 
 }  // namespace

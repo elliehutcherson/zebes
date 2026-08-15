@@ -1902,7 +1902,7 @@
         {
             "id": 60,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeBottomRight_Top",
+            "name": "lucinda_cave kSteepSlopeBottomRightTop",
             "shape": 21,
             "source_x": 96,
             "source_y": 224,
@@ -2001,7 +2001,7 @@
         {
             "id": 71,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeBottomRight_Bottom",
+            "name": "lucinda_cave kSteepSlopeBottomRightBottom",
             "shape": 20,
             "source_x": 192,
             "source_y": 256,
@@ -2010,7 +2010,7 @@
         {
             "id": 72,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeBottomRight_Top",
+            "name": "lucinda_cave kSteepSlopeBottomRightTop",
             "shape": 21,
             "source_x": 224,
             "source_y": 256,
@@ -2028,7 +2028,7 @@
         {
             "id": 74,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeTopLeft_Bottom",
+            "name": "lucinda_cave kSteepSlopeTopLeftBottom",
             "shape": 22,
             "source_x": 32,
             "source_y": 288,
@@ -2037,7 +2037,7 @@
         {
             "id": 75,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeBottomRight_Bottom",
+            "name": "lucinda_cave kSteepSlopeBottomRightBottom",
             "shape": 20,
             "source_x": 64,
             "source_y": 288,
@@ -2046,7 +2046,7 @@
         {
             "id": 76,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeTopLeft_Top",
+            "name": "lucinda_cave kSteepSlopeTopLeftTop",
             "shape": 23,
             "source_x": 96,
             "source_y": 288,
@@ -2064,7 +2064,7 @@
         {
             "id": 78,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeBottomRight_Top",
+            "name": "lucinda_cave kSteepSlopeBottomRightTop",
             "shape": 21,
             "source_x": 160,
             "source_y": 288,
@@ -2073,7 +2073,7 @@
         {
             "id": 79,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeBottomRight_Bottom",
+            "name": "lucinda_cave kSteepSlopeBottomRightBottom",
             "shape": 20,
             "source_x": 192,
             "source_y": 288,
@@ -2082,7 +2082,7 @@
         {
             "id": 80,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeTopRight_Bottom",
+            "name": "lucinda_cave kSteepSlopeTopRightBottom",
             "shape": 24,
             "source_x": 224,
             "source_y": 288,
@@ -2100,7 +2100,7 @@
         {
             "id": 82,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeTopRight_Top",
+            "name": "lucinda_cave kSteepSlopeTopRightTop",
             "shape": 25,
             "source_x": 32,
             "source_y": 320,
@@ -2127,7 +2127,7 @@
         {
             "id": 85,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeTopRight_Top",
+            "name": "lucinda_cave kSteepSlopeTopRightTop",
             "shape": 25,
             "source_x": 128,
             "source_y": 320,
@@ -2145,7 +2145,7 @@
         {
             "id": 87,
             "is_one_way": false,
-            "name": "lucinda_cave kSteepSlopeTopRight_Top",
+            "name": "lucinda_cave kSteepSlopeTopRightTop",
             "shape": 25,
             "source_x": 192,
             "source_y": 320,

@@ -38,31 +38,31 @@ enum TileShape : uint8_t {
   // It takes two adjacent tiles to make one smooth gentle slope.
   // "Lower" means the wedge that starts from 0 height.
   // "Upper" means the wedge that connects to the top of the tile.
-  kGentleSlopeBottomLeft_Lower = 10,
-  kGentleSlopeBottomLeft_Upper = 11,
-  kGentleSlopeBottomRight_Lower = 12,
-  kGentleSlopeBottomRight_Upper = 13,
+  kGentleSlopeBottomLeftLower = 10,
+  kGentleSlopeBottomLeftUpper = 11,
+  kGentleSlopeBottomRightLower = 12,
+  kGentleSlopeBottomRightUpper = 13,
 
   // Ceiling variations of gentle slopes
-  kGentleSlopeTopLeft_Lower = 14,
-  kGentleSlopeTopLeft_Upper = 15,
-  kGentleSlopeTopRight_Lower = 16,
-  kGentleSlopeTopRight_Upper = 17,
+  kGentleSlopeTopLeftLower = 14,
+  kGentleSlopeTopLeftUpper = 15,
+  kGentleSlopeTopRightLower = 16,
+  kGentleSlopeTopRightUpper = 17,
 
   // --- STEEP SLOPES (1x2 Ratio, ~63.4 degrees) ---
   // It takes two vertically stacked tiles to make one steep slope.
   // "Bottom" is the tile resting on the ground.
   // "Top" is the tile above it.
-  kSteepSlopeBottomLeft_Bottom = 18,
-  kSteepSlopeBottomLeft_Top = 19,
-  kSteepSlopeBottomRight_Bottom = 20,
-  kSteepSlopeBottomRight_Top = 21,
+  kSteepSlopeBottomLeftBottom = 18,
+  kSteepSlopeBottomLeftTop = 19,
+  kSteepSlopeBottomRightBottom = 20,
+  kSteepSlopeBottomRightTop = 21,
 
   // Ceiling variations of steep slopes
-  kSteepSlopeTopLeft_Bottom = 22,
-  kSteepSlopeTopLeft_Top = 23,
-  kSteepSlopeTopRight_Bottom = 24,
-  kSteepSlopeTopRight_Top = 25
+  kSteepSlopeTopLeftBottom = 22,
+  kSteepSlopeTopLeftTop = 23,
+  kSteepSlopeTopRightBottom = 24,
+  kSteepSlopeTopRightTop = 25
 };
 
 // Stable identifiers for TileShape, matching the enumerator spellings and
@@ -83,25 +83,25 @@ inline constexpr const char* kTileShapeIdentifiers[] = {
     "kSlope45BottomRight",
     "kSlope45TopLeft",
     "kSlope45TopRight",
-    "kGentleSlopeBottomLeft_Lower",
-    "kGentleSlopeBottomLeft_Upper",
-    "kGentleSlopeBottomRight_Lower",
-    "kGentleSlopeBottomRight_Upper",
-    "kGentleSlopeTopLeft_Lower",
-    "kGentleSlopeTopLeft_Upper",
-    "kGentleSlopeTopRight_Lower",
-    "kGentleSlopeTopRight_Upper",
-    "kSteepSlopeBottomLeft_Bottom",
-    "kSteepSlopeBottomLeft_Top",
-    "kSteepSlopeBottomRight_Bottom",
-    "kSteepSlopeBottomRight_Top",
-    "kSteepSlopeTopLeft_Bottom",
-    "kSteepSlopeTopLeft_Top",
-    "kSteepSlopeTopRight_Bottom",
-    "kSteepSlopeTopRight_Top",
+    "kGentleSlopeBottomLeftLower",
+    "kGentleSlopeBottomLeftUpper",
+    "kGentleSlopeBottomRightLower",
+    "kGentleSlopeBottomRightUpper",
+    "kGentleSlopeTopLeftLower",
+    "kGentleSlopeTopLeftUpper",
+    "kGentleSlopeTopRightLower",
+    "kGentleSlopeTopRightUpper",
+    "kSteepSlopeBottomLeftBottom",
+    "kSteepSlopeBottomLeftTop",
+    "kSteepSlopeBottomRightBottom",
+    "kSteepSlopeBottomRightTop",
+    "kSteepSlopeTopLeftBottom",
+    "kSteepSlopeTopLeftTop",
+    "kSteepSlopeTopRightBottom",
+    "kSteepSlopeTopRightTop",
 };
 static_assert(std::size(kTileShapeIdentifiers) ==
-                  static_cast<size_t>(TileShape::kSteepSlopeTopRight_Top) + 1,
+                  static_cast<size_t>(TileShape::kSteepSlopeTopRightTop) + 1,
               "kTileShapeIdentifiers must name every TileShape");
 
 // Resolves an identifier back to its shape. Returns nullopt for unknown names so
@@ -140,8 +140,8 @@ struct NeighborOffset {
 };
 
 inline constexpr NeighborOffset kNeighborOffsets[kNeighborCount] = {
-    {.dx = 0, .dy = -1},  {.dx = 1, .dy = -1}, {.dx = 1, .dy = 0},  {.dx = 1, .dy = 1},
-    {.dx = 0, .dy = 1},   {.dx = -1, .dy = 1}, {.dx = -1, .dy = 0}, {.dx = -1, .dy = -1},
+    {.dx = 0, .dy = -1}, {.dx = 1, .dy = -1}, {.dx = 1, .dy = 0},  {.dx = 1, .dy = 1},
+    {.dx = 0, .dy = 1},  {.dx = -1, .dy = 1}, {.dx = -1, .dy = 0}, {.dx = -1, .dy = -1},
 };
 
 // Everything a generated tile's appearance depends on, and nothing else.

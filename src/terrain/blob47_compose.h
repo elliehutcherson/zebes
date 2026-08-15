@@ -15,7 +15,7 @@ namespace zebes {
 // through the last steep ceiling variant.
 inline constexpr int kFirstSlopeShape = static_cast<int>(TileShape::kSlope45BottomLeft);
 inline constexpr int kSlopeShapeCount =
-    static_cast<int>(TileShape::kSteepSlopeTopRight_Top) - kFirstSlopeShape + 1;
+    static_cast<int>(TileShape::kSteepSlopeTopRightTop) - kFirstSlopeShape + 1;
 
 // The authored quadrant source. Rows are quadrant positions in Quadrant order;
 // columns are QuadrantState order, repeated once per variant.
