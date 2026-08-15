@@ -70,3 +70,15 @@ target_link_libraries(terrain_recipe_manager
   absl::strings
   nlohmann_json::nlohmann_json
 )
+
+add_library(asset_references asset_references.cc)
+target_link_libraries(asset_references
+  PUBLIC
+  blueprint
+  level
+  sprite
+  tileset
+  terrain_recipe
+  PRIVATE
+  absl::strings
+)

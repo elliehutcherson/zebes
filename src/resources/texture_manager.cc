@@ -328,10 +328,29 @@ absl::Status TextureManager::DeleteTexture(const std::string& id) {
     handles_.erase(handle);
   }
 
-  // Remove JSON file
-  std::string filename = absl::StrCat(it->second->name, "-", id, ".json");
-  std::string absolute_path = GetDefinitionsPath(filename);
-  std::filesystem::remove(absolute_path);
+  // The artwork goes with the definition. Leaving it behind produces a file in
+  // assets/textures/ that no definition names, which is the state the
+  // source_art / textures split exists to prevent: nothing can reach the image,
+  // and the next person cannot tell it apart from art still in use.
+  //
+  // It is never the only copy. An imported texture's image was copied in by
+  // CreateTexture, so the original is wherever it was imported from, and a
+  // generated one is reproducible from its recipe.
+  const std::string image_path = GetImagesPath(it->second->path);
+
+  const std::string filename = absl::StrCat(it->second->name, "-", id, ".json");
+  std::filesystem::remove(GetDefinitionsPath(filename));
+
+  // Removed after the definition, so a failure here leaves an image nothing
+  // names rather than a definition pointing at an image that is gone. The first
+  // is untidy; the second fails every load of the catalogue.
+  std::error_code error;
+  std::filesystem::remove(image_path, error);
+  if (error) {
+    textures_.erase(it);
+    return absl::InternalError(absl::StrCat("removed the texture definition but could not remove ",
+                                            image_path, ": ", error.message()));
+  }
 
   textures_.erase(it);
   return absl::OkStatus();

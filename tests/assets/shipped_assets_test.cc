@@ -180,6 +180,29 @@ TEST(ShippedAssetsTest, EveryShippedColliderLoads) {
   EXPECT_EQ((*manager)->GetAllColliders().size(), DefinitionFileCount("colliders"));
 }
 
+// Every image in assets/textures/ must have a definition naming it.
+//
+// The rule exists because a tileset once referenced a file that had been
+// replaced with unrelated artwork, with nothing to catch it: an image nothing
+// declares is unreachable, and indistinguishable by eye from art still in use.
+// Inputs the tools crop from live in assets/source_art/ and correctly have no
+// definition.
+TEST(ShippedAssetsTest, EveryShippedImageHasADefinitionNamingIt) {
+  absl::flat_hash_set<std::string> declared;
+  for (const auto& [id, path] : TexturePathsById()) {
+    declared.insert(std::filesystem::path(path).filename().string());
+  }
+
+  const std::string images = std::string(kAssetsRoot) + "/textures";
+  for (const std::filesystem::directory_entry& entry :
+       std::filesystem::directory_iterator(images)) {
+    if (!entry.is_regular_file()) continue;
+    const std::string filename = entry.path().filename().string();
+    EXPECT_TRUE(declared.contains(filename))
+        << filename << " is in assets/textures/ but no texture definition names it";
+  }
+}
+
 // A kBlob47 terrain missing even one mask makes the brush fail mid-stroke, so
 // its table has to be complete rather than merely non-empty.
 //

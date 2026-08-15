@@ -162,6 +162,25 @@ TEST_F(TextureManagerTest, DeleteTexture) {
 
   // Check removed from disk
   EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/definitions/textures/del-" + *id + ".json"));
+
+  // The artwork goes with it. A file left in textures/ that no definition names
+  // is unreachable and indistinguishable from art still in use.
+  EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/textures/del.png"));
+}
+
+// Generated artwork is written by the manager rather than copied in, and is
+// deleted on the same terms.
+TEST_F(TextureManagerTest, DeletingGeneratedArtworkRemovesTheImageItWrote) {
+  const std::vector<uint8_t> pixels(2 * 2 * 4, 255);
+  absl::StatusOr<std::string> id = manager_->CreateTextureFromPixels("generated", 2, 2, pixels);
+  ASSERT_TRUE(id.ok()) << id.status();
+  ASSERT_TRUE(std::filesystem::exists(test_dir_ + "/textures/generated.png"));
+
+  ASSERT_TRUE(manager_->DeleteTexture(*id).ok());
+
+  EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/textures/generated.png"));
+  EXPECT_FALSE(
+      std::filesystem::exists(test_dir_ + "/definitions/textures/generated-" + *id + ".json"));
 }
 
 // Generated artwork has no file to import from, so the manager has to write one
