@@ -1,5 +1,7 @@
 CompileFlags:
-  CompilationDatabase: build/
+  # build/ is a stale tree from before the dev preset; the current database is
+  # the one cmake --preset dev writes.
+  CompilationDatabase: build/dev
 
 Diagnostics:
   UnusedIncludes: Strict

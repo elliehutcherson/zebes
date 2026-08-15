@@ -1,8 +1,19 @@
 ---
 # .clang-tidy
 #
-# Not wired into CMake and clang-tidy is not installed. Run it by hand:
-#   clang-tidy -p build/dev src/resources/tileset_manager.cc
+# clang-tidy ships with the Homebrew llvm formula, which is keg-only, so it is
+# not on PATH. Run the whole project with the driver that ships beside it:
+#
+#   /usr/local/opt/llvm/bin/run-clang-tidy -p build/dev \
+#       -extra-arg=-isysroot -extra-arg="$(xcrun --show-sdk-path)" src tests
+#
+# The -isysroot pair is required. The build compiles with Apple's /usr/bin/c++,
+# which locates the SDK implicitly, so CMake records no -isysroot in
+# compile_commands.json; Homebrew's clang-tidy then cannot find libc++ and
+# reports confident nonsense off a half-parsed AST rather than failing outright.
+# Do not try to fix this by setting CMAKE_OSX_SYSROOT: an explicit sysroot also
+# drops Apple clang's implicit /usr/local/include, and SDL_image's libavif and
+# libwebp backends are found only there.
 #
 # Scope: the Google style checks, plus the two readability checks that back
 # rules written down in .claude/rules/cpp-style.md. bugprone-* and modernize-*
@@ -12,6 +23,15 @@ Checks: >
   google-*,
   readability-identifier-naming,
   readability-convert-member-functions-to-static
+
+# Vendored SDL, Abseil, and nlohmann live under include/. Without this the
+# analysis of one .cc file reports ~1700 warnings, essentially all of them
+# theirs.
+HeaderFilterRegex: '/zebes/(src|tests)/'
+# The include filter alone is not enough: stb is reached as
+# src/common/../../include/stb/stb_image.h, which contains /zebes/src/ and so
+# matches. That one path accounted for 741 of 961 findings across src/.
+ExcludeHeaderFilterRegex: '/include/'
 
 CheckOptions:
   # Types
@@ -23,6 +43,13 @@ CheckOptions:
 
   # Functions (Google: PascalCase, which clang-tidy spells CamelCase)
   - { key: readability-identifier-naming.FunctionCase,            value: CamelCase }
+
+  # Google style permits accessors to be named like the variable they expose,
+  # and STL-shaped APIs to use STL spelling: `empty()`, `armed()`,
+  # `has_active_level()`. 83 of those exist in src/. FunctionCase cannot carve
+  # out the exception, so exempt all-lowercase names. Hybrids like
+  # `Get_Tileset` are still caught, since they match neither this nor CamelCase.
+  - { key: readability-identifier-naming.FunctionIgnoredRegexp,   value: '^[a-z][a-z0-9_]*$' }
 
   # Variables
   - { key: readability-identifier-naming.VariableCase,            value: lower_case }
@@ -49,4 +76,8 @@ CheckOptions:
   - { key: readability-identifier-naming.EnumConstantPrefix,      value: k }
 
   - { key: readability-identifier-naming.MacroDefinitionCase,     value: UPPER_CASE }
+
+  # Google style header guards end in an underscore (ZEBES_FOO_BAR_H_), which
+  # UPPER_CASE rejects. Exempt the guard shape only; other macros still checked.
+  - { key: readability-identifier-naming.MacroDefinitionIgnoredRegexp, value: '^[A-Z][A-Z0-9_]*_H_$' }
 ---
