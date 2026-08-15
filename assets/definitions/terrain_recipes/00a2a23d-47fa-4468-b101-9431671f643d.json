@@ -1,0 +1,77 @@
+{
+  "config": {
+    "interior": {
+      "base": {
+        "feature_size": 12.182000160217285,
+        "mottle_coverage": 0.30000001192092896,
+        "mottle_density": 2.5,
+        "relief": 0.550000011920929,
+        "style": 3
+      },
+      "details": {
+        "accent_mode": 1,
+        "density": 2,
+        "family": 4,
+        "margin": 2,
+        "scale": 1,
+        "spacing": 13
+      },
+      "pattern": {
+        "accent_mode": 0,
+        "contrast": 0.699999988079071,
+        "density": 0,
+        "family": 0,
+        "margin": 2,
+        "scale": 1,
+        "spacing": 13
+      }
+    },
+    "material": {
+      "accent_primary": 10148072,
+      "accent_secondary": 12819434,
+      "contrast": 1.0,
+      "hue_shift": 0.05999999865889549,
+      "name": "Cave",
+      "outline": 2433842,
+      "substrate": 1055564,
+      "surface": 8228518,
+      "surface_style": 3
+    },
+    "pixel_profile": 1,
+    "seed": 1234,
+    "supersample": 4,
+    "surface": {
+      "contact_depth": 2,
+      "edge_detail": {
+        "amount": 0.6499999761581421,
+        "clump_size": 5,
+        "family": 0,
+        "highlight": 0.3499999940395355,
+        "lean": 0.0,
+        "length": 4
+      },
+      "highlight_depth": 3,
+      "outline_depth": 1,
+      "ruffle_amplitude": 3.0,
+      "ruffle_density": 2.0,
+      "ruffle_octaves": 1,
+      "ruffle_sharpness": 0.6499999761581421,
+      "shade_depth": 3,
+      "side_depth": 7.0,
+      "texture_amount": 0.44999998807907104,
+      "texture_size": 5.0,
+      "top_depth": 9.0,
+      "underside_depth": 5.0,
+      "wall_darkness": 1.0,
+      "wall_depth": 0
+    },
+    "tile_size": 32,
+    "variant_period": 1
+  },
+  "id": "00a2a23d-47fa-4468-b101-9431671f643d",
+  "name": "lucinda_cave",
+  "schema_version": 3,
+  "terrain_id": 1,
+  "texture_id": "07dfe46c-d1d9-4dc4-b742-536db5818178",
+  "tileset_id": "ad25d175-2e4a-42e4-9b04-4d4b7d21e455"
+}

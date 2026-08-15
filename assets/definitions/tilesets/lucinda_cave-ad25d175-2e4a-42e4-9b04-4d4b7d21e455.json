@@ -1,0 +1,1150 @@
+{
+    "id": "ad25d175-2e4a-42e4-9b04-4d4b7d21e455",
+    "name": "lucinda_cave",
+    "terrains": [
+        {
+            "derived_tiles": [
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 1
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 2
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 3
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 4
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 5
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 6
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 7
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 8
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 9
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 10
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 11
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 12
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        0,
+                        0,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 13
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 14
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 15
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 16
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 17
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 18
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 19
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 20
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 21
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 22
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 23
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 24
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 25
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 26
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 27
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 28
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 29
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 30
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 31
+                },
+                {
+                    "neighbors": [
+                        0,
+                        0,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 32
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 33
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        0
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 34
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 35
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 36
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 37
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 38
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 39
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 40
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 41
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 42
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        1,
+                        1,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 43
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 44
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 45
+                },
+                {
+                    "neighbors": [
+                        1,
+                        0,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 46
+                },
+                {
+                    "neighbors": [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1
+                    ],
+                    "phase": 0,
+                    "shape": 1,
+                    "tile_id": 47
+                }
+            ],
+            "id": 1,
+            "name": "lucinda_cave",
+            "rules": [],
+            "scheme": 1,
+            "shape_tile_ids": [],
+            "solid_outside_level": true,
+            "variant_period": 1
+        }
+    ],
+    "texture_id": "07dfe46c-d1d9-4dc4-b742-536db5818178",
+    "tile_height": 32,
+    "tile_width": 32,
+    "tiles": [
+        {
+            "id": 1,
+            "is_one_way": false,
+            "name": "Mask0_v0",
+            "shape": 1,
+            "source_x": 0,
+            "source_y": 0,
+            "tags": []
+        },
+        {
+            "id": 2,
+            "is_one_way": false,
+            "name": "Mask1_v0",
+            "shape": 1,
+            "source_x": 32,
+            "source_y": 0,
+            "tags": []
+        },
+        {
+            "id": 3,
+            "is_one_way": false,
+            "name": "Mask4_v0",
+            "shape": 1,
+            "source_x": 64,
+            "source_y": 0,
+            "tags": []
+        },
+        {
+            "id": 4,
+            "is_one_way": false,
+            "name": "Mask5_v0",
+            "shape": 1,
+            "source_x": 96,
+            "source_y": 0,
+            "tags": []
+        },
+        {
+            "id": 5,
+            "is_one_way": false,
+            "name": "Mask7_v0",
+            "shape": 1,
+            "source_x": 128,
+            "source_y": 0,
+            "tags": []
+        },
+        {
+            "id": 6,
+            "is_one_way": false,
+            "name": "Mask16_v0",
+            "shape": 1,
+            "source_x": 160,
+            "source_y": 0,
+            "tags": []
+        },
+        {
+            "id": 7,
+            "is_one_way": false,
+            "name": "Mask17_v0",
+            "shape": 1,
+            "source_x": 192,
+            "source_y": 0,
+            "tags": []
+        },
+        {
+            "id": 8,
+            "is_one_way": false,
+            "name": "Mask20_v0",
+            "shape": 1,
+            "source_x": 224,
+            "source_y": 0,
+            "tags": []
+        },
+        {
+            "id": 9,
+            "is_one_way": false,
+            "name": "Mask21_v0",
+            "shape": 1,
+            "source_x": 0,
+            "source_y": 32,
+            "tags": []
+        },
+        {
+            "id": 10,
+            "is_one_way": false,
+            "name": "Mask23_v0",
+            "shape": 1,
+            "source_x": 32,
+            "source_y": 32,
+            "tags": []
+        },
+        {
+            "id": 11,
+            "is_one_way": false,
+            "name": "Mask28_v0",
+            "shape": 1,
+            "source_x": 64,
+            "source_y": 32,
+            "tags": []
+        },
+        {
+            "id": 12,
+            "is_one_way": false,
+            "name": "Mask29_v0",
+            "shape": 1,
+            "source_x": 96,
+            "source_y": 32,
+            "tags": []
+        },
+        {
+            "id": 13,
+            "is_one_way": false,
+            "name": "Mask31_v0",
+            "shape": 1,
+            "source_x": 128,
+            "source_y": 32,
+            "tags": []
+        },
+        {
+            "id": 14,
+            "is_one_way": false,
+            "name": "Mask64_v0",
+            "shape": 1,
+            "source_x": 160,
+            "source_y": 32,
+            "tags": []
+        },
+        {
+            "id": 15,
+            "is_one_way": false,
+            "name": "Mask65_v0",
+            "shape": 1,
+            "source_x": 192,
+            "source_y": 32,
+            "tags": []
+        },
+        {
+            "id": 16,
+            "is_one_way": false,
+            "name": "Mask68_v0",
+            "shape": 1,
+            "source_x": 224,
+            "source_y": 32,
+            "tags": []
+        },
+        {
+            "id": 17,
+            "is_one_way": false,
+            "name": "Mask69_v0",
+            "shape": 1,
+            "source_x": 0,
+            "source_y": 64,
+            "tags": []
+        },
+        {
+            "id": 18,
+            "is_one_way": false,
+            "name": "Mask71_v0",
+            "shape": 1,
+            "source_x": 32,
+            "source_y": 64,
+            "tags": []
+        },
+        {
+            "id": 19,
+            "is_one_way": false,
+            "name": "Mask80_v0",
+            "shape": 1,
+            "source_x": 64,
+            "source_y": 64,
+            "tags": []
+        },
+        {
+            "id": 20,
+            "is_one_way": false,
+            "name": "Mask81_v0",
+            "shape": 1,
+            "source_x": 96,
+            "source_y": 64,
+            "tags": []
+        },
+        {
+            "id": 21,
+            "is_one_way": false,
+            "name": "Mask84_v0",
+            "shape": 1,
+            "source_x": 128,
+            "source_y": 64,
+            "tags": []
+        },
+        {
+            "id": 22,
+            "is_one_way": false,
+            "name": "Mask85_v0",
+            "shape": 1,
+            "source_x": 160,
+            "source_y": 64,
+            "tags": []
+        },
+        {
+            "id": 23,
+            "is_one_way": false,
+            "name": "Mask87_v0",
+            "shape": 1,
+            "source_x": 192,
+            "source_y": 64,
+            "tags": []
+        },
+        {
+            "id": 24,
+            "is_one_way": false,
+            "name": "Mask92_v0",
+            "shape": 1,
+            "source_x": 224,
+            "source_y": 64,
+            "tags": []
+        },
+        {
+            "id": 25,
+            "is_one_way": false,
+            "name": "Mask93_v0",
+            "shape": 1,
+            "source_x": 0,
+            "source_y": 96,
+            "tags": []
+        },
+        {
+            "id": 26,
+            "is_one_way": false,
+            "name": "Mask95_v0",
+            "shape": 1,
+            "source_x": 32,
+            "source_y": 96,
+            "tags": []
+        },
+        {
+            "id": 27,
+            "is_one_way": false,
+            "name": "Mask112_v0",
+            "shape": 1,
+            "source_x": 64,
+            "source_y": 96,
+            "tags": []
+        },
+        {
+            "id": 28,
+            "is_one_way": false,
+            "name": "Mask113_v0",
+            "shape": 1,
+            "source_x": 96,
+            "source_y": 96,
+            "tags": []
+        },
+        {
+            "id": 29,
+            "is_one_way": false,
+            "name": "Mask116_v0",
+            "shape": 1,
+            "source_x": 128,
+            "source_y": 96,
+            "tags": []
+        },
+        {
+            "id": 30,
+            "is_one_way": false,
+            "name": "Mask117_v0",
+            "shape": 1,
+            "source_x": 160,
+            "source_y": 96,
+            "tags": []
+        },
+        {
+            "id": 31,
+            "is_one_way": false,
+            "name": "Mask119_v0",
+            "shape": 1,
+            "source_x": 192,
+            "source_y": 96,
+            "tags": []
+        },
+        {
+            "id": 32,
+            "is_one_way": false,
+            "name": "Mask124_v0",
+            "shape": 1,
+            "source_x": 224,
+            "source_y": 96,
+            "tags": []
+        },
+        {
+            "id": 33,
+            "is_one_way": false,
+            "name": "Mask125_v0",
+            "shape": 1,
+            "source_x": 0,
+            "source_y": 128,
+            "tags": []
+        },
+        {
+            "id": 34,
+            "is_one_way": false,
+            "name": "Mask127_v0",
+            "shape": 1,
+            "source_x": 32,
+            "source_y": 128,
+            "tags": []
+        },
+        {
+            "id": 35,
+            "is_one_way": false,
+            "name": "Mask193_v0",
+            "shape": 1,
+            "source_x": 64,
+            "source_y": 128,
+            "tags": []
+        },
+        {
+            "id": 36,
+            "is_one_way": false,
+            "name": "Mask197_v0",
+            "shape": 1,
+            "source_x": 96,
+            "source_y": 128,
+            "tags": []
+        },
+        {
+            "id": 37,
+            "is_one_way": false,
+            "name": "Mask199_v0",
+            "shape": 1,
+            "source_x": 128,
+            "source_y": 128,
+            "tags": []
+        },
+        {
+            "id": 38,
+            "is_one_way": false,
+            "name": "Mask209_v0",
+            "shape": 1,
+            "source_x": 160,
+            "source_y": 128,
+            "tags": []
+        },
+        {
+            "id": 39,
+            "is_one_way": false,
+            "name": "Mask213_v0",
+            "shape": 1,
+            "source_x": 192,
+            "source_y": 128,
+            "tags": []
+        },
+        {
+            "id": 40,
+            "is_one_way": false,
+            "name": "Mask215_v0",
+            "shape": 1,
+            "source_x": 224,
+            "source_y": 128,
+            "tags": []
+        },
+        {
+            "id": 41,
+            "is_one_way": false,
+            "name": "Mask221_v0",
+            "shape": 1,
+            "source_x": 0,
+            "source_y": 160,
+            "tags": []
+        },
+        {
+            "id": 42,
+            "is_one_way": false,
+            "name": "Mask223_v0",
+            "shape": 1,
+            "source_x": 32,
+            "source_y": 160,
+            "tags": []
+        },
+        {
+            "id": 43,
+            "is_one_way": false,
+            "name": "Mask241_v0",
+            "shape": 1,
+            "source_x": 64,
+            "source_y": 160,
+            "tags": []
+        },
+        {
+            "id": 44,
+            "is_one_way": false,
+            "name": "Mask245_v0",
+            "shape": 1,
+            "source_x": 96,
+            "source_y": 160,
+            "tags": []
+        },
+        {
+            "id": 45,
+            "is_one_way": false,
+            "name": "Mask247_v0",
+            "shape": 1,
+            "source_x": 128,
+            "source_y": 160,
+            "tags": []
+        },
+        {
+            "id": 46,
+            "is_one_way": false,
+            "name": "Mask253_v0",
+            "shape": 1,
+            "source_x": 160,
+            "source_y": 160,
+            "tags": []
+        },
+        {
+            "id": 47,
+            "is_one_way": false,
+            "name": "Mask255_v0",
+            "shape": 1,
+            "source_x": 192,
+            "source_y": 160,
+            "tags": []
+        }
+    ]
+}

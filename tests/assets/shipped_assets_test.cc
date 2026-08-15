@@ -180,14 +180,22 @@ TEST(ShippedAssetsTest, EveryShippedColliderLoads) {
   EXPECT_EQ((*manager)->GetAllColliders().size(), DefinitionFileCount("colliders"));
 }
 
-// A terrain missing even one mask makes the brush fail mid-stroke, so the table
-// has to be complete rather than merely non-empty.
-TEST(ShippedAssetsTest, EveryTerrainIsPaintableForAllFortySevenMasks) {
+// A kBlob47 terrain missing even one mask makes the brush fail mid-stroke, so
+// its table has to be complete rather than merely non-empty.
+//
+// The check is scoped to that scheme because TerrainScheme is a tagged union: a
+// kDerived terrain has no rule table at all, since a mask cannot say that a
+// neighbour is a wedge and the artwork is rendered for the neighbourhood the
+// level actually has. Asserting mask coverage there would demand the very
+// enumeration that scheme exists to avoid.
+TEST(ShippedAssetsTest, EveryBlob47TerrainIsPaintableForAllFortySevenMasks) {
   for (const Tileset& tileset : LoadShippedTilesets()) {
     absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
     ASSERT_TRUE(index.ok()) << "tileset '" << tileset.name << "': " << index.status();
 
     for (const Terrain& terrain : tileset.terrains) {
+      if (terrain.scheme != TerrainScheme::kBlob47) continue;
+
       absl::flat_hash_set<int> covered;
       for (const TerrainRule& rule : terrain.rules) covered.insert(rule.mask);
 
@@ -195,6 +203,32 @@ TEST(ShippedAssetsTest, EveryTerrainIsPaintableForAllFortySevenMasks) {
         EXPECT_TRUE(covered.contains(mask))
             << "tileset '" << tileset.name << "' terrain '" << terrain.name
             << "' has no rule for mask " << static_cast<int>(mask);
+      }
+    }
+  }
+}
+
+// The equivalent completeness check for the other variant. A derived terrain's
+// artwork is resolved on demand, so there is no table to be missing an entry
+// from -- but every tile it has already had rendered must still be in the
+// tileset, or regeneration fails partway with artwork it cannot redraw.
+TEST(ShippedAssetsTest, EveryDerivedTerrainRecordsTilesTheTilesetStillHas) {
+  for (const Tileset& tileset : LoadShippedTilesets()) {
+    absl::flat_hash_set<int> tile_ids;
+    for (const Tile& tile : tileset.tiles) tile_ids.insert(tile.id);
+
+    for (const Terrain& terrain : tileset.terrains) {
+      if (terrain.scheme != TerrainScheme::kDerived) continue;
+
+      EXPECT_TRUE(terrain.rules.empty())
+          << "tileset '" << tileset.name << "' terrain '" << terrain.name
+          << "' is derived but carries a mask-keyed rule table";
+
+      for (const DerivedTile& derived : terrain.derived_tiles) {
+        EXPECT_TRUE(tile_ids.contains(derived.tile_id))
+            << "tileset '" << tileset.name << "' terrain '" << terrain.name
+            << "' records artwork for tile " << derived.tile_id
+            << ", which the tileset no longer has";
       }
     }
   }
