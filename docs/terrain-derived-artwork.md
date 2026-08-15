@@ -158,18 +158,33 @@ Terrain mode gains a second axis. Today the user picks a terrain and the shape
 is implicitly `kFullBlock`; now they pick a terrain **and** a shape, because the
 shape is the authored thing and the artwork follows from it.
 
-What they pick is a **placement unit**, not a `TileShape`. Gentle and steep
-ramps are two cells — two halves of one ramp, side by side or stacked — and a
-half placed without its partner is broken collision rather than a smaller ramp.
-The Tiles palette has always exposed the halves separately as `Slope10`,
-`Slope11` and so on, so that failure is reachable today; offering units removes
-it. Twenty slope enumerators become about ten things a person means.
+What they pick is a single shape, and painting writes a single cell.
 
-The unit list is a property of the terrain, not a hardcoded table: a `kDerived`
-terrain can render any shape and offers all units, a `kBlob47` terrain offers
-only units whose every cell has authored artwork. A picker can therefore never
-offer a shape that would render nothing, and a future scheme changes the answer
-without touching the UI.
+An earlier draft made a gentle ramp one two-cell stamp, on the theory that a
+half placed without its partner was broken collision. It is not, and the stamp
+would have made a real arrangement unreachable. The pieces compose because their
+edge heights line up: a gentle ramp's lower half ends at half tile height, a
+flat half block sits at half tile height across its whole width, and the upper
+half starts there. So
+
+    lower half -> half block -> half block -> upper half
+
+is one continuous surface with a landing in the middle. Stamping pairs would
+have forbidden it to prevent something that was never damage in the first place
+— a lone lower half is a ramp up to a half-height ledge, which is a level
+feature.
+
+Nothing here can leave the level broken, and that is a consequence of the rest
+of this design rather than a rule enforced by the palette. Artwork is rendered
+from the neighbourhood that actually exists, so whatever is placed is drawn
+correctly; collision is whatever was placed. There is no state where the two
+disagree, which is the only thing "broken" could have meant.
+
+The choice list is a property of the terrain rather than a hardcoded table: a
+`kDerived` terrain renders any shape and offers all of them, a `kBlob47` terrain
+offers only shapes it holds artwork for. A palette can therefore never offer a
+piece that would render nothing, and a future scheme changes the answer without
+touching the UI.
 
 **Exact tile placement stays.** Tiles mode is unchanged and remains the escape
 hatch for the case the rules do not cover — the same split Tiled, Godot and LDtk
@@ -179,7 +194,7 @@ all keep, and for the same reason.
 guesses at intent, which is the exact class of thing this phase removes.
 
 Deferred deliberately, so this phase stays an architecture change: a Shift+wheel
-accelerator to cycle units over the viewport (plain wheel is zoom and `Canvas`
+accelerator to cycle shapes over the viewport (plain wheel is zoom and `Canvas`
 claims it via `SetItemKeyOwner`), and any grouping of derived tiles in the Tiles
 palette.
 
@@ -204,7 +219,7 @@ The point of the phase. None of this is left behind "for now".
 | `TerrainRenderer::RenderShapeTile` | Rendering from an inferred neighbourhood |
 | The pre-baked slope block in `GenerateBlob47Atlas` | Enumerated slopes ahead of demand |
 | `TerrainIndex::FindPaintableByTileId` and the paintable/member split | Marked tiles the brush must not rewrite, which derived artwork makes safe |
-| The `SlopePair` table private to `terrain_generator.cc` | Moves to `terrain_placement`, where placement units need the same pairing |
+| The `SlopePair` table private to `terrain_generator.cc` | Only `ApplyPartner` used it, and nothing replaces it: the halves of a ramp are placed independently and rendered against whatever is actually beside them |
 | The shape-range check in `ParseManifestSlopes` | Half-blocks become expressible for free |
 | Slope phasing as a known limitation | Phase is in the key; the limitation dissolves |
 

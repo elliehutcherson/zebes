@@ -20,126 +20,68 @@ absl::flat_hash_set<TileShape> EveryShape() {
   return shapes;
 }
 
-std::vector<std::string> NamesOf(const std::vector<TerrainPlacementUnit>& units) {
+std::vector<std::string> NamesOf(const std::vector<TerrainShapeChoice>& choices) {
   std::vector<std::string> names;
-  for (const TerrainPlacementUnit& unit : units) names.push_back(unit.name);
+  for (const TerrainShapeChoice& choice : choices) names.push_back(choice.name);
   return names;
 }
 
-TEST(TerrainPlacementTest, EveryShapeBelongsToExactlyOneUnit) {
-  // The guard that keeps this future-proof. Adding a TileShape without giving
-  // it a placement unit leaves it unreachable from the palette, and adding it
-  // to two units makes which one you get depend on iteration order. Both fail
-  // here rather than in someone's level.
-  std::set<TileShape> claimed;
-  for (const TerrainPlacementUnit& unit : AllTerrainPlacementUnits()) {
-    for (const TileShape cell : unit.cells) {
-      EXPECT_NE(cell, TileShape::kNone) << "unit '" << unit.name << "' claims an empty cell";
-      EXPECT_TRUE(claimed.insert(cell).second)
-          << kTileShapeIdentifiers[static_cast<size_t>(cell)] << " is claimed twice";
-    }
+TEST(TerrainPlacementTest, EveryShapeIsOfferedExactlyOnce) {
+  // The guard that keeps this honest as shapes are added. A TileShape with no
+  // entry is unreachable from the palette; one with two entries makes which you
+  // get depend on iteration order. Both fail here rather than in someone's
+  // level.
+  std::set<TileShape> offered;
+  for (const TerrainShapeChoice& choice : AllTerrainShapeChoices()) {
+    EXPECT_NE(choice.shape, TileShape::kNone) << "air is not paintable";
+    EXPECT_FALSE(choice.name.empty());
+    EXPECT_TRUE(offered.insert(choice.shape).second)
+        << kTileShapeIdentifiers[static_cast<size_t>(choice.shape)] << " is offered twice";
   }
 
   for (int i = 1; i <= static_cast<int>(TileShape::kSteepSlopeTopRight_Top); ++i) {
-    const TileShape shape = static_cast<TileShape>(i);
-    EXPECT_TRUE(claimed.contains(shape))
-        << kTileShapeIdentifiers[i] << " has no placement unit and cannot be placed";
+    EXPECT_TRUE(offered.contains(static_cast<TileShape>(i)))
+        << kTileShapeIdentifiers[i] << " cannot be painted";
   }
 }
 
-TEST(TerrainPlacementTest, ACellCountAlwaysMatchesTheUnitsFootprint) {
-  for (const TerrainPlacementUnit& unit : AllTerrainPlacementUnits()) {
-    EXPECT_GT(unit.width, 0) << unit.name;
-    EXPECT_GT(unit.height, 0) << unit.name;
-    EXPECT_EQ(unit.cells.size(), static_cast<size_t>(unit.width) * unit.height) << unit.name;
-    EXPECT_FALSE(unit.name.empty());
-  }
-}
+TEST(TerrainPlacementTest, EachHalfOfATwoCellRampIsItsOwnChoice) {
+  // The two halves are placed separately on purpose. Stamping both at once
+  // would make a ramp with a landing in the middle unreachable -- lower half,
+  // flat half blocks, upper half -- and that arrangement is continuous because
+  // every one of those pieces meets its neighbour at half tile height.
+  const std::vector<std::string> names = NamesOf(ShapeChoicesWithin(EveryShape()));
 
-TEST(TerrainPlacementTest, GentleRampsAreTwoCellsWideAndSteepRampsTwoTall) {
-  // The reason units exist at all: these are one thing the author places, not
-  // two things they have to remember to pair up.
-  for (const TerrainPlacementUnit& unit : AllTerrainPlacementUnits()) {
-    if (unit.name.find("Gentle") == 0) {
-      EXPECT_EQ(unit.width, 2) << unit.name;
-      EXPECT_EQ(unit.height, 1) << unit.name;
-    }
-    if (unit.name.find("Steep") == 0) {
-      EXPECT_EQ(unit.width, 1) << unit.name;
-      EXPECT_EQ(unit.height, 2) << unit.name;
-    }
-  }
+  EXPECT_THAT(names, Contains("Gentle floor, up to the right, lower half"));
+  EXPECT_THAT(names, Contains("Gentle floor, up to the right, upper half"));
+  EXPECT_THAT(names, Contains("Half block, floor"));
 }
 
 TEST(TerrainPlacementTest, ADerivedTerrainOffersTheWholeCatalogue) {
-  const std::vector<TerrainPlacementUnit> units = PlacementUnitsWithin(EveryShape());
-
-  EXPECT_EQ(units.size(), AllTerrainPlacementUnits().size());
+  EXPECT_EQ(ShapeChoicesWithin(EveryShape()).size(), AllTerrainShapeChoices().size());
 }
 
 TEST(TerrainPlacementTest, ATerrainWithOnlyBlocksOffersOnlyTheBlock) {
-  // What a blob-47 terrain with no slope artwork can place.
-  const std::vector<TerrainPlacementUnit> units =
-      PlacementUnitsWithin({TileShape::kFullBlock});
+  // What a blob-47 terrain with no slope artwork can paint.
+  const std::vector<TerrainShapeChoice> choices = ShapeChoicesWithin({TileShape::kFullBlock});
 
-  ASSERT_EQ(units.size(), 1);
-  EXPECT_EQ(units.front().name, "Block");
-  EXPECT_EQ(units.front().cells, std::vector<TileShape>{TileShape::kFullBlock});
+  ASSERT_EQ(choices.size(), 1);
+  EXPECT_EQ(choices.front().shape, TileShape::kFullBlock);
+  EXPECT_EQ(choices.front().name, "Block");
 }
 
-TEST(TerrainPlacementTest, ARampMissingOneHalfIsNotOfferedAtAll) {
-  // All or nothing. Offering a ramp whose second cell has no artwork would let
-  // the author place collision geometry with a hole in its picture.
-  absl::flat_hash_set<TileShape> partial = {
-      TileShape::kFullBlock,
-      TileShape::kGentleSlopeBottomLeft_Lower,
-  };
+TEST(TerrainPlacementTest, AShapeWithNoArtworkIsNotOffered) {
+  const std::vector<std::string> names = NamesOf(ShapeChoicesWithin(
+      {TileShape::kFullBlock, TileShape::kGentleSlopeBottomLeft_Lower}));
 
-  const std::vector<TerrainPlacementUnit> units = PlacementUnitsWithin(partial);
-
-  EXPECT_THAT(NamesOf(units), Not(Contains("Gentle floor, up to the right")));
-  EXPECT_THAT(NamesOf(units), Contains("Block"));
+  EXPECT_THAT(names, Contains("Gentle floor, up to the right, lower half"));
+  EXPECT_THAT(names, Not(Contains("Gentle floor, up to the right, upper half")));
 }
 
-TEST(TerrainPlacementTest, BothHalvesPresentOffersTheRamp) {
-  absl::flat_hash_set<TileShape> complete = {
-      TileShape::kGentleSlopeBottomLeft_Lower,
-      TileShape::kGentleSlopeBottomLeft_Upper,
-  };
-
-  EXPECT_THAT(NamesOf(PlacementUnitsWithin(complete)),
-              Contains("Gentle floor, up to the right"));
-}
-
-TEST(TerrainPlacementTest, AGentleRampsLowerHalfLeadsWhenItRisesToTheRight) {
-  // Pinning the orientation, because it is the one thing here that cannot be
-  // derived from the names and is easy to mirror by accident.
-  for (const TerrainPlacementUnit& unit : AllTerrainPlacementUnits()) {
-    if (unit.name != "Gentle floor, up to the right") continue;
-
-    EXPECT_EQ(unit.At(0, 0), TileShape::kGentleSlopeBottomLeft_Lower);
-    EXPECT_EQ(unit.At(1, 0), TileShape::kGentleSlopeBottomLeft_Upper);
-    return;
-  }
-  FAIL() << "the catalogue has no gentle floor ramp rising to the right";
-}
-
-TEST(TerrainPlacementTest, ASteepRampStacksItsTopHalfAbove) {
-  for (const TerrainPlacementUnit& unit : AllTerrainPlacementUnits()) {
-    if (unit.name != "Steep floor, up to the right") continue;
-
-    EXPECT_EQ(unit.At(0, 0), TileShape::kSteepSlopeBottomLeft_Top);
-    EXPECT_EQ(unit.At(0, 1), TileShape::kSteepSlopeBottomLeft_Bottom);
-    return;
-  }
-  FAIL() << "the catalogue has no steep floor ramp rising to the right";
-}
-
-TEST(TerrainPlacementTest, ReadingOutsideAUnitIsAir) {
-  const TerrainPlacementUnit& block = AllTerrainPlacementUnits().front();
-
-  EXPECT_EQ(block.At(1, 0), TileShape::kNone);
-  EXPECT_EQ(block.At(0, -1), TileShape::kNone);
+TEST(TerrainPlacementTest, TheCatalogueLeadsWithTheBlock) {
+  // The overwhelmingly common choice should not need hunting for.
+  ASSERT_FALSE(AllTerrainShapeChoices().empty());
+  EXPECT_EQ(AllTerrainShapeChoices().front().shape, TileShape::kFullBlock);
 }
 
 }  // namespace
