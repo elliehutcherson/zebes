@@ -6,6 +6,7 @@
 #include "common/config.h"
 #include "engine/texture_handle.h"
 #include "objects/texture.h"
+#include "resources/asset_references.h"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
 #include "resources/level_manager.h"
@@ -127,6 +128,26 @@ class Api {
         terrain_recipe_manager_(nullptr) {}
 
  private:
+  // Every catalogue a reference can live in, read once for one deletion check.
+  //
+  // Owned rather than viewed because the managers hand back copies: AssetCatalog
+  // holds references, so something has to keep the vectors alive for the length
+  // of the scan.
+  struct CatalogSnapshot {
+    std::vector<Tileset> tilesets;
+    std::vector<Sprite> sprites;
+    std::vector<Blueprint> blueprints;
+    std::vector<Level> levels;
+    std::vector<TerrainRecipe> recipes;
+
+    AssetCatalog View() const;
+  };
+
+  // Reads every catalogue. Only sound because LoadAll* reports the files it
+  // could not read: a catalogue with silent holes would let a scan approve
+  // deleting something the unreadable definition still references.
+  CatalogSnapshot SnapshotCatalog();
+
   EngineConfig& config_;
   TextureManager* texture_manager_;
   SpriteManager* sprite_manager_;

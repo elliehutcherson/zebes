@@ -19,7 +19,6 @@ class SpriteManagerMock : public SpriteManager {
   MOCK_METHOD(absl::Status, SaveSprite, (Sprite sprite), (override));
   MOCK_METHOD(absl::StatusOr<Sprite*>, GetSprite, (const std::string& id), (override));
   MOCK_METHOD(absl::Status, DeleteSprite, (const std::string& id), (override));
-  MOCK_METHOD(bool, IsTextureUsed, (const std::string& texture_id), (const, override));
   MOCK_METHOD(std::vector<Sprite>, GetAllSprites, (), (const, override));
 };
 

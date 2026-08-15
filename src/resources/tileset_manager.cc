@@ -471,11 +471,4 @@ std::vector<Tileset> TilesetManager::GetAllTilesets() const {
   return tilesets;
 }
 
-bool TilesetManager::IsTextureUsed(const std::string& texture_id) const {
-  for (const auto& [id, tileset] : tilesets_) {
-    if (tileset->texture_id == texture_id) return true;
-  }
-  return false;
-}
-
 }  // namespace zebes

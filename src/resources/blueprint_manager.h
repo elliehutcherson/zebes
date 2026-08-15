@@ -61,16 +61,6 @@ class BlueprintManager {
    */
   virtual std::vector<Blueprint> GetAllBlueprints() const;
 
-  /**
-   * @brief Checks if a sprite is used by any blueprint.
-   */
-  virtual bool IsSpriteUsed(const std::string& sprite_id) const;
-
-  /**
-   * @brief Checks if a collider is used by any blueprint.
-   */
-  virtual bool IsColliderUsed(const std::string& collider_id) const;
-
  protected:
   explicit BlueprintManager(std::string root_path);
 

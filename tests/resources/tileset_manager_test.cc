@@ -210,18 +210,6 @@ TEST_F(TilesetManagerTest, GetAllTilesets) {
   EXPECT_EQ(all.size(), 2);
 }
 
-// --- IsTextureUsed ---
-
-TEST_F(TilesetManagerTest, IsTextureUsed_True) {
-  ASSERT_OK(manager_->CreateTileset(Tileset{.name = "T", .texture_id = "shared-tex"}));
-  EXPECT_TRUE(manager_->IsTextureUsed("shared-tex"));
-}
-
-TEST_F(TilesetManagerTest, IsTextureUsed_False) {
-  ASSERT_OK(manager_->CreateTileset(Tileset{.name = "T", .texture_id = "other-tex"}));
-  EXPECT_FALSE(manager_->IsTextureUsed("nonexistent-tex"));
-}
-
 // --- CreateTileset Validation ---
 
 TEST_F(TilesetManagerTest, CreateTileset_EmptyName_Fails) {

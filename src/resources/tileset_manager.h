@@ -71,11 +71,6 @@ class TilesetManager {
    */
   virtual std::vector<Tileset> GetAllTilesets() const;
 
-  /**
-   * @brief Returns true if any loaded tileset references the given texture ID.
-   */
-  virtual bool IsTextureUsed(const std::string& texture_id) const;
-
  protected:
   explicit TilesetManager(std::string root_path);
 

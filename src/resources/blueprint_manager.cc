@@ -199,22 +199,4 @@ std::vector<Blueprint> BlueprintManager::GetAllBlueprints() const {
   return blueprints;
 }
 
-bool BlueprintManager::IsSpriteUsed(const std::string& sprite_id) const {
-  for (const auto& [id, blueprint] : blueprints_) {
-    for (const auto& state : blueprint->states) {
-      if (state.sprite_id == sprite_id) return true;
-    }
-  }
-  return false;
-}
-
-bool BlueprintManager::IsColliderUsed(const std::string& collider_id) const {
-  for (const auto& [id, blueprint] : blueprints_) {
-    for (const auto& state : blueprint->states) {
-      if (state.collider_id == collider_id) return true;
-    }
-  }
-  return false;
-}
-
 }  // namespace zebes

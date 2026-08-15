@@ -2,8 +2,24 @@
 
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
+#include "common/status_macros.h"
 
 namespace zebes {
+namespace {
+
+// Turns a non-empty referrer list into the refusal the user sees.
+//
+// Deleting is blocked rather than cascaded: a dangling reference does not
+// degrade a level, it stops the viewport rendering it at all, and which of the
+// two the user wants is not a decision this layer can make for them. The message
+// names every referrer because the whole point is telling them what to change.
+absl::Status RefuseIfReferenced(std::string_view subject,
+                                const std::vector<AssetReference>& referrers) {
+  if (referrers.empty()) return absl::OkStatus();
+  return absl::FailedPreconditionError(DescribeBlockedDeletion(subject, referrers));
+}
+
+}  // namespace
 
 absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
   if (options.config == nullptr) {
@@ -88,9 +104,9 @@ absl::Status Api::UpdateTexture(const Texture& texture) {
 }
 
 absl::Status Api::DeleteTexture(const std::string& texture_id) {
-  if (sprite_manager_->IsTextureUsed(texture_id)) {
-    return absl::FailedPreconditionError("Texture is currently in use by a sprite.");
-  }
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("texture '", texture_id, "'"),
+                                     FindTextureReferrers(catalog.View(), texture_id)));
   return texture_manager_->DeleteTexture(texture_id);
 }
 
@@ -112,10 +128,24 @@ absl::StatusOr<std::string> Api::CreateSprite(Sprite sprite) {
 
 absl::Status Api::UpdateSprite(Sprite sprite) { return sprite_manager_->SaveSprite(sprite); }
 
+Api::CatalogSnapshot Api::SnapshotCatalog() {
+  return CatalogSnapshot{
+      .tilesets = tileset_manager_->GetAllTilesets(),
+      .sprites = sprite_manager_->GetAllSprites(),
+      .blueprints = blueprint_manager_->GetAllBlueprints(),
+      .levels = level_manager_->GetAllLevels(),
+      .recipes = terrain_recipe_manager_->GetAllRecipes(),
+  };
+}
+
+AssetCatalog Api::CatalogSnapshot::View() const {
+  return AssetCatalog{tilesets, sprites, blueprints, levels, recipes};
+}
+
 absl::Status Api::DeleteSprite(const std::string& sprite_id) {
-  if (blueprint_manager_->IsSpriteUsed(sprite_id)) {
-    return absl::FailedPreconditionError("Sprite is currently in use by a blueprint.");
-  }
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("sprite '", sprite_id, "'"),
+                                     FindSpriteReferrers(catalog.View(), sprite_id)));
   return sprite_manager_->DeleteSprite(sprite_id);
 }
 
@@ -134,9 +164,9 @@ absl::Status Api::UpdateCollider(Collider collider) {
 }
 
 absl::Status Api::DeleteCollider(const std::string& collider_id) {
-  if (blueprint_manager_->IsColliderUsed(collider_id)) {
-    return absl::FailedPreconditionError("Collider is currently in use by a blueprint.");
-  }
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("collider '", collider_id, "'"),
+                                     FindColliderReferrers(catalog.View(), collider_id)));
   return collider_manager_->DeleteCollider(collider_id);
 }
 
@@ -155,6 +185,9 @@ absl::Status Api::UpdateBlueprint(Blueprint blueprint) {
 }
 
 absl::Status Api::DeleteBlueprint(const std::string& blueprint_id) {
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("blueprint '", blueprint_id, "'"),
+                                     FindBlueprintReferrers(catalog.View(), blueprint_id)));
   return blueprint_manager_->DeleteBlueprint(blueprint_id);
 }
 
@@ -187,6 +220,9 @@ absl::StatusOr<std::string> Api::CreateTileset(Tileset tileset) {
 absl::Status Api::UpdateTileset(Tileset tileset) { return tileset_manager_->SaveTileset(tileset); }
 
 absl::Status Api::DeleteTileset(const std::string& tileset_id) {
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("tileset '", tileset_id, "'"),
+                                     FindTilesetReferrers(catalog.View(), tileset_id)));
   return tileset_manager_->DeleteTileset(tileset_id);
 }
 

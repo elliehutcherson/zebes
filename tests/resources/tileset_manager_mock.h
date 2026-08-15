@@ -20,7 +20,6 @@ class TilesetManagerMock : public TilesetManager {
   MOCK_METHOD(absl::StatusOr<Tileset*>, GetTileset, (const std::string& id), (override));
   MOCK_METHOD(absl::Status, DeleteTileset, (const std::string& id), (override));
   MOCK_METHOD(std::vector<Tileset>, GetAllTilesets, (), (const, override));
-  MOCK_METHOD(bool, IsTextureUsed, (const std::string& texture_id), (const, override));
 };
 
 }  // namespace zebes

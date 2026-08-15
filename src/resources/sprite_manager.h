@@ -59,14 +59,6 @@ class SpriteManager {
   virtual absl::Status DeleteSprite(const std::string& id);
 
   /**
-   * @brief Checks if any sprite is using the given texture ID.
-   *
-   * @param texture_id The ID of the texture to check.
-   * @return true if the texture is used by any sprite, false otherwise.
-   */
-  virtual bool IsTextureUsed(const std::string& texture_id) const;
-
-  /**
    * @brief Returns metadata for all loaded sprites.
    */
   virtual std::vector<Sprite> GetAllSprites() const;
