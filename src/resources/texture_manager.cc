@@ -193,6 +193,14 @@ absl::Status TextureManager::ShowTexturePixels(const std::string& id, int width,
   return absl::OkStatus();
 }
 
+absl::StatusOr<RgbaImage> TextureManager::ReadTexturePixels(const std::string& id) {
+  auto texture = textures_.find(id);
+  if (texture == textures_.end()) {
+    return absl::NotFoundError(absl::StrCat("Texture with id ", id, " not found."));
+  }
+  return ReadPng(GetImagesPath(texture->second->path));
+}
+
 absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
   // Generate GUID
   std::string id = GenerateGuid();

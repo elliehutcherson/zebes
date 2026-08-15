@@ -37,6 +37,21 @@ target_link_libraries(viewport_model
   absl::statusor
 )
 
+add_library(derived_terrain_session
+  derived_terrain_session.cc
+)
+
+target_link_libraries(derived_terrain_session
+  PUBLIC
+  api
+  derived_tile_provider
+  tileset
+  absl::status
+  PRIVATE
+  status_macros
+  absl::strings
+)
+
 add_library(derived_tile_provider
   derived_tile_provider.cc
 )
@@ -147,6 +162,7 @@ target_link_libraries(level_editor
   palette_panel
   parallax_layout
   viewport_tab
+  derived_terrain_session
   api
   ${IMGUI_LIBRARIES}
   absl::status

@@ -34,16 +34,17 @@ int NextTileId(const Tileset& tileset) {
 
 }  // namespace
 
-DerivedTileProvider::DerivedTileProvider(TerrainRenderer renderer, Tileset tileset, RgbaImage atlas,
-                                         TerrainContentIndex content, int columns)
+DerivedTileProvider::DerivedTileProvider(TerrainRenderer renderer, Tileset& tileset,
+                                         RgbaImage atlas, TerrainContentIndex content, int columns)
     : renderer_(std::move(renderer)),
-      tileset_(std::move(tileset)),
+      tileset_(&tileset),
       atlas_(std::move(atlas)),
       content_(std::move(content)),
       columns_(columns) {}
 
 absl::StatusOr<DerivedTileProvider> DerivedTileProvider::Create(TerrainRenderer renderer,
-                                                                Tileset tileset, RgbaImage atlas) {
+                                                                Tileset& tileset,
+                                                                RgbaImage atlas) {
   if (tileset.tile_width <= 0 || tileset.tile_height <= 0) {
     return absl::InvalidArgumentError(absl::StrCat("tileset '", tileset.name, "' has a ",
                                                    tileset.tile_width, "x", tileset.tile_height,
@@ -67,15 +68,15 @@ absl::StatusOr<DerivedTileProvider> DerivedTileProvider::Create(TerrainRenderer 
 
   const int columns = atlas.width / tileset.tile_width;
   ASSIGN_OR_RETURN(TerrainContentIndex content, TerrainContentIndex::Build(tileset, atlas));
-  return DerivedTileProvider(std::move(renderer), std::move(tileset), std::move(atlas),
-                             std::move(content), columns);
+  return DerivedTileProvider(std::move(renderer), tileset, std::move(atlas), std::move(content),
+                             columns);
 }
 
 int DerivedTileProvider::FirstFreeCell() const {
   std::set<int> occupied;
-  for (const Tile& tile : tileset_.tiles) {
-    const int column = tile.source_x / tileset_.tile_width;
-    const int row = tile.source_y / tileset_.tile_height;
+  for (const Tile& tile : tileset_->tiles) {
+    const int column = tile.source_x / tileset_->tile_width;
+    const int row = tile.source_y / tileset_->tile_height;
     occupied.insert(row * columns_ + column);
   }
 
@@ -93,24 +94,24 @@ absl::StatusOr<int> DerivedTileProvider::AppendTile(const Terrain& terrain, Tile
   // Grow by whole rows. The atlas stays a rectangle of cells, so nothing
   // downstream has to know it was ever a different size.
   const int rows_needed = row + 1;
-  const int rows_present = atlas_.height / tileset_.tile_height;
+  const int rows_present = atlas_.height / tileset_->tile_height;
   if (rows_needed > rows_present) {
-    atlas_.height = rows_needed * tileset_.tile_height;
+    atlas_.height = rows_needed * tileset_->tile_height;
     atlas_.pixels.resize(static_cast<size_t>(atlas_.width) * atlas_.height * 4, 0);
   }
 
   RETURN_IF_ERROR(
-      BlitRegion(artwork, atlas_, column * tileset_.tile_width, row * tileset_.tile_height));
+      BlitRegion(artwork, atlas_, column * tileset_->tile_width, row * tileset_->tile_height));
 
-  const int tile_id = NextTileId(tileset_);
-  tileset_.tiles.push_back(Tile{
+  const int tile_id = NextTileId(*tileset_);
+  tileset_->tiles.push_back(Tile{
       .id = tile_id,
       // Named for the geometry, because that is the authored half. Which
       // neighbourhood produced it lives in the key, and a name long enough to
       // hold one would be unreadable in a palette.
       .name = absl::StrCat(terrain.name, " ", kTileShapeIdentifiers[static_cast<size_t>(shape)]),
-      .source_x = column * tileset_.tile_width,
-      .source_y = row * tileset_.tile_height,
+      .source_x = column * tileset_->tile_width,
+      .source_y = row * tileset_->tile_height,
       // The tile carries the geometry that was asked for. This is the link that
       // makes artwork derived from collision rather than the other way round:
       // the level stores a tile ID, and the shape it collides with is whatever

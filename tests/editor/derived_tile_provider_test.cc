@@ -65,8 +65,11 @@ class DerivedTileProviderTest : public ::testing::Test {
     absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(RecipeConfig());
     ASSERT_TRUE(renderer.ok()) << renderer.status();
 
+    // The tileset outlives the provider, which references rather than copies
+    // it: during an edit exactly one tileset may decide what a tile ID means.
+    tileset_ = EmptyDerivedTileset();
     absl::StatusOr<DerivedTileProvider> provider = DerivedTileProvider::Create(
-        std::move(*renderer), EmptyDerivedTileset(), BlankAtlas(/*columns=*/8, /*rows=*/1));
+        std::move(*renderer), tileset_, BlankAtlas(/*columns=*/8, /*rows=*/1));
     ASSERT_TRUE(provider.ok()) << provider.status();
     provider_ = std::make_unique<DerivedTileProvider>(std::move(*provider));
     terrain_ = DerivedTerrain();
@@ -78,6 +81,7 @@ class DerivedTileProviderTest : public ::testing::Test {
     return tile.value_or(-1);
   }
 
+  Tileset tileset_;
   std::unique_ptr<DerivedTileProvider> provider_;
   Terrain terrain_;
 };
@@ -195,7 +199,7 @@ TEST_F(DerivedTileProviderTest, ExistingArtworkIsReusedRatherThanRedrawn) {
   // A second session over the same atlas must recognise what is already there,
   // which is what the content index rebuilt from pixels is for.
   const int first = Resolve(KeyOf(TileShape::kFullBlock, {}));
-  const Tileset grown = provider_->tileset();
+  Tileset grown = provider_->tileset();
   const RgbaImage atlas = provider_->atlas();
 
   absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(RecipeConfig());
@@ -225,9 +229,9 @@ TEST(DerivedTileProviderCreateTest, AnAtlasThatIsNotAWholeNumberOfCellsIsRefused
   RgbaImage ragged = BlankAtlas(8, 1);
   ragged.height += 3;
   ragged.pixels.assign(static_cast<size_t>(ragged.width) * ragged.height * 4, 0);
+  Tileset tileset = EmptyDerivedTileset();
 
-  EXPECT_FALSE(
-      DerivedTileProvider::Create(std::move(*renderer), EmptyDerivedTileset(), ragged).ok());
+  EXPECT_FALSE(DerivedTileProvider::Create(std::move(*renderer), tileset, ragged).ok());
 }
 
 TEST(DerivedTileProviderCreateTest, ARecipeCuttingADifferentCellSizeIsRefused) {

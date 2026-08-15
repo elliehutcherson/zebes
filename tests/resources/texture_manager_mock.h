@@ -25,6 +25,7 @@ class TextureManagerMock : public TextureManager {
   MOCK_METHOD(absl::Status, ShowTexturePixels,
               (const std::string& id, int width, int height, absl::Span<const uint8_t> pixels),
               (override));
+  MOCK_METHOD(absl::StatusOr<RgbaImage>, ReadTexturePixels, (const std::string& id), (override));
   MOCK_METHOD(absl::StatusOr<Texture*>, GetTexture, (const std::string& id), (override));
   MOCK_METHOD(absl::StatusOr<TextureHandle>, GetTextureHandle, (const std::string& id),
               (const, override));

@@ -7,6 +7,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
+#include "common/image_io.h"
 #include "objects/texture.h"
 #include "resources/texture_resource_store.h"
 
@@ -83,6 +84,15 @@ class TextureManager {
   // the same pixels durable.
   virtual absl::Status ShowTexturePixels(const std::string& id, int width, int height,
                                          absl::Span<const uint8_t> pixels);
+
+  // Decodes a texture's artwork back off disk.
+  //
+  // Derived terrain has to know which pictures its atlas already holds before
+  // it can avoid drawing them twice, and the atlas file is the only record of
+  // that between sessions. Reading lives here because resolving a definition's
+  // path against the assets root is this class's job, and a caller doing it
+  // would be a second place that has to agree about where artwork lives.
+  virtual absl::StatusOr<RgbaImage> ReadTexturePixels(const std::string& id);
 
   /**
    * @brief Retrieves a loaded texture by its ID.

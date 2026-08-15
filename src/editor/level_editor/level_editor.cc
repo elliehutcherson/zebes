@@ -109,6 +109,11 @@ void LevelEditor::RefreshLevelCatalog() {
 
 absl::Status LevelEditor::SaveActiveLevel() {
   ASSIGN_OR_RETURN(Level level, level_model_.BuildSaveRequest());
+
+  // Artwork first. A derived terrain's tiles are invented while painting, and a
+  // level naming tiles that are not on disk is a level that will not open.
+  RETURN_IF_ERROR(derived_terrain_.Commit(*api_));
+
   if (level.id.empty()) {
     ASSIGN_OR_RETURN(std::string id, api_->CreateLevel(std::move(level)));
     RETURN_IF_ERROR(level_model_.FinishCreate(id));
@@ -427,26 +432,46 @@ absl::Status LevelEditor::RenderViewport() {
   level->tileset_id = binding.tileset_id;
   RenderTilesetMismatchWarning(*level, binding.rejected_tileset);
 
+  // The tileset the level is bound to, from Api storage: the same object the
+  // viewport resolves for rendering. A derived terrain grows it, so the
+  // session, the index and the viewport must all read one tileset or they
+  // would disagree about which tile IDs exist.
+  Tileset* bound_tileset = nullptr;
+  if (!level->tileset_id.empty()) {
+    ASSIGN_OR_RETURN(bound_tileset, api_->GetTileset(level->tileset_id));
+  }
+
+  // Opened before the index is built, because a derived terrain grows the
+  // tileset and the index has to see every tile that exists.
+  if (bound_tileset != nullptr) {
+    RETURN_IF_ERROR(derived_terrain_.OpenFor(*api_, *bound_tileset));
+  }
+
   // Rebuilt every frame because the tileset's terrains can change in the
-  // Tileset Editor between frames.
+  // Tileset Editor between frames, and because painting a derived terrain adds
+  // tiles the next frame's neighbours must be able to recognise.
   std::optional<TerrainIndex> terrain_index;
   std::optional<int> paint_terrain_id = binding.terrain_id;
-  if (paint_terrain_id.has_value() && terrain_tileset != nullptr) {
-    ASSIGN_OR_RETURN(terrain_index, TerrainIndex::Build(*terrain_tileset));
+  if (paint_terrain_id.has_value() && bound_tileset != nullptr) {
+    ASSIGN_OR_RETURN(terrain_index, TerrainIndex::Build(*bound_tileset));
   }
   if (!terrain_index.has_value()) paint_terrain_id.reset();
 
-  // Owned here rather than inside the viewport because the provider is what a
-  // scheme plugs into: a derived terrain's renders artwork and appends to the
-  // atlas, so it cannot be rebuilt per call the way this one can.
-  std::optional<Blob47TileProvider> terrain_provider;
-  if (terrain_index.has_value()) terrain_provider.emplace(*terrain_index);
+  // Which provider answers is the scheme's whole difference. The authored one
+  // is rebuilt per frame because it holds nothing; the derived one is the
+  // session's, because it holds artwork.
+  std::optional<Blob47TileProvider> authored_provider;
+  TerrainTileProvider* terrain_provider = derived_terrain_.provider();
+  if (terrain_provider == nullptr && terrain_index.has_value()) {
+    authored_provider.emplace(*terrain_index);
+    terrain_provider = &*authored_provider;
+  }
 
   RETURN_IF_ERROR(viewport_tab_->Render({
       .level = level,
       .paint_terrain_id = paint_terrain_id,
       .terrain_index = terrain_index.has_value() ? &*terrain_index : nullptr,
-      .terrain_provider = terrain_provider.has_value() ? &*terrain_provider : nullptr,
+      .terrain_provider = terrain_provider,
       .placement_blueprint = palette_panel_->GetSelectedBlueprint(),
       .selected_entity_id = (selection_.type == SelectionState::Type::kEntity)
                                 ? selection_.entity_id
@@ -472,6 +497,10 @@ absl::Status LevelEditor::RenderViewport() {
               ? std::optional<int>(selection_.layer_index)
               : std::nullopt,
   }));
+
+  // Painting may have rendered artwork the atlas did not hold. Upload it before
+  // the frame ends, or the cells that reference it draw as holes.
+  RETURN_IF_ERROR(derived_terrain_.ShowNewArtwork(*api_));
 
   std::optional<uint64_t> delete_request = viewport_tab_->TakeDeleteRequest();
   if (delete_request.has_value()) {

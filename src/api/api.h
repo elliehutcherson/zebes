@@ -53,6 +53,9 @@ class Api {
   // level is painted, and the paint is not saved until the level is.
   virtual absl::Status ShowTexturePixels(const std::string& texture_id, int width, int height,
                                          absl::Span<const uint8_t> pixels);
+  // Decodes a texture's artwork back off disk. See
+  // TextureManager::ReadTexturePixels.
+  virtual absl::StatusOr<RgbaImage> ReadTexturePixels(const std::string& texture_id);
   virtual absl::Status DeleteTexture(const std::string& texture_id);
   virtual absl::StatusOr<std::vector<Texture>> GetAllTextures();
   virtual absl::Status UpdateTexture(const Texture& texture);

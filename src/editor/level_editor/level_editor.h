@@ -5,6 +5,7 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/gui_interface.h"
+#include "editor/level_editor/derived_terrain_session.h"
 #include "editor/level_editor/level_panel_interface.h"
 #include "editor/level_editor/level_panel_model.h"
 #include "editor/level_editor/palette_panel.h"
@@ -87,6 +88,10 @@ class LevelEditor {
   LevelPanelModel level_model_;
   SelectionState selection_;
   std::optional<std::string> save_error_;
+  // Long-lived on purpose: it carries a content index rebuilt from the atlas
+  // and a memo of everything rendered this session, both of which rebuilding
+  // per frame would throw away.
+  DerivedTerrainSession derived_terrain_;
 };
 
 }  // namespace zebes

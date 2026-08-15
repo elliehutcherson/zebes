@@ -79,6 +79,10 @@ absl::Status Api::ShowTexturePixels(const std::string& texture_id, int width, in
   return texture_manager_->ShowTexturePixels(texture_id, width, height, pixels);
 }
 
+absl::StatusOr<RgbaImage> Api::ReadTexturePixels(const std::string& texture_id) {
+  return texture_manager_->ReadTexturePixels(texture_id);
+}
+
 absl::Status Api::UpdateTexture(const Texture& texture) {
   return texture_manager_->UpdateTexture(texture);
 }
