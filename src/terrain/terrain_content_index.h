@@ -14,11 +14,15 @@ namespace zebes {
 
 // Which tile of an atlas already holds a given picture.
 //
-// Derived terrain artwork is deduplicated by content rather than by key. Two
-// cell keys often render identically -- a ramp meeting a wall and a ramp
-// meeting another ramp measure zero pixels apart -- and encoding that as a rule
-// would be a claim about the renderer needing re-proof every time the renderer
-// changed. Rendering first and comparing the result is true by construction.
+// Derived terrain artwork is deduplicated by content rather than by key. Which
+// keys render alike is a property of the renderer, and encoding it as a rule
+// would be a claim needing re-proof every time the renderer changed. Rendering
+// first and comparing the result is true by construction.
+//
+// Comparison is exact. Two ramps meeting at a peak render two pixels apart in a
+// thousand and still get separate tiles, because the alternative is a threshold
+// -- a number saying how much difference the eye forgives -- and that is the
+// kind of guess this design exists to remove.
 //
 // The index is derived, never stored: it is rebuilt from the atlas at load, so
 // nothing new goes on disk and there is no cache to invalidate. PNG is

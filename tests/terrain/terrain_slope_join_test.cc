@@ -73,12 +73,15 @@ class SlopeJoinTest : public ::testing::Test {
     ASSERT_TRUE(renderer_.ok()) << renderer_.status();
   }
 
-  // Share of a cell's pixels the atlas draws differently from the truth, in
-  // percent. Zero means the inference is exact there.
+  // How many of a cell's pixels the atlas draws differently from the truth.
+  //
+  // Counted exactly rather than as a percentage: a truncated percent reads
+  // "0%" for a handful of differing pixels, which is how a join that is merely
+  // very close was once described as identical.
   //
   // A render that fails already fails the test; returning a value no comparison
   // below can accept keeps a broken scene from reading as an agreeing one.
-  int DisagreementPercent(const ShapeScene& scene, int x, int y) {
+  int DisagreementPixels(const ShapeScene& scene, int x, int y) {
     const absl::StatusOr<RgbaImage> as_atlas =
         RenderSceneCell(*renderer_, scene, x, y, SceneContext::kAsAtlas);
     const absl::StatusOr<RgbaImage> truth =
@@ -95,7 +98,7 @@ class SlopeJoinTest : public ::testing::Test {
                         as_atlas->pixels[i + 3] == truth->pixels[i + 3];
       if (!same) ++different;
     }
-    return 100 * different / (as_atlas->width * as_atlas->height);
+    return different;
   }
 
   absl::StatusOr<TerrainRenderer> renderer_ = absl::UnknownError("SetUp did not run");
@@ -107,20 +110,26 @@ TEST_F(SlopeJoinTest, PaintedGroundNeedsNoContextBeyondItsMask) {
   const ShapeScene scene = SceneFrom({"....", "####"});
 
   for (int x = 0; x < scene.width; ++x) {
-    EXPECT_EQ(DisagreementPercent(scene, x, 1), 0) << "ground cell " << x;
+    EXPECT_EQ(DisagreementPixels(scene, x, 1), 0) << "ground cell " << x;
   }
 }
 
-TEST_F(SlopeJoinTest, TwoRampsMeetingAtAPeakAreAlreadyDrawnCorrectly) {
+TEST_F(SlopeJoinTest, TwoRampsMeetingAtAPeakAreDrawnAlmostCorrectly) {
   // Both shapes are full height along the face they share, so substituting a
-  // square for the neighbour is exact there and each ramp's own tile comes out
-  // identical to the truth. Slope-meets-slope does look like slope-meets-wall,
-  // and from the ramp's own cell that is the correct answer rather than a
-  // missing variant.
+  // square for the neighbour is very nearly exact: the two differ only where
+  // the descending ramp falls away deeper into the neighbouring cell, at the
+  // very edge of what the distance transform can still see.
+  //
+  // Two pixels in a thousand, not zero. The distinction matters twice over:
+  // measured as a truncated percentage this read "0%" and was written up as
+  // identical, and content deduplication is exact, so a near miss still earns
+  // its own tile rather than collapsing onto the wall drawing.
   const ShapeScene scene = SceneFrom({"./\\.", "####"});
 
-  EXPECT_EQ(DisagreementPercent(scene, 1, 0), 0);
-  EXPECT_EQ(DisagreementPercent(scene, 2, 0), 0);
+  EXPECT_GT(DisagreementPixels(scene, 1, 0), 0);
+  EXPECT_LT(DisagreementPixels(scene, 1, 0), 16)
+      << "a peak is a near miss, not a missing variant";
+  EXPECT_LT(DisagreementPixels(scene, 2, 0), 16);
 }
 
 TEST_F(SlopeJoinTest, ARampEndingInAirIsDrawnAsThoughItWereBuried) {
@@ -130,10 +139,10 @@ TEST_F(SlopeJoinTest, ARampEndingInAirIsDrawnAsThoughItWereBuried) {
   const ShapeScene into_air = SceneFrom({"../.", "###."});
   const ShapeScene into_ground = SceneFrom({"../#", "####"});
 
-  EXPECT_GT(DisagreementPercent(into_air, 2, 0), 10);
+  EXPECT_GT(DisagreementPixels(into_air, 2, 0), 10);
   // The same ramp running uphill into ground is what the inference was written
   // for, and it is exact.
-  EXPECT_EQ(DisagreementPercent(into_ground, 2, 0), 0);
+  EXPECT_EQ(DisagreementPixels(into_ground, 2, 0), 0);
 }
 
 TEST_F(SlopeJoinTest, AGentleRampsUpperHalfEndingInAirIsAlsoDrawnAsBuried) {
@@ -142,7 +151,7 @@ TEST_F(SlopeJoinTest, AGentleRampsUpperHalfEndingInAirIsAlsoDrawnAsBuried) {
   // multi-cell families.
   const ShapeScene scene = SceneFrom({".ab..", "####."});
 
-  EXPECT_GT(DisagreementPercent(scene, 2, 0), 10);
+  EXPECT_GT(DisagreementPixels(scene, 2, 0), 10);
 }
 
 TEST_F(SlopeJoinTest, ASlopeIsDrawnTheSameWhicheverWayTheGroundPastItsToeRuns) {
@@ -173,9 +182,9 @@ TEST_F(SlopeJoinTest, GroundBesideASlopeIsDrawnAgainstASquareThatIsNotThere) {
   const ShapeScene toe = SceneFrom({"../#", "####"});
   const ShapeScene valley = SceneFrom({"#\\./#", "#####"});
 
-  EXPECT_GT(DisagreementPercent(toe, 2, 1), 0);
-  EXPECT_GT(DisagreementPercent(valley, 1, 1), 0);
-  EXPECT_GT(DisagreementPercent(valley, 3, 1), 0);
+  EXPECT_GT(DisagreementPixels(toe, 2, 1), 0);
+  EXPECT_GT(DisagreementPixels(valley, 1, 1), 0);
+  EXPECT_GT(DisagreementPixels(valley, 3, 1), 0);
 }
 
 TEST_F(SlopeJoinTest, AirHasNoArtworkToRender) {

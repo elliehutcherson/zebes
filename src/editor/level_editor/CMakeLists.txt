@@ -37,6 +37,25 @@ target_link_libraries(viewport_model
   absl::statusor
 )
 
+add_library(derived_tile_provider
+  derived_tile_provider.cc
+)
+
+target_link_libraries(derived_tile_provider
+  PUBLIC
+  image_io
+  terrain_brush
+  terrain_cell_key
+  terrain_content_index
+  terrain_generator
+  tileset
+  absl::flat_hash_map
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::strings
+)
+
 add_library(terrain_brush
   terrain_brush.cc
 )

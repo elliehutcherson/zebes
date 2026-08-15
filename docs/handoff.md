@@ -214,11 +214,12 @@ settles at full quality, and that settling pass is roughly a one-second hitch at
 ### Terrain features deliberately deferred
 
 - **Slope connectivity.** Measured rather than assumed, and the assumption was
-  wrong: two ramps meeting at a peak are already drawn correctly, because along
-  the face they share both shapes are full height and `AutoContext`'s square
-  substitution is exact there. What is actually wrong is a slope ending at air
-  (16-19% of the tile, drawn as buried interior) and the ground beside any slope
-  (3-11%, and it is a blob tile, so no slope artwork reaches it). Both are
+  wrong: two ramps meeting at a peak are drawn very nearly correctly -- two
+  pixels in a thousand -- because along the face they share both shapes are full
+  height and `AutoContext`'s square substitution is almost exact there. What is
+  actually wrong is a slope ending at air (172 of 1024 pixels, drawn as buried
+  interior) and the ground beside any slope (roughly 50 to 115 pixels, and it is
+  a blob tile, so no slope artwork reaches it). Both are
   symptoms of the lossy atlas key, and
   [`docs/terrain-derived-artwork.md`](terrain-derived-artwork.md) removes the
   cause instead of adding variants. `scripts/render_slope_matrix.cc` reproduces

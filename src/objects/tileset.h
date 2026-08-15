@@ -157,6 +157,12 @@ struct TerrainRule {
 // one never migrates level data.
 enum class TerrainScheme : uint8_t {
   kBlob47 = 0,
+  // Artwork is derived from a recipe rather than authored, so it is rendered
+  // for whatever neighbourhood a level actually contains instead of being
+  // enumerated ahead of time. Such a terrain has no rule table: a mask cannot
+  // express that a neighbour is a wedge, and baking against one is what left a
+  // slope meeting open air drawn as buried interior.
+  kDerived = 1,
 };
 
 // A group of tiles the brush treats as one material. Painting a terrain writes

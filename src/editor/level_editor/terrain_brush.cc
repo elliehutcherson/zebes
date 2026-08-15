@@ -124,8 +124,14 @@ absl::Status TerrainIndex::IndexTerrainTiles(const Terrain& terrain, const Tiles
   for (int tile_id : terrain.member_tile_ids) {
     RETURN_IF_ERROR(ClaimTile(tile_id, terrain, /*paintable=*/false, tileset));
 
-    // A terrain declaring two tiles for one shape leaves which of them a cell
-    // gets to iteration order, so the first wins and the second is refused.
+    // Only a blob-47 terrain resolves a shape to a single authored tile, so
+    // only it can be ambiguous about one. A derived terrain holds many tiles
+    // per shape on purpose -- they differ by neighbourhood, which is the point
+    // -- and resolves by rendering rather than by lookup.
+    if (terrain.scheme != TerrainScheme::kBlob47) continue;
+
+    // Two tiles for one shape would leave which of them a cell gets to the
+    // order of the list, so the first wins and the second is refused.
     const TileShape shape = ShapeOfTile(tile_id);
     auto [entry, inserted] = shape_tiles_.emplace(std::make_pair(terrain.id, shape), tile_id);
     if (!inserted && entry->second != tile_id) {

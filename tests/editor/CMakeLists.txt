@@ -218,6 +218,15 @@ target_link_libraries(viewport_scene_test
 target_include_directories(viewport_scene_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(viewport_scene_test)
 
+add_executable(derived_tile_provider_test derived_tile_provider_test.cc)
+target_link_libraries(derived_tile_provider_test
+  gtest_main
+  derived_tile_provider
+  terrain_mask
+)
+target_include_directories(derived_tile_provider_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(derived_tile_provider_test)
+
 add_executable(terrain_brush_test terrain_brush_test.cc)
 target_link_libraries(terrain_brush_test
   gtest_main

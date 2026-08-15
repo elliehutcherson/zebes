@@ -61,20 +61,29 @@ work this design exists to stop doing.
 
 ### 3.2 Deduplication is by content, not by key
 
-Distinct keys often produce identical pixels — a ramp meeting a wall and a ramp
-meeting another ramp measured at 0% apart. Rather than encode that as a rule,
-**render first and compare the result**:
+Distinct keys sometimes produce identical pixels. Rather than encode which ones
+as a rule, **render first and compare the result**:
 
 1. Compute the key for the cell.
 2. In-memory memo: has this key been rendered this session? If so, reuse.
 3. Otherwise render the tile.
-4. Hash its pixels. If an existing tile in the atlas has that hash, reuse it.
+4. If an existing tile in the atlas holds exactly those pixels, reuse it.
 5. Otherwise append a new tile to the atlas and the tileset.
 
-This is lossless by construction. The peak case costs nothing and needs no
-decision, because two identical images collapse automatically. The ledge case
-produces a genuinely new image, so it gets a tile. Nobody has to be right in
-advance about which is which.
+This is lossless by construction, and nobody has to be right in advance about
+which keys collide.
+
+**Comparison is exact, and a near miss earns its own tile.** Two ramps meeting
+at a peak render two pixels apart in a thousand — very nearly the same picture,
+and not the same picture. They do not collapse.
+
+That is deliberate. An approximate comparison needs a threshold, and a
+threshold is a claim about how much difference the eye forgives: the same kind
+of guess about the renderer that this whole design removes, reintroduced one
+layer down. Paying an occasional extra tile is cheaper than owning that number,
+especially since deduplication is a saving rather than something correctness
+rests on — the atlas is bounded by the neighbourhoods a level contains either
+way.
 
 **The content index is derived, not stored.** At load, the editor hashes each
 tile's rect out of the atlas texture and builds `hash -> tile_id`. PNG is

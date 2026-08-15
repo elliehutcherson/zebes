@@ -188,8 +188,11 @@ absl::Status Report(const TerrainRenderer& renderer, const ShapeScene& scene,
 
         const int different = CountDifferences(as_atlas, truth);
         if (different == 0) continue;
+        // Exact pixel counts, not a percentage. A truncated percent reads "0%"
+        // for a handful of differing pixels, which is how a join that is merely
+        // very close came to be described as identical.
         differing.push_back(absl::StrCat("(", x, ",", y, ")=", std::string(1, join.rows[y][x]), " ",
-                                         100 * different / tile_pixels, "%"));
+                                         different, "/", tile_pixels, "px"));
       }
     }
 
