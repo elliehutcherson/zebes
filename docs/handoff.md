@@ -1,340 +1,223 @@
-# Handoff: procedural terrain
+# Handoff: derived terrain artwork
 
-State of the terrain work as of 2026-08-14, and the things it uncovered.
-Development is on `main`; 559 C++ tests and 21 Python tests pass through
-`scripts/build_and_test.sh`.
+State as of 2026-08-15. Work is on the branch **`terrain-derived-artwork`**,
+eleven commits, **not merged to `main`**. 620 C++ tests and 22 Python tests pass
+through `scripts/build_and_test.sh`.
 
----
-
-## Starting point
-
-Terrain Phase 2/3, the editor UX work, the asset-format invariants and the
-editor-consistency pass are all committed, in that order and separately. The
-tree is ready for Phase 4.
-
-**Outstanding visual check.** Reopen **Autumn Forest** in the Terrain tab and
-confirm the wall treatment on the same dark-material scene used previously.
-Wall darkness no longer subtracts value until it clips to RGB black: it now
-approaches the authored outline colour asymptotically, and the preset was
-retuned from `1.8` to `1.2`. Focused tests pin both endpoints—zero matches the
-substrate and the maximum stays coloured—and a generated visual matrix was
-inspected for the 32px Autumn and 16px Chunky presets across the preview scene
-and all twenty slope shapes. Nothing automated can judge whether it now looks
-right, which is why this is still open.
-
-The editor work is worth walking too, since the model and panel layers are
-tested but no test drives a real window: every tab's delete confirmations and
-greyed-out controls, `Back` prompting only after an edit, double-click to open
-a tileset, a middle-mouse drag in each viewport, a rectangle drag across the
-atlas, and a deliberately failing save in the Sprite tab.
-
-The generated `lucinda_cave` texture, tileset definition and recipe are
-untracked user work. Preserve them; decide separately whether they are a test
-asset worth committing. The recipe has been migrated to schema v3 in place, so
-it still opens.
-
-Next:
-
-1. Perform the Autumn comparison above.
-2. Decide whether the `lucinda_cave` assets belong in their own commit.
-3. The next phase is [`docs/terrain-derived-artwork.md`](terrain-derived-artwork.md).
-   Slope connectivity was scoped as more artwork plus a way to choose it;
-   measuring it first showed the defect is that the atlas is a cache of a pure
-   function keyed on something that cannot represent the function's domain.
-   Generated artwork becomes derived from collision geometry and cached by
-   content. That doc supersedes the slope-connectivity plan and lists what gets
-   deleted rather than kept.
-
-Phase 3's deliberate limitations remain: edge motifs inherit the material's
-surface palette rather than owning a separate tint, and short/dry grass plus
-snow favour upward-facing edges while moss may continue onto walls. Neither
-limitation should be removed by overloading the existing controls; a future
-edge palette or facing-policy control should be explicit recipe state.
+The design document is [`terrain-derived-artwork.md`](terrain-derived-artwork.md).
+It was written before the implementation and parts of it are now behind the
+code; where they disagree, this file is current and the doc needs the update
+listed at the end.
 
 ---
 
-## What was built
+## What this phase was, and why it is not what it started as
 
-A terrain can now be authored procedurally, from inside the editor, and comes
-out the far end as a saved tileset a level can paint with.
+It began as terrain Phase 4: slope-connectivity variants, roughly forty new
+tiles plus a way to choose between them, because slope-meets-slope was believed
+to be drawn as slope-meets-wall.
 
-### The generator
+Measuring it first killed that plan. `scripts/render_slope_matrix.cc` rendered
+every join twice -- as the baked atlas drew it, and against the neighbours
+actually present -- and reported the difference per cell:
 
-`src/terrain/terrain_generator.{h,cc}` renders a whole blob-47 atlas: all 47
-masks for every phase, plus one unit per slope `TileShape`. It rests on two
-ideas, both worth knowing before changing it:
+| Join | Wrong by |
+|---|---|
+| Two ramps meeting at a peak | **2 of 1024 pixels** |
+| A ramp running uphill into ground | 0 |
+| A ramp ending at open air | **172 of 1024** |
+| Ground beside any slope | **50 to 115 of 1024** |
 
-- **The surface is a distance band, not an edge.** Every tile is rendered inside
-  a 3x3 block of its own neighbours, and depth into the solid is measured with a
-  distance transform. A flat top, a 45-degree hypotenuse and a concave notch all
-  get a correct band from identical code, which is why slopes cost almost
-  nothing here.
-- **Band width is modulated by an exactly periodic field**
-  (`src/terrain/terrain_field.{h,cc}`). Two adjacent tiles sample the same phase
-  and therefore agree along their shared border for free. There is no seam
-  bookkeeping anywhere, and `TheBandIsContinuousAcrossATileSeam` in
-  `tests/terrain/terrain_generator_test.cc` is what holds that property down.
+So the peak, the case the phase was scoped around, was already right. What was
+wrong was a slope ending at air -- drawn as buried interior against open sky --
+and the ground beside any slope, which is a *blob* tile and therefore
+unreachable by any amount of slope artwork.
 
-It was ported from a Python prototype rather than kept as a script, because the
-tuning UI had to be in-process: a Python engine behind an ImGui front-end would
-put a venv and a process spawn between every slider drag. The prototype is not
-in the tree.
+Both are the same defect one level down. `TerrainRenderer` is a pure function of
+a cell's shape, its neighbours' shapes and the phase. The atlas was a cache of
+that function keyed on the 47-mask, which cannot say "the neighbour is a wedge"
+or "air is there", so `AutoContext` existed to guess what the key left out.
+Adding join variants would have made the key slightly less lossy and needed
+redoing the next time terrain got richer.
 
-### The editor
-
-`src/editor/terrain_editor/` is a tab in the house 3-column shape: controls at
-0.2, a `Canvas` viewport at 0.6, output at 0.2. **Create** writes the artwork,
-registers its texture and saves a finished tileset, so nothing needs to exist
-first and nothing is left unsaved after. Both ways of making a terrain live
-there — generate one, or import a `compose_blob47` manifest — because both end
-at the same `BuildTerrainCandidate`.
-
-### Scalable generated materials
-
-The follow-up appearance work separates `TerrainMaterial` (artistic intent),
-`TerrainPixelProfile` (chunky 16px, balanced 32px, or detailed 64px policy), and
-`ResolvedTerrainStyle` (validated concrete measurements). The editor now ships
-complete **Cozy Meadow**, **Autumn Forest**, and **Chunky Grass 16** presets
-alongside the original materials, and exposes surface texture, three
-independently configurable interior layers, palette and pixel-profile controls.
-
-Surface coverage is facing-aware. Top, side and underside depths are authored
-independently and blended from the distance-field normal, so diagonal slopes
-inherit the same policy without shape-specific branches. An optional wall
-layer begins behind the contact shadow and has its own depth and darkness; it
-is suppressed on upward-facing ground.
-
-Edge details are a fourth, independent surface concept. Short grass, dry grass,
-moss fringe and snow lip use authored one-dimensional pixel profiles which the
-renderer carries along the local edge tangent and extends inward along its
-normal. Their atlas-global cell grid fits exactly inside the variant period, so
-the rhythm does not reset at tile boundaries. Amount, length, clump size, lean
-and highlight are authorable; compact 16px banks contain simpler gestures than
-the richer 32px/64px banks. Details only recolour solid pixels behind the
-surface band, so no family can change collision alpha.
-
-Wall darkness uses a bounded blend toward the authored outline rather than an
-open-ended shade ramp. The former ramp could drive Autumn Forest's already-dark
-substrate to literal black at ordinary settings. The new mapping preserves its
-warm hue across the full accepted range while keeping zero exactly equal to the
-interior.
-
-Recipe schema v3 stores the facing and edge-detail values. Loading v1 derives
-facing from its old depth/underside-bias line and disables the new wall layer,
-preserving legacy behavior without silently using new defaults. Loading v2
-explicitly disables edge details. Saving either format upgrades it once to v3.
-
-The ruffle field also uses neighbouring whole frequencies for its directional
-terms. The earlier same-frequency construction was seamless but collapsed to a
-single repeated sine along a flat top, creating a regular comb at one-tile
-repeat periods. The revised field remains periodic while forming uneven top
-clumps; the Autumn Forest preset uses a lower density and rounded shape to make
-that behavior visible.
-
-The interior is deliberately split into a continuous base treatment (flat,
-mottle, soil clods or cobbles), a substrate pattern, and semantic details
-(meadow, forest-floor, snow or crystal objects). Substrate choices now include
-pebbles, flecks, crosses, diamonds and a weighted mixed-earth bank inspired by
-`assets/source_art/pixel_32px.png`; amount, spacing and pattern-only contrast are
-independent controls. The latter two layers have separate motif banks and
-cached placements, and the editor hides controls which do not apply to the
-selected families. Compact banks use deliberately smaller motifs for the 16px
-profile instead of scaling down the richer artwork.
-
-Surface and interior texture sample wrapping world-periodic fields. Substrate
-and detail locations are generated independently once over the full variant
-period and clipped into each tile, so neither moves merely because painting a
-neighbour changes the tile's Blob47 mask. Semantic details also preserve
-substrate motifs beneath them. All appearance passes stay inside the existing
-alpha silhouette, preserving the shared artwork/collision boundary.
-
-The first cleanup pass moved material/profile/preset validation into
-`terrain_style`, moved typed and profile-specific motif artwork into
-`terrain_motifs`, and made periodic grids, cellular interiors and both motif
-placement layers renderer-owned reusable state. Discrete surface motifs now fit their
-cell count to the full repeat, so indivisible combinations such as a 96px field
-with roughly 5px scallops do not reset at the atlas wrap. The editor tracks
-preset selection separately from a material name and displays **Custom** after
-any manual visual edit while preserving the selected preset for seed-only
-changes.
-
-### Engine changes it required
-
-- `src/objects/tile_shape_geometry.h` is now the single definition of every
-  `TileShape` polygon, shared by the generator and the editor's collision
-  overlay so drawn artwork and declared geometry cannot drift.
-- `Terrain::variant_period` says how a terrain picks variants: `0` is
-  weighted-random per cell, `P > 0` means the variants are `P x P` phases of one
-  pattern and the cell at `(x, y)` must use phase `(y mod P) * P + (x mod P)`.
-  It is **required** in every tileset definition — written always, read with
-  `.at()` — so a definition that predates it fails loudly rather than being
-  silently reinterpreted.
-- `WritePng` (`src/common/image_io.h`) and
-  `TextureManager::CreateTextureFromPixels` let the editor turn generated pixels
-  into real, registered artwork.
-
-### Bugs fixed on the way
-
-- **Six of the eight steep-slope polygons in `tile_draw.h` were wrong.** Two
-  were the exact complement of the solid region and three were byte-identical
-  copies of floor shapes. Nothing had ever asserted a vertex;
-  `tests/objects/tile_shape_geometry_test.cc` now does, including that every
-  ceiling shape is the exact vertical mirror of its floor counterpart.
-- `kSlope45BottomRight` was wound opposite to every other polygon, which
-  `AddConvexPolyFilled` relies on. Found by the new winding test.
-- The prose at `tileset.h:26` claimed the enumerator names mark the right-angle
-  corner. They mark the end the wedge tapers to. The ASCII art beside it was
-  always correct.
-- A multi-tile ruffle period silently collapsed back to one tile, because
-  rounding density to whole repeats per tile made every frequency a multiple of
-  the tile count. `variant_period = 2` cost 4x the tiles and looked identical to
-  1. Frequencies are now chosen coprime with the period.
-- The interior mottle was a visible polka-dot lattice — a handful of pure
-  sinusoids interfere into a grid. It needed real value noise, now
-  `ValueNoiseField`.
-- The preview's draft/settle heuristic asked `IsItemActive()`, which answers for
-  the *last widget rendered*, not the slider being dragged. It asks
-  `IsAnyItemActive()` now, and the policy lives in `TerrainEditorModel` where a
-  test drives it.
+The phase became: **make the cache key lossless and fill it on demand.**
 
 ---
 
-## Not done
+## What is implemented
 
-### Defaults still need production validation
+### The key and the provider
 
-The Terrain tab has now been exercised interactively while developing the
-appearance controls. It still needs several complete levels built with saved
-recipes before the defaults should be treated as production-proven taste.
+`TerrainCellKey` (`objects/tileset.h`) is a cell's own shape, its eight
+neighbours' shapes and the phase. Nothing is normalized or collapsed. It sits in
+`objects/` because it is serialized and because adjacency -- the `Neighbor` bit
+layout and `kNeighborOffsets` -- is data about tiles rather than an algorithm;
+`terrain_mask.h` keeps only the blob-47 scheme built on top.
 
-Known rough edge to expect: opening the tab draws a draft instantly and then
-settles at full quality, and that settling pass is roughly a one-second hitch at
-32px and quality 4.
+`TerrainTileProvider` (`editor/level_editor/terrain_brush.h`) is the seam a
+scheme plugs into. `Blob47TileProvider` projects the key down to a mask and
+looks it up, which is complete for artwork authored against a mask.
+`DerivedTileProvider` renders on demand.
 
-### Terrain features deliberately deferred
+`ComputeTerrainCellKey` replaced `ComputeTerrainMask` as the brush's primitive;
+the mask survives as that key projected down.
 
-- **Slope connectivity.** Measured rather than assumed, and the assumption was
-  wrong: two ramps meeting at a peak are drawn very nearly correctly -- two
-  pixels in a thousand -- because along the face they share both shapes are full
-  height and `AutoContext`'s square substitution is almost exact there. What is
-  actually wrong is a slope ending at air (172 of 1024 pixels, drawn as buried
-  interior) and the ground beside any slope (roughly 50 to 115 pixels, and it is
-  a blob tile, so no slope artwork reaches it). Both are
-  symptoms of the lossy atlas key, and
-  [`docs/terrain-derived-artwork.md`](terrain-derived-artwork.md) removes the
-  cause instead of adding variants. `scripts/render_slope_matrix.cc` reproduces
-  the measurement and `tests/terrain/terrain_slope_join_test.cc` pins it.
-- **Half-blocks as terrain members.** Dissolved by the same design: once a cell's
-  artwork is derived from its shape there is nothing special about a slope, and
-  the `TileShape` 6-25 range check in `ParseManifestSlopes` goes with it.
-- **Renaming the `kSlope45*` enumerators** so the names match the geometry.
-  `kTileShapeIdentifiers` (`src/objects/tileset.h:70-97`) is a declared tool
-  contract that asset pipelines parse off the command line, so correcting the
-  prose was the right-cost fix. A rename means changing that contract
-  deliberately.
+### Growing an atlas while a level is painted
 
-### Create blocks for seconds with no progress indication
+`DerivedTileProvider` answers in three layers: a session memo on the key, a
+content lookup so a picture already in the atlas is reused whatever asked for
+it, and append -- the only path that grows anything.
 
-The frame simply stops. It is a one-shot authoring action, so this is tolerable,
-but it reads as a hang. A real fix means moving generation off the render
-thread.
+`DerivedTerrainSession` connects that to the editor. It opens from the tileset's
+recipe, uploads artwork the moment a painted cell references it, and writes the
+atlas and tileset only when the level is saved.
 
----
+### Choosing what to paint
 
-## Editor UX debt, cleared
+The terrain palette has a shape picker. Painting writes one shape into one cell.
+`PaintableShapesOf` decides what a terrain can offer: a derived terrain offers
+every shape whether or not artwork exists yet, an authored one offers only what
+its tiles hold.
 
-Found while critiquing the terrain flow, and fixed as its own phase afterwards.
-None of it was caused by the terrain work; all of it bit anyone authoring
-assets.
+### What was deleted
 
-- **Destructive actions confirm in place.** Deleting a tileset or a terrain
-  swaps the button for a named question and a Confirm/Cancel pair, and a pending
-  confirmation is dropped the moment the user does anything else — so a primed
-  Confirm can never land on a target they have since moved away from. A modal
-  was rejected: `GuiInterface` has no `OpenPopup`/`BeginPopupModal`, and growing
-  the interface, `Gui` and `MockGui` for one dialog buys nothing an in-place
-  question does not.
-- **Controls with nothing to act on are disabled**, not enabled-and-silent. The
-  tileset list's `Edit` and `Delete`, and the tile list's `Delete`, use
-  `ScopedDisabled` instead of the old short-circuited
-  `&& model.has_tileset_selection()`.
-- **`Back` asks before discarding unsaved edits.**
-  `TilesetEditorModel::has_unsaved_changes()` compares the tileset being edited
-  against a snapshot taken when it was opened or last saved, which is why
-  editing a field back to its original value correctly reports clean again. It
-  needed defaulted `operator==` on `Tile`, `Terrain`, `TerrainRule`,
-  `TerrainVariant` and `Tileset`.
-- **The Texture tab reports failures in the UI.** The message lives on
-  `TextureEditorModel` rather than the view, so the failure paths are testable
-  without a fake `SdlWrapper`; `TextureEditor::Render` draws the same
-  dismissible banner the tileset editor uses. It clears on the next success and
-  whenever the selection moves, so the banner cannot outlive the attempt it
-  describes.
-- **A new tileset defaults to 32x32**, the size every generated terrain atlas is
-  authored at. The old 16x16 default sliced the wrong grid silently.
-- **Canvas pans on a middle-mouse drag**, at any zoom, in every viewport that
-  embeds `Canvas`. A drag only claims the canvas it started over, because ImGui
-  drag state is global and otherwise every viewport on screen would move
-  together.
-- **Double-clicking a tileset opens it.** Needed one new seam method,
-  `GuiInterface::IsMouseDoubleClicked`.
-- **Rectangle-select adds tiles in bulk.** Dragging across the atlas calls
-  `TilesetEditorModel::AddTilesForRegion`, which skips cells an existing tile
-  already sources from and gives what it adds `kFullBlock` rather than the
-  `kNone` a single `Add` leaves — a screenful of silently non-colliding tiles is
-  the worse default, and a wrong shape is at least visible in the overlay. The
-  gesture is resolved on release, which is the only point at which a click and a
-  drag can be told apart: one cell re-points the selected tile exactly as
-  clicking always did, more than one adds tiles.
-- **`TileChunk` values are tile IDs, not table indices.** The comment on
-  `Tileset` had said otherwise for long enough that it predated the change;
-  `viewport_scene.cc` has always resolved them through a lookup keyed on
-  `Tile::id`.
-
-One item from the original list is deliberately still open: **Create blocks for
-seconds with no progress indication**, above.
+`AutoContext`, `ApplyPartner`, the `SlopePair` table, `RenderShapeTile`, the
+pre-baked slope block in `GenerateBlob47Atlas`, `SceneContext`'s two-mode scene
+rendering, and `TerrainIndex`'s paintable/member split.
 
 ---
 
-## Debt cleared afterwards
+## Design choices worth knowing
 
-Two further passes, prompted by asking what "a clean repo" would mean.
+**Deduplication is by content, and exact.** Two keys that render identically
+share a tile, discovered by comparing pixels rather than by a rule asserting
+which keys collide -- such a rule would be a claim about the renderer needing
+re-proof whenever the renderer changed. Comparison is byte-for-byte, so a peak
+(two pixels from a wall) keeps its own tile. An approximate comparison would
+need a threshold, and a threshold is a claim about how much difference the eye
+forgives. Deduplication is a saving rather than something correctness rests on.
 
-### The formats have no optional fields
+**A derived terrain has no rule table.** Resolving even a full block by mask is
+the lossy step; leaving it for the common case would have left the
+ground-beside-a-slope defect unfixed. Its generated tiles are still real artwork
+and are listed as owned.
 
-The readers tolerated fields their writers can no longer omit — a tile without
-`shape` loaded as `kNone`, solid artwork colliding with nothing. Every
-`j.value(field, default)` in `src/resources/` is now a required read, and the
-three collections that were omitted when empty are written either way, so an
-absent list and an empty one are no longer two spellings of one state.
-`scripts/migrate_definitions.py` moved the data that would otherwise have held
-this back, and the terrain recipe parser dropped its schema 1 and 2 branches
-once no file used them. See `docs/architecture.md`.
+**A derived tile carries its key.** `Terrain::derived_tiles` pairs each tile with
+the neighbourhood it depicts. Regeneration redraws every tile from its own key,
+wherever it sits in the atlas. Without this, regeneration could only rewrite the
+tiles generation produced and would leave everything a level asked for stale.
 
-Three things fell out of that:
+**This is a tagged union, not an optional field.** `TerrainScheme` says which
+variant a terrain is: `kBlob47` has `rules` and `shape_tile_ids`, `kDerived` has
+`derived_tiles`. A reader knows which set to demand before it reads them. The
+rule is now written down in [`style-guide.md`](style-guide.md).
 
-- `shipped_assets_test` now loads every level, sprite, blueprint and collider
-  as well as tilesets, checking counts against the files on disk. Strict
-  parsing without that test is a trap rather than an invariant.
-- Every `LoadAll*` swallowed per-file failures into a `LOG(WARNING)` and
-  returned OK, so a definition the editor could not read simply vanished from
-  the catalog. They now report all failures at once.
-- Two tracked collider definitions shared one ID with different geometry, so
-  Samus's collision box depended on directory iteration order. The unnamed
-  leftover from a rename was removed.
+**Visible and durable are separate.** `ShowTexturePixels` uploads to the GPU
+without touching disk, because a tile the GPU has not seen renders as a hole,
+while nothing should reach disk until the level is saved. Abandoning an edit
+leaves no artwork behind that no level references.
 
-### Every tab behaves the same way
+**Collision geometry is authored; artwork follows.** A refresh hands each cell
+back the shape it already had, so it can change how a cell looks but never what
+the player collides with. That is what made the paintable/member split
+unnecessary.
 
-The first editor pass fixed confirmations, unsaved-edit guards and silent
-failures in the Tileset and Texture tabs only, which left six tabs behaving two
-ways — worse than uniformly badly. `ConfirmPrompt` (`src/editor/confirm_prompt.h`)
-now backs every destructive button in the editor, every panel model can say
-whether closing would discard work, and the Sprite, Blueprint and Config tabs
-have the same dismissible error banner as the rest. The Sprite tab had no error
-surface at all and nine `LOG(ERROR)`-only paths.
+**Painting writes one cell.** An earlier draft stamped a gentle ramp as one
+two-cell unit, on the theory that a half without its partner was broken
+collision. It is not -- a lone lower half is a ramp to a half-height ledge --
+and the stamp would have made a real arrangement unreachable: lower half, flat
+half blocks, upper half is one continuous surface, because every piece meets its
+neighbour at half tile height.
 
-`tests/editor/tileset_editor_test.cc` covers the atlas drag gestures through a
-live `Canvas`, using the `LevelEditorTestPeer` pattern.
+**The atlas fragments, deliberately.** Painting is sequential, so a cell is
+first drawn for a half-finished neighbourhood and redrawn as its neighbours
+arrive; the earlier tile stays. Reclaiming those would renumber tiles that
+levels already name, so compaction must be an explicit tool rather than
+something that happens on its own. It does not exist yet.
+
+---
+
+## Bugs the work surfaced
+
+Worth knowing because most were invisible to reading:
+
+- **Every `LoadAll*`** used to swallow per-file failures and return OK, so a
+  definition the editor could not parse vanished from the catalogue.
+- **Two collider definitions shared one ID**, making Samus's collision box
+  depend on directory iteration order.
+- **The neighbour offset table was defined twice**, privately, in the generator
+  and the brush. They agreed by coincidence.
+- **`DerivedTileProvider` never told the terrain it owned the tiles it added**,
+  so the brush read every new tile back as foreign material.
+- **`TerrainIndex` was a snapshot** while a derived provider invents tiles
+  mid-paint, so a refresh looked up a brand-new tile, missed, and treated the
+  cell as empty.
+- **`ASSERT_OK`/`EXPECT_OK` evaluated their argument twice** -- the second time
+  only on failure, to build the message. `ASSERT_OK(CreateLevel(std::move(x)))`
+  moved from an already-moved value at exactly the wrong moment.
+- **`compose_blob47`, `image_io_test` and `image_io` each had their own copy of
+  stb PNG coding.** The test decoded with a third copy in order to check the
+  encoder, so it could pass while the production reader was broken.
+- **`Api::Create` validated every manager except `BlueprintManager`.**
+- **absl drops `LOG(INFO)` before stderr** unless the threshold is raised, so
+  `compose_blob47` and `generate_blob47_mask` have never printed their progress
+  lines. Only `render_slope_matrix` was fixed.
+
+---
+
+## What is left
+
+### In this phase
+
+1. **The manifest true-up.** `blob47_compose`'s manifest still omits `slopes`
+   when empty, writes `shape` as a raw integer rather than its
+   `kTileShapeIdentifiers` spelling, and reads `tile_size` with
+   `.value(..., 0)`. `ParseManifestSlopes` also restricts shapes to 6-25, which
+   keeps half-blocks out of hand-drawn terrain for no remaining reason. This is
+   the hand-drawn import path and is independent of everything above. No
+   manifest is tracked in `assets/`, so changing the schema costs nothing.
+
+2. **Bring the design doc in line.** `terrain-derived-artwork.md` predates the
+   implementation. It says `member_tile_ids` is deleted (it was renamed and kept
+   for `kBlob47`), does not mention `derived_tiles` or how regeneration works,
+   and still describes the content index as the only persisted-by-derivation
+   piece.
+
+3. **Nobody has run the editor.** Every layer is tested headlessly and the
+   artwork invariant is asserted end to end, but no test drives a real window.
+   Worth walking: paint a derived terrain, place a ramp and a ledge, watch the
+   atlas grow, save, reopen, and confirm the artwork survived. Also confirm the
+   shape picker greys out with no terrain selected.
+
+4. **Merge to `main`.** The branch was made because committing to the default
+   branch is discouraged; `main` has not moved since.
+
+### Carried over from before this phase
+
+- **The Autumn Forest visual check.** Wall darkness became a bounded blend
+  toward the authored outline colour and the preset was retuned 1.8 -> 1.2.
+  Tests pin both endpoints; nothing automated can judge whether it looks right.
+- **`lucinda_cave`.** The texture, its tileset definition and one terrain recipe
+  are still untracked. The tileset has been migrated in place, so it opens.
+  Whether it ships is undecided.
+- **`Create` blocks for seconds** with no progress indication. It still renders
+  all 47 masks per phase up front. The real fix is moving generation off the
+  render thread.
+- **`kSlope45*` names describe the taper end, not the right angle.**
+  `kTileShapeIdentifiers` is a tool contract that asset pipelines parse, so
+  renaming means changing that contract deliberately.
+
+### Deliberate limitations
+
+- **Slopes ignore `variant_period`.** A derived terrain's key carries the phase,
+  so this is fixed for derived artwork; a hand-drawn terrain still has one
+  drawing per slope shape whatever the period.
+- **Compaction does not exist**, per the fragmentation note above.
+- Phase 3's edge-detail limits remain: edge motifs inherit the material's
+  surface palette rather than owning a tint, and short/dry grass and snow favour
+  upward-facing edges while moss may continue onto walls. Neither should be
+  removed by overloading existing controls; a future edge palette or
+  facing-policy control should be explicit recipe state.
 
 ---
 
@@ -342,11 +225,13 @@ live `Canvas`, using the `LevelEditorTestPeer` pattern.
 
 | Path | What |
 |---|---|
-| `src/terrain/terrain_generator.{h,cc}` | The rasterizer. No SDL, no ImGui, by rule |
-| `src/terrain/terrain_field.{h,cc}` | Distance transform and the two periodic fields |
-| `src/terrain/terrain_detect.{h,cc}` | `BuildTerrainCandidate` — where both authoring routes converge |
-| `src/objects/tile_shape_geometry.h` | Every `TileShape` polygon, shared with the overlay |
-| `src/editor/terrain_editor/` | The tab: shell, model, controls panel, output panel, creation |
-| `src/editor/preview_texture_sink.h` | The seam that keeps the panels testable without a window |
-| `tests/terrain/`, `tests/editor/terrain_*` | Generator properties, creation, model, panels |
-| `scripts/README.md` | The authoring narrative, both routes |
+| `src/objects/tileset.h` | `TileShape`, adjacency, `TerrainCellKey`, `DerivedTile`, `Terrain` |
+| `src/terrain/terrain_generator.{h,cc}` | The rasteriser. `RenderShapeTileInContext` is the whole function |
+| `src/terrain/terrain_content_index.{h,cc}` | Which tile of an atlas already holds a picture |
+| `src/terrain/terrain_placement.{h,cc}` | The shapes a palette may offer, and what a terrain can paint |
+| `src/editor/level_editor/terrain_brush.{h,cc}` | Key computation, `TerrainIndex`, the provider seam |
+| `src/editor/level_editor/derived_tile_provider.{h,cc}` | Render on miss, dedup by content, append |
+| `src/editor/level_editor/derived_terrain_session.{h,cc}` | Opening, showing, committing |
+| `tests/editor/derived_artwork_test.cc` | The invariant: painted artwork equals artwork for the real neighbourhood |
+| `scripts/render_slope_matrix.cc` | Renders the join sheet for looking at |
+| `scripts/migrate_definitions.py` | One migration per field; run it after any format change |
