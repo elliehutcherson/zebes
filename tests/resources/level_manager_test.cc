@@ -640,6 +640,29 @@ TEST_F(LevelManagerTest, EntityBlueprintFieldsSurviveRoundTrip) {
   EXPECT_EQ(loaded_entity.transform.position.y, 128);
 }
 
+// Draw order is authored, not derived from position or ID, so it has to survive
+// the file the way any other authored property does.
+TEST_F(LevelManagerTest, EntityDrawOrderSurvivesRoundTrip) {
+  Level level{.name = "Draw Order", .width = 320, .height = 320};
+
+  Entity behind;
+  behind.id = 1;
+  behind.sort_order = -5;
+  level.AddEntity(std::move(behind));
+
+  Entity in_front;
+  in_front.id = 2;
+  in_front.sort_order = 12;
+  level.AddEntity(std::move(in_front));
+
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
+  ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
+
+  ASSERT_EQ(loaded->entities.size(), 2);
+  EXPECT_EQ(loaded->entities.at(1).sort_order, -5);
+  EXPECT_EQ(loaded->entities.at(2).sort_order, 12);
+}
+
 // --- Definition / runtime boundary -------------------------------------------
 
 // Velocity and acceleration are simulation state. A level file records what was
@@ -712,6 +735,7 @@ TEST_F(LevelManagerTest, SimulationStateInADocumentIsIgnored) {
       "active": true,
       "blueprint_id": "",
       "blueprint_state_index": 0,
+      "sort_order": 0,
       "sprite_id": "",
       "collider_id": "",
       "transform": {"x": 32.0, "y": 48.0, "rotation": 0.0},

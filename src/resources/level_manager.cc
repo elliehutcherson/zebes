@@ -106,6 +106,7 @@ void ToJson(nlohmann::json& j, const Entity& entity) {
       {"active", entity.active},
       {"blueprint_id", entity.blueprint_id},
       {"blueprint_state_index", entity.blueprint_state_index},
+      {"sort_order", entity.sort_order},
       {"transform",
        {
            {"x", entity.transform.position.x},
@@ -133,6 +134,7 @@ absl::Status FromJson(const nlohmann::json& j, Entity& entity) {
   j.at("active").get_to(entity.active);
   j.at("blueprint_id").get_to(entity.blueprint_id);
   j.at("blueprint_state_index").get_to(entity.blueprint_state_index);
+  j.at("sort_order").get_to(entity.sort_order);
 
   const nlohmann::json& t = j.at("transform");
   t.at("x").get_to(entity.transform.position.x);

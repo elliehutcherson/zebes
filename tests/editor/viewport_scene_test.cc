@@ -58,6 +58,43 @@ TEST(ViewportSceneEntityTest, ComposesStableSpriteGeometryAndPresentationState) 
   EXPECT_EQ(item.sprite->source.height, 24);
 }
 
+// Back to front, so the caller draws the list in order and the last one drawn is
+// the one on top.
+TEST(ViewportSceneEntityTest, OrdersEntitiesByDrawOrder) {
+  std::map<uint64_t, Entity> entities{
+      {1, Entity{.id = 1, .transform = {.position = {10, 20}}, .sort_order = 5}},
+      {2, Entity{.id = 2, .transform = {.position = {30, 40}}, .sort_order = -3}},
+      {3, Entity{.id = 3, .transform = {.position = {50, 60}}, .sort_order = 0}},
+  };
+
+  absl::StatusOr<std::vector<EntityRenderItem>> items = ComposeEntityRenderItems(entities, {}, {});
+
+  ASSERT_TRUE(items.ok()) << items.status();
+  ASSERT_EQ(items->size(), 3u);
+  EXPECT_EQ((*items)[0].entity_id, 2u);
+  EXPECT_EQ((*items)[1].entity_id, 3u);
+  EXPECT_EQ((*items)[2].entity_id, 1u);
+}
+
+// Every level authored before this field had one drew in ascending ID order.
+// Migrating them to a single shared value has to leave that untouched, which is
+// what makes zero the right thing for the migration to write.
+TEST(ViewportSceneEntityTest, EqualDrawOrderKeepsAscendingIdOrder) {
+  std::map<uint64_t, Entity> entities{
+      {9, Entity{.id = 9, .transform = {.position = {10, 20}}}},
+      {4, Entity{.id = 4, .transform = {.position = {30, 40}}}},
+      {6, Entity{.id = 6, .transform = {.position = {50, 60}}}},
+  };
+
+  absl::StatusOr<std::vector<EntityRenderItem>> items = ComposeEntityRenderItems(entities, {}, {});
+
+  ASSERT_TRUE(items.ok()) << items.status();
+  ASSERT_EQ(items->size(), 3u);
+  EXPECT_EQ((*items)[0].entity_id, 4u);
+  EXPECT_EQ((*items)[1].entity_id, 6u);
+  EXPECT_EQ((*items)[2].entity_id, 9u);
+}
+
 TEST(ViewportSceneEntityTest, OmitsInactiveEntitiesAndCentersPlaceholderBounds) {
   std::map<uint64_t, Entity> entities{
       {1, Entity{.id = 1, .active = false, .transform = {.position = {10, 20}}}},

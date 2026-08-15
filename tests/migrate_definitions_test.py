@@ -18,10 +18,16 @@ class MigrateDefinitionsTest(unittest.TestCase):
     def setUp(self):
         self._temp = tempfile.TemporaryDirectory()
         self.root = Path(self._temp.name)
+        (self.root / "levels").mkdir()
         (self.root / "sprites").mkdir()
         (self.root / "terrain_recipes").mkdir()
         (self.root / "tilesets").mkdir()
         self.addCleanup(self._temp.cleanup)
+
+    def write_level(self, name, document):
+        path = self.root / "levels" / name
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
 
     def write_tileset(self, name, document):
         path = self.root / "tilesets" / name
@@ -256,6 +262,40 @@ class MigrateDefinitionsTest(unittest.TestCase):
         )
 
         changed = migrate_definitions.migrate_directory(self.root, "tilesets", dry_run=False)
+
+        self.assertEqual(changed, [])
+
+    def test_entities_gain_an_explicit_draw_order(self):
+        path = self.write_level(
+            "cave.json",
+            {"id": "l", "name": "Cave", "entities": [{"id": 1}, {"id": 2}]},
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "levels", dry_run=False)
+
+        self.assertEqual(changed, [path])
+        entities = json.loads(path.read_text(encoding="utf-8"))["entities"]
+        # Zero for every entity, because entities used to draw in ascending ID
+        # order and ties still resolve that way. Any other value would reorder
+        # levels that were authored before the field existed.
+        self.assertEqual([entity["sort_order"] for entity in entities], [0, 0])
+
+    def test_an_authored_draw_order_is_left_alone(self):
+        path = self.write_level(
+            "cave.json",
+            {"id": "l", "name": "Cave", "entities": [{"id": 1, "sort_order": 7}]},
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "levels", dry_run=False)
+
+        self.assertEqual(changed, [])
+        entities = json.loads(path.read_text(encoding="utf-8"))["entities"]
+        self.assertEqual(entities[0]["sort_order"], 7)
+
+    def test_a_level_without_entities_is_left_alone(self):
+        self.write_level("empty.json", {"id": "l", "name": "Empty", "entities": []})
+
+        changed = migrate_definitions.migrate_directory(self.root, "levels", dry_run=False)
 
         self.assertEqual(changed, [])
 

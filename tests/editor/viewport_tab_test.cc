@@ -91,6 +91,31 @@ TEST(PickEntityTest, HitEntityWithSprite) {
   EXPECT_EQ(PickEntity(entities, {35, 95}, sprites).value(), Entity::kInvalidId);
 }
 
+// Picking has to agree with drawing. The renderer draws in ascending sort_order,
+// so the entity a user sees under the cursor is the one with the highest value,
+// whichever way round the IDs happen to run.
+TEST(PickEntityTest, OverlappingEntitiesPickTheTopmostDrawn) {
+  std::map<uint64_t, Entity> entities{
+      {1, Entity{.id = 1, .transform = {.position = {100, 200}}, .sort_order = 4}},
+      {2, Entity{.id = 2, .transform = {.position = {100, 200}}, .sort_order = 9}},
+      {3, Entity{.id = 3, .transform = {.position = {100, 200}}, .sort_order = -1}},
+  };
+
+  EXPECT_EQ(PickEntity(entities, {100, 200}, {}).value(), 2u);
+}
+
+// The stable sort leaves equal values in ascending ID order, so the last one
+// drawn -- and therefore the one picked -- is the highest ID.
+TEST(PickEntityTest, EqualDrawOrderPicksTheHighestId) {
+  std::map<uint64_t, Entity> entities{
+      {1, Entity{.id = 1, .transform = {.position = {100, 200}}}},
+      {5, Entity{.id = 5, .transform = {.position = {100, 200}}}},
+      {3, Entity{.id = 3, .transform = {.position = {100, 200}}}},
+  };
+
+  EXPECT_EQ(PickEntity(entities, {100, 200}, {}).value(), 5u);
+}
+
 // CreateEntityFromBlueprint tests
 
 TEST(CreateEntityFromBlueprintTest, SetsFields) {

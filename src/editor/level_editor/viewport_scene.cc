@@ -93,6 +93,7 @@ absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id,
   EntityRenderItem item{
       .mode = mode,
       .entity_id = entity_id,
+      .sort_order = entity.sort_order,
       .overlay_opacity = options.overlay_opacity,
       .show_border = options.show_borders,
       .selected = entity_id == options.selected_entity_id,
@@ -144,6 +145,16 @@ absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
     if (!item.ok()) return item.status();
     items.push_back(std::move(*item));
   }
+
+  // Back to front, so the caller draws in order and the last item drawn is the
+  // topmost. The sort is stable and the source is a map keyed by ID, so entities
+  // sharing a sort_order keep ascending-ID order -- which is exactly what every
+  // level authored before this field had, and why the migration writes zero
+  // rather than a spread of values.
+  std::stable_sort(items.begin(), items.end(),
+                   [](const EntityRenderItem& a, const EntityRenderItem& b) {
+                     return a.sort_order < b.sort_order;
+                   });
   return items;
 }
 

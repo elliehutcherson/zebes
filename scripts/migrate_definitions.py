@@ -38,6 +38,20 @@ def migrate_sprite(document: dict) -> bool:
     return changed
 
 
+def migrate_level(document: dict) -> bool:
+    """Gives every entity an explicit draw order. Returns whether anything changed.
+
+    Entities used to draw in ascending ID order, which is insertion order. Zero
+    for all of them preserves exactly that, because ties keep insertion order.
+    """
+    changed = False
+    for entity in document.get("entities", []):
+        if "sort_order" not in entity:
+            entity["sort_order"] = 0
+            changed = True
+    return changed
+
+
 def migrate_tileset(document: dict) -> bool:
     """Materialises collections that used to be omitted when empty.
 
@@ -111,6 +125,7 @@ def migrate_terrain_recipe(document: dict) -> bool:
 # file and one the editor re-saves must be byte-identical, or every later save
 # produces a whole-file diff that hides the real change.
 MIGRATIONS = {
+    "levels": (migrate_level, 4),
     "sprites": (migrate_sprite, 4),
     "terrain_recipes": (migrate_terrain_recipe, 2),
     "tilesets": (migrate_tileset, 4),

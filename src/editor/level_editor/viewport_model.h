@@ -73,6 +73,11 @@ ResolvedSprite FindSprite(const SpriteLookup& sprites, const std::string& sprite
 
 // Returns the active entity whose bounding box contains world_pos, or
 // Entity::kInvalidId. Entities with no resolvable sprite use a 32x32 fallback.
+//
+// When several overlap, the topmost wins: the greatest Entity::sort_order, and
+// among equals the greatest ID. That is the order ComposeEntityRenderItems draws
+// in, and picking must agree with it or a click selects something the user
+// cannot see.
 // TODO: Replace the linear scan with a spatial index when level size requires it.
 absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, Vec world_pos,
                                     const SpriteLookup& sprites);

@@ -382,6 +382,14 @@ absl::Status LevelEditor::RenderInspector() {
       if (gui_->InputFloat("Y", &pos_y)) {
         entity.transform.position.y = pos_y;
       }
+
+      // Higher draws later, so it appears in front of entities with a lower
+      // value. It orders entities against each other only: the draw passes are
+      // fixed, so no value here puts an entity behind the terrain.
+      int sort_order = entity.sort_order;
+      if (gui_->InputInt("Draw Order", &sort_order)) {
+        entity.sort_order = sort_order;
+      }
       gui_->Separator();
 
       if (gui_->Button("Remove Entity")) {

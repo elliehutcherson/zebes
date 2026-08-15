@@ -24,6 +24,19 @@ struct Entity {
   // simulation state and live in Motion.
   Body body;
 
+  // Draw order among entities, low to high: an entity with a smaller sort_order
+  // is drawn first and therefore appears behind.
+  //
+  // This is ordering within one depth slice, not a global depth. Draw passes are
+  // fixed -- parallax, then tiles, then entities -- so this cannot put an entity
+  // behind the terrain; a layer concept is what would. It is named for the
+  // narrower meaning so that it keeps that meaning when layers arrive, rather
+  // than becoming a field called "depth" that no longer decides depth.
+  //
+  // Ties keep insertion order, so entities placed before this existed do not
+  // move relative to each other.
+  int sort_order = 0;
+
   // BLUEPRINT REFERENCE (for serialization and editor display)
   // Identifies which blueprint and state this entity was spawned from.
   std::string blueprint_id;

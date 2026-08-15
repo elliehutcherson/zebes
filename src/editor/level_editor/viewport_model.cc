@@ -41,18 +41,32 @@ ResolvedSprite FindSprite(const SpriteLookup& sprites, const std::string& sprite
 
 absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, Vec world_pos,
                                     const SpriteLookup& sprites) {
+  // Whichever candidate the renderer drew last, because that is the one the user
+  // can actually see under the cursor. ComposeEntityRenderItems sorts by
+  // sort_order and breaks ties by ascending ID, so the topmost is the greatest
+  // (sort_order, id) pair -- and picking has to agree with drawing, or clicking a
+  // prop in front selects the one hidden behind it.
+  uint64_t picked = Entity::kInvalidId;
+  int picked_sort_order = 0;
+
   for (const auto& [id, entity] : entities) {
     if (!entity.active) continue;
 
     absl::StatusOr<WorldRect> bounds =
         CalculateEntityBounds(entity, FindSprite(sprites, entity.sprite_id).sprite);
     if (!bounds.ok()) return bounds.status();
-    if (world_pos.x >= bounds->min.x && world_pos.x <= bounds->max.x &&
-        world_pos.y >= bounds->min.y && world_pos.y <= bounds->max.y) {
-      return id;
+    if (world_pos.x < bounds->min.x || world_pos.x > bounds->max.x || world_pos.y < bounds->min.y ||
+        world_pos.y > bounds->max.y) {
+      continue;
+    }
+    // Ascending ID iteration means >= also settles ties in favour of the later
+    // entity, matching the stable sort.
+    if (picked == Entity::kInvalidId || entity.sort_order >= picked_sort_order) {
+      picked = id;
+      picked_sort_order = entity.sort_order;
     }
   }
-  return Entity::kInvalidId;
+  return picked;
 }
 
 uint64_t NextAvailableEntityId(const std::map<uint64_t, Entity>& entities) {

@@ -52,6 +52,9 @@ struct EntityRenderItem {
   EntityRenderMode mode = EntityRenderMode::kLevel;
   // Stable entity ID, or Entity::kInvalidId for a transient placement preview.
   uint64_t entity_id = Entity::kInvalidId;
+  // The authored draw order this item was sorted by. Carried so that picking can
+  // walk the same ordering the renderer drew, rather than re-deriving it.
+  int sort_order = 0;
   // Destination rectangle in world coordinates.
   WorldRect bounds;
   // Optional source texture region; absent entities render as placeholders.
