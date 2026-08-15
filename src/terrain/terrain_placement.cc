@@ -82,7 +82,7 @@ absl::flat_hash_set<TileShape> PaintableShapesOf(const Terrain& terrain, const T
   for (const TerrainRule& rule : terrain.rules) {
     for (const TerrainVariant& variant : rule.variants) claim(variant.tile_id);
   }
-  for (const int tile_id : terrain.member_tile_ids) claim(tile_id);
+  for (const int tile_id : terrain.shape_tile_ids) claim(tile_id);
   return shapes;
 }
 

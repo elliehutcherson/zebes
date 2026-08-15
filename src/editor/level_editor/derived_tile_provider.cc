@@ -85,8 +85,10 @@ int DerivedTileProvider::FirstFreeCell() const {
   return cell;
 }
 
-absl::StatusOr<int> DerivedTileProvider::AppendTile(const Terrain& terrain, TileShape shape,
+absl::StatusOr<int> DerivedTileProvider::AppendTile(const Terrain& terrain,
+                                                    const TerrainCellKey& key,
                                                     const RgbaImage& artwork) {
+  const TileShape shape = key.shape;
   const int cell = FirstFreeCell();
   const int column = cell % columns_;
   const int row = cell / columns_;
@@ -129,7 +131,10 @@ absl::StatusOr<int> DerivedTileProvider::AppendTile(const Terrain& terrain, Tile
     return absl::NotFoundError(absl::StrCat("terrain '", terrain.name, "' is not in tileset '",
                                             tileset_->name, "', so it cannot own new artwork"));
   }
-  owner->member_tile_ids.push_back(tile_id);
+  // The key travels with the tile. It is what the renderer was given, so it is
+  // what has to be given again to redraw this tile when the recipe changes --
+  // and nothing else records what the picture is of.
+  owner->derived_tiles.push_back(DerivedTile{.tile_id = tile_id, .key = key});
 
   RETURN_IF_ERROR(content_.Insert(artwork, tile_id));
   ++appended_;
@@ -156,7 +161,7 @@ absl::StatusOr<int> DerivedTileProvider::TileForKey(const Terrain& terrain,
     return *existing;
   }
 
-  ASSIGN_OR_RETURN(const int tile_id, AppendTile(terrain, key.shape, artwork));
+  ASSIGN_OR_RETURN(const int tile_id, AppendTile(terrain, key, artwork));
   tile_by_key_.emplace(key, tile_id);
   return tile_id;
 }

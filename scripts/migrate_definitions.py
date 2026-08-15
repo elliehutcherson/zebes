@@ -50,8 +50,23 @@ def migrate_tileset(document: dict) -> bool:
         document["terrains"] = []
         changed = True
     for terrain in document["terrains"]:
-        if "member_tile_ids" not in terrain:
-            terrain["member_tile_ids"] = []
+        if "member_tile_ids" not in terrain and "shape_tile_ids" not in terrain:
+            terrain["shape_tile_ids"] = []
+            changed = True
+
+        # "member" outlived the concept of membership. The list used to mean
+        # "tiles the brush must never rewrite"; a refresh now hands every cell
+        # back the shape it already had, so what remains is a scheme's
+        # shape-to-artwork table.
+        if "member_tile_ids" in terrain:
+            terrain["shape_tile_ids"] = terrain.pop("member_tile_ids")
+            changed = True
+
+        # The neighbourhood each derived tile depicts. Every terrain on disk
+        # predates deriving artwork, so the list is empty and the field is
+        # present rather than optional.
+        if "derived_tiles" not in terrain:
+            terrain["derived_tiles"] = []
             changed = True
     return changed
 

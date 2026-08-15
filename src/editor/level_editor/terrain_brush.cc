@@ -116,14 +116,15 @@ absl::Status TerrainIndex::IndexTerrainTiles(const Terrain& terrain, const Tiles
       RETURN_IF_ERROR(ClaimTile(variant.tile_id, terrain, tileset));
     }
   }
-  for (int tile_id : terrain.member_tile_ids) {
-    RETURN_IF_ERROR(ClaimTile(tile_id, terrain, tileset));
+  // A derived terrain's tiles carry the neighbourhood they depict; the shape is
+  // in the key rather than looked up, because many of its tiles share one shape
+  // on purpose and differ only by what is beside them.
+  for (const DerivedTile& derived : terrain.derived_tiles) {
+    RETURN_IF_ERROR(ClaimTile(derived.tile_id, terrain, tileset));
+  }
 
-    // Only a blob-47 terrain resolves a shape to a single authored tile, so
-    // only it can be ambiguous about one. A derived terrain holds many tiles
-    // per shape on purpose -- they differ by neighbourhood, which is the point
-    // -- and resolves by rendering rather than by lookup.
-    if (terrain.scheme != TerrainScheme::kBlob47) continue;
+  for (int tile_id : terrain.shape_tile_ids) {
+    RETURN_IF_ERROR(ClaimTile(tile_id, terrain, tileset));
 
     // Two tiles for one shape would leave which of them a cell gets to the
     // order of the list, so the first wins and the second is refused.

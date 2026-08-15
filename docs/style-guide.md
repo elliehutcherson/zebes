@@ -42,6 +42,28 @@ guide; `.clang-format` is the formatting authority.
   injection.
 - Record new cross-layer ownership or lifetime rules in `architecture.md`.
 
+## Serialized formats
+
+- **No optional fields.** Every writer emits every field of the record it is
+  writing, and every reader requires it with `.at()`. A definition missing a
+  field is corruption, not permission to substitute a default.
+- Write collections even when empty. An absent list and an empty one would
+  otherwise be two spellings of one state, and the reader would have to guess
+  which the author meant.
+- **Add a field by adding a migration, not a default.** Extend
+  `scripts/migrate_definitions.py` and run it once. A tolerant reader silently
+  reinterprets old data forever; a migration moves it once and then the
+  invariant holds.
+- A record may be a tagged union, and that is not an optional field. When a
+  discriminator such as `TerrainScheme` says which variant a record is, each
+  variant's fields are required for that variant and absent from the others. The
+  reader knows which set to demand before it reads them.
+- Read exactly one schema version. Carrying a translation for a version no file
+  uses lets absent data decide the parser's shape.
+- Every shipped definition is loaded by a test, and every `LoadAll*` reports the
+  files it could not read rather than logging and returning success. Strict
+  parsing without both is a trap rather than an invariant.
+
 ## Headers
 
 - Public headers should document ownership, nullability, lifetime, and error

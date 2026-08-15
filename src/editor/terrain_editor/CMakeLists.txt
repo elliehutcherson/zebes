@@ -8,6 +8,7 @@ target_link_libraries(terrain_creation
   PRIVATE
   status_macros
   terrain_detect
+  absl::flat_hash_map
   absl::status
   absl::strings
 )

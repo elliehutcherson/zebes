@@ -59,16 +59,6 @@ target_link_libraries(terrain_placement_test
 target_include_directories(terrain_placement_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(terrain_placement_test)
 
-add_executable(terrain_cell_key_test terrain_cell_key_test.cc)
-target_link_libraries(terrain_cell_key_test
-  gtest_main
-  gmock
-  terrain_cell_key
-  absl::flat_hash_set
-)
-target_include_directories(terrain_cell_key_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(terrain_cell_key_test)
-
 add_executable(terrain_detect_test terrain_detect_test.cc)
 target_link_libraries(terrain_detect_test
   gtest_main

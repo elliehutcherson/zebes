@@ -242,11 +242,11 @@ TEST(TilesetEditorModelTest, TerrainMembershipAssignsAndClears) {
   EXPECT_FALSE(model.GetTileTerrainMembership(900).has_value());
   ASSERT_TRUE(model.SetTileTerrainMembership(900, terrain_id).ok());
   EXPECT_EQ(model.GetTileTerrainMembership(900), terrain_id);
-  EXPECT_THAT(model.active_tileset()->terrains[0].member_tile_ids, ::testing::ElementsAre(900));
+  EXPECT_THAT(model.active_tileset()->terrains[0].shape_tile_ids, ::testing::ElementsAre(900));
 
   ASSERT_TRUE(model.SetTileTerrainMembership(900, std::nullopt).ok());
   EXPECT_FALSE(model.GetTileTerrainMembership(900).has_value());
-  EXPECT_TRUE(model.active_tileset()->terrains[0].member_tile_ids.empty());
+  EXPECT_TRUE(model.active_tileset()->terrains[0].shape_tile_ids.empty());
 }
 
 // Membership is exclusive: assigning to a second terrain must not leave the
@@ -263,8 +263,8 @@ TEST(TilesetEditorModelTest, TerrainMembershipIsExclusive) {
   ASSERT_TRUE(model.SetTileTerrainMembership(900, first).ok());
   ASSERT_TRUE(model.SetTileTerrainMembership(900, second).ok());
 
-  EXPECT_TRUE(model.active_tileset()->terrains[0].member_tile_ids.empty());
-  EXPECT_THAT(model.active_tileset()->terrains[1].member_tile_ids, ::testing::ElementsAre(900));
+  EXPECT_TRUE(model.active_tileset()->terrains[0].shape_tile_ids.empty());
+  EXPECT_THAT(model.active_tileset()->terrains[1].shape_tile_ids, ::testing::ElementsAre(900));
   EXPECT_EQ(model.GetTileTerrainMembership(900), second);
 }
 

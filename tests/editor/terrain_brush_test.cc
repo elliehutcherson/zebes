@@ -423,7 +423,7 @@ TEST_F(TerrainBrushTest, TheKeyRecordsWhatANeighbourIsNotMerelyThatItIsThere) {
   with_slope.tiles.push_back(Tile{.id = kSlopeNeighbourTileId,
                                   .name = "Slope",
                                   .shape = TileShape::kSlope45BottomLeft});
-  with_slope.terrains[0].member_tile_ids = {kSlopeNeighbourTileId};
+  with_slope.terrains[0].shape_tile_ids = {kSlopeNeighbourTileId};
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(with_slope);
   ASSERT_TRUE(index.ok()) << index.status();
 
@@ -481,7 +481,7 @@ class TerrainMemberTest : public ::testing::Test {
     tileset_.tiles.push_back(Tile{.id = kSlopeTileId,
                                   .name = "Slope45Up",
                                   .shape = TileShape::kSlope45BottomLeft});
-    tileset_.terrains[0].member_tile_ids = {kSlopeTileId};
+    tileset_.terrains[0].shape_tile_ids = {kSlopeTileId};
 
     absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset_);
     ASSERT_TRUE(index.ok()) << index.status();
@@ -524,7 +524,7 @@ TEST_F(TerrainMemberTest, GroundPaintedBesideASlopeHasNoEdge) {
 TEST_F(TerrainMemberTest, WithoutMembershipTheSameSlopeWouldReadAsAir) {
   // Same geometry, but the slope is not a member of the terrain.
   Tileset without_members = tileset_;
-  without_members.terrains[0].member_tile_ids.clear();
+  without_members.terrains[0].shape_tile_ids.clear();
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(without_members);
   ASSERT_TRUE(index.ok()) << index.status();
   // The provider must read the index this test built, not the fixture's.
@@ -578,7 +578,7 @@ TEST(TerrainIndexTest, ATileListedTwiceByOneTerrainIsHarmless) {
   // so there is one question left -- which terrain owns this tile -- and being
   // named twice by the same terrain answers it the same way both times.
   Tileset tileset = MakeTileset(MakeTerrain());
-  tileset.terrains[0].member_tile_ids = {kFirstTileId};
+  tileset.terrains[0].shape_tile_ids = {kFirstTileId};
 
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
 
@@ -594,7 +594,7 @@ TEST(TerrainIndexTest, RejectsATileTwoTerrainsBothClaim) {
   other.id = kTerrainId + 1;
   other.name = "Stone";
   other.rules.clear();
-  other.member_tile_ids = {kFirstTileId};
+  other.shape_tile_ids = {kFirstTileId};
   tileset.terrains.push_back(std::move(other));
 
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
@@ -682,13 +682,13 @@ TEST_F(TerrainMemberTest, ARefreshHandsACellBackTheGeometryItAlreadyHad) {
 
 TEST(TerrainIndexTest, RejectsTwoTilesClaimingOneShape) {
   // Which tile a slope cell resolves to would otherwise depend on the order of
-  // member_tile_ids.
+  // shape_tile_ids.
   Tileset tileset = MakeTileset(MakeTerrain());
   tileset.tiles.push_back(
       Tile{.id = 901, .name = "SlopeA", .shape = TileShape::kSlope45BottomLeft});
   tileset.tiles.push_back(
       Tile{.id = 902, .name = "SlopeB", .shape = TileShape::kSlope45BottomLeft});
-  tileset.terrains[0].member_tile_ids = {901, 902};
+  tileset.terrains[0].shape_tile_ids = {901, 902};
 
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
 

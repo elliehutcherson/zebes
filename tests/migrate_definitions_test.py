@@ -200,7 +200,11 @@ class MigrateDefinitionsTest(unittest.TestCase):
         self.assertEqual(changed, [path])
         self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["terrains"], [])
 
-    def test_a_terrain_without_members_gains_an_empty_list(self):
+    def test_members_become_shape_tiles_keeping_their_ids(self):
+        # "member" outlived the concept of membership: the list used to mark
+        # tiles the brush must never rewrite, and now records a scheme's
+        # shape-to-artwork table. Renaming without carrying the contents would
+        # silently drop a terrain's slope units.
         path = self.write_tileset(
             "grass.json",
             {
@@ -215,8 +219,29 @@ class MigrateDefinitionsTest(unittest.TestCase):
         migrate_definitions.migrate_directory(self.root, "tilesets", dry_run=False)
 
         terrains = json.loads(path.read_text(encoding="utf-8"))["terrains"]
-        self.assertEqual(terrains[0]["member_tile_ids"], [7])
-        self.assertEqual(terrains[1]["member_tile_ids"], [])
+        self.assertEqual(terrains[0]["shape_tile_ids"], [7])
+        self.assertNotIn("member_tile_ids", terrains[0])
+        self.assertEqual(terrains[1]["shape_tile_ids"], [])
+
+    def test_every_terrain_gains_a_derived_tile_list(self):
+        # Every terrain on disk predates deriving artwork, so the list is empty
+        # -- but present, because a reader must never have to tell an absent
+        # field from an empty one.
+        path = self.write_tileset(
+            "grass.json",
+            {
+                "id": "t",
+                "name": "Grass",
+                "texture_id": "x",
+                "tiles": [],
+                "terrains": [{"id": 1, "member_tile_ids": []}],
+            },
+        )
+
+        migrate_definitions.migrate_directory(self.root, "tilesets", dry_run=False)
+
+        terrains = json.loads(path.read_text(encoding="utf-8"))["terrains"]
+        self.assertEqual(terrains[0]["derived_tiles"], [])
 
     def test_a_current_tileset_is_left_alone(self):
         self.write_tileset(
@@ -226,7 +251,7 @@ class MigrateDefinitionsTest(unittest.TestCase):
                 "name": "Grass",
                 "texture_id": "x",
                 "tiles": [],
-                "terrains": [{"id": 1, "member_tile_ids": []}],
+                "terrains": [{"id": 1, "shape_tile_ids": [], "derived_tiles": []}],
             },
         )
 

@@ -1152,8 +1152,20 @@ TEST(TerrainGeneratorTest, ADerivedTerrainGetsNoRuleTable) {
 
   EXPECT_EQ(derived->terrain.scheme, TerrainScheme::kDerived);
   EXPECT_TRUE(derived->terrain.rules.empty());
-  EXPECT_EQ(derived->terrain.member_tile_ids.size(), derived->tiles.size());
+  EXPECT_TRUE(derived->terrain.shape_tile_ids.empty());
   EXPECT_EQ(derived->tiles.size(), static_cast<size_t>(kBlob47TileCount));
+
+  // Each tile records the neighbourhood it depicts, which is what lets the
+  // recipe redraw it later. A generated blob tile's neighbourhood is its mask
+  // read back as full blocks and air.
+  ASSERT_EQ(derived->terrain.derived_tiles.size(), derived->tiles.size());
+  const absl::Span<const uint8_t> derived_masks = Blob47MaskTable();
+  for (size_t i = 0; i < derived->terrain.derived_tiles.size(); ++i) {
+    const DerivedTile& tile = derived->terrain.derived_tiles[i];
+    EXPECT_EQ(tile.tile_id, derived->tiles[i].id);
+    EXPECT_EQ(tile.key.shape, TileShape::kFullBlock);
+    EXPECT_EQ(NeighborMaskOf(tile.key), derived_masks[i]);
+  }
 }
 
 TEST(TerrainGeneratorTest, AGeneratedAtlasHoldsNoSlopeUnits) {

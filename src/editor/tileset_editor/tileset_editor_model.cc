@@ -243,7 +243,7 @@ absl::Status TilesetEditorModel::SetTileTerrainMembership(int tile_id,
 
   // Membership is exclusive, so drop any prior assignment first.
   for (Terrain& terrain : active_tileset_->terrains) {
-    std::vector<int>& members = terrain.member_tile_ids;
+    std::vector<int>& members = terrain.shape_tile_ids;
     members.erase(std::remove(members.begin(), members.end(), tile_id), members.end());
   }
   if (!terrain_id.has_value()) return absl::OkStatus();
@@ -264,14 +264,14 @@ absl::Status TilesetEditorModel::SetTileTerrainMembership(int tile_id,
     }
   }
 
-  target->member_tile_ids.push_back(tile_id);
+  target->shape_tile_ids.push_back(tile_id);
   return absl::OkStatus();
 }
 
 std::optional<int> TilesetEditorModel::GetTileTerrainMembership(int tile_id) const {
   if (!active_tileset_.has_value()) return std::nullopt;
   for (const Terrain& terrain : active_tileset_->terrains) {
-    for (int member : terrain.member_tile_ids) {
+    for (int member : terrain.shape_tile_ids) {
       if (member == tile_id) return terrain.id;
     }
   }

@@ -251,7 +251,7 @@ TEST_F(TerrainPalettePanelTest, AShapeTheNewTerrainCannotPaintIsNotLeftSelected)
       Tile{.id = 8, .name = "ramp", .shape = TileShape::kSlope45BottomLeft},
   };
   Terrain slopes = MakeTerrain(3, "Grass", 7);
-  slopes.member_tile_ids = {8};
+  slopes.shape_tile_ids = {8};
   tileset_.terrains = {std::move(slopes)};
   PreselectTileset();
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));

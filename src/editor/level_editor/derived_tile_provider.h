@@ -8,7 +8,6 @@
 #include "common/image_io.h"
 #include "editor/level_editor/terrain_brush.h"
 #include "objects/tileset.h"
-#include "terrain/terrain_cell_key.h"
 #include "terrain/terrain_content_index.h"
 #include "terrain/terrain_generator.h"
 
@@ -67,7 +66,7 @@ class DerivedTileProvider : public TerrainTileProvider {
 
   // Places artwork in the first free cell, growing the atlas by a row when the
   // last one fills, and records the tile against the terrain.
-  absl::StatusOr<int> AppendTile(const Terrain& terrain, TileShape shape,
+  absl::StatusOr<int> AppendTile(const Terrain& terrain, const TerrainCellKey& key,
                                  const RgbaImage& artwork);
 
   // The first cell no tile sources from, in row-major order.

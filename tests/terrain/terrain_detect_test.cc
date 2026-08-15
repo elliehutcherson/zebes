@@ -227,10 +227,10 @@ TEST(TerrainDetectTest, ImportRegistersSlopesAsTerrainMembers) {
   ASSERT_TRUE(candidate.ok()) << candidate.status();
 
   EXPECT_EQ(candidate->tiles.size(), kBlob47TileCount + 2);
-  ASSERT_EQ(candidate->terrain.member_tile_ids.size(), 2u);
+  ASSERT_EQ(candidate->terrain.shape_tile_ids.size(), 2u);
 
   // Members are the trailing tiles, and they are not painted by any rule.
-  for (int member_id : candidate->terrain.member_tile_ids) {
+  for (int member_id : candidate->terrain.shape_tile_ids) {
     for (const TerrainRule& rule : candidate->terrain.rules) {
       for (const TerrainVariant& variant : rule.variants) {
         EXPECT_NE(variant.tile_id, member_id) << "a slope must never be a paint target";
@@ -245,7 +245,7 @@ TEST(TerrainDetectTest, ImportedSlopesCarryTheirTileShape) {
   ASSERT_TRUE(candidate.ok()) << candidate.status();
 
   std::set<TileShape> shapes;
-  for (int member_id : candidate->terrain.member_tile_ids) {
+  for (int member_id : candidate->terrain.shape_tile_ids) {
     for (const Tile& tile : candidate->tiles) {
       if (tile.id == member_id) shapes.insert(tile.shape);
     }
@@ -258,7 +258,7 @@ TEST(TerrainDetectTest, ImportWithoutSlopesLeavesMembersEmpty) {
   absl::StatusOr<TerrainCandidate> candidate =
       ImportBlob47Manifest(ManifestFor(1), /*first_tile_id=*/1, /*terrain_id=*/1);
   ASSERT_TRUE(candidate.ok()) << candidate.status();
-  EXPECT_TRUE(candidate->terrain.member_tile_ids.empty());
+  EXPECT_TRUE(candidate->terrain.shape_tile_ids.empty());
 }
 
 TEST(TerrainDetectTest, ImportRejectsNonSlopeShapeInSlopesArray) {

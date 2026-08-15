@@ -4,20 +4,8 @@ add_library(terrain_mask
 
 target_link_libraries(terrain_mask
   PUBLIC
-  absl::span
-)
-
-add_library(terrain_cell_key
-  terrain_cell_key.cc
-)
-
-target_link_libraries(terrain_cell_key
-  PUBLIC
-  terrain_mask
   tileset
-  absl::hash
-  PRIVATE
-  absl::strings
+  absl::span
 )
 
 add_library(terrain_content_index

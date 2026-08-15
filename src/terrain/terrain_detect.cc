@@ -246,8 +246,21 @@ absl::StatusOr<TerrainCandidate> BuildTerrainCandidate(const Blob47Atlas& atlas,
   // the renderer finds them again by content whenever a key draws the same
   // picture.
   if (scheme == TerrainScheme::kDerived) {
-    for (const Tile& tile : candidate.tiles) {
-      candidate.terrain.member_tile_ids.push_back(tile.id);
+    // Each generated tile records the neighbourhood it depicts: a full block
+    // whose neighbours are all full blocks in whichever positions its mask
+    // names. That is the same input the renderer was given, so regeneration can
+    // redraw it exactly rather than trusting that the layout has not moved.
+    for (size_t i = 0; i < candidate.tiles.size(); ++i) {
+      const ComposedTile& composed = atlas.tiles[i];
+      TerrainCellKey key;
+      key.shape = TileShape::kFullBlock;
+      for (int bit = 0; bit < kNeighborCount; ++bit) {
+        key.neighbors[bit] = (composed.mask & (1 << bit)) != 0 ? TileShape::kFullBlock
+                                                               : TileShape::kNone;
+      }
+      key.phase = composed.variant;
+      candidate.terrain.derived_tiles.push_back(
+          DerivedTile{.tile_id = candidate.tiles[i].id, .key = key});
     }
   } else {
     for (auto& [mask, variants] : variants_by_mask) {
@@ -268,7 +281,7 @@ absl::StatusOr<TerrainCandidate> BuildTerrainCandidate(const Blob47Atlas& atlas,
         .source_y = slope.source_y,
         .shape = slope.shape,
     });
-    candidate.terrain.member_tile_ids.push_back(tile_id);
+    candidate.terrain.shape_tile_ids.push_back(tile_id);
   }
 
   return candidate;

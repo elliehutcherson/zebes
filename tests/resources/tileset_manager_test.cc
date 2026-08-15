@@ -597,14 +597,14 @@ TEST_F(TilesetManagerTest, SaveTileset_TerrainWithNonPositiveWeight_Fails) {
 TEST_F(TilesetManagerTest, TerrainMemberTileIdsSurviveRoundTrip) {
   Tileset tileset = MakeTerrainTileset();
   tileset.tiles.push_back(Tile{.id = 4, .name = "Slope", .shape = TileShape::kSlope45BottomLeft});
-  tileset.terrains[0].member_tile_ids = {4};
+  tileset.terrains[0].shape_tile_ids = {4};
 
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTileset(std::move(tileset)));
   ReloadFromDisk();
 
   ASSERT_OK_AND_ASSIGN(Tileset * loaded, manager_->GetTileset(id));
   ASSERT_EQ(loaded->terrains.size(), 1);
-  EXPECT_THAT(loaded->terrains[0].member_tile_ids, ::testing::ElementsAre(4));
+  EXPECT_THAT(loaded->terrains[0].shape_tile_ids, ::testing::ElementsAre(4));
 }
 
 // A terrain with no hand-placed pieces must not gain the key on disk.
@@ -614,29 +614,29 @@ TEST_F(TilesetManagerTest, TerrainWithoutMembersStillWritesTheKey) {
   std::ifstream in(test_dir_ + "/definitions/tilesets/GrassTerrain-" + id + ".json");
   ASSERT_TRUE(in.is_open());
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  EXPECT_THAT(contents, HasSubstr("member_tile_ids"));
+  EXPECT_THAT(contents, HasSubstr("shape_tile_ids"));
 
   ASSERT_OK_AND_ASSIGN(Tileset * loaded, manager_->LoadTileset("GrassTerrain-" + id + ".json"));
-  EXPECT_TRUE(loaded->terrains[0].member_tile_ids.empty());
+  EXPECT_TRUE(loaded->terrains[0].shape_tile_ids.empty());
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_TerrainMemberReferencingUnknownTile_Fails) {
+TEST_F(TilesetManagerTest, SaveTileset_TerrainShapeTileReferencingUnknownTile_Fails) {
   Tileset tileset = MakeTerrainTileset();
-  tileset.terrains[0].member_tile_ids = {77};
+  tileset.terrains[0].shape_tile_ids = {77};
 
   absl::Status status = manager_->CreateTileset(tileset).status();
   EXPECT_FALSE(status.ok());
-  EXPECT_THAT(status.message(), HasSubstr("unknown member tile ID 77"));
+  EXPECT_THAT(status.message(), HasSubstr("unknown shape tile ID 77"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_TerrainMemberAlsoPainted_Fails) {
+TEST_F(TilesetManagerTest, SaveTileset_TerrainShapeTileAlsoRuleProduced_Fails) {
   Tileset tileset = MakeTerrainTileset();
   // Tile 1 is already a rule variant.
-  tileset.terrains[0].member_tile_ids = {1};
+  tileset.terrains[0].shape_tile_ids = {1};
 
   absl::Status status = manager_->CreateTileset(tileset).status();
   EXPECT_FALSE(status.ok());
-  EXPECT_THAT(status.message(), HasSubstr("both painted and a member"));
+  EXPECT_THAT(status.message(), HasSubstr("both rule-produced and shape-keyed"));
 }
 
 TEST_F(TilesetManagerTest, SaveTileset_DuplicateTerrainId_Fails) {

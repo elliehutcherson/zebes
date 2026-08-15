@@ -103,7 +103,7 @@ TEST_F(TerrainCreationTest, GeneratingWritesArtworkAndSavesATileset) {
   // against a neighbourhood the generator had to guess at.
   EXPECT_TRUE(saved.terrains[0].rules.empty());
   EXPECT_EQ(saved.tiles.size(), static_cast<size_t>(kBlob47TileCount));
-  EXPECT_EQ(saved.terrains[0].member_tile_ids.size(), saved.tiles.size())
+  EXPECT_EQ(saved.terrains[0].derived_tiles.size(), saved.tiles.size())
       << "the terrain owns its artwork even without rules, or the brush reads it as foreign";
   EXPECT_EQ(created->tile_count, static_cast<int>(saved.tiles.size()));
 }
@@ -215,8 +215,6 @@ TEST_F(RecipeTerrainCreationTest, RegenerationReplacesOnlyPixelsAndPreservesIds)
                   .texture_id = "texture-id",
                   .tile_width = 8,
                   .tile_height = 8};
-  // Exactly what generation produces. Regeneration re-renders positionally, so
-  // it holds only while the tileset still has those tiles and no others.
   tileset.tiles.resize(kBlob47TileCount);
   tileset.terrains.push_back(Terrain{.id = 9, .variant_period = 1});
   EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
@@ -234,6 +232,61 @@ TEST_F(RecipeTerrainCreationTest, RegenerationReplacesOnlyPixelsAndPreservesIds)
   EXPECT_EQ(saved->texture_id, recipe.texture_id);
   EXPECT_EQ(saved->terrain_id, recipe.terrain_id);
   EXPECT_EQ(saved->config.seed, 777u);
+}
+
+TEST_F(RecipeTerrainCreationTest, RegenerationRedrawsTilesAddedAfterGeneration) {
+  // The reason a derived tile carries its key. Regeneration used to overwrite
+  // the atlas positionally, which only held while the tileset had exactly the
+  // tiles generation produced; a level asking for a neighbourhood adds more,
+  // and those could not be redrawn at all. Each is now redrawn from what it
+  // records, wherever it sits in the atlas.
+  TerrainRecipe recipe{.name = "meadow",
+                       .tileset_id = "tileset-id",
+                       .texture_id = "texture-id",
+                       .terrain_id = 9,
+                       .config = SmallConfig()};
+  ASSERT_OK_AND_ASSIGN(recipe.id, recipes_->CreateRecipe(recipe));
+
+  Tileset tileset{.id = "tileset-id",
+                  .name = "meadow",
+                  .texture_id = "texture-id",
+                  .tile_width = 8,
+                  .tile_height = 8};
+  Terrain terrain{.id = 9, .scheme = TerrainScheme::kDerived, .variant_period = 1};
+
+  // One tile from generation, and one a level asked for later: a ramp meeting
+  // open air, which no baked atlas ever held.
+  tileset.tiles.push_back(Tile{.id = 1, .name = "block", .shape = TileShape::kFullBlock});
+  TerrainCellKey buried;
+  buried.shape = TileShape::kFullBlock;
+  buried.neighbors.fill(TileShape::kFullBlock);
+  terrain.derived_tiles.push_back(DerivedTile{.tile_id = 1, .key = buried});
+
+  tileset.tiles.push_back(
+      Tile{.id = 2, .name = "ledge", .source_y = 8, .shape = TileShape::kSlope45BottomLeft});
+  TerrainCellKey ledge;
+  ledge.shape = TileShape::kSlope45BottomLeft;
+  ledge.neighbors.fill(TileShape::kNone);
+  ledge.neighbors[4] = TileShape::kFullBlock;
+  terrain.derived_tiles.push_back(DerivedTile{.tile_id = 2, .key = ledge});
+
+  tileset.terrains.push_back(std::move(terrain));
+  EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
+
+  // Both rows are rewritten, so the added tile is redrawn rather than left
+  // showing the old material.
+  int written_height = 0;
+  EXPECT_CALL(api_, ReplaceTexturePixels("texture-id", _, _, _))
+      .WillOnce([&](const std::string&, int, int height, absl::Span<const uint8_t>) {
+        written_height = height;
+        return absl::OkStatus();
+      });
+
+  TerrainGenConfig edited = recipe.config;
+  edited.seed = 4242;
+  ASSERT_OK(RegenerateTerrainTileset(api_, recipe, edited));
+
+  EXPECT_EQ(written_height, 16) << "the atlas keeps the extent its tiles occupy";
 }
 
 TEST_F(RecipeTerrainCreationTest, StructuralRegenerationRequiresSaveAsBeforeWrites) {

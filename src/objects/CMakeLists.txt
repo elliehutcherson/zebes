@@ -36,6 +36,7 @@ target_link_libraries(blueprint INTERFACE)
 add_library(tileset INTERFACE)
 target_include_directories(tileset INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(tileset INTERFACE
+  absl::hash
   absl::strings
 )
 

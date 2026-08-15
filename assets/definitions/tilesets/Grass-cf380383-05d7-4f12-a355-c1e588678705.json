@@ -3,11 +3,8 @@
     "name": "Grass",
     "terrains": [
         {
+            "derived_tiles": [],
             "id": 1,
-            "member_tile_ids": [
-                48,
-                49
-            ],
             "name": "Terrain",
             "rules": [
                 {
@@ -435,6 +432,10 @@
                 }
             ],
             "scheme": 0,
+            "shape_tile_ids": [
+                48,
+                49
+            ],
             "solid_outside_level": true,
             "variant_period": 0
         }

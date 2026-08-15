@@ -1,7 +1,9 @@
 #include "editor/terrain_editor/terrain_creation.h"
 
+#include <algorithm>
 #include <utility>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
@@ -46,6 +48,56 @@ absl::StatusOr<CreatedTerrain> SaveTilesetForCandidate(Api& api, const std::stri
 absl::Status ValidateName(const std::string& name) {
   if (name.empty()) return absl::InvalidArgumentError("Name the terrain before creating it");
   return absl::OkStatus();
+}
+
+// Redraws every tile a derived terrain owns, in place, from the neighbourhood
+// that tile records.
+//
+// Regeneration used to overwrite the atlas positionally -- tile N of a freshly
+// generated atlas over tile N of the old one -- which held only while the
+// tileset still had exactly the tiles generation produced. A derived terrain
+// grows past that as levels ask for neighbourhoods, and those tiles could not
+// be redrawn at all until each carried its key.
+absl::StatusOr<Blob47Atlas> RerenderDerivedTiles(const Tileset& tileset, const Terrain& terrain,
+                                                 const TerrainGenConfig& config) {
+  ASSIGN_OR_RETURN(const TerrainRenderer renderer, TerrainRenderer::Create(config));
+
+  absl::flat_hash_map<int, const Tile*> by_id;
+  for (const Tile& tile : tileset.tiles) by_id.emplace(tile.id, &tile);
+
+  Blob47Atlas atlas;
+  atlas.tile_size = config.tile_size;
+  atlas.variant_period = config.variant_period;
+  atlas.image.width = tileset.tile_width * kBlob47Columns;
+
+  // The atlas keeps whatever extent the tiles already occupy, so every
+  // source rectangle a level's tile IDs resolve through stays where it was.
+  int rows = 0;
+  for (const DerivedTile& derived : terrain.derived_tiles) {
+    auto found = by_id.find(derived.tile_id);
+    if (found == by_id.end()) {
+      return absl::FailedPreconditionError(absl::StrCat(
+          "terrain '", terrain.name, "' records artwork for tile ", derived.tile_id,
+          ", which the tileset no longer has"));
+    }
+    rows = std::max(rows, found->second->source_y / tileset.tile_height + 1);
+    atlas.image.width = std::max(atlas.image.width,
+                                 found->second->source_x + tileset.tile_width);
+  }
+  atlas.image.height = rows * tileset.tile_height;
+  atlas.image.pixels.assign(
+      static_cast<size_t>(atlas.image.width) * std::max(atlas.image.height, 1) * 4, 0);
+  if (atlas.image.height <= 0) return atlas;
+
+  for (const DerivedTile& derived : terrain.derived_tiles) {
+    const Tile& tile = *by_id.at(derived.tile_id);
+    ASSIGN_OR_RETURN(const RgbaImage artwork,
+                     renderer.RenderShapeTileInContext(derived.key.shape, derived.key.neighbors,
+                                                       derived.key.phase));
+    RETURN_IF_ERROR(CopyTile(artwork, 0, 0, config.tile_size, atlas.image, tile.source_x,
+                             tile.source_y));
+  }
+  return atlas;
 }
 
 }  // namespace
@@ -127,18 +179,11 @@ absl::Status RegenerateTerrainTileset(Api& api, const TerrainRecipe& recipe,
   // here because nothing records which neighbourhood each one depicts.
   //
   // Refusing is the honest answer until a derived tile carries its key. Silently
-  // re-rendering the first N would leave every grown tile showing the old
-  // material, and Save As would renumber IDs the level already references.
-  const int generated_tiles =
-      kBlob47TileCount * recipe.config.variant_period * recipe.config.variant_period;
-  if (tileset->tiles.size() != static_cast<size_t>(generated_tiles)) {
-    return absl::FailedPreconditionError(absl::StrCat(
-        "tileset '", tileset->name, "' has grown to ", tileset->tiles.size(), " tiles from the ",
-        generated_tiles,
-        " generation produced, so regenerating would leave the added artwork stale"));
-  }
-
-  ASSIGN_OR_RETURN(const Blob47Atlas atlas, GenerateBlob47Atlas(config));
+  // Every tile is redrawn from the neighbourhood it records, so a tileset that
+  // has grown as levels asked for neighbourhoods regenerates as exactly as one
+  // that has not. Nothing here depends on the atlas layout, which is what let
+  // the old positional rewrite only ever handle the tiles generation produced.
+  ASSIGN_OR_RETURN(const Blob47Atlas atlas, RerenderDerivedTiles(*tileset, *terrain, config));
 
   TerrainRecipe updated = recipe;
   updated.config = config;

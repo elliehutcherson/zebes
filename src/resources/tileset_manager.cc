@@ -73,7 +73,26 @@ nlohmann::json ToJson(const Terrain& terrain) {
   // Written even when empty. An absent field and an empty list would mean the
   // same thing here, and offering the reader two spellings of one state is what
   // forces it to guess.
-  j["member_tile_ids"] = terrain.member_tile_ids;
+  j["shape_tile_ids"] = terrain.shape_tile_ids;
+
+  // The neighbourhood each derived tile depicts. Written for every scheme, even
+  // though only kDerived fills it, for the same reason as the list above: an
+  // absent field and an empty one would be two spellings of one state.
+  std::vector<nlohmann::json> derived_json;
+  for (const DerivedTile& derived : terrain.derived_tiles) {
+    std::vector<int> neighbors;
+    neighbors.reserve(kNeighborCount);
+    for (const TileShape neighbor : derived.key.neighbors) {
+      neighbors.push_back(static_cast<int>(neighbor));
+    }
+    derived_json.push_back({
+        {"tile_id", derived.tile_id},
+        {"shape", static_cast<int>(derived.key.shape)},
+        {"neighbors", neighbors},
+        {"phase", derived.key.phase},
+    });
+  }
+  j["derived_tiles"] = derived_json;
 
   return j;
 }
@@ -86,7 +105,25 @@ absl::StatusOr<Terrain> GetTerrainFromJson(const nlohmann::json& j) {
     terrain.scheme = static_cast<TerrainScheme>(j.at("scheme").get<int>());
     j.at("solid_outside_level").get_to(terrain.solid_outside_level);
     j.at("variant_period").get_to(terrain.variant_period);
-    j.at("member_tile_ids").get_to(terrain.member_tile_ids);
+    j.at("shape_tile_ids").get_to(terrain.shape_tile_ids);
+
+    for (const nlohmann::json& derived_j : j.at("derived_tiles")) {
+      DerivedTile derived;
+      derived.tile_id = derived_j.at("tile_id").get<int>();
+      derived.key.shape = static_cast<TileShape>(derived_j.at("shape").get<int>());
+      derived.key.phase = derived_j.at("phase").get<int>();
+
+      const nlohmann::json& neighbors = derived_j.at("neighbors");
+      if (neighbors.size() != kNeighborCount) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("derived tile ", derived.tile_id, " names ", neighbors.size(),
+                         " neighbours; a cell has ", kNeighborCount));
+      }
+      for (int i = 0; i < kNeighborCount; ++i) {
+        derived.key.neighbors[i] = static_cast<TileShape>(neighbors[i].get<int>());
+      }
+      terrain.derived_tiles.push_back(derived);
+    }
 
     for (const nlohmann::json& rule_j : j.at("rules")) {
       TerrainRule rule;
@@ -125,7 +162,7 @@ nlohmann::json ToJson(const Tileset& tileset) {
   for (const Terrain& terrain : tileset.terrains) {
     terrains_json.push_back(ToJson(terrain));
   }
-  // Written even when empty, for the same reason as member_tile_ids above.
+  // Written even when empty, for the same reason as shape_tile_ids above.
   j["terrains"] = terrains_json;
 
   return j;
@@ -171,16 +208,38 @@ absl::Status ValidateTerrainRules(const Terrain& terrain,
     for (const TerrainVariant& variant : rule.variants) painted_ids.insert(variant.tile_id);
   }
 
-  for (int member_id : terrain.member_tile_ids) {
-    if (!tile_ids.contains(member_id)) {
+  for (int shape_tile_id : terrain.shape_tile_ids) {
+    if (!tile_ids.contains(shape_tile_id)) {
       return absl::InvalidArgumentError(absl::StrCat(
-          "Terrain '", terrain.name, "' lists unknown member tile ID ", member_id, "."));
+          "Terrain '", terrain.name, "' lists unknown shape tile ID ", shape_tile_id, "."));
     }
-    if (painted_ids.contains(member_id)) {
+    if (painted_ids.contains(shape_tile_id)) {
       return absl::InvalidArgumentError(
-          absl::StrCat("Terrain '", terrain.name, "' lists tile ", member_id,
-                       " as both painted and a member."));
+          absl::StrCat("Terrain '", terrain.name, "' lists tile ", shape_tile_id,
+                       " as both rule-produced and shape-keyed."));
     }
+  }
+
+  // A derived tile naming a tile that is not there would have the brush resolve
+  // a cell to artwork the atlas cannot show.
+  absl::flat_hash_set<int> derived_ids;
+  for (const DerivedTile& derived : terrain.derived_tiles) {
+    if (!tile_ids.contains(derived.tile_id)) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Terrain '", terrain.name, "' lists unknown derived tile ID ", derived.tile_id, "."));
+    }
+    if (!derived_ids.insert(derived.tile_id).second) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Terrain '", terrain.name, "' lists derived tile ", derived.tile_id,
+                       " twice, so which neighbourhood it depicts is ambiguous."));
+    }
+  }
+
+  if (terrain.scheme == TerrainScheme::kDerived && !terrain.rules.empty()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Terrain '", terrain.name,
+                     "' derives its artwork but carries a rule table; resolving a cell by mask is "
+                     "what deriving replaces."));
   }
 
   if (terrain.variant_period < 0) {

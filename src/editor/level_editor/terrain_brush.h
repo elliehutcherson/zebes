@@ -7,7 +7,6 @@
 #include "absl/status/statusor.h"
 #include "objects/level.h"
 #include "objects/tileset.h"
-#include "terrain/terrain_cell_key.h"
 
 namespace zebes {
 

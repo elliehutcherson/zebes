@@ -1,3 +1,13 @@
+add_executable(terrain_cell_key_test terrain_cell_key_test.cc)
+target_link_libraries(terrain_cell_key_test
+  gtest_main
+  gmock
+  tileset
+  absl::flat_hash_set
+)
+target_include_directories(terrain_cell_key_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_cell_key_test)
+
 add_executable(tile_shape_geometry_test tile_shape_geometry_test.cc)
 target_link_libraries(tile_shape_geometry_test
   gtest_main

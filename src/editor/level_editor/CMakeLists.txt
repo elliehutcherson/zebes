@@ -60,7 +60,7 @@ target_link_libraries(derived_tile_provider
   PUBLIC
   image_io
   terrain_brush
-  terrain_cell_key
+
   terrain_content_index
   terrain_generator
   tileset
@@ -78,7 +78,7 @@ add_library(terrain_brush
 target_link_libraries(terrain_brush
   PUBLIC
   level
-  terrain_cell_key
+
   tileset
   absl::flat_hash_map
   absl::statusor
