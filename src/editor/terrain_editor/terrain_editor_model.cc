@@ -69,9 +69,13 @@ void TerrainEditorModel::SetSource(Source source) {
   preview_stale_ = true;
 }
 
+// One blob tile per mask per phase, and nothing else. Generation stopped baking
+// slope units when derived artwork began rendering them against the neighbours a
+// level actually supplies, so counting them here reported tiles Create does not
+// write.
 int TerrainEditorModel::TileCount() const {
   const int phases = config_.variant_period * config_.variant_period;
-  return kBlob47TileCount * phases + kSlopeShapeCount;
+  return kBlob47TileCount * phases;
 }
 
 absl::Status TerrainEditorModel::RefreshPreviewIfNeeded(bool interacting) {

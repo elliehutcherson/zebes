@@ -3,12 +3,12 @@
 #include <string>
 #include <vector>
 
-#include "absl/types/span.h"
-
+#include "absl/log/globals.h"
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "terrain/terrain_mask.h"
 
 // stb_image_write is a header-only library. Keep its implementation in this
@@ -129,6 +129,9 @@ absl::Status Generate(const std::string& output_prefix) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
+  // Without this absl drops INFO before it reaches stderr, so every progress
+  // line this tool has ever logged went nowhere.
+  absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
   absl::InitializeLog();
 
   if (argc != 2) {

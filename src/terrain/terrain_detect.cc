@@ -1,7 +1,9 @@
 #include "terrain/terrain_detect.h"
 
 #include <map>
+#include <optional>
 #include <set>
+#include <string>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
@@ -42,20 +44,33 @@ struct ManifestSlope {
 
 absl::StatusOr<std::vector<ManifestSlope>> ParseManifestSlopes(const nlohmann::json& json) {
   std::vector<ManifestSlope> slopes;
-  if (!json.contains("slopes")) return slopes;
-  if (!json["slopes"].is_array()) {
-    return absl::InvalidArgumentError("terrain manifest slopes must be an array");
+  if (!json.contains("slopes") || !json["slopes"].is_array()) {
+    return absl::InvalidArgumentError("terrain manifest has no slopes array");
   }
 
   try {
     for (const nlohmann::json& slope : json["slopes"]) {
-      const int shape = slope.at("shape").get<int>();
-      if (shape < kFirstSlopeShape || shape >= kFirstSlopeShape + kSlopeShapeCount) {
+      const std::string identifier = slope.at("shape").get<std::string>();
+      const std::optional<TileShape> shape = TileShapeFromIdentifier(identifier);
+      if (!shape.has_value()) {
         return absl::InvalidArgumentError(
-            absl::StrCat("terrain manifest slope has non-slope shape ", shape));
+            absl::StrCat("terrain manifest slope has unknown shape '", identifier, "'"));
+      }
+      // Two shapes a unit cannot be. kNone has no polygon and so no artwork to
+      // point at, and kFullBlock is what the mask-keyed rules already draw, so a
+      // unit claiming it would be a second, conflicting source for one shape.
+      //
+      // Every other shape is legal, half-blocks included. The numeric range this
+      // replaces excluded them for no reason a scheme reading its own manifest
+      // can defend: a unit is a shape drawn at full tile size, and a half-block
+      // is one.
+      if (*shape == TileShape::kNone || *shape == TileShape::kFullBlock) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("terrain manifest slope has shape ", identifier,
+                         ", which the mask-keyed rules already cover"));
       }
       slopes.push_back(ManifestSlope{
-          .shape = static_cast<TileShape>(shape),
+          .shape = *shape,
           .source_x = slope.at("source_x").get<int>(),
           .source_y = slope.at("source_y").get<int>(),
       });
@@ -298,7 +313,11 @@ absl::StatusOr<TerrainCandidate> ImportBlob47Manifest(absl::string_view manifest
   // description lets the generated and composed paths share everything past
   // this point.
   Blob47Atlas atlas;
-  atlas.tile_size = json.value("tile_size", 0);
+  if (!json.contains("tile_size")) {
+    return absl::InvalidArgumentError(
+        "terrain manifest has no tile_size; regenerate it with a current tool");
+  }
+  atlas.tile_size = json.at("tile_size").get<int>();
   if (!json.contains("variant_period")) {
     return absl::InvalidArgumentError(
         "terrain manifest has no variant_period; regenerate it with a current tool");

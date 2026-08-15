@@ -317,14 +317,22 @@ TEST(Blob47ComposeTest, ManifestCarriesSlopeShapes) {
 
   nlohmann::json json = nlohmann::json::parse(WriteBlob47Manifest(*atlas));
   ASSERT_EQ(json["slopes"].size(), 2u);
-  EXPECT_EQ(json["slopes"][0]["shape"], static_cast<int>(TileShape::kSlope45BottomLeft));
+  // Spelled with the stable identifier, so renumbering TileShape cannot silently
+  // reinterpret a manifest written today.
+  EXPECT_EQ(json["slopes"][0]["shape"], "kSlope45BottomLeft");
   EXPECT_EQ(json["slopes"][0]["source_y"], atlas->slopes[0].source_y);
 }
 
-TEST(Blob47ComposeTest, ManifestOmitsSlopesWhenNoneSupplied) {
+// An absent list and an empty one would be two spellings of one state, leaving
+// the reader to guess which the author meant.
+TEST(Blob47ComposeTest, ManifestWritesAnEmptySlopesArrayWhenNoneSupplied) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1));
   ASSERT_TRUE(atlas.ok()) << atlas.status();
-  EXPECT_FALSE(nlohmann::json::parse(WriteBlob47Manifest(*atlas)).contains("slopes"));
+
+  nlohmann::json json = nlohmann::json::parse(WriteBlob47Manifest(*atlas));
+  ASSERT_TRUE(json.contains("slopes"));
+  EXPECT_TRUE(json["slopes"].is_array());
+  EXPECT_TRUE(json["slopes"].empty());
 }
 
 // --- Seeding a sheet from an existing 3x3 block -------------------------------

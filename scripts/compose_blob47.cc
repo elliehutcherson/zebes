@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/log/globals.h"
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
@@ -268,6 +269,9 @@ absl::Status RunCompose(int argc, char* argv[]) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
+  // Without this absl drops INFO before it reaches stderr, so every progress
+  // line this tool has ever logged went nowhere.
+  absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
   absl::InitializeLog();
 
   if (argc < 2) {

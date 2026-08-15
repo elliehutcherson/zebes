@@ -2,6 +2,8 @@
 
 #include <set>
 
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
@@ -261,12 +263,38 @@ TEST(TerrainDetectTest, ImportWithoutSlopesLeavesMembersEmpty) {
   EXPECT_TRUE(candidate->terrain.shape_tile_ids.empty());
 }
 
-TEST(TerrainDetectTest, ImportRejectsNonSlopeShapeInSlopesArray) {
-  // kFullBlock is not a slope and must not be smuggled in as a member.
+TEST(TerrainDetectTest, ImportRejectsShapeTheMaskRulesAlreadyCover) {
+  // kFullBlock is what the 47 masks already draw, so a unit claiming it would be
+  // a second source for one shape. kNone has no artwork at all.
+  for (absl::string_view identifier : {"kFullBlock", "kNone"}) {
+    absl::StatusOr<TerrainCandidate> candidate = ImportBlob47Manifest(
+        absl::StrCat(R"({"scheme":"blob47","tile_size":32,"variant_period":1,"tiles":[],)",
+                     R"("slopes":[{"shape":")", identifier, R"(","source_x":0,"source_y":0}]})"),
+        1, 1);
+    ASSERT_FALSE(candidate.ok()) << identifier;
+    EXPECT_EQ(candidate.status().code(), absl::StatusCode::kInvalidArgument) << identifier;
+  }
+}
+
+TEST(TerrainDetectTest, ImportRejectsUnknownShapeIdentifier) {
   absl::StatusOr<TerrainCandidate> candidate = ImportBlob47Manifest(
-      R"({"scheme":"blob47","tiles":[],"slopes":[{"shape":1,"source_x":0,"source_y":0}]})", 1, 1);
+      R"({"scheme":"blob47","tile_size":32,"variant_period":1,"tiles":[],)"
+      R"("slopes":[{"shape":"kSlope45BottomLeftt","source_x":0,"source_y":0}]})",
+      1, 1);
   ASSERT_FALSE(candidate.ok());
   EXPECT_EQ(candidate.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
+// A half-block is a shape drawn at full tile size, which is exactly what a unit
+// is. The numeric range this replaced excluded them for no defensible reason.
+TEST(TerrainDetectTest, ImportAcceptsAHalfBlockShapeUnit) {
+  absl::StatusOr<TerrainCandidate> candidate =
+      ImportBlob47Manifest(R"({"scheme":"blob47","tile_size":32,"variant_period":1,"tiles":[],)"
+                           R"("slopes":[{"shape":"kHalfBlockBottom","source_x":0,"source_y":0}]})",
+                           1, 1);
+  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_EQ(candidate->tiles.size(), 1u);
+  EXPECT_EQ(candidate->tiles[0].shape, TileShape::kHalfBlockBottom);
 }
 
 // --- Atlas layout scan (the manifest-less fallback) ---------------------------

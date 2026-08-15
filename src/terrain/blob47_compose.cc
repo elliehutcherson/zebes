@@ -230,18 +230,20 @@ std::string WriteBlob47Manifest(const Blob47Atlas& atlas) {
   }
   json["tiles"] = std::move(tiles);
 
-  // Omitted when no slope units were supplied, so manifests stay minimal.
-  if (!atlas.slopes.empty()) {
-    nlohmann::json slopes = nlohmann::json::array();
-    for (const ComposedSlope& slope : atlas.slopes) {
-      nlohmann::json entry;
-      entry["shape"] = static_cast<int>(slope.shape);
-      entry["source_x"] = slope.source_x;
-      entry["source_y"] = slope.source_y;
-      slopes.push_back(std::move(entry));
-    }
-    json["slopes"] = std::move(slopes);
+  // Written even when empty. An absent list and an empty one would otherwise be
+  // two spellings of one state, and the reader would have to guess which the
+  // author meant.
+  nlohmann::json slopes = nlohmann::json::array();
+  for (const ComposedSlope& slope : atlas.slopes) {
+    nlohmann::json entry;
+    // Spelled with its stable identifier rather than a raw enumerator value, so
+    // renumbering TileShape cannot silently reinterpret an existing manifest.
+    entry["shape"] = kTileShapeIdentifiers[static_cast<size_t>(slope.shape)];
+    entry["source_x"] = slope.source_x;
+    entry["source_y"] = slope.source_y;
+    slopes.push_back(std::move(entry));
   }
+  json["slopes"] = std::move(slopes);
 
   return json.dump(4);
 }

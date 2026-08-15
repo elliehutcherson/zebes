@@ -55,12 +55,14 @@ TEST(TerrainEditorModelTest, ApplyingAPresetPreservesSeedAndQuality) {
   EXPECT_EQ(*model.selected_preset(), "Cozy Meadow");
 }
 
-TEST(TerrainEditorModelTest, TileCountCountsEveryPhaseAndEverySlope) {
+// Generation writes one blob tile per mask per phase. It bakes no slope units,
+// so counting them here would promise the user tiles that Create never writes.
+TEST(TerrainEditorModelTest, TileCountCountsEveryPhaseAndNoSlopes) {
   TerrainEditorModel model = MakeModel();
-  EXPECT_EQ(model.TileCount(), kBlob47TileCount + kSlopeShapeCount);
+  EXPECT_EQ(model.TileCount(), kBlob47TileCount);
 
   model.config().variant_period = 2;
-  EXPECT_EQ(model.TileCount(), kBlob47TileCount * 4 + kSlopeShapeCount);
+  EXPECT_EQ(model.TileCount(), kBlob47TileCount * 4);
 }
 
 // The picture has to arrive without the user touching anything.
