@@ -61,7 +61,8 @@ absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(Api& api, const std
       const std::string texture_id,
       api.CreateTextureFromPixels(name, atlas.image.width, atlas.image.height, atlas.image.pixels));
   ASSIGN_OR_RETURN(TerrainCandidate candidate,
-                   BuildTerrainCandidate(atlas, /*first_tile_id=*/1, /*terrain_id=*/1));
+                   BuildTerrainCandidate(atlas, /*first_tile_id=*/1, /*terrain_id=*/1,
+                                         TerrainScheme::kDerived));
 
   return SaveTilesetForCandidate(api, name, texture_id, std::move(candidate));
 }
@@ -119,12 +120,22 @@ absl::Status RegenerateTerrainTileset(Api& api, const TerrainRecipe& recipe,
         "terrain recipe target is missing or its repeat period has changed");
   }
 
-  const int expected_tiles =
-      kBlob47TileCount * recipe.config.variant_period * recipe.config.variant_period +
-      kSlopeShapeCount;
-  if (tileset->tiles.size() != static_cast<size_t>(expected_tiles)) {
-    return absl::FailedPreconditionError(
-        "terrain tileset structure changed after generation; use Save As to preserve existing IDs");
+  // Regeneration re-renders positionally: tile N of the new atlas overwrites
+  // tile N of the old one, which only holds while the tileset still has exactly
+  // the tiles generation produced. A derived terrain grows past that as levels
+  // ask for neighbourhoods, and those extra tiles cannot be re-rendered from
+  // here because nothing records which neighbourhood each one depicts.
+  //
+  // Refusing is the honest answer until a derived tile carries its key. Silently
+  // re-rendering the first N would leave every grown tile showing the old
+  // material, and Save As would renumber IDs the level already references.
+  const int generated_tiles =
+      kBlob47TileCount * recipe.config.variant_period * recipe.config.variant_period;
+  if (tileset->tiles.size() != static_cast<size_t>(generated_tiles)) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "tileset '", tileset->name, "' has grown to ", tileset->tiles.size(), " tiles from the ",
+        generated_tiles,
+        " generation produced, so regenerating would leave the added artwork stale"));
   }
 
   ASSIGN_OR_RETURN(const Blob47Atlas atlas, GenerateBlob47Atlas(config));

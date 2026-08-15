@@ -97,8 +97,14 @@ TEST_F(TerrainCreationTest, GeneratingWritesArtworkAndSavesATileset) {
 
   ASSERT_EQ(saved.terrains.size(), 1);
   EXPECT_EQ(saved.terrains[0].name, "meadow") << "the terrain should be named, not left 'Terrain'";
-  EXPECT_EQ(saved.terrains[0].rules.size(), static_cast<size_t>(kBlob47TileCount));
-  EXPECT_EQ(saved.tiles.size(), static_cast<size_t>(kBlob47TileCount) + kSlopeShapeCount);
+  EXPECT_EQ(saved.terrains[0].scheme, TerrainScheme::kDerived);
+  // No rule table: a derived terrain resolves by rendering for the cell's real
+  // neighbourhood, and no slope units, because those were one drawing per shape
+  // against a neighbourhood the generator had to guess at.
+  EXPECT_TRUE(saved.terrains[0].rules.empty());
+  EXPECT_EQ(saved.tiles.size(), static_cast<size_t>(kBlob47TileCount));
+  EXPECT_EQ(saved.terrains[0].member_tile_ids.size(), saved.tiles.size())
+      << "the terrain owns its artwork even without rules, or the brush reads it as foreign";
   EXPECT_EQ(created->tile_count, static_cast<int>(saved.tiles.size()));
 }
 
@@ -112,12 +118,13 @@ TEST_F(TerrainCreationTest, GeneratingCarriesThePatternPeriodOntoTheTerrain) {
 
   TerrainGenConfig config = SmallConfig();
   config.variant_period = 2;
-  ASSERT_TRUE(CreateGeneratedTerrainTileset(api_, "meadow", config).ok());
+  ASSERT_OK(CreateGeneratedTerrainTileset(api_, "meadow", config));
 
   ASSERT_EQ(saved.terrains.size(), 1);
   EXPECT_EQ(saved.terrains[0].variant_period, 2);
-  // Four phases per mask, so the brush can lay the pattern back down in phase.
-  EXPECT_EQ(saved.terrains[0].rules[0].variants.size(), 4u);
+  // Four phases of the pattern, which the key carries so a cell is drawn at the
+  // phase its coordinates put it in.
+  EXPECT_EQ(saved.tiles.size(), static_cast<size_t>(kBlob47TileCount) * 4);
 }
 
 // Artwork is written before the tileset, so a name collision fails before
@@ -208,7 +215,9 @@ TEST_F(RecipeTerrainCreationTest, RegenerationReplacesOnlyPixelsAndPreservesIds)
                   .texture_id = "texture-id",
                   .tile_width = 8,
                   .tile_height = 8};
-  tileset.tiles.resize(kBlob47TileCount + kSlopeShapeCount);
+  // Exactly what generation produces. Regeneration re-renders positionally, so
+  // it holds only while the tileset still has those tiles and no others.
+  tileset.tiles.resize(kBlob47TileCount);
   tileset.terrains.push_back(Terrain{.id = 9, .variant_period = 1});
   EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
   EXPECT_CALL(api_, ReplaceTexturePixels("texture-id", _, _, _)).WillOnce(Return(absl::OkStatus()));
@@ -253,7 +262,9 @@ TEST_F(RecipeTerrainCreationTest, ArtworkFailureRollsRecipeBack) {
   ASSERT_OK_AND_ASSIGN(recipe.id, recipes_->CreateRecipe(recipe));
   Tileset tileset{
       .id = "tileset-id", .texture_id = "texture-id", .tile_width = 8, .tile_height = 8};
-  tileset.tiles.resize(kBlob47TileCount + kSlopeShapeCount);
+  // Exactly what generation produces. Regeneration re-renders positionally, so
+  // it holds only while the tileset still has those tiles and no others.
+  tileset.tiles.resize(kBlob47TileCount);
   tileset.terrains.push_back(Terrain{.id = 1, .variant_period = 1});
   EXPECT_CALL(api_, GetTileset(_)).WillOnce(Return(&tileset));
   EXPECT_CALL(api_, ReplaceTexturePixels(_, _, _, _))

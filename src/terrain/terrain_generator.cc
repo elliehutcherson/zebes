@@ -402,66 +402,6 @@ float EdgeCoverage(absl::Span<const TilePoint> polygon, int neighbor) {
   return covered;
 }
 
-// Infers which neighbours are solid from how fully the polygon covers each
-// face. A face it covers is a face the terrain continues through; one it merely
-// grazes is open to air. This single rule gives every slope in TileShape a
-// correct band with no hand-written table.
-void AutoContext(absl::Span<const TilePoint> polygon,
-                 std::vector<absl::Span<const TilePoint>>& neighbors) {
-  const absl::Span<const TilePoint> square = TileShapePolygon(TileShape::kFullBlock);
-  for (const int edge : {0, 2, 4, 6}) {
-    neighbors[edge] = EdgeCoverage(polygon, edge) >= 0.5f ? square : absl::Span<const TilePoint>();
-  }
-  // A corner is only solid when both of its flanking edges are, which is the
-  // same rule the brush normalizes masks with.
-  for (const int corner : {1, 3, 5, 7}) {
-    const int before = (corner + 7) % 8;
-    const int after = (corner + 1) % 8;
-    const bool solid = !neighbors[before].empty() && !neighbors[after].empty();
-    neighbors[corner] = solid ? square : absl::Span<const TilePoint>();
-  }
-}
-
-// The two-cell slope families, as (left or top cell, right or bottom cell).
-//
-// Which half sits on which side follows from the geometry in
-// tile_shape_geometry.h: a gentle ramp's Lower half is the end that starts at
-// zero height, so it leads when the ramp rises to the right and trails when it
-// rises to the left. Steep units always stack Bottom below Top.
-struct SlopePair {
-  TileShape first = TileShape::kNone;
-  TileShape second = TileShape::kNone;
-  // True when the halves sit side by side, false when they stack.
-  bool horizontal = true;
-};
-
-constexpr SlopePair kSlopePairs[] = {
-    {TileShape::kGentleSlopeBottomLeft_Lower, TileShape::kGentleSlopeBottomLeft_Upper, true},
-    {TileShape::kGentleSlopeBottomRight_Upper, TileShape::kGentleSlopeBottomRight_Lower, true},
-    {TileShape::kGentleSlopeTopLeft_Lower, TileShape::kGentleSlopeTopLeft_Upper, true},
-    {TileShape::kGentleSlopeTopRight_Upper, TileShape::kGentleSlopeTopRight_Lower, true},
-    {TileShape::kSteepSlopeBottomLeft_Top, TileShape::kSteepSlopeBottomLeft_Bottom, false},
-    {TileShape::kSteepSlopeBottomRight_Top, TileShape::kSteepSlopeBottomRight_Bottom, false},
-    {TileShape::kSteepSlopeTopLeft_Top, TileShape::kSteepSlopeTopLeft_Bottom, false},
-    {TileShape::kSteepSlopeTopRight_Top, TileShape::kSteepSlopeTopRight_Bottom, false},
-};
-
-// Replaces the inferred neighbour with the partner's actual polygon, so the
-// band is continuous across the seam inside a two-cell ramp rather than
-// stopping at it.
-void ApplyPartner(TileShape shape, std::vector<absl::Span<const TilePoint>>& neighbors) {
-  for (const SlopePair& pair : kSlopePairs) {
-    if (pair.first == shape) {
-      neighbors[pair.horizontal ? 2 : 4] = TileShapePolygon(pair.second);
-      return;
-    }
-    if (pair.second == shape) {
-      neighbors[pair.horizontal ? 6 : 0] = TileShapePolygon(pair.first);
-      return;
-    }
-  }
-}
-
 }  // namespace
 
 TerrainRenderer::TerrainRenderer(TerrainGenConfig config, ResolvedTerrainStyle style,
@@ -1097,23 +1037,6 @@ absl::StatusOr<RgbaImage> TerrainRenderer::RenderBlobTile(uint8_t mask, int vari
   return RenderTile(square, neighbors, variant);
 }
 
-absl::StatusOr<RgbaImage> TerrainRenderer::RenderShapeTile(TileShape shape, int variant) const {
-  if (variant < 0 || variant >= variant_count()) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("variant ", variant, " is outside the ", variant_count(), " this set holds"));
-  }
-  const absl::Span<const TilePoint> polygon = TileShapePolygon(shape);
-  if (polygon.empty()) {
-    return absl::InvalidArgumentError("kNone has no artwork to render");
-  }
-
-  std::vector<absl::Span<const TilePoint>> neighbors(kNeighborCount);
-  AutoContext(polygon, neighbors);
-  ApplyPartner(shape, neighbors);
-
-  return RenderTile(polygon, neighbors, variant);
-}
-
 absl::StatusOr<RgbaImage> TerrainRenderer::RenderShapeTileInContext(
     TileShape shape, absl::Span<const TileShape> neighbors, int variant) const {
   if (variant < 0 || variant >= variant_count()) {
@@ -1188,8 +1111,7 @@ TileShape ShapeScene::At(int x, int y) const {
 }
 
 absl::StatusOr<RgbaImage> RenderSceneCell(const TerrainRenderer& renderer,
-                                          const ShapeScene& scene, int x, int y,
-                                          SceneContext context) {
+                                          const ShapeScene& scene, int x, int y) {
   if (scene.width <= 0 || scene.height <= 0 ||
       scene.cells.size() != static_cast<size_t>(scene.width) * scene.height) {
     return absl::InvalidArgumentError("scene dimensions do not match its cells");
@@ -1209,27 +1131,11 @@ absl::StatusOr<RgbaImage> RenderSceneCell(const TerrainRenderer& renderer,
   const int period = renderer.config().variant_period;
   const int variant = period > 0 ? (y % period) * period + (x % period) : 0;
 
-  if (context == SceneContext::kTrueNeighbors) {
-    return renderer.RenderShapeTileInContext(shape, neighbors, variant);
-  }
-
-  // The atlas holds exactly one drawing per slope shape, rendered at variant 0
-  // from an inferred neighbourhood. Reproducing that faithfully -- rather than
-  // asking for the phase this cell would prefer -- is what makes the comparison
-  // against kTrueNeighbors mean anything.
-  if (shape != TileShape::kFullBlock) {
-    return renderer.RenderShapeTile(shape, /*variant=*/0);
-  }
-
-  uint8_t mask = 0;
-  for (int i = 0; i < kNeighborCount; ++i) {
-    if (neighbors[i] != TileShape::kNone) mask |= 1 << i;
-  }
-  return renderer.RenderBlobTile(NormalizeNeighborMask(mask), variant);
+  return renderer.RenderShapeTileInContext(shape, neighbors, variant);
 }
 
 absl::StatusOr<RgbaImage> RenderShapeScene(const TerrainRenderer& renderer,
-                                           const ShapeScene& scene, SceneContext context) {
+                                           const ShapeScene& scene) {
   const int tile = renderer.config().tile_size;
 
   RgbaImage image;
@@ -1240,7 +1146,7 @@ absl::StatusOr<RgbaImage> RenderShapeScene(const TerrainRenderer& renderer,
   for (int y = 0; y < scene.height; ++y) {
     for (int x = 0; x < scene.width; ++x) {
       if (scene.At(x, y) == TileShape::kNone) continue;
-      ASSIGN_OR_RETURN(const RgbaImage cell, RenderSceneCell(renderer, scene, x, y, context));
+      ASSIGN_OR_RETURN(const RgbaImage cell, RenderSceneCell(renderer, scene, x, y));
       RETURN_IF_ERROR(CopyTile(cell, 0, 0, tile, image, x * tile, y * tile));
     }
   }
@@ -1254,17 +1160,13 @@ absl::StatusOr<Blob47Atlas> GenerateBlob47Atlas(const TerrainGenConfig& config) 
   const int variants = renderer.variant_count();
   const absl::Span<const uint8_t> masks = Blob47MaskTable();
 
-  // Slope units are appended below the blob blocks, filling rows of the same
-  // width, exactly as ComposeBlob47 places hand-drawn ones.
-  const int slope_rows = (kSlopeShapeCount + kBlob47Columns - 1) / kBlob47Columns;
-
   Blob47Atlas atlas;
   atlas.tile_size = tile;
   // Generated variants are phases of one pattern, not interchangeable
   // drawings, so the terrain has to lay them back down in phase.
   atlas.variant_period = config.variant_period;
   atlas.image.width = kBlob47Columns * tile;
-  atlas.image.height = (kBlob47Rows * variants + slope_rows) * tile;
+  atlas.image.height = kBlob47Rows * variants * tile;
   atlas.image.pixels.assign(static_cast<size_t>(atlas.image.width) * atlas.image.height * 4, 0);
   atlas.tiles.reserve(static_cast<size_t>(masks.size()) * variants);
 
@@ -1286,22 +1188,11 @@ absl::StatusOr<Blob47Atlas> GenerateBlob47Atlas(const TerrainGenConfig& config) 
     }
   }
 
-  const int slope_origin_row = kBlob47Rows * variants;
-  for (int i = 0; i < kSlopeShapeCount; ++i) {
-    const TileShape shape = static_cast<TileShape>(kFirstSlopeShape + i);
-    const int target_x = (i % kBlob47Columns) * tile;
-    const int target_y = (slope_origin_row + i / kBlob47Columns) * tile;
-
-    ASSIGN_OR_RETURN(const RgbaImage cell, renderer.RenderShapeTile(shape, /*variant=*/0));
-    RETURN_IF_ERROR(CopyTile(cell, 0, 0, tile, atlas.image, target_x, target_y));
-
-    atlas.slopes.push_back(ComposedSlope{
-        .shape = shape,
-        .source_x = target_x,
-        .source_y = target_y,
-    });
-  }
-
+  // No slope units. A generated terrain renders a slope against the neighbours
+  // the level actually puts beside it, so baking one drawing per shape would be
+  // baking a guess -- and it was the guess that drew a ramp meeting open air as
+  // buried interior. Hand-drawn atlases still carry slope units, because their
+  // artwork exists before any level does.
   return atlas;
 }
 

@@ -118,6 +118,19 @@ absl::StatusOr<int> DerivedTileProvider::AppendTile(const Terrain& terrain, Tile
       // this says.
       .shape = shape,
   });
+  // The terrain has to claim the tile, or the brush reads it back as foreign
+  // material: the next cell painted beside it would see air where its own
+  // ground is, and draw an edge against itself.
+  Terrain* owner = nullptr;
+  for (Terrain& candidate : tileset_->terrains) {
+    if (candidate.id == terrain.id) owner = &candidate;
+  }
+  if (owner == nullptr) {
+    return absl::NotFoundError(absl::StrCat("terrain '", terrain.name, "' is not in tileset '",
+                                            tileset_->name, "', so it cannot own new artwork"));
+  }
+  owner->member_tile_ids.push_back(tile_id);
+
   RETURN_IF_ERROR(content_.Insert(artwork, tile_id));
   ++appended_;
   return tile_id;

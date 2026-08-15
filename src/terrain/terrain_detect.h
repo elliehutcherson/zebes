@@ -39,8 +39,13 @@ struct TerrainCandidate {
 //
 // Tile IDs are assigned sequentially from first_tile_id so the caller can
 // splice the result into an existing tileset without renumbering.
+//
+// The scheme comes from the caller because it is a fact about where the artwork
+// came from, not about the atlas: hand-drawn art is complete when it is
+// imported and keys on a mask, while generated art is a recipe that renders
+// whatever a level asks for.
 absl::StatusOr<TerrainCandidate> BuildTerrainCandidate(const Blob47Atlas& atlas, int first_tile_id,
-                                                       int terrain_id);
+                                                       int terrain_id, TerrainScheme scheme);
 
 // Builds tiles and a terrain from a compose_blob47 manifest. This is the exact
 // import path: the manifest states which mask each atlas cell depicts, so no

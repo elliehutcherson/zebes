@@ -50,12 +50,6 @@ class TerrainRenderer {
   // than variant_count().
   absl::StatusOr<RgbaImage> RenderBlobTile(uint8_t mask, int variant) const;
 
-  // Artwork for one slope or half-block unit. The neighbourhood is inferred
-  // from the shape's own polygon, and the two-cell slope families additionally
-  // see their partner's polygon, so the band runs unbroken across the seam
-  // between the halves of a ramp.
-  absl::StatusOr<RgbaImage> RenderShapeTile(TileShape shape, int variant) const;
-
   // Artwork for one cell whose eight neighbours are known exactly.
   //
   // neighbors is indexed by Neighbor bit position -- N, NE, E, SE, S, SW, W,
@@ -193,31 +187,20 @@ struct ShapeScene {
   TileShape At(int x, int y) const;
 };
 
-// How a scene resolves each cell's neighbourhood.
-enum class SceneContext : uint8_t {
-  // Draw each cell the way the shipped atlas draws it: a full block from its
-  // normalized blob mask, a slope from the single drawing RenderShapeTile
-  // infers. This is what a painted level looks like today.
-  kAsAtlas,
-  // Draw each cell against its neighbours' actual polygons. No atlas can hold
-  // this, because it depends on the level; it is the reference the atlas is
-  // measured against.
-  kTrueNeighbors,
-};
-
-// Artwork for one solid cell of a scene. Air is an error rather than a
-// transparent tile, so a caller that loses track of its own scene finds out.
+// Artwork for one solid cell of a scene, drawn against the neighbours the scene
+// actually contains. Air is an error rather than a transparent tile, so a
+// caller that loses track of its own scene finds out.
+//
+// There used to be a second mode that drew each cell the way the baked atlas
+// did, so the two could be compared. The atlas no longer guesses at a
+// neighbourhood, so there is nothing left to compare against.
 //
 // Variants follow the brush: phase (y mod P, x mod P) of a periodic terrain.
-// Slope units under kAsAtlas ignore that and use variant 0, because that is the
-// only phase the atlas holds for them -- run a scene at variant_period 1 to
-// compare neighbourhoods without that difference in the way.
 absl::StatusOr<RgbaImage> RenderSceneCell(const TerrainRenderer& renderer,
-                                          const ShapeScene& scene, int x, int y,
-                                          SceneContext context);
+                                          const ShapeScene& scene, int x, int y);
 
 // Renders every solid cell of a scene into one image, air left transparent.
 absl::StatusOr<RgbaImage> RenderShapeScene(const TerrainRenderer& renderer,
-                                           const ShapeScene& scene, SceneContext context);
+                                           const ShapeScene& scene);
 
 }  // namespace zebes

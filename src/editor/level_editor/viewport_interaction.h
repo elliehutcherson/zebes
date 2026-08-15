@@ -40,7 +40,10 @@ struct ViewportInteractionOptions {
   TileShape paint_shape = TileShape::kFullBlock;
   // Terrain tables for the level's tileset. Required when paint_terrain_id is
   // set, and must outlive the Update() call.
-  const TerrainIndex* terrain_index = nullptr;
+  // Mutable because a derived terrain invents tiles while resolving a cell, and
+  // the index has to learn about one before the cells around it are refreshed
+  // against what it holds.
+  TerrainIndex* terrain_index = nullptr;
   // Resolves a cell's artwork once its geometry is decided. Required when
   // paint_terrain_id is set, and must outlive the Update() call.
   TerrainTileProvider* terrain_provider = nullptr;

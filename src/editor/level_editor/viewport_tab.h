@@ -39,7 +39,9 @@ struct ViewportRenderOptions {
   TileShape paint_shape = TileShape::kFullBlock;
   // Terrain tables for the level's tileset. Must be non-null when
   // paint_terrain_id is set.
-  const TerrainIndex* terrain_index = nullptr;
+  // Mutable for the same reason ViewportInteractionOptions holds it that way:
+  // painting a derived terrain creates tiles the index has to be told about.
+  TerrainIndex* terrain_index = nullptr;
   // Resolves a cell's artwork once its geometry is decided. The ghost and the
   // paint share it so a preview and what lands cannot disagree. Must be non-null
   // when paint_terrain_id is set.

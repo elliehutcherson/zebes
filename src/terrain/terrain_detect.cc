@@ -210,7 +210,7 @@ void AppendVariant(const std::vector<int>& tile_ids, std::vector<TerrainRule>& r
 }  // namespace
 
 absl::StatusOr<TerrainCandidate> BuildTerrainCandidate(const Blob47Atlas& atlas, int first_tile_id,
-                                                       int terrain_id) {
+                                                       int terrain_id, TerrainScheme scheme) {
   if (first_tile_id <= 0) {
     return absl::InvalidArgumentError("first tile ID must be positive; 0 is reserved for empty");
   }
@@ -220,7 +220,7 @@ absl::StatusOr<TerrainCandidate> BuildTerrainCandidate(const Blob47Atlas& atlas,
   candidate.tile_size = atlas.tile_size;
   candidate.terrain.id = terrain_id;
   candidate.terrain.name = candidate.suggested_name;
-  candidate.terrain.scheme = TerrainScheme::kBlob47;
+  candidate.terrain.scheme = scheme;
   candidate.terrain.variant_period = atlas.variant_period;
 
   // Rules are keyed by mask and accumulate one variant per atlas variant.
@@ -238,9 +238,22 @@ absl::StatusOr<TerrainCandidate> BuildTerrainCandidate(const Blob47Atlas& atlas,
     variants_by_mask[tile.mask].push_back(TerrainVariant{.tile_id = tile_id, .weight = 1});
   }
 
-  for (auto& [mask, variants] : variants_by_mask) {
-    candidate.terrain.rules.push_back(
-        TerrainRule{.mask = mask, .variants = std::move(variants)});
+  // A derived terrain gets no rule table. Resolving a full block by mask is
+  // exactly the lossy step this scheme exists to remove -- a mask cannot say
+  // that the neighbour is a wedge, which is why ground beside a ramp was banded
+  // against a square that was not there. Its tiles are still real artwork for
+  // the all-square neighbourhoods they depict, so they are listed as owned and
+  // the renderer finds them again by content whenever a key draws the same
+  // picture.
+  if (scheme == TerrainScheme::kDerived) {
+    for (const Tile& tile : candidate.tiles) {
+      candidate.terrain.member_tile_ids.push_back(tile.id);
+    }
+  } else {
+    for (auto& [mask, variants] : variants_by_mask) {
+      candidate.terrain.rules.push_back(
+          TerrainRule{.mask = mask, .variants = std::move(variants)});
+    }
   }
 
   // Slope units are placed by hand, never by the brush, so they become terrain
@@ -298,7 +311,8 @@ absl::StatusOr<TerrainCandidate> ImportBlob47Manifest(absl::string_view manifest
     });
   }
 
-  return BuildTerrainCandidate(atlas, first_tile_id, terrain_id);
+  // A manifest describes artwork somebody drew, so it is complete as imported.
+  return BuildTerrainCandidate(atlas, first_tile_id, terrain_id, TerrainScheme::kBlob47);
 }
 
 absl::StatusOr<std::vector<TerrainCandidate>> DetectBlob47Terrains(const Tileset& tileset) {

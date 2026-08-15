@@ -4,6 +4,7 @@
 
 #include "editor/level_editor/viewport_model.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "terrain/terrain_mask.h"
 
 namespace zebes {
@@ -501,9 +502,14 @@ class TerrainMemberTest : public ::testing::Test {
 
 TEST_F(TerrainMemberTest, MemberTileResolvesToItsTerrain) {
   EXPECT_EQ(index_.FindByTileId(kSlopeTileId), index_.FindById(kTerrainId));
-  // But it is not something the brush produces.
-  EXPECT_EQ(index_.FindPaintableByTileId(kSlopeTileId), nullptr);
-  EXPECT_EQ(index_.FindPaintableByTileId(kFirstTileId), index_.FindById(kTerrainId));
+  EXPECT_EQ(index_.FindByTileId(kFirstTileId), index_.FindById(kTerrainId));
+  // The index used to answer a second question -- may the brush write this
+  // tile -- so a refresh could not replace a hand-placed slope with a blob
+  // tile. A refresh now hands a cell back the shape it already had, so
+  // re-resolving that slope returns the same slope and the question has no
+  // remaining user. PaintingBesideASlopeNeverOverwritesIt is what holds it.
+  EXPECT_EQ(index_.ShapeOfTile(kSlopeTileId), TileShape::kSlope45BottomLeft);
+  EXPECT_EQ(index_.ShapeOfTile(kFirstTileId), TileShape::kFullBlock);
 }
 
 TEST_F(TerrainMemberTest, GroundPaintedBesideASlopeHasNoEdge) {
@@ -565,11 +571,34 @@ TEST_F(TerrainMemberTest, PaintingDirectlyOnASlopeReplacesItDeliberately) {
       << "an explicit paint on the cell is a deliberate replacement";
 }
 
-TEST(TerrainIndexTest, RejectsTileThatIsBothPaintedAndAMember) {
+TEST(TerrainIndexTest, ATileListedTwiceByOneTerrainIsHarmless) {
+  // This used to be an error: a tile could be rule-produced or hand-placed but
+  // not both, because the two answered different questions about whether the
+  // brush might rewrite it. The brush now hands every cell back its own shape,
+  // so there is one question left -- which terrain owns this tile -- and being
+  // named twice by the same terrain answers it the same way both times.
   Tileset tileset = MakeTileset(MakeTerrain());
   tileset.terrains[0].member_tile_ids = {kFirstTileId};
 
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
+
+  ASSERT_OK(index);
+  EXPECT_EQ(index->FindByTileId(kFirstTileId), index->FindById(kTerrainId));
+}
+
+TEST(TerrainIndexTest, RejectsATileTwoTerrainsBothClaim) {
+  // Still an error, and the one that mattered: a painted cell's neighbourhood
+  // would be ambiguous about which material it holds.
+  Tileset tileset = MakeTileset(MakeTerrain());
+  Terrain other = MakeTerrain();
+  other.id = kTerrainId + 1;
+  other.name = "Stone";
+  other.rules.clear();
+  other.member_tile_ids = {kFirstTileId};
+  tileset.terrains.push_back(std::move(other));
+
+  absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
+
   ASSERT_FALSE(index.ok());
   EXPECT_EQ(index.status().code(), absl::StatusCode::kInvalidArgument);
 }

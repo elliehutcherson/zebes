@@ -50,10 +50,10 @@ absl::Status ValidateCell(const Level& level, int tile_x, int tile_y) {
 // Re-resolves the eight cells around a coordinate that the brush owns. The
 // centre is deliberately excluded so callers control it explicitly.
 //
-// Only paintable cells are refreshed. A neighbouring member tile — a slope, say
-// — counts toward masks but is never rewritten, because re-resolving it would
-// replace hand-placed artwork with a blob tile.
-absl::Status RefreshNeighbors(Level& level, const TerrainIndex& index, const Terrain& terrain,
+// Every owned neighbour is refreshed, including hand-placed pieces such as
+// slopes. That is safe because each is handed back the shape it already has, so
+// re-resolving one can change how it looks but never what it is.
+absl::Status RefreshNeighbors(Level& level, TerrainIndex& index, const Terrain& terrain,
                               TerrainTileProvider& provider, int tile_x, int tile_y) {
   for (const NeighborOffset& offset : kNeighborOffsets) {
     const int x = tile_x + offset.dx;
@@ -61,7 +61,7 @@ absl::Status RefreshNeighbors(Level& level, const TerrainIndex& index, const Ter
     if (IsOutsideLevel(level, x, y)) continue;
 
     ASSIGN_OR_RETURN(const int neighbor_tile, GetTileAt(level, x, y));
-    if (index.FindPaintableByTileId(neighbor_tile) != &terrain) continue;
+    if (index.FindByTileId(neighbor_tile) != &terrain) continue;
 
     // The neighbour is handed back the geometry it already has. A refresh may
     // change how a cell looks; it must never change what the player collides
@@ -88,7 +88,7 @@ absl::StatusOr<TerrainIndex> TerrainIndex::Build(const Tileset& tileset) {
   return index;
 }
 
-absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain, bool paintable,
+absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain,
                                      const Tileset& tileset) {
   TileShape shape = TileShape::kNone;
   for (const Tile& tile : tileset.tiles) {
@@ -98,8 +98,8 @@ absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain, bool p
     }
   }
 
-  auto [entry, inserted] = tile_ownership_.emplace(
-      tile_id, TileOwnership{.terrain = &terrain, .paintable = paintable, .shape = shape});
+  auto [entry, inserted] =
+      tile_ownership_.emplace(tile_id, TileOwnership{.terrain = &terrain, .shape = shape});
   if (inserted) return absl::OkStatus();
 
   if (entry->second.terrain != &terrain) {
@@ -107,22 +107,17 @@ absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain, bool p
         absl::StrCat("tile ", tile_id, " belongs to both terrain '", entry->second.terrain->name,
                      "' and '", terrain.name, "'"));
   }
-  if (entry->second.paintable != paintable) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("tile ", tile_id, " is both painted and a member of terrain '", terrain.name,
-                     "'"));
-  }
   return absl::OkStatus();
 }
 
 absl::Status TerrainIndex::IndexTerrainTiles(const Terrain& terrain, const Tileset& tileset) {
   for (const TerrainRule& rule : terrain.rules) {
     for (const TerrainVariant& variant : rule.variants) {
-      RETURN_IF_ERROR(ClaimTile(variant.tile_id, terrain, /*paintable=*/true, tileset));
+      RETURN_IF_ERROR(ClaimTile(variant.tile_id, terrain, tileset));
     }
   }
   for (int tile_id : terrain.member_tile_ids) {
-    RETURN_IF_ERROR(ClaimTile(tile_id, terrain, /*paintable=*/false, tileset));
+    RETURN_IF_ERROR(ClaimTile(tile_id, terrain, tileset));
 
     // Only a blob-47 terrain resolves a shape to a single authored tile, so
     // only it can be ambiguous about one. A derived terrain holds many tiles
@@ -149,12 +144,6 @@ const Terrain* TerrainIndex::FindByTileId(int tile_id) const {
   return found->second.terrain;
 }
 
-const Terrain* TerrainIndex::FindPaintableByTileId(int tile_id) const {
-  auto found = tile_ownership_.find(tile_id);
-  if (found == tile_ownership_.end() || !found->second.paintable) return nullptr;
-  return found->second.terrain;
-}
-
 const Terrain* TerrainIndex::FindById(int terrain_id) const {
   auto found = terrain_by_id_.find(terrain_id);
   if (found == terrain_by_id_.end()) return nullptr;
@@ -165,6 +154,19 @@ TileShape TerrainIndex::ShapeOfTile(int tile_id) const {
   auto found = tile_ownership_.find(tile_id);
   if (found == tile_ownership_.end()) return TileShape::kNone;
   return found->second.shape;
+}
+
+absl::Status TerrainIndex::NoteResolvedTile(int tile_id, const Terrain& terrain, TileShape shape) {
+  auto [entry, inserted] =
+      tile_ownership_.emplace(tile_id, TileOwnership{.terrain = &terrain, .shape = shape});
+  if (inserted) return absl::OkStatus();
+
+  if (entry->second.terrain != &terrain) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("tile ", tile_id, " was resolved for terrain '", terrain.name,
+                     "' but belongs to '", entry->second.terrain->name, "'"));
+  }
+  return absl::OkStatus();
 }
 
 std::optional<int> TerrainIndex::FindShapeTile(const Terrain& terrain, TileShape shape) const {
@@ -277,16 +279,19 @@ absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rul
   return rule.variants.back().tile_id;
 }
 
-absl::Status ResolveTerrainCell(Level& level, const TerrainIndex& index, const Terrain& terrain,
+absl::Status ResolveTerrainCell(Level& level, TerrainIndex& index, const Terrain& terrain,
                                 TerrainTileProvider& provider, TileShape shape, int tile_x,
                                 int tile_y) {
   ASSIGN_OR_RETURN(const TerrainCellKey key,
                    ComputeTerrainCellKey(level, index, terrain, shape, tile_x, tile_y));
   ASSIGN_OR_RETURN(const int tile_id, provider.TileForKey(terrain, key, tile_x, tile_y));
+  // A derived provider may have invented this tile just now, and the cells
+  // around it are about to be resolved against what this one holds.
+  RETURN_IF_ERROR(index.NoteResolvedTile(tile_id, terrain, shape));
   return SetTileAt(level, tile_x, tile_y, tile_id);
 }
 
-absl::Status PaintTerrain(Level& level, const TerrainIndex& index, TerrainTileProvider& provider,
+absl::Status PaintTerrain(Level& level, TerrainIndex& index, TerrainTileProvider& provider,
                           int terrain_id, TileShape shape, int tile_x, int tile_y) {
   RETURN_IF_ERROR(ValidateCell(level, tile_x, tile_y));
 
@@ -302,7 +307,7 @@ absl::Status PaintTerrain(Level& level, const TerrainIndex& index, TerrainTilePr
   return RefreshNeighbors(level, index, *terrain, provider, tile_x, tile_y);
 }
 
-absl::Status EraseTerrain(Level& level, const TerrainIndex& index, TerrainTileProvider& provider,
+absl::Status EraseTerrain(Level& level, TerrainIndex& index, TerrainTileProvider& provider,
                           int tile_x, int tile_y) {
   RETURN_IF_ERROR(ValidateCell(level, tile_x, tile_y));
 

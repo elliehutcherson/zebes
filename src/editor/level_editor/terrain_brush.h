@@ -27,13 +27,6 @@ class TerrainIndex {
   // neighbour is the same material. Tile ID 0 is always null.
   const Terrain* FindByTileId(int tile_id) const;
 
-  // Returns the terrain only when the brush itself produces this tile.
-  //
-  // The distinction matters: a member tile counts toward a neighbour's mask but
-  // must never be re-resolved, or refreshing around it would overwrite a
-  // hand-placed slope with a blob tile.
-  const Terrain* FindPaintableByTileId(int tile_id) const;
-
   const Terrain* FindById(int terrain_id) const;
 
   // The collision shape of a tile, or kNone when it belongs to no terrain.
@@ -47,20 +40,35 @@ class TerrainIndex {
   // such as an authored slope unit.
   std::optional<int> FindShapeTile(const Terrain& terrain, TileShape shape) const;
 
+  // Records a tile a provider invented while resolving a cell.
+  //
+  // A derived terrain renders artwork on demand, so a tile can come into
+  // existence in the middle of a paint. Until the index knows about it, the
+  // cell holding it reads back as foreign material -- so refreshing that cell's
+  // neighbours would draw them against air where their own ground is. Rebuilding
+  // the index between resolving a cell and refreshing around it would work too,
+  // and this is the same fact learned one tile at a time.
+  //
+  // Idempotent: a tile already claimed by this terrain is left alone.
+  absl::Status NoteResolvedTile(int tile_id, const Terrain& terrain, TileShape shape);
+
  private:
   // What a tile ID means to the terrain that claims it.
+  //
+  // There used to be a paintable flag here, marking tiles the brush counted but
+  // must never rewrite -- hand-placed slopes, which a refresh would otherwise
+  // replace with a blob tile. Refreshes now hand a cell back the shape it
+  // already had, so re-resolving a slope returns that same slope and the flag
+  // guarded nothing. It also stopped derived terrain refreshing at all, since
+  // every one of its tiles is owned rather than rule-produced.
   struct TileOwnership {
     const Terrain* terrain = nullptr;
-    // False for member-only tiles, which the brush reads but never writes.
-    bool paintable = false;
     TileShape shape = TileShape::kNone;
   };
 
-  // Records every tile a terrain paints or counts, rejecting tiles claimed
-  // twice or listed as both paintable and member.
+  // Records every tile a terrain owns, rejecting tiles claimed twice.
   absl::Status IndexTerrainTiles(const Terrain& terrain, const Tileset& tileset);
-  absl::Status ClaimTile(int tile_id, const Terrain& terrain, bool paintable,
-                         const Tileset& tileset);
+  absl::Status ClaimTile(int tile_id, const Terrain& terrain, const Tileset& tileset);
 
   absl::flat_hash_map<int, TileOwnership> tile_ownership_;
   absl::flat_hash_map<int, const Terrain*> terrain_by_id_;
@@ -142,7 +150,7 @@ absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rul
 // Recomputes the artwork for a cell already owned by terrain, without changing
 // which terrain occupies it or the geometry it holds. Exposed for tests and for
 // bulk refresh after a tileset edit.
-absl::Status ResolveTerrainCell(Level& level, const TerrainIndex& index, const Terrain& terrain,
+absl::Status ResolveTerrainCell(Level& level, TerrainIndex& index, const Terrain& terrain,
                                 TerrainTileProvider& provider, TileShape shape, int tile_x,
                                 int tile_y);
 
@@ -152,12 +160,12 @@ absl::Status ResolveTerrainCell(Level& level, const TerrainIndex& index, const T
 //
 // A refresh may change a neighbour's artwork; it can never change a neighbour's
 // shape, because it hands each cell back the geometry that cell already had.
-absl::Status PaintTerrain(Level& level, const TerrainIndex& index, TerrainTileProvider& provider,
+absl::Status PaintTerrain(Level& level, TerrainIndex& index, TerrainTileProvider& provider,
                           int terrain_id, TileShape shape, int tile_x, int tile_y);
 
 // Clears the cell and re-resolves the neighbours that belonged to whatever
 // terrain occupied it. Erasing a cell holding no terrain still clears it.
-absl::Status EraseTerrain(Level& level, const TerrainIndex& index, TerrainTileProvider& provider,
+absl::Status EraseTerrain(Level& level, TerrainIndex& index, TerrainTileProvider& provider,
                           int tile_x, int tile_y);
 
 }  // namespace zebes

@@ -374,14 +374,26 @@ TEST(TerrainGeneratorTest, VariantsOfTheSameMaskDiffer) {
 // The outer silhouette is never displaced -- only the interior boundary
 // ruffles. A slope whose artwork wandered off its polygon would not line up
 // with the collision shape the tile declares.
+// A shape drawn with nothing beside it.
+//
+// The renderer no longer infers a neighbourhood from the shape's own polygon,
+// so these tests name one. Open air is the neutral choice, and the silhouette
+// does not depend on it either way: alpha comes from rasterising the centre
+// polygon, and neighbours only reach the surface band.
+std::array<TileShape, kNeighborCount> InOpenAir() {
+  std::array<TileShape, kNeighborCount> neighbors;
+  neighbors.fill(TileShape::kNone);
+  return neighbors;
+}
+
 TEST(TerrainGeneratorTest, SlopeArtworkFollowsItsPolygonExactly) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/1));
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
 
   const absl::StatusOr<RgbaImage> tile =
-      renderer->RenderShapeTile(TileShape::kSlope45BottomLeft, /*variant=*/0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+      renderer->RenderShapeTileInContext(TileShape::kSlope45BottomLeft, InOpenAir(), /*variant=*/0);
+  ASSERT_OK(tile);
 
   // Solid below the hypotenuse running from the bottom-left to the top-right,
   // air above it. Pixels straddling the line are left to the rasterizer.
@@ -407,12 +419,13 @@ TEST(TerrainGeneratorTest, SlopesBlendTowardTheirUpwardOrDownwardSurfaceDepth) {
   config.surface.texture_amount = 0.0f;
 
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> floor =
-      renderer->RenderShapeTile(TileShape::kSlope45BottomLeft, 0);
+      renderer->RenderShapeTileInContext(TileShape::kSlope45BottomLeft, InOpenAir(), 0);
   const absl::StatusOr<RgbaImage> ceiling =
-      renderer->RenderShapeTile(TileShape::kSlope45TopLeft, 0);
-  ASSERT_TRUE(floor.ok() && ceiling.ok());
+      renderer->RenderShapeTileInContext(TileShape::kSlope45TopLeft, InOpenAir(), 0);
+  ASSERT_OK(floor);
+  ASSERT_OK(ceiling);
 
   const Pixel substrate{0x8a, 0x5a, 0x3b, 255};
   const auto treated_pixels = [&](const RgbaImage& image) {
@@ -431,13 +444,13 @@ TEST(TerrainGeneratorTest, SlopesBlendTowardTheirUpwardOrDownwardSurfaceDepth) {
 TEST(TerrainGeneratorTest, EverySlopeShapeRenders) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/1));
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
 
   for (int i = 0; i < kSlopeShapeCount; ++i) {
     const TileShape shape = static_cast<TileShape>(kFirstSlopeShape + i);
-    const absl::StatusOr<RgbaImage> tile = renderer->RenderShapeTile(shape, /*variant=*/0);
-    ASSERT_TRUE(tile.ok()) << kTileShapeIdentifiers[static_cast<int>(shape)] << ": "
-                           << tile.status();
+    const absl::StatusOr<RgbaImage> tile =
+        renderer->RenderShapeTileInContext(shape, InOpenAir(), /*variant=*/0);
+    ASSERT_OK(tile) << kTileShapeIdentifiers[static_cast<int>(shape)];
 
     int opaque = 0;
     for (size_t i = 3; i < tile->pixels.size(); i += 4) {
@@ -462,12 +475,13 @@ TEST(TerrainGeneratorTest, SameConfigRendersTheSamePixels) {
 TEST(TerrainGeneratorTest, RejectsMasksAndVariantsItCannotDraw) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/1));
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
 
   // 2 is the north-east bit with no north or east to reach it around.
   EXPECT_FALSE(renderer->RenderBlobTile(/*mask=*/2, /*variant=*/0).ok());
   EXPECT_FALSE(renderer->RenderBlobTile(/*mask=*/255, /*variant=*/1).ok());
-  EXPECT_FALSE(renderer->RenderShapeTile(TileShape::kNone, /*variant=*/0).ok());
+  EXPECT_FALSE(
+      renderer->RenderShapeTileInContext(TileShape::kNone, InOpenAir(), /*variant=*/0).ok());
 }
 
 TEST(TerrainGeneratorTest, RejectsUnusableConfigurations) {
@@ -1032,7 +1046,6 @@ TEST(TerrainGeneratorTest, AtlasMatchesTheComposedLayout) {
   EXPECT_EQ(atlas->image.width, kBlob47Columns * 32);
   EXPECT_TRUE(atlas->image.IsValid());
   ASSERT_EQ(atlas->tiles.size(), static_cast<size_t>(kBlob47TileCount));
-  EXPECT_EQ(atlas->slopes.size(), static_cast<size_t>(kSlopeShapeCount));
 
   const absl::Span<const uint8_t> masks = Blob47MaskTable();
   for (int i = 0; i < kBlob47TileCount; ++i) {
@@ -1043,21 +1056,17 @@ TEST(TerrainGeneratorTest, AtlasMatchesTheComposedLayout) {
     EXPECT_EQ(tile.source_x, (i % kBlob47Columns) * 32);
     EXPECT_EQ(tile.source_y, (i / kBlob47Columns) * 32);
   }
-
-  for (int i = 0; i < kSlopeShapeCount; ++i) {
-    EXPECT_EQ(static_cast<int>(atlas->slopes[i].shape), kFirstSlopeShape + i);
-  }
 }
 
-TEST(TerrainGeneratorTest, AtlasStacksOneBlockPerVariantThenTheSlopes) {
+TEST(TerrainGeneratorTest, AtlasStacksOneBlockPerVariant) {
   const absl::StatusOr<Blob47Atlas> atlas =
       GenerateBlob47Atlas(FlatInteriorConfig(/*variant_period=*/2, /*supersample=*/1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   EXPECT_EQ(atlas->tiles.size(), static_cast<size_t>(kBlob47TileCount) * 4);
-
-  const int slope_rows = (kSlopeShapeCount + kBlob47Columns - 1) / kBlob47Columns;
-  EXPECT_EQ(atlas->image.height, (kBlob47Rows * 4 + slope_rows) * 32);
+  // Blob rows and nothing else. Slope units used to sit below them, one drawing
+  // per shape rendered against an inferred neighbourhood.
+  EXPECT_EQ(atlas->image.height, kBlob47Rows * 4 * 32);
 
   for (const ComposedTile& tile : atlas->tiles) {
     EXPECT_EQ(tile.source_x % 32, 0);
@@ -1065,10 +1074,6 @@ TEST(TerrainGeneratorTest, AtlasStacksOneBlockPerVariantThenTheSlopes) {
     EXPECT_LT(tile.source_x, atlas->image.width);
     EXPECT_LT(tile.source_y, atlas->image.height);
     EXPECT_EQ(tile.source_y / 32 / kBlob47Rows, tile.variant);
-  }
-  for (const ComposedSlope& slope : atlas->slopes) {
-    EXPECT_GE(slope.source_y, kBlob47Rows * 4 * 32);
-    EXPECT_LT(slope.source_y, atlas->image.height);
   }
 }
 
@@ -1097,62 +1102,72 @@ TEST(TerrainGeneratorTest, EveryAtlasCellHasArtwork) {
 TEST(TerrainGeneratorTest, AGeneratedAtlasBuildsAPaintableTerrain) {
   const absl::StatusOr<Blob47Atlas> atlas =
       GenerateBlob47Atlas(FlatInteriorConfig(/*variant_period=*/2, /*supersample=*/1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
-  const absl::StatusOr<TerrainCandidate> candidate =
-      BuildTerrainCandidate(*atlas, /*first_tile_id=*/1, /*terrain_id=*/1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  const absl::StatusOr<TerrainCandidate> authored =
+      BuildTerrainCandidate(*atlas, /*first_tile_id=*/1, /*terrain_id=*/1, TerrainScheme::kBlob47);
+  ASSERT_OK(authored);
 
   // One rule per mask, in the table's order, each carrying every variant.
-  ASSERT_EQ(candidate->terrain.rules.size(), static_cast<size_t>(kBlob47TileCount));
+  ASSERT_EQ(authored->terrain.rules.size(), static_cast<size_t>(kBlob47TileCount));
   const absl::Span<const uint8_t> masks = Blob47MaskTable();
   for (int i = 0; i < kBlob47TileCount; ++i) {
-    EXPECT_EQ(candidate->terrain.rules[i].mask, masks[i]);
-    EXPECT_EQ(candidate->terrain.rules[i].variants.size(), 4u);
+    EXPECT_EQ(authored->terrain.rules[i].mask, masks[i]);
+    EXPECT_EQ(authored->terrain.rules[i].variants.size(), 4u);
   }
-
-  // Slopes are members, never rules: the brush must not try to paint them.
-  EXPECT_EQ(candidate->terrain.member_tile_ids.size(), static_cast<size_t>(kSlopeShapeCount));
-  EXPECT_EQ(candidate->tiles.size(), static_cast<size_t>(kBlob47TileCount) * 4 + kSlopeShapeCount);
+  EXPECT_EQ(authored->tiles.size(), static_cast<size_t>(kBlob47TileCount) * 4);
 
   absl::flat_hash_set<int> tile_ids;
-  for (const Tile& tile : candidate->tiles) {
+  for (const Tile& tile : authored->tiles) {
     EXPECT_GT(tile.id, 0) << "0 is reserved for empty";
     EXPECT_TRUE(tile_ids.insert(tile.id).second) << "duplicate tile ID " << tile.id;
     EXPECT_FALSE(tile.name.empty());
+    EXPECT_EQ(tile.shape, TileShape::kFullBlock)
+        << tile.name << ": a generated atlas holds blob tiles and nothing else";
   }
 
-  // Every variant and member has to name a tile that exists, or painting hits a
-  // dangling ID.
-  for (const TerrainRule& rule : candidate->terrain.rules) {
+  // Every variant has to name a tile that exists, or painting hits a dangling ID.
+  for (const TerrainRule& rule : authored->terrain.rules) {
     for (const TerrainVariant& variant : rule.variants) {
       EXPECT_TRUE(tile_ids.contains(variant.tile_id))
           << "mask " << static_cast<int>(rule.mask) << " points at missing tile";
       EXPECT_GT(variant.weight, 0);
     }
   }
-  for (const int member : candidate->terrain.member_tile_ids) {
-    EXPECT_TRUE(tile_ids.contains(member));
-  }
 }
 
-TEST(TerrainGeneratorTest, GeneratedTilesCarryTheRightShapes) {
+TEST(TerrainGeneratorTest, ADerivedTerrainGetsNoRuleTable) {
+  // Resolving a full block by mask is the lossy step this scheme removes: a
+  // mask cannot say the neighbour is a wedge, which is why ground beside a ramp
+  // was banded against a square that was not there. The tiles are still real
+  // artwork and are listed as owned, so the brush counts them as this terrain
+  // and the renderer finds them again by content.
   const absl::StatusOr<Blob47Atlas> atlas =
       GenerateBlob47Atlas(FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
-  const absl::StatusOr<TerrainCandidate> candidate = BuildTerrainCandidate(*atlas, 1, 1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(atlas);
 
-  const absl::flat_hash_set<int> members(candidate->terrain.member_tile_ids.begin(),
-                                         candidate->terrain.member_tile_ids.end());
-  for (const Tile& tile : candidate->tiles) {
-    if (members.contains(tile.id)) {
-      EXPECT_GE(static_cast<int>(tile.shape), kFirstSlopeShape) << tile.name;
-      EXPECT_LT(static_cast<int>(tile.shape), kFirstSlopeShape + kSlopeShapeCount) << tile.name;
-      continue;
-    }
-    EXPECT_EQ(tile.shape, TileShape::kFullBlock) << tile.name << " is painted by the brush";
-  }
+  const absl::StatusOr<TerrainCandidate> derived =
+      BuildTerrainCandidate(*atlas, 1, 1, TerrainScheme::kDerived);
+  ASSERT_OK(derived);
+
+  EXPECT_EQ(derived->terrain.scheme, TerrainScheme::kDerived);
+  EXPECT_TRUE(derived->terrain.rules.empty());
+  EXPECT_EQ(derived->terrain.member_tile_ids.size(), derived->tiles.size());
+  EXPECT_EQ(derived->tiles.size(), static_cast<size_t>(kBlob47TileCount));
+}
+
+TEST(TerrainGeneratorTest, AGeneratedAtlasHoldsNoSlopeUnits) {
+  // Baking one drawing per slope shape meant baking a guess about what the
+  // level would put beside it, and that guess drew a ramp meeting open air as
+  // buried interior. A derived terrain renders slopes against real neighbours
+  // instead, so there is nothing to pre-bake.
+  const absl::StatusOr<Blob47Atlas> atlas =
+      GenerateBlob47Atlas(FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/1));
+  ASSERT_OK(atlas);
+
+  EXPECT_TRUE(atlas->slopes.empty());
+  EXPECT_EQ(atlas->image.height, kBlob47Rows * atlas->tile_size)
+      << "the atlas is exactly the blob rows, with no slope rows below";
 }
 
 }  // namespace

@@ -33,6 +33,7 @@ gtest_discover_tests(terrain_motifs_test)
 add_executable(terrain_generator_test terrain_generator_test.cc)
 target_link_libraries(terrain_generator_test
   gtest_main
+  macros
   terrain_generator
   terrain_detect
   absl::flat_hash_set
@@ -67,16 +68,6 @@ target_link_libraries(terrain_cell_key_test
 )
 target_include_directories(terrain_cell_key_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(terrain_cell_key_test)
-
-add_executable(terrain_slope_join_test terrain_slope_join_test.cc)
-target_link_libraries(terrain_slope_join_test
-  gtest_main
-  macros
-  terrain_generator
-  tileset
-)
-target_include_directories(terrain_slope_join_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(terrain_slope_join_test)
 
 add_executable(terrain_detect_test terrain_detect_test.cc)
 target_link_libraries(terrain_detect_test
