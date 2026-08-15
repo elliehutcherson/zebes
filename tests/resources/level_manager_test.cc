@@ -56,13 +56,16 @@ TEST_F(LevelManagerTest, SerializationTest) {
   };
 
   // Add Parallax
-  ParallaxLayer layer{
-      .name = "My Layer",
-      .texture_id = "tex1",
-      .scroll_factor = {0.5, 0.5},
-      .repeat_x = true,
+  level.themes[1] = ParallaxTheme{
+      .id = 1,
+      .name = "My Theme",
+      .layers = {ParallaxLayer{
+          .name = "My Layer",
+          .texture_id = "tex1",
+          .scroll_factor = {0.5, 0.5},
+          .repeat_x = true,
+      }},
   };
-  level.parallax_layers.push_back(layer);
 
   // Add Tile Chunk
   TileChunk chunk;
@@ -92,10 +95,11 @@ TEST_F(LevelManagerTest, SerializationTest) {
   EXPECT_EQ(loaded->spawn_point.x, 100);
   EXPECT_EQ(loaded->spawn_point.y, 200);
 
-  ASSERT_EQ(loaded->parallax_layers.size(), 1);
-  EXPECT_EQ(loaded->parallax_layers[0].name, "My Layer");
-  EXPECT_EQ(loaded->parallax_layers[0].texture_id, "tex1");
-  EXPECT_TRUE(loaded->parallax_layers[0].repeat_x);
+  ASSERT_TRUE(loaded->themes.contains(1));
+  ASSERT_EQ(loaded->themes[1].layers.size(), 1);
+  EXPECT_EQ(loaded->themes[1].layers[0].name, "My Layer");
+  EXPECT_EQ(loaded->themes[1].layers[0].texture_id, "tex1");
+  EXPECT_TRUE(loaded->themes[1].layers[0].repeat_x);
 
   ASSERT_EQ(loaded->tile_chunks.size(), 1);
   EXPECT_EQ(loaded->tile_chunks[100].tiles[0], 1);
@@ -190,44 +194,8 @@ TEST_F(LevelManagerTest, SaveLevel_DuplicateName_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("already taken"));
 }
 
-TEST_F(LevelManagerTest, SaveLevel_EmptyParallaxName_Fails) {
-  Level level{
-      .name = "Parallax Test",
-  };
-  ParallaxLayer layer{
-      .name = "",  // Invalid
-      .texture_id = "tex",
-  };
-  level.parallax_layers.push_back(layer);
-
-  absl::StatusOr<std::string> id = manager_->CreateLevel(std::move(level));
-  // CreateLevel calls SaveLevel, so it should fail there too
-  EXPECT_FALSE(id.ok());
-  EXPECT_THAT(id.status().message(), HasSubstr("Parallax layer name cannot be empty"));
-}
-
-TEST_F(LevelManagerTest, SaveLevel_DuplicateParallaxName_Fails) {
-  Level level{
-      .name = "Parallax Dupe Test",
-  };
-
-  ParallaxLayer l1{
-      .name = "Background",
-      .texture_id = "t1",
-  };
-
-  ParallaxLayer l2{
-      .name = "Background",  // Duplicate
-      .texture_id = "t2",
-  };
-
-  level.parallax_layers = {l1, l2};
-
-  absl::StatusOr<std::string> id = manager_->CreateLevel(std::move(level));
-  EXPECT_FALSE(id.ok());
-  EXPECT_THAT(id.status().message(), HasSubstr("Duplicate parallax layer name"));
-}
-
+// Every authored field of a layer, round-tripped through disk. Layers belong to
+// a theme, which is the only place they have ever been drawn from.
 TEST_F(LevelManagerTest, ParallaxLayerPersistence) {
   Level level{
       .name = "Parallax Persistence Level",
@@ -253,7 +221,7 @@ TEST_F(LevelManagerTest, ParallaxLayerPersistence) {
       .repeat_y = false,
   };
 
-  level.parallax_layers = {layer1, layer2};
+  level.themes[1] = ParallaxTheme{.id = 1, .name = "Sky", .layers = {layer1, layer2}};
 
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
 
@@ -266,9 +234,10 @@ TEST_F(LevelManagerTest, ParallaxLayerPersistence) {
 
   ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
 
-  ASSERT_EQ(loaded->parallax_layers.size(), 2);
+  ASSERT_TRUE(loaded->themes.contains(1));
+  ASSERT_EQ(loaded->themes[1].layers.size(), 2);
 
-  const ParallaxLayer& l1 = loaded->parallax_layers[0];
+  const ParallaxLayer& l1 = loaded->themes[1].layers[0];
   EXPECT_EQ(l1.name, "Layer 1");
   EXPECT_EQ(l1.texture_id, "sky_tex");
   EXPECT_EQ(l1.scroll_factor.x, 0.1);
@@ -279,7 +248,7 @@ TEST_F(LevelManagerTest, ParallaxLayerPersistence) {
   EXPECT_TRUE(l1.repeat_y);
   EXPECT_FLOAT_EQ(l1.base_scale, 2.5f);
 
-  const ParallaxLayer& l2 = loaded->parallax_layers[1];
+  const ParallaxLayer& l2 = loaded->themes[1].layers[1];
   EXPECT_EQ(l2.name, "Layer 2");
   EXPECT_EQ(l2.texture_id, "mountains_tex");
   EXPECT_EQ(l2.scroll_factor.x, 0.5);
@@ -743,7 +712,7 @@ TEST_F(LevelManagerTest, SimulationStateInADocumentIsIgnored) {
       "body": {"vx": 5.0, "vy": -3.0, "ax": 1.0, "ay": 2.0,
                "drag_x": 0.0, "drag_y": 0.0, "mass": 1.5, "is_static": false}
     }],
-    "themes": [], "zones": [], "parallax_layers": [], "tile_chunks": []
+    "themes": [], "zones": [], "tile_chunks": []
   })";
   out.close();
 
@@ -770,7 +739,7 @@ TEST_F(LevelManagerTest, ALevelMissingARequiredFieldIsRefused) {
     "tile_render_width": 16,
     "tile_render_height": 16,
     "spawn_point": {"x": 0.0, "y": 0.0},
-    "entities": [], "themes": [], "zones": [], "parallax_layers": [], "tile_chunks": []
+    "entities": [], "themes": [], "zones": [], "tile_chunks": []
   })";
   out.close();
 

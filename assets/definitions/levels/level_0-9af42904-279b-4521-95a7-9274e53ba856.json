@@ -3,19 +3,6 @@
     "height": 4096.0,
     "id": "9af42904-279b-4521-95a7-9274e53ba856",
     "name": "level_0",
-    "parallax_layers": [
-        {
-            "base_scale": 1.0,
-            "name": "Layer 0",
-            "offset_x": 0.0,
-            "offset_y": 0.0,
-            "repeat_x": true,
-            "repeat_y": false,
-            "scroll_factor_x": 0.5,
-            "scroll_factor_y": 0.8,
-            "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
-        }
-    ],
     "spawn_point": {
         "x": 0.0,
         "y": 0.0

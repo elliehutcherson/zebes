@@ -293,11 +293,35 @@ class MigrateDefinitionsTest(unittest.TestCase):
         self.assertEqual(entities[0]["sort_order"], 7)
 
     def test_a_level_without_entities_is_left_alone(self):
-        self.write_level("empty.json", {"id": "l", "name": "Empty", "entities": []})
+        self.write_level(
+            "empty.json", {"id": "l", "name": "Empty", "entities": [], "themes": []}
+        )
 
         changed = migrate_definitions.migrate_directory(self.root, "levels", dry_run=False)
 
         self.assertEqual(changed, [])
+
+    def test_the_level_wide_parallax_list_is_dropped(self):
+        # Themes and zones replaced it. The flat list stayed in the format long
+        # after the last reader of it went away, so a level carried layers no
+        # editor could reach and no renderer drew.
+        path = self.write_level(
+            "cave.json",
+            {
+                "id": "l",
+                "name": "Cave",
+                "entities": [],
+                "themes": [],
+                "parallax_layers": [{"name": "Layer 0", "texture_id": "t"}],
+            },
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "levels", dry_run=False)
+
+        self.assertEqual(changed, [path])
+        document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertNotIn("parallax_layers", document)
+        self.assertEqual(document["themes"], [])
 
 
 if __name__ == "__main__":

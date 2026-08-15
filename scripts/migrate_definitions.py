@@ -39,16 +39,25 @@ def migrate_sprite(document: dict) -> bool:
 
 
 def migrate_level(document: dict) -> bool:
-    """Gives every entity an explicit draw order. Returns whether anything changed.
+    """Brings a level current. Returns whether anything changed.
 
-    Entities used to draw in ascending ID order, which is insertion order. Zero
-    for all of them preserves exactly that, because ties keep insertion order.
+    Entities gain an explicit draw order. They used to draw in ascending ID
+    order, which is insertion order; zero for all of them preserves exactly that,
+    because ties still resolve by ID.
+
+    The level-wide `parallax_layers` list is dropped. Themes and zones replaced
+    it -- a theme owns an ordered stack of layers, a zone binds a theme to a
+    region -- and nothing has read the flat list since. The reader now rejects
+    the key rather than loading a list no editor can reach and no renderer draws.
     """
     changed = False
     for entity in document.get("entities", []):
         if "sort_order" not in entity:
             entity["sort_order"] = 0
             changed = True
+    if "parallax_layers" in document:
+        del document["parallax_layers"]
+        changed = True
     return changed
 
 

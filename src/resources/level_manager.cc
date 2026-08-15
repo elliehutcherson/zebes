@@ -169,15 +169,6 @@ nlohmann::json ToJson(const Level& level) {
   j["tile_render_height"] = level.tile_render_height;
   j["spawn_point"] = {{"x", level.spawn_point.x}, {"y", level.spawn_point.y}};
 
-  // Parallax
-  std::vector<nlohmann::json> parallax_json;
-  for (const ParallaxLayer& layer : level.parallax_layers) {
-    nlohmann::json layer_j;
-    ToJson(layer_j, layer);
-    parallax_json.push_back(layer_j);
-  }
-  j["parallax_layers"] = parallax_json;
-
   // Themes
   std::vector<nlohmann::json> themes_json;
   for (const auto& [id, theme] : level.themes) {
@@ -243,31 +234,6 @@ absl::StatusOr<Level> ParseLevel(const nlohmann::json& j) {
     return absl::InvalidArgumentError(
         absl::StrCat("Level boundaries must be multiples of tile render size (",
                      level.tile_render_width, " x ", level.tile_render_height, ")"));
-  }
-
-  {
-    absl::flat_hash_set<std::string> existing_names;
-    int index = 0;
-    for (const nlohmann::json& item : j.at("parallax_layers")) {
-      ParallaxLayer layer;
-      FromJson(item, layer);
-
-      if (layer.name.empty()) {
-        layer.name = absl::StrCat("Layer ", index);
-      }
-
-      std::string unique_name = layer.name;
-      int duplicate_count = 1;
-      while (existing_names.contains(unique_name)) {
-        unique_name = absl::StrCat(layer.name, " (", duplicate_count, ")");
-        duplicate_count++;
-      }
-      layer.name = unique_name;
-      existing_names.insert(layer.name);
-
-      level.parallax_layers.push_back(layer);
-      index++;
-    }
   }
 
   {
@@ -441,20 +407,7 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
     }
   }
 
-  // 3. Validate Parallax Layers
-  absl::flat_hash_set<std::string> layer_names;
-  for (const ParallaxLayer& layer : level.parallax_layers) {
-    if (layer.name.empty()) {
-      return absl::InvalidArgumentError("Parallax layer name cannot be empty.");
-    }
-    if (layer_names.contains(layer.name)) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Duplicate parallax layer name found: '", layer.name, "'"));
-    }
-    layer_names.insert(layer.name);
-  }
-
-  // 4. Validate Themes
+  // 3. Validate Themes
   for (const auto& [id, theme] : level.themes) {
     if (theme.id < 0) {
       return absl::InvalidArgumentError("Theme must have a valid non-negative integer ID.");
@@ -468,7 +421,7 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
     }
   }
 
-  // 5. Validate Zones
+  // 4. Validate Zones
   absl::flat_hash_set<int> zone_ids;
   for (const auto& zone : level.zones) {
     if (zone.name.empty()) {
@@ -496,13 +449,13 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
     }
   }
 
-  // 6. Validate Spawn Point
+  // 5. Validate Spawn Point
   if (level.spawn_point.x < 0 || level.spawn_point.y < 0 || level.spawn_point.x > level.width ||
       level.spawn_point.y > level.height) {
     return absl::InvalidArgumentError("Spawn point is outside level boundaries.");
   }
 
-  // 7. Validate Tile Render Dimensions
+  // 6. Validate Tile Render Dimensions
   if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
     return absl::InvalidArgumentError("Tile render dimensions must be positive.");
   }

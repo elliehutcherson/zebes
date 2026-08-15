@@ -84,11 +84,11 @@ struct Level {
   std::map<uint64_t, Entity> entities;
 
   // ENVIRONMENT
-  // Parallax layers, background color, music track ID, etc.'
+  // A theme is an ordered stack of parallax layers; a zone binds one theme to a
+  // region of the world. Layers therefore belong to a theme and never to the
+  // level directly.
   std::map<int, ParallaxTheme> themes;
   std::vector<ParallaxZone> zones;
-
-  std::vector<ParallaxLayer> parallax_layers;
 
   // Value equality over every authored field, tile chunks included. The editor
   // compares a level against the copy it opened to know whether closing would
