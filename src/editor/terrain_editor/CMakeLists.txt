@@ -42,6 +42,7 @@ target_link_libraries(terrain_controls_panel
 add_library(terrain_output_panel terrain_output_panel.cc)
 target_link_libraries(terrain_output_panel
   PUBLIC
+  confirm_prompt
   gui_interface
   terrain_editor_model
   texture

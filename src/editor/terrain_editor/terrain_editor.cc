@@ -187,6 +187,28 @@ void TerrainEditor::RegenerateTerrain() {
   model_.SetStatus(absl::StrCat("Regenerated '", recipe.name, "' without changing asset IDs."));
 }
 
+void TerrainEditor::DeleteTerrain() {
+  if (!model_.active_recipe().has_value()) {
+    model_.SetStatus("Open a terrain recipe before deleting it.");
+    return;
+  }
+  const TerrainRecipe recipe = *model_.active_recipe();
+  const absl::Status status = api_->DeleteGeneratedTerrain(recipe.id);
+  if (!status.ok()) {
+    // A refusal names every referrer, so it is the whole message rather than a
+    // reason appended to one.
+    model_.SetStatus(std::string(status.message()));
+    return;
+  }
+
+  // Resets the whole model rather than only the recipe binding: the tuning on
+  // screen described artwork that no longer exists, and leaving it would invite
+  // a Create that silently made a second terrain under the same name.
+  model_.StartNewRecipe();
+  frame_pending_ = true;
+  model_.SetStatus(absl::StrCat("Deleted '", recipe.name, "', its tileset, and its artwork."));
+}
+
 absl::Status TerrainEditor::RenderOutput() {
   std::vector<Texture> textures;
   if (model_.source() == TerrainEditorModel::Source::kImportManifest) {
@@ -214,6 +236,9 @@ absl::Status TerrainEditor::RenderOutput() {
       break;
     case TerrainOutputPanel::Action::kRegenerate:
       RegenerateTerrain();
+      break;
+    case TerrainOutputPanel::Action::kDeleteTerrain:
+      DeleteTerrain();
       break;
   }
   return absl::OkStatus();

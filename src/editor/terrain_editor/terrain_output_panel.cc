@@ -78,6 +78,17 @@ TerrainOutputPanel::Action TerrainOutputPanel::RenderRecipeSelector(
   return Action::kNone;
 }
 
+bool TerrainOutputPanel::RenderDeleteControl(TerrainEditorModel& model) {
+  const TerrainRecipe& recipe = *model.active_recipe();
+
+  // Names all three because all three go. A recipe, its tileset and its
+  // artwork are one build product, and a question that mentioned only the
+  // terrain would understate what the click destroys.
+  const std::string question =
+      absl::StrCat("Delete terrain '", recipe.name, "', its tileset, and its artwork?");
+  return delete_terrain_prompt_.Render(*gui_, "Delete", recipe.id, question, "TerrainOut");
+}
+
 absl::StatusOr<TerrainOutputPanel::Action> TerrainOutputPanel::Render(
     TerrainEditorModel& model, const std::vector<Texture>& textures,
     const std::vector<TerrainRecipe>& recipes) {
@@ -92,6 +103,9 @@ absl::StatusOr<TerrainOutputPanel::Action> TerrainOutputPanel::Render(
       if (gui_->Button("New##TerrainOut")) action = Action::kNewRecipe;
       gui_->SameLine();
       if (gui_->Button("Save As##TerrainOut")) action = Action::kCopyRecipe;
+      // On its own row rather than beside the other two: once armed the prompt
+      // grows a wrapped question, which has nowhere to go on a shared line.
+      if (RenderDeleteControl(model)) action = Action::kDeleteTerrain;
     }
   }
 

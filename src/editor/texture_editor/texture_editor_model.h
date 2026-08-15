@@ -25,6 +25,12 @@ class TextureEditorModel {
 
   void BeginNewTexture();
   void SelectTexture(Texture texture);
+  // Leaves nothing selected -- neither an existing texture nor a new one.
+  //
+  // Deletion is the only thing that reaches this state. Every other path moves
+  // from one texture to another, which is why the model starts with a selection
+  // it can hand back and never needed to drop one until now.
+  void ClearSelection();
   bool is_new_texture() const { return is_new_texture_; }
   bool has_selection() const;
 

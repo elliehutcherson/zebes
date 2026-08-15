@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstdarg>
+#include <cstdio>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
@@ -93,7 +96,30 @@ class MockGui : public GuiInterface {
   void Text(const char* fmt, ...) override {}
   void TextColored(const ImVec4& col, const char* fmt, ...) override {}
   void TextDisabled(const char* fmt, ...) override {}
-  void TextWrapped(const char* fmt, ...) override {}
+  // Recorded rather than discarded, because this is where panels put the
+  // sentences a user has to read and act on -- a confirmation naming what is
+  // about to be destroyed, or the reason a button is disabled. Without a record
+  // no test can tell a correct question from an empty one.
+  void TextWrapped(const char* fmt, ...) override {
+    va_list args;
+    va_start(args, fmt);
+    va_list measure;
+    va_copy(measure, args);
+    const int length = std::vsnprintf(nullptr, 0, fmt, measure);
+    va_end(measure);
+    if (length >= 0) {
+      std::string formatted(static_cast<size_t>(length), '\0');
+      std::vsnprintf(formatted.data(), static_cast<size_t>(length) + 1, fmt, args);
+      wrapped_text_.push_back(std::move(formatted));
+    }
+    va_end(args);
+  }
+
+  // Everything TextWrapped has been asked to draw, oldest first, across every
+  // render since the last ClearWrappedText.
+  const std::vector<std::string>& wrapped_text() const { return wrapped_text_; }
+  void ClearWrappedText() { wrapped_text_.clear(); }
+
   void LabelText(const char* label, const char* fmt, ...) override {}
   void SetTooltip(const char* fmt, ...) override {}
 
@@ -230,6 +256,9 @@ class MockGui : public GuiInterface {
               (override));
   MOCK_METHOD(ScopedPopup, CreateScopedPopupContextItem,
               (const char* str_id, ImGuiPopupFlags flags), (override));
+
+ private:
+  std::vector<std::string> wrapped_text_;
 };
 
 }  // namespace zebes

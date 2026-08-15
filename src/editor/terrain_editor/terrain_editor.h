@@ -27,6 +27,10 @@ namespace zebes {
 // you start and nothing is left unsaved when you finish.
 class TerrainEditor {
  public:
+  // Reaches the actions the output panel reports, so what the editor does with
+  // an Api refusal can be driven without a window.
+  friend class TerrainEditorTestPeer;
+
   // preview owns the GPU texture the scene is drawn into.
   static absl::StatusOr<std::unique_ptr<TerrainEditor>> Create(Api* api, GuiInterface* gui,
                                                                PreviewTextureSink* preview);
@@ -49,6 +53,9 @@ class TerrainEditor {
   void CreateTerrain();
   void OpenRecipe();
   void RegenerateTerrain();
+  // Removes the open terrain whole -- recipe, tileset and artwork -- and
+  // returns the tab to its empty state, since what it was editing is gone.
+  void DeleteTerrain();
 
   // Centres the camera on the preview at a zoom that shows all of it with room
   // to spare. Called on the first preview and on demand, never every frame:

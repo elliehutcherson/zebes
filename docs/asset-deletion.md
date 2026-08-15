@@ -1,15 +1,12 @@
 # Deleting an asset something else might be using
 
-**Status: §§1-8 implemented. §9 steps 1-3 and 5 are done; step 4's editor work is
-not.**
+**Status: implemented.** §§1-8 and all of §9.
 
 Every delete refuses when something still references what it would remove, and
-says what. Bundle deletion works at the Api level.
-
-What is missing is entirely UI: **no button calls any of it.** There is still no
-way to delete a texture or a generated terrain from the editor, which is the
-problem that started this work. The only `DeleteTexture` call in the editor
-remains a rollback path when recipe creation fails (`terrain_creation.cc:140`).
+says what. A generated terrain deletes as one thing. Both buttons exist: Delete
+in the Texture Editor's details column, and Delete beside New and Save As in the
+Terrain Editor's output panel, each behind the same `ConfirmPrompt` every other
+destructive control uses.
 
 The rest of this document is the analysis the implementation followed.
 
@@ -192,21 +189,38 @@ it should still say what it is about to disconnect.
    and `IsColliderUsed`, `SpriteManager::IsTextureUsed`,
    `TilesetManager::IsTextureUsed` — because two mechanisms answering one
    question is how a future delete gets wired to the incomplete one.
-4. **Api half done, UI not started.** `Api::DeleteGeneratedTerrain` exists and is
-   tested; no button calls it yet. What is left is the editor work:
-   - **Texture Editor**: Delete behind `ConfirmPrompt` — this tab has never used
-     one, so it would be the sixth. The refusal already has somewhere to land,
-     `model_.error()` at `texture_editor.cc:95`, though that is a plain
-     `TextColored` with no Dismiss unlike the other five tabs.
-   - **Terrain Editor**: one Delete that calls `DeleteGeneratedTerrain`, with a
-     confirmation naming all three — "Delete terrain 'x', its tileset, and its
-     artwork?" — since three files go and the user should see that first.
+4. **Done.** Both buttons, each behind the same `ConfirmPrompt` every other
+   destructive control in the editor already uses.
+   - **Texture Editor**: Delete in the details column, offered only for a
+     texture that exists — a texture being created has nothing on disk, and New
+     Texture already abandons it. A refusal lands in `model_.error()` as the
+     whole message rather than a reason appended to one, because it already
+     names the texture and every referrer. The selection survives a refusal, so
+     the thing the message is about is still on screen.
+   - **Terrain Editor**: Delete beside New and Save As, on its own row because
+     an armed prompt grows a wrapped question. It reports
+     `Action::kDeleteTerrain`; the editor calls `DeleteGeneratedTerrain` and, on
+     success, resets the whole model rather than only the recipe binding. The
+     tuning left on screen described artwork that no longer exists, and leaving
+     it would invite a Create that quietly made a second terrain of the same
+     name.
 
    Decided against: a bare "delete recipe" button. Nothing references a recipe,
    so it would always succeed, and it would leave a tileset nothing can
    regenerate — the state `lucinda_cave` was in, and the one
    `RegenerateTerrainTileset` now refuses. A one-click way to manufacture the
    problem this work removed is not worth the flexibility.
+
+   One thing planned here turned out to be unnecessary: the Texture Editor's
+   error banner was described as a bare `TextColored` unlike the other five
+   tabs. It already has a Dismiss button (`texture_editor.cc:95-99`), so there
+   was nothing to make consistent.
+
+   Pinning the confirmation wording needed one change to shared test
+   scaffolding: `MockGui::TextWrapped` discarded its arguments, so no test could
+   tell a question naming all three assets from an empty string. It records them
+   now. That is where panels put every sentence a user has to read and act on,
+   and none of it was observable.
 
 5. **Done.** The bundle is an ordering over the existing guards rather than a
    bypass: recipe, then tileset, then texture, each member gone before it can
@@ -219,5 +233,7 @@ it should still say what it is about to disconnect.
    reported by step and finishable by hand once step 4 exists. A rollback journal
    for three files is not worth it.
 
-Steps 1-3 removed the ways a level could be broken. Step 4's remaining half is
-the capability that is still missing.
+Steps 1-3 removed the ways a level could be broken; steps 4 and 5 added the
+capability that was missing. Deleting `lucinda_cave` — the request that started
+this — is now one button in the Terrain Editor, and it refuses rather than
+blanking a level if anything has been pointed at it since.

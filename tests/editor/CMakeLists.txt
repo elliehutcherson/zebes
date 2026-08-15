@@ -65,6 +65,19 @@ add_executable(texture_editor_model_test texture_editor_model_test.cc)
 target_link_libraries(texture_editor_model_test texture_editor_model gtest_main)
 gtest_discover_tests(texture_editor_model_test)
 
+add_executable(texture_editor_test texture_editor_test.cc)
+target_link_libraries(texture_editor_test
+  gtest_main
+  gmock
+  macros
+  api
+  editor_texture
+  sdl_wrapper
+  gui_mock
+)
+target_include_directories(texture_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(texture_editor_test)
+
 add_executable(texture_preview_test texture_preview_test.cc)
 target_link_libraries(texture_preview_test editor_texture_preview gtest_main)
 gtest_discover_tests(texture_preview_test)
@@ -121,9 +134,22 @@ target_link_libraries(terrain_output_panel_test
   terrain_output_panel
   gtest_main
   gmock
+  macros
 )
 target_include_directories(terrain_output_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(terrain_output_panel_test)
+
+add_executable(terrain_editor_test terrain_editor_test.cc)
+target_link_libraries(terrain_editor_test
+  gtest_main
+  gmock
+  macros
+  api
+  terrain_editor
+  gui_mock
+)
+target_include_directories(terrain_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_editor_test)
 
 # --- Tileset Panel Test ---
 add_executable(tileset_panel_test tileset_panel_test.cc)

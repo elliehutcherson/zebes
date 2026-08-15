@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
 #include "editor/terrain_editor/terrain_editor_model.h"
 #include "objects/texture.h"
@@ -28,6 +29,9 @@ class TerrainOutputPanel {
     kNewRecipe,
     kCopyRecipe,
     kRegenerate,
+    // The caller should remove the open recipe together with the tileset and
+    // the artwork it produced. Only reported after the user confirms.
+    kDeleteTerrain,
   };
 
   static absl::StatusOr<std::unique_ptr<TerrainOutputPanel>> Create(GuiInterface* gui);
@@ -44,8 +48,14 @@ class TerrainOutputPanel {
   void RenderTexturePicker(TerrainEditorModel& model, const std::vector<Texture>& textures);
   void RenderSummary(TerrainEditorModel& model);
   Action RenderRecipeSelector(TerrainEditorModel& model, const std::vector<TerrainRecipe>& recipes);
+  // True on the frame the user confirms. Only called with a recipe open.
+  bool RenderDeleteControl(TerrainEditorModel& model);
 
   GuiInterface* gui_;
+
+  // Armed against the recipe's ID, so choosing a different recipe while the
+  // question is up disarms it rather than repointing it at the new one.
+  ConfirmPrompt delete_terrain_prompt_;
 };
 
 }  // namespace zebes

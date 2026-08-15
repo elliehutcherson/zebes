@@ -30,6 +30,15 @@ void TextureEditorModel::SelectTexture(Texture texture) {
   SetEditName(selected_texture_.name);
 }
 
+void TextureEditorModel::ClearSelection() {
+  // Clears the banner for the same reason the other two do: it described an
+  // attempt against a texture that is no longer what the tab is showing.
+  ClearError();
+  selected_texture_ = {};
+  is_new_texture_ = false;
+  SetEditName("");
+}
+
 bool TextureEditorModel::has_selection() const {
   return is_new_texture_ || !selected_texture_.id.empty();
 }

@@ -76,6 +76,26 @@ void TextureEditor::SelectTexture(const Texture& texture) {
   model_.SelectTexture(texture);
 }
 
+void TextureEditor::DeleteSelectedTexture() {
+  const Texture* selected_texture = model_.selected_texture();
+  if (selected_texture == nullptr || selected_texture->id.empty()) return;
+
+  const absl::Status status = api_->DeleteTexture(selected_texture->id);
+  if (!status.ok()) {
+    LOG(ERROR) << "Failed to delete texture: " << status;
+    // Shown as it arrives. A refusal already names the texture and lists every
+    // referrer, so prefixing it with "Could not delete texture" would say the
+    // subject twice.
+    model_.SetError(status.message());
+    return;
+  }
+
+  sdl_->DestroyTexture(preview_texture_);
+  preview_texture_ = nullptr;
+  model_.ClearSelection();
+  RefreshTextures();
+}
+
 SDL_Texture* TextureEditor::PreviewTexture() const {
   if (preview_texture_ != nullptr) return preview_texture_;
   const Texture* selected_texture = model_.selected_texture();
@@ -250,6 +270,16 @@ void TextureEditor::RenderTextureDetails() {
 
     model_.FinishUpdate();
     RefreshTextures();
+  }
+
+  // Nothing is on disk yet for a texture being created, so there is nothing to
+  // delete -- abandoning it is what New Texture and picking a row already do.
+  if (model_.is_new_texture()) return;
+
+  const std::string question = absl::StrCat("Delete '", selected_texture->name,
+                                            "'? Its definition and its image file both go.");
+  if (delete_texture_prompt_.Render(*gui_, "Delete", selected_texture->id, question, "Texture")) {
+    DeleteSelectedTexture();
   }
 }
 

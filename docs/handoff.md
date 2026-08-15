@@ -1,14 +1,15 @@
 # Handoff: derived terrain artwork
 
-State as of 2026-08-15. **Merged to `main`** (not pushed). 650 C++ tests and 26
-Python tests pass through `scripts/build_and_test.sh`.
+State as of 2026-08-15. Terrain work is **merged to `main` and pushed**; the
+deletion buttons are on `generated-terrain-delete`. 672 C++ tests and 26 Python
+tests pass through `scripts/build_and_test.sh`.
 
 Three phases landed together, each with its own design document:
 
 | Phase | Document | State |
 |---|---|---|
 | Derived terrain artwork | [`terrain-derived-artwork.md`](terrain-derived-artwork.md) | Implemented; doc trued up against the code |
-| Safe asset deletion | [`asset-deletion.md`](asset-deletion.md) | Checks implemented; the Delete buttons themselves are not |
+| Safe asset deletion | [`asset-deletion.md`](asset-deletion.md) | Implemented, checks and buttons both |
 | Prop artwork from generated images | [`prop-artwork.md`](prop-artwork.md) | Design only, nothing built |
 
 ---
@@ -183,8 +184,6 @@ Worth knowing because most were invisible to reading:
    confirm the artwork survived. Also unconfirmed: that the shape picker greys
    out with no terrain selected.
 
-2. **`main` is not pushed.** 28 commits ahead of `origin/main`.
-
 Done in this phase: the manifest true-up (all four items, plus the shape range,
 which was replaced by naming the two shapes a unit cannot be rather than by
 deleting validation), the design-doc true-up, the merge to `main`, and
@@ -192,12 +191,16 @@ deleting validation), the design-doc true-up, the merge to `main`, and
 
 ### Next
 
-**Delete buttons.** `asset-deletion.md` §9 steps 4 and 5: a Delete in the Texture
-Editor and the Terrain Editor behind the existing `ConfirmPrompt`, then bundle
-deletion for a recipe-owned texture + tileset + recipe. The checks are in place,
-so these are safe to build now -- which was the point of doing them first. Until
-they exist, removing a generated terrain means deleting the tileset and then
-being unable to delete its texture.
+**Layers.** The ordering phase `prop-artwork.md` §7 and the `sort_order` note
+below both point at: an ordered list of depth slices, each holding its own tile
+grid and its own entities. `Entity::sort_order` was shaped to become the
+within-layer tiebreaker rather than be renamed. The stated precondition was
+driving the terrain work in a live editor, and that walk is still only part
+done.
+
+Deletion is finished and needs nothing further. Its buttons went in behind the
+checks deliberately, so there was never a frame in which the editor could strand
+a reference.
 
 ### Carried over from before this phase
 
@@ -238,6 +241,7 @@ being unable to delete its texture.
 | `src/editor/level_editor/derived_terrain_session.{h,cc}` | Opening, showing, committing |
 | `tests/editor/derived_artwork_test.cc` | The invariant: painted artwork equals artwork for the real neighbourhood |
 | `src/resources/asset_references.{h,cc}` | What names an asset, and the refusal text when something does |
+| `src/api/api.cc` | `DeleteGeneratedTerrain` -- pre-flight, then recipe, tileset, artwork in that order |
 | `src/objects/entity.h` | `sort_order`, which is within-layer ordering rather than depth |
 | `scripts/render_slope_matrix.cc` | Renders the join sheet for looking at |
 | `scripts/migrate_definitions.py` | One migration per field; run it after any format change |

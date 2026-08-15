@@ -96,6 +96,7 @@ target_link_libraries(texture_editor_model
 add_library(editor_texture texture_editor/texture_editor.cc)
 target_link_libraries(editor_texture
   texture_editor_model
+  confirm_prompt
   gui_interface
   api
   ${IMGUI_LIBRARIES}

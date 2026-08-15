@@ -6,14 +6,18 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "tests/editor/mock_gui.h"
 
 namespace zebes {
 namespace {
 
 using ::testing::_;
+using ::testing::An;
+using ::testing::Contains;
 using ::testing::Invoke;
 using ::testing::NiceMock;
+using ::testing::Not;
 using ::testing::Return;
 using ::testing::StrEq;
 
@@ -29,6 +33,21 @@ class TerrainOutputPanelTest : public ::testing::Test {
           return ScopedCombo(&gui_, label, preview);
         }));
     ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
+
+    // The delete prompt tints its buttons, so a render with a recipe open goes
+    // through here.
+    ON_CALL(gui_, CreateScopedStyleColor(_, An<const ImVec4&>()))
+        .WillByDefault(Invoke(
+            [this](ImGuiCol idx, const ImVec4& col) { return ScopedStyleColor(&gui_, idx, col); }));
+  }
+
+  // Opens a recipe, which is the state the delete control appears in.
+  void LoadRecipe() {
+    model_.LoadRecipe(TerrainRecipe{.id = "recipe-1",
+                                    .name = "Meadow",
+                                    .tileset_id = "tileset-1",
+                                    .texture_id = "texture-1",
+                                    .terrain_id = 1});
   }
 
   absl::StatusOr<TerrainOutputPanel::Action> Render() { return panel_->Render(model_, textures_); }
@@ -119,29 +138,93 @@ TEST_F(TerrainOutputPanelTest, OffersQualityOnlyWhenGenerating) {
 }
 
 TEST_F(TerrainOutputPanelTest, LoadedRecipeRegeneratesInsteadOfCreatingNewIds) {
-  model_.LoadRecipe(TerrainRecipe{.id = "recipe-1",
-                                  .name = "Meadow",
-                                  .tileset_id = "tileset-1",
-                                  .texture_id = "texture-1",
-                                  .terrain_id = 1});
+  LoadRecipe();
   ON_CALL(gui_, Button(StrEq("Regenerate##TerrainOut"), _)).WillByDefault(Return(true));
 
   const absl::StatusOr<TerrainOutputPanel::Action> action = Render();
-  ASSERT_TRUE(action.ok()) << action.status();
+  ASSERT_OK(action);
   EXPECT_EQ(*action, TerrainOutputPanel::Action::kRegenerate);
 }
 
 TEST_F(TerrainOutputPanelTest, SaveAsTurnsALoadedRecipeIntoACopyAction) {
-  model_.LoadRecipe(TerrainRecipe{.id = "recipe-1",
-                                  .name = "Meadow",
-                                  .tileset_id = "tileset-1",
-                                  .texture_id = "texture-1",
-                                  .terrain_id = 1});
+  LoadRecipe();
   ON_CALL(gui_, Button(StrEq("Save As##TerrainOut"), _)).WillByDefault(Return(true));
 
   const absl::StatusOr<TerrainOutputPanel::Action> action = Render();
-  ASSERT_TRUE(action.ok()) << action.status();
+  ASSERT_OK(action);
   EXPECT_EQ(*action, TerrainOutputPanel::Action::kCopyRecipe);
+}
+
+// Nothing has been produced yet, so there is nothing to delete -- and a Delete
+// beside an unsaved configuration would read as discarding the tuning.
+TEST_F(TerrainOutputPanelTest, OffersNoDeleteUntilARecipeIsOpen) {
+  std::vector<std::string> labels;
+  ON_CALL(gui_, Button(_, _)).WillByDefault(Invoke([&labels](const char* label, const ImVec2&) {
+    labels.push_back(label);
+    return false;
+  }));
+
+  ASSERT_OK(Render());
+  EXPECT_THAT(labels, Not(Contains("Delete##TerrainOut")));
+}
+
+TEST_F(TerrainOutputPanelTest, DeletingAsksBeforeItReportsAnything) {
+  LoadRecipe();
+  ON_CALL(gui_, Button(StrEq("Delete##TerrainOut"), _)).WillByDefault(Return(true));
+
+  // Pressing Delete raises the question and nothing else: the caller must not
+  // destroy three assets on the first click.
+  const absl::StatusOr<TerrainOutputPanel::Action> action = Render();
+  ASSERT_OK(action);
+  EXPECT_EQ(*action, TerrainOutputPanel::Action::kNone);
+}
+
+// Three files go, so the question has to say so. Naming only the terrain would
+// understate what the click destroys.
+TEST_F(TerrainOutputPanelTest, TheDeleteQuestionNamesAllThreeAssets) {
+  LoadRecipe();
+  ON_CALL(gui_, Button(StrEq("Delete##TerrainOut"), _)).WillByDefault(Return(true));
+  ASSERT_OK(Render());
+
+  ON_CALL(gui_, Button(StrEq("Delete##TerrainOut"), _)).WillByDefault(Return(false));
+  gui_.ClearWrappedText();
+  ASSERT_OK(Render());
+
+  EXPECT_THAT(gui_.wrapped_text(),
+              Contains("Delete terrain 'Meadow', its tileset, and its artwork?"));
+}
+
+TEST_F(TerrainOutputPanelTest, ConfirmingDeleteReportsTheBundleAction) {
+  LoadRecipe();
+  ON_CALL(gui_, Button(StrEq("Delete##TerrainOut"), _)).WillByDefault(Return(true));
+  ASSERT_OK(Render());
+
+  ON_CALL(gui_, Button(StrEq("Delete##TerrainOut"), _)).WillByDefault(Return(false));
+  ON_CALL(gui_, Button(StrEq("Confirm##TerrainOut"), _)).WillByDefault(Return(true));
+
+  const absl::StatusOr<TerrainOutputPanel::Action> action = Render();
+  ASSERT_OK(action);
+  EXPECT_EQ(*action, TerrainOutputPanel::Action::kDeleteTerrain);
+}
+
+TEST_F(TerrainOutputPanelTest, OpeningADifferentRecipeDropsAPendingDeleteQuestion) {
+  LoadRecipe();
+  ON_CALL(gui_, Button(StrEq("Delete##TerrainOut"), _)).WillByDefault(Return(true));
+  ASSERT_OK(Render());
+
+  // The question was armed against 'Meadow'. Answering it after the selection
+  // moved would delete whatever is open now.
+  model_.LoadRecipe(TerrainRecipe{.id = "recipe-2",
+                                  .name = "Cavern",
+                                  .tileset_id = "tileset-2",
+                                  .texture_id = "texture-2",
+                                  .terrain_id = 2});
+  ON_CALL(gui_, Button(StrEq("Delete##TerrainOut"), _)).WillByDefault(Return(false));
+  ON_CALL(gui_, Button(StrEq("Confirm##TerrainOut"), _)).WillByDefault(Return(true));
+
+  const absl::StatusOr<TerrainOutputPanel::Action> action = Render();
+  ASSERT_OK(action);
+  EXPECT_EQ(*action, TerrainOutputPanel::Action::kNone);
 }
 
 }  // namespace
