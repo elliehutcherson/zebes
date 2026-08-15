@@ -160,8 +160,14 @@ absl::Status BlueprintManager::SaveBlueprint(Blueprint blueprint) {
   }
   file << json.dump(4);
 
-  // Update in-memory cache
+  // Assigned through the existing allocation rather than replacing it: callers
+  // hold Blueprint* from GetBlueprint, and swapping the unique_ptr frees what
+  // they point at. The pointer indirection exists so an address survives a save.
   std::string id = blueprint.id;
+  if (auto it = blueprints_.find(id); it != blueprints_.end()) {
+    *it->second = std::move(blueprint);
+    return absl::OkStatus();
+  }
   blueprints_[id] = std::make_unique<Blueprint>(std::move(blueprint));
 
   return absl::OkStatus();

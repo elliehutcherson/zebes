@@ -69,6 +69,10 @@ class LevelEditor {
   // mismatch is invisible: the brush simply does nothing.
   void RenderTilesetMismatchWarning(const Level& level, const Tileset* rejected_tileset);
 
+  // Reports the derived atlas's size and how much of it is unsaved. Nothing
+  // else shows this: the growth lives in memory until the level is saved.
+  void RenderDerivedArtworkStatus();
+
   // Renders the properties/details panel for the selected object.
   absl::Status RenderInspector();  // Right
 

@@ -125,6 +125,13 @@ absl::Status TerrainRecipeManager::SaveRecipe(const TerrainRecipe& recipe) {
     return absl::InternalError(absl::StrCat("could not commit terrain recipe: ", error.message()));
   }
 
+  // Assigned through the existing allocation rather than replacing it: callers
+  // hold TerrainRecipe* from GetRecipe, and swapping the unique_ptr frees what
+  // they point at. The pointer indirection exists so an address survives a save.
+  if (auto it = recipes_.find(recipe.id); it != recipes_.end()) {
+    *it->second = recipe;
+    return absl::OkStatus();
+  }
   recipes_[recipe.id] = std::make_unique<TerrainRecipe>(recipe);
   return absl::OkStatus();
 }

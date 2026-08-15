@@ -207,5 +207,38 @@ TEST_F(DerivedTerrainSessionTest, TheTilesetGrowsInPlaceSoOneObjectDecidesTileId
   EXPECT_EQ(tileset.tiles.front().shape, TileShape::kFullBlock);
 }
 
+// The atlas grows in memory and reaches disk only on save, so neither the file
+// nor the Tileset Editor shows it happening. Without this the one behaviour the
+// derived-artwork phase is about could not be checked by looking.
+TEST_F(DerivedTerrainSessionTest, ArtworkStatusReportsGrowthAndWhatIsUnsaved) {
+  Tileset tileset = DerivedTileset();
+  ASSERT_OK(session_.OpenFor(api_, tileset));
+
+  const DerivedTerrainSession::ArtworkStatus before = session_.artwork_status();
+  EXPECT_EQ(before.tiles, 0);
+  EXPECT_EQ(before.unsaved, 0);
+  EXPECT_GT(before.atlas_width, 0);
+
+  ResolveOneTile(tileset);
+
+  const DerivedTerrainSession::ArtworkStatus after = session_.artwork_status();
+  EXPECT_EQ(after.tiles, 1);
+  EXPECT_EQ(after.unsaved, 1) << "painted but not written";
+
+  ASSERT_OK(session_.Commit(api_));
+
+  const DerivedTerrainSession::ArtworkStatus committed = session_.artwork_status();
+  EXPECT_EQ(committed.tiles, 1);
+  EXPECT_EQ(committed.unsaved, 0) << "saving is what clears it";
+}
+
+TEST_F(DerivedTerrainSessionTest, AClosedSessionReportsNoArtwork) {
+  const DerivedTerrainSession::ArtworkStatus status = session_.artwork_status();
+
+  EXPECT_EQ(status.tiles, 0);
+  EXPECT_EQ(status.atlas_width, 0);
+  EXPECT_EQ(status.unsaved, 0);
+}
+
 }  // namespace
 }  // namespace zebes

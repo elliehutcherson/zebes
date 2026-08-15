@@ -8,6 +8,7 @@
 
 #include "absl/status/status.h"
 #include "common/utils.h"
+#include "macros.h"
 #include "nlohmann/json.hpp"
 #include "resources/fake_texture_resource_store.h"
 #include "resources/texture_manager.h"
@@ -141,6 +142,28 @@ TEST_F(SpriteManagerTest, UpdateSprite) {
   // Check
   auto sprite_or = manager_->GetSprite(id);
   EXPECT_EQ((*sprite_or)->name, "Updated");
+}
+
+// Editors hold a Sprite* for as long as they are editing it. Replacing the
+// cached unique_ptr on save freed what they held.
+TEST_F(SpriteManagerTest, SavingKeepsPointersHandedOutBeforeIt) {
+  std::string tex_path = test_dir_ + "/textures/stable.png";
+  std::ofstream file(tex_path);
+  ASSERT_OK_AND_ASSIGN(std::string texture_id, texture_manager_->CreateTexture({.path = tex_path}));
+
+  Sprite sprite;
+  sprite.name = "Initial";
+  sprite.texture_id = texture_id;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateSprite(sprite));
+  ASSERT_OK_AND_ASSIGN(Sprite * held, manager_->GetSprite(id));
+
+  Sprite edited = *held;
+  edited.name = "Renamed";
+  ASSERT_OK(manager_->SaveSprite(edited));
+
+  ASSERT_OK_AND_ASSIGN(Sprite * after, manager_->GetSprite(id));
+  EXPECT_EQ(after, held) << "the address a caller is still holding must survive a save";
+  EXPECT_EQ(held->name, "Renamed");
 }
 
 TEST_F(SpriteManagerTest, DeleteSprite) {

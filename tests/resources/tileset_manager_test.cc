@@ -260,6 +260,26 @@ TEST_F(TilesetManagerTest, CreateTileset_ZeroTileHeight_Fails) {
 
 // --- SaveTileset / Tile Validation ---
 
+// The editor holds a Tileset* for as long as it is editing: the level editor's
+// terrain palette keeps one for the whole session, and a derived terrain paints
+// through one. Replacing the cached unique_ptr on save freed those mid-edit,
+// which read back as a tileset with no name and no terrains.
+TEST_F(TilesetManagerTest, SavingKeepsPointersHandedOutBeforeIt) {
+  ASSERT_OK_AND_ASSIGN(std::string id,
+                       manager_->CreateTileset(Tileset{.name = "Cave", .texture_id = "tex"}));
+  ASSERT_OK_AND_ASSIGN(Tileset * held, manager_->GetTileset(id));
+
+  Tileset edited = *held;
+  edited.name = "Cave Renamed";
+  edited.tiles.push_back(Tile{.id = 1, .name = "wall"});
+  ASSERT_OK(manager_->SaveTileset(edited));
+
+  ASSERT_OK_AND_ASSIGN(Tileset * after, manager_->GetTileset(id));
+  EXPECT_EQ(after, held) << "the address a caller is still holding must survive a save";
+  EXPECT_EQ(held->name, "Cave Renamed") << "and must see what was saved";
+  EXPECT_EQ(held->tiles.size(), 1);
+}
+
 TEST_F(TilesetManagerTest, SaveTileset_EmptyId_Fails) {
   Tileset tileset{
       .id = "",

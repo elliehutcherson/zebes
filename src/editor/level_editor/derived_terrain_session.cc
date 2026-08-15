@@ -64,6 +64,16 @@ bool DerivedTerrainSession::has_unsaved_artwork() const {
   return provider_.has_value() && provider_->appended_tile_count() > committed_tiles_;
 }
 
+DerivedTerrainSession::ArtworkStatus DerivedTerrainSession::artwork_status() const {
+  if (!provider_.has_value()) return {};
+  return ArtworkStatus{
+      .tiles = static_cast<int>(provider_->tileset().tiles.size()),
+      .atlas_width = provider_->atlas().width,
+      .atlas_height = provider_->atlas().height,
+      .unsaved = provider_->appended_tile_count() - committed_tiles_,
+  };
+}
+
 absl::Status DerivedTerrainSession::ShowNewArtwork(Api& api) {
   if (!provider_.has_value()) return absl::OkStatus();
   if (provider_->appended_tile_count() == shown_tiles_) return absl::OkStatus();

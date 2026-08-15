@@ -143,6 +143,21 @@ TEST_F(TerrainRecipeManagerTest, SavingAnEditReplacesTheRecipeWithoutChangingIts
   EXPECT_TRUE(std::filesystem::exists(path_ / "definitions/terrain_recipes" / (id + ".json")));
 }
 
+// The terrain editor holds a TerrainRecipe* across a regenerate, which saves.
+// Replacing the cached unique_ptr freed what it held.
+TEST_F(TerrainRecipeManagerTest, SavingKeepsPointersHandedOutBeforeIt) {
+  ASSERT_OK_AND_ASSIGN(const std::string id, manager_->CreateRecipe(CompleteRecipe()));
+  ASSERT_OK_AND_ASSIGN(TerrainRecipe * held, manager_->GetRecipe(id));
+
+  TerrainRecipe edited = *held;
+  edited.name = "Renamed";
+  ASSERT_OK(manager_->SaveRecipe(edited));
+
+  ASSERT_OK_AND_ASSIGN(TerrainRecipe * after, manager_->GetRecipe(id));
+  EXPECT_EQ(after, held) << "the address a caller is still holding must survive a save";
+  EXPECT_EQ(held->name, "Renamed");
+}
+
 TEST_F(TerrainRecipeManagerTest, RejectsAnUnknownFutureSchema) {
   TerrainRecipe recipe = CompleteRecipe();
   recipe.id = "future";

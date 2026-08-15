@@ -56,6 +56,23 @@ class DerivedTerrainSession {
   bool is_open() const { return provider_.has_value(); }
   bool has_unsaved_artwork() const;
 
+  // What the session has built up so far.
+  //
+  // Exists because there is otherwise no way to watch an atlas grow: it lives
+  // in memory until the level is saved, so neither the file on disk nor the
+  // Tileset Editor shows the growth while it is happening. That made the one
+  // behaviour this whole phase is about the one behaviour a person could not
+  // check by looking.
+  struct ArtworkStatus {
+    int tiles = 0;
+    int atlas_width = 0;
+    int atlas_height = 0;
+    // Appended since the last commit, so nonzero means the level has unsaved
+    // artwork as well as unsaved cells.
+    int unsaved = 0;
+  };
+  ArtworkStatus artwork_status() const;
+
  private:
   void Close();
 

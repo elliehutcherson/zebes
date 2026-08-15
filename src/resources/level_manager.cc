@@ -486,7 +486,14 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
   }
   file << json.dump(4);
 
-  // Update cache with new level.
+  // Assigned through the existing allocation rather than replacing it: the
+  // level editor holds the Level* it is editing for the whole session, and
+  // swapping the unique_ptr frees it mid-edit. The pointer indirection exists
+  // so an address survives a save.
+  if (auto it = levels_.find(level.id); it != levels_.end()) {
+    *it->second = level;
+    return absl::OkStatus();
+  }
   levels_[level.id] = std::make_unique<Level>(level);
 
   return absl::OkStatus();

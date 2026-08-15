@@ -8,6 +8,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
 #include "common/utils.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -113,6 +114,23 @@ TEST_F(ColliderManagerTest, UpdateCollider) {
   auto collider_or = manager_->GetCollider(id);
   EXPECT_EQ((*collider_or)->polygons.size(), 1);
   EXPECT_EQ((*collider_or)->polygons[0][0].x, 5);
+}
+
+// Editors hold a Collider* for as long as they are editing it. Replacing the
+// cached unique_ptr on save freed what they held.
+TEST_F(ColliderManagerTest, SavingKeepsPointersHandedOutBeforeIt) {
+  Collider collider;
+  collider.name = "Stable";
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateCollider(collider));
+  ASSERT_OK_AND_ASSIGN(Collider * held, manager_->GetCollider(id));
+
+  Collider edited = *held;
+  edited.name = "Renamed";
+  ASSERT_OK(manager_->SaveCollider(edited));
+
+  ASSERT_OK_AND_ASSIGN(Collider * after, manager_->GetCollider(id));
+  EXPECT_EQ(after, held) << "the address a caller is still holding must survive a save";
+  EXPECT_EQ(held->name, "Renamed");
 }
 
 TEST_F(ColliderManagerTest, DeleteCollider) {

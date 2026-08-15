@@ -158,8 +158,14 @@ absl::Status ColliderManager::SaveCollider(Collider collider) {
   }
   file << json.dump(4);
 
-  // Update in-memory cache
+  // Assigned through the existing allocation rather than replacing it: callers
+  // hold Collider* from GetCollider, and swapping the unique_ptr frees what
+  // they point at. The pointer indirection exists so an address survives a save.
   std::string id = collider.id;
+  if (auto it = colliders_.find(id); it != colliders_.end()) {
+    *it->second = std::move(collider);
+    return absl::OkStatus();
+  }
   colliders_[id] = std::make_unique<Collider>(std::move(collider));
 
   return absl::OkStatus();

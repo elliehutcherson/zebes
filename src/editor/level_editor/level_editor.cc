@@ -416,6 +416,22 @@ void LevelEditor::RenderTilesetMismatchWarning(const Level& level,
                     rejected_tileset->name.c_str(), level_name, level_name);
 }
 
+void LevelEditor::RenderDerivedArtworkStatus() {
+  if (!derived_terrain_.is_open()) return;
+  const DerivedTerrainSession::ArtworkStatus status = derived_terrain_.artwork_status();
+
+  if (status.unsaved == 0) {
+    gui_->TextDisabled("Artwork: %d tiles, %dx%d atlas.", status.tiles, status.atlas_width,
+                       status.atlas_height);
+    return;
+  }
+  // Coloured only when something is pending, because that is the state a user
+  // can lose: the atlas grows in memory and nothing reaches disk until save.
+  gui_->TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
+                    "Artwork: %d tiles, %dx%d atlas, %d unsaved.", status.tiles,
+                    status.atlas_width, status.atlas_height, status.unsaved);
+}
+
 absl::Status LevelEditor::RenderViewport() {
   gui_->Text("Viewport");
   gui_->Separator();
@@ -454,6 +470,7 @@ absl::Status LevelEditor::RenderViewport() {
   if (bound_tileset != nullptr) {
     RETURN_IF_ERROR(derived_terrain_.OpenFor(*api_, *bound_tileset));
   }
+  RenderDerivedArtworkStatus();
 
   // Rebuilt every frame because the tileset's terrains can change in the
   // Tileset Editor between frames, and because painting a derived terrain adds

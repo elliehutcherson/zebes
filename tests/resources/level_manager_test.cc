@@ -159,6 +159,21 @@ TEST_F(LevelManagerTest, CreateLevel_DuplicateName_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("already exists"));
 }
 
+// The level editor holds the Level* it is editing for the whole session, and
+// saving happens mid-edit. Replacing the cached unique_ptr freed it underneath.
+TEST_F(LevelManagerTest, SavingKeepsPointersHandedOutBeforeIt) {
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(Level{.name = "Stable"}));
+  ASSERT_OK_AND_ASSIGN(Level * held, manager_->GetLevel(id));
+
+  Level edited = *held;
+  edited.name = "Renamed";
+  ASSERT_OK(manager_->SaveLevel(edited));
+
+  ASSERT_OK_AND_ASSIGN(Level * after, manager_->GetLevel(id));
+  EXPECT_EQ(after, held) << "the address a caller is still holding must survive a save";
+  EXPECT_EQ(held->name, "Renamed");
+}
+
 TEST_F(LevelManagerTest, SaveLevel_EmptyName_Fails) {
   Level level{
       .name = "Initial Name",

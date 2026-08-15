@@ -186,8 +186,14 @@ absl::Status SpriteManager::SaveSprite(Sprite sprite) {
   }
   file << json.dump(4);
 
-  // Update in-memory cache
+  // Assigned through the existing allocation rather than replacing it: callers
+  // hold Sprite* from GetSprite, and swapping the unique_ptr frees what they
+  // point at. The pointer indirection exists so an address survives a save.
   std::string id = sprite.id;
+  if (auto it = sprites_.find(id); it != sprites_.end()) {
+    *it->second = std::move(sprite);
+    return absl::OkStatus();
+  }
   sprites_[id] = std::make_unique<Sprite>(std::move(sprite));
 
   return absl::OkStatus();

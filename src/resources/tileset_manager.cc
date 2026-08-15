@@ -436,6 +436,15 @@ absl::Status TilesetManager::SaveTileset(const Tileset& tileset) {
   }
   file << json.dump(4);
 
+  // Assigned through the existing allocation rather than replacing it. Callers
+  // hold Tileset* from GetTileset -- the level editor's palette keeps one for
+  // the whole session, and a derived terrain's provider paints through one --
+  // and swapping the unique_ptr frees what those point at. That is what the
+  // pointer indirection is for: the address has to survive a save.
+  if (it != tilesets_.end()) {
+    *it->second = tileset;
+    return absl::OkStatus();
+  }
   tilesets_[tileset.id] = std::make_unique<Tileset>(tileset);
   return absl::OkStatus();
 }

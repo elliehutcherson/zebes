@@ -6,6 +6,7 @@
 
 #include "absl/status/status.h"
 #include "common/utils.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -63,6 +64,24 @@ TEST_F(BlueprintManagerTest, CreateAndGetBlueprint) {
   // Verify file exists
   EXPECT_TRUE(std::filesystem::exists(test_dir_ + "/definitions/blueprints/" + blueprint.name +
                                       "-" + id + ".json"));
+}
+
+// Editors hold a Blueprint* for as long as they are editing it. Replacing the
+// cached unique_ptr on save freed what they held.
+TEST_F(BlueprintManagerTest, SavingKeepsPointersHandedOutBeforeIt) {
+  Blueprint blueprint;
+  blueprint.name = "Stable";
+  blueprint.states = {{.name = "idle"}};
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateBlueprint(blueprint));
+  ASSERT_OK_AND_ASSIGN(Blueprint * held, manager_->GetBlueprint(id));
+
+  Blueprint edited = *held;
+  edited.name = "Renamed";
+  ASSERT_OK(manager_->SaveBlueprint(edited));
+
+  ASSERT_OK_AND_ASSIGN(Blueprint * after, manager_->GetBlueprint(id));
+  EXPECT_EQ(after, held) << "the address a caller is still holding must survive a save";
+  EXPECT_EQ(held->name, "Renamed");
 }
 
 TEST_F(BlueprintManagerTest, SaveBlueprintFileFormat) {
