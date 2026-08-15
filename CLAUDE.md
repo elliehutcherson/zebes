@@ -33,6 +33,8 @@ assertion with an `if` to make a test pass.
 
 ## Reference
 
-- Style, layering, error handling: `.claude/rules/`
+- Style, layering, error handling: `docs/style-guide.md`. The files in
+  `.claude/rules/` are generated from it by `scripts/sync_rules.py`. Change a
+  rule in the guide and rerun the script; never edit a generated file.
 - Cross-layer ownership and lifetime rules: `docs/architecture.md`. Update it
   when adding or changing an architectural boundary.

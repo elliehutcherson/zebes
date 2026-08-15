@@ -37,15 +37,20 @@ echo "=========================================="
 echo "  ZEBES: Build & Test Sanity Check"
 echo "=========================================="
 
-echo "[1/3] Configuring CMake..."
+# The rule files under .claude/ are generated from docs/style-guide.md. Check
+# them before spending a build on a tree whose guide and rules disagree.
+echo "[1/4] Checking generated rule files..."
+python3 "${PROJECT_ROOT}/scripts/sync_rules.py" --check --root "${PROJECT_ROOT}"
+
+echo "[2/4] Configuring CMake..."
 cmake --preset "${PRESET}" -S "${PROJECT_ROOT}"
 
-echo "[2/3] Building..."
+echo "[3/4] Building..."
 cmake --build --preset "${PRESET}"
 
 # 3. Test
 if [ "$RUN_TESTS" = true ]; then
-    echo "[3/3] Running Tests..."
+    echo "[4/4] Running Tests..."
     if [ -n "$TEST_FILTER" ]; then
         ctest --preset "${PRESET}" -R "${TEST_FILTER}"
     else
@@ -66,7 +71,7 @@ if [ "$RUN_TESTS" = true ]; then
         --start-directory "${PROJECT_ROOT}/tests" \
         --pattern '*_test.py'
 else
-    echo "[3/3] Skipping Tests (--no-tests flag provided)"
+    echo "[4/4] Skipping Tests (--no-tests flag provided)"
 fi
 
 echo "=========================================="
