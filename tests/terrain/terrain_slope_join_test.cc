@@ -3,6 +3,7 @@
 
 #include "absl/status/statusor.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/tileset.h"
 #include "terrain/terrain_generator.h"
 
@@ -70,7 +71,7 @@ class SlopeJoinTest : public ::testing::Test {
  protected:
   void SetUp() override {
     renderer_ = TerrainRenderer::Create(SceneConfig());
-    ASSERT_TRUE(renderer_.ok()) << renderer_.status();
+    ASSERT_OK(renderer_);
   }
 
   // How many of a cell's pixels the atlas draws differently from the truth.
@@ -86,8 +87,8 @@ class SlopeJoinTest : public ::testing::Test {
         RenderSceneCell(*renderer_, scene, x, y, SceneContext::kAsAtlas);
     const absl::StatusOr<RgbaImage> truth =
         RenderSceneCell(*renderer_, scene, x, y, SceneContext::kTrueNeighbors);
-    EXPECT_TRUE(as_atlas.ok()) << as_atlas.status();
-    EXPECT_TRUE(truth.ok()) << truth.status();
+    EXPECT_OK(as_atlas);
+    EXPECT_OK(truth);
     if (!as_atlas.ok() || !truth.ok()) return -1;
 
     int different = 0;
@@ -167,8 +168,8 @@ TEST_F(SlopeJoinTest, ASlopeIsDrawnTheSameWhicheverWayTheGroundPastItsToeRuns) {
       RenderSceneCell(*renderer_, continuing, 2, 0, SceneContext::kTrueNeighbors);
   const absl::StatusOr<RgbaImage> over_ending =
       RenderSceneCell(*renderer_, ending, 2, 0, SceneContext::kTrueNeighbors);
-  ASSERT_TRUE(over_continuing.ok()) << over_continuing.status();
-  ASSERT_TRUE(over_ending.ok()) << over_ending.status();
+  ASSERT_OK(over_continuing);
+  ASSERT_OK(over_ending);
 
   EXPECT_EQ(over_continuing->pixels, over_ending->pixels);
 }

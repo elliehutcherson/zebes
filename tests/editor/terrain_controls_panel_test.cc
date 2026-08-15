@@ -33,9 +33,6 @@ class TerrainControlsPanelTest : public ::testing::Test {
           return ScopedCombo(&gui_, label, preview);
         }));
     ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
-    ON_CALL(gui_, CreateScopedDisabled(_)).WillByDefault(Invoke([this](bool disabled) {
-      return ScopedDisabled(&gui_, disabled);
-    }));
   }
 
   NiceMock<MockGui> gui_;

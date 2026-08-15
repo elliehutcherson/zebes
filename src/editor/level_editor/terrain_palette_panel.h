@@ -32,6 +32,12 @@ class TerrainPalettePanel {
   // Returns the selected terrain's ID, or empty when none is selected.
   std::optional<int> GetSelectedTerrainId() const;
 
+  // The collision geometry the brush lays down, always a paintable shape of the
+  // selected terrain. Painting writes one cell, so a two-cell ramp is built by
+  // placing its halves; putting flat half blocks between them lengthens the ramp
+  // because every one of those pieces meets its neighbour at half tile height.
+  TileShape GetSelectedShape() const { return selected_shape_; }
+
   // Returns the tileset owning the selected terrain, or nullptr.
   const Tileset* GetSelectedTileset() const { return selected_tileset_; }
 
@@ -45,6 +51,10 @@ class TerrainPalettePanel {
   // Renders one selectable swatch per terrain in the active tileset.
   absl::Status RenderTerrainList(const AtlasBinding& atlas);
 
+  // Renders the shape picker for the selected terrain, and keeps the selection
+  // on a shape that terrain can actually paint.
+  void RenderShapePicker();
+
   Api& api_;
   GuiInterface* gui_;
   TexturePreviewRenderer texture_preview_;
@@ -53,6 +63,7 @@ class TerrainPalettePanel {
   // palette holds its selection.
   const Tileset* selected_tileset_ = nullptr;
   std::optional<int> selected_terrain_id_;
+  TileShape selected_shape_ = TileShape::kFullBlock;
 };
 
 }  // namespace zebes

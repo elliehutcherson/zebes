@@ -1,6 +1,7 @@
 #include "terrain/terrain_placement.h"
 
 #include "absl/base/no_destructor.h"
+#include "absl/container/flat_hash_map.h"
 
 namespace zebes {
 namespace {
@@ -56,6 +57,33 @@ std::vector<TerrainShapeChoice> ShapeChoicesWithin(
     if (available.contains(choice.shape)) choices.push_back(choice);
   }
   return choices;
+}
+
+absl::flat_hash_set<TileShape> PaintableShapesOf(const Terrain& terrain, const Tileset& tileset) {
+  absl::flat_hash_set<TileShape> shapes;
+
+  if (terrain.scheme == TerrainScheme::kDerived) {
+    for (int i = 1; i <= static_cast<int>(TileShape::kSteepSlopeTopRight_Top); ++i) {
+      shapes.insert(static_cast<TileShape>(i));
+    }
+    return shapes;
+  }
+
+  absl::flat_hash_map<int, TileShape> shape_by_tile;
+  for (const Tile& tile : tileset.tiles) shape_by_tile.emplace(tile.id, tile.shape);
+
+  const auto claim = [&](int tile_id) {
+    auto found = shape_by_tile.find(tile_id);
+    if (found != shape_by_tile.end() && found->second != TileShape::kNone) {
+      shapes.insert(found->second);
+    }
+  };
+
+  for (const TerrainRule& rule : terrain.rules) {
+    for (const TerrainVariant& variant : rule.variants) claim(variant.tile_id);
+  }
+  for (const int tile_id : terrain.member_tile_ids) claim(tile_id);
+  return shapes;
 }
 
 }  // namespace zebes

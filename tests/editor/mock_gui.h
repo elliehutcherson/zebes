@@ -11,6 +11,17 @@ namespace zebes {
 
 class MockGui : public GuiInterface {
  public:
+  MockGui() {
+    // ScopedDisabled has no value gmock can synthesise, so any panel that greys
+    // out a control throws unless the test remembers to default this. Three
+    // fixtures had each written the same ON_CALL, and the fourth panel to grey
+    // something failed with an exception rather than an expectation. Defaulting
+    // it here means a panel can disable a control without every test knowing.
+    ON_CALL(*this, CreateScopedDisabled(::testing::_)).WillByDefault([this](bool disabled) {
+      return ScopedDisabled(this, disabled);
+    });
+  }
+
   // ImGui Wrappers
   MOCK_METHOD(bool, Begin, (const char* name, bool* p_open, ImGuiWindowFlags flags), (override));
   MOCK_METHOD(void, End, (), (override));

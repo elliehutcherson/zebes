@@ -130,6 +130,11 @@ std::optional<int> PalettePanel::GetSelectedTerrainId() const {
   return terrain_panel_->GetSelectedTerrainId();
 }
 
+TileShape PalettePanel::GetSelectedTerrainShape() const {
+  if (mode_ != Mode::kTerrain) return TileShape::kFullBlock;
+  return terrain_panel_->GetSelectedShape();
+}
+
 const Tileset* PalettePanel::GetSelectedTerrainTileset() const {
   if (mode_ != Mode::kTerrain) return nullptr;
   return terrain_panel_->GetSelectedTileset();

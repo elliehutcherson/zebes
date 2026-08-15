@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -61,7 +62,7 @@ RgbaImage SolidCell(uint8_t value) {
 TEST(TerrainContentIndexTest, FindsATileByTheArtworkItHolds) {
   const absl::StatusOr<TerrainContentIndex> index =
       TerrainContentIndex::Build(TilesetOfCells(4), AtlasOfCells({10, 20, 30, 40}));
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
 
   EXPECT_EQ(index->Find(SolidCell(30)), 3);
   EXPECT_EQ(index->Find(SolidCell(99)), std::nullopt);
@@ -73,7 +74,7 @@ TEST(TerrainContentIndexTest, TilesDrawnIdenticallyCollapseOntoTheLowestId) {
   // artwork that never changed.
   const absl::StatusOr<TerrainContentIndex> index =
       TerrainContentIndex::Build(TilesetOfCells(4), AtlasOfCells({10, 20, 10, 40}));
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
 
   EXPECT_EQ(index->Find(SolidCell(10)), 1);
   EXPECT_EQ(index->size(), 3);
@@ -82,10 +83,10 @@ TEST(TerrainContentIndexTest, TilesDrawnIdenticallyCollapseOntoTheLowestId) {
 TEST(TerrainContentIndexTest, InsertMakesANewlyAppendedTileFindable) {
   absl::StatusOr<TerrainContentIndex> index =
       TerrainContentIndex::Build(TilesetOfCells(2), AtlasOfCells({10, 20}));
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
   ASSERT_EQ(index->Find(SolidCell(77)), std::nullopt);
 
-  ASSERT_TRUE(index->Insert(SolidCell(77), /*tile_id=*/9).ok());
+  ASSERT_OK(index->Insert(SolidCell(77), /*tile_id=*/9));
 
   EXPECT_EQ(index->Find(SolidCell(77)), 9);
 }
@@ -96,7 +97,7 @@ TEST(TerrainContentIndexTest, InsertingArtworkThatAlreadyExistsIsRefused) {
   // addressing exists to prevent, so it fails rather than quietly accumulating.
   absl::StatusOr<TerrainContentIndex> index =
       TerrainContentIndex::Build(TilesetOfCells(2), AtlasOfCells({10, 20}));
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
 
   const absl::Status status = index->Insert(SolidCell(10), /*tile_id=*/9);
 
@@ -127,7 +128,7 @@ TEST(TerrainContentIndexTest, CropTakesTheRegionAsked) {
 
   const absl::StatusOr<RgbaImage> region = CropRegion(atlas, 2, 2, 2, 2);
 
-  ASSERT_TRUE(region.ok()) << region.status();
+  ASSERT_OK(region);
   EXPECT_EQ(region->pixels, SolidCell(40).pixels);
 }
 

@@ -16,6 +16,11 @@ class TerrainPalettePanelTestPeer {
   static void SetSelectedTileset(TerrainPalettePanel& panel, const Tileset* tileset) {
     panel.selected_tileset_ = tileset;
   }
+  // Drives the picker's state directly, since choosing from a combo takes more
+  // mocked ImGui than the behaviour under test is worth.
+  static void SetSelectedShape(TerrainPalettePanel& panel, TileShape shape) {
+    panel.selected_shape_ = shape;
+  }
 };
 
 namespace {
@@ -205,6 +210,81 @@ TEST_F(TerrainPalettePanelTest, TerrainWithNoSwatchTileIsStillSelectable) {
   ASSERT_TRUE(Render().ok());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
   EXPECT_EQ(*panel_->GetSelectedTerrainId(), 3);
+}
+
+// --- Shape selection ---------------------------------------------------------
+
+TEST_F(TerrainPalettePanelTest, TheBrushPaintsBlocksUntilSomethingElseIsChosen) {
+  EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kFullBlock);
+}
+
+TEST_F(TerrainPalettePanelTest, TheShapePickerIsDisabledWithNoTerrainSelected) {
+  tileset_.terrains = {MakeTerrain(3, "Grass", 7)};
+  PreselectTileset();
+
+  // A shape means nothing without a material to make it out of.
+  EXPECT_CALL(gui_, CreateScopedDisabled(true)).Times(1);
+
+  ASSERT_TRUE(Render().ok());
+}
+
+TEST_F(TerrainPalettePanelTest, ASelectedTerrainEnablesTheShapePicker) {
+  tileset_.tiles = {Tile{.id = 7, .name = "solid", .shape = TileShape::kFullBlock}};
+  tileset_.terrains = {MakeTerrain(3, "Grass", 7)};
+  PreselectTileset();
+  // Clicked once to select, then left alone while the picker is inspected.
+  EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
+  ASSERT_TRUE(Render().ok());
+  ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
+
+  EXPECT_CALL(gui_, CreateScopedDisabled(true)).Times(0);
+
+  ASSERT_TRUE(Render().ok());
+}
+
+TEST_F(TerrainPalettePanelTest, AShapeTheNewTerrainCannotPaintIsNotLeftSelected) {
+  // Selecting a different terrain can strand a shape. Leaving the brush pointed
+  // at geometry with no artwork behind it would make the next paint fail on a
+  // choice the user never made.
+  tileset_.tiles = {
+      Tile{.id = 7, .name = "solid", .shape = TileShape::kFullBlock},
+      Tile{.id = 8, .name = "ramp", .shape = TileShape::kSlope45BottomLeft},
+  };
+  Terrain slopes = MakeTerrain(3, "Grass", 7);
+  slopes.member_tile_ids = {8};
+  tileset_.terrains = {std::move(slopes)};
+  PreselectTileset();
+  EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
+  ASSERT_TRUE(Render().ok());
+
+  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSlope45BottomLeft);
+  // A terrain with only block artwork replaces it.
+  tileset_.terrains = {MakeTerrain(3, "Grass", 7)};
+
+  ASSERT_TRUE(Render().ok());
+
+  EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kFullBlock);
+}
+
+TEST_F(TerrainPalettePanelTest, ADerivedTerrainOffersShapesItHasNoArtworkForYet) {
+  // The point of deriving artwork: a shape is paintable because the recipe can
+  // render it, not because a tile for it already exists.
+  tileset_.tiles = {};
+  Terrain derived;
+  derived.id = 3;
+  derived.name = "Cave";
+  derived.scheme = TerrainScheme::kDerived;
+  tileset_.terrains = {std::move(derived)};
+  PreselectTileset();
+  EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
+  ASSERT_TRUE(Render().ok());
+
+  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSteepSlopeTopRight_Top);
+
+  ASSERT_TRUE(Render().ok());
+
+  EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kSteepSlopeTopRight_Top)
+      << "a derived terrain can render any shape, so none should be stranded";
 }
 
 }  // namespace

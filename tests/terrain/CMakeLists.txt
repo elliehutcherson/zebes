@@ -43,6 +43,7 @@ gtest_discover_tests(terrain_generator_test)
 add_executable(terrain_content_index_test terrain_content_index_test.cc)
 target_link_libraries(terrain_content_index_test
   gtest_main
+  macros
   terrain_content_index
 )
 target_include_directories(terrain_content_index_test PRIVATE ${CMAKE_SOURCE_DIR})
@@ -70,6 +71,7 @@ gtest_discover_tests(terrain_cell_key_test)
 add_executable(terrain_slope_join_test terrain_slope_join_test.cc)
 target_link_libraries(terrain_slope_join_test
   gtest_main
+  macros
   terrain_generator
   tileset
 )

@@ -258,6 +258,7 @@ add_library(terrain_palette_panel
 target_link_libraries(terrain_palette_panel
   api
   tileset
+  terrain_placement
   imgui_scoped
   ${IMGUI_LIBRARIES}
   editor_texture_preview

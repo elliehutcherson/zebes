@@ -5,6 +5,7 @@
 #include "api_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -89,9 +90,7 @@ class DerivedTerrainSessionTest : public ::testing::Test {
   // Paints one cell's worth of artwork through the session's provider.
   void ResolveOneTile(Tileset& tileset) {
     ASSERT_NE(session_.provider(), nullptr);
-    absl::StatusOr<int> tile =
-        session_.provider()->TileForKey(tileset.terrains[0], GroundKey(), 0, 0);
-    ASSERT_TRUE(tile.ok()) << tile.status();
+    ASSERT_OK(session_.provider()->TileForKey(tileset.terrains[0], GroundKey(), 0, 0));
   }
 
   NiceMock<MockApi> api_;
@@ -101,7 +100,7 @@ class DerivedTerrainSessionTest : public ::testing::Test {
 TEST_F(DerivedTerrainSessionTest, ATilesetWithNoDerivedTerrainLeavesTheSessionClosed) {
   Tileset authored = AuthoredTileset();
 
-  ASSERT_TRUE(session_.OpenFor(api_, authored).ok());
+  ASSERT_OK(session_.OpenFor(api_, authored));
 
   EXPECT_FALSE(session_.is_open());
   EXPECT_EQ(session_.provider(), nullptr) << "the authored provider handles this tileset";
@@ -123,12 +122,12 @@ TEST_F(DerivedTerrainSessionTest, ReopeningTheSameTilesetKeepsWhatWasRendered) {
   // The session carries a content index and a per-session memo. Rebuilding it
   // every frame would re-read the atlas and re-render everything already drawn.
   Tileset tileset = DerivedTileset();
-  ASSERT_TRUE(session_.OpenFor(api_, tileset).ok());
+  ASSERT_OK(session_.OpenFor(api_, tileset));
   ResolveOneTile(tileset);
   ASSERT_EQ(tileset.tiles.size(), 1);
 
   EXPECT_CALL(api_, ReadTexturePixels).Times(0);
-  ASSERT_TRUE(session_.OpenFor(api_, tileset).ok());
+  ASSERT_OK(session_.OpenFor(api_, tileset));
 
   EXPECT_TRUE(session_.is_open());
   EXPECT_EQ(tileset.tiles.size(), 1) << "nothing was re-rendered";
@@ -138,33 +137,33 @@ TEST_F(DerivedTerrainSessionTest, NewArtworkIsShownButNotWritten) {
   // The split the whole design rests on: a painted cell must be visible at once,
   // and nothing durable happens until the level is saved.
   Tileset tileset = DerivedTileset();
-  ASSERT_TRUE(session_.OpenFor(api_, tileset).ok());
+  ASSERT_OK(session_.OpenFor(api_, tileset));
   ResolveOneTile(tileset);
 
   EXPECT_CALL(api_, ShowTexturePixels(kTextureId, _, _, _)).Times(1);
   EXPECT_CALL(api_, ReplaceTexturePixels).Times(0);
   EXPECT_CALL(api_, UpdateTileset).Times(0);
 
-  ASSERT_TRUE(session_.ShowNewArtwork(api_).ok());
+  ASSERT_OK(session_.ShowNewArtwork(api_));
   EXPECT_TRUE(session_.has_unsaved_artwork());
 }
 
 TEST_F(DerivedTerrainSessionTest, ShowingTwiceUploadsOnceWhenNothingWasAdded) {
   Tileset tileset = DerivedTileset();
-  ASSERT_TRUE(session_.OpenFor(api_, tileset).ok());
+  ASSERT_OK(session_.OpenFor(api_, tileset));
   ResolveOneTile(tileset);
 
   EXPECT_CALL(api_, ShowTexturePixels).Times(1);
 
-  ASSERT_TRUE(session_.ShowNewArtwork(api_).ok());
-  ASSERT_TRUE(session_.ShowNewArtwork(api_).ok());
+  ASSERT_OK(session_.ShowNewArtwork(api_));
+  ASSERT_OK(session_.ShowNewArtwork(api_));
 }
 
 TEST_F(DerivedTerrainSessionTest, CommitWritesTheAtlasBeforeTheTileset) {
   // A tileset naming artwork the atlas does not hold is worse than artwork
   // nothing names, so the ordering is asserted rather than assumed.
   Tileset tileset = DerivedTileset();
-  ASSERT_TRUE(session_.OpenFor(api_, tileset).ok());
+  ASSERT_OK(session_.OpenFor(api_, tileset));
   ResolveOneTile(tileset);
 
   std::vector<std::string> order;
@@ -179,7 +178,7 @@ TEST_F(DerivedTerrainSessionTest, CommitWritesTheAtlasBeforeTheTileset) {
     return absl::OkStatus();
   });
 
-  ASSERT_TRUE(session_.Commit(api_).ok());
+  ASSERT_OK(session_.Commit(api_));
 
   EXPECT_EQ(order, (std::vector<std::string>{"atlas", "tileset"}));
   EXPECT_FALSE(session_.has_unsaved_artwork());
@@ -187,19 +186,19 @@ TEST_F(DerivedTerrainSessionTest, CommitWritesTheAtlasBeforeTheTileset) {
 
 TEST_F(DerivedTerrainSessionTest, CommittingWithNothingNewWritesNothing) {
   Tileset tileset = DerivedTileset();
-  ASSERT_TRUE(session_.OpenFor(api_, tileset).ok());
+  ASSERT_OK(session_.OpenFor(api_, tileset));
 
   EXPECT_CALL(api_, ReplaceTexturePixels).Times(0);
   EXPECT_CALL(api_, UpdateTileset).Times(0);
 
-  ASSERT_TRUE(session_.Commit(api_).ok());
+  ASSERT_OK(session_.Commit(api_));
 }
 
 TEST_F(DerivedTerrainSessionTest, TheTilesetGrowsInPlaceSoOneObjectDecidesTileIds) {
   // The provider references the caller's tileset. A copy would let the viewport
   // resolve an ID the brush had just invented, or fail to resolve one it had.
   Tileset tileset = DerivedTileset();
-  ASSERT_TRUE(session_.OpenFor(api_, tileset).ok());
+  ASSERT_OK(session_.OpenFor(api_, tileset));
   ASSERT_TRUE(tileset.tiles.empty());
 
   ResolveOneTile(tileset);

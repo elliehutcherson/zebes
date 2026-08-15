@@ -470,6 +470,7 @@ absl::Status LevelEditor::RenderViewport() {
   RETURN_IF_ERROR(viewport_tab_->Render({
       .level = level,
       .paint_terrain_id = paint_terrain_id,
+      .paint_shape = palette_panel_->GetSelectedTerrainShape(),
       .terrain_index = terrain_index.has_value() ? &*terrain_index : nullptr,
       .terrain_provider = terrain_provider,
       .placement_blueprint = palette_panel_->GetSelectedBlueprint(),

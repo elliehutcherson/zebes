@@ -54,6 +54,9 @@ class PalettePanel {
   // --- Terrain-mode getters ---
   // Returns the selected terrain's ID, or empty when not in terrain mode.
   std::optional<int> GetSelectedTerrainId() const;
+  // The collision geometry the terrain brush lays down. Always kFullBlock
+  // outside terrain mode, so a caller need not branch on the mode.
+  TileShape GetSelectedTerrainShape() const;
   // Returns the tileset owning the selected terrain, or nullptr.
   const Tileset* GetSelectedTerrainTileset() const;
 

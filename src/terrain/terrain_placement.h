@@ -51,4 +51,13 @@ absl::Span<const TerrainShapeChoice> AllTerrainShapeChoices();
 std::vector<TerrainShapeChoice> ShapeChoicesWithin(
     const absl::flat_hash_set<TileShape>& available);
 
+// The shapes `terrain` can put on screen.
+//
+// A derived terrain renders on demand, so every shape is available whether or
+// not its artwork has been drawn yet. An authored one can only place artwork
+// that exists, and this reads that off its tiles rather than assuming a set, so
+// a tileset missing a piece is a palette that does not offer it instead of a
+// palette that offers a blank.
+absl::flat_hash_set<TileShape> PaintableShapesOf(const Terrain& terrain, const Tileset& tileset);
+
 }  // namespace zebes

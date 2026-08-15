@@ -68,9 +68,6 @@ class TilesetPanelTest : public ::testing::Test {
         .WillByDefault(Invoke([this](ImGuiCol idx, const ImVec4& col) {
           return ScopedStyleColor(&gui_, idx, col);
         }));
-    ON_CALL(gui_, CreateScopedDisabled(_)).WillByDefault(Invoke([this](bool disabled) {
-      return ScopedDisabled(&gui_, disabled);
-    }));
 
     ON_CALL(gui_, Button(_, _)).WillByDefault(Return(false));
     ON_CALL(gui_, DisplayFileDialog(_)).WillByDefault(Return(std::nullopt));

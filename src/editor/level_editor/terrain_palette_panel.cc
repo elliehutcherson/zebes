@@ -6,6 +6,7 @@
 #include "editor/imgui_scoped.h"
 #include "imgui.h"
 #include "objects/texture.h"
+#include "terrain/terrain_placement.h"
 
 namespace zebes {
 namespace {
@@ -108,6 +109,56 @@ absl::Status TerrainPalettePanel::RenderTerrainList(const AtlasBinding& atlas) {
   return absl::OkStatus();
 }
 
+void TerrainPalettePanel::RenderShapePicker() {
+  const Terrain* terrain = nullptr;
+  if (selected_terrain_id_.has_value()) {
+    for (const Terrain& candidate : selected_tileset_->terrains) {
+      if (candidate.id == *selected_terrain_id_) terrain = &candidate;
+    }
+  }
+
+  if (terrain == nullptr) {
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
+    if (ScopedCombo combo = gui_->CreateScopedCombo("Shape##terrain_palette", "(no terrain)");
+        combo) {
+    }
+    return;
+  }
+
+  const std::vector<TerrainShapeChoice> choices =
+      ShapeChoicesWithin(PaintableShapesOf(*terrain, *selected_tileset_));
+  if (choices.empty()) {
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
+    if (ScopedCombo combo = gui_->CreateScopedCombo("Shape##terrain_palette", "(no artwork)");
+        combo) {
+    }
+    return;
+  }
+
+  // Selecting a different terrain can strand a shape the new one cannot paint,
+  // so the picker moves to something it can rather than leaving the brush
+  // pointed at geometry with no artwork behind it.
+  const TerrainShapeChoice* current = nullptr;
+  for (const TerrainShapeChoice& choice : choices) {
+    if (choice.shape == selected_shape_) current = &choice;
+  }
+  if (current == nullptr) {
+    selected_shape_ = choices.front().shape;
+    current = &choices.front();
+  }
+
+  if (ScopedCombo combo = gui_->CreateScopedCombo("Shape##terrain_palette", current->name.c_str());
+      combo) {
+    for (const TerrainShapeChoice& choice : choices) {
+      const std::string label = absl::StrCat(
+          choice.name, "##terrain_shape_", static_cast<int>(choice.shape));
+      if (gui_->Selectable(label.c_str(), choice.shape == selected_shape_)) {
+        selected_shape_ = choice.shape;
+      }
+    }
+  }
+}
+
 absl::Status TerrainPalettePanel::Render() {
   std::vector<Tileset> tilesets = api_.GetAllTilesets();
   const char* preview =
@@ -131,6 +182,8 @@ absl::Status TerrainPalettePanel::Render() {
     gui_->TextDisabled(tilesets.empty() ? "No tilesets loaded." : "Select a tileset above.");
     return absl::OkStatus();
   }
+
+  RenderShapePicker();
 
   // An unset or unloaded texture is a valid authoring state; swatches fall back
   // to placeholders rather than failing the frame.

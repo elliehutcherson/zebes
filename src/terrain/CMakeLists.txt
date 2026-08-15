@@ -44,6 +44,8 @@ target_link_libraries(terrain_placement
   tileset
   absl::flat_hash_set
   absl::span
+  PRIVATE
+  absl::flat_hash_map
 )
 
 add_library(terrain_field

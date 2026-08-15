@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "terrain/terrain_mask.h"
 
 namespace zebes {
@@ -63,21 +64,21 @@ class DerivedTileProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
     absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(RecipeConfig());
-    ASSERT_TRUE(renderer.ok()) << renderer.status();
+    ASSERT_OK(renderer);
 
     // The tileset outlives the provider, which references rather than copies
     // it: during an edit exactly one tileset may decide what a tile ID means.
     tileset_ = EmptyDerivedTileset();
     absl::StatusOr<DerivedTileProvider> provider = DerivedTileProvider::Create(
         std::move(*renderer), tileset_, BlankAtlas(/*columns=*/8, /*rows=*/1));
-    ASSERT_TRUE(provider.ok()) << provider.status();
+    ASSERT_OK(provider);
     provider_ = std::make_unique<DerivedTileProvider>(std::move(*provider));
     terrain_ = DerivedTerrain();
   }
 
   int Resolve(const TerrainCellKey& key) {
     absl::StatusOr<int> tile = provider_->TileForKey(terrain_, key, 0, 0);
-    EXPECT_TRUE(tile.ok()) << tile.status();
+    EXPECT_OK(tile);
     return tile.value_or(-1);
   }
 
@@ -203,14 +204,14 @@ TEST_F(DerivedTileProviderTest, ExistingArtworkIsReusedRatherThanRedrawn) {
   const RgbaImage atlas = provider_->atlas();
 
   absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(RecipeConfig());
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   absl::StatusOr<DerivedTileProvider> reopened =
       DerivedTileProvider::Create(std::move(*renderer), grown, atlas);
-  ASSERT_TRUE(reopened.ok()) << reopened.status();
+  ASSERT_OK(reopened);
 
   absl::StatusOr<int> again = reopened->TileForKey(terrain_, KeyOf(TileShape::kFullBlock, {}), 0, 0);
 
-  ASSERT_TRUE(again.ok()) << again.status();
+  ASSERT_OK(again);
   EXPECT_EQ(*again, first);
   EXPECT_FALSE(reopened->has_uncommitted_tiles()) << "nothing new was drawn";
 }
@@ -224,7 +225,7 @@ TEST_F(DerivedTileProviderTest, ABlobFortySevenTerrainIsRefused) {
 
 TEST(DerivedTileProviderCreateTest, AnAtlasThatIsNotAWholeNumberOfCellsIsRefused) {
   absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(RecipeConfig());
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
 
   RgbaImage ragged = BlankAtlas(8, 1);
   ragged.height += 3;
@@ -238,7 +239,7 @@ TEST(DerivedTileProviderCreateTest, ARecipeCuttingADifferentCellSizeIsRefused) {
   // Mixing cell sizes would place artwork of one size into cells of another,
   // which is a mistake worth naming rather than a tileset worth repairing.
   absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(RecipeConfig());
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
 
   Tileset mismatched = EmptyDerivedTileset();
   mismatched.tile_width = kTileSize * 2;
