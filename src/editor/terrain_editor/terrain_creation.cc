@@ -172,17 +172,23 @@ absl::Status RegenerateTerrainTileset(Api& api, const TerrainRecipe& recipe,
         "terrain recipe target is missing or its repeat period has changed");
   }
 
-  // Regeneration re-renders positionally: tile N of the new atlas overwrites
-  // tile N of the old one, which only holds while the tileset still has exactly
-  // the tiles generation produced. A derived terrain grows past that as levels
-  // ask for neighbourhoods, and those extra tiles cannot be re-rendered from
-  // here because nothing records which neighbourhood each one depicts.
-  //
-  // Refusing is the honest answer until a derived tile carries its key. Silently
+  // Only a derived terrain records what each of its tiles is a picture of, and
+  // that record is the entire input to re-rendering. A kBlob47 terrain has an
+  // empty derived_tiles, so regenerating one would rasterise a zero-height atlas
+  // and fail several layers down in the PNG writer, naming the image size rather
+  // than the reason. Saying it here is the difference between a diagnosis and a
+  // symptom.
+  if (terrain->scheme != TerrainScheme::kDerived) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("terrain '", terrain->name,
+                     "' predates derived artwork and records no neighbourhood for its tiles; "
+                     "use Save As to generate it afresh"));
+  }
+
   // Every tile is redrawn from the neighbourhood it records, so a tileset that
   // has grown as levels asked for neighbourhoods regenerates as exactly as one
-  // that has not. Nothing here depends on the atlas layout, which is what let
-  // the old positional rewrite only ever handle the tiles generation produced.
+  // that has not. Nothing here depends on the atlas layout, which is what limited
+  // the old positional rewrite to the tiles generation itself produced.
   ASSIGN_OR_RETURN(const Blob47Atlas atlas, RerenderDerivedTiles(*tileset, *terrain, config));
 
   TerrainRecipe updated = recipe;

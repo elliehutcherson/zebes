@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
@@ -43,6 +44,35 @@ std::string ManifestFor(int variant_count) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(sheet);
   EXPECT_TRUE(atlas.ok()) << atlas.status();
   return WriteBlob47Manifest(*atlas);
+}
+
+// Replaces `tileset`'s tiles with a blob-grid layout of real IDs and source
+// rects, and returns the kDerived terrain that records what each one depicts.
+//
+// Regeneration's whole input is derived_tiles, so a terrain without it renders a
+// zero-height atlas. A mocked ReplaceTexturePixels accepts that; the PNG writer
+// behind the real one does not, so a fixture that skipped this would be
+// asserting against a state production cannot reach.
+Terrain MakeDerivedTerrain(int terrain_id, Tileset& tileset) {
+  Terrain terrain{.id = terrain_id, .scheme = TerrainScheme::kDerived, .variant_period = 1};
+
+  TerrainCellKey buried;
+  buried.shape = TileShape::kFullBlock;
+  buried.neighbors.fill(TileShape::kFullBlock);
+
+  tileset.tiles.clear();
+  for (int i = 0; i < kBlob47TileCount; ++i) {
+    const int tile_id = i + 1;
+    tileset.tiles.push_back(Tile{
+        .id = tile_id,
+        .name = absl::StrCat("tile_", tile_id),
+        .source_x = (i % kBlob47Columns) * tileset.tile_width,
+        .source_y = (i / kBlob47Columns) * tileset.tile_height,
+        .shape = TileShape::kFullBlock,
+    });
+    terrain.derived_tiles.push_back(DerivedTile{.tile_id = tile_id, .key = buried});
+  }
+  return terrain;
 }
 
 class TerrainCreationTest : public ::testing::Test {
@@ -215,8 +245,7 @@ TEST_F(RecipeTerrainCreationTest, RegenerationReplacesOnlyPixelsAndPreservesIds)
                   .texture_id = "texture-id",
                   .tile_width = 8,
                   .tile_height = 8};
-  tileset.tiles.resize(kBlob47TileCount);
-  tileset.terrains.push_back(Terrain{.id = 9, .variant_period = 1});
+  tileset.terrains.push_back(MakeDerivedTerrain(/*terrain_id=*/9, tileset));
   EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
   EXPECT_CALL(api_, ReplaceTexturePixels("texture-id", _, _, _)).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(api_, CreateTextureFromPixels(_, _, _, _)).Times(0);
@@ -306,6 +335,38 @@ TEST_F(RecipeTerrainCreationTest, StructuralRegenerationRequiresSaveAsBeforeWrit
   EXPECT_THAT(std::string(status.message()), HasSubstr("Save As"));
 }
 
+// A generated terrain from before this phase is kBlob47 with baked slope units
+// and no record of what any tile depicts. Regeneration's input is exactly that
+// record, so it has nothing to draw -- and without this guard it would rasterise
+// a zero-height atlas and fail in the PNG writer, reporting the image size
+// instead of the reason.
+TEST_F(RecipeTerrainCreationTest, RegenerationRefusesATerrainThatRecordsNoNeighbourhoods) {
+  TerrainRecipe recipe{.name = "lucinda",
+                       .tileset_id = "tileset-id",
+                       .texture_id = "texture-id",
+                       .terrain_id = 1,
+                       .config = SmallConfig()};
+  ASSERT_OK_AND_ASSIGN(recipe.id, recipes_->CreateRecipe(recipe));
+
+  Tileset tileset{
+      .id = "tileset-id", .texture_id = "texture-id", .tile_width = 8, .tile_height = 8};
+  tileset.tiles.resize(kBlob47TileCount);
+  tileset.terrains.push_back(
+      Terrain{.id = 1, .name = "lucinda", .scheme = TerrainScheme::kBlob47, .variant_period = 1});
+  EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
+  EXPECT_CALL(api_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  TerrainGenConfig edited = recipe.config;
+  edited.seed = 4242;
+  const absl::Status status = RegenerateTerrainTileset(api_, recipe, edited);
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Save As"));
+
+  // The refusal happens before anything is written, so the recipe is untouched.
+  ASSERT_OK_AND_ASSIGN(TerrainRecipe * saved, recipes_->GetRecipe(recipe.id));
+  EXPECT_EQ(saved->config.seed, recipe.config.seed);
+}
+
 TEST_F(RecipeTerrainCreationTest, ArtworkFailureRollsRecipeBack) {
   TerrainRecipe recipe{.name = "meadow",
                        .tileset_id = "tileset-id",
@@ -315,10 +376,7 @@ TEST_F(RecipeTerrainCreationTest, ArtworkFailureRollsRecipeBack) {
   ASSERT_OK_AND_ASSIGN(recipe.id, recipes_->CreateRecipe(recipe));
   Tileset tileset{
       .id = "tileset-id", .texture_id = "texture-id", .tile_width = 8, .tile_height = 8};
-  // Exactly what generation produces. Regeneration re-renders positionally, so
-  // it holds only while the tileset still has those tiles and no others.
-  tileset.tiles.resize(kBlob47TileCount);
-  tileset.terrains.push_back(Terrain{.id = 1, .variant_period = 1});
+  tileset.terrains.push_back(MakeDerivedTerrain(/*terrain_id=*/1, tileset));
   EXPECT_CALL(api_, GetTileset(_)).WillOnce(Return(&tileset));
   EXPECT_CALL(api_, ReplaceTexturePixels(_, _, _, _))
       .WillOnce(Return(absl::InternalError("disk full")));
