@@ -211,13 +211,18 @@ Before handing off a change:
 git diff --check                         # trailing whitespace, conflict markers
 ```
 
-`.clang-tidy` is configured for the Google checks but is neither installed nor
-wired into the build, so nothing runs it today. Treat this guide, not the
-linter, as the enforcement layer. To run it by hand after `brew install llvm`:
+`.clang-tidy` runs the Google checks plus the two readability checks that back
+rules above. It is not wired into the build, so run it by hand:
 
 ```bash
-clang-tidy -p build/dev src/resources/tileset_manager.cc
+PATH="/usr/local/opt/llvm/bin:$PATH" run-clang-tidy -p build/dev -quiet -j 8 \
+    -extra-arg=-isysroot -extra-arg="$(xcrun --show-sdk-path)" src/
 ```
+
+clang-tidy ships with the keg-only Homebrew llvm formula, which is why it is not
+already on `PATH`. The `-isysroot` pair is required and `.clang-tidy` explains
+why. Findings it reports are real; this guide still decides what a rule means
+when the two disagree.
 
 ## Related documents
 
