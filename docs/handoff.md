@@ -1,8 +1,8 @@
 # Handoff: derived terrain artwork
 
-State as of 2026-08-15. Terrain work is **merged to `main` and pushed**; the
-deletion buttons are on `generated-terrain-delete`. 672 C++ tests and 26 Python
-tests pass through `scripts/build_and_test.sh`.
+State as of 2026-08-15. All of it is **merged to `main`**, with the two fixes the
+editor walk turned up on top. 686 C++ tests and 26 Python tests pass through
+`scripts/build_and_test.sh`.
 
 Three phases landed together, each with its own design document:
 
@@ -144,6 +144,13 @@ something that happens on its own. It does not exist yet.
 
 Worth knowing because most were invisible to reading:
 
+- **Every manager's save freed the object it was saving**, replacing the cached
+  `unique_ptr` rather than assigning through it, so every pointer handed out by
+  `Get*` dangled. Six of them. Found by pressing Save in a live editor and
+  watching the terrain palette blank.
+- **The terrain ghost created the artwork it previewed**, so hovering grew the
+  atlas and then drew a tile the GPU had not been given yet. Found by hovering.
+
 - **Every `LoadAll*`** used to swallow per-file failures and return OK, so a
   definition the editor could not parse vanished from the catalogue.
 - **Two collider definitions shared one ID**, making Samus's collision box
@@ -176,13 +183,28 @@ Worth knowing because most were invisible to reading:
 
 ### In this phase
 
-1. **The editor walk is only part done.** Save As was driven through the Terrain
-   Editor for real -- that is how `lucinda_cave` was re-derived -- so opening a
-   recipe, regenerating and writing a new tileset all work in a live window.
-   Still unwalked: painting a derived terrain cell by cell, placing a ramp and a
-   ledge, watching the atlas grow mid-stroke, and reopening a saved level to
-   confirm the artwork survived. Also unconfirmed: that the shape picker greys
-   out with no terrain selected.
+1. **The editor walk is nearly done, and it earned its keep.** Painting cell by
+   cell, ramps and ledges of every shape, save, reopen, both Delete buttons and
+   the Autumn Forest preset were all driven in a live window and all behave.
+
+   Two bugs came out of it that nothing headless had caught:
+
+   - **Hovering created artwork.** The ghost resolved through the same call a
+     paint uses, so mouse movement appended tiles and grew the atlas. The grown
+     atlas is not uploaded until the frame ends, so the ghost then drew itself
+     against a texture still at the old size and failed the frame -- and the
+     failure skipped the upload that would have fixed it, so it repeated every
+     frame forever. Previewing is now its own question; see `PreviewForKey`.
+   - **Saving freed what the editor was holding.** Every manager's save assigned
+     a fresh `unique_ptr` over its map entry, so every pointer `Get*` had handed
+     out dangled. Saving a level with derived terrain hit it every time, because
+     committing artwork saves the tileset. Six managers; each now has a test
+     that the address survives a save.
+
+   Still unwalked: the shape picker greying out with no terrain selected, and
+   watching the atlas grow mid-stroke -- which was impossible to check by
+   looking until the level editor grew the artwork readout, and is worth one
+   more pass now that it is there.
 
 Done in this phase: the manifest true-up (all four items, plus the shape range,
 which was replaced by naming the two shapes a unit cannot be rather than by
@@ -237,7 +259,7 @@ a reference.
 | `src/terrain/terrain_content_index.{h,cc}` | Which tile of an atlas already holds a picture |
 | `src/terrain/terrain_placement.{h,cc}` | The shapes a palette may offer, and what a terrain can paint |
 | `src/editor/level_editor/terrain_brush.{h,cc}` | Key computation, `TerrainIndex`, the provider seam |
-| `src/editor/level_editor/derived_tile_provider.{h,cc}` | Render on miss, dedup by content, append |
+| `src/editor/level_editor/derived_tile_provider.{h,cc}` | Render on miss, dedup by content, append. `PreviewForKey` is the same answer without creating anything |
 | `src/editor/level_editor/derived_terrain_session.{h,cc}` | Opening, showing, committing |
 | `tests/editor/derived_artwork_test.cc` | The invariant: painted artwork equals artwork for the real neighbourhood |
 | `src/resources/asset_references.{h,cc}` | What names an asset, and the refusal text when something does |
