@@ -6,7 +6,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "api/api.h"
-#include "resources/terrain_recipe_manager.h"
 #include "terrain/terrain_generator.h"
 
 namespace zebes {
@@ -36,14 +35,14 @@ absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(Api& api, const std
 // reopen them. The source preset is provenance only; the recipe always carries
 // the resolved full configuration.
 absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(
-    Api& api, TerrainRecipeManager& recipes, const std::string& name,
-    const TerrainGenConfig& config, const std::optional<std::string>& source_preset);
+    Api& api, const std::string& name, const TerrainGenConfig& config,
+    const std::optional<std::string>& source_preset);
 
 // Re-renders a recipe into its existing texture while preserving every asset
 // and tile ID. Changes that alter atlas topology must use the creation overload
 // above as Save As, because silently remapping IDs would break level data.
-absl::Status RegenerateTerrainTileset(Api& api, TerrainRecipeManager& recipes,
-                                      const TerrainRecipe& recipe, const TerrainGenConfig& config);
+absl::Status RegenerateTerrainTileset(Api& api, const TerrainRecipe& recipe,
+                                      const TerrainGenConfig& config);
 
 // The same, for artwork drawn by hand and composed by the compose_blob47 tool.
 // The manifest describes an atlas that already exists, so its texture must have

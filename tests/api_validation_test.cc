@@ -6,6 +6,7 @@
 #include "resources/collider_manager_mock.h"
 #include "resources/level_manager_mock.h"
 #include "resources/sprite_manager_mock.h"
+#include "resources/terrain_recipe_manager_mock.h"
 #include "resources/texture_manager_mock.h"
 #include "resources/tileset_manager_mock.h"
 
@@ -26,6 +27,7 @@ class ApiValidationTest : public ::testing::Test {
         .blueprint_manager = &blueprint_manager_,
         .level_manager = &level_manager_,
         .tileset_manager = &tileset_manager_,
+        .terrain_recipe_manager = &terrain_recipe_manager_,
     };
 
     ASSERT_OK_AND_ASSIGN(api_, Api::Create(options));
@@ -38,6 +40,7 @@ class ApiValidationTest : public ::testing::Test {
   BlueprintManagerMock blueprint_manager_;
   LevelManagerMock level_manager_;
   TilesetManagerMock tileset_manager_;
+  TerrainRecipeManagerMock terrain_recipe_manager_;
   std::unique_ptr<Api> api_;
 };
 

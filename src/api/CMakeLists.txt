@@ -16,4 +16,6 @@ target_link_libraries(api
   blueprint_manager
   level_manager
   tileset_manager
+  terrain_recipe_manager
+  absl::strings
 )

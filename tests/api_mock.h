@@ -58,6 +58,35 @@ class MockApi : public Api {
   MOCK_METHOD(absl::Status, DeleteTileset, (const std::string&), (override));
   MOCK_METHOD(std::vector<Tileset>, GetAllTilesets, (), (override));
   MOCK_METHOD(absl::StatusOr<Tileset*>, GetTileset, (const std::string&), (override));
+
+  // Terrain recipes
+  MOCK_METHOD(absl::StatusOr<std::string>, CreateTerrainRecipe, (TerrainRecipe), (override));
+  MOCK_METHOD(absl::Status, SaveTerrainRecipe, (const TerrainRecipe&), (override));
+  MOCK_METHOD(absl::Status, DeleteTerrainRecipe, (const std::string&), (override));
+  MOCK_METHOD(std::vector<TerrainRecipe>, GetAllTerrainRecipes, (), (const, override));
+  MOCK_METHOD(absl::StatusOr<TerrainRecipe*>, GetTerrainRecipe, (const std::string&), (override));
+  MOCK_METHOD(absl::StatusOr<std::optional<TerrainRecipe>>, FindTerrainRecipeForTileset,
+              (const std::string&), (override));
+
+  // Routes every recipe call to a real manager, for tests that care whether a
+  // recipe actually round-trips to disk rather than that a call was made.
+  void DelegateTerrainRecipesTo(TerrainRecipeManager& recipes) {
+    ON_CALL(*this, CreateTerrainRecipe).WillByDefault([&recipes](TerrainRecipe recipe) {
+      return recipes.CreateRecipe(std::move(recipe));
+    });
+    ON_CALL(*this, SaveTerrainRecipe).WillByDefault([&recipes](const TerrainRecipe& recipe) {
+      return recipes.SaveRecipe(recipe);
+    });
+    ON_CALL(*this, DeleteTerrainRecipe).WillByDefault([&recipes](const std::string& id) {
+      return recipes.DeleteRecipe(id);
+    });
+    ON_CALL(*this, GetAllTerrainRecipes).WillByDefault([&recipes] {
+      return recipes.GetAllRecipes();
+    });
+    ON_CALL(*this, GetTerrainRecipe).WillByDefault([&recipes](const std::string& id) {
+      return recipes.GetRecipe(id);
+    });
+  }
 };
 
 }  // namespace zebes

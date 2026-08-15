@@ -57,6 +57,9 @@ class RecipeTerrainCreationTest : public ::testing::Test {
     std::filesystem::remove_all(path_);
     ASSERT_OK_AND_ASSIGN(recipes_, TerrainRecipeManager::Create(path_.string()));
     ASSERT_TRUE(recipes_->LoadAllRecipes().ok());
+    // Recipes reach the editor through the Api now, but this fixture still
+    // wants real persistence: it asserts what actually lands on disk.
+    api_.DelegateTerrainRecipesTo(*recipes_);
   }
   void TearDown() override { std::filesystem::remove_all(path_); }
 
@@ -175,7 +178,7 @@ TEST_F(RecipeTerrainCreationTest, GeneratedTerrainRecordsAReopenableRecipe) {
 
   const TerrainGenConfig config = SmallConfig();
   ASSERT_OK_AND_ASSIGN(CreatedTerrain created,
-                       CreateGeneratedTerrainTileset(api_, *recipes_, "meadow", config,
+                       CreateGeneratedTerrainTileset(api_, "meadow", config,
                                                      std::optional<std::string>("Cozy Meadow")));
   ASSERT_FALSE(created.recipe_id.empty());
   ASSERT_OK_AND_ASSIGN(TerrainRecipe * recipe, recipes_->GetRecipe(created.recipe_id));
@@ -215,7 +218,7 @@ TEST_F(RecipeTerrainCreationTest, RegenerationReplacesOnlyPixelsAndPreservesIds)
 
   TerrainGenConfig edited = recipe.config;
   edited.seed = 777;
-  ASSERT_TRUE(RegenerateTerrainTileset(api_, *recipes_, recipe, edited).ok());
+  ASSERT_TRUE(RegenerateTerrainTileset(api_, recipe, edited).ok());
 
   ASSERT_OK_AND_ASSIGN(TerrainRecipe * saved, recipes_->GetRecipe(recipe.id));
   EXPECT_EQ(saved->tileset_id, recipe.tileset_id);
@@ -236,7 +239,7 @@ TEST_F(RecipeTerrainCreationTest, StructuralRegenerationRequiresSaveAsBeforeWrit
 
   EXPECT_CALL(api_, GetTileset(_)).Times(0);
   EXPECT_CALL(api_, ReplaceTexturePixels(_, _, _, _)).Times(0);
-  const absl::Status status = RegenerateTerrainTileset(api_, *recipes_, recipe, edited);
+  const absl::Status status = RegenerateTerrainTileset(api_, recipe, edited);
   EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
   EXPECT_THAT(std::string(status.message()), HasSubstr("Save As"));
 }
@@ -258,7 +261,7 @@ TEST_F(RecipeTerrainCreationTest, ArtworkFailureRollsRecipeBack) {
 
   TerrainGenConfig edited = recipe.config;
   edited.seed = 999;
-  EXPECT_FALSE(RegenerateTerrainTileset(api_, *recipes_, recipe, edited).ok());
+  EXPECT_FALSE(RegenerateTerrainTileset(api_, recipe, edited).ok());
   ASSERT_OK_AND_ASSIGN(TerrainRecipe * saved, recipes_->GetRecipe(recipe.id));
   EXPECT_EQ(saved->config.seed, recipe.config.seed);
 }

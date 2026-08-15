@@ -66,6 +66,12 @@ absl::Status EditorEngine::Init() {
   ASSIGN_OR_RETURN(tileset_manager_, TilesetManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(tileset_manager_->LoadAllTilesets());
 
+  // Create Terrain Recipe Manager. Generated terrain renders artwork the level
+  // asks for, so the Level tab needs recipes as much as the Terrain tab does.
+  ASSIGN_OR_RETURN(terrain_recipe_manager_,
+                   TerrainRecipeManager::Create(config_.paths.assets()));
+  RETURN_IF_ERROR(terrain_recipe_manager_->LoadAllRecipes());
+
   // Create ImGui Wrapper
   imgui_wrapper_ = ImGuiWrapper::Create();
 
@@ -83,6 +89,7 @@ absl::Status EditorEngine::Init() {
       .blueprint_manager = blueprint_manager_.get(),
       .level_manager = level_manager_.get(),
       .tileset_manager = tileset_manager_.get(),
+      .terrain_recipe_manager = terrain_recipe_manager_.get(),
   };
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 

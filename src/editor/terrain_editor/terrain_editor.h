@@ -13,7 +13,6 @@
 #include "editor/terrain_editor/terrain_editor_model.h"
 #include "editor/terrain_editor/terrain_output_panel.h"
 #include "objects/camera.h"
-#include "resources/terrain_recipe_manager.h"
 
 namespace zebes {
 
@@ -65,7 +64,6 @@ class TerrainEditor {
   bool frame_pending_ = true;
 
   TerrainEditorModel model_;
-  std::unique_ptr<TerrainRecipeManager> recipe_manager_;
   std::unique_ptr<TerrainControlsPanel> controls_panel_;
   std::unique_ptr<TerrainOutputPanel> output_panel_;
   std::optional<std::string> error_message_;

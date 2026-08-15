@@ -54,9 +54,6 @@ absl::StatusOr<std::unique_ptr<TerrainEditor>> TerrainEditor::Create(Api* api, G
 }
 
 absl::Status TerrainEditor::Init() {
-  ASSIGN_OR_RETURN(recipe_manager_,
-                   TerrainRecipeManager::Create(api_->GetConfig()->paths.assets()));
-  RETURN_IF_ERROR(recipe_manager_->LoadAllRecipes());
   ASSIGN_OR_RETURN(controls_panel_, TerrainControlsPanel::Create(gui_));
   ASSIGN_OR_RETURN(output_panel_, TerrainOutputPanel::Create(gui_));
   return absl::OkStatus();
@@ -141,7 +138,7 @@ void TerrainEditor::CreateTerrain() {
   absl::StatusOr<CreatedTerrain> created = absl::InternalError("Unknown terrain source");
 
   if (model_.source() == TerrainEditorModel::Source::kGenerate) {
-    created = CreateGeneratedTerrainTileset(*api_, *recipe_manager_, model_.name(), model_.config(),
+    created = CreateGeneratedTerrainTileset(*api_, model_.name(), model_.config(),
                                             model_.selected_preset());
   } else {
     absl::StatusOr<std::string> manifest = ReadFile(model_.manifest_path());
@@ -156,14 +153,14 @@ void TerrainEditor::CreateTerrain() {
   }
   model_.SetResult(*created);
   if (!created->recipe_id.empty()) {
-    absl::StatusOr<TerrainRecipe*> recipe = recipe_manager_->GetRecipe(created->recipe_id);
+    absl::StatusOr<TerrainRecipe*> recipe = api_->GetTerrainRecipe(created->recipe_id);
     if (recipe.ok()) model_.LoadRecipe(**recipe);
   }
   model_.SetStatus(absl::StrCat("Created '", model_.name(), "'. Open it in the Tileset Editor."));
 }
 
 void TerrainEditor::OpenRecipe() {
-  absl::StatusOr<TerrainRecipe*> recipe = recipe_manager_->GetRecipe(model_.recipe_to_open());
+  absl::StatusOr<TerrainRecipe*> recipe = api_->GetTerrainRecipe(model_.recipe_to_open());
   if (!recipe.ok()) {
     model_.SetStatus(std::string(recipe.status().message()));
     return;
@@ -180,12 +177,12 @@ void TerrainEditor::RegenerateTerrain() {
   }
   const TerrainRecipe recipe = *model_.active_recipe();
   const absl::Status status =
-      RegenerateTerrainTileset(*api_, *recipe_manager_, recipe, model_.config());
+      RegenerateTerrainTileset(*api_, recipe, model_.config());
   if (!status.ok()) {
     model_.SetStatus(std::string(status.message()));
     return;
   }
-  absl::StatusOr<TerrainRecipe*> saved = recipe_manager_->GetRecipe(recipe.id);
+  absl::StatusOr<TerrainRecipe*> saved = api_->GetTerrainRecipe(recipe.id);
   if (saved.ok()) model_.LoadRecipe(**saved);
   model_.SetStatus(absl::StrCat("Regenerated '", recipe.name, "' without changing asset IDs."));
 }
@@ -198,7 +195,7 @@ absl::Status TerrainEditor::RenderOutput() {
   }
 
   ASSIGN_OR_RETURN(const TerrainOutputPanel::Action action,
-                   output_panel_->Render(model_, textures, recipe_manager_->GetAllRecipes()));
+                   output_panel_->Render(model_, textures, api_->GetAllTerrainRecipes()));
   switch (action) {
     case TerrainOutputPanel::Action::kNone:
       break;

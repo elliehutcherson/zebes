@@ -18,12 +18,19 @@ class TerrainRecipeManager {
  public:
   static absl::StatusOr<std::unique_ptr<TerrainRecipeManager>> Create(std::string root_path);
 
-  absl::Status LoadAllRecipes();
-  absl::StatusOr<std::string> CreateRecipe(TerrainRecipe recipe);
-  absl::Status SaveRecipe(const TerrainRecipe& recipe);
-  absl::StatusOr<TerrainRecipe*> GetRecipe(const std::string& id);
-  std::vector<TerrainRecipe> GetAllRecipes() const;
-  absl::Status DeleteRecipe(const std::string& id);
+  virtual ~TerrainRecipeManager() = default;
+
+  virtual absl::Status LoadAllRecipes();
+  virtual absl::StatusOr<std::string> CreateRecipe(TerrainRecipe recipe);
+  virtual absl::Status SaveRecipe(const TerrainRecipe& recipe);
+  virtual absl::StatusOr<TerrainRecipe*> GetRecipe(const std::string& id);
+  virtual std::vector<TerrainRecipe> GetAllRecipes() const;
+  virtual absl::Status DeleteRecipe(const std::string& id);
+
+ protected:
+  // Mocks need a default; every other manager in this directory is virtual and
+  // has one, and this was the only one nothing depended on hard enough to say.
+  TerrainRecipeManager() = default;
 
  private:
   explicit TerrainRecipeManager(std::string root_path);

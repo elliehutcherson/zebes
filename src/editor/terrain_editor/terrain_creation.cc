@@ -67,7 +67,7 @@ absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(Api& api, const std
 }
 
 absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(
-    Api& api, TerrainRecipeManager& recipes, const std::string& name,
+    Api& api, const std::string& name,
     const TerrainGenConfig& config, const std::optional<std::string>& source_preset) {
   ASSIGN_OR_RETURN(CreatedTerrain created, CreateGeneratedTerrainTileset(api, name, config));
 
@@ -79,7 +79,7 @@ absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(
       .source_preset = source_preset,
       .config = config,
   };
-  absl::StatusOr<std::string> recipe_id = recipes.CreateRecipe(std::move(recipe));
+  absl::StatusOr<std::string> recipe_id = api.CreateTerrainRecipe(std::move(recipe));
   if (!recipe_id.ok()) {
     // Definition rollback is best-effort but ordered: the tileset must stop
     // referencing the texture before the texture definition can disappear.
@@ -91,8 +91,8 @@ absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(
   return created;
 }
 
-absl::Status RegenerateTerrainTileset(Api& api, TerrainRecipeManager& recipes,
-                                      const TerrainRecipe& recipe, const TerrainGenConfig& config) {
+absl::Status RegenerateTerrainTileset(Api& api, const TerrainRecipe& recipe,
+                                      const TerrainGenConfig& config) {
   if (config.tile_size != recipe.config.tile_size ||
       config.variant_period != recipe.config.variant_period) {
     return absl::FailedPreconditionError(
@@ -131,13 +131,13 @@ absl::Status RegenerateTerrainTileset(Api& api, TerrainRecipeManager& recipes,
 
   TerrainRecipe updated = recipe;
   updated.config = config;
-  RETURN_IF_ERROR(recipes.SaveRecipe(updated));
+  RETURN_IF_ERROR(api.SaveTerrainRecipe(updated));
 
   const absl::Status replaced = api.ReplaceTexturePixels(recipe.texture_id, atlas.image.width,
                                                          atlas.image.height, atlas.image.pixels);
   if (replaced.ok()) return absl::OkStatus();
 
-  const absl::Status rolled_back = recipes.SaveRecipe(recipe);
+  const absl::Status rolled_back = api.SaveTerrainRecipe(recipe);
   if (!rolled_back.ok()) {
     return absl::InternalError(absl::StrCat("artwork replacement failed (", replaced.message(),
                                             ") and the recipe rollback also failed (",

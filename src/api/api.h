@@ -10,6 +10,7 @@
 #include "resources/collider_manager.h"
 #include "resources/level_manager.h"
 #include "resources/sprite_manager.h"
+#include "resources/terrain_recipe_manager.h"
 #include "resources/texture_manager.h"
 #include "resources/tileset_manager.h"
 
@@ -25,6 +26,7 @@ class Api {
     BlueprintManager* blueprint_manager;
     LevelManager* level_manager;
     TilesetManager* tileset_manager;
+    TerrainRecipeManager* terrain_recipe_manager;
   };
 
   static absl::StatusOr<std::unique_ptr<Api>> Create(const Options& options);
@@ -84,6 +86,26 @@ class Api {
   virtual std::vector<Tileset> GetAllTilesets();
   virtual absl::StatusOr<Tileset*> GetTileset(const std::string& tileset_id);
 
+  // Authoring state for generated terrain: the complete TerrainGenConfig that
+  // produced a tileset, plus the IDs it produced.
+  //
+  // Both editors need it and for different reasons -- the Terrain tab to reopen
+  // a recipe, the Level tab to render artwork a level asks for that the atlas
+  // does not hold yet -- so it belongs here beside the other managers rather
+  // than being constructed wherever it is first wanted. Two managers over one
+  // directory would keep two caches and disagree about what is on disk.
+  virtual absl::StatusOr<std::string> CreateTerrainRecipe(TerrainRecipe recipe);
+  virtual absl::Status SaveTerrainRecipe(const TerrainRecipe& recipe);
+  virtual absl::Status DeleteTerrainRecipe(const std::string& recipe_id);
+  virtual std::vector<TerrainRecipe> GetAllTerrainRecipes() const;
+  virtual absl::StatusOr<TerrainRecipe*> GetTerrainRecipe(const std::string& recipe_id);
+
+  // The recipe that produced a tileset, or nullopt when it was not generated.
+  // A tileset carries no back-reference, so this is a scan; there are tens of
+  // recipes, and caching a reverse index would be a second thing to keep true.
+  virtual absl::StatusOr<std::optional<TerrainRecipe>> FindTerrainRecipeForTileset(
+      const std::string& tileset_id);
+
  protected:
   // Allow default construction for mocks
   Api()
@@ -93,7 +115,8 @@ class Api {
         collider_manager_(nullptr),
         blueprint_manager_(nullptr),
         level_manager_(nullptr),
-        tileset_manager_(nullptr) {}
+        tileset_manager_(nullptr),
+        terrain_recipe_manager_(nullptr) {}
 
  private:
   EngineConfig& config_;
@@ -103,6 +126,7 @@ class Api {
   BlueprintManager* blueprint_manager_;
   LevelManager* level_manager_;
   TilesetManager* tileset_manager_;
+  TerrainRecipeManager* terrain_recipe_manager_;
 };
 
 }  // namespace zebes

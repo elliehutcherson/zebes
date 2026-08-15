@@ -1,6 +1,7 @@
 #include "api/api.h"
 
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
 
 namespace zebes {
 
@@ -23,6 +24,15 @@ absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
   if (options.tileset_manager == nullptr) {
     return absl::InvalidArgumentError("TilesetManager is null.");
   }
+  // Checked like the rest. BlueprintManager was the one manager nobody
+  // validated, so a null one reached the first call that used it instead of
+  // failing here.
+  if (options.blueprint_manager == nullptr) {
+    return absl::InvalidArgumentError("BlueprintManager is null.");
+  }
+  if (options.terrain_recipe_manager == nullptr) {
+    return absl::InvalidArgumentError("TerrainRecipeManager is null.");
+  }
   return std::unique_ptr<Api>(new Api(options));
 }
 
@@ -33,7 +43,8 @@ Api::Api(const Options& options)
       collider_manager_(options.collider_manager),
       blueprint_manager_(options.blueprint_manager),
       level_manager_(options.level_manager),
-      tileset_manager_(options.tileset_manager) {}
+      tileset_manager_(options.tileset_manager),
+      terrain_recipe_manager_(options.terrain_recipe_manager) {}
 
 absl::Status Api::SaveConfig(const EngineConfig& config) {
   LOG(INFO) << "SaveConfig in the api....";
@@ -174,6 +185,44 @@ std::vector<Tileset> Api::GetAllTilesets() { return tileset_manager_->GetAllTile
 
 absl::StatusOr<Tileset*> Api::GetTileset(const std::string& tileset_id) {
   return tileset_manager_->GetTileset(tileset_id);
+}
+
+absl::StatusOr<std::string> Api::CreateTerrainRecipe(TerrainRecipe recipe) {
+  return terrain_recipe_manager_->CreateRecipe(std::move(recipe));
+}
+
+absl::Status Api::SaveTerrainRecipe(const TerrainRecipe& recipe) {
+  return terrain_recipe_manager_->SaveRecipe(recipe);
+}
+
+absl::Status Api::DeleteTerrainRecipe(const std::string& recipe_id) {
+  return terrain_recipe_manager_->DeleteRecipe(recipe_id);
+}
+
+std::vector<TerrainRecipe> Api::GetAllTerrainRecipes() const {
+  return terrain_recipe_manager_->GetAllRecipes();
+}
+
+absl::StatusOr<TerrainRecipe*> Api::GetTerrainRecipe(const std::string& recipe_id) {
+  return terrain_recipe_manager_->GetRecipe(recipe_id);
+}
+
+absl::StatusOr<std::optional<TerrainRecipe>> Api::FindTerrainRecipeForTileset(
+    const std::string& tileset_id) {
+  if (tileset_id.empty()) return std::nullopt;
+
+  std::optional<TerrainRecipe> found;
+  for (TerrainRecipe& recipe : terrain_recipe_manager_->GetAllRecipes()) {
+    if (recipe.tileset_id != tileset_id) continue;
+    if (found.has_value()) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("recipes '", found->id, "' and '", recipe.id,
+                       "' both claim tileset ", tileset_id,
+                       "; which one regenerates it would be arbitrary"));
+    }
+    found = std::move(recipe);
+  }
+  return found;
 }
 
 }  // namespace zebes
