@@ -1,11 +1,15 @@
 # Handoff: derived terrain artwork
 
-State as of 2026-08-15. Work is on the branch **`terrain-derived-artwork`**,
-**not merged to `main`**. 622 C++ tests and 22 Python tests pass through
-`scripts/build_and_test.sh`.
+State as of 2026-08-15. **Merged to `main`** (not pushed). 650 C++ tests and 26
+Python tests pass through `scripts/build_and_test.sh`.
 
-The design document is [`terrain-derived-artwork.md`](terrain-derived-artwork.md).
-It has been trued up against the implementation and no longer trails it.
+Three phases landed together, each with its own design document:
+
+| Phase | Document | State |
+|---|---|---|
+| Derived terrain artwork | [`terrain-derived-artwork.md`](terrain-derived-artwork.md) | Implemented; doc trued up against the code |
+| Safe asset deletion | [`asset-deletion.md`](asset-deletion.md) | Checks implemented; the Delete buttons themselves are not |
+| Prop artwork from generated images | [`prop-artwork.md`](prop-artwork.md) | Design only, nothing built |
 
 ---
 
@@ -171,27 +175,35 @@ Worth knowing because most were invisible to reading:
 
 ### In this phase
 
-1. **Nobody has run the editor.** Every layer is tested headlessly and the
-   artwork invariant is asserted end to end, but no test drives a real window.
-   Worth walking: paint a derived terrain, place a ramp and a ledge, watch the
-   atlas grow, save, reopen, and confirm the artwork survived. Also confirm the
-   shape picker greys out with no terrain selected.
+1. **The editor walk is only part done.** Save As was driven through the Terrain
+   Editor for real -- that is how `lucinda_cave` was re-derived -- so opening a
+   recipe, regenerating and writing a new tileset all work in a live window.
+   Still unwalked: painting a derived terrain cell by cell, placing a ramp and a
+   ledge, watching the atlas grow mid-stroke, and reopening a saved level to
+   confirm the artwork survived. Also unconfirmed: that the shape picker greys
+   out with no terrain selected.
 
-2. **Merge to `main`.** The branch was made because committing to the default
-   branch is discouraged; `main` has not moved since.
+2. **`main` is not pushed.** 28 commits ahead of `origin/main`.
 
 Done in this phase: the manifest true-up (all four items, plus the shape range,
 which was replaced by naming the two shapes a unit cannot be rather than by
-deleting validation), and the design-doc true-up.
+deleting validation), the design-doc true-up, the merge to `main`, and
+`lucinda_cave` shipped as a derived terrain.
+
+### Next
+
+**Delete buttons.** `asset-deletion.md` §9 steps 4 and 5: a Delete in the Texture
+Editor and the Terrain Editor behind the existing `ConfirmPrompt`, then bundle
+deletion for a recipe-owned texture + tileset + recipe. The checks are in place,
+so these are safe to build now -- which was the point of doing them first. Until
+they exist, removing a generated terrain means deleting the tileset and then
+being unable to delete its texture.
 
 ### Carried over from before this phase
 
 - **The Autumn Forest visual check.** Wall darkness became a bounded blend
   toward the authored outline colour and the preset was retuned 1.8 -> 1.2.
   Tests pin both endpoints; nothing automated can judge whether it looks right.
-- **`lucinda_cave`.** The texture, its tileset definition and one terrain recipe
-  are still untracked. The tileset has been migrated in place, so it opens.
-  Whether it ships is undecided.
 - **`Create` blocks for seconds** with no progress indication. It still renders
   all 47 masks per phase up front. The real fix is moving generation off the
   render thread.
@@ -225,5 +237,23 @@ deleting validation), and the design-doc true-up.
 | `src/editor/level_editor/derived_tile_provider.{h,cc}` | Render on miss, dedup by content, append |
 | `src/editor/level_editor/derived_terrain_session.{h,cc}` | Opening, showing, committing |
 | `tests/editor/derived_artwork_test.cc` | The invariant: painted artwork equals artwork for the real neighbourhood |
+| `src/resources/asset_references.{h,cc}` | What names an asset, and the refusal text when something does |
+| `src/objects/entity.h` | `sort_order`, which is within-layer ordering rather than depth |
 | `scripts/render_slope_matrix.cc` | Renders the join sheet for looking at |
 | `scripts/migrate_definitions.py` | One migration per field; run it after any format change |
+
+## What else landed on the way
+
+Not part of the terrain phase, but merged with it:
+
+- **`Entity::sort_order`** decides what a prop draws in front of. Named for
+  ordering within a depth slice, not depth: the passes are fixed at parallax,
+  then tiles, then entities, so no value puts a prop behind the terrain. Layers
+  are the thing that would, and the argument for them is in `prop-artwork.md` §7.
+- **`Level::parallax_layers` is gone.** Themes and zones replaced it; the format
+  still demanded and validated it while no panel could author it.
+- **`ParallaxZone::fade_length` is still unimplemented**, and deliberately kept.
+  It is the zone seaming control: `ResolveActiveParallaxZone` returns one zone by
+  a half-open bounds test, so transitions are hard cuts. Making it real means
+  returning two zones plus a blend weight and giving the parallax draw a tint
+  parameter it does not have.
