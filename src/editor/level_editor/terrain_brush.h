@@ -5,6 +5,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "common/image_io.h"
 #include "objects/level.h"
 #include "objects/tileset.h"
 
@@ -75,6 +76,22 @@ class TerrainIndex {
   absl::flat_hash_map<std::pair<int, TileShape>, int> shape_tiles_;
 };
 
+// What to draw for a cell the pointer is only passing over.
+//
+// Exactly one field is set. `tile_id` means the picture is already in the
+// atlas, so the caller draws it from there as it draws any other tile.
+// `artwork` means this picture does not exist yet, and the loose pixels are
+// handed back for the caller to draw itself.
+//
+// The second case exists because previewing must not create anything. Resolving
+// a hover through the ordinary path would append a tile and grow the atlas on
+// mouse movement alone, leaving artwork behind that no cell references and
+// marking the level unsaved without a click.
+struct TerrainPreview {
+  std::optional<int> tile_id;
+  std::optional<RgbaImage> artwork;
+};
+
 // Resolves the artwork for a cell whose collision geometry is already decided.
 //
 // Two schemes answer this differently -- a blob-47 terrain looks the key's mask
@@ -86,7 +103,8 @@ class TerrainTileProvider {
  public:
   virtual ~TerrainTileProvider() = default;
 
-  // The tile whose artwork depicts `key`.
+  // The tile whose artwork depicts `key`, creating that artwork if this is the
+  // first time anything has asked for it.
   //
   // tile_x and tile_y say which cell is asking. They do not change what the
   // artwork must depict -- that is entirely `key` -- but a terrain carrying
@@ -95,6 +113,15 @@ class TerrainTileProvider {
   // region never reshuffles it.
   virtual absl::StatusOr<int> TileForKey(const Terrain& terrain, const TerrainCellKey& key,
                                          int tile_x, int tile_y) = 0;
+
+  // The same answer as TileForKey, without creating anything.
+  //
+  // Separate from TileForKey rather than a flag on it because the two have
+  // different return types for a reason: a preview can legitimately be a
+  // picture that has no tile, and a paint never can.
+  virtual absl::StatusOr<TerrainPreview> PreviewForKey(const Terrain& terrain,
+                                                       const TerrainCellKey& key, int tile_x,
+                                                       int tile_y) = 0;
 };
 
 // The provider for terrain whose artwork was authored against a neighbour mask.
@@ -108,6 +135,11 @@ class Blob47TileProvider : public TerrainTileProvider {
 
   absl::StatusOr<int> TileForKey(const Terrain& terrain, const TerrainCellKey& key, int tile_x,
                                  int tile_y) override;
+
+  // Identical to TileForKey: authored artwork already exists or does not, and
+  // resolving it creates nothing either way.
+  absl::StatusOr<TerrainPreview> PreviewForKey(const Terrain& terrain, const TerrainCellKey& key,
+                                               int tile_x, int tile_y) override;
 
  private:
   const TerrainIndex& index_;

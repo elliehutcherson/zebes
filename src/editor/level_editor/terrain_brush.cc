@@ -241,6 +241,13 @@ absl::StatusOr<int> Blob47TileProvider::TileForKey(const Terrain& terrain,
   return SelectVariant(terrain, *rule, tile_x, tile_y);
 }
 
+absl::StatusOr<TerrainPreview> Blob47TileProvider::PreviewForKey(const Terrain& terrain,
+                                                                 const TerrainCellKey& key,
+                                                                 int tile_x, int tile_y) {
+  ASSIGN_OR_RETURN(const int tile_id, TileForKey(terrain, key, tile_x, tile_y));
+  return TerrainPreview{.tile_id = tile_id};
+}
+
 absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rule, int tile_x,
                                   int tile_y) {
   if (rule.variants.empty()) {

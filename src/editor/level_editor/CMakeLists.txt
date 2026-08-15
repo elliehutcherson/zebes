@@ -77,6 +77,7 @@ add_library(terrain_brush
 
 target_link_libraries(terrain_brush
   PUBLIC
+  image_io
   level
 
   tileset
@@ -294,6 +295,7 @@ target_link_libraries(viewport_tab
   editor_canvas
   imgui_scoped
   level
+  blob47_compose
   parallax_layout
   tileset
   viewport_interaction

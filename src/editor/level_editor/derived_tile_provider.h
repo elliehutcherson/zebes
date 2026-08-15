@@ -52,6 +52,15 @@ class DerivedTileProvider : public TerrainTileProvider {
   absl::StatusOr<int> TileForKey(const Terrain& terrain, const TerrainCellKey& key, int tile_x,
                                  int tile_y) override;
 
+  // Renders the artwork and looks it up, but never appends.
+  //
+  // A miss hands the pixels back loose rather than placing them, so hovering
+  // costs at most one render of a 32px tile and leaves the atlas exactly as it
+  // was. Rendered images are cached by key, so holding the pointer still over a
+  // novel cell renders once rather than once a frame.
+  absl::StatusOr<TerrainPreview> PreviewForKey(const Terrain& terrain, const TerrainCellKey& key,
+                                               int tile_x, int tile_y) override;
+
   // Whether anything was appended since Create. False means the caller has
   // nothing to write back, which is the common case once a level settles.
   bool has_uncommitted_tiles() const { return appended_ > 0; }
@@ -77,6 +86,10 @@ class DerivedTileProvider : public TerrainTileProvider {
   RgbaImage atlas_;
   TerrainContentIndex content_;
   absl::flat_hash_map<TerrainCellKey, int> tile_by_key_;
+  // Artwork rendered for a preview that had nowhere to go. Kept so that resting
+  // the pointer on a novel cell does not re-render every frame, and dropped
+  // wholesale once a key earns a tile.
+  absl::flat_hash_map<TerrainCellKey, RgbaImage> preview_by_key_;
   int columns_ = 0;
   int appended_ = 0;
 };

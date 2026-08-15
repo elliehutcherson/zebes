@@ -44,6 +44,10 @@ class EditorUi {
   std::unique_ptr<ConfigEditor> config_editor_;
   std::unique_ptr<SpriteEditor> sprite_editor_;
   std::unique_ptr<BlueprintEditor> blueprint_editor_;
+  // Declared before the editor that uses it so it outlives the panel holding
+  // the pointer. Its own texture rather than a share of the terrain tab's: two
+  // tabs writing one streaming texture would each see the other's artwork.
+  std::unique_ptr<SdlPreviewTexture> terrain_ghost_;
   std::unique_ptr<LevelEditor> level_editor_;
   // Declared before the editor that uses it so it outlives the panel holding
   // the pointer.

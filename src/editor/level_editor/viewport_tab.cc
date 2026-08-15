@@ -53,9 +53,10 @@ absl::StatusOr<Vec> ViewportTab::SnapBlueprintToGrid(Vec mouse_world, const Blue
   return SnapEntityToGrid(mouse_world, tile_render_w, tile_render_h, collider, sprite);
 }
 
-ViewportTab::ViewportTab(Api& api, GuiInterface* gui)
+ViewportTab::ViewportTab(Api& api, GuiInterface* gui, PreviewTextureSink* terrain_ghost)
     : api_(api),
       gui_(gui),
+      terrain_ghost_(terrain_ghost),
       canvas_(Canvas::Options{
           .gui = gui,
           .snap_grid = true,
@@ -370,12 +371,25 @@ absl::Status ViewportTab::RenderTerrainGhost(const ViewportRenderOptions& option
   // previewed and what lands cannot disagree. A hand-edited terrain can be
   // missing a mask; previewing nothing is better than failing the frame on
   // mouse movement, and the paint itself still reports it.
+  //
+  // Previewing, not resolving: hovering is a read. Asking for the tile would
+  // append artwork and grow the atlas on mouse movement alone, leaving pictures
+  // behind that no cell references -- and, because the grown atlas is not
+  // uploaded until the frame ends, drawing one against a texture that is still
+  // the old size.
   if (options.terrain_provider == nullptr) return absl::OkStatus();
-  const absl::StatusOr<int> resolved =
-      options.terrain_provider->TileForKey(*terrain, key, coordinate.x, coordinate.y);
-  if (!resolved.ok()) return absl::OkStatus();
+  const absl::StatusOr<TerrainPreview> preview =
+      options.terrain_provider->PreviewForKey(*terrain, key, coordinate.x, coordinate.y);
+  if (!preview.ok()) return absl::OkStatus();
 
-  const int tile_id = *resolved;
+  // No tile holds this picture yet, so there is no atlas rectangle to draw. The
+  // pixels are drawn as themselves instead.
+  if (!preview->tile_id.has_value()) {
+    if (!preview->artwork.has_value()) return absl::OkStatus();
+    return RenderLooseTerrainGhost(*preview->artwork, level, world_pos);
+  }
+
+  const int tile_id = *preview->tile_id;
   const Tile* tile = nullptr;
   for (const Tile& candidate : tileset->tiles) {
     if (candidate.id == tile_id) tile = &candidate;
@@ -390,6 +404,35 @@ absl::Status ViewportTab::RenderTerrainGhost(const ViewportRenderOptions& option
                                              level.tile_render_width,
                                              level.tile_render_height));
   return renderer_.RenderTiles(batch);
+}
+
+absl::Status ViewportTab::RenderLooseTerrainGhost(const RgbaImage& artwork, const Level& level,
+                                                  Vec world_pos) {
+  // Without a sink there is nowhere to put pixels the GPU has never seen, so
+  // the cell previews as nothing. Appending them to the atlas to get a handle
+  // is the thing this function exists to avoid.
+  if (terrain_ghost_ == nullptr) return absl::OkStatus();
+
+  ImDrawList* draw_list = canvas_.GetDrawList();
+  if (draw_list == nullptr) return absl::OkStatus();
+
+  ASSIGN_OR_RETURN(
+      const TileCoordinate coordinate,
+      WorldToTileCoordinate(world_pos, level.tile_render_width, level.tile_render_height));
+  ASSIGN_OR_RETURN(const ImTextureID texture, terrain_ghost_->Upload(artwork));
+
+  const ImVec2 min =
+      canvas_.WorldToScreen({static_cast<double>(coordinate.x) * level.tile_render_width,
+                             static_cast<double>(coordinate.y) * level.tile_render_height});
+  const ImVec2 max =
+      canvas_.WorldToScreen({static_cast<double>(coordinate.x + 1) * level.tile_render_width,
+                             static_cast<double>(coordinate.y + 1) * level.tile_render_height});
+
+  // Matched to the placement ghost the renderer draws for an existing tile, so
+  // a cell does not change appearance the moment its artwork earns a tile.
+  draw_list->AddImage(texture, min, max, ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 160));
+  draw_list->AddRect(min, max, IM_COL32(100, 200, 255, 200), 0.0f, 0, 2.0f);
+  return absl::OkStatus();
 }
 
 absl::Status ViewportTab::RenderPlacementGhost(Vec world_pos, const ResolvedSprite& resolved) {

@@ -141,6 +141,34 @@ absl::StatusOr<int> DerivedTileProvider::AppendTile(const Terrain& terrain,
   return tile_id;
 }
 
+absl::StatusOr<TerrainPreview> DerivedTileProvider::PreviewForKey(const Terrain& terrain,
+                                                                  const TerrainCellKey& key,
+                                                                  int tile_x, int tile_y) {
+  if (terrain.scheme != TerrainScheme::kDerived) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("terrain '", terrain.name, "' is not derived and has no recipe to render"));
+  }
+
+  if (auto memo = tile_by_key_.find(key); memo != tile_by_key_.end()) {
+    return TerrainPreview{.tile_id = memo->second};
+  }
+  if (auto shown = preview_by_key_.find(key); shown != preview_by_key_.end()) {
+    return TerrainPreview{.artwork = shown->second};
+  }
+
+  ASSIGN_OR_RETURN(RgbaImage artwork,
+                   renderer_.RenderShapeTileInContext(key.shape, key.neighbors, key.phase));
+  if (const std::optional<int> existing = content_.Find(artwork); existing.has_value()) {
+    // Worth memoizing: the pixels settled the question, and painting this cell
+    // would reach the same answer without rendering again.
+    tile_by_key_.emplace(key, *existing);
+    return TerrainPreview{.tile_id = *existing};
+  }
+
+  preview_by_key_.emplace(key, artwork);
+  return TerrainPreview{.artwork = std::move(artwork)};
+}
+
 absl::StatusOr<int> DerivedTileProvider::TileForKey(const Terrain& terrain,
                                                     const TerrainCellKey& key, int tile_x,
                                                     int tile_y) {
@@ -151,8 +179,16 @@ absl::StatusOr<int> DerivedTileProvider::TileForKey(const Terrain& terrain,
 
   if (auto memo = tile_by_key_.find(key); memo != tile_by_key_.end()) return memo->second;
 
-  ASSIGN_OR_RETURN(const RgbaImage artwork,
-                   renderer_.RenderShapeTileInContext(key.shape, key.neighbors, key.phase));
+  // A preview of this cell has usually just rendered exactly this picture, so
+  // clicking after hovering costs no second render.
+  RgbaImage artwork;
+  if (auto shown = preview_by_key_.find(key); shown != preview_by_key_.end()) {
+    artwork = std::move(shown->second);
+    preview_by_key_.erase(shown);
+  } else {
+    ASSIGN_OR_RETURN(artwork,
+                     renderer_.RenderShapeTileInContext(key.shape, key.neighbors, key.phase));
+  }
 
   // A key that renders to a picture already in the atlas is that tile. Nothing
   // asserts which keys collide; the pixels do.

@@ -31,6 +31,9 @@ class LevelEditor {
   struct Options {
     Api* api = nullptr;
     GuiInterface* gui = nullptr;
+    // Uploads artwork for a hovered cell whose picture no tile holds yet. Null
+    // previews such a cell as nothing, which is what a headless test wants.
+    PreviewTextureSink* terrain_ghost = nullptr;
     std::unique_ptr<LevelPanelInterface> level_panel;
     std::unique_ptr<ParallaxThemePanel> parallax_theme_panel;
     std::unique_ptr<ParallaxZonePanel> parallax_zone_panel;

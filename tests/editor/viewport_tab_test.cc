@@ -1,11 +1,12 @@
 #include "editor/level_editor/viewport_tab.h"
-#include "editor/level_editor/viewport_model.h"
 
 #include <limits>
 #include <map>
 
+#include "editor/level_editor/viewport_model.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/collider.h"
 #include "objects/entity.h"
 #include "objects/level.h"
@@ -41,6 +42,11 @@ class ViewportTabTestPeer {
   static absl::StatusOr<std::optional<ActiveParallaxZone>> RenderParallaxBackground(
       ViewportTab& tab, const Level& level, const ViewportRenderOptions& options) {
     return tab.RenderParallaxBackground(level, options);
+  }
+
+  static absl::Status RenderTerrainGhost(ViewportTab& tab, const ViewportRenderOptions& options,
+                                         const Tileset* tileset, Vec world_pos) {
+    return tab.RenderTerrainGhost(options, tileset, TextureHandle{}, world_pos);
   }
 };
 
@@ -461,6 +467,67 @@ TEST(TileChunkKeyTest, RoundTripsSignedCoordinatesWithoutUndefinedShifts) {
 
   EXPECT_EQ(coordinate.x, -2);
   EXPECT_EQ(coordinate.y, 3);
+}
+
+// Records which question the ghost asked. The two differ in exactly the way
+// that matters: one creates artwork, the other does not.
+class RecordingTileProvider : public TerrainTileProvider {
+ public:
+  absl::StatusOr<int> TileForKey(const Terrain&, const TerrainCellKey&, int, int) override {
+    ++resolves;
+    return 1;
+  }
+
+  absl::StatusOr<TerrainPreview> PreviewForKey(const Terrain&, const TerrainCellKey&, int,
+                                               int) override {
+    ++previews;
+    RgbaImage artwork;
+    artwork.width = 32;
+    artwork.height = 32;
+    artwork.pixels.assign(32 * 32 * 4, 0);
+    return TerrainPreview{.artwork = std::move(artwork)};
+  }
+
+  int resolves = 0;
+  int previews = 0;
+};
+
+// The ghost must ask what a cell *would* get, never take it. Resolving instead
+// appended a tile and grew the atlas on mouse movement alone -- and the grown
+// atlas is not uploaded until the frame ends, so the ghost then drew itself
+// against a texture that was still the old size and failed the frame.
+TEST(TerrainGhostTest, HoveringPreviewsRatherThanResolving) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+
+  Tileset tileset;
+  tileset.tile_width = 32;
+  tileset.tile_height = 32;
+  Terrain terrain;
+  terrain.id = 1;
+  terrain.name = "Cave";
+  terrain.scheme = TerrainScheme::kDerived;
+  tileset.terrains.push_back(terrain);
+
+  absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
+  ASSERT_OK(index);
+
+  Level level;
+  level.width = 640;
+  level.height = 640;
+  RecordingTileProvider provider;
+  ViewportRenderOptions options{
+      .level = &level,
+      .paint_terrain_id = 1,
+      .terrain_index = &*index,
+      .terrain_provider = &provider,
+  };
+
+  ASSERT_OK(ViewportTabTestPeer::RenderTerrainGhost(tab, options, &tileset, {64, 64}));
+
+  EXPECT_EQ(provider.previews, 1);
+  EXPECT_EQ(provider.resolves, 0) << "hovering must not create artwork";
 }
 
 }  // namespace

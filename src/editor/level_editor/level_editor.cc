@@ -90,7 +90,7 @@ absl::Status LevelEditor::Init(Options options) {
     ASSIGN_OR_RETURN(palette_panel_, PalettePanel::Create({.api = api_, .gui = gui_}));
   }
 
-  viewport_tab_ = std::make_unique<ViewportTab>(*api_, gui_);
+  viewport_tab_ = std::make_unique<ViewportTab>(*api_, gui_, options.terrain_ghost);
 
   return absl::OkStatus();
 }
@@ -475,7 +475,7 @@ absl::Status LevelEditor::RenderViewport() {
     terrain_provider = &*authored_provider;
   }
 
-  RETURN_IF_ERROR(viewport_tab_->Render({
+  const absl::Status rendered = viewport_tab_->Render({
       .level = level,
       .paint_terrain_id = paint_terrain_id,
       .paint_shape = palette_panel_->GetSelectedTerrainShape(),
@@ -496,20 +496,24 @@ absl::Status LevelEditor::RenderViewport() {
       .selected_zone_id = (selection_.type == SelectionState::Type::kZone)
                               ? std::optional<int>(selection_.zone_id)
                               : std::nullopt,
-      .selected_parallax_theme_id =
-          (selection_.type == SelectionState::Type::kTheme ||
-           selection_.type == SelectionState::Type::kLayer)
-              ? std::optional<int>(selection_.theme_id)
-              : std::nullopt,
-      .selected_parallax_layer_index =
-          (selection_.type == SelectionState::Type::kLayer)
-              ? std::optional<int>(selection_.layer_index)
-              : std::nullopt,
-  }));
+      .selected_parallax_theme_id = (selection_.type == SelectionState::Type::kTheme ||
+                                     selection_.type == SelectionState::Type::kLayer)
+                                        ? std::optional<int>(selection_.theme_id)
+                                        : std::nullopt,
+      .selected_parallax_layer_index = (selection_.type == SelectionState::Type::kLayer)
+                                           ? std::optional<int>(selection_.layer_index)
+                                           : std::nullopt,
+  });
 
   // Painting may have rendered artwork the atlas did not hold. Upload it before
   // the frame ends, or the cells that reference it draw as holes.
+  //
+  // Before reporting a failed render, deliberately. A draw that failed because
+  // the atlas outgrew its uploaded texture must not also skip the upload that
+  // would fix it: doing so made the error permanent, since every later frame
+  // failed the same way and skipped the same upload.
   RETURN_IF_ERROR(derived_terrain_.ShowNewArtwork(*api_));
+  RETURN_IF_ERROR(rendered);
 
   std::optional<uint64_t> delete_request = viewport_tab_->TakeDeleteRequest();
   if (delete_request.has_value()) {

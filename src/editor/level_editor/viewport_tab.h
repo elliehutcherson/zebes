@@ -11,6 +11,7 @@
 #include "editor/level_editor/parallax_layout.h"
 #include "editor/level_editor/viewport_interaction.h"
 #include "editor/level_editor/viewport_renderer.h"
+#include "editor/preview_texture_sink.h"
 #include "objects/blueprint.h"
 #include "objects/camera.h"
 #include "objects/entity.h"
@@ -80,7 +81,11 @@ struct ViewportRenderOptions {
 
 class ViewportTab {
  public:
-  explicit ViewportTab(Api& api, GuiInterface* gui);
+  // `terrain_ghost` uploads artwork for a cell the pointer is hovering over
+  // that no tile holds yet. Null means such a cell previews as nothing rather
+  // than as itself, which is what a headless test wants and what the tab falls
+  // back to; it must never mean appending the artwork instead.
+  ViewportTab(Api& api, GuiInterface* gui, PreviewTextureSink* terrain_ghost = nullptr);
 
   // Main render loop for the viewport tab.
   absl::Status Render(const ViewportRenderOptions& options);
@@ -172,6 +177,10 @@ class ViewportTab {
   absl::Status RenderTerrainGhost(const ViewportRenderOptions& options, const Tileset* tileset,
                                   TextureHandle texture, Vec world_pos);
 
+  // Draws artwork that belongs to no tile, for a cell whose picture would be
+  // created only if the user actually painted it.
+  absl::Status RenderLooseTerrainGhost(const RgbaImage& artwork, const Level& level, Vec world_pos);
+
   // Resolves and renders the requested environment, returning the actual active zone.
   absl::StatusOr<std::optional<ActiveParallaxZone>> RenderParallaxBackground(
       const Level& level, const ViewportRenderOptions& options);
@@ -217,6 +226,7 @@ class ViewportTab {
 
   Api& api_;
   GuiInterface* gui_;
+  PreviewTextureSink* terrain_ghost_;
   Canvas canvas_;
   Camera camera_;
   ViewportRenderer renderer_;

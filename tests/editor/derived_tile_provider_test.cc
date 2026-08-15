@@ -82,6 +82,12 @@ class DerivedTileProviderTest : public ::testing::Test {
     return tile.value_or(-1);
   }
 
+  TerrainPreview Preview(const TerrainCellKey& key) {
+    absl::StatusOr<TerrainPreview> preview = provider_->PreviewForKey(terrain_, key, 0, 0);
+    EXPECT_OK(preview);
+    return preview.value_or(TerrainPreview{});
+  }
+
   Tileset tileset_;
   std::unique_ptr<DerivedTileProvider> provider_;
   Terrain terrain_;
@@ -214,6 +220,90 @@ TEST_F(DerivedTileProviderTest, ExistingArtworkIsReusedRatherThanRedrawn) {
   ASSERT_OK(again);
   EXPECT_EQ(*again, first);
   EXPECT_FALSE(reopened->has_uncommitted_tiles()) << "nothing new was drawn";
+}
+
+// Hovering is a read. Resolving a preview through TileForKey grew the atlas on
+// mouse movement alone, leaving pictures behind that no cell referenced and
+// marking a level unsaved without a click -- and, because the grown atlas is
+// only uploaded at the end of a frame, drawing one against a texture that was
+// still the old size.
+TEST_F(DerivedTileProviderTest, PreviewingANovelCellCreatesNothing) {
+  const TerrainPreview preview = Preview(KeyOf(TileShape::kFullBlock, {}));
+
+  EXPECT_FALSE(preview.tile_id.has_value()) << "no tile holds this picture yet";
+  ASSERT_TRUE(preview.artwork.has_value()) << "the pixels still have to be drawable";
+  EXPECT_TRUE(preview.artwork->IsValid());
+  EXPECT_EQ(preview.artwork->width, kTileSize);
+
+  EXPECT_EQ(provider_->appended_tile_count(), 0);
+  EXPECT_EQ(provider_->tileset().tiles.size(), 0);
+  EXPECT_FALSE(provider_->has_uncommitted_tiles());
+}
+
+TEST_F(DerivedTileProviderTest, PreviewingRepeatedlyStillCreatesNothing) {
+  const TerrainCellKey key = KeyOf(TileShape::kFullBlock, {{2, TileShape::kFullBlock}});
+  for (int frame = 0; frame < 10; ++frame) {
+    EXPECT_FALSE(Preview(key).tile_id.has_value());
+  }
+
+  EXPECT_EQ(provider_->appended_tile_count(), 0);
+  EXPECT_EQ(provider_->atlas().height / kTileSize, 1) << "resting the pointer must not grow it";
+}
+
+TEST_F(DerivedTileProviderTest, PreviewingACellWhoseArtworkExistsNamesItsTile) {
+  const int painted = Resolve(KeyOf(TileShape::kFullBlock, {}));
+
+  const TerrainPreview preview = Preview(KeyOf(TileShape::kFullBlock, {}));
+
+  ASSERT_TRUE(preview.tile_id.has_value());
+  EXPECT_EQ(*preview.tile_id, painted) << "a preview must show what the paint would land";
+  EXPECT_FALSE(preview.artwork.has_value()) << "loose pixels are for pictures with no tile";
+}
+
+// What the user actually does: move over a cell, then click it. The preview must
+// not change what lands, and the render it already paid for is reused.
+TEST_F(DerivedTileProviderTest, PaintingAfterPreviewingAppendsExactlyOneTile) {
+  const TerrainCellKey key = KeyOf(TileShape::kSlope45BottomLeft, {{4, TileShape::kFullBlock}});
+  ASSERT_FALSE(Preview(key).tile_id.has_value());
+
+  const int painted = Resolve(key);
+
+  EXPECT_GT(painted, 0);
+  EXPECT_EQ(provider_->appended_tile_count(), 1);
+  EXPECT_EQ(provider_->tileset().tiles.size(), 1);
+
+  const TerrainPreview after = Preview(key);
+  ASSERT_TRUE(after.tile_id.has_value());
+  EXPECT_EQ(*after.tile_id, painted);
+}
+
+// A preview that renders a picture the atlas already holds has learned
+// something the paint would otherwise rediscover, so it records it -- without
+// appending, because nothing was created.
+TEST_F(DerivedTileProviderTest, APreviewMatchingExistingArtworkResolvesToThatTile) {
+  const TerrainCellKey key = KeyOf(TileShape::kFullBlock, {{2, TileShape::kFullBlock}});
+  const int painted = Resolve(key);
+
+  Tileset grown = provider_->tileset();
+  absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(RecipeConfig());
+  ASSERT_OK(renderer);
+  absl::StatusOr<DerivedTileProvider> reopened =
+      DerivedTileProvider::Create(std::move(*renderer), grown, provider_->atlas());
+  ASSERT_OK(reopened);
+
+  absl::StatusOr<TerrainPreview> preview = reopened->PreviewForKey(terrain_, key, 0, 0);
+
+  ASSERT_OK(preview);
+  ASSERT_TRUE(preview->tile_id.has_value()) << "the pixels are already in the atlas";
+  EXPECT_EQ(*preview->tile_id, painted);
+  EXPECT_EQ(reopened->appended_tile_count(), 0);
+}
+
+TEST_F(DerivedTileProviderTest, PreviewingABlobFortySevenTerrainIsRefused) {
+  Terrain authored = DerivedTerrain();
+  authored.scheme = TerrainScheme::kBlob47;
+
+  EXPECT_FALSE(provider_->PreviewForKey(authored, KeyOf(TileShape::kFullBlock, {}), 0, 0).ok());
 }
 
 TEST_F(DerivedTileProviderTest, ABlobFortySevenTerrainIsRefused) {

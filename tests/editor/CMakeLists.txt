@@ -212,6 +212,8 @@ target_link_libraries(viewport_tab_test
   gtest_main
   gmock
   api
+  macros
+  terrain_brush
   viewport_tab
   viewport_model
   gui_mock

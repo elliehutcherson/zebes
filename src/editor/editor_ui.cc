@@ -43,7 +43,10 @@ absl::Status EditorUi::Init() {
   ASSIGN_OR_RETURN(config_editor_, ConfigEditor::Create(api_, sdl_, gui_));
   ASSIGN_OR_RETURN(sprite_editor_, SpriteEditor::Create(api_, sdl_, gui_));
   ASSIGN_OR_RETURN(blueprint_editor_, BlueprintEditor::Create(api_, gui_));
-  ASSIGN_OR_RETURN(level_editor_, LevelEditor::Create({.api = api_, .gui = gui_}));
+  terrain_ghost_ = std::make_unique<SdlPreviewTexture>(sdl_);
+  ASSIGN_OR_RETURN(
+      level_editor_,
+      LevelEditor::Create({.api = api_, .gui = gui_, .terrain_ghost = terrain_ghost_.get()}));
   ASSIGN_OR_RETURN(tileset_editor_, TilesetEditor::Create(api_, gui_));
   terrain_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
   ASSIGN_OR_RETURN(terrain_editor_, TerrainEditor::Create(api_, gui_, terrain_preview_.get()));
