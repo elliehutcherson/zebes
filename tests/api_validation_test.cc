@@ -98,7 +98,7 @@ TEST_F(ApiValidationTest, DeleteTexture_NotInUse_CallsDelete) {
   const std::string texture_id = "test_texture";
   EXPECT_CALL(texture_manager_, DeleteTexture(texture_id)).WillOnce(Return(absl::OkStatus()));
 
-  EXPECT_TRUE(api_->DeleteTexture(texture_id).ok());
+  EXPECT_OK(api_->DeleteTexture(texture_id));
 }
 
 TEST_F(ApiValidationTest, DeleteSprite_InUseInBlueprint_ReturnsError) {
@@ -130,7 +130,7 @@ TEST_F(ApiValidationTest, DeleteSprite_NotInUse_CallsDelete) {
   const std::string sprite_id = "test_sprite";
   EXPECT_CALL(sprite_manager_, DeleteSprite(sprite_id)).WillOnce(Return(absl::OkStatus()));
 
-  EXPECT_TRUE(api_->DeleteSprite(sprite_id).ok());
+  EXPECT_OK(api_->DeleteSprite(sprite_id));
 }
 
 TEST_F(ApiValidationTest, DeleteCollider_InUseInBlueprint_ReturnsError) {
@@ -146,7 +146,7 @@ TEST_F(ApiValidationTest, DeleteCollider_NotInUse_CallsDelete) {
   const std::string collider_id = "test_collider";
   EXPECT_CALL(collider_manager_, DeleteCollider(collider_id)).WillOnce(Return(absl::OkStatus()));
 
-  EXPECT_TRUE(api_->DeleteCollider(collider_id).ok());
+  EXPECT_OK(api_->DeleteCollider(collider_id));
 }
 
 // Nothing checked this before: deleting a tileset a level painted through left
@@ -167,7 +167,49 @@ TEST_F(ApiValidationTest, DeleteTileset_Unreferenced_CallsDelete) {
   const std::string tileset_id = "test_tileset";
   EXPECT_CALL(tileset_manager_, DeleteTileset(tileset_id)).WillOnce(Return(absl::OkStatus()));
 
-  EXPECT_TRUE(api_->DeleteTileset(tileset_id).ok());
+  EXPECT_OK(api_->DeleteTileset(tileset_id));
+}
+
+// The tile hole. Deleting a painted tile is not recoverable by re-adding it:
+// NextTileId is max+1, so the new tile gets a new ID while the level still names
+// the old one, and the level stops rendering rather than losing a cell.
+TEST_F(ApiValidationTest, CheckTileDeletable_PaintedInALevel_ReturnsError) {
+  const std::string tileset_id = "test_tileset";
+  Level level = LevelUsingTileset(tileset_id);
+  TileChunk chunk;
+  chunk.tiles[0] = 7;
+  chunk.tiles[1] = 7;
+  level.tile_chunks[0] = chunk;
+  EXPECT_CALL(level_manager_, GetAllLevels())
+      .WillOnce(Return(std::vector<Level>{std::move(level)}));
+
+  const absl::Status status = api_->CheckTileDeletable(tileset_id, 7);
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Cave Level"));
+  EXPECT_THAT(std::string(status.message()), HasSubstr("2 painted cells"));
+}
+
+// A tile nothing painted stays one click away, which is the whole reason tile
+// deletion is not confirmed.
+TEST_F(ApiValidationTest, CheckTileDeletable_Unpainted_Passes) {
+  const std::string tileset_id = "test_tileset";
+  EXPECT_CALL(level_manager_, GetAllLevels())
+      .WillOnce(Return(std::vector<Level>{LevelUsingTileset(tileset_id)}));
+
+  EXPECT_OK(api_->CheckTileDeletable(tileset_id, 7));
+}
+
+// Tile IDs are bare integers with no tileset qualifier, so the same number in a
+// level bound elsewhere is different artwork and not a reference.
+TEST_F(ApiValidationTest, CheckTileDeletable_IgnoresLevelsBoundToAnotherTileset) {
+  Level level = LevelUsingTileset("some_other_tileset");
+  TileChunk chunk;
+  chunk.tiles[0] = 7;
+  level.tile_chunks[0] = chunk;
+  EXPECT_CALL(level_manager_, GetAllLevels())
+      .WillOnce(Return(std::vector<Level>{std::move(level)}));
+
+  EXPECT_OK(api_->CheckTileDeletable("test_tileset", 7));
 }
 
 TEST_F(ApiValidationTest, DeleteBlueprint_PlacedInALevel_ReturnsError) {
@@ -188,7 +230,7 @@ TEST_F(ApiValidationTest, DeleteBlueprint_Unplaced_CallsDelete) {
   const std::string blueprint_id = "test_blueprint";
   EXPECT_CALL(blueprint_manager_, DeleteBlueprint(blueprint_id)).WillOnce(Return(absl::OkStatus()));
 
-  EXPECT_TRUE(api_->DeleteBlueprint(blueprint_id).ok());
+  EXPECT_OK(api_->DeleteBlueprint(blueprint_id));
 }
 
 }  // namespace

@@ -7,6 +7,7 @@
 #include "editor/tileset_editor/tileset_editor_model.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/tileset.h"
 #include "tests/editor/mock_gui.h"
 
@@ -89,6 +90,14 @@ class TilesetPanelTest : public ::testing::Test {
   void RenderDetails() {
     absl::StatusOr<TilesetPanel::Action> action = panel_->RenderDetails(model_);
     ASSERT_TRUE(action.ok()) << action.status();
+  }
+
+  // Same render, but keeps what the panel reported, for the intents the
+  // containing editor has to coordinate with the Api.
+  TilesetPanel::Action RenderDetailsForAction() {
+    absl::StatusOr<TilesetPanel::Action> action = panel_->RenderDetails(model_);
+    EXPECT_OK(action);
+    return action.ok() ? *action : TilesetPanel::Action::kNone;
   }
 
   // Records every label the panel drew a button for during one render.
@@ -371,6 +380,26 @@ TEST_F(TilesetPanelTest, CancellingATerrainDeleteKeepsIt) {
   ClickOnly("Confirm##Terrain");
   RenderDetails();
   EXPECT_EQ(model_.active_tileset()->terrains.size(), 1u);
+}
+
+// The panel reports the intent instead of applying it. Only the containing
+// editor can ask the Api whether a level has painted the tile, and deleting one
+// a level painted stops that level rendering rather than losing a cell.
+TEST_F(TilesetPanelTest, DeletingATileReportsTheIntentRatherThanRemovingIt) {
+  ASSERT_OK(model_.AddTile());
+  ASSERT_EQ(model_.active_tileset()->tiles.size(), 1u);
+
+  ClickOnly("Delete##Tile");
+
+  EXPECT_EQ(RenderDetailsForAction(), TilesetPanel::Action::kDeleteTile);
+  EXPECT_EQ(model_.active_tileset()->tiles.size(), 1u)
+      << "the panel must not remove the tile itself";
+}
+
+TEST_F(TilesetPanelTest, RenderingWithoutClickingDeleteReportsNothing) {
+  ASSERT_OK(model_.AddTile());
+
+  EXPECT_EQ(RenderDetailsForAction(), TilesetPanel::Action::kNone);
 }
 
 }  // namespace

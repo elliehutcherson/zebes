@@ -226,6 +226,12 @@ absl::Status Api::DeleteTileset(const std::string& tileset_id) {
   return tileset_manager_->DeleteTileset(tileset_id);
 }
 
+absl::Status Api::CheckTileDeletable(const std::string& tileset_id, int tile_id) {
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  return RefuseIfReferenced(absl::StrCat("tile ", tile_id),
+                            FindTileReferrers(catalog.View(), tileset_id, tile_id));
+}
+
 std::vector<Tileset> Api::GetAllTilesets() { return tileset_manager_->GetAllTilesets(); }
 
 absl::StatusOr<Tileset*> Api::GetTileset(const std::string& tileset_id) {

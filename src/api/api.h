@@ -92,6 +92,12 @@ class Api {
   virtual absl::StatusOr<std::string> CreateTileset(Tileset tileset);
   virtual absl::Status UpdateTileset(Tileset tileset);
   virtual absl::Status DeleteTileset(const std::string& tileset_id);
+  // Refuses when a level has painted this tile, naming the levels that did.
+  //
+  // A tile is not deleted through the Api -- it lives inside the tileset copy
+  // the editor is editing -- so unlike the Delete methods this is the check on
+  // its own, and the caller applies the removal once it passes.
+  virtual absl::Status CheckTileDeletable(const std::string& tileset_id, int tile_id);
   virtual std::vector<Tileset> GetAllTilesets();
   virtual absl::StatusOr<Tileset*> GetTileset(const std::string& tileset_id);
 

@@ -71,6 +71,17 @@ absl::Status TilesetEditor::DeleteSelectedTileset() {
   return absl::OkStatus();
 }
 
+absl::Status TilesetEditor::DeleteSelectedTile() {
+  const Tile* tile = model_.selected_tile();
+  if (tile == nullptr) return absl::FailedPreconditionError("No tile is selected");
+
+  // Checked against the saved tilesets and levels rather than the copy being
+  // edited: what a level painted is the ID on disk, and that is what stops
+  // resolving if this tile goes.
+  RETURN_IF_ERROR(api_->CheckTileDeletable(model_.selected_tileset_id(), tile->id));
+  return model_.DeleteSelectedTile();
+}
+
 absl::Status TilesetEditor::HandlePanelAction(TilesetPanel::Action action) {
   switch (action) {
     case TilesetPanel::Action::kNone:
@@ -79,6 +90,8 @@ absl::Status TilesetEditor::HandlePanelAction(TilesetPanel::Action action) {
       return SaveActiveTileset();
     case TilesetPanel::Action::kDelete:
       return DeleteSelectedTileset();
+    case TilesetPanel::Action::kDeleteTile:
+      return DeleteSelectedTile();
   }
   return absl::InternalError("Unknown tileset panel action");
 }

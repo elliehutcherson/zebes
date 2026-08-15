@@ -6,6 +6,7 @@
 #include "absl/strings/string_view.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "nlohmann/json.hpp"
 #include "terrain/blob47_compose.h"
 #include "terrain/terrain_mask.h"
@@ -292,7 +293,7 @@ TEST(TerrainDetectTest, ImportAcceptsAHalfBlockShapeUnit) {
       ImportBlob47Manifest(R"({"scheme":"blob47","tile_size":32,"variant_period":1,"tiles":[],)"
                            R"("slopes":[{"shape":"kHalfBlockBottom","source_x":0,"source_y":0}]})",
                            1, 1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
   ASSERT_EQ(candidate->tiles.size(), 1u);
   EXPECT_EQ(candidate->tiles[0].shape, TileShape::kHalfBlockBottom);
 }

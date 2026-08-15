@@ -59,6 +59,7 @@ class MockApi : public Api {
   MOCK_METHOD(absl::StatusOr<std::string>, CreateTileset, (Tileset), (override));
   MOCK_METHOD(absl::Status, UpdateTileset, (Tileset), (override));
   MOCK_METHOD(absl::Status, DeleteTileset, (const std::string&), (override));
+  MOCK_METHOD(absl::Status, CheckTileDeletable, (const std::string&, int), (override));
   MOCK_METHOD(std::vector<Tileset>, GetAllTilesets, (), (override));
   MOCK_METHOD(absl::StatusOr<Tileset*>, GetTileset, (const std::string&), (override));
 

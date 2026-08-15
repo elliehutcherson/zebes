@@ -158,9 +158,7 @@ absl::StatusOr<TilesetPanel::Action> TilesetPanel::RenderDetails(TilesetEditorMo
   RETURN_IF_ERROR(RenderTilesetFields(model));
 
   gui_->Separator();
-  RETURN_IF_ERROR(RenderTileList(model));
-
-  return Action::kNone;
+  return RenderTileList(model);
 }
 
 absl::Status TilesetPanel::RenderTilesetFields(TilesetEditorModel& model) {
@@ -189,22 +187,30 @@ absl::Status TilesetPanel::RenderTilesetFields(TilesetEditorModel& model) {
   return absl::OkStatus();
 }
 
-absl::Status TilesetPanel::RenderTileList(TilesetEditorModel& model) {
+absl::StatusOr<TilesetPanel::Action> TilesetPanel::RenderTileList(TilesetEditorModel& model) {
   Tileset* tileset = model.active_tileset();
   if (tileset == nullptr) return absl::FailedPreconditionError("No tileset is being edited");
+
+  Action action = Action::kNone;
 
   gui_->Text("Tiles");
   gui_->SameLine();
   if (gui_->Button("Add")) RETURN_IF_ERROR(model.AddTile());
   gui_->SameLine();
   {
-    // Deliberately not confirmed, unlike deleting a tileset or a terrain. The
-    // line those draw is whether the work can be trivially recreated: one tile
-    // is an Add and a click away, while a 47-mask rule table is not. Asking
-    // here would only add friction to the list you are actively editing.
+    // Still not confirmed, unlike deleting a tileset or a terrain, and for the
+    // same reason: an unused tile is an Add and a click away, so asking would be
+    // friction on the list you are actively editing.
+    //
+    // That reasoning only holds while nothing has painted the tile. Re-adding
+    // one yields a fresh ID -- NextTileId is max+1 -- so a level that painted
+    // the old ID cannot be put right by recreating the tile, and it stops
+    // rendering entirely rather than losing one cell. The editor asks the Api
+    // who has painted it and refuses; the friction lands on the tiles where the
+    // risk actually is.
     ScopedDisabled disabled = gui_->CreateScopedDisabled(model.selected_tile() == nullptr);
     ScopedStyleColor style = gui_->CreateScopedStyleColor(ImGuiCol_Button, kDestructiveColor);
-    if (gui_->Button("Delete##Tile")) RETURN_IF_ERROR(model.DeleteSelectedTile());
+    if (gui_->Button("Delete##Tile")) action = Action::kDeleteTile;
   }
 
   // A fixed number of rows, not "whatever is left". Sizing this list against
@@ -229,7 +235,7 @@ absl::Status TilesetPanel::RenderTileList(TilesetEditorModel& model) {
   }
 
   RETURN_IF_ERROR(RenderTerrainList(model));
-  return absl::OkStatus();
+  return action;
 }
 
 absl::Status TilesetPanel::RenderTerrainList(TilesetEditorModel& model) {

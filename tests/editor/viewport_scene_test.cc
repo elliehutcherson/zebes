@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/entity.h"
 #include "objects/sprite.h"
 
@@ -69,7 +70,7 @@ TEST(ViewportSceneEntityTest, OrdersEntitiesByDrawOrder) {
 
   absl::StatusOr<std::vector<EntityRenderItem>> items = ComposeEntityRenderItems(entities, {}, {});
 
-  ASSERT_TRUE(items.ok()) << items.status();
+  ASSERT_OK(items);
   ASSERT_EQ(items->size(), 3u);
   EXPECT_EQ((*items)[0].entity_id, 2u);
   EXPECT_EQ((*items)[1].entity_id, 3u);
@@ -88,7 +89,7 @@ TEST(ViewportSceneEntityTest, EqualDrawOrderKeepsAscendingIdOrder) {
 
   absl::StatusOr<std::vector<EntityRenderItem>> items = ComposeEntityRenderItems(entities, {}, {});
 
-  ASSERT_TRUE(items.ok()) << items.status();
+  ASSERT_OK(items);
   ASSERT_EQ(items->size(), 3u);
   EXPECT_EQ((*items)[0].entity_id, 4u);
   EXPECT_EQ((*items)[1].entity_id, 6u);

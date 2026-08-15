@@ -130,6 +130,7 @@ add_executable(tileset_panel_test tileset_panel_test.cc)
 target_link_libraries(tileset_panel_test
   gtest_main
   gmock
+  macros
   tileset_panel
   tileset_editor_model
   blob47_compose
@@ -213,6 +214,7 @@ gtest_discover_tests(viewport_model_test)
 add_executable(viewport_scene_test viewport_scene_test.cc)
 target_link_libraries(viewport_scene_test
   gtest_main
+  macros
   viewport_scene
 )
 target_include_directories(viewport_scene_test PRIVATE ${CMAKE_SOURCE_DIR})

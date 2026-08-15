@@ -35,6 +35,8 @@ class TilesetEditor {
   void RefreshCatalogs();
   absl::Status SaveActiveTileset();
   absl::Status DeleteSelectedTileset();
+  // Removes the selected tile once no level has painted it.
+  absl::Status DeleteSelectedTile();
   absl::Status HandlePanelAction(TilesetPanel::Action action);
 
   // Renders the tileset list and management controls (left column).

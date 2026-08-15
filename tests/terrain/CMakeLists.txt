@@ -63,6 +63,7 @@ add_executable(terrain_detect_test terrain_detect_test.cc)
 target_link_libraries(terrain_detect_test
   gtest_main
   gmock
+  macros
   terrain_detect
   blob47_compose
 )

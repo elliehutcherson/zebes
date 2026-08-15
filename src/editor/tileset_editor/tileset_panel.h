@@ -19,6 +19,9 @@ class TilesetPanel {
     kNone,
     kSave,
     kDelete,
+    // Deleting a tile is reported rather than applied, because a level may have
+    // painted it and only the containing editor can ask the Api who has.
+    kDeleteTile,
   };
 
   static absl::StatusOr<std::unique_ptr<TilesetPanel>> Create(GuiInterface* gui);
@@ -36,7 +39,7 @@ class TilesetPanel {
   absl::StatusOr<Action> RenderDeleteTilesetControl(TilesetEditorModel& model);
 
   absl::Status RenderTilesetFields(TilesetEditorModel& model);
-  absl::Status RenderTileList(TilesetEditorModel& model);
+  absl::StatusOr<Action> RenderTileList(TilesetEditorModel& model);
 
   // Renders the terrains this tileset carries, plus Detect. Authoring a terrain
   // happens in the Terrain tab, which has room for the preview that tuning one
