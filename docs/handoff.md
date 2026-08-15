@@ -1,13 +1,11 @@
 # Handoff: derived terrain artwork
 
 State as of 2026-08-15. Work is on the branch **`terrain-derived-artwork`**,
-eleven commits, **not merged to `main`**. 620 C++ tests and 22 Python tests pass
-through `scripts/build_and_test.sh`.
+**not merged to `main`**. 622 C++ tests and 22 Python tests pass through
+`scripts/build_and_test.sh`.
 
 The design document is [`terrain-derived-artwork.md`](terrain-derived-artwork.md).
-It was written before the implementation and parts of it are now behind the
-code; where they disagree, this file is current and the doc needs the update
-listed at the end.
+It has been trued up against the implementation and no longer trails it.
 
 ---
 
@@ -160,8 +158,12 @@ Worth knowing because most were invisible to reading:
   encoder, so it could pass while the production reader was broken.
 - **`Api::Create` validated every manager except `BlueprintManager`.**
 - **absl drops `LOG(INFO)` before stderr** unless the threshold is raised, so
-  `compose_blob47` and `generate_blob47_mask` have never printed their progress
-  lines. Only `render_slope_matrix` was fixed.
+  `compose_blob47` and `generate_blob47_mask` had never printed their progress
+  lines. All three tools set the threshold now.
+- **`TerrainEditorModel::TileCount` counted slope units generation no longer
+  bakes**, so the Terrain Editor promised 67 tiles where Create writes 47. Its
+  test asserted the stale number, which is why it passed. Found while truing up
+  the manifest.
 
 ---
 
@@ -169,28 +171,18 @@ Worth knowing because most were invisible to reading:
 
 ### In this phase
 
-1. **The manifest true-up.** `blob47_compose`'s manifest still omits `slopes`
-   when empty, writes `shape` as a raw integer rather than its
-   `kTileShapeIdentifiers` spelling, and reads `tile_size` with
-   `.value(..., 0)`. `ParseManifestSlopes` also restricts shapes to 6-25, which
-   keeps half-blocks out of hand-drawn terrain for no remaining reason. This is
-   the hand-drawn import path and is independent of everything above. No
-   manifest is tracked in `assets/`, so changing the schema costs nothing.
-
-2. **Bring the design doc in line.** `terrain-derived-artwork.md` predates the
-   implementation. It says `member_tile_ids` is deleted (it was renamed and kept
-   for `kBlob47`), does not mention `derived_tiles` or how regeneration works,
-   and still describes the content index as the only persisted-by-derivation
-   piece.
-
-3. **Nobody has run the editor.** Every layer is tested headlessly and the
+1. **Nobody has run the editor.** Every layer is tested headlessly and the
    artwork invariant is asserted end to end, but no test drives a real window.
    Worth walking: paint a derived terrain, place a ramp and a ledge, watch the
    atlas grow, save, reopen, and confirm the artwork survived. Also confirm the
    shape picker greys out with no terrain selected.
 
-4. **Merge to `main`.** The branch was made because committing to the default
+2. **Merge to `main`.** The branch was made because committing to the default
    branch is discouraged; `main` has not moved since.
+
+Done in this phase: the manifest true-up (all four items, plus the shape range,
+which was replaced by naming the two shapes a unit cannot be rather than by
+deleting validation), and the design-doc true-up.
 
 ### Carried over from before this phase
 

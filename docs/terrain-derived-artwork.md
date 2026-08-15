@@ -4,6 +4,13 @@ Generated terrain artwork becomes a pure function of collision geometry, cached
 by content rather than enumerated by key. This replaces the slope-connectivity
 phase, which was an incremental patch on the thing that is actually wrong.
 
+**Status: implemented.** This was written before the code and has been trued up
+against it. Where the first draft turned out to be wrong the correction says so
+rather than quietly reading as though it had always said that — the content index
+keys on pixels rather than a hash (§3.2), the design does change the tileset
+format (§3.2.1), and `member_tile_ids` is renamed rather than dropped (§5). See
+[`handoff.md`](handoff.md) for what remains.
+
 ## 1. The root cause
 
 `TerrainRenderer` is a pure function:
@@ -85,15 +92,39 @@ especially since deduplication is a saving rather than something correctness
 rests on — the atlas is bounded by the neighbourhoods a level contains either
 way.
 
-**The content index is derived, not stored.** At load, the editor hashes each
-tile's rect out of the atlas texture and builds `hash -> tile_id`. PNG is
-lossless, so the hash is exact. No new field on `Tile`, no cache file, no format
-change — which is the only way to add this without adding a format invariant to
-defend.
+**The content index is derived, not stored.** At load, the editor cuts each
+tile's rect out of the atlas texture and builds `pixels -> tile_id`. PNG is
+lossless, which is what makes a byte comparison across sessions meaningful. No
+cache file and nothing on disk to invalidate.
+
+The key is the pixels themselves, not a hash of them, so two different pictures
+can never alias. That was a change from this document's first draft, which said
+hash. A hash would have made the one thing correctness *does* rest on — never
+reusing a tile that holds a different picture — depend on a collision not
+happening. A whole atlas is under a megabyte at the sizes in use, and paying that
+to delete a collision case is the right trade.
 
 The key memo is in-memory only and rebuilt per session. A session's first paint
 of each distinct neighbourhood renders one tile, which is milliseconds; the
 whole-atlas cost that makes `Create` block for seconds never arises here.
+
+### 3.2.1 What a derived tile is a picture of
+
+The index answers "does this picture already exist". It cannot answer "what was
+this tile drawn for", and regeneration needs that second question.
+
+So `Terrain::derived_tiles` pairs each tile with the `TerrainCellKey` it depicts.
+Nothing else records it: a `Tile` knows where its pixels are and what it collides
+as, not what it is a picture of.
+
+This is a format change, and this document's first draft claimed the design
+needed none. That claim was wrong rather than merely incomplete. Without the
+key on disk, retuning a material could only redraw the tiles *generation*
+produced, and every tile a level had asked for mid-paint would keep its old
+artwork — the atlas would end up half-retuned, with no way to tell which half.
+
+Regeneration therefore redraws every tile from its own key, wherever it sits in
+the atlas, and tile IDs never move.
 
 ### 3.3 The brush stays generator-free
 
@@ -226,7 +257,10 @@ The point of the phase. None of this is left behind "for now".
 Also cleared while the schema is open, from the earlier audit: the manifest's
 `slopes` key becomes unconditional, `shape` is spelled with its
 `kTileShapeIdentifiers` identifier rather than a raw integer, and `tile_size` is
-read with `.at()`.
+read with `.at()`. All four landed together; the range check turned out to be
+replaceable by naming the two shapes a unit genuinely cannot be — `kNone`, which
+has no polygon, and `kFullBlock`, which the mask-keyed rules already draw —
+rather than by deleting validation outright.
 
 ## 5. Migration
 
@@ -243,30 +277,34 @@ tolerant reader anywhere.
    actually placed one.
 3. **Check whether any level places a slope tile at all** before assuming step 2
    is free. If none do, the migration touches no level data.
-4. `member_tile_ids` is dropped by the same migration rather than being read and
-   ignored.
+4. `member_tile_ids` is **renamed** to `shape_tile_ids` by the same migration.
+   An earlier draft of this document said dropped, which was wrong: the field
+   survives for `kBlob47`, where it is that scheme's shape-to-artwork table
+   (§3.4). Only `kDerived` leaves it empty, because it renders any shape on
+   demand.
 
 ## 6. Sequence
 
 Each step builds and tests on its own.
 
-1. **`TerrainCellKey` and the content index.** Key type, hashing, the derived
-   `hash -> tile_id` index built from atlas pixels. No behaviour change yet.
+1. **`TerrainCellKey` and the content index.** Key type and the derived
+   `pixels -> tile_id` index built from atlas pixels. No behaviour change yet.
 2. **`TerrainTileProvider` and the `kBlob47` implementation.** Move today's
    `SelectVariant` path behind the interface; the brush talks to the interface.
    Pure refactor, existing tests hold.
 3. **`kDerived` provider.** Renders on miss, appends to atlas and tileset.
 4. **Shape-based placement.** The palette offers shapes for a derived terrain;
-   `member_tile_ids` and the paintable split are deleted.
+   the paintable/member split is deleted and `member_tile_ids` is renamed
+   `shape_tile_ids`.
 5. **Delete the inference path.** `AutoContext`, `ApplyPartner`,
    `RenderShapeTile`, the pre-baked slope block.
 6. **Migration and manifest true-up.**
 
 ## 7. How it stays true
 
-`tests/terrain/terrain_slope_join_test.cc` currently *documents* the defect — it
-asserts a ledge differs from the truth by more than 10%. Under this design it
-inverts into the invariant:
+`tests/terrain/terrain_slope_join_test.cc` used to *document* the defect — it
+asserted a ledge differed from the truth by more than 10%. It is gone, replaced
+by `tests/editor/derived_artwork_test.cc`, which asserts the invariant:
 
 > For every cell of every scene, the tile the pipeline resolves must be
 > pixel-identical to the tile rendered against the real neighbourhood.
@@ -276,12 +314,19 @@ reintroduces a lossy key fails it on the next run, and extending the guard to a
 new shape family is one line in a scene. That is the mechanism; the invariant in
 part 2 is the intent.
 
+It is not tautological, which is the thing worth checking about a test like this.
+The provider renders from a key, but the key comes from the level through
+`ComputeTerrainCellKey`: which neighbours count as this terrain, what shape each
+holds, what phase the cell sits at. Getting any of that wrong yields artwork for
+a neighbourhood the level does not have, and that is what the test catches.
+
 ## 8. Deliberately accepted
 
 - **Hand-drawn terrain keeps the 47-mask key.** Its artwork is authored against
   that key, so it is not lossy there — a mask is the complete truth about a
   drawing made from quadrants. `kBlob47` is a design choice; `kDerived` is the
   one that had to change.
-- **Atlas fragmentation**, answered by explicit compaction (3.6).
+- **Atlas fragmentation**, answered by explicit compaction (3.6). The compaction
+  tool does not exist yet, so today this is accepted rather than answered.
 - **The first paint of a novel neighbourhood renders a tile.** Milliseconds, and
   memoized for the session.
