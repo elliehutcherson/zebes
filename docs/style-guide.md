@@ -1,102 +1,80 @@
 # Zebes Style Guide
 
 Zebes follows the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
-with the project-specific rules below. This document is the human-facing coding
-guide; `.clang-format` is the formatting authority.
+with the project-specific rules recorded under [`.claude/rules/`](../.claude/rules/).
 
-## Naming
+**Those files are the rules. This page is the map.** Each rule file is plain
+markdown, written to be read by a person as easily as by an agent. They live
+under `.claude/` because Claude Code loads them automatically when someone edits
+a matching file; that placement is a delivery mechanism, not an audience.
 
-- Types and functions use `PascalCase`.
-- Local variables and parameters use `snake_case`.
-- Data members use `snake_case_`.
-- Constants use `kPascalCase`.
-- CMake target and source names use `snake_case`.
+Do not restate a rule here. A second copy drifts, and the copy people read stops
+matching the copy agents load.
 
-## Types and initialization
+## Where the rules live
 
-- Prefer Zebes-owned domain types at library boundaries.
-- Do not expose SDL, ImGui, or another dependency's data structures from engine
-  or resource interfaces.
-- Prefer brace initialization for aggregates and value initialization.
-- Use explicit types when they improve readability. Use `auto` when the type is
-  cumbersome or already obvious from the expression.
-- Prefer references for required dependencies and pointers only for nullable or
-  reseatable relationships.
-- Express ownership with RAII types such as `std::unique_ptr`.
+| Topic | File | Applies when you touch |
+| --- | --- | --- |
+| Naming, types, errors, control flow, headers, layering | [`cpp-style.md`](../.claude/rules/cpp-style.md) | `*.cc`, `*.h`, `CMakeLists.txt` |
+| Serialized definition formats, schema migrations | [`definitions.md`](../.claude/rules/definitions.md) | `src/objects/`, `src/resources/`, `scripts/migrate_definitions.py`, `tests/` fixtures |
+| Determinism, fakes vs. mocks, headless requirement | [`testing.md`](../.claude/rules/testing.md) | `tests/` |
 
-## Errors and control flow
+Two rules sit outside those files:
 
-- Use `absl::Status` and `absl::StatusOr` for recoverable failures.
-- Prefer `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` for propagation.
-- Fail early rather than leaving partially valid objects behind.
-- Favor guard clauses and small helpers over deeply nested control flow.
-- Do not add `else` after a branch that always returns.
+- Build and verification commands, and the debugging protocol: [`CLAUDE.md`](../CLAUDE.md).
+- Cross-layer ownership and lifetime: [`architecture.md`](architecture.md).
 
-## Dependencies and architecture
+## Why the rules are shaped this way
 
-- Depend on interfaces owned by the layer above an external library.
-- Keep SDL implementations under `src/platform/sdl` or SDL-specific UI code.
-- Keep ImGui in the editor/UI layer.
-- Wire concrete dependencies in the application composition root.
-- Do not introduce globals or service locators to avoid normal dependency
-  injection.
-- Record new cross-layer ownership or lifetime rules in `architecture.md`.
+Rationale that would bloat the rule files, kept here for the reader deciding
+whether a rule still earns its place.
 
-## Serialized formats
+**No optional fields in serialized formats.** A tolerant reader is a permanent
+tax: every future reader has to reason about what an absent field meant, and the
+answer changes as the format grows. A migration pays the cost once, at a moment
+when someone understands the old data. This is why adding a field means
+extending `scripts/migrate_definitions.py` rather than defaulting on read.
 
-- **No optional fields.** Every writer emits every field of the record it is
-  writing, and every reader requires it with `.at()`. A definition missing a
-  field is corruption, not permission to substitute a default.
-- Write collections even when empty. An absent list and an empty one would
-  otherwise be two spellings of one state, and the reader would have to guess
-  which the author meant.
-- **Add a field by adding a migration, not a default.** Extend
-  `scripts/migrate_definitions.py` and run it once. A tolerant reader silently
-  reinterprets old data forever; a migration moves it once and then the
-  invariant holds.
-- A record may be a tagged union, and that is not an optional field. When a
-  discriminator such as `TerrainScheme` says which variant a record is, each
-  variant's fields are required for that variant and absent from the others. The
-  reader knows which set to demand before it reads them.
-- Read exactly one schema version. Carrying a translation for a version no file
-  uses lets absent data decide the parser's shape.
-- Every shipped definition is loaded by a test, and every `LoadAll*` reports the
-  files it could not read rather than logging and returning success. Strict
-  parsing without both is a trap rather than an invariant.
+**Strict parsing needs backstops.** Demanding every field turns a silent
+misparse into a loud failure only if something exercises the failure. Two
+mechanisms carry that weight: every shipped definition is loaded by a test, and
+every `LoadAll*` reports the files it could not read. Strict parsing without
+both is a trap, not an invariant.
 
-## Headers
+**Domain types at library boundaries.** Keeping SDL and ImGui types out of
+engine and resource interfaces is what makes the headless test preset possible.
+When a test needs a window, that is usually the boundary leaking, not a
+legitimate need for a display.
 
-- Public headers should document ownership, nullability, lifetime, and error
-  behavior when those are not obvious from the type.
-- Include what the file uses; do not depend on transitive includes.
-- Include required type declarations directly by default. Use forward
-  declarations only when they materially reduce coupling or build cost without
-  making the header unclear or fragile.
-- Comments should explain intent, invariants, and tradeoffs rather than repeat
-  the code.
-
-## Testing
-
-- Add deterministic tests for new behavior and failure paths.
-- Prefer fakes for stateful platform-neutral interfaces and mocks for verifying
-  important interactions.
-- Keep engine and resource tests headless.
-- Put tests requiring SDL windows or ImGui interaction in the UI test preset.
-- A test must fail when required setup or data is missing; do not conditionally
-  skip assertions to make it pass.
+**Fail immediately rather than partially construct.** A half-built object
+outlives the error that produced it and fails somewhere unrelated. `absl::Status`
+propagation with `RETURN_IF_ERROR` keeps the failure adjacent to its cause.
 
 ## Formatting and verification
 
-Format changed C++ files with the repository `.clang-format` configuration.
-Before handing off a change, run:
+`.clang-format` is the formatting authority. A `PostToolUse` hook in
+[`.claude/settings.json`](../.claude/settings.json) runs `clang-format -i` on
+every `.cc` and `.h` file an agent edits, so agent-written code is formatted
+without anyone asking. Format your own edits with your editor's clang-format
+integration or:
 
 ```bash
-./scripts/build_and_test.sh
-git diff --check
+clang-format -i path/to/file.cc
 ```
 
-Use the UI test workflow when changing behavior that depends on SDL or ImGui:
+`.clang-tidy` is configured but not installed or wired into the build. Nothing
+runs it today. Treat the rule files, not the linter, as the enforcement layer.
+
+Before handing off a change:
 
 ```bash
-./scripts/build_and_test.sh --ui-tests
+./scripts/build_and_test.sh              # build + headless tests
+./scripts/build_and_test.sh --ui-tests   # when the change touches SDL or ImGui
+git diff --check                         # trailing whitespace, conflict markers
 ```
+
+## For other agents
+
+Read every file in `.claude/rules/`. They are unconditional project rules except
+for the `paths:` frontmatter, which only tells Claude Code when to load them
+lazily; the content applies regardless of which tool is reading.

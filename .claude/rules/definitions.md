@@ -1,0 +1,48 @@
+---
+paths:
+  - "src/resources/**"
+  - "src/objects/**"
+  - "scripts/migrate_definitions.py"
+  - "tests/resources/**"
+  - "tests/assets/**"
+---
+
+# Serialized definitions
+
+Every field is required. There are no optional fields in this format.
+
+## Reading and writing
+
+- Writers emit every field of the record they write.
+- Readers require every field with `.at()`. A missing field is corruption.
+  Do not substitute a default, and do not add one to make a load succeed.
+- Write collections even when empty. An absent list and an empty list must not
+  both be spellings of the same state.
+- Read exactly one schema version. Do not carry a translation path for a
+  version no file on disk uses.
+
+## Adding a field
+
+Add a migration, not a default:
+
+1. Add the field to the writer and the reader.
+2. Extend `scripts/migrate_definitions.py` to populate it in existing files.
+3. Run the migration once and commit the migrated definitions.
+
+A tolerant reader reinterprets old data forever. A migration moves it once and
+the invariant holds afterward.
+
+## Tagged unions
+
+A discriminator such as `TerrainScheme` selects which variant a record is. Each
+variant's fields are required for that variant and absent from the others. The
+reader determines the variant before reading variant fields. This is not an
+optional field.
+
+## Required backstops
+
+Strict parsing is a trap without both of these:
+
+- Every shipped definition is loaded by a test.
+- Every `LoadAll*` reports the files it could not read. It must not log a
+  failure and return `absl::OkStatus()`

@@ -1,0 +1,69 @@
+---
+paths:
+  - "**/*.cc"
+  - "**/*.h"
+  - "**/CMakeLists.txt"
+  - "**/*.cmake"
+---
+
+# C++ style
+
+Google C++ Style Guide, plus the following. `.clang-format` is the formatting
+authority; a hook runs it on edited files.
+
+## Naming
+
+- Types and functions: `PascalCase`
+- Locals and parameters: `snake_case`
+- Data members: `snake_case_`
+- Constants: `kPascalCase`
+- CMake targets and source file names: `snake_case`
+
+## Types and initialization
+
+- Brace-initialize aggregates and PODs.
+- Use explicit types. Use `auto` only for cumbersome types (iterators) or when
+  the expression already names the type (`std::make_unique<Foo>()`).
+- References for required dependencies. Pointers only for nullable or
+  reseatable ones. Never null-check a reference.
+- Express ownership with RAII types such as `std::unique_ptr`.
+- Mark a member function `static` when it does not read or modify instance
+  state. Nothing enforces this mechanically; the linter check for it is off.
+- Prefer Zebes-owned domain types at library boundaries. Do not expose SDL or
+  ImGui types from engine or resource interfaces.
+
+## Libraries
+
+Use `absl::Status`, `absl::StatusOr`, `absl::flat_hash_map`, `absl::StrFormat`
+over their STL equivalents.
+
+## Errors
+
+- `absl::Status` and `absl::StatusOr` for recoverable failures.
+- `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` to propagate.
+- Fail immediately. Never return a partially constructed object or fall back to
+  a default state.
+
+## Control flow
+
+- Guard clauses and early returns over `if`/`else`.
+- No `else` after a branch that returns.
+- More than two levels of indentation means extract a private helper.
+
+## Headers
+
+- Include what the file uses. Do not rely on transitive includes.
+- Include type declarations directly by default. Forward declare only when it
+  materially cuts coupling or build time.
+- Document ownership, nullability, lifetime, and error behavior when the type
+  does not make them obvious.
+- Comment intent, invariants, and tradeoffs. Never restate the code.
+
+## Layering
+
+- Depend on interfaces owned by the layer above an external library.
+- SDL implementations live under `src/platform/sdl` or SDL-specific UI code.
+- ImGui stays in the editor/UI layer.
+- Wire concrete dependencies in the application composition root. No globals,
+  no service locators.
+- Record new cross-layer ownership or lifetime rules in `docs/architecture.md`.
