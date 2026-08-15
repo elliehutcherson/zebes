@@ -1,18 +1,15 @@
 # Deleting an asset something else might be using
 
-**Status: §§1-8 implemented. §9 steps 1-3 are done; steps 4-5 are not.**
+**Status: §§1-8 implemented. §9 steps 1-3 and 5 are done; step 4's editor work is
+not.**
 
-Every delete now refuses when something still references what it would remove,
-and says what. What is still missing is the ability to delete a texture or a
-terrain recipe at all: `Api::DeleteTexture` and `Api::DeleteTerrainRecipe` exist
-and are now safe, but no UI calls either. The only `DeleteTexture` call in the
-editor remains a rollback path when recipe creation fails
-(`terrain_creation.cc:140`).
+Every delete refuses when something still references what it would remove, and
+says what. Bundle deletion works at the Api level.
 
-Bundle deletion (§4, a recipe-owned texture + tileset + recipe going together) is
-also not built. Until it is, removing a generated terrain means deleting the
-tileset first, which unbinds the texture, and then the texture — which the editor
-cannot yet do.
+What is missing is entirely UI: **no button calls any of it.** There is still no
+way to delete a texture or a generated terrain from the editor, which is the
+problem that started this work. The only `DeleteTexture` call in the editor
+remains a rollback path when recipe creation fails (`terrain_creation.cc:140`).
 
 The rest of this document is the analysis the implementation followed.
 
@@ -195,9 +192,32 @@ it should still say what it is about to disconnect.
    and `IsColliderUsed`, `SpriteManager::IsTextureUsed`,
    `TilesetManager::IsTextureUsed` — because two mechanisms answering one
    question is how a future delete gets wired to the incomplete one.
-4. Add Delete to the Texture Editor and the Terrain Editor, behind the existing
-   `ConfirmPrompt` pattern.
-5. Bundle deletion for a recipe-owned texture + tileset + recipe, per §4.
+4. **Api half done, UI not started.** `Api::DeleteGeneratedTerrain` exists and is
+   tested; no button calls it yet. What is left is the editor work:
+   - **Texture Editor**: Delete behind `ConfirmPrompt` — this tab has never used
+     one, so it would be the sixth. The refusal already has somewhere to land,
+     `model_.error()` at `texture_editor.cc:95`, though that is a plain
+     `TextColored` with no Dismiss unlike the other five tabs.
+   - **Terrain Editor**: one Delete that calls `DeleteGeneratedTerrain`, with a
+     confirmation naming all three — "Delete terrain 'x', its tileset, and its
+     artwork?" — since three files go and the user should see that first.
 
-Steps 1-3 removed the ways a level could be broken. Steps 4-5 add the capability
-that is missing, and are safe to build now that the checks are in place.
+   Decided against: a bare "delete recipe" button. Nothing references a recipe,
+   so it would always succeed, and it would leave a tileset nothing can
+   regenerate — the state `lucinda_cave` was in, and the one
+   `RegenerateTerrainTileset` now refuses. A one-click way to manufacture the
+   problem this work removed is not worth the flexibility.
+
+5. **Done.** The bundle is an ordering over the existing guards rather than a
+   bypass: recipe, then tileset, then texture, each member gone before it can
+   block the next, every step still going through its own checked delete. It
+   pre-flights first because the sequence cannot be unwound, subtracting the
+   bundle's own cross-references — those are what make the three one thing.
+
+   Not atomic, deliberately. Pre-flight removes every referential reason to fail;
+   a filesystem error mid-sequence still leaves a partial state, which is
+   reported by step and finishable by hand once step 4 exists. A rollback journal
+   for three files is not worth it.
+
+Steps 1-3 removed the ways a level could be broken. Step 4's remaining half is
+the capability that is still missing.
