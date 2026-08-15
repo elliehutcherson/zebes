@@ -9,37 +9,71 @@ namespace {
 // Names describe the surface, because that is what an author is choosing. The
 // enumerators name the end a wedge tapers to, which is a fact about the polygon
 // and not about the ramp.
+// The fully surrounded mask. Its tile is the interior of a filled region.
+constexpr uint8_t kSolidMask = 255;
+
+// Whether a key depicts a full block with its own material on all eight sides.
+bool IsSurroundedInterior(const TerrainCellKey& key) {
+  if (key.shape != TileShape::kFullBlock) return false;
+  for (const TileShape neighbor : key.neighbors) {
+    if (neighbor != TileShape::kFullBlock) return false;
+  }
+  return true;
+}
+
+// Group labels. Named here rather than spelled at each row so the palette and
+// any other reader agree about which family a piece belongs to.
+constexpr char kBlockGroup[] = "Block";
+constexpr char kHalfBlockGroup[] = "Half blocks";
+constexpr char kSlope45Group[] = "45 slopes";
+constexpr char kGentleGroup[] = "Gentle slopes";
+constexpr char kSteepGroup[] = "Steep slopes";
+
 std::vector<TerrainShapeChoice> BuildCatalogue() {
   return {
-      {TileShape::kFullBlock, "Block"},
+      {TileShape::kFullBlock, "Block", kBlockGroup},
 
-      {TileShape::kHalfBlockBottom, "Half block, floor"},
-      {TileShape::kHalfBlockTop, "Half block, ceiling"},
-      {TileShape::kHalfBlockLeft, "Half block, left"},
-      {TileShape::kHalfBlockRight, "Half block, right"},
+      {TileShape::kHalfBlockBottom, "Half block, floor", kHalfBlockGroup},
+      {TileShape::kHalfBlockTop, "Half block, ceiling", kHalfBlockGroup},
+      {TileShape::kHalfBlockLeft, "Half block, left", kHalfBlockGroup},
+      {TileShape::kHalfBlockRight, "Half block, right", kHalfBlockGroup},
 
-      {TileShape::kSlope45BottomLeft, "45 floor, up to the right"},
-      {TileShape::kSlope45BottomRight, "45 floor, up to the left"},
-      {TileShape::kSlope45TopLeft, "45 ceiling, down to the right"},
-      {TileShape::kSlope45TopRight, "45 ceiling, down to the left"},
+      {TileShape::kSlope45BottomLeft, "45 floor, up to the right", kSlope45Group},
+      {TileShape::kSlope45BottomRight, "45 floor, up to the left", kSlope45Group},
+      {TileShape::kSlope45TopLeft, "45 ceiling, down to the right", kSlope45Group},
+      {TileShape::kSlope45TopRight, "45 ceiling, down to the left", kSlope45Group},
 
-      {TileShape::kGentleSlopeBottomLeft_Lower, "Gentle floor, up to the right, lower half"},
-      {TileShape::kGentleSlopeBottomLeft_Upper, "Gentle floor, up to the right, upper half"},
-      {TileShape::kGentleSlopeBottomRight_Lower, "Gentle floor, up to the left, lower half"},
-      {TileShape::kGentleSlopeBottomRight_Upper, "Gentle floor, up to the left, upper half"},
-      {TileShape::kGentleSlopeTopLeft_Lower, "Gentle ceiling, down to the right, lower half"},
-      {TileShape::kGentleSlopeTopLeft_Upper, "Gentle ceiling, down to the right, upper half"},
-      {TileShape::kGentleSlopeTopRight_Lower, "Gentle ceiling, down to the left, lower half"},
-      {TileShape::kGentleSlopeTopRight_Upper, "Gentle ceiling, down to the left, upper half"},
+      {TileShape::kGentleSlopeBottomLeft_Lower, "Gentle floor, up to the right, lower half",
+       kGentleGroup},
+      {TileShape::kGentleSlopeBottomLeft_Upper, "Gentle floor, up to the right, upper half",
+       kGentleGroup},
+      {TileShape::kGentleSlopeBottomRight_Lower, "Gentle floor, up to the left, lower half",
+       kGentleGroup},
+      {TileShape::kGentleSlopeBottomRight_Upper, "Gentle floor, up to the left, upper half",
+       kGentleGroup},
+      {TileShape::kGentleSlopeTopLeft_Lower, "Gentle ceiling, down to the right, lower half",
+       kGentleGroup},
+      {TileShape::kGentleSlopeTopLeft_Upper, "Gentle ceiling, down to the right, upper half",
+       kGentleGroup},
+      {TileShape::kGentleSlopeTopRight_Lower, "Gentle ceiling, down to the left, lower half",
+       kGentleGroup},
+      {TileShape::kGentleSlopeTopRight_Upper, "Gentle ceiling, down to the left, upper half",
+       kGentleGroup},
 
-      {TileShape::kSteepSlopeBottomLeft_Bottom, "Steep floor, up to the right, bottom cell"},
-      {TileShape::kSteepSlopeBottomLeft_Top, "Steep floor, up to the right, top cell"},
-      {TileShape::kSteepSlopeBottomRight_Bottom, "Steep floor, up to the left, bottom cell"},
-      {TileShape::kSteepSlopeBottomRight_Top, "Steep floor, up to the left, top cell"},
-      {TileShape::kSteepSlopeTopLeft_Bottom, "Steep ceiling, down to the right, bottom cell"},
-      {TileShape::kSteepSlopeTopLeft_Top, "Steep ceiling, down to the right, top cell"},
-      {TileShape::kSteepSlopeTopRight_Bottom, "Steep ceiling, down to the left, bottom cell"},
-      {TileShape::kSteepSlopeTopRight_Top, "Steep ceiling, down to the left, top cell"},
+      {TileShape::kSteepSlopeBottomLeft_Bottom, "Steep floor, up to the right, bottom cell",
+       kSteepGroup},
+      {TileShape::kSteepSlopeBottomLeft_Top, "Steep floor, up to the right, top cell", kSteepGroup},
+      {TileShape::kSteepSlopeBottomRight_Bottom, "Steep floor, up to the left, bottom cell",
+       kSteepGroup},
+      {TileShape::kSteepSlopeBottomRight_Top, "Steep floor, up to the left, top cell", kSteepGroup},
+      {TileShape::kSteepSlopeTopLeft_Bottom, "Steep ceiling, down to the right, bottom cell",
+       kSteepGroup},
+      {TileShape::kSteepSlopeTopLeft_Top, "Steep ceiling, down to the right, top cell",
+       kSteepGroup},
+      {TileShape::kSteepSlopeTopRight_Bottom, "Steep ceiling, down to the left, bottom cell",
+       kSteepGroup},
+      {TileShape::kSteepSlopeTopRight_Top, "Steep ceiling, down to the left, top cell",
+       kSteepGroup},
   };
 }
 
@@ -84,6 +118,31 @@ absl::flat_hash_set<TileShape> PaintableShapesOf(const Terrain& terrain, const T
   }
   for (const int tile_id : terrain.shape_tile_ids) claim(tile_id);
   return shapes;
+}
+
+const Tile* TerrainSwatchTile(const Tileset& tileset, const Terrain& terrain) {
+  const auto tile_by_id = [&tileset](int tile_id) -> const Tile* {
+    for (const Tile& tile : tileset.tiles) {
+      if (tile.id == tile_id) return &tile;
+    }
+    return nullptr;
+  };
+
+  if (terrain.scheme == TerrainScheme::kDerived) {
+    for (const DerivedTile& derived : terrain.derived_tiles) {
+      if (IsSurroundedInterior(derived.key)) return tile_by_id(derived.tile_id);
+    }
+    // Nothing interior has been painted yet, so any artwork this terrain has is
+    // a better answer than a blank.
+    if (!terrain.derived_tiles.empty()) return tile_by_id(terrain.derived_tiles.front().tile_id);
+    return nullptr;
+  }
+
+  for (const TerrainRule& rule : terrain.rules) {
+    if (rule.mask != kSolidMask || rule.variants.empty()) continue;
+    if (const Tile* tile = tile_by_id(rule.variants.front().tile_id); tile != nullptr) return tile;
+  }
+  return nullptr;
 }
 
 }  // namespace zebes

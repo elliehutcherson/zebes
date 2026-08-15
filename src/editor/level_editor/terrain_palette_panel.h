@@ -11,11 +11,19 @@
 
 namespace zebes {
 
-// Lists the terrain brushes defined on a tileset and lets the user pick one.
+// Lists the terrain brushes defined on a tileset and lets the user pick one,
+// then which piece of it to lay down.
 //
 // Terrains resolve their artwork from a painted cell's neighbourhood, so the
-// swatch shows the fully surrounded tile: the piece a large filled region is
-// mostly made of, and the most recognisable single image of a material.
+// terrain swatch shows the fully surrounded tile: the piece a large filled
+// region is mostly made of, and the most recognisable single image of a
+// material.
+//
+// The shape picker below it shows silhouettes rather than artwork, because what
+// it selects is collision geometry and the artwork follows from it. A cell's
+// appearance depends on its whole neighbourhood, so no single thumbnail could
+// promise what a click will produce -- the cursor ghost does that, against the
+// real neighbours.
 class TerrainPalettePanel {
  public:
   struct Options {

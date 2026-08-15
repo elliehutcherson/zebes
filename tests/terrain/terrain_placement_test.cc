@@ -84,5 +84,99 @@ TEST(TerrainPlacementTest, TheCatalogueLeadsWithTheBlock) {
   EXPECT_EQ(AllTerrainShapeChoices().front().shape, TileShape::kFullBlock);
 }
 
+// A grid lays the catalogue out by family, which is what makes a two-cell ramp
+// legible: its halves sit next to each other instead of two rows apart in a
+// list of twenty-five names.
+TEST(TerrainPlacementTest, EveryChoiceNamesTheFamilyItBelongsTo) {
+  for (const TerrainShapeChoice& choice : AllTerrainShapeChoices()) {
+    EXPECT_FALSE(choice.group.empty()) << choice.name << " has no group";
+  }
+}
+
+TEST(TerrainPlacementTest, ChoicesInAGroupAreContiguousSoRowsDoNotRepeat) {
+  std::set<std::string> started;
+  std::string current;
+  for (const TerrainShapeChoice& choice : AllTerrainShapeChoices()) {
+    if (choice.group == current) continue;
+    EXPECT_TRUE(started.insert(choice.group).second)
+        << choice.group << " is split across the catalogue, so a grid would draw it twice";
+    current = choice.group;
+  }
+}
+
+// --- Swatch selection --------------------------------------------------------
+
+TerrainCellKey SurroundedBlockKey() {
+  TerrainCellKey key;
+  key.shape = TileShape::kFullBlock;
+  key.neighbors.fill(TileShape::kFullBlock);
+  return key;
+}
+
+TEST(TerrainSwatchTileTest, ABlobFortySevenTerrainUsesItsSolidMaskRule) {
+  Tileset tileset;
+  tileset.tiles = {Tile{.id = 4, .name = "edge"}, Tile{.id = 9, .name = "interior"}};
+  Terrain terrain;
+  terrain.scheme = TerrainScheme::kBlob47;
+  terrain.rules = {
+      TerrainRule{.mask = 1, .variants = {TerrainVariant{.tile_id = 4}}},
+      TerrainRule{.mask = 255, .variants = {TerrainVariant{.tile_id = 9}}},
+  };
+
+  const Tile* swatch = TerrainSwatchTile(tileset, terrain);
+
+  ASSERT_NE(swatch, nullptr);
+  EXPECT_EQ(swatch->id, 9) << "the interior reads as the material, not one of its edges";
+}
+
+// The bug this function was extracted for: a derived terrain has no rule table
+// by design, so scanning rules alone found nothing and the palette drew a grey
+// box for every derived terrain, forever.
+TEST(TerrainSwatchTileTest, ADerivedTerrainUsesTheTileWhoseKeyIsSurrounded) {
+  Tileset tileset;
+  tileset.tiles = {Tile{.id = 2, .name = "corner"}, Tile{.id = 6, .name = "interior"}};
+  Terrain terrain;
+  terrain.scheme = TerrainScheme::kDerived;
+  TerrainCellKey corner;
+  corner.shape = TileShape::kFullBlock;
+  corner.neighbors.fill(TileShape::kNone);
+  terrain.derived_tiles = {
+      DerivedTile{.tile_id = 2, .key = corner},
+      DerivedTile{.tile_id = 6, .key = SurroundedBlockKey()},
+  };
+
+  const Tile* swatch = TerrainSwatchTile(tileset, terrain);
+
+  ASSERT_NE(swatch, nullptr);
+  EXPECT_EQ(swatch->id, 6);
+}
+
+TEST(TerrainSwatchTileTest, ADerivedTerrainFallsBackToAnyArtworkItHas) {
+  // Early in a level nothing interior has been painted yet. Showing an edge
+  // piece is a worse picture of the material than the interior, and a much
+  // better one than a blank.
+  Tileset tileset;
+  tileset.tiles = {Tile{.id = 2, .name = "corner"}};
+  Terrain terrain;
+  terrain.scheme = TerrainScheme::kDerived;
+  TerrainCellKey corner;
+  corner.shape = TileShape::kFullBlock;
+  corner.neighbors.fill(TileShape::kNone);
+  terrain.derived_tiles = {DerivedTile{.tile_id = 2, .key = corner}};
+
+  const Tile* swatch = TerrainSwatchTile(tileset, terrain);
+
+  ASSERT_NE(swatch, nullptr);
+  EXPECT_EQ(swatch->id, 2);
+}
+
+TEST(TerrainSwatchTileTest, ATerrainThatHasDrawnNothingHasNoSwatch) {
+  Tileset tileset;
+  Terrain terrain;
+  terrain.scheme = TerrainScheme::kDerived;
+
+  EXPECT_EQ(TerrainSwatchTile(tileset, terrain), nullptr);
+}
+
 }  // namespace
 }  // namespace zebes
