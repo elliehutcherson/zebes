@@ -9,7 +9,7 @@ decided and why. This document only says what has not happened yet.
 | Track | What | State |
 |---|---|---|
 | 0 | Land the clang-tidy tooling and the slope rename | **Done** |
-| 1 | The clang-tidy backlog | **In progress** |
+| 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | Next |
 | 3 | Terrain carry-overs | After 1-2 |
 | 4 | Features: layers, prop artwork, zone seaming | After 3 |
@@ -52,23 +52,22 @@ shape in silence, since the numeric `shape` field is untouched and
 
 ---
 
-## Track 1 — The clang-tidy backlog
+## Track 1 — The clang-tidy backlog (done)
 
 The baseline, with vendored code excluded and repeated diagnostics deduplicated
-by location and check, was **220 findings in `src/`, 86 in `tests/`**. Removing
-the 153 virtual-default and 28 casting findings leaves **125 known findings**.
-Re-measure at the end of each group with `scripts/lint.sh --all`; its raw output
-can repeat a header finding for multiple translation units.
+by location and check, was **220 findings in `src/`, 86 in `tests/`**. The tree
+is now clean under `scripts/lint.sh --strict --all`; its raw output can repeat a
+header finding for multiple translation units.
 
 | Count | Check | Where |
 |---|---|---|
 | 153 | `google-default-arguments` | **Done** — `gui_interface.h`, `gui.h`, `gui.cc` |
 | 28 | `google-readability-casting` | **Done** — `sprite_editor.{h,cc}`, `canvas_sprite.cc`, `canvas.cc` |
-| 13 | `google-explicit-constructor` | `imgui_scoped.h` 10, `camera_controller.h`, `db.h`, `api.h` |
-| 8 | `readability-identifier-naming` | `terrain_motifs.cc` 8 |
-| 6 | `google-readability-braces-around-statements` | `sprite_editor_model.cc` 5 |
-| 4 | `readability-convert-member-functions-to-static` | spread across the editor |
-| 6 | runtime-float / runtime-int / todo | `viewport_model.cc` 4, two others |
+| 13 | `google-explicit-constructor` | **Done** — RAII conversions and constructors are explicit |
+| 8 | `readability-identifier-naming` | **Done** — motif-table aliases retained with a scoped rationale |
+| 6 | `google-readability-braces-around-statements` | **Done** |
+| 4 | `readability-convert-member-functions-to-static` | **Done** |
+| 6 | runtime-float / runtime-int / todo | **Done** |
 
 **1. `GuiInterface`'s virtual defaults (153) — done.** A default argument on a
 virtual method binds statically to the declared type, so a call through
@@ -78,29 +77,25 @@ that forward to full-arity virtual methods. A regression test exercises the
 forwarding through `GuiInterface&`, and a compile-time check keeps the same
 convenience surface on concrete `Gui`.
 
-**2. Mechanical (45).** C-style casts, braces, static members, int and float
-widths. One commit per file group.
+**2. Mechanical (45) — done.** C-style casts, braces, static members, and int
+and float widths are clean. The final scan also caught newer findings in test
+support and editor utility code; those were fixed in the same sweep.
 
-**3. Judgement calls (22), decided rather than mass-fixed.**
-- `imgui_scoped.h`'s implicit conversions are the RAII-guard idiom
-  (`if (ScopedCombo c = ...; c)`). Keep, with `NOLINT` and the reason.
-- `terrain_motifs.cc`'s `T`/`A`/`D` constexpr aliases exist so a motif table
-  reads as a picture. Keep with `NOLINT`, or rename if the table survives it.
-- `api.h`, `db.h`, `camera_controller.h` single-argument constructors: mark
-  `explicit` unless the conversion is wanted.
+**3. Judgement calls (22) — done.**
+- `imgui_scoped.h`'s conversions are explicit. Contextual conversion still
+  supports the RAII-guard idiom (`if (ScopedCombo c = ...; c)`) without allowing
+  unrelated implicit conversions.
+- `terrain_motifs.cc`'s `T`/`A`/`D` constexpr aliases remain so each motif table
+  reads as pixel art. A narrow `NOLINT` block records that exception.
+- `api.h`, `db.h`, and `camera_controller.h` single-argument constructors are
+  explicit.
 
-**4. `tests/` (86 unique findings).** Raw full-tree output also repeats the
-`GuiInterface` defaults through test translation units; those disappear with
-step 1. The real item is **79
-`google-readability-avoid-underscore-in-googletest-name`**, concentrated in
-`tileset_manager_test.cc` (23), `level_manager_test.cc` (16) and
-`api_validation_test.cc` (15). Renaming a test changes what `--gtest_filter`
-matches, so sweep it once rather than alongside other edits.
+**4. `tests/` (86 unique findings) — done.** All 79 affected GoogleTest names
+were renamed in one sweep. No repository-owned filter referenced the old names.
 
-**5. Enforcement is staged.** `scripts/lint.sh` provides scoped local checks and
-GitHub Actions runs the full tree. CI reports the existing backlog without
-turning warnings into failures. Once steps 1-4 leave a clean tree, switch CI to
-`scripts/lint.sh --strict --all` so new findings fail the merge gate.
+**5. Enforcement — done.** `scripts/lint.sh` provides scoped local checks and
+GitHub Actions runs `scripts/lint.sh --strict --all`, so new findings fail the
+merge gate.
 
 ---
 

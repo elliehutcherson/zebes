@@ -80,7 +80,7 @@ class TerrainRecipeManagerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     path_ = std::filesystem::temp_directory_path() /
-            ("zebes-terrain-recipes-" + std::to_string(++sequence_));
+            ("zebes-terrain-recipes-" + std::to_string(++sequence));
     std::filesystem::remove_all(path_);
     ASSERT_OK_AND_ASSIGN(manager_, TerrainRecipeManager::Create(path_.string()));
     ASSERT_OK(manager_->LoadAllRecipes());
@@ -88,12 +88,12 @@ class TerrainRecipeManagerTest : public ::testing::Test {
 
   void TearDown() override { std::filesystem::remove_all(path_); }
 
-  static int sequence_;
+  static int sequence;
   std::filesystem::path path_;
   std::unique_ptr<TerrainRecipeManager> manager_;
 };
 
-int TerrainRecipeManagerTest::sequence_ = 0;
+int TerrainRecipeManagerTest::sequence = 0;
 
 TEST_F(TerrainRecipeManagerTest, RoundTripsEveryConfigurationField) {
   TerrainRecipe recipe = CompleteRecipe();

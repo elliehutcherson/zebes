@@ -72,13 +72,13 @@ TEST_F(TilesetManagerTest, DeleteTileset) {
   EXPECT_FALSE(std::filesystem::exists(expected_file));
 }
 
-TEST_F(TilesetManagerTest, DeleteTileset_NotFound_Fails) {
+TEST_F(TilesetManagerTest, DeleteTilesetNotFoundFails) {
   absl::Status status = manager_->DeleteTileset("nonexistent-id");
   EXPECT_FALSE(status.ok());
   EXPECT_TRUE(absl::IsNotFound(status));
 }
 
-TEST_F(TilesetManagerTest, GetTileset_NotFound_Fails) {
+TEST_F(TilesetManagerTest, GetTilesetNotFoundFails) {
   absl::StatusOr<Tileset*> result = manager_->GetTileset("nonexistent-id");
   EXPECT_FALSE(result.ok());
   EXPECT_TRUE(absl::IsNotFound(result.status()));
@@ -86,7 +86,7 @@ TEST_F(TilesetManagerTest, GetTileset_NotFound_Fails) {
 
 // --- ID Generation ---
 
-TEST_F(TilesetManagerTest, CreateTileset_AlwaysGeneratesId) {
+TEST_F(TilesetManagerTest, CreateTilesetAlwaysGeneratesId) {
   Tileset tileset{
       .id = "caller-provided-id",
       .name = "MyTileset",
@@ -211,7 +211,7 @@ TEST_F(TilesetManagerTest, GetAllTilesets) {
 
 // --- CreateTileset Validation ---
 
-TEST_F(TilesetManagerTest, CreateTileset_EmptyName_Fails) {
+TEST_F(TilesetManagerTest, CreateTilesetEmptyNameFails) {
   Tileset tileset{
       .name = "",
       .texture_id = "tex",
@@ -222,7 +222,7 @@ TEST_F(TilesetManagerTest, CreateTileset_EmptyName_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("non-empty name"));
 }
 
-TEST_F(TilesetManagerTest, CreateTileset_EmptyTextureId_Fails) {
+TEST_F(TilesetManagerTest, CreateTilesetEmptyTextureIdFails) {
   Tileset tileset{
       .name = "Valid",
       .texture_id = "",
@@ -233,7 +233,7 @@ TEST_F(TilesetManagerTest, CreateTileset_EmptyTextureId_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("texture_id cannot be empty"));
 }
 
-TEST_F(TilesetManagerTest, CreateTileset_ZeroTileWidth_Fails) {
+TEST_F(TilesetManagerTest, CreateTilesetZeroTileWidthFails) {
   Tileset tileset{
       .name = "Valid",
       .texture_id = "tex",
@@ -245,7 +245,7 @@ TEST_F(TilesetManagerTest, CreateTileset_ZeroTileWidth_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("tile_width must be positive"));
 }
 
-TEST_F(TilesetManagerTest, CreateTileset_ZeroTileHeight_Fails) {
+TEST_F(TilesetManagerTest, CreateTilesetZeroTileHeightFails) {
   Tileset tileset{
       .name = "Valid",
       .texture_id = "tex",
@@ -279,7 +279,7 @@ TEST_F(TilesetManagerTest, SavingKeepsPointersHandedOutBeforeIt) {
   EXPECT_EQ(held->tiles.size(), 1);
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_EmptyId_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetEmptyIdFails) {
   Tileset tileset{
       .id = "",
       .name = "Valid",
@@ -291,7 +291,7 @@ TEST_F(TilesetManagerTest, SaveTileset_EmptyId_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("must have an ID"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_ZeroTileId_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetZeroTileIdFails) {
   Tileset tileset{
       .id = "some-id",
       .name = "Valid",
@@ -304,7 +304,7 @@ TEST_F(TilesetManagerTest, SaveTileset_ZeroTileId_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("reserved for empty cells"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_NegativeTileId_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetNegativeTileIdFails) {
   Tileset tileset{
       .id = "some-id",
       .name = "Valid",
@@ -317,7 +317,7 @@ TEST_F(TilesetManagerTest, SaveTileset_NegativeTileId_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("reserved for empty cells"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_EmptyTileName_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetEmptyTileNameFails) {
   Tileset tileset{
       .id = "some-id",
       .name = "Valid",
@@ -330,7 +330,7 @@ TEST_F(TilesetManagerTest, SaveTileset_EmptyTileName_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("must have a name"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_DuplicateTileId_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetDuplicateTileIdFails) {
   Tileset tileset{
       .id = "some-id",
       .name = "Valid",
@@ -349,13 +349,13 @@ TEST_F(TilesetManagerTest, SaveTileset_DuplicateTileId_Fails) {
 
 // --- LoadTileset Error Cases ---
 
-TEST_F(TilesetManagerTest, LoadTileset_NotFound_Fails) {
+TEST_F(TilesetManagerTest, LoadTilesetNotFoundFails) {
   absl::StatusOr<Tileset*> result = manager_->LoadTileset("nonexistent.json");
   EXPECT_FALSE(result.ok());
   EXPECT_TRUE(absl::IsNotFound(result.status()));
 }
 
-TEST_F(TilesetManagerTest, LoadTileset_MissingRequiredField_Fails) {
+TEST_F(TilesetManagerTest, LoadTilesetMissingRequiredFieldFails) {
   std::string file_path = test_dir_ + "/definitions/tilesets/bad_tileset.json";
   std::ofstream out(file_path);
   // Missing "texture_id" required field.
@@ -367,7 +367,7 @@ TEST_F(TilesetManagerTest, LoadTileset_MissingRequiredField_Fails) {
 
 // --- LoadAllTilesets ---
 
-TEST_F(TilesetManagerTest, LoadAllTilesets_PopulatesCache) {
+TEST_F(TilesetManagerTest, LoadAllTilesetsPopulatesCache) {
   ASSERT_OK(manager_->CreateTileset(Tileset{.name = "X", .texture_id = "tx"}));
   ASSERT_OK(manager_->CreateTileset(Tileset{.name = "Y", .texture_id = "ty"}));
 
@@ -535,7 +535,7 @@ TEST_F(TilesetManagerTest, TerrainMissingVariantPeriodFailsToLoad) {
   EXPECT_FALSE(manager_->LoadTileset("unversioned.json").ok());
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_PeriodicTerrainMissingAPhase_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetPeriodicTerrainMissingAPhaseFails) {
   Tileset tileset = MakeTerrainTileset();
   tileset.terrains[0].variant_period = 2;
 
@@ -563,7 +563,7 @@ TEST_F(TilesetManagerTest, TilesetWithoutTerrainsStillWritesTheKey) {
   EXPECT_TRUE(loaded->terrains.empty());
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_TerrainReferencingUnknownTile_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetTerrainReferencingUnknownTileFails) {
   Tileset tileset = MakeTerrainTileset();
   tileset.terrains[0].rules[0].variants[0].tile_id = 99;
 
@@ -572,7 +572,7 @@ TEST_F(TilesetManagerTest, SaveTileset_TerrainReferencingUnknownTile_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("unknown tile ID 99"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_TerrainWithDuplicateMask_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetTerrainWithDuplicateMaskFails) {
   Tileset tileset = MakeTerrainTileset();
   tileset.terrains[0].rules[1].mask = 0;
 
@@ -581,7 +581,7 @@ TEST_F(TilesetManagerTest, SaveTileset_TerrainWithDuplicateMask_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("repeats mask 0"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_TerrainWithEmptyVariants_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetTerrainWithEmptyVariantsFails) {
   Tileset tileset = MakeTerrainTileset();
   tileset.terrains[0].rules[0].variants.clear();
 
@@ -590,7 +590,7 @@ TEST_F(TilesetManagerTest, SaveTileset_TerrainWithEmptyVariants_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("at least one variant"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_TerrainWithNonPositiveWeight_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetTerrainWithNonPositiveWeightFails) {
   Tileset tileset = MakeTerrainTileset();
   tileset.terrains[0].rules[1].variants[0].weight = 0;
 
@@ -626,7 +626,7 @@ TEST_F(TilesetManagerTest, TerrainWithoutMembersStillWritesTheKey) {
   EXPECT_TRUE(loaded->terrains[0].shape_tile_ids.empty());
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_TerrainShapeTileReferencingUnknownTile_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetTerrainShapeTileReferencingUnknownTileFails) {
   Tileset tileset = MakeTerrainTileset();
   tileset.terrains[0].shape_tile_ids = {77};
 
@@ -635,7 +635,7 @@ TEST_F(TilesetManagerTest, SaveTileset_TerrainShapeTileReferencingUnknownTile_Fa
   EXPECT_THAT(status.message(), HasSubstr("unknown shape tile ID 77"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_TerrainShapeTileAlsoRuleProduced_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetTerrainShapeTileAlsoRuleProducedFails) {
   Tileset tileset = MakeTerrainTileset();
   // Tile 1 is already a rule variant.
   tileset.terrains[0].shape_tile_ids = {1};
@@ -645,7 +645,7 @@ TEST_F(TilesetManagerTest, SaveTileset_TerrainShapeTileAlsoRuleProduced_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("both rule-produced and shape-keyed"));
 }
 
-TEST_F(TilesetManagerTest, SaveTileset_DuplicateTerrainId_Fails) {
+TEST_F(TilesetManagerTest, SaveTilesetDuplicateTerrainIdFails) {
   Tileset tileset = MakeTerrainTileset();
   Terrain duplicate = tileset.terrains[0];
   duplicate.name = "Other";

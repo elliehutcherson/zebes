@@ -455,8 +455,9 @@ absl::StatusOr<TerrainRenderer> TerrainRenderer::Create(TerrainGenConfig config)
   // banks without a dependency cycle.
   const auto largest_stamp = [](absl::Span<const TerrainMotif> motifs) {
     int largest = 0;
-    for (const TerrainMotif& motif : motifs)
+    for (const TerrainMotif& motif : motifs) {
       largest = std::max({largest, motif.width, motif.height});
+    }
     return largest;
   };
   const int pattern_extent = largest_stamp(pattern_motifs) * config.interior.pattern.scale;
@@ -1044,8 +1045,8 @@ absl::StatusOr<RgbaImage> TerrainRenderer::RenderShapeTileInContext(
         absl::StrCat("variant ", variant, " is outside the ", variant_count(), " this set holds"));
   }
   if (neighbors.size() != kNeighborCount) {
-    return absl::InvalidArgumentError(absl::StrCat("a neighbourhood is ", kNeighborCount,
-                                                   " shapes, not ", neighbors.size()));
+    return absl::InvalidArgumentError(
+        absl::StrCat("a neighbourhood is ", kNeighborCount, " shapes, not ", neighbors.size()));
   }
   const absl::Span<const TilePoint> polygon = TileShapePolygon(shape);
   if (polygon.empty()) {
@@ -1110,8 +1111,8 @@ TileShape ShapeScene::At(int x, int y) const {
   return cells[static_cast<size_t>(y) * width + x];
 }
 
-absl::StatusOr<RgbaImage> RenderSceneCell(const TerrainRenderer& renderer,
-                                          const ShapeScene& scene, int x, int y) {
+absl::StatusOr<RgbaImage> RenderSceneCell(const TerrainRenderer& renderer, const ShapeScene& scene,
+                                          int x, int y) {
   if (scene.width <= 0 || scene.height <= 0 ||
       scene.cells.size() != static_cast<size_t>(scene.width) * scene.height) {
     return absl::InvalidArgumentError("scene dimensions do not match its cells");

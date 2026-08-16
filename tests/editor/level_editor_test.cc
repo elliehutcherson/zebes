@@ -6,23 +6,19 @@
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/level.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
 #include "tests/editor/mock_level_panel.h"
-#include "macros.h"
 
 namespace zebes {
 
 class LevelEditorTestPeer {
  public:
-  static absl::Status RenderNavigator(LevelEditor& editor) {
-    return editor.RenderNavigator();
-  }
+  static absl::Status RenderNavigator(LevelEditor& editor) { return editor.RenderNavigator(); }
 
-  static absl::Status RenderInspector(LevelEditor& editor) {
-    return editor.RenderInspector();
-  }
+  static absl::Status RenderInspector(LevelEditor& editor) { return editor.RenderInspector(); }
 
   static void SetEditingLevel(LevelEditor& editor, std::optional<Level> level) {
     if (level.has_value()) {
@@ -40,9 +36,7 @@ class LevelEditorTestPeer {
     return editor.level_model_.has_active_level();
   }
 
-  static bool HasSaveError(const LevelEditor& editor) {
-    return editor.save_error_.has_value();
-  }
+  static bool HasSaveError(const LevelEditor& editor) { return editor.save_error_.has_value(); }
 
   static LevelPanelModel& GetLevelModel(LevelEditor& editor) { return editor.level_model_; }
 
@@ -175,7 +169,7 @@ class LevelEditorTest : public ::testing::Test {
 
 // --- RenderNavigator: no level loaded ---
 
-TEST_F(LevelEditorTest, RenderNavigator_NoLevel_DelegatesToLevelPanel) {
+TEST_F(LevelEditorTest, RenderNavigatorNoLevelDelegatesToLevelPanel) {
   EXPECT_CALL(*mock_level_panel_, RenderList(_)).WillOnce(Return(LevelPanelEvent{}));
 
   ASSERT_OK(LevelEditorTestPeer::RenderNavigator(*editor_));
@@ -183,7 +177,7 @@ TEST_F(LevelEditorTest, RenderNavigator_NoLevel_DelegatesToLevelPanel) {
 
 // --- RenderNavigator: level loaded, save ---
 
-TEST_F(LevelEditorTest, RenderNavigator_SaveLevel_Success_CallsUpdateAndRefreshes) {
+TEST_F(LevelEditorTest, RenderNavigatorSaveLevelSuccessCallsUpdateAndRefreshes) {
   LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "a-id", .name = "Alpha"});
 
   EXPECT_CALL(gui_, Button(StrEq("Save Level"), _)).WillOnce(Return(true));
@@ -194,7 +188,7 @@ TEST_F(LevelEditorTest, RenderNavigator_SaveLevel_Success_CallsUpdateAndRefreshe
   EXPECT_FALSE(LevelEditorTestPeer::HasSaveError(*editor_));
 }
 
-TEST_F(LevelEditorTest, RenderNavigator_SaveLevel_Failure_DoesNotCallRefresh) {
+TEST_F(LevelEditorTest, RenderNavigatorSaveLevelFailureDoesNotCallRefresh) {
   LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "a-id", .name = "Alpha"});
 
   EXPECT_CALL(gui_, Button(StrEq("Save Level"), _)).WillOnce(Return(true));
@@ -207,7 +201,7 @@ TEST_F(LevelEditorTest, RenderNavigator_SaveLevel_Failure_DoesNotCallRefresh) {
 
 // --- RenderNavigator: close level ---
 
-TEST_F(LevelEditorTest, RenderNavigator_CloseLevel_DelegatesListOnNextRender) {
+TEST_F(LevelEditorTest, RenderNavigatorCloseLevelDelegatesListOnNextRender) {
   LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "a-id", .name = "Alpha"});
 
   // First render: Close Level pressed → level cleared.
@@ -221,13 +215,13 @@ TEST_F(LevelEditorTest, RenderNavigator_CloseLevel_DelegatesListOnNextRender) {
 
 // --- RenderInspector ---
 
-TEST_F(LevelEditorTest, RenderInspector_NoLevel_DoesNotDelegateToLevelPanel) {
+TEST_F(LevelEditorTest, RenderInspectorNoLevelDoesNotDelegateToLevelPanel) {
   EXPECT_CALL(*mock_level_panel_, RenderDetails(_)).Times(0);
 
   ASSERT_OK(LevelEditorTestPeer::RenderInspector(*editor_));
 }
 
-TEST_F(LevelEditorTest, RenderInspector_kLevelSelection_DelegatesToLevelPanel) {
+TEST_F(LevelEditorTest, RenderInspectorLevelSelectionDelegatesToLevelPanel) {
   LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "a-id"});
   SelectionState selection;
   selection.type = SelectionState::Type::kLevel;
@@ -238,7 +232,7 @@ TEST_F(LevelEditorTest, RenderInspector_kLevelSelection_DelegatesToLevelPanel) {
   ASSERT_OK(LevelEditorTestPeer::RenderInspector(*editor_));
 }
 
-TEST_F(LevelEditorTest, RenderInspector_kNoneSelection_DoesNotDelegateToLevelPanel) {
+TEST_F(LevelEditorTest, RenderInspectorNoSelectionDoesNotDelegateToLevelPanel) {
   LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "a-id"});
   // selection_.type == kNone by default.
 
@@ -265,8 +259,7 @@ TEST_F(LevelEditorTest, FailedDeletePreservesModelSelection) {
   LevelPanelModel& model = LevelEditorTestPeer::GetLevelModel(*editor_);
   model.SetLevels({{.id = "cave", .name = "Cave"}});
   ASSERT_OK(model.SelectLevel("cave"));
-  EXPECT_CALL(*api_, DeleteLevel(StrEq("cave")))
-      .WillOnce(Return(absl::InternalError("disk full")));
+  EXPECT_CALL(*api_, DeleteLevel(StrEq("cave"))).WillOnce(Return(absl::InternalError("disk full")));
   EXPECT_CALL(*api_, GetAllLevels()).Times(0);
 
   EXPECT_FALSE(LevelEditorTestPeer::HandleLevelPanelEvent(

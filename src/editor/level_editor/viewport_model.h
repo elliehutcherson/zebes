@@ -78,7 +78,7 @@ ResolvedSprite FindSprite(const SpriteLookup& sprites, const std::string& sprite
 // among equals the greatest ID. That is the order ComposeEntityRenderItems draws
 // in, and picking must agree with it or a click selects something the user
 // cannot see.
-// TODO: Replace the linear scan with a spatial index when level size requires it.
+// A spatial index can replace the linear scan if profiling shows level size requires it.
 absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, Vec world_pos,
                                     const SpriteLookup& sprites);
 
@@ -99,8 +99,8 @@ TileChunkCoordinate DecodeChunkKey(int64_t key);
 // Converts a world position to the containing tile-grid coordinate. Rejects
 // invalid cell dimensions, non-finite positions, and coordinates that cannot
 // be represented by the level's integer chunk storage.
-absl::StatusOr<TileCoordinate> WorldToTileCoordinate(
-    Vec world_position, int tile_render_width, int tile_render_height);
+absl::StatusOr<TileCoordinate> WorldToTileCoordinate(Vec world_position, int tile_render_width,
+                                                     int tile_render_height);
 
 // Sets the tile at a world-tile coordinate, creating its chunk if necessary.
 // A tile_id of zero erases the tile.

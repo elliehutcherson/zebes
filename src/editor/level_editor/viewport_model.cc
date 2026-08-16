@@ -101,8 +101,8 @@ TileChunkCoordinate DecodeChunkKey(int64_t key) {
   };
 }
 
-absl::StatusOr<TileCoordinate> WorldToTileCoordinate(
-    Vec world_position, int tile_render_width, int tile_render_height) {
+absl::StatusOr<TileCoordinate> WorldToTileCoordinate(Vec world_position, int tile_render_width,
+                                                     int tile_render_height) {
   if (tile_render_width <= 0 || tile_render_height <= 0) {
     return absl::InvalidArgumentError("tile render dimensions must be positive");
   }
@@ -110,10 +110,8 @@ absl::StatusOr<TileCoordinate> WorldToTileCoordinate(
     return absl::InvalidArgumentError("tile position must be finite");
   }
 
-  const long double tile_x =
-      std::floor(static_cast<long double>(world_position.x) / tile_render_width);
-  const long double tile_y =
-      std::floor(static_cast<long double>(world_position.y) / tile_render_height);
+  const double tile_x = std::floor(world_position.x / tile_render_width);
+  const double tile_y = std::floor(world_position.y / tile_render_height);
   constexpr int kMinCoordinate = std::numeric_limits<int>::min();
   constexpr int kMaxCoordinate = std::numeric_limits<int>::max();
   if (tile_x < kMinCoordinate || tile_x > kMaxCoordinate || tile_y < kMinCoordinate ||
@@ -163,8 +161,8 @@ PaletteBinding ResolvePaletteBinding(const Level& level, const PaletteSelection&
 
   // Exactly one palette mode reports a tileset, so whichever does is the one
   // asking to paint.
-  const Tileset* palette_tileset = selection.tile_tileset != nullptr ? selection.tile_tileset
-                                                                    : selection.terrain_tileset;
+  const Tileset* palette_tileset =
+      selection.tile_tileset != nullptr ? selection.tile_tileset : selection.terrain_tileset;
   if (palette_tileset == nullptr) return binding;
 
   // A never-bound level takes the palette's tileset: there are no tile IDs yet
@@ -188,10 +186,8 @@ absl::StatusOr<Vec> SnapEntityToGrid(Vec mouse_world, int tile_render_w, int til
       WorldToTileCoordinate(mouse_world, tile_render_w, tile_render_h);
   if (!tile.ok()) return tile.status();
 
-  const double cell_center_x =
-      static_cast<double>(tile->x) * tile_render_w + tile_render_w / 2.0;
-  const double cell_bottom_y =
-      (static_cast<double>(tile->y) + 1.0) * tile_render_h;
+  const double cell_center_x = static_cast<double>(tile->x) * tile_render_w + tile_render_w / 2.0;
+  const double cell_bottom_y = (static_cast<double>(tile->y) + 1.0) * tile_render_h;
 
   if (collider != nullptr && !collider->polygons.empty()) {
     double min_x = std::numeric_limits<double>::max();

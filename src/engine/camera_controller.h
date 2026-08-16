@@ -23,7 +23,7 @@ class CameraController {
   void Update(double delta_time);
 
  private:
-  CameraController(Options options);
+  explicit CameraController(Options options);
 
   Camera& camera_;
   IInputManager& input_manager_;

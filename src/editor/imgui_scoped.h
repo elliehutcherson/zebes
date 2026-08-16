@@ -11,7 +11,7 @@ class ScopedListBox {
   ScopedListBox(GuiInterface* gui, const char* label, ImVec2 size = ImVec2(0, 0));
   ~ScopedListBox();
 
-  operator bool() const { return active_; }
+  explicit operator bool() const { return active_; }
   bool IsActive() const { return active_; }
 
   ScopedListBox(const ScopedListBox&) = delete;
@@ -33,7 +33,7 @@ class ScopedChild {
               bool border = false, ImGuiWindowFlags flags = 0);
   ~ScopedChild();
 
-  operator bool() const { return active_; }
+  explicit operator bool() const { return active_; }
   bool IsActive() const { return active_; }
 
   ScopedChild(const ScopedChild&) = delete;
@@ -53,7 +53,7 @@ class ScopedTabBar {
   ScopedTabBar(GuiInterface* gui, const char* str_id, ImGuiTabBarFlags flags = 0);
   ~ScopedTabBar();
 
-  operator bool() const { return active_; }
+  explicit operator bool() const { return active_; }
   bool IsActive() const { return active_; }
 
   ScopedTabBar(const ScopedTabBar&) = delete;
@@ -74,7 +74,7 @@ class ScopedTabItem {
                 ImGuiTabItemFlags flags = 0);
   ~ScopedTabItem();
 
-  operator bool() const { return active_; }
+  explicit operator bool() const { return active_; }
   bool IsActive() const { return active_; }
 
   ScopedTabItem(const ScopedTabItem&) = delete;
@@ -95,7 +95,7 @@ class ScopedTable {
               const ImVec2& outer_size = ImVec2(0.0f, 0.0f), float inner_width = 0.0f);
   ~ScopedTable();
 
-  operator bool() const { return active_; }
+  explicit operator bool() const { return active_; }
   bool IsActive() const { return active_; }
 
   ScopedTable(const ScopedTable&) = delete;
@@ -112,7 +112,7 @@ class ScopedTable {
 // RAII wrapper for GuiInterface::BeginDisabled/EndDisabled
 class ScopedDisabled {
  public:
-  ScopedDisabled(GuiInterface* gui, bool disabled = true);
+  explicit ScopedDisabled(GuiInterface* gui, bool disabled = true);
   ~ScopedDisabled();
 
   ScopedDisabled(const ScopedDisabled&) = delete;
@@ -133,7 +133,7 @@ class ScopedWindow {
                ImGuiWindowFlags flags = 0);
   ~ScopedWindow();
 
-  operator bool() const { return active_; }
+  explicit operator bool() const { return active_; }
   bool IsActive() const { return active_; }
 
   ScopedWindow(const ScopedWindow&) = delete;
@@ -154,7 +154,7 @@ class ScopedCombo {
               ImGuiComboFlags flags = 0);
   ~ScopedCombo();
 
-  operator bool() const { return active_; }
+  explicit operator bool() const { return active_; }
   bool IsActive() const { return active_; }
 
   ScopedCombo(const ScopedCombo&) = delete;
@@ -171,7 +171,7 @@ class ScopedCombo {
 // RAII wrapper for GuiInterface::BeginGroup/EndGroup
 class ScopedGroup {
  public:
-  ScopedGroup(GuiInterface* gui);
+  explicit ScopedGroup(GuiInterface* gui);
   ~ScopedGroup();
 
   ScopedGroup(const ScopedGroup&) = delete;
@@ -230,7 +230,7 @@ class ScopedPopup {
   ScopedPopup(GuiInterface* gui, const char* str_id, ImGuiPopupFlags flags = 0);
   ~ScopedPopup();
 
-  operator bool() const { return active_; }
+  explicit operator bool() const { return active_; }
   bool IsActive() const { return active_; }
 
   ScopedPopup(const ScopedPopup&) = delete;

@@ -69,7 +69,7 @@ Level LevelUsingTileset(std::string tileset_id) {
   return level;
 }
 
-TEST_F(ApiValidationTest, DeleteTexture_InUseByATileset_ReturnsError) {
+TEST_F(ApiValidationTest, DeleteTextureInUseByATilesetReturnsError) {
   const std::string texture_id = "test_texture";
   EXPECT_CALL(tileset_manager_, GetAllTilesets())
       .WillOnce(Return(
@@ -84,7 +84,7 @@ TEST_F(ApiValidationTest, DeleteTexture_InUseByATileset_ReturnsError) {
 
 // The old check asked only whether a sprite used the texture, so a tileset, a
 // parallax layer or a recipe naming it went unnoticed.
-TEST_F(ApiValidationTest, DeleteTexture_InUseByARecipe_ReturnsError) {
+TEST_F(ApiValidationTest, DeleteTextureInUseByARecipeReturnsError) {
   const std::string texture_id = "test_texture";
   EXPECT_CALL(terrain_recipe_manager_, GetAllRecipes())
       .WillOnce(Return(std::vector<TerrainRecipe>{
@@ -94,14 +94,14 @@ TEST_F(ApiValidationTest, DeleteTexture_InUseByARecipe_ReturnsError) {
   EXPECT_EQ(api_->DeleteTexture(texture_id).code(), absl::StatusCode::kFailedPrecondition);
 }
 
-TEST_F(ApiValidationTest, DeleteTexture_NotInUse_CallsDelete) {
+TEST_F(ApiValidationTest, DeleteTextureNotInUseCallsDelete) {
   const std::string texture_id = "test_texture";
   EXPECT_CALL(texture_manager_, DeleteTexture(texture_id)).WillOnce(Return(absl::OkStatus()));
 
   EXPECT_OK(api_->DeleteTexture(texture_id));
 }
 
-TEST_F(ApiValidationTest, DeleteSprite_InUseInBlueprint_ReturnsError) {
+TEST_F(ApiValidationTest, DeleteSpriteInUseInBlueprintReturnsError) {
   const std::string sprite_id = "test_sprite";
   EXPECT_CALL(blueprint_manager_, GetAllBlueprints())
       .WillOnce(Return(std::vector<Blueprint>{BlueprintUsing(sprite_id, "")}));
@@ -112,7 +112,7 @@ TEST_F(ApiValidationTest, DeleteSprite_InUseInBlueprint_ReturnsError) {
 
 // An entity carries its own sprite ID, so a level can hold the last reference to
 // a sprite no blueprint mentions. The old blueprint-only check missed this.
-TEST_F(ApiValidationTest, DeleteSprite_PlacedInALevel_ReturnsError) {
+TEST_F(ApiValidationTest, DeleteSpritePlacedInALevelReturnsError) {
   const std::string sprite_id = "test_sprite";
   Level level = LevelUsingTileset("");
   Entity entity;
@@ -126,14 +126,14 @@ TEST_F(ApiValidationTest, DeleteSprite_PlacedInALevel_ReturnsError) {
   EXPECT_EQ(api_->DeleteSprite(sprite_id).code(), absl::StatusCode::kFailedPrecondition);
 }
 
-TEST_F(ApiValidationTest, DeleteSprite_NotInUse_CallsDelete) {
+TEST_F(ApiValidationTest, DeleteSpriteNotInUseCallsDelete) {
   const std::string sprite_id = "test_sprite";
   EXPECT_CALL(sprite_manager_, DeleteSprite(sprite_id)).WillOnce(Return(absl::OkStatus()));
 
   EXPECT_OK(api_->DeleteSprite(sprite_id));
 }
 
-TEST_F(ApiValidationTest, DeleteCollider_InUseInBlueprint_ReturnsError) {
+TEST_F(ApiValidationTest, DeleteColliderInUseInBlueprintReturnsError) {
   const std::string collider_id = "test_collider";
   EXPECT_CALL(blueprint_manager_, GetAllBlueprints())
       .WillOnce(Return(std::vector<Blueprint>{BlueprintUsing("", collider_id)}));
@@ -142,7 +142,7 @@ TEST_F(ApiValidationTest, DeleteCollider_InUseInBlueprint_ReturnsError) {
   EXPECT_EQ(api_->DeleteCollider(collider_id).code(), absl::StatusCode::kFailedPrecondition);
 }
 
-TEST_F(ApiValidationTest, DeleteCollider_NotInUse_CallsDelete) {
+TEST_F(ApiValidationTest, DeleteColliderNotInUseCallsDelete) {
   const std::string collider_id = "test_collider";
   EXPECT_CALL(collider_manager_, DeleteCollider(collider_id)).WillOnce(Return(absl::OkStatus()));
 
@@ -152,7 +152,7 @@ TEST_F(ApiValidationTest, DeleteCollider_NotInUse_CallsDelete) {
 // Nothing checked this before: deleting a tileset a level painted through left
 // that level naming tile IDs it could no longer resolve, which stops its
 // viewport rendering rather than degrading it.
-TEST_F(ApiValidationTest, DeleteTileset_BoundToALevel_ReturnsError) {
+TEST_F(ApiValidationTest, DeleteTilesetBoundToALevelReturnsError) {
   const std::string tileset_id = "test_tileset";
   EXPECT_CALL(level_manager_, GetAllLevels())
       .WillOnce(Return(std::vector<Level>{LevelUsingTileset(tileset_id)}));
@@ -163,7 +163,7 @@ TEST_F(ApiValidationTest, DeleteTileset_BoundToALevel_ReturnsError) {
   EXPECT_THAT(std::string(status.message()), HasSubstr("Cave Level"));
 }
 
-TEST_F(ApiValidationTest, DeleteTileset_Unreferenced_CallsDelete) {
+TEST_F(ApiValidationTest, DeleteTilesetUnreferencedCallsDelete) {
   const std::string tileset_id = "test_tileset";
   EXPECT_CALL(tileset_manager_, DeleteTileset(tileset_id)).WillOnce(Return(absl::OkStatus()));
 
@@ -173,7 +173,7 @@ TEST_F(ApiValidationTest, DeleteTileset_Unreferenced_CallsDelete) {
 // The tile hole. Deleting a painted tile is not recoverable by re-adding it:
 // NextTileId is max+1, so the new tile gets a new ID while the level still names
 // the old one, and the level stops rendering rather than losing a cell.
-TEST_F(ApiValidationTest, CheckTileDeletable_PaintedInALevel_ReturnsError) {
+TEST_F(ApiValidationTest, CheckTileDeletablePaintedInALevelReturnsError) {
   const std::string tileset_id = "test_tileset";
   Level level = LevelUsingTileset(tileset_id);
   TileChunk chunk;
@@ -191,7 +191,7 @@ TEST_F(ApiValidationTest, CheckTileDeletable_PaintedInALevel_ReturnsError) {
 
 // A tile nothing painted stays one click away, which is the whole reason tile
 // deletion is not confirmed.
-TEST_F(ApiValidationTest, CheckTileDeletable_Unpainted_Passes) {
+TEST_F(ApiValidationTest, CheckTileDeletableUnpaintedPasses) {
   const std::string tileset_id = "test_tileset";
   EXPECT_CALL(level_manager_, GetAllLevels())
       .WillOnce(Return(std::vector<Level>{LevelUsingTileset(tileset_id)}));
@@ -201,7 +201,7 @@ TEST_F(ApiValidationTest, CheckTileDeletable_Unpainted_Passes) {
 
 // Tile IDs are bare integers with no tileset qualifier, so the same number in a
 // level bound elsewhere is different artwork and not a reference.
-TEST_F(ApiValidationTest, CheckTileDeletable_IgnoresLevelsBoundToAnotherTileset) {
+TEST_F(ApiValidationTest, CheckTileDeletableIgnoresLevelsBoundToAnotherTileset) {
   Level level = LevelUsingTileset("some_other_tileset");
   TileChunk chunk;
   chunk.tiles[0] = 7;
@@ -338,7 +338,7 @@ TEST_F(GeneratedTerrainTest, ARecipeBlockingATilesetPointsAtTheTerrainEditor) {
   EXPECT_THAT(std::string(status.message()), HasSubstr("Terrain Editor"));
 }
 
-TEST_F(ApiValidationTest, DeleteBlueprint_PlacedInALevel_ReturnsError) {
+TEST_F(ApiValidationTest, DeleteBlueprintPlacedInALevelReturnsError) {
   const std::string blueprint_id = "test_blueprint";
   Level level = LevelUsingTileset("");
   Entity entity;
@@ -352,7 +352,7 @@ TEST_F(ApiValidationTest, DeleteBlueprint_PlacedInALevel_ReturnsError) {
   EXPECT_EQ(api_->DeleteBlueprint(blueprint_id).code(), absl::StatusCode::kFailedPrecondition);
 }
 
-TEST_F(ApiValidationTest, DeleteBlueprint_Unplaced_CallsDelete) {
+TEST_F(ApiValidationTest, DeleteBlueprintUnplacedCallsDelete) {
   const std::string blueprint_id = "test_blueprint";
   EXPECT_CALL(blueprint_manager_, DeleteBlueprint(blueprint_id)).WillOnce(Return(absl::OkStatus()));
 

@@ -7,6 +7,8 @@ namespace zebes {
 namespace {
 
 using P = TerrainMotifPixel;
+// Single-letter pixel aliases keep the constexpr motif tables legible as pixel art.
+// NOLINTBEGIN(readability-identifier-naming)
 constexpr P T = P::kTransparent;
 constexpr P A = P::kAutoShaded;
 constexpr P D = P::kDecor;
@@ -15,6 +17,7 @@ constexpr P B = P::kBotanical;
 constexpr P G = P::kBotanicalShade;
 constexpr P X = P::kAccentPrimary;
 constexpr P Y = P::kAccentSecondary;
+// NOLINTEND(readability-identifier-naming)
 
 constexpr P kDotPixels[] = {T, A, T, A, A, A, T, A, T};
 constexpr P kPebblePixels[] = {T, A, A, T, A, A, A, A, T, A, A, T};

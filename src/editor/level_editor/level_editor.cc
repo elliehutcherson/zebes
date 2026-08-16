@@ -1,6 +1,7 @@
 #include "editor/level_editor/level_editor.h"
 
 #include <algorithm>
+#include <cinttypes>
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -18,9 +19,9 @@
 namespace zebes {
 namespace {
 
-constexpr ImGuiTableFlags kTableFlags =
-    ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
-    ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoHostExtendY;
+constexpr ImGuiTableFlags kTableFlags = ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
+                                        ImGuiTableFlags_SizingStretchProp |
+                                        ImGuiTableFlags_NoHostExtendY;
 
 constexpr float kPanelGap = 8.0f;
 constexpr float kPaletteHeightFraction = 0.25f;
@@ -41,9 +42,8 @@ LevelEditorPanelLayout CalculateLevelEditorPanelLayout(float available_height) {
     };
   }
 
-  const float palette_height =
-      std::clamp(available_height * kPaletteHeightFraction, kMinimumPaletteHeight,
-                 kMaximumPaletteHeight);
+  const float palette_height = std::clamp(available_height * kPaletteHeightFraction,
+                                          kMinimumPaletteHeight, kMaximumPaletteHeight);
   return {
       .workspace_height = usable_height - palette_height,
       .palette_height = palette_height,
@@ -164,8 +164,8 @@ absl::Status LevelEditor::Render() {
   const LevelEditorPanelLayout layout =
       CalculateLevelEditorPanelLayout(gui_->GetContentRegionAvail().y);
   {
-    ScopedTable table = gui_->CreateScopedTable(
-        "LevelEditorLayout", 3, kTableFlags, ImVec2(0.0f, layout.workspace_height));
+    ScopedTable table = gui_->CreateScopedTable("LevelEditorLayout", 3, kTableFlags,
+                                                ImVec2(0.0f, layout.workspace_height));
     if (!table) return absl::OkStatus();
 
     // Setup columns with relative sizing
@@ -177,8 +177,7 @@ absl::Status LevelEditor::Render() {
 
     gui_->TableNextColumn();
     {
-      ScopedChild navigator =
-          gui_->CreateScopedChild("LevelEditorNavigator", ImVec2(0.0f, 0.0f));
+      ScopedChild navigator = gui_->CreateScopedChild("LevelEditorNavigator", ImVec2(0.0f, 0.0f));
       if (navigator) RETURN_IF_ERROR(RenderNavigator());
     }
 
@@ -187,15 +186,14 @@ absl::Status LevelEditor::Render() {
 
     gui_->TableNextColumn();
     {
-      ScopedChild inspector =
-          gui_->CreateScopedChild("LevelEditorInspector", ImVec2(0.0f, 0.0f));
+      ScopedChild inspector = gui_->CreateScopedChild("LevelEditorInspector", ImVec2(0.0f, 0.0f));
       if (inspector) RETURN_IF_ERROR(RenderInspector());
     }
   }
 
   gui_->Separator();
-  ScopedChild palette = gui_->CreateScopedChild(
-      "LevelEditorPalette", ImVec2(0.0f, layout.palette_height), true);
+  ScopedChild palette =
+      gui_->CreateScopedChild("LevelEditorPalette", ImVec2(0.0f, layout.palette_height), true);
   if (!palette) return absl::OkStatus();
   RETURN_IF_ERROR(RenderPalette());
 
@@ -250,8 +248,8 @@ absl::Status LevelEditor::RenderNavigator() {
     root_flags |= ImGuiTreeNodeFlags_Selected;
   }
 
-  const std::string level_label = absl::StrCat(
-      level.name.empty() ? "(unnamed level)" : level.name, "##level_", level.id);
+  const std::string level_label =
+      absl::StrCat(level.name.empty() ? "(unnamed level)" : level.name, "##level_", level.id);
   bool root_open = gui_->CollapsingHeader(level_label.c_str(), root_flags);
   if (gui_->IsItemClicked()) {
     selection_.Clear();
@@ -329,12 +327,10 @@ absl::Status LevelEditor::RenderInspector() {
       gui_->TextDisabled("Select an item to view properties.");
       break;
 
-    case SelectionState::Type::kLevel:
-      {
-        ASSIGN_OR_RETURN(LevelPanelEvent event, level_panel_->RenderDetails(level_model_));
-        RETURN_IF_ERROR(HandleLevelPanelEvent(event));
-      }
-      break;
+    case SelectionState::Type::kLevel: {
+      ASSIGN_OR_RETURN(LevelPanelEvent event, level_panel_->RenderDetails(level_model_));
+      RETURN_IF_ERROR(HandleLevelPanelEvent(event));
+    } break;
 
     case SelectionState::Type::kTheme:
       RETURN_IF_ERROR(
@@ -349,8 +345,7 @@ absl::Status LevelEditor::RenderInspector() {
     case SelectionState::Type::kZone:
       if (gui_->Button("Frame Zone")) {
         const Level& level = *level_model_.active_level();
-        if (const ParallaxZone* zone =
-                FindParallaxZoneById(level.zones, selection_.zone_id);
+        if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, selection_.zone_id);
             zone != nullptr) {
           viewport_tab_->FrameZone(*zone);
         }
@@ -368,7 +363,7 @@ absl::Status LevelEditor::RenderInspector() {
       }
       Entity& entity = it->second;
 
-      gui_->Text("ID: %llu", static_cast<unsigned long long>(entity.id));
+      gui_->Text("ID: %" PRIu64, entity.id);
       if (!entity.blueprint_id.empty()) {
         gui_->Text("Blueprint: %s", entity.blueprint_id.c_str());
       }
@@ -427,9 +422,8 @@ void LevelEditor::RenderDerivedArtworkStatus() {
   }
   // Coloured only when something is pending, because that is the state a user
   // can lose: the atlas grows in memory and nothing reaches disk until save.
-  gui_->TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
-                    "Artwork: %d tiles, %dx%d atlas, %d unsaved.", status.tiles,
-                    status.atlas_width, status.atlas_height, status.unsaved);
+  gui_->TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "Artwork: %d tiles, %dx%d atlas, %d unsaved.",
+                    status.tiles, status.atlas_width, status.atlas_height, status.unsaved);
 }
 
 absl::Status LevelEditor::RenderViewport() {

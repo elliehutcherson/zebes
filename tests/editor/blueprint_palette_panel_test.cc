@@ -5,10 +5,10 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/blueprint.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
-#include "macros.h"
 
 namespace zebes {
 
@@ -67,14 +67,14 @@ class BlueprintPalettePanelTest : public ::testing::Test {
   Blueprint stable_bp_{.id = "bp-abc", .name = "Samus"};
 };
 
-TEST_F(BlueprintPalettePanelTest, EmptyBlueprintList_RendersWithoutError) {
+TEST_F(BlueprintPalettePanelTest, EmptyBlueprintListRendersWithoutError) {
   ON_CALL(*api_, GetAllBlueprints()).WillByDefault(Return(std::vector<Blueprint>{}));
 
   EXPECT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedBlueprint(), nullptr);
 }
 
-TEST_F(BlueprintPalettePanelTest, ButtonClick_SelectsBlueprint) {
+TEST_F(BlueprintPalettePanelTest, ButtonClickSelectsBlueprint) {
   ON_CALL(*api_, GetAllBlueprints()).WillByDefault(Return(std::vector<Blueprint>{stable_bp_}));
   ON_CALL(*api_, GetBlueprint("bp-abc")).WillByDefault(Return(&stable_bp_));
 
@@ -86,7 +86,7 @@ TEST_F(BlueprintPalettePanelTest, ButtonClick_SelectsBlueprint) {
   EXPECT_EQ(panel_->GetSelectedBlueprint()->id, "bp-abc");
 }
 
-TEST_F(BlueprintPalettePanelTest, ClearSelection_ResetsToNull) {
+TEST_F(BlueprintPalettePanelTest, ClearSelectionResetsToNull) {
   ON_CALL(*api_, GetAllBlueprints()).WillByDefault(Return(std::vector<Blueprint>{stable_bp_}));
   ON_CALL(*api_, GetBlueprint("bp-abc")).WillByDefault(Return(&stable_bp_));
 
@@ -98,7 +98,7 @@ TEST_F(BlueprintPalettePanelTest, ClearSelection_ResetsToNull) {
   EXPECT_EQ(panel_->GetSelectedBlueprint(), nullptr);
 }
 
-TEST_F(BlueprintPalettePanelTest, ClickingSelectedBlueprint_TogglesOff) {
+TEST_F(BlueprintPalettePanelTest, ClickingSelectedBlueprintTogglesOff) {
   ON_CALL(*api_, GetAllBlueprints()).WillByDefault(Return(std::vector<Blueprint>{stable_bp_}));
   ON_CALL(*api_, GetBlueprint("bp-abc")).WillByDefault(Return(&stable_bp_));
 
@@ -113,7 +113,7 @@ TEST_F(BlueprintPalettePanelTest, ClickingSelectedBlueprint_TogglesOff) {
   EXPECT_EQ(panel_->GetSelectedBlueprint(), nullptr);
 }
 
-TEST_F(BlueprintPalettePanelTest, Checkbox_TogglesSnapToGrid) {
+TEST_F(BlueprintPalettePanelTest, CheckboxTogglesSnapToGrid) {
   ON_CALL(*api_, GetAllBlueprints()).WillByDefault(Return(std::vector<Blueprint>{stable_bp_}));
 
   // By default, snap_to_grid_ is true.
@@ -129,7 +129,7 @@ TEST_F(BlueprintPalettePanelTest, Checkbox_TogglesSnapToGrid) {
   EXPECT_FALSE(panel_->GetSnapToGrid());
 }
 
-TEST_F(BlueprintPalettePanelTest, Checkbox_TogglesShowEntityBorders) {
+TEST_F(BlueprintPalettePanelTest, CheckboxTogglesShowEntityBorders) {
   ON_CALL(*api_, GetAllBlueprints()).WillByDefault(Return(std::vector<Blueprint>{stable_bp_}));
 
   // By default, show_entity_borders_ is false.

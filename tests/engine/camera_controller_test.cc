@@ -5,8 +5,8 @@
 #include "common/mock_input_manager.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "objects/camera.h"
 #include "macros.h"
+#include "objects/camera.h"
 
 namespace zebes {
 namespace {
@@ -162,11 +162,11 @@ TEST_F(CameraControllerTest, CreateRejectsInvalidZoomRange) {
 }
 
 TEST(CameraZoomRangeTest, ClampUsesOwningSystemsPolicy) {
-  constexpr CameraZoomRange range{.minimum = 0.5, .maximum = 2.0};
+  constexpr CameraZoomRange kRange{.minimum = 0.5, .maximum = 2.0};
 
-  EXPECT_DOUBLE_EQ(range.Clamp(0.1), 0.5);
-  EXPECT_DOUBLE_EQ(range.Clamp(1.25), 1.25);
-  EXPECT_DOUBLE_EQ(range.Clamp(4.0), 2.0);
+  EXPECT_DOUBLE_EQ(kRange.Clamp(0.1), 0.5);
+  EXPECT_DOUBLE_EQ(kRange.Clamp(1.25), 1.25);
+  EXPECT_DOUBLE_EQ(kRange.Clamp(4.0), 2.0);
 }
 
 }  // namespace

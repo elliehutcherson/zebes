@@ -120,13 +120,15 @@ absl::Status SpriteEditorModel::DeleteFrame(int index) {
 }
 
 absl::Status SpriteEditorModel::MoveFrameLeft(int index) {
-  if (!IsValidFrameIndex(index) || index == 0)
+  if (!IsValidFrameIndex(index) || index == 0) {
     return absl::OutOfRangeError("Cannot move frame left");
+  }
   std::swap(sprite_.frames[index], sprite_.frames[index - 1]);
-  if (active_frame_index_ == index)
+  if (active_frame_index_ == index) {
     active_frame_index_ = index - 1;
-  else if (active_frame_index_ == index - 1)
+  } else if (active_frame_index_ == index - 1) {
     active_frame_index_ = index;
+  }
   ReindexFrames();
   return absl::OkStatus();
 }
@@ -136,10 +138,11 @@ absl::Status SpriteEditorModel::MoveFrameRight(int index) {
     return absl::OutOfRangeError("Cannot move frame right");
   }
   std::swap(sprite_.frames[index], sprite_.frames[index + 1]);
-  if (active_frame_index_ == index)
+  if (active_frame_index_ == index) {
     active_frame_index_ = index + 1;
-  else if (active_frame_index_ == index + 1)
+  } else if (active_frame_index_ == index + 1) {
     active_frame_index_ = index;
+  }
   ReindexFrames();
   return absl::OkStatus();
 }

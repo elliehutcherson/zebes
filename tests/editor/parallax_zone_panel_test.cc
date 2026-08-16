@@ -6,9 +6,9 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/level.h"
 #include "tests/editor/mock_gui.h"
-#include "macros.h"
 
 namespace zebes {
 
@@ -159,7 +159,7 @@ TEST_F(ParallaxZonePanelTest, SelectionStateUpdatedOnSelect) {
   EXPECT_EQ(selection_.zone_id, 0);
 }
 
-TEST_F(ParallaxZonePanelTest, CreateZone_AssignsUniqueIds) {
+TEST_F(ParallaxZonePanelTest, CreateZoneAssignsUniqueIds) {
   level_.width = 1024.0;
   level_.height = 512.0;
 
@@ -245,7 +245,7 @@ TEST_F(ParallaxZonePanelTest, ComboPreviewShowsSelectedTheme) {
   ASSERT_OK(RenderDetails());
 }
 
-TEST_F(ParallaxZonePanelTest, RenderDetails_ShowsLayerOffsets) {
+TEST_F(ParallaxZonePanelTest, RenderDetailsShowsLayerOffsets) {
   ParallaxLayer layer{
       .name = "Trees",
       .texture_id = "tex_trees",

@@ -23,7 +23,7 @@ class Animator {
   absl::StatusOr<SpriteFrame> GetCurrentFrame(const std::vector<SpriteFrame>& frames) const;
   absl::StatusOr<int> GetCurrentFrameIndex(const std::vector<SpriteFrame>& frames) const;
 
-  bool IsActive(const std::vector<SpriteFrame>& frames) const;
+  static bool IsActive(const std::vector<SpriteFrame>& frames);
 
  private:
   int current_frame_index_ = 0;

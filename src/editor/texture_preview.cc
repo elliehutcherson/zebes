@@ -33,7 +33,7 @@ absl::StatusOr<TexturePreviewLayout> CalculateTexturePreviewLayout(int source_wi
   };
 }
 
-absl::StatusOr<AtlasBinding> TexturePreviewRenderer::BindAtlas(TextureHandle texture) const {
+absl::StatusOr<AtlasBinding> TexturePreviewRenderer::BindAtlas(TextureHandle texture) {
   if (!texture) return AtlasBinding{};
 
   SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(texture);

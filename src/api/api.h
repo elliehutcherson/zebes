@@ -32,7 +32,7 @@ class Api {
 
   static absl::StatusOr<std::unique_ptr<Api>> Create(const Options& options);
 
-  Api(const Options& options);
+  explicit Api(const Options& options);
   virtual ~Api() = default;
 
   // Get reading access to the config

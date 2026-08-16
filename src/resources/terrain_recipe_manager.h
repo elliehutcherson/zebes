@@ -35,7 +35,7 @@ class TerrainRecipeManager {
  private:
   explicit TerrainRecipeManager(std::string root_path);
 
-  absl::StatusOr<TerrainRecipe> LoadRecipeFile(const std::string& path) const;
+  static absl::StatusOr<TerrainRecipe> LoadRecipeFile(const std::string& path);
   std::string RecipePath(const std::string& id) const;
 
   const std::string definitions_path_;

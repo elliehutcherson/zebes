@@ -25,7 +25,8 @@ absl::Status Run() {
   }
 
   // Setup window
-  SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+  SDL_WindowFlags window_flags =
+      static_cast<SDL_WindowFlags>(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
   SDL_Window* window = SDL_CreateWindow(scenario->GetTitle(), SDL_WINDOWPOS_CENTERED,
                                         SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
 
@@ -55,10 +56,13 @@ absl::Status Run() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
       ImGui_ImplSDL2_ProcessEvent(&event);
-      if (event.type == SDL_QUIT) done = true;
-      if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE &&
-          event.window.windowID == SDL_GetWindowID(window))
+      if (event.type == SDL_QUIT) {
         done = true;
+      }
+      if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE &&
+          event.window.windowID == SDL_GetWindowID(window)) {
+        done = true;
+      }
     }
 
     // Start the Dear ImGui frame

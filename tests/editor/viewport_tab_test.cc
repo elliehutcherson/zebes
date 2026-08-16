@@ -34,8 +34,7 @@ class ViewportTabTestPeer {
     return tab.parallax_preview_mode_;
   }
 
-  static void ReconcileParallaxPreviewMode(ViewportTab& tab,
-                                           const ViewportRenderOptions& options) {
+  static void ReconcileParallaxPreviewMode(ViewportTab& tab, const ViewportRenderOptions& options) {
     tab.ReconcileParallaxPreviewMode(options);
   }
 
@@ -153,7 +152,7 @@ TEST(CreateEntityFromBlueprintTest, StateIndexPreserved) {
 // Regression: RenderPlacementGhost used to read an uninitialized Sprite* pointer
 // when the blueprint had no sprite, causing a segfault on selection.
 
-TEST(CreateEntityFromBlueprintTest, InvisibleBlueprint_SpriteRemainsNull) {
+TEST(CreateEntityFromBlueprintTest, InvisibleBlueprintSpriteRemainsNull) {
   // A blueprint with a state but no sprite_id is "invisible".
   Blueprint bp{.id = "invisible-bp", .states = {Blueprint::State{.name = "Idle"}}};
   ASSERT_FALSE(bp.sprite_id(0).has_value()) << "Precondition: blueprint has no sprite";
@@ -165,7 +164,7 @@ TEST(CreateEntityFromBlueprintTest, InvisibleBlueprint_SpriteRemainsNull) {
   EXPECT_TRUE(e.sprite_id.empty());
 }
 
-TEST(CreateEntityFromBlueprintTest, InvisibleBlueprint_NoStates_SpriteRemainsNull) {
+TEST(CreateEntityFromBlueprintTest, InvisibleBlueprintNoStatesSpriteRemainsNull) {
   // A blueprint with no states at all also has no sprite.
   Blueprint bp{.id = "empty-bp"};
   ASSERT_FALSE(bp.sprite_id(0).has_value()) << "Precondition: blueprint has no states";
@@ -229,8 +228,8 @@ TEST(ViewportTabTest, FrameZoneCentersAndFitsStableZoneBounds) {
   };
 
   tab.FrameZone(zone);
-  ViewportTabTestPeer::ApplyPendingCameraFrame(
-      tab, ImVec2(1000, 800), {.min = {0, 0}, .max = {1000, 1000}});
+  ViewportTabTestPeer::ApplyPendingCameraFrame(tab, ImVec2(1000, 800),
+                                               {.min = {0, 0}, .max = {1000, 1000}});
 
   const Camera& camera = ViewportTabTestPeer::GetCamera(tab);
   EXPECT_DOUBLE_EQ(camera.position.x, 300);
@@ -289,24 +288,17 @@ TEST(ViewportTabTest, SelectedParallaxPreviewRequiresCompatibleSelection) {
   NiceMock<MockGui> gui;
   ViewportTab tab(api, &gui);
 
-  ViewportTabTestPeer::SetParallaxPreviewMode(tab,
-                                              ParallaxPreviewMode::kSelectedLayer);
+  ViewportTabTestPeer::SetParallaxPreviewMode(tab, ParallaxPreviewMode::kSelectedLayer);
   ViewportTabTestPeer::ReconcileParallaxPreviewMode(
-      tab, {.selected_parallax_theme_id = 3,
-            .selected_parallax_layer_index = 1});
-  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab),
-            ParallaxPreviewMode::kSelectedLayer);
+      tab, {.selected_parallax_theme_id = 3, .selected_parallax_layer_index = 1});
+  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab), ParallaxPreviewMode::kSelectedLayer);
 
-  ViewportTabTestPeer::ReconcileParallaxPreviewMode(
-      tab, {.selected_parallax_theme_id = 3});
-  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab),
-            ParallaxPreviewMode::kActiveZone);
+  ViewportTabTestPeer::ReconcileParallaxPreviewMode(tab, {.selected_parallax_theme_id = 3});
+  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab), ParallaxPreviewMode::kActiveZone);
 
-  ViewportTabTestPeer::SetParallaxPreviewMode(tab,
-                                              ParallaxPreviewMode::kSelectedTheme);
+  ViewportTabTestPeer::SetParallaxPreviewMode(tab, ParallaxPreviewMode::kSelectedTheme);
   ViewportTabTestPeer::ReconcileParallaxPreviewMode(tab, {});
-  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab),
-            ParallaxPreviewMode::kActiveZone);
+  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab), ParallaxPreviewMode::kActiveZone);
 }
 
 TEST(ViewportTabTest, ActiveZoneWithoutAssignedThemeDoesNotFailPreview) {
@@ -348,8 +340,8 @@ TEST(SnapEntityToGridTest, ColliderAsymmetricBoundingBox) {
   collider.polygons.push_back({{4, 0}, {12, 0}, {12, 10}, {4, 10}});
   absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, nullptr);
   ASSERT_OK(result);
-  EXPECT_DOUBLE_EQ(result->x, 0.0);   // 8 - 8
-  EXPECT_DOUBLE_EQ(result->y, 6.0);   // 16 - 10
+  EXPECT_DOUBLE_EQ(result->x, 0.0);  // 8 - 8
+  EXPECT_DOUBLE_EQ(result->y, 6.0);  // 16 - 10
 }
 
 TEST(SnapEntityToGridTest, SpriteFallbackWhenNoCollider) {
@@ -407,8 +399,8 @@ TEST(SnapEntityToGridTest, RejectsUnrepresentableGridCoordinate) {
   Sprite sprite;
   sprite.frames.push_back(SpriteFrame{.render_w = 16, .render_h = 16});
 
-  absl::StatusOr<Vec> result = SnapEntityToGrid(
-      {std::numeric_limits<double>::max(), 0}, 16, 16, nullptr, &sprite);
+  absl::StatusOr<Vec> result =
+      SnapEntityToGrid({std::numeric_limits<double>::max(), 0}, 16, 16, nullptr, &sprite);
 
   EXPECT_EQ(result.status().code(), absl::StatusCode::kOutOfRange);
 }
@@ -417,7 +409,8 @@ TEST(SnapEntityToGridTest, EmptyColliderFallsBackToSprite) {
   // Collider present but has no polygons — falls through to sprite.
   Collider collider;  // polygons empty
   Sprite sprite;
-  sprite.frames.push_back(SpriteFrame{.render_w = 16, .render_h = 16, .offset_x = 0, .offset_y = 0});
+  sprite.frames.push_back(
+      SpriteFrame{.render_w = 16, .render_h = 16, .offset_x = 0, .offset_y = 0});
   // Tile grid: 16×16. Mouse at (0, 0) → center_x=8, bottom_y=16.
   // Sprite: center_x_offset=8, bottom_y_offset=16 → pos=(0, 0).
   absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, &sprite);
@@ -428,7 +421,7 @@ TEST(SnapEntityToGridTest, EmptyColliderFallsBackToSprite) {
 
 // PickEntity already uses a 32x32 default hit-box for entities with no sprite.
 // Verify both edges of that box for an entity created from an invisible blueprint.
-TEST(PickEntityTest, InvisibleBlueprintEntity_HitsDefaultBox) {
+TEST(PickEntityTest, InvisibleBlueprintEntityHitsDefaultBox) {
   // Simulates an entity placed from an invisible blueprint: sprite is null.
   Entity e = {.id = 3, .active = true, .transform = {.position = {50, 80}}};
   std::map<uint64_t, Entity> entities{{e.id, e}};

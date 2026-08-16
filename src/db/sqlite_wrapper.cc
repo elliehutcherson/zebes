@@ -70,7 +70,9 @@ absl::Status SqliteWrapper::Finalize(sqlite3_stmt* stmt) {
 int SqliteWrapper::ColumnInt(sqlite3_stmt* stmt, int col) { return sqlite3_column_int(stmt, col); }
 
 std::string SqliteWrapper::ColumnText(sqlite3_stmt* stmt, int col) {
-  const unsigned char* text = sqlite3_column_text(stmt, col);
+  // SQLite owns this buffer and exposes it as unsigned bytes even for UTF-8 text.
+  const unsigned char* text =  // NOLINT(google-runtime-int)
+      sqlite3_column_text(stmt, col);
   return text ? reinterpret_cast<const char*>(text) : "";
 }
 

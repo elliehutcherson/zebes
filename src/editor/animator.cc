@@ -44,6 +44,6 @@ absl::StatusOr<int> Animator::GetCurrentFrameIndex(const std::vector<SpriteFrame
   return current_frame_index_ % static_cast<int>(frames.size());
 }
 
-bool Animator::IsActive(const std::vector<SpriteFrame>& frames) const { return !frames.empty(); }
+bool Animator::IsActive(const std::vector<SpriteFrame>& frames) { return !frames.empty(); }
 
 }  // namespace zebes

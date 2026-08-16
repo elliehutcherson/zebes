@@ -53,8 +53,8 @@ TEST(TerrainMaskTest, EveryRawMaskNormalizesIntoTheTable) {
   std::set<uint8_t> table(Blob47MaskTable().begin(), Blob47MaskTable().end());
   for (int raw = 0; raw < 256; ++raw) {
     const uint8_t normalized = NormalizeNeighborMask(static_cast<uint8_t>(raw));
-    EXPECT_EQ(table.count(normalized), 1u) << "raw mask " << raw << " normalized to "
-                                           << static_cast<int>(normalized);
+    EXPECT_EQ(table.count(normalized), 1u)
+        << "raw mask " << raw << " normalized to " << static_cast<int>(normalized);
   }
 }
 
@@ -77,21 +77,21 @@ TEST(TerrainMaskTest, IndexRejectsNonNormalizedMasks) {
 // index artwork by. A change here silently repaints every existing level, so the
 // table is asserted literally rather than recomputed.
 TEST(TerrainMaskTest, TableOrderingMatchesGolden) {
-  const std::array<uint8_t, kBlob47TileCount> kGolden = {
+  const std::array<uint8_t, kBlob47TileCount> golden = {
       0,   1,   4,   5,   7,   16,  17,  20,  21,  23,  28,  29,  31,  64,  65,  68,
       69,  71,  80,  81,  84,  85,  87,  92,  93,  95,  112, 113, 116, 117, 119, 124,
       125, 127, 193, 197, 199, 209, 213, 215, 221, 223, 241, 245, 247, 253, 255,
   };
 
   absl::Span<const uint8_t> table = Blob47MaskTable();
-  ASSERT_EQ(table.size(), kGolden.size());
-  for (size_t i = 0; i < kGolden.size(); ++i) {
-    EXPECT_EQ(table[i], kGolden[i]) << "at index " << i;
+  ASSERT_EQ(table.size(), golden.size());
+  for (size_t i = 0; i < golden.size(); ++i) {
+    EXPECT_EQ(table[i], golden[i]) << "at index " << i;
   }
 }
 
 TEST(TerrainMaskTest, QuadrantStateCoversEveryTableEntry) {
-  const std::array<Quadrant, kQuadrantCount> kQuadrants = {
+  const std::array<Quadrant, kQuadrantCount> quadrants = {
       Quadrant::kNorthWest,
       Quadrant::kNorthEast,
       Quadrant::kSouthEast,
@@ -99,7 +99,7 @@ TEST(TerrainMaskTest, QuadrantStateCoversEveryTableEntry) {
   };
 
   for (uint8_t mask : Blob47MaskTable()) {
-    for (Quadrant quadrant : kQuadrants) {
+    for (Quadrant quadrant : quadrants) {
       const QuadrantState state = QuadrantStateForMask(mask, quadrant);
       EXPECT_LE(static_cast<int>(state), kQuadrantStateCount - 1)
           << "mask " << static_cast<int>(mask);
@@ -146,8 +146,8 @@ TEST(TerrainMaskTest, EachOffsetPointsWhereItsBitIsNamed) {
     int dy;
   };
   constexpr Named kExpected[] = {
-      {kNorth, 0, -1},    {kNorthEast, 1, -1}, {kEast, 1, 0},  {kSouthEast, 1, 1},
-      {kSouth, 0, 1},     {kSouthWest, -1, 1}, {kWest, -1, 0}, {kNorthWest, -1, -1},
+      {kNorth, 0, -1}, {kNorthEast, 1, -1}, {kEast, 1, 0},  {kSouthEast, 1, 1},
+      {kSouth, 0, 1},  {kSouthWest, -1, 1}, {kWest, -1, 0}, {kNorthWest, -1, -1},
   };
   ASSERT_EQ(std::size(kExpected), kNeighborCount);
 

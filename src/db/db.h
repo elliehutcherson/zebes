@@ -26,7 +26,7 @@ class Db : public DbInterface {
   absl::StatusOr<std::vector<AppliedMigration>> GetAppliedMigrations();
 
  private:
-  Db(const Options& options);
+  explicit Db(const Options& options);
 
   absl::StatusOr<sqlite3*> OpenDb();
 

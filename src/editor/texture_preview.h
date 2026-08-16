@@ -48,7 +48,7 @@ class TexturePreviewRenderer {
   //
   // An invalid handle is an ordinary authoring state, not an error: it yields a
   // default-constructed binding so callers can draw a placeholder.
-  absl::StatusOr<AtlasBinding> BindAtlas(TextureHandle texture) const;
+  static absl::StatusOr<AtlasBinding> BindAtlas(TextureHandle texture);
 
  private:
   GuiInterface& gui_;

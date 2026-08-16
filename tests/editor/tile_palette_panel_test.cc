@@ -5,10 +5,10 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/tileset.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
-#include "macros.h"
 
 namespace zebes {
 
@@ -62,8 +62,9 @@ class TilePalettePanelTest : public ::testing::Test {
 
     ON_CALL(gui_, Checkbox(_, _)).WillByDefault(Return(false));
     ON_CALL(gui_, SameLine(_, _)).WillByDefault(Return());
-    ON_CALL(gui_, CreateScopedId(An<int>()))
-        .WillByDefault(Invoke([this](int id) { return ScopedId(&gui_, id); }));
+    ON_CALL(gui_, CreateScopedId(An<int>())).WillByDefault(Invoke([this](int id) {
+      return ScopedId(&gui_, id);
+    }));
   }
 
   absl::Status Render() { return panel_->Render(16, 16); }
@@ -93,7 +94,7 @@ TEST(TilePalettePanelCreateTest, FailsWithNullGui) {
 
 // --- Render: no tilesets ---
 
-TEST_F(TilePalettePanelTest, Render_NoTilesets_SucceedsAndSelectionIsNull) {
+TEST_F(TilePalettePanelTest, RenderNoTilesetsSucceedsAndSelectionIsNull) {
   ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{}));
   ASSERT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedTile(), nullptr);
@@ -102,17 +103,17 @@ TEST_F(TilePalettePanelTest, Render_NoTilesets_SucceedsAndSelectionIsNull) {
 
 // --- Checkbox defaults ---
 
-TEST_F(TilePalettePanelTest, GetShowTileFrame_DefaultTrue) {
+TEST_F(TilePalettePanelTest, GetShowTileFrameDefaultTrue) {
   EXPECT_TRUE(panel_->GetShowTileFrame());
 }
 
-TEST_F(TilePalettePanelTest, GetShowTileCollision_DefaultFalse) {
+TEST_F(TilePalettePanelTest, GetShowTileCollisionDefaultFalse) {
   EXPECT_FALSE(panel_->GetShowTileCollision());
 }
 
 // --- Tileset selection via peer injection ---
 
-TEST_F(TilePalettePanelTest, Render_WithTilesetPreSelected_RendersGrid) {
+TEST_F(TilePalettePanelTest, RenderWithTilesetPreSelectedRendersGrid) {
   stable_ts_.tiles = {stable_tile_};
   ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{stable_ts_}));
   // Inject tileset directly to bypass the combo's Selectable overload ambiguity.
@@ -123,7 +124,7 @@ TEST_F(TilePalettePanelTest, Render_WithTilesetPreSelected_RendersGrid) {
 
 // --- Tile click selection ---
 
-TEST_F(TilePalettePanelTest, Render_ClickTile_SelectsTile) {
+TEST_F(TilePalettePanelTest, RenderClickTileSelectsTile) {
   stable_ts_.tiles = {stable_tile_};
   TilePalettePanelTestPeer::SetSelectedTileset(*panel_, &stable_ts_);
   ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{stable_ts_}));
@@ -138,7 +139,7 @@ TEST_F(TilePalettePanelTest, Render_ClickTile_SelectsTile) {
   EXPECT_EQ(panel_->GetSelectedTile()->id, 1);
 }
 
-TEST_F(TilePalettePanelTest, Render_ClickSameTile_Deselects) {
+TEST_F(TilePalettePanelTest, RenderClickSameTileDeselects) {
   stable_ts_.tiles = {stable_tile_};
   TilePalettePanelTestPeer::SetSelectedTileset(*panel_, &stable_ts_);
   ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{stable_ts_}));
@@ -159,7 +160,7 @@ TEST_F(TilePalettePanelTest, Render_ClickSameTile_Deselects) {
 
 // --- ClearSelection ---
 
-TEST_F(TilePalettePanelTest, ClearSelection_ResetsSelectedTile) {
+TEST_F(TilePalettePanelTest, ClearSelectionResetsSelectedTile) {
   stable_ts_.tiles = {stable_tile_};
   TilePalettePanelTestPeer::SetSelectedTileset(*panel_, &stable_ts_);
   ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{stable_ts_}));

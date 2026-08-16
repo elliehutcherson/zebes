@@ -44,7 +44,7 @@ std::string TerrainRecipeManager::RecipePath(const std::string& id) const {
   return absl::StrCat(definitions_path_, "/", id, ".json");
 }
 
-absl::StatusOr<TerrainRecipe> TerrainRecipeManager::LoadRecipeFile(const std::string& path) const {
+absl::StatusOr<TerrainRecipe> TerrainRecipeManager::LoadRecipeFile(const std::string& path) {
   std::ifstream stream(path);
   if (!stream.is_open()) return absl::NotFoundError(absl::StrCat("could not open ", path));
 

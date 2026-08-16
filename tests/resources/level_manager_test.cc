@@ -136,7 +136,7 @@ TEST_F(LevelManagerTest, ValidationTest) {
               HasSubstr("Level boundaries must be multiples of tile render size"));
 }
 
-TEST_F(LevelManagerTest, CreateLevel_EmptyName_Fails) {
+TEST_F(LevelManagerTest, CreateLevelEmptyNameFails) {
   Level level{
       .name = "",
   };
@@ -145,7 +145,7 @@ TEST_F(LevelManagerTest, CreateLevel_EmptyName_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("non-empty name"));
 }
 
-TEST_F(LevelManagerTest, CreateLevel_DuplicateName_Fails) {
+TEST_F(LevelManagerTest, CreateLevelDuplicateNameFails) {
   Level level1{
       .name = "Unique Level",
   };
@@ -174,7 +174,7 @@ TEST_F(LevelManagerTest, SavingKeepsPointersHandedOutBeforeIt) {
   EXPECT_EQ(held->name, "Renamed");
 }
 
-TEST_F(LevelManagerTest, SaveLevel_EmptyName_Fails) {
+TEST_F(LevelManagerTest, SaveLevelEmptyNameFails) {
   Level level{
       .name = "Initial Name",
   };
@@ -189,7 +189,7 @@ TEST_F(LevelManagerTest, SaveLevel_EmptyName_Fails) {
   EXPECT_THAT(status.message(), HasSubstr("cannot be empty"));
 }
 
-TEST_F(LevelManagerTest, SaveLevel_DuplicateName_Fails) {
+TEST_F(LevelManagerTest, SaveLevelDuplicateNameFails) {
   Level level1{
       .name = "Level 1",
   };
@@ -242,8 +242,7 @@ TEST_F(LevelManagerTest, ParallaxLayerPersistence) {
 
   // Force reload from disk
   manager_ = nullptr;
-  ASSERT_OK_AND_ASSIGN(auto new_manager,
-                       LevelManager::Create("test_data/level_manager_test"));
+  ASSERT_OK_AND_ASSIGN(auto new_manager, LevelManager::Create("test_data/level_manager_test"));
   manager_ = std::move(new_manager);
   ASSERT_OK(manager_->LoadAllLevels());
 
@@ -305,8 +304,7 @@ TEST_F(LevelManagerTest, ZonesAndThemesPersistence) {
 
   // Reload
   manager_ = nullptr;
-  ASSERT_OK_AND_ASSIGN(auto new_manager,
-                       LevelManager::Create("test_data/level_manager_test"));
+  ASSERT_OK_AND_ASSIGN(auto new_manager, LevelManager::Create("test_data/level_manager_test"));
   manager_ = std::move(new_manager);
   ASSERT_OK(manager_->LoadAllLevels());
 
@@ -359,8 +357,7 @@ TEST_F(LevelManagerTest, ThemeLayerOffsetPersistence) {
 
   // Force reload from disk
   manager_ = nullptr;
-  ASSERT_OK_AND_ASSIGN(auto new_manager,
-                       LevelManager::Create("test_data/level_manager_test"));
+  ASSERT_OK_AND_ASSIGN(auto new_manager, LevelManager::Create("test_data/level_manager_test"));
   manager_ = std::move(new_manager);
   ASSERT_OK(manager_->LoadAllLevels());
 
@@ -372,7 +369,7 @@ TEST_F(LevelManagerTest, ThemeLayerOffsetPersistence) {
   EXPECT_EQ(loaded->themes[1].layers[0].offset.y, -100.0);
 }
 
-TEST_F(LevelManagerTest, SaveLevel_EmptyThemeName_Fails) {
+TEST_F(LevelManagerTest, SaveLevelEmptyThemeNameFails) {
   Level level{.name = "Bad Theme"};
   ParallaxTheme theme;
   theme.id = 1;
@@ -382,7 +379,7 @@ TEST_F(LevelManagerTest, SaveLevel_EmptyThemeName_Fails) {
   EXPECT_FALSE(manager_->CreateLevel(std::move(level)).ok());
 }
 
-TEST_F(LevelManagerTest, SaveLevel_InvalidThemeId_Fails) {
+TEST_F(LevelManagerTest, SaveLevelInvalidThemeIdFails) {
   Level level{.name = "Invalid Theme ID"};
   ParallaxTheme theme;
   theme.id = -1;
@@ -394,7 +391,7 @@ TEST_F(LevelManagerTest, SaveLevel_InvalidThemeId_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("valid non-negative integer ID"));
 }
 
-TEST_F(LevelManagerTest, LoadLevel_MissingThemeId_Fails) {
+TEST_F(LevelManagerTest, LoadLevelMissingThemeIdFails) {
   std::string file_path = "test_data/level_manager_test/definitions/levels/bad_theme.json";
   std::ofstream out(file_path);
   out << R"({
@@ -413,7 +410,7 @@ TEST_F(LevelManagerTest, LoadLevel_MissingThemeId_Fails) {
   EXPECT_FALSE(manager_->LoadLevel("bad_theme.json").ok());
 }
 
-TEST_F(LevelManagerTest, SaveLevel_ZoneInvalidThemeId_Fails) {
+TEST_F(LevelManagerTest, SaveLevelZoneInvalidThemeIdFails) {
   Level level{.name = "Bad Zone"};
   ParallaxTheme theme;
   theme.id = 1;
@@ -428,7 +425,7 @@ TEST_F(LevelManagerTest, SaveLevel_ZoneInvalidThemeId_Fails) {
   EXPECT_FALSE(manager_->CreateLevel(std::move(level)).ok());
 }
 
-TEST_F(LevelManagerTest, SaveLevel_EmptyZoneName_Fails) {
+TEST_F(LevelManagerTest, SaveLevelEmptyZoneNameFails) {
   Level level{.name = "Empty Zone Name"};
   ParallaxTheme theme;
   theme.id = 1;
@@ -445,7 +442,7 @@ TEST_F(LevelManagerTest, SaveLevel_EmptyZoneName_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("Zone name cannot be empty"));
 }
 
-TEST_F(LevelManagerTest, SaveLevel_DuplicateZoneId_Fails) {
+TEST_F(LevelManagerTest, SaveLevelDuplicateZoneIdFails) {
   Level level{.name = "Duplicate Zone ID", .width = 320, .height = 320};
   ParallaxTheme theme;
   theme.id = 1;
@@ -470,7 +467,7 @@ TEST_F(LevelManagerTest, SaveLevel_DuplicateZoneId_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("Duplicate zone ID"));
 }
 
-TEST_F(LevelManagerTest, LoadLevel_MissingZoneNameAndId_Fails) {
+TEST_F(LevelManagerTest, LoadLevelMissingZoneNameAndIdFails) {
   std::string file_path = "test_data/level_manager_test/definitions/levels/bad_zone.json";
   std::ofstream out(file_path);
   out << R"({
@@ -495,7 +492,7 @@ TEST_F(LevelManagerTest, LoadLevel_MissingZoneNameAndId_Fails) {
   EXPECT_FALSE(manager_->LoadLevel("bad_zone.json").ok());
 }
 
-TEST_F(LevelManagerTest, SaveLevel_ZoneOutsideBounds_Fails) {
+TEST_F(LevelManagerTest, SaveLevelZoneOutsideBoundsFails) {
   Level level{.name = "Zone Out Of Bounds", .width = 320, .height = 320};
   ParallaxTheme theme;
   theme.id = 1;
@@ -515,7 +512,7 @@ TEST_F(LevelManagerTest, SaveLevel_ZoneOutsideBounds_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("extends outside level boundaries"));
 }
 
-TEST_F(LevelManagerTest, SaveLevel_ZoneNegativeCoords_Fails) {
+TEST_F(LevelManagerTest, SaveLevelZoneNegativeCoordsFails) {
   Level level{.name = "Negative Zone", .width = 320, .height = 320};
   ParallaxTheme theme;
   theme.id = 1;
@@ -535,7 +532,7 @@ TEST_F(LevelManagerTest, SaveLevel_ZoneNegativeCoords_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("extends outside level boundaries"));
 }
 
-TEST_F(LevelManagerTest, SaveLevel_ZoneInvalidDimensions_Fails) {
+TEST_F(LevelManagerTest, SaveLevelZoneInvalidDimensionsFails) {
   Level level{.name = "Inverted Zone", .width = 320, .height = 320};
   ParallaxTheme theme;
   theme.id = 1;
@@ -555,7 +552,7 @@ TEST_F(LevelManagerTest, SaveLevel_ZoneInvalidDimensions_Fails) {
   EXPECT_THAT(id.status().message(), HasSubstr("invalid dimensions"));
 }
 
-TEST_F(LevelManagerTest, LoadLevel_ZoneOutsideBounds_Fails) {
+TEST_F(LevelManagerTest, LoadLevelZoneOutsideBoundsFails) {
   std::string file_path = "test_data/level_manager_test/definitions/levels/zone_oob.json";
   std::ofstream out(file_path);
   out << R"({
@@ -586,7 +583,7 @@ TEST_F(LevelManagerTest, LoadLevel_ZoneOutsideBounds_Fails) {
   EXPECT_FALSE(manager_->LoadLevel("zone_oob.json").ok());
 }
 
-TEST_F(LevelManagerTest, SaveLevel_SpawnPointOutsideBounds_Fails) {
+TEST_F(LevelManagerTest, SaveLevelSpawnPointOutsideBoundsFails) {
   Level level{
       .name = "Bad Spawn",
       .width = 320,
@@ -702,8 +699,7 @@ TEST_F(LevelManagerTest, EntityAssetReferencesRoundTripAsIds) {
 // and they are dropped on load rather than restored -- a saved level must not
 // resurrect how fast something happened to be moving.
 TEST_F(LevelManagerTest, SimulationStateInADocumentIsIgnored) {
-  const std::string path =
-      "test_data/level_manager_test/definitions/levels/Legacy-legacy-id.json";
+  const std::string path = "test_data/level_manager_test/definitions/levels/Legacy-legacy-id.json";
   std::ofstream out(path);
   out << R"({
     "id": "legacy-id",
