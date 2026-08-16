@@ -33,7 +33,8 @@ clang-format integration or `clang-format -i`.
   reseatable ones. Never null-check a reference.
 - Express ownership with RAII types such as `std::unique_ptr`.
 - Mark a member function `static` when it does not read or modify instance
-  state. Nothing enforces this mechanically; the linter check for it is off.
+  state. clang-tidy enforces this with
+  `readability-convert-member-functions-to-static`.
 - Prefer Zebes-owned domain types at library boundaries. Do not expose SDL or
   ImGui types from engine or resource interfaces.
 

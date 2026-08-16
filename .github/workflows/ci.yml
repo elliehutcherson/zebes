@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Full test suite
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install native dependencies
+        run: brew install freetype libavif libtiff webp
+
+      - name: Run headless tests
+        run: ./scripts/build_and_test.sh
+
+      - name: Run SDL and ImGui tests
+        run: ./scripts/build_and_test.sh --ui-tests
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_RENDER_DRIVER: software
+
+  clang-tidy:
+    name: Clang-tidy
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install analysis dependencies
+        run: brew install llvm freetype libavif libtiff webp
+
+      - name: Configure compilation database
+        run: cmake --preset dev
+
+      - name: Analyze project translation units
+        run: ./scripts/lint.sh --all

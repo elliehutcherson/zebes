@@ -21,12 +21,16 @@ That merge is the only item outstanding.
 
 ## Track 0 — Tooling and the slope rename (done, unmerged)
 
-clang-tidy runs. It ships with the keg-only Homebrew llvm formula, so it was
-never on `PATH` and the config said so; the working invocation and the reason
-`-isysroot` cannot be dropped now live in `.clang-tidy` itself. Two filters keep
-the output about this project — `HeaderFilterRegex` alone was not enough,
-because stb is reached as `src/common/../../include/stb/stb_image.h` and so
-matched `/zebes/src/`. That one path was 741 of 961 findings.
+clang-tidy runs through `scripts/lint.sh`. The wrapper finds the keg-only
+Homebrew LLVM installation, supplies the macOS SDK, and requires either named
+translation units or an explicit `--all`. Full scans are capped at two workers
+by default. An anchored source expression and the header filters keep the
+output about this project — `HeaderFilterRegex` alone was not enough, because
+stb is reached as `src/common/../../include/stb/stb_image.h` and so matched
+`/zebes/src/`. That one path was 741 of 961 findings before the filters.
+
+Local verification is now target-oriented through `scripts/test.sh`; GitHub
+Actions owns the comprehensive headless, UI, and full-tree analysis runs.
 
 Then the first thing it found got fixed, twice over:
 
@@ -50,9 +54,10 @@ shape in silence, since the numeric `shape` field is untouched and
 
 ## Track 1 — The clang-tidy backlog
 
-Measured with vendored headers excluded, in-scope checks only: **220 findings in
-`src/`, 200 in `tests/`**. Re-measure with the command in
-[`style-guide.md`](style-guide.md) §Verification.
+Measured with vendored code excluded and repeated diagnostics deduplicated by
+location and check: **220 findings in `src/`, 86 in `tests/`**. Re-measure with
+`scripts/lint.sh --all`; its raw output can repeat a header finding for multiple
+translation units.
 
 | Count | Check | Where |
 |---|---|---|
@@ -83,15 +88,18 @@ widths. One commit per file group.
 - `api.h`, `db.h`, `camera_controller.h` single-argument constructors: mark
   `explicit` unless the conversion is wanted.
 
-**4. `tests/` (200).** 102 are the same `GuiInterface` defaults seen from the
-other side and disappear with step 1. The real item is **79
+**4. `tests/` (86 unique findings).** Raw full-tree output also repeats the
+`GuiInterface` defaults through test translation units; those disappear with
+step 1. The real item is **79
 `google-readability-avoid-underscore-in-googletest-name`**, concentrated in
 `tileset_manager_test.cc` (23), `level_manager_test.cc` (16) and
 `api_validation_test.cc` (15). Renaming a test changes what `--gtest_filter`
 matches, so sweep it once rather than alongside other edits.
 
-**5. Then decide enforcement.** A `scripts/lint.sh`, or a `--lint` flag on
-`build_and_test.sh`. A clean tree that nothing runs goes stale in a week.
+**5. Enforcement is staged.** `scripts/lint.sh` provides scoped local checks and
+GitHub Actions runs the full tree. CI reports the existing backlog without
+turning warnings into failures. Once steps 1-4 leave a clean tree, switch CI to
+`scripts/lint.sh --strict --all` so new findings fail the merge gate.
 
 ---
 

@@ -2,10 +2,10 @@
 # .clang-tidy
 #
 # clang-tidy ships with the Homebrew llvm formula, which is keg-only, so it is
-# not on PATH. Run the whole project with the driver that ships beside it:
+# not on PATH. The project wrapper locates it and supplies the macOS SDK:
 #
-#   /usr/local/opt/llvm/bin/run-clang-tidy -p build/dev \
-#       -extra-arg=-isysroot -extra-arg="$(xcrun --show-sdk-path)" src tests
+#   scripts/lint.sh src/example.cc
+#   scripts/lint.sh --all
 #
 # The -isysroot pair is required. The build compiles with Apple's /usr/bin/c++,
 # which locates the SDK implicitly, so CMake records no -isysroot in

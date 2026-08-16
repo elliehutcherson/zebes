@@ -44,7 +44,8 @@ clang-format integration or `clang-format -i`.
   reseatable ones. Never null-check a reference.
 - Express ownership with RAII types such as `std::unique_ptr`.
 - Mark a member function `static` when it does not read or modify instance
-  state. Nothing enforces this mechanically; the linter check for it is off.
+  state. clang-tidy enforces this with
+  `readability-convert-member-functions-to-static`.
 - Prefer Zebes-owned domain types at library boundaries. Do not expose SDL or
   ImGui types from engine or resource interfaces.
 
@@ -203,31 +204,48 @@ adjacent to its cause.
 
 ## Verification
 
-Before handing off a change:
+Use a layered loop. While editing, build and run one affected C++ test
+executable; an optional GoogleTest filter makes the inner loop narrower:
 
 ```bash
-./scripts/build_and_test.sh              # build + headless tests
-./scripts/build_and_test.sh --ui-tests   # when the change touches SDL or ImGui
-git diff --check                         # trailing whitespace, conflict markers
+./scripts/test.sh terrain_generator_test
+./scripts/test.sh terrain_generator_test TerrainGeneratorTest.EverySlopeShapeRenders
+./scripts/test.sh --ui sanity_test
 ```
+
+Before handoff, run the complete affected test executable, lint each edited
+translation unit, and check the patch:
+
+```bash
+./scripts/lint.sh src/terrain/terrain_generator.cc
+git diff --check
+```
+
+Header files have no independent compilation command. For a header change,
+lint representative `.cc` files that include it. Run the comprehensive local
+suite only for cross-cutting changes such as shared headers, serialization,
+CMake/build logic, or broad refactors:
+
+```bash
+./scripts/build_and_test.sh
+./scripts/build_and_test.sh --ui-tests   # behavior requiring SDL or ImGui
+```
+
+GitHub Actions runs the comprehensive suite for every pull request and push to
+`main`. A new session alone is not a reason to rerun it.
 
 `.clang-tidy` runs the Google checks plus the two readability checks that back
-rules above. It is not wired into the build, so run it by hand:
-
-```bash
-PATH="/usr/local/opt/llvm/bin:$PATH" run-clang-tidy -p build/dev -quiet -j 8 \
-    -extra-arg=-isysroot -extra-arg="$(xcrun --show-sdk-path)" src/
-```
-
-clang-tidy ships with the keg-only Homebrew llvm formula, which is why it is not
-already on `PATH`. The `-isysroot` pair is required and `.clang-tidy` explains
-why. Findings it reports are real; this guide still decides what a rule means
-when the two disagree.
+rules above. `scripts/lint.sh` locates LLVM, supplies the macOS SDK when needed,
+and refuses an unscoped invocation. `scripts/lint.sh --all` is reserved for CI
+and explicit cleanup milestones; it uses two workers by default because a full
+analysis is CPU-intensive. Set `LINT_JOBS` deliberately to override that limit.
+Findings it reports are real; this guide still decides what a rule means when
+the two disagree.
 
 ## Related documents
 
-- [`CLAUDE.md`](../CLAUDE.md): build commands, the debugging protocol, and the
-  escalation rule. Loaded into every Claude Code session.
+- [`AGENTS.md`](../AGENTS.md): concise shared agent workflow and engineering
+  principles. `CLAUDE.md` imports it instead of duplicating it.
 - [`architecture.md`](architecture.md): cross-layer ownership and lifetime.
   Update it when adding or changing an architectural boundary.
 - [`roadmap.md`](roadmap.md): what is left to build, including the clang-tidy
