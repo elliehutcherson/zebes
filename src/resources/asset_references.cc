@@ -115,9 +115,12 @@ std::vector<AssetReference> FindSpriteReferrers(const AssetCatalog& catalog,
   // An entity carries its own asset IDs rather than resolving them through its
   // blueprint every frame, so a level can name a sprite no blueprint does.
   for (const Level& level : catalog.levels) {
-    for (const auto& [entity_id, entity] : level.entities) {
-      if (!Names(entity.sprite_id, sprite_id)) continue;
-      Add(referrers, AssetKind::kLevel, level.id, level.name, absl::StrCat("entity ", entity_id));
+    for (const WorldLayer& layer : level.layers) {
+      for (const auto& [entity_id, entity] : layer.entities) {
+        if (!Names(entity.sprite_id, sprite_id)) continue;
+        Add(referrers, AssetKind::kLevel, level.id, level.name,
+            absl::StrCat("layer '", layer.name, "', entity ", entity_id));
+      }
     }
   }
   return referrers;
@@ -136,9 +139,12 @@ std::vector<AssetReference> FindColliderReferrers(const AssetCatalog& catalog,
     }
   }
   for (const Level& level : catalog.levels) {
-    for (const auto& [entity_id, entity] : level.entities) {
-      if (!Names(entity.collider_id, collider_id)) continue;
-      Add(referrers, AssetKind::kLevel, level.id, level.name, absl::StrCat("entity ", entity_id));
+    for (const WorldLayer& layer : level.layers) {
+      for (const auto& [entity_id, entity] : layer.entities) {
+        if (!Names(entity.collider_id, collider_id)) continue;
+        Add(referrers, AssetKind::kLevel, level.id, level.name,
+            absl::StrCat("layer '", layer.name, "', entity ", entity_id));
+      }
     }
   }
   return referrers;
@@ -150,9 +156,12 @@ std::vector<AssetReference> FindBlueprintReferrers(const AssetCatalog& catalog,
   if (blueprint_id.empty()) return referrers;
 
   for (const Level& level : catalog.levels) {
-    for (const auto& [entity_id, entity] : level.entities) {
-      if (!Names(entity.blueprint_id, blueprint_id)) continue;
-      Add(referrers, AssetKind::kLevel, level.id, level.name, absl::StrCat("entity ", entity_id));
+    for (const WorldLayer& layer : level.layers) {
+      for (const auto& [entity_id, entity] : layer.entities) {
+        if (!Names(entity.blueprint_id, blueprint_id)) continue;
+        Add(referrers, AssetKind::kLevel, level.id, level.name,
+            absl::StrCat("layer '", layer.name, "', entity ", entity_id));
+      }
     }
   }
   return referrers;
@@ -168,9 +177,11 @@ std::vector<AssetReference> FindTileReferrers(const AssetCatalog& catalog,
     if (!Names(level.tileset_id, tileset_id)) continue;
 
     int painted = 0;
-    for (const auto& [chunk_key, chunk] : level.tile_chunks) {
-      for (const int painted_id : chunk.tiles) {
-        if (painted_id == tile_id) ++painted;
+    for (const WorldLayer& layer : level.layers) {
+      for (const auto& entry : layer.tile_chunks) {
+        for (const int painted_id : entry.second.tiles) {
+          if (painted_id == tile_id) ++painted;
+        }
       }
     }
     if (painted == 0) continue;

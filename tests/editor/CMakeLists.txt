@@ -344,6 +344,10 @@ add_executable(level_panel_model_test level_panel_model_test.cc)
 target_link_libraries(level_panel_model_test level_panel_model gtest_main)
 gtest_discover_tests(level_panel_model_test)
 
+add_executable(world_layer_model_test world_layer_model_test.cc)
+target_link_libraries(world_layer_model_test world_layer_model macros gtest_main)
+gtest_discover_tests(world_layer_model_test)
+
 # --- Level Editor Test ---
 add_executable(level_editor_test level_editor_test.cc)
 target_link_libraries(level_editor_test

@@ -316,13 +316,19 @@ class MigrateDefinitionsTest(unittest.TestCase):
     def test_entities_gain_an_explicit_draw_order(self):
         path = self.write_level(
             "cave.json",
-            {"id": "l", "name": "Cave", "entities": [{"id": 1}, {"id": 2}]},
+            {
+                "id": "l",
+                "name": "Cave",
+                "tile_chunks": [],
+                "entities": [{"id": 1}, {"id": 2}],
+            },
         )
 
         changed = migrate_definitions.migrate_directory(self.root, "levels", dry_run=False)
 
         self.assertEqual(changed, [path])
-        entities = json.loads(path.read_text(encoding="utf-8"))["entities"]
+        document = json.loads(path.read_text(encoding="utf-8"))
+        entities = document["layers"][0]["entities"]
         # Zero for every entity, because entities used to draw in ascending ID
         # order and ties still resolve that way. Any other value would reorder
         # levels that were authored before the field existed.
@@ -331,23 +337,99 @@ class MigrateDefinitionsTest(unittest.TestCase):
     def test_an_authored_draw_order_is_left_alone(self):
         path = self.write_level(
             "cave.json",
-            {"id": "l", "name": "Cave", "entities": [{"id": 1, "sort_order": 7}]},
+            {
+                "id": "l",
+                "name": "Cave",
+                "layers": [
+                    {
+                        "id": 0,
+                        "name": "Base",
+                        "tile_chunks": [],
+                        "entities": [{"id": 1, "sort_order": 7}],
+                    }
+                ],
+            },
         )
 
         changed = migrate_definitions.migrate_directory(self.root, "levels", dry_run=False)
 
         self.assertEqual(changed, [])
-        entities = json.loads(path.read_text(encoding="utf-8"))["entities"]
+        entities = json.loads(path.read_text(encoding="utf-8"))["layers"][0][
+            "entities"
+        ]
         self.assertEqual(entities[0]["sort_order"], 7)
 
-    def test_a_level_without_entities_is_left_alone(self):
-        self.write_level(
-            "empty.json", {"id": "l", "name": "Empty", "entities": [], "themes": []}
+    def test_root_collections_are_wrapped_without_changing_contents(self):
+        path = self.write_level(
+            "empty.json",
+            {
+                "id": "l",
+                "name": "Empty",
+                "tile_chunks": [{"chunk_id": 2, "tiles": [4]}],
+                "entities": [{"id": 9, "sort_order": 2}],
+                "themes": [],
+            },
         )
 
         changed = migrate_definitions.migrate_directory(self.root, "levels", dry_run=False)
 
-        self.assertEqual(changed, [])
+        self.assertEqual(changed, [path])
+        document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertNotIn("tile_chunks", document)
+        self.assertNotIn("entities", document)
+        self.assertEqual(
+            document["layers"],
+            [
+                {
+                    "id": 0,
+                    "name": "Base",
+                    "tile_chunks": [{"chunk_id": 2, "tiles": [4]}],
+                    "entities": [{"id": 9, "sort_order": 2}],
+                }
+            ],
+        )
+
+    def test_current_layer_format_is_idempotent(self):
+        path = self.write_level(
+            "current.json",
+            {
+                "id": "l",
+                "name": "Current",
+                "layers": [
+                    {
+                        "id": 3,
+                        "name": "World",
+                        "tile_chunks": [],
+                        "entities": [],
+                    }
+                ],
+            },
+        )
+
+        first = migrate_definitions.migrate_directory(
+            self.root, "levels", dry_run=False
+        )
+        second = migrate_definitions.migrate_directory(
+            self.root, "levels", dry_run=False
+        )
+
+        self.assertEqual(first, [])
+        self.assertEqual(second, [])
+        self.assertEqual(
+            json.loads(path.read_text(encoding="utf-8"))["layers"][0]["id"], 3
+        )
+
+    def test_ambiguous_or_partial_layer_format_is_refused(self):
+        documents = [
+            {"layers": [], "tile_chunks": [], "entities": []},
+            {"tile_chunks": []},
+            {"entities": []},
+            {"name": "missing all collections"},
+        ]
+        for index, document in enumerate(documents):
+            with self.subTest(index=index):
+                with self.assertRaises(ValueError):
+                    migrate_definitions.migrate_level(document)
 
     def test_the_level_wide_parallax_list_is_dropped(self):
         # Themes and zones replaced it. The flat list stayed in the format long
@@ -358,6 +440,7 @@ class MigrateDefinitionsTest(unittest.TestCase):
             {
                 "id": "l",
                 "name": "Cave",
+                "tile_chunks": [],
                 "entities": [],
                 "themes": [],
                 "parallax_layers": [{"name": "Layer 0", "texture_id": "t"}],

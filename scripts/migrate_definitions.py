@@ -41,9 +41,14 @@ def migrate_sprite(document: dict) -> bool:
 def migrate_level(document: dict) -> bool:
     """Brings a level current. Returns whether anything changed.
 
-    Entities gain an explicit draw order. They used to draw in ascending ID
-    order, which is insertion order; zero for all of them preserves exactly that,
-    because ties still resolve by ID.
+    The former root tile grid and entity map become world layer 0. Their
+    contents are moved, not copied, so one definition has exactly one owner for
+    each collection after migration. A document containing both representations
+    is ambiguous and refused rather than guessed at.
+
+    Entities also gain an explicit draw order. They used to draw in ascending
+    ID order, which is insertion order; zero for all of them preserves exactly
+    that, because ties still resolve by ID.
 
     The level-wide `parallax_layers` list is dropped. Themes and zones replaced
     it -- a theme owns an ordered stack of layers, a zone binds a theme to a
@@ -51,10 +56,40 @@ def migrate_level(document: dict) -> bool:
     the key rather than loading a list no editor can reach and no renderer draws.
     """
     changed = False
-    for entity in document.get("entities", []):
-        if "sort_order" not in entity:
-            entity["sort_order"] = 0
-            changed = True
+
+    has_layers = "layers" in document
+    has_tile_chunks = "tile_chunks" in document
+    has_entities = "entities" in document
+    if has_layers and (has_tile_chunks or has_entities):
+        raise ValueError(
+            "Cannot migrate level containing both layers and root tile/entity collections"
+        )
+    if not has_layers and has_tile_chunks != has_entities:
+        raise ValueError(
+            "Cannot migrate level with only one root tile/entity collection"
+        )
+    if not has_layers and not has_tile_chunks:
+        raise ValueError(
+            "Cannot migrate level missing layers and root tile/entity collections"
+        )
+
+    if not has_layers:
+        document["layers"] = [
+            {
+                "id": 0,
+                "name": "Base",
+                "tile_chunks": document.pop("tile_chunks"),
+                "entities": document.pop("entities"),
+            }
+        ]
+        changed = True
+
+    for layer in document["layers"]:
+        for entity in layer["entities"]:
+            if "sort_order" not in entity:
+                entity["sort_order"] = 0
+                changed = True
+
     if "parallax_layers" in document:
         del document["parallax_layers"]
         changed = True

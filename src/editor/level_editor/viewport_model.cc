@@ -1,7 +1,6 @@
 #include "editor/level_editor/viewport_model.h"
 
 #include <algorithm>
-#include <bit>
 #include <cmath>
 #include <limits>
 
@@ -69,11 +68,6 @@ absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, 
   return picked;
 }
 
-uint64_t NextAvailableEntityId(const std::map<uint64_t, Entity>& entities) {
-  if (entities.empty()) return 1;
-  return entities.rbegin()->first + 1;
-}
-
 Entity CreateEntityFromBlueprint(const Blueprint& blueprint, int state_index, Vec world_pos,
                                  uint64_t id) {
   Entity entity;
@@ -85,20 +79,6 @@ Entity CreateEntityFromBlueprint(const Blueprint& blueprint, int state_index, Ve
   // entity records the ID rather than a resolved pointer.
   entity.sprite_id = blueprint.sprite_id(state_index).value_or("");
   return entity;
-}
-
-int64_t ChunkKey(int chunk_x, int chunk_y) {
-  const uint64_t encoded = (static_cast<uint64_t>(static_cast<uint32_t>(chunk_y)) << 32) |
-                           static_cast<uint32_t>(chunk_x);
-  return std::bit_cast<int64_t>(encoded);
-}
-
-TileChunkCoordinate DecodeChunkKey(int64_t key) {
-  const uint64_t encoded = std::bit_cast<uint64_t>(key);
-  return {
-      .x = std::bit_cast<int32_t>(static_cast<uint32_t>(encoded)),
-      .y = std::bit_cast<int32_t>(static_cast<uint32_t>(encoded >> 32)),
-  };
 }
 
 absl::StatusOr<TileCoordinate> WorldToTileCoordinate(Vec world_position, int tile_render_width,
@@ -124,7 +104,7 @@ absl::StatusOr<TileCoordinate> WorldToTileCoordinate(Vec world_position, int til
   };
 }
 
-absl::Status SetTileAt(Level& level, int tile_x, int tile_y, int tile_id) {
+absl::Status SetTileAt(WorldLayer& layer, int tile_x, int tile_y, int tile_id) {
   if (tile_x < 0 || tile_y < 0) {
     return absl::InvalidArgumentError("tile coordinates must be non-negative");
   }
@@ -137,11 +117,11 @@ absl::Status SetTileAt(Level& level, int tile_x, int tile_y, int tile_id) {
   const int chunk_y = tile_y / kSize;
   const int local_x = tile_x % kSize;
   const int local_y = tile_y % kSize;
-  level.tile_chunks[ChunkKey(chunk_x, chunk_y)].tiles[local_y * kSize + local_x] = tile_id;
+  layer.tile_chunks[ChunkKey(chunk_x, chunk_y)].tiles[local_y * kSize + local_x] = tile_id;
   return absl::OkStatus();
 }
 
-absl::StatusOr<int> GetTileAt(const Level& level, int tile_x, int tile_y) {
+absl::StatusOr<int> GetTileAt(const WorldLayer& layer, int tile_x, int tile_y) {
   if (tile_x < 0 || tile_y < 0) {
     return absl::InvalidArgumentError("tile coordinates must be non-negative");
   }
@@ -151,8 +131,8 @@ absl::StatusOr<int> GetTileAt(const Level& level, int tile_x, int tile_y) {
   const int chunk_y = tile_y / kSize;
   const int local_x = tile_x % kSize;
   const int local_y = tile_y % kSize;
-  const auto chunk = level.tile_chunks.find(ChunkKey(chunk_x, chunk_y));
-  if (chunk == level.tile_chunks.end()) return 0;
+  const auto chunk = layer.tile_chunks.find(ChunkKey(chunk_x, chunk_y));
+  if (chunk == layer.tile_chunks.end()) return 0;
   return chunk->second.tiles[local_y * kSize + local_x];
 }
 

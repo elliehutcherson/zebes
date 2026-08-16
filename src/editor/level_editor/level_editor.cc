@@ -90,6 +90,12 @@ absl::Status LevelEditor::Init(Options options) {
     ASSIGN_OR_RETURN(palette_panel_, PalettePanel::Create({.api = api_, .gui = gui_}));
   }
 
+  if (options.world_layer_panel) {
+    world_layer_panel_ = std::move(options.world_layer_panel);
+  } else {
+    ASSIGN_OR_RETURN(world_layer_panel_, WorldLayerPanel::Create(gui_));
+  }
+
   viewport_tab_ = std::make_unique<ViewportTab>(*api_, gui_, options.terrain_ghost);
 
   return absl::OkStatus();
@@ -131,11 +137,13 @@ absl::Status LevelEditor::HandleLevelPanelEvent(LevelPanelEvent event) {
       return absl::OkStatus();
     case LevelPanelAction::kCreate:
       RETURN_IF_ERROR(SaveActiveLevel());
+      world_layer_model_.Open(*level_model_.active_level());
       selection_.Clear();
       selection_.type = SelectionState::Type::kLevel;
       return absl::OkStatus();
     case LevelPanelAction::kOpen:
       viewport_tab_->Reset();
+      world_layer_model_.Open(*level_model_.active_level());
       selection_.Clear();
       selection_.type = SelectionState::Type::kLevel;
       return absl::OkStatus();
@@ -147,12 +155,14 @@ absl::Status LevelEditor::HandleLevelPanelEvent(LevelPanelEvent event) {
       }
       RETURN_IF_ERROR(api_->DeleteLevel(level_model_.selected_level_id()));
       level_model_.FinishDelete();
+      world_layer_model_.Close();
       viewport_tab_->Reset();
       selection_.Clear();
       RefreshLevelCatalog();
       return absl::OkStatus();
     case LevelPanelAction::kClose:
       viewport_tab_->Reset();
+      world_layer_model_.Close();
       selection_.Clear();
       save_error_.reset();
       return absl::OkStatus();
@@ -222,6 +232,7 @@ absl::Status LevelEditor::RenderNavigator() {
 
   if (gui_->Button("Close Level")) {
     level_model_.CloseActiveLevel();
+    world_layer_model_.Close();
     viewport_tab_->Reset();
     selection_.Clear();
     save_error_.reset();
@@ -257,7 +268,12 @@ absl::Status LevelEditor::RenderNavigator() {
   }
 
   if (root_open) {
-    // 1. Parallax
+    // 1. World content
+    if (gui_->CollapsingHeader("World Layers", ImGuiTreeNodeFlags_DefaultOpen)) {
+      RETURN_IF_ERROR(world_layer_panel_->RenderNavigator(level, world_layer_model_, selection_));
+    }
+
+    // 2. Parallax
     if (gui_->CollapsingHeader("Parallax", ImGuiTreeNodeFlags_DefaultOpen)) {
       RETURN_IF_ERROR(parallax_theme_panel_->RenderNavigator(level, selection_));
 
@@ -273,39 +289,6 @@ absl::Status LevelEditor::RenderNavigator() {
             zone != nullptr) {
           viewport_tab_->FrameZone(*zone);
         }
-      }
-    }
-
-    // 2. Entities
-    if (gui_->CollapsingHeader("Entities", ImGuiTreeNodeFlags_DefaultOpen)) {
-      // Entity list with right-click context menu for deletion.
-      std::optional<uint64_t> entity_to_delete;
-      for (const auto& [id, entity] : level.entities) {
-        ScopedId scoped_id = gui_->CreateScopedId(static_cast<const void*>(&entity));
-
-        std::string label = entity.blueprint_id.empty()
-                                ? absl::StrFormat("Entity %llu", entity.id)
-                                : absl::StrFormat("%s (%llu)", entity.blueprint_id, entity.id);
-
-        bool is_selected =
-            (selection_.type == SelectionState::Type::kEntity && selection_.entity_id == id);
-        gui_->Selectable(label.c_str(), is_selected);
-        if (gui_->IsItemClicked()) {
-          selection_.type = SelectionState::Type::kEntity;
-          selection_.entity_id = id;
-        }
-
-        if (auto popup = gui_->CreateScopedPopupContextItem(); popup) {
-          if (gui_->MenuItem("Delete Entity")) {
-            entity_to_delete = id;
-          }
-        }
-      }
-
-      // Erase after the loop to avoid invalidating iterators mid-iteration.
-      if (entity_to_delete.has_value()) {
-        if (selection_.entity_id == *entity_to_delete) selection_.Clear();
-        level.entities.erase(*entity_to_delete);
       }
     }
   }
@@ -337,9 +320,14 @@ absl::Status LevelEditor::RenderInspector() {
           parallax_theme_panel_->RenderThemeDetails(*level_model_.active_level(), selection_));
       break;
 
-    case SelectionState::Type::kLayer:
+    case SelectionState::Type::kParallaxLayer:
       RETURN_IF_ERROR(
           parallax_theme_panel_->RenderLayerDetails(*level_model_.active_level(), selection_));
+      break;
+
+    case SelectionState::Type::kWorldLayer:
+      RETURN_IF_ERROR(world_layer_panel_->RenderDetails(*level_model_.active_level(),
+                                                        world_layer_model_, selection_));
       break;
 
     case SelectionState::Type::kZone:
@@ -356,39 +344,57 @@ absl::Status LevelEditor::RenderInspector() {
 
     case SelectionState::Type::kEntity: {
       Level& level = *level_model_.active_level();
-      auto it = level.entities.find(selection_.entity_id);
-      if (it == level.entities.end()) {
+      Entity* entity = FindEntity(level, selection_.entity_id);
+      WorldLayer* entity_layer = FindEntityLayer(level, selection_.entity_id);
+      if (entity == nullptr || entity_layer == nullptr) {
         selection_.Clear();
         break;
       }
-      Entity& entity = it->second;
 
-      gui_->Text("ID: %" PRIu64, entity.id);
-      if (!entity.blueprint_id.empty()) {
-        gui_->Text("Blueprint: %s", entity.blueprint_id.c_str());
+      const uint64_t entity_id = entity->id;
+      gui_->Text("ID: %" PRIu64, entity_id);
+      if (!entity->blueprint_id.empty()) {
+        gui_->Text("Blueprint: %s", entity->blueprint_id.c_str());
       }
+      gui_->Text("Layer: %s", entity_layer->name.c_str());
       gui_->Separator();
 
-      float pos_x = static_cast<float>(entity.transform.position.x);
-      float pos_y = static_cast<float>(entity.transform.position.y);
+      const bool locked = world_layer_model_.IsLocked(entity_layer->id);
+      ScopedDisabled locked_controls = gui_->CreateScopedDisabled(locked);
+      float pos_x = static_cast<float>(entity->transform.position.x);
+      float pos_y = static_cast<float>(entity->transform.position.y);
       if (gui_->InputFloat("X", &pos_x)) {
-        entity.transform.position.x = pos_x;
+        entity->transform.position.x = pos_x;
       }
       if (gui_->InputFloat("Y", &pos_y)) {
-        entity.transform.position.y = pos_y;
+        entity->transform.position.y = pos_y;
       }
 
-      // Higher draws later, so it appears in front of entities with a lower
-      // value. It orders entities against each other only: the draw passes are
-      // fixed, so no value here puts an entity behind the terrain.
-      int sort_order = entity.sort_order;
+      // Higher draws later among entities in this world layer. Moving content
+      // across terrain depth is a layer operation, not a sort-order trick.
+      int sort_order = entity->sort_order;
       if (gui_->InputInt("Draw Order", &sort_order)) {
-        entity.sort_order = sort_order;
+        entity->sort_order = sort_order;
+      }
+
+      if (ScopedCombo combo = gui_->CreateScopedCombo("World Layer", entity_layer->name.c_str());
+          combo) {
+        for (const WorldLayer& candidate : level.layers) {
+          const bool selected = candidate.id == entity_layer->id;
+          ScopedDisabled destination_locked =
+              gui_->CreateScopedDisabled(world_layer_model_.IsLocked(candidate.id));
+          if (gui_->Selectable(candidate.name.c_str(), selected)) {
+            RETURN_IF_ERROR(MoveEntityToLayer(level, entity_id, candidate.id));
+            RETURN_IF_ERROR(world_layer_model_.Activate(level, candidate.id));
+            entity_layer = FindWorldLayer(level, candidate.id);
+          }
+          if (selected) gui_->SetItemDefaultFocus();
+        }
       }
       gui_->Separator();
 
       if (gui_->Button("Remove Entity")) {
-        level.entities.erase(it);
+        entity_layer->entities.erase(entity_id);
         selection_.Clear();
       }
       break;
@@ -438,6 +444,13 @@ absl::Status LevelEditor::RenderViewport() {
     gui_->TextDisabled("No level selected.");
     return absl::OkStatus();
   }
+  world_layer_model_.Reconcile(*level);
+  WorldLayer* active_world_layer = world_layer_model_.active_layer(*level);
+  if (active_world_layer == nullptr) {
+    return absl::FailedPreconditionError("level viewport has no active world layer");
+  }
+  const bool active_world_layer_editable = world_layer_model_.IsVisible(active_world_layer->id) &&
+                                           !world_layer_model_.IsLocked(active_world_layer->id);
 
   const Tileset* terrain_tileset = palette_panel_->GetSelectedTerrainTileset();
   const PaletteSelection selection{
@@ -488,6 +501,9 @@ absl::Status LevelEditor::RenderViewport() {
 
   const absl::Status rendered = viewport_tab_->Render({
       .level = level,
+      .active_world_layer_id = active_world_layer->id,
+      .hidden_world_layer_ids = &world_layer_model_.hidden_layer_ids(),
+      .active_world_layer_editable = active_world_layer_editable,
       .paint_terrain_id = paint_terrain_id,
       .paint_shape = palette_panel_->GetSelectedTerrainShape(),
       .terrain_index = terrain_index.has_value() ? &*terrain_index : nullptr,
@@ -508,10 +524,10 @@ absl::Status LevelEditor::RenderViewport() {
                               ? std::optional<int>(selection_.zone_id)
                               : std::nullopt,
       .selected_parallax_theme_id = (selection_.type == SelectionState::Type::kTheme ||
-                                     selection_.type == SelectionState::Type::kLayer)
+                                     selection_.type == SelectionState::Type::kParallaxLayer)
                                         ? std::optional<int>(selection_.theme_id)
                                         : std::nullopt,
-      .selected_parallax_layer_index = (selection_.type == SelectionState::Type::kLayer)
+      .selected_parallax_layer_index = (selection_.type == SelectionState::Type::kParallaxLayer)
                                            ? std::optional<int>(selection_.layer_index)
                                            : std::nullopt,
   });
@@ -529,12 +545,12 @@ absl::Status LevelEditor::RenderViewport() {
   std::optional<uint64_t> delete_request = viewport_tab_->TakeDeleteRequest();
   if (delete_request.has_value()) {
     if (selection_.entity_id == *delete_request) selection_.Clear();
-    level->entities.erase(*delete_request);
+    active_world_layer->entities.erase(*delete_request);
   }
 
   std::optional<Entity> new_entity = viewport_tab_->TakeNewEntity();
   if (new_entity.has_value()) {
-    level->entities[new_entity->id] = std::move(*new_entity);
+    RETURN_IF_ERROR(level->AddEntity(active_world_layer->id, std::move(*new_entity)));
   }
 
   std::optional<uint64_t> click_selection = viewport_tab_->TakeClickSelection();

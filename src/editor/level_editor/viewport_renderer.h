@@ -16,6 +16,9 @@ class ViewportRenderer {
   explicit ViewportRenderer(Canvas& canvas) : canvas_(canvas) {}
 
   absl::Status RenderEntities(std::span<const EntityRenderItem> items) const;
+  // Draws only persistent editor chrome. Used after all world artwork so a
+  // selection in a background layer is not obscured by foreground content.
+  absl::Status RenderEntityOverlays(std::span<const EntityRenderItem> items) const;
   absl::Status RenderTiles(const TileRenderBatch& batch) const;
   absl::Status RenderParallax(const ParallaxRenderBatch& batch) const;
   void RenderZoneGizmos(std::span<const ZoneGizmoItem> items) const;

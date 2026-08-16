@@ -53,21 +53,22 @@ absl::Status ValidateCell(const Level& level, int tile_x, int tile_y) {
 // Every owned neighbour is refreshed, including hand-placed pieces such as
 // slopes. That is safe because each is handed back the shape it already has, so
 // re-resolving one can change how it looks but never what it is.
-absl::Status RefreshNeighbors(Level& level, TerrainIndex& index, const Terrain& terrain,
-                              TerrainTileProvider& provider, int tile_x, int tile_y) {
+absl::Status RefreshNeighbors(const Level& level, WorldLayer& layer, TerrainIndex& index,
+                              const Terrain& terrain, TerrainTileProvider& provider, int tile_x,
+                              int tile_y) {
   for (const NeighborOffset& offset : kNeighborOffsets) {
     const int x = tile_x + offset.dx;
     const int y = tile_y + offset.dy;
     if (IsOutsideLevel(level, x, y)) continue;
 
-    ASSIGN_OR_RETURN(const int neighbor_tile, GetTileAt(level, x, y));
+    ASSIGN_OR_RETURN(const int neighbor_tile, GetTileAt(layer, x, y));
     if (index.FindByTileId(neighbor_tile) != &terrain) continue;
 
     // The neighbour is handed back the geometry it already has. A refresh may
     // change how a cell looks; it must never change what the player collides
     // with, and passing the shape we just read is what makes that structural
     // rather than a rule to remember.
-    RETURN_IF_ERROR(ResolveTerrainCell(level, index, terrain, provider,
+    RETURN_IF_ERROR(ResolveTerrainCell(level, layer, index, terrain, provider,
                                        index.ShapeOfTile(neighbor_tile), x, y));
   }
   return absl::OkStatus();
@@ -88,8 +89,7 @@ absl::StatusOr<TerrainIndex> TerrainIndex::Build(const Tileset& tileset) {
   return index;
 }
 
-absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain,
-                                     const Tileset& tileset) {
+absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain, const Tileset& tileset) {
   TileShape shape = TileShape::kNone;
   for (const Tile& tile : tileset.tiles) {
     if (tile.id == tile_id) {
@@ -103,9 +103,9 @@ absl::Status TerrainIndex::ClaimTile(int tile_id, const Terrain& terrain,
   if (inserted) return absl::OkStatus();
 
   if (entry->second.terrain != &terrain) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("tile ", tile_id, " belongs to both terrain '", entry->second.terrain->name,
-                     "' and '", terrain.name, "'"));
+    return absl::InvalidArgumentError(absl::StrCat("tile ", tile_id, " belongs to both terrain '",
+                                                   entry->second.terrain->name, "' and '",
+                                                   terrain.name, "'"));
   }
   return absl::OkStatus();
 }
@@ -163,9 +163,9 @@ absl::Status TerrainIndex::NoteResolvedTile(int tile_id, const Terrain& terrain,
   if (inserted) return absl::OkStatus();
 
   if (entry->second.terrain != &terrain) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("tile ", tile_id, " was resolved for terrain '", terrain.name,
-                     "' but belongs to '", entry->second.terrain->name, "'"));
+    return absl::InvalidArgumentError(absl::StrCat("tile ", tile_id, " was resolved for terrain '",
+                                                   terrain.name, "' but belongs to '",
+                                                   entry->second.terrain->name, "'"));
   }
   return absl::OkStatus();
 }
@@ -176,7 +176,8 @@ std::optional<int> TerrainIndex::FindShapeTile(const Terrain& terrain, TileShape
   return found->second;
 }
 
-absl::StatusOr<TerrainCellKey> ComputeTerrainCellKey(const Level& level, const TerrainIndex& index,
+absl::StatusOr<TerrainCellKey> ComputeTerrainCellKey(const Level& level, const WorldLayer& layer,
+                                                     const TerrainIndex& index,
                                                      const Terrain& terrain, TileShape shape,
                                                      int tile_x, int tile_y) {
   RETURN_IF_ERROR(ValidateCell(level, tile_x, tile_y));
@@ -194,7 +195,7 @@ absl::StatusOr<TerrainCellKey> ComputeTerrainCellKey(const Level& level, const T
       continue;
     }
 
-    ASSIGN_OR_RETURN(const int neighbor_tile, GetTileAt(level, x, y));
+    ASSIGN_OR_RETURN(const int neighbor_tile, GetTileAt(layer, x, y));
     key.neighbors[i] = index.FindByTileId(neighbor_tile) == &terrain
                            ? index.ShapeOfTile(neighbor_tile)
                            : TileShape::kNone;
@@ -211,11 +212,12 @@ absl::StatusOr<TerrainCellKey> ComputeTerrainCellKey(const Level& level, const T
   return key;
 }
 
-absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const TerrainIndex& index,
-                                           const Terrain& terrain, int tile_x, int tile_y) {
+absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const WorldLayer& layer,
+                                           const TerrainIndex& index, const Terrain& terrain,
+                                           int tile_x, int tile_y) {
   ASSIGN_OR_RETURN(
       const TerrainCellKey key,
-      ComputeTerrainCellKey(level, index, terrain, TileShape::kFullBlock, tile_x, tile_y));
+      ComputeTerrainCellKey(level, layer, index, terrain, TileShape::kFullBlock, tile_x, tile_y));
   return NormalizeNeighborMask(NeighborMaskOf(key));
 }
 
@@ -235,8 +237,8 @@ absl::StatusOr<int> Blob47TileProvider::TileForKey(const Terrain& terrain,
   const uint8_t mask = NormalizeNeighborMask(NeighborMaskOf(key));
   const TerrainRule* rule = FindRule(terrain, mask);
   if (rule == nullptr) {
-    return absl::NotFoundError(absl::StrCat("terrain '", terrain.name, "' has no rule for mask ",
-                                            static_cast<int>(mask)));
+    return absl::NotFoundError(
+        absl::StrCat("terrain '", terrain.name, "' has no rule for mask ", static_cast<int>(mask)));
   }
   return SelectVariant(terrain, *rule, tile_x, tile_y);
 }
@@ -261,10 +263,10 @@ absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rul
   if (terrain.variant_period > 0) {
     const int period = terrain.variant_period;
     if (static_cast<int>(rule.variants.size()) != period * period) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "terrain '", terrain.name, "' repeats every ", period, " tiles and so needs ",
-          period * period, " variants for mask ", static_cast<int>(rule.mask), ", but has ",
-          rule.variants.size()));
+      return absl::InvalidArgumentError(
+          absl::StrCat("terrain '", terrain.name, "' repeats every ", period,
+                       " tiles and so needs ", period * period, " variants for mask ",
+                       static_cast<int>(rule.mask), ", but has ", rule.variants.size()));
     }
     const int phase_x = ((tile_x % period) + period) % period;
     const int phase_y = ((tile_y % period) + period) % period;
@@ -287,20 +289,21 @@ absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rul
   return rule.variants.back().tile_id;
 }
 
-absl::Status ResolveTerrainCell(Level& level, TerrainIndex& index, const Terrain& terrain,
-                                TerrainTileProvider& provider, TileShape shape, int tile_x,
-                                int tile_y) {
+absl::Status ResolveTerrainCell(const Level& level, WorldLayer& layer, TerrainIndex& index,
+                                const Terrain& terrain, TerrainTileProvider& provider,
+                                TileShape shape, int tile_x, int tile_y) {
   ASSIGN_OR_RETURN(const TerrainCellKey key,
-                   ComputeTerrainCellKey(level, index, terrain, shape, tile_x, tile_y));
+                   ComputeTerrainCellKey(level, layer, index, terrain, shape, tile_x, tile_y));
   ASSIGN_OR_RETURN(const int tile_id, provider.TileForKey(terrain, key, tile_x, tile_y));
   // A derived provider may have invented this tile just now, and the cells
   // around it are about to be resolved against what this one holds.
   RETURN_IF_ERROR(index.NoteResolvedTile(tile_id, terrain, shape));
-  return SetTileAt(level, tile_x, tile_y, tile_id);
+  return SetTileAt(layer, tile_x, tile_y, tile_id);
 }
 
-absl::Status PaintTerrain(Level& level, TerrainIndex& index, TerrainTileProvider& provider,
-                          int terrain_id, TileShape shape, int tile_x, int tile_y) {
+absl::Status PaintTerrain(const Level& level, WorldLayer& layer, TerrainIndex& index,
+                          TerrainTileProvider& provider, int terrain_id, TileShape shape,
+                          int tile_x, int tile_y) {
   RETURN_IF_ERROR(ValidateCell(level, tile_x, tile_y));
 
   const Terrain* terrain = index.FindById(terrain_id);
@@ -311,20 +314,21 @@ absl::Status PaintTerrain(Level& level, TerrainIndex& index, TerrainTileProvider
   // A cell's key is computed from its neighbours only, so resolving the centre
   // first both claims it and gives it correct artwork. The neighbours then see
   // it as occupied and re-resolve against it.
-  RETURN_IF_ERROR(ResolveTerrainCell(level, index, *terrain, provider, shape, tile_x, tile_y));
-  return RefreshNeighbors(level, index, *terrain, provider, tile_x, tile_y);
+  RETURN_IF_ERROR(
+      ResolveTerrainCell(level, layer, index, *terrain, provider, shape, tile_x, tile_y));
+  return RefreshNeighbors(level, layer, index, *terrain, provider, tile_x, tile_y);
 }
 
-absl::Status EraseTerrain(Level& level, TerrainIndex& index, TerrainTileProvider& provider,
-                          int tile_x, int tile_y) {
+absl::Status EraseTerrain(const Level& level, WorldLayer& layer, TerrainIndex& index,
+                          TerrainTileProvider& provider, int tile_x, int tile_y) {
   RETURN_IF_ERROR(ValidateCell(level, tile_x, tile_y));
 
-  ASSIGN_OR_RETURN(const int existing, GetTileAt(level, tile_x, tile_y));
+  ASSIGN_OR_RETURN(const int existing, GetTileAt(layer, tile_x, tile_y));
   const Terrain* terrain = index.FindByTileId(existing);
-  RETURN_IF_ERROR(SetTileAt(level, tile_x, tile_y, 0));
+  RETURN_IF_ERROR(SetTileAt(layer, tile_x, tile_y, 0));
 
   if (terrain == nullptr) return absl::OkStatus();
-  return RefreshNeighbors(level, index, *terrain, provider, tile_x, tile_y);
+  return RefreshNeighbors(level, layer, index, *terrain, provider, tile_x, tile_y);
 }
 
 }  // namespace zebes

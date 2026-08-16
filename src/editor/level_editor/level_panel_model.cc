@@ -47,9 +47,7 @@ absl::Status LevelPanelModel::RequestTilesetChange(const std::string& tileset_id
   return absl::OkStatus();
 }
 
-std::string LevelPanelModel::pending_tileset_id() const {
-  return pending_tileset_id_.value_or("");
-}
+std::string LevelPanelModel::pending_tileset_id() const { return pending_tileset_id_.value_or(""); }
 
 int LevelPanelModel::placed_tile_count() const {
   if (!active_level_.has_value()) return 0;
@@ -65,7 +63,7 @@ absl::Status LevelPanelModel::ConfirmTilesetChange() {
   }
 
   // The tiles cannot come along: their IDs name artwork in the old tileset.
-  active_level_->tile_chunks.clear();
+  for (WorldLayer& layer : active_level_->layers) layer.tile_chunks.clear();
   active_level_->tileset_id = *std::move(pending_tileset_id_);
   pending_tileset_id_.reset();
   return absl::OkStatus();

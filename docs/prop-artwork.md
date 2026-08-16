@@ -94,10 +94,10 @@ anchoring art larger than its collider — exactly what the current tree uses
 (-108, -188). A blueprint pairs the sprite with a collider, and the viewport
 already places blueprints.
 
-`Entity::sort_order` now decides what a prop draws in front of, so a prop can sit
-behind or ahead of another. It cannot sit behind the terrain: draw passes are fixed
-at parallax, then tiles, then entities. **Foliage the player walks behind needs the
-layer concept, not this pipeline.** See §7.
+`Entity::sort_order` decides what a prop draws in front of within its world
+layer. Ordered world layers now provide the broader depth boundary: put the
+prop in a layer behind or in front of terrain as the scene requires. The prop
+pipeline does not choose that layer; placement remains an authoring decision.
 
 ### One thing to fix in passing
 
@@ -150,9 +150,9 @@ minimum, and it is worth landing before committing to 4 and 5.
 
 ## 7. Deliberately out of scope
 
-- **Depth behind terrain.** A canopy the player walks under needs layers, which is
-  its own phase. `Entity::sort_order` orders props against each other and nothing
-  more.
+- **Automatic depth assignment.** World layers now let a canopy sit in front of
+  the player or a prop sit behind terrain, but generated artwork cannot infer
+  the correct layer. `Entity::sort_order` still orders only within one layer.
 - **Animated props.** A sprite is already a flipbook, so this is a packing question
   rather than a design one, but nothing here addresses per-frame consistency —
   quantising frames independently makes colours crawl between them. A shared

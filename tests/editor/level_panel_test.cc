@@ -4,8 +4,8 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "tests/editor/mock_gui.h"
 #include "macros.h"
+#include "tests/editor/mock_gui.h"
 
 namespace zebes {
 namespace {
@@ -35,17 +35,17 @@ class LevelPanelTest : public ::testing::Test {
         .WillByDefault(
             [&](ImGuiCol index, const ImVec4& color) { return ScopedStyleColor(&gui_, {}, {}); });
     ON_CALL(gui_, CreateScopedListBox(_, _))
-        .WillByDefault(Invoke([this](const char* label, ImVec2 size) {
-          return ScopedListBox(&gui_, label, size);
-        }));
+        .WillByDefault(Invoke(
+            [this](const char* label, ImVec2 size) { return ScopedListBox(&gui_, label, size); }));
     ON_CALL(gui_, BeginListBox(_, _)).WillByDefault(Return(true));
     ON_CALL(gui_, CreateScopedCombo(_, _, _))
         .WillByDefault(Invoke([this](const char* label, const char* preview, ImGuiComboFlags) {
           return ScopedCombo(&gui_, label, preview);
         }));
     ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
-    ON_CALL(gui_, CreateScopedId(An<const char*>()))
-        .WillByDefault(Invoke([this](const char* id) { return ScopedId(&gui_, id); }));
+    ON_CALL(gui_, CreateScopedId(An<const char*>())).WillByDefault(Invoke([this](const char* id) {
+      return ScopedId(&gui_, id);
+    }));
     EXPECT_CALL(gui_, Button(_, _)).WillRepeatedly(Return(false));
   }
 
@@ -58,13 +58,10 @@ class LevelPanelTest : public ::testing::Test {
 };
 
 TEST_F(LevelPanelTest, RenderListShowsOrderedLevelNames) {
-  model_.SetLevels(
-      {{.id = "z-id", .name = "Zebra"}, {.id = "a-id", .name = "Alpha"}});
+  model_.SetLevels({{.id = "z-id", .name = "Zebra"}, {.id = "a-id", .name = "Alpha"}});
 
-  EXPECT_CALL(gui_, Selectable(StrEq("Alpha##level_a-id"), false, _, _))
-      .WillOnce(Return(false));
-  EXPECT_CALL(gui_, Selectable(StrEq("Zebra##level_z-id"), false, _, _))
-      .WillOnce(Return(false));
+  EXPECT_CALL(gui_, Selectable(StrEq("Alpha##level_a-id"), false, _, _)).WillOnce(Return(false));
+  EXPECT_CALL(gui_, Selectable(StrEq("Zebra##level_z-id"), false, _, _)).WillOnce(Return(false));
 
   absl::StatusOr<LevelPanelEvent> event = panel_->RenderList(model_);
   ASSERT_OK(event);
@@ -161,7 +158,7 @@ TEST_F(LevelPanelTest, PickingATilesetForAPopulatedLevelAsksFirst) {
   Level level{.id = "alpha", .tileset_id = "sunny-uuid"};
   TileChunk chunk{};
   chunk.tiles[0] = 4;
-  level.tile_chunks[0] = chunk;
+  level.layers.front().tile_chunks[0] = chunk;
   model_.BeginEditingLevel(std::move(level));
   OpenTilesetCombo();
   EXPECT_CALL(gui_, Selectable(StrEq("Grass"), false, _, _)).WillOnce(Return(true));
@@ -178,7 +175,7 @@ TEST_F(LevelPanelTest, ConfirmingTheSwitchDiscardsTheTiles) {
   Level level{.id = "alpha", .tileset_id = "sunny-uuid"};
   TileChunk chunk{};
   chunk.tiles[0] = 4;
-  level.tile_chunks[0] = chunk;
+  level.layers.front().tile_chunks[0] = chunk;
   model_.BeginEditingLevel(std::move(level));
   ASSERT_OK(model_.RequestTilesetChange("grass-uuid"));
   ASSERT_TRUE(model_.has_pending_tileset_change());
@@ -196,7 +193,7 @@ TEST_F(LevelPanelTest, KeepingTheTilesetCancelsTheSwitch) {
   Level level{.id = "alpha", .tileset_id = "sunny-uuid"};
   TileChunk chunk{};
   chunk.tiles[0] = 4;
-  level.tile_chunks[0] = chunk;
+  level.layers.front().tile_chunks[0] = chunk;
   model_.BeginEditingLevel(std::move(level));
   ASSERT_OK(model_.RequestTilesetChange("grass-uuid"));
 

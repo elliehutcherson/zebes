@@ -5,6 +5,40 @@ add_library(level_editor
 add_library(level_selection_state INTERFACE)
 target_include_directories(level_selection_state INTERFACE .)
 
+add_library(world_layer_model
+  world_layer_model.cc
+)
+target_link_libraries(world_layer_model
+  PUBLIC
+  level
+  absl::flat_hash_set
+  absl::status
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::strings
+)
+
+add_library(world_layer_panel
+  world_layer_panel.cc
+)
+target_link_libraries(world_layer_panel
+  PUBLIC
+  level
+  level_selection_state
+  world_layer_model
+  PRIVATE
+  confirm_prompt
+  gui_interface
+  imgui_scoped
+  status_macros
+  ${IMGUI_LIBRARIES}
+  absl::memory
+  absl::status
+  absl::statusor
+  absl::strings
+)
+
 add_library(parallax_layout
   parallax_layout.cc
 )
@@ -171,6 +205,8 @@ target_link_libraries(level_editor
   absl::flags
   gui_interface
   level_selection_state
+  world_layer_model
+  world_layer_panel
 )
 
 add_library(level_panel_model

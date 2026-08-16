@@ -11,8 +11,9 @@ struct SelectionState {
     kLevel = 1,
     kZone = 2,
     kTheme = 3,
-    kLayer = 8,
+    kParallaxLayer = 8,
     kEntity = 9,
+    kWorldLayer = 10,
   };
 
   Type type = Type::kNone;
@@ -21,6 +22,7 @@ struct SelectionState {
   int zone_id = -1;
   int theme_id = -1;
   int layer_index = -1;
+  int world_layer_id = -1;
   uint64_t entity_id = 0;  // Entity::kInvalidId
 
   // Clears selection
@@ -29,6 +31,7 @@ struct SelectionState {
     zone_id = -1;
     theme_id = -1;
     layer_index = -1;
+    world_layer_id = -1;
     entity_id = 0;
   }
 

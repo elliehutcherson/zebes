@@ -62,10 +62,17 @@ target_link_libraries(entity INTERFACE
   transform
 )
 
-add_library(level INTERFACE)
-target_include_directories(level INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
-target_link_libraries(level INTERFACE
+add_library(level level.cc)
+target_include_directories(level PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(level
+  PUBLIC
   entity
   vec
   absl::flat_hash_map
+  absl::status
+  absl::statusor
+  absl::strings
+  PRIVATE
+  absl::flat_hash_set
+  status_macros
 )

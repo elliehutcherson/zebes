@@ -7,8 +7,8 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "engine/texture_handle.h"
 #include "editor/level_editor/viewport_model.h"
+#include "engine/texture_handle.h"
 #include "objects/camera.h"
 #include "objects/entity.h"
 #include "objects/level.h"
@@ -174,13 +174,14 @@ absl::StatusOr<std::vector<ZoneGizmoItem>> ComposeZoneGizmoItems(
 // Composes only tiles intersecting the camera. Entire offscreen chunks are
 // rejected before their cells are scanned.
 absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
-    const Level& level, const Tileset& tileset, TextureHandle atlas_texture,
-    const Camera& camera, const TileRenderOptions& options);
+    const Level& level, const WorldLayer& layer, const Tileset& tileset,
+    TextureHandle atlas_texture, const Camera& camera, const TileRenderOptions& options);
 
 // Composes the selected tile snapped to the level's render grid.
-absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(
-    const Tile& tile, const Tileset& tileset, TextureHandle atlas_texture,
-    Vec mouse_world, int tile_render_width, int tile_render_height);
+absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(const Tile& tile, const Tileset& tileset,
+                                                          TextureHandle atlas_texture,
+                                                          Vec mouse_world, int tile_render_width,
+                                                          int tile_render_height);
 
 // Binds active-theme layers to managed textures without exposing native resources.
 absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(

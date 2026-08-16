@@ -4,7 +4,6 @@
 #include <fstream>
 #include <vector>
 
-#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
@@ -22,6 +21,30 @@ constexpr char kDefinitionsPath[] = "definitions/levels";
 void ToJson(nlohmann::json& j, const TileChunk& chunk) { j["tiles"] = chunk.tiles; }
 
 void FromJson(const nlohmann::json& j, TileChunk& chunk) { j.at("tiles").get_to(chunk.tiles); }
+
+void ToJson(nlohmann::json& j, const Entity& entity);
+
+void ToJson(nlohmann::json& j, const WorldLayer& layer) {
+  j["id"] = layer.id;
+  j["name"] = layer.name;
+
+  std::vector<nlohmann::json> chunks_json;
+  for (const auto& [id, chunk] : layer.tile_chunks) {
+    nlohmann::json chunk_j;
+    chunk_j["chunk_id"] = id;
+    ToJson(chunk_j, chunk);
+    chunks_json.push_back(std::move(chunk_j));
+  }
+  j["tile_chunks"] = std::move(chunks_json);
+
+  std::vector<nlohmann::json> entities_json;
+  for (const auto& [id, entity] : layer.entities) {
+    nlohmann::json entity_j;
+    ToJson(entity_j, entity);
+    entities_json.push_back(std::move(entity_j));
+  }
+  j["entities"] = std::move(entities_json);
+}
 
 // Helper for ParallaxLayer
 void ToJson(nlohmann::json& j, const ParallaxLayer& layer) {
@@ -158,6 +181,33 @@ absl::Status FromJson(const nlohmann::json& j, Entity& entity) {
   return absl::OkStatus();
 }
 
+absl::StatusOr<WorldLayer> WorldLayerFromJson(const nlohmann::json& j) {
+  WorldLayer layer;
+  j.at("id").get_to(layer.id);
+  j.at("name").get_to(layer.name);
+
+  for (const nlohmann::json& item : j.at("tile_chunks")) {
+    const int64_t chunk_id = item.at("chunk_id").get<int64_t>();
+    TileChunk chunk;
+    FromJson(item, chunk);
+    if (!layer.tile_chunks.emplace(chunk_id, std::move(chunk)).second) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Duplicate tile chunk ID in world layer ", layer.id, ": ", chunk_id));
+    }
+  }
+
+  for (const nlohmann::json& item : j.at("entities")) {
+    Entity entity;
+    RETURN_IF_ERROR(FromJson(item, entity));
+    const uint64_t entity_id = entity.id;
+    if (!layer.entities.emplace(entity_id, std::move(entity)).second) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Duplicate entity ID in world layer ", layer.id, ": ", entity_id));
+    }
+  }
+  return layer;
+}
+
 nlohmann::json ToJson(const Level& level) {
   nlohmann::json j;
   j["id"] = level.id;
@@ -187,24 +237,14 @@ nlohmann::json ToJson(const Level& level) {
   }
   j["zones"] = zones_json;
 
-  // Tile Chunks
-  std::vector<nlohmann::json> chunks_json;
-  for (const auto& [id, chunk] : level.tile_chunks) {
-    nlohmann::json chunk_j;
-    chunk_j["chunk_id"] = id;
-    ToJson(chunk_j, chunk);
-    chunks_json.push_back(chunk_j);
+  std::vector<nlohmann::json> layers_json;
+  layers_json.reserve(level.layers.size());
+  for (const WorldLayer& layer : level.layers) {
+    nlohmann::json layer_j;
+    ToJson(layer_j, layer);
+    layers_json.push_back(std::move(layer_j));
   }
-  j["tile_chunks"] = chunks_json;
-
-  // Entities
-  std::vector<nlohmann::json> entities_json;
-  for (const auto& [id, entity] : level.entities) {
-    nlohmann::json entity_j;
-    ToJson(entity_j, entity);
-    entities_json.push_back(entity_j);
-  }
-  j["entities"] = entities_json;
+  j["layers"] = std::move(layers_json);
 
   return j;
 }
@@ -225,30 +265,19 @@ absl::StatusOr<Level> ParseLevel(const nlohmann::json& j) {
   j.at("spawn_point").at("x").get_to(level.spawn_point.x);
   j.at("spawn_point").at("y").get_to(level.spawn_point.y);
 
-  // Validation
-  if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
-    return absl::InvalidArgumentError("Tile render dimensions must be positive.");
-  }
-  if (static_cast<int>(level.width) % level.tile_render_width != 0 ||
-      static_cast<int>(level.height) % level.tile_render_height != 0) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Level boundaries must be multiples of tile render size (",
-                     level.tile_render_width, " x ", level.tile_render_height, ")"));
-  }
-
   {
     for (const auto& item : j.at("themes")) {
       ParallaxTheme theme;
       FromJson(item, theme);
-      if (theme.id < 0) {
-        return absl::InvalidArgumentError("Theme must have a valid non-negative integer ID.");
+      const int theme_id = theme.id;
+      if (!level.themes.emplace(theme_id, std::move(theme)).second) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("Duplicate theme ID found: '", theme_id, "'"));
       }
-      level.themes[theme.id] = theme;
     }
   }
 
   {
-    absl::flat_hash_set<int> zone_ids;
     for (const auto& item : j.at("zones")) {
       ParallaxZone zone;
       try {
@@ -256,52 +285,17 @@ absl::StatusOr<Level> ParseLevel(const nlohmann::json& j) {
       } catch (const nlohmann::json::exception& e) {
         return absl::InvalidArgumentError(absl::StrCat("Failed to parse zone: ", e.what()));
       }
-      if (zone.name.empty()) {
-        return absl::InvalidArgumentError("Zone name cannot be empty.");
-      }
-      if (zone.id < 0) {
-        return absl::InvalidArgumentError("Zone must have a valid non-negative integer ID.");
-      }
-      if (zone_ids.contains(zone.id)) {
-        return absl::InvalidArgumentError(absl::StrCat("Duplicate zone ID found: '", zone.id, "'"));
-      }
-      zone_ids.insert(zone.id);
       level.zones.push_back(zone);
     }
   }
 
-  // Validate zone boundaries fit within level.
-  for (const ParallaxZone& zone : level.zones) {
-    if (zone.min_point.x < 0 || zone.min_point.y < 0 || zone.max_point.x > level.width ||
-        zone.max_point.y > level.height) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Zone '", zone.name, "' extends outside level boundaries."));
-    }
-    if (zone.min_point.x >= zone.max_point.x || zone.min_point.y >= zone.max_point.y) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Zone '", zone.name, "' has invalid dimensions (min >= max)."));
-    }
+  level.layers.clear();
+  for (const nlohmann::json& item : j.at("layers")) {
+    ASSIGN_OR_RETURN(WorldLayer layer, WorldLayerFromJson(item));
+    level.layers.push_back(std::move(layer));
   }
 
-  // Validate spawn point is within level bounds.
-  if (level.spawn_point.x < 0 || level.spawn_point.y < 0 || level.spawn_point.x > level.width ||
-      level.spawn_point.y > level.height) {
-    return absl::InvalidArgumentError("Spawn point is outside level boundaries.");
-  }
-
-  for (const nlohmann::json& item : j.at("tile_chunks")) {
-    const int64_t id = item.at("chunk_id").get<int64_t>();
-    TileChunk chunk;
-    FromJson(item, chunk);
-    level.tile_chunks[id] = chunk;
-  }
-
-  for (const nlohmann::json& item : j.at("entities")) {
-    Entity entity;
-    RETURN_IF_ERROR(FromJson(item, entity));
-    level.AddEntity(std::move(entity));
-  }
-
+  RETURN_IF_ERROR(ValidateLevel(level));
   return level;
 }
 
@@ -320,8 +314,7 @@ absl::StatusOr<std::unique_ptr<LevelManager>> LevelManager::Create(std::string r
 }
 
 LevelManager::LevelManager(std::string root_path)
-    : root_path_(root_path),
-      definitions_path_(absl::StrCat(root_path_, "/", kDefinitionsPath)) {}
+    : root_path_(root_path), definitions_path_(absl::StrCat(root_path_, "/", kDefinitionsPath)) {}
 
 std::string LevelManager::GetDefinitionsPath(const std::string relative_path) {
   return absl::StrCat(definitions_path_, "/", relative_path);
@@ -390,80 +383,15 @@ absl::StatusOr<std::string> LevelManager::CreateLevel(Level level) {
 }
 
 absl::Status LevelManager::SaveLevel(const Level& level) {
-  if (level.id.empty()) {
-    return absl::InvalidArgumentError("Level must have an ID to be saved.");
-  }
+  RETURN_IF_ERROR(ValidateLevel(level));
 
-  // 1. Validate Level Name
-  if (level.name.empty()) {
-    return absl::InvalidArgumentError("Level name cannot be empty.");
-  }
-
-  // 2. Validate Level Name Uniqueness
+  // Validate level name uniqueness across the catalog. Intrinsic definition
+  // invariants are handled by ValidateLevel above for both load and save.
   for (const auto& [id, existing_level] : levels_) {
     if (id != level.id && existing_level->name == level.name) {
       return absl::InvalidArgumentError(
           absl::StrCat("Level name '", level.name, "' is already taken by another level."));
     }
-  }
-
-  // 3. Validate Themes
-  for (const auto& [id, theme] : level.themes) {
-    if (theme.id < 0) {
-      return absl::InvalidArgumentError("Theme must have a valid non-negative integer ID.");
-    }
-    if (theme.name.empty()) {
-      return absl::InvalidArgumentError("Theme name cannot be empty.");
-    }
-    if (theme.id != id) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Theme map key '", id, "' does not match theme id '", theme.id, "'"));
-    }
-  }
-
-  // 4. Validate Zones
-  absl::flat_hash_set<int> zone_ids;
-  for (const auto& zone : level.zones) {
-    if (zone.name.empty()) {
-      return absl::InvalidArgumentError("Zone name cannot be empty.");
-    }
-    if (zone.id < 0) {
-      return absl::InvalidArgumentError("Zone must have a valid non-negative integer ID.");
-    }
-    if (zone_ids.contains(zone.id)) {
-      return absl::InvalidArgumentError(absl::StrCat("Duplicate zone ID found: '", zone.id, "'"));
-    }
-    zone_ids.insert(zone.id);
-    if (!level.themes.contains(zone.theme_id)) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Zone references non-existent theme: '", zone.theme_id, "'"));
-    }
-    if (zone.min_point.x < 0 || zone.min_point.y < 0 || zone.max_point.x > level.width ||
-        zone.max_point.y > level.height) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Zone '", zone.name, "' extends outside level boundaries."));
-    }
-    if (zone.min_point.x >= zone.max_point.x || zone.min_point.y >= zone.max_point.y) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Zone '", zone.name, "' has invalid dimensions (min >= max)."));
-    }
-  }
-
-  // 5. Validate Spawn Point
-  if (level.spawn_point.x < 0 || level.spawn_point.y < 0 || level.spawn_point.x > level.width ||
-      level.spawn_point.y > level.height) {
-    return absl::InvalidArgumentError("Spawn point is outside level boundaries.");
-  }
-
-  // 6. Validate Tile Render Dimensions
-  if (level.tile_render_width <= 0 || level.tile_render_height <= 0) {
-    return absl::InvalidArgumentError("Tile render dimensions must be positive.");
-  }
-  if (static_cast<int>(level.width) % level.tile_render_width != 0 ||
-      static_cast<int>(level.height) % level.tile_render_height != 0) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Level boundaries must be multiples of tile render size (",
-                     level.tile_render_width, " x ", level.tile_render_height, ")"));
   }
 
   nlohmann::json json = ToJson(level);

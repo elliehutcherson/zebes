@@ -41,7 +41,7 @@ void ViewportInteractionController::Reset() {
 }
 
 absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::Update(
-    Level& level, const ViewportInteractionInput& input,
+    Level& level, WorldLayer& layer, const ViewportInteractionInput& input,
     const ViewportInteractionOptions& options) {
   RETURN_IF_ERROR(ValidateInput(level, input));
 
@@ -59,13 +59,13 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::Update(
 
   if (options.paint_terrain_id.has_value()) {
     entity_drag_.reset();
-    return UpdateTerrain(level, input, options);
+    return UpdateTerrain(level, layer, input, options);
   }
   if (options.paint_tile_id.has_value()) {
     entity_drag_.reset();
-    return UpdateTile(level, input, *options.paint_tile_id);
+    return UpdateTile(level, layer, input, *options.paint_tile_id);
   }
-  return UpdateEntity(level, input, options);
+  return UpdateEntity(level, layer, input, options);
 }
 
 bool ViewportInteractionController::ClaimPaintCell(TileCoordinate coordinate, bool erasing) {
@@ -78,7 +78,7 @@ bool ViewportInteractionController::ClaimPaintCell(TileCoordinate coordinate, bo
 }
 
 absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateTile(
-    Level& level, const ViewportInteractionInput& input, int tile_id) {
+    const Level& level, WorldLayer& layer, const ViewportInteractionInput& input, int tile_id) {
   if (tile_id <= 0) {
     return absl::InvalidArgumentError("paint tile ID must be positive");
   }
@@ -94,12 +94,12 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateT
   if (!input.primary_down && !erasing) return ViewportInteractionResult{};
   if (!ClaimPaintCell(coordinate, erasing)) return ViewportInteractionResult{};
 
-  RETURN_IF_ERROR(SetTileAt(level, coordinate.x, coordinate.y, erasing ? 0 : tile_id));
+  RETURN_IF_ERROR(SetTileAt(layer, coordinate.x, coordinate.y, erasing ? 0 : tile_id));
   return ViewportInteractionResult{};
 }
 
 absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateTerrain(
-    Level& level, const ViewportInteractionInput& input,
+    const Level& level, WorldLayer& layer, const ViewportInteractionInput& input,
     const ViewportInteractionOptions& options) {
   if (options.terrain_index == nullptr) {
     return absl::InvalidArgumentError("terrain painting requires a terrain index");
@@ -120,18 +120,18 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateT
   if (!ClaimPaintCell(coordinate, erasing)) return ViewportInteractionResult{};
 
   if (!erasing) {
-    RETURN_IF_ERROR(PaintTerrain(level, *options.terrain_index, *options.terrain_provider,
+    RETURN_IF_ERROR(PaintTerrain(level, layer, *options.terrain_index, *options.terrain_provider,
                                  *options.paint_terrain_id, options.paint_shape, coordinate.x,
                                  coordinate.y));
     return ViewportInteractionResult{};
   }
-  RETURN_IF_ERROR(EraseTerrain(level, *options.terrain_index, *options.terrain_provider,
+  RETURN_IF_ERROR(EraseTerrain(level, layer, *options.terrain_index, *options.terrain_provider,
                                coordinate.x, coordinate.y));
   return ViewportInteractionResult{};
 }
 
 absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateEntity(
-    Level& level, const ViewportInteractionInput& input,
+    Level& level, WorldLayer& layer, const ViewportInteractionInput& input,
     const ViewportInteractionOptions& options) {
   ViewportInteractionResult result;
 
@@ -142,8 +142,7 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateE
       options.entity_sprites != nullptr ? *options.entity_sprites : *kNoSprites;
 
   if (options.delete_mode && input.secondary_pressed && input.pointer_in_level) {
-    ASSIGN_OR_RETURN(uint64_t picked,
-                     PickEntity(level.entities, input.world_position, sprites));
+    ASSIGN_OR_RETURN(uint64_t picked, PickEntity(layer.entities, input.world_position, sprites));
     if (picked != Entity::kInvalidId) result.delete_entity_id = picked;
     return result;
   }
@@ -160,10 +159,7 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateE
       return absl::InvalidArgumentError("invisible placement blueprint received a sprite");
     }
 
-    const uint64_t available = NextAvailableEntityId(level.entities);
-    if (!level.entities.empty() && available == Entity::kInvalidId) {
-      return absl::ResourceExhaustedError("level entity IDs are exhausted");
-    }
+    ASSIGN_OR_RETURN(const uint64_t available, NextAvailableEntityId(level));
     if (!next_entity_id_.has_value() || available > *next_entity_id_) {
       next_entity_id_ = available;
     }
@@ -188,8 +184,8 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateE
       return result;
     }
 
-    auto entity = level.entities.find(entity_drag_->entity_id);
-    if (entity == level.entities.end()) {
+    auto entity = layer.entities.find(entity_drag_->entity_id);
+    if (entity == layer.entities.end()) {
       entity_drag_.reset();
       return absl::FailedPreconditionError("dragged entity no longer exists");
     }
@@ -202,13 +198,12 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateE
 
   if (!input.primary_pressed || !input.pointer_in_level) return result;
 
-  ASSIGN_OR_RETURN(uint64_t picked,
-                   PickEntity(level.entities, input.world_position, sprites));
+  ASSIGN_OR_RETURN(uint64_t picked, PickEntity(layer.entities, input.world_position, sprites));
   result.selected_entity_id = picked;
   if (picked == Entity::kInvalidId || picked != options.selected_entity_id) return result;
 
-  auto entity = level.entities.find(picked);
-  if (entity == level.entities.end()) {
+  auto entity = layer.entities.find(picked);
+  if (entity == layer.entities.end()) {
     return absl::InternalError("picked entity is missing from the level");
   }
   entity_drag_ = EntityDrag{

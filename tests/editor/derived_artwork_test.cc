@@ -119,7 +119,8 @@ class DerivedArtworkTest : public ::testing::Test {
         if (shape == TileShape::kNone) continue;
 
         ASSERT_OK_AND_ASSIGN(TerrainIndex index, TerrainIndex::Build(tileset_));
-        ASSERT_OK(PaintTerrain(level_, index, *provider_, kTerrainId, shape, x, y));
+        ASSERT_OK(PaintTerrain(level_, level_.layers.front(), index, *provider_, kTerrainId, shape,
+                               x, y));
       }
     }
   }
@@ -132,7 +133,7 @@ class DerivedArtworkTest : public ::testing::Test {
 
   // The artwork the level actually references for a cell.
   absl::StatusOr<RgbaImage> PaintedArtwork(int x, int y) {
-    ASSIGN_OR_RETURN(const int tile_id, GetTileAt(level_, x, y));
+    ASSIGN_OR_RETURN(const int tile_id, GetTileAt(level_.layers.front(), x, y));
 
     for (const Tile& tile : tileset_.tiles) {
       if (tile.id != tile_id) continue;
@@ -168,7 +169,7 @@ class DerivedArtworkTest : public ::testing::Test {
         }
         const absl::StatusOr<int> resolved =
             provider_->TileForKey(tileset_.terrains[0], from_scene, x, y);
-        const absl::StatusOr<int> placed = GetTileAt(level_, x, y);
+        const absl::StatusOr<int> placed = GetTileAt(level_.layers.front(), x, y);
         ASSERT_OK(resolved);
         ASSERT_OK(placed);
         EXPECT_EQ(*placed, *resolved) << "cell (" << x << ", " << y << ")";
@@ -189,7 +190,7 @@ class DerivedArtworkTest : public ::testing::Test {
         if (shape == TileShape::kNone) continue;
 
         absl::StatusOr<TerrainCellKey> key =
-            ComputeTerrainCellKey(level_, *index, *terrain, shape, x, y);
+            ComputeTerrainCellKey(level_, level_.layers.front(), *index, *terrain, shape, x, y);
         ASSERT_OK(key);
 
         TerrainCellKey from_scene;

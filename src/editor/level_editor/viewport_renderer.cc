@@ -47,8 +47,7 @@ absl::StatusOr<NativeTextureInfo> QueryTextureInfo(SDL_Texture* texture) {
 
 }  // namespace
 
-absl::Status ViewportRenderer::RenderEntities(
-    std::span<const EntityRenderItem> items) const {
+absl::Status ViewportRenderer::RenderEntities(std::span<const EntityRenderItem> items) const {
   ImDrawList* draw_list = canvas_.GetDrawList();
   if (draw_list == nullptr) {
     return absl::FailedPreconditionError("viewport canvas has no active draw list");
@@ -97,11 +96,39 @@ absl::Status ViewportRenderer::RenderEntities(
     }
 
     if (item.mode == EntityRenderMode::kPlacementGhost) {
-      draw_list->AddRect(screen_min, screen_max, IM_COL32(100, 200, 100, 220), 0.0f, 0,
-                         2.0f);
+      draw_list->AddRect(screen_min, screen_max, IM_COL32(100, 200, 100, 220), 0.0f, 0, 2.0f);
       continue;
     }
 
+    if (item.overlay_opacity > 0.0f) {
+      draw_list->AddRectFilled(
+          screen_min, screen_max,
+          IM_COL32(255, 200, 0, static_cast<uint8_t>(item.overlay_opacity * 255.0f)));
+    }
+    if (item.show_border) {
+      draw_list->AddRect(screen_min, screen_max, IM_COL32(255, 255, 255, 180), 0.0f, 0, 1.0f);
+    }
+    if (item.selected) {
+      draw_list->AddRect(screen_min, screen_max, IM_COL32(255, 200, 0, 255), 0.0f, 0, 2.0f);
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ViewportRenderer::RenderEntityOverlays(std::span<const EntityRenderItem> items) const {
+  ImDrawList* draw_list = canvas_.GetDrawList();
+  if (draw_list == nullptr) {
+    return absl::FailedPreconditionError("viewport canvas has no active draw list");
+  }
+
+  for (const EntityRenderItem& item : items) {
+    if (item.mode != EntityRenderMode::kLevel || !item.bounds.IsValid() ||
+        !std::isfinite(item.overlay_opacity) || item.overlay_opacity < 0.0f ||
+        item.overlay_opacity > 1.0f) {
+      return absl::InvalidArgumentError("entity overlay item is invalid");
+    }
+    const ImVec2 screen_min = canvas_.WorldToScreen(item.bounds.min);
+    const ImVec2 screen_max = canvas_.WorldToScreen(item.bounds.max);
     if (item.overlay_opacity > 0.0f) {
       draw_list->AddRectFilled(
           screen_min, screen_max,
@@ -201,8 +228,8 @@ absl::Status ViewportRenderer::RenderParallax(const ParallaxRenderBatch& batch) 
     }
     const NativeTextureInfo& texture = texture_it->second;
 
-    std::optional<ParallaxLayout> layout = CalculateParallaxLayout(
-        batch.camera, item.layer, texture.width, texture.height);
+    std::optional<ParallaxLayout> layout =
+        CalculateParallaxLayout(batch.camera, item.layer, texture.width, texture.height);
     if (!layout.has_value()) {
       return absl::InvalidArgumentError("parallax render item has invalid layout inputs");
     }
@@ -216,8 +243,7 @@ absl::Status ViewportRenderer::RenderParallax(const ParallaxRenderBatch& batch) 
         const ImVec2 screen_min = canvas_.WorldToScreen(world_min);
         const ImVec2 screen_max = canvas_.WorldToScreen(
             {world_min.x + layout->tile_width, world_min.y + layout->tile_height});
-        draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), screen_min,
-                            screen_max);
+        draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), screen_min, screen_max);
       }
     }
   }

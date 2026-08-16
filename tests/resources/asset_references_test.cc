@@ -48,7 +48,7 @@ Level LevelWithTiles(std::string id, std::string name, std::string tileset_id,
   level.tileset_id = std::move(tileset_id);
   TileChunk chunk;
   for (size_t i = 0; i < painted.size(); ++i) chunk.tiles[i] = painted[i];
-  level.tile_chunks[0] = chunk;
+  level.layers.front().tile_chunks[0] = chunk;
   return level;
 }
 
@@ -138,7 +138,7 @@ TEST(AssetReferencesTest, FindsASpriteNamedByABlueprintStateAndByAnEntity) {
   Entity entity;
   entity.id = 42;
   entity.sprite_id = "sp";
-  level.AddEntity(std::move(entity));
+  level.layers.front().entities.emplace(42, std::move(entity));
   c.levels.push_back(std::move(level));
 
   const std::vector<AssetReference> referrers = FindSpriteReferrers(c.View(), "sp");
@@ -170,7 +170,7 @@ TEST(AssetReferencesTest, FindsABlueprintPlacedInALevel) {
   Entity entity;
   entity.id = 7;
   entity.blueprint_id = "bp";
-  level.AddEntity(std::move(entity));
+  level.layers.front().entities.emplace(7, std::move(entity));
   c.levels.push_back(std::move(level));
 
   const std::vector<AssetReference> referrers = FindBlueprintReferrers(c.View(), "bp");

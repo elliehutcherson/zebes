@@ -56,13 +56,13 @@ absl::Status ParallaxThemePanel::RenderNavigator(Level& level, SelectionState& s
     // Layers
     for (int i = 0; i < theme.layers.size(); ++i) {
       ParallaxLayer& layer = theme.layers[i];
-      bool is_selected = (selection.type == SelectionState::Type::kLayer &&
+      bool is_selected = (selection.type == SelectionState::Type::kParallaxLayer &&
                           selection.theme_id == id && selection.layer_index == i);
 
-      std::string label = absl::StrCat(layer.name.empty() ? "(unnamed layer)" : layer.name,
-                                       "##layer_", id, "_", i);
+      std::string label =
+          absl::StrCat(layer.name.empty() ? "(unnamed layer)" : layer.name, "##layer_", id, "_", i);
       if (gui_->Selectable(label.c_str(), is_selected)) {
-        selection.type = SelectionState::Type::kLayer;
+        selection.type = SelectionState::Type::kParallaxLayer;
         selection.theme_id = id;
         selection.layer_index = i;
       }
@@ -98,7 +98,7 @@ absl::Status ParallaxThemePanel::RenderThemeDetails(Level& level, SelectionState
     theme.layers.push_back(new_layer);
 
     // Auto-select new layer
-    selection.type = SelectionState::Type::kLayer;
+    selection.type = SelectionState::Type::kParallaxLayer;
     selection.layer_index = theme.layers.size() - 1;
   }
 
@@ -166,10 +166,9 @@ absl::Status ParallaxThemePanel::RenderLayerDetails(Level& level, SelectionState
   if (layer.texture_id.empty()) {
     gui_->TextDisabled("No texture selected.");
   } else {
-    auto texture = std::find_if(texture_cache_.begin(), texture_cache_.end(),
-                                [&](const Texture& candidate) {
-                                  return candidate.id == layer.texture_id;
-                                });
+    auto texture =
+        std::find_if(texture_cache_.begin(), texture_cache_.end(),
+                     [&](const Texture& candidate) { return candidate.id == layer.texture_id; });
     if (texture == texture_cache_.end()) {
       return absl::FailedPreconditionError("selected layer texture is unavailable");
     }
@@ -180,8 +179,7 @@ absl::Status ParallaxThemePanel::RenderLayerDetails(Level& level, SelectionState
 
     constexpr float kMaximumPreviewWidth = 240.0f;
     constexpr float kMaximumPreviewHeight = 140.0f;
-    const float preview_width =
-        std::min(kMaximumPreviewWidth, gui_->GetContentRegionAvail().x);
+    const float preview_width = std::min(kMaximumPreviewWidth, gui_->GetContentRegionAvail().x);
     if (preview_width > 0.0f) {
       ASSIGN_OR_RETURN(TexturePreviewLayout preview,
                        texture_preview_.Render(handle, preview_width, kMaximumPreviewHeight));

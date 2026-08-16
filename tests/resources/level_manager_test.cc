@@ -71,7 +71,7 @@ TEST_F(LevelManagerTest, SerializationTest) {
   TileChunk chunk;
   chunk.tiles[0] = 1;
   chunk.tiles[1] = 2;
-  level.tile_chunks[100] = chunk;
+  level.layers.front().tile_chunks[0] = chunk;
 
   // Add Entity
   auto entity = std::make_unique<Entity>();
@@ -81,7 +81,7 @@ TEST_F(LevelManagerTest, SerializationTest) {
   entity->body.mass = 4.5;
   entity->body.is_static = true;
 
-  level.AddEntity(std::move(*entity));
+  ASSERT_OK(level.AddEntity(0, std::move(*entity)));
 
   // Save/Create
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
@@ -101,16 +101,45 @@ TEST_F(LevelManagerTest, SerializationTest) {
   EXPECT_EQ(loaded->themes[1].layers[0].texture_id, "tex1");
   EXPECT_TRUE(loaded->themes[1].layers[0].repeat_x);
 
-  ASSERT_EQ(loaded->tile_chunks.size(), 1);
-  EXPECT_EQ(loaded->tile_chunks[100].tiles[0], 1);
+  ASSERT_EQ(loaded->layers.size(), 1);
+  EXPECT_EQ(loaded->layers.front().name, "Base");
+  ASSERT_EQ(loaded->layers.front().tile_chunks.size(), 1);
+  EXPECT_EQ(loaded->layers.front().tile_chunks[0].tiles[0], 1);
 
-  ASSERT_EQ(loaded->entities.size(), 1);
-  const Entity& loaded_entity = loaded->entities.at(123);
+  ASSERT_EQ(loaded->layers.front().entities.size(), 1);
+  const Entity& loaded_entity = loaded->layers.front().entities.at(123);
   EXPECT_EQ(loaded_entity.id, 123);
   EXPECT_EQ(loaded_entity.transform.position.x, 10);
   EXPECT_EQ(loaded_entity.body.drag.x, 1);
   EXPECT_EQ(loaded_entity.body.mass, 4.5);
   EXPECT_TRUE(loaded_entity.body.is_static);
+}
+
+TEST_F(LevelManagerTest, WorldLayerOrderAndOwnershipSurviveRoundTrip) {
+  Level level{
+      .name = "Layered",
+      .width = 320,
+      .height = 320,
+  };
+  level.layers.front().name = "Background";
+  level.layers.push_back(WorldLayer{.id = 5, .name = "Foreground"});
+  level.layers.front().tile_chunks[0].tiles[0] = 3;
+  level.layers.back().tile_chunks[0].tiles[0] = 9;
+  ASSERT_OK(level.AddEntity(0, Entity{.id = 2, .sort_order = -1}));
+  ASSERT_OK(level.AddEntity(5, Entity{.id = 8, .sort_order = 4}));
+
+  ASSERT_OK_AND_ASSIGN(const std::string id, manager_->CreateLevel(std::move(level)));
+  ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
+
+  ASSERT_EQ(loaded->layers.size(), 2u);
+  EXPECT_EQ(loaded->layers[0].id, 0);
+  EXPECT_EQ(loaded->layers[0].name, "Background");
+  EXPECT_EQ(loaded->layers[0].tile_chunks.at(0).tiles[0], 3);
+  EXPECT_TRUE(loaded->layers[0].entities.contains(2));
+  EXPECT_EQ(loaded->layers[1].id, 5);
+  EXPECT_EQ(loaded->layers[1].name, "Foreground");
+  EXPECT_EQ(loaded->layers[1].tile_chunks.at(0).tiles[0], 9);
+  EXPECT_TRUE(loaded->layers[1].entities.contains(8));
 }
 
 TEST_F(LevelManagerTest, DeleteLevel) {
@@ -608,13 +637,13 @@ TEST_F(LevelManagerTest, EntityBlueprintFieldsSurviveRoundTrip) {
   entity.blueprint_id = "test-blueprint-uuid";
   entity.blueprint_state_index = 2;
   entity.transform.position = {64, 128};
-  level.AddEntity(std::move(entity));
+  ASSERT_OK(level.AddEntity(0, std::move(entity)));
 
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
   ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
 
-  ASSERT_EQ(loaded->entities.size(), 1);
-  const Entity& loaded_entity = loaded->entities.at(42);
+  ASSERT_EQ(loaded->layers.front().entities.size(), 1);
+  const Entity& loaded_entity = loaded->layers.front().entities.at(42);
   EXPECT_EQ(loaded_entity.blueprint_id, "test-blueprint-uuid");
   EXPECT_EQ(loaded_entity.blueprint_state_index, 2);
   EXPECT_EQ(loaded_entity.transform.position.x, 64);
@@ -629,19 +658,19 @@ TEST_F(LevelManagerTest, EntityDrawOrderSurvivesRoundTrip) {
   Entity behind;
   behind.id = 1;
   behind.sort_order = -5;
-  level.AddEntity(std::move(behind));
+  ASSERT_OK(level.AddEntity(0, std::move(behind)));
 
   Entity in_front;
   in_front.id = 2;
   in_front.sort_order = 12;
-  level.AddEntity(std::move(in_front));
+  ASSERT_OK(level.AddEntity(0, std::move(in_front)));
 
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
   ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
 
-  ASSERT_EQ(loaded->entities.size(), 2);
-  EXPECT_EQ(loaded->entities.at(1).sort_order, -5);
-  EXPECT_EQ(loaded->entities.at(2).sort_order, 12);
+  ASSERT_EQ(loaded->layers.front().entities.size(), 2);
+  EXPECT_EQ(loaded->layers.front().entities.at(1).sort_order, -5);
+  EXPECT_EQ(loaded->layers.front().entities.at(2).sort_order, 12);
 }
 
 // --- Definition / runtime boundary -------------------------------------------
@@ -654,7 +683,7 @@ TEST_F(LevelManagerTest, SimulationStateIsNotPersisted) {
   entity.id = 7;
   entity.body.mass = 2.0;
   entity.body.is_static = true;
-  level.AddEntity(std::move(entity));
+  ASSERT_OK(level.AddEntity(0, std::move(entity)));
 
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
 
@@ -682,14 +711,14 @@ TEST_F(LevelManagerTest, EntityAssetReferencesRoundTripAsIds) {
   entity.id = 11;
   entity.sprite_id = "sprite-uuid";
   entity.collider_id = "collider-uuid";
-  level.AddEntity(std::move(entity));
+  ASSERT_OK(level.AddEntity(0, std::move(entity)));
 
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
   ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
 
-  ASSERT_EQ(loaded->entities.size(), 1);
-  EXPECT_EQ(loaded->entities.at(11).sprite_id, "sprite-uuid");
-  EXPECT_EQ(loaded->entities.at(11).collider_id, "collider-uuid");
+  ASSERT_EQ(loaded->layers.front().entities.size(), 1);
+  EXPECT_EQ(loaded->layers.front().entities.at(11).sprite_id, "sprite-uuid");
+  EXPECT_EQ(loaded->layers.front().entities.at(11).collider_id, "collider-uuid");
 }
 
 // Levels written before the split carry vx/vy/ax/ay and current_frame_index.
@@ -710,27 +739,32 @@ TEST_F(LevelManagerTest, SimulationStateInADocumentIsIgnored) {
     "tile_render_width": 16,
     "tile_render_height": 16,
     "spawn_point": {"x": 0.0, "y": 0.0},
-    "entities": [{
-      "id": 9,
-      "active": true,
-      "blueprint_id": "",
-      "blueprint_state_index": 0,
-      "sort_order": 0,
-      "sprite_id": "",
-      "collider_id": "",
-      "transform": {"x": 32.0, "y": 48.0, "rotation": 0.0},
-      "current_frame_index": 4,
-      "body": {"vx": 5.0, "vy": -3.0, "ax": 1.0, "ay": 2.0,
-               "drag_x": 0.0, "drag_y": 0.0, "mass": 1.5, "is_static": false}
+    "layers": [{
+      "id": 0,
+      "name": "Base",
+      "entities": [{
+        "id": 9,
+        "active": true,
+        "blueprint_id": "",
+        "blueprint_state_index": 0,
+        "sort_order": 0,
+        "sprite_id": "",
+        "collider_id": "",
+        "transform": {"x": 32.0, "y": 48.0, "rotation": 0.0},
+        "current_frame_index": 4,
+        "body": {"vx": 5.0, "vy": -3.0, "ax": 1.0, "ay": 2.0,
+                 "drag_x": 0.0, "drag_y": 0.0, "mass": 1.5, "is_static": false}
+      }],
+      "tile_chunks": []
     }],
-    "themes": [], "zones": [], "tile_chunks": []
+    "themes": [], "zones": []
   })";
   out.close();
 
   ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->LoadLevel("Legacy-legacy-id.json"));
 
-  ASSERT_EQ(loaded->entities.size(), 1);
-  const Entity& entity = loaded->entities.at(9);
+  ASSERT_EQ(loaded->layers.front().entities.size(), 1);
+  const Entity& entity = loaded->layers.front().entities.at(9);
   EXPECT_EQ(entity.transform.position.x, 32);
   EXPECT_EQ(entity.body.mass, 1.5);
   EXPECT_FALSE(entity.body.is_static);

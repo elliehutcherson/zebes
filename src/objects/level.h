@@ -2,9 +2,12 @@
 
 #include <cstdint>
 #include <map>
+#include <string>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "objects/entity.h"
 
@@ -55,6 +58,37 @@ struct ParallaxZone {
   bool operator==(const ParallaxZone& other) const = default;
 };
 
+// Identifies one 32x32 TileChunk in WorldLayer::tile_chunks. Chunk-key
+// encoding is part of the persisted level model, not a viewport concern.
+struct TileChunkCoordinate {
+  int x = 0;
+  int y = 0;
+
+  constexpr bool operator<(const TileChunkCoordinate& other) const {
+    if (y != other.y) return y < other.y;
+    return x < other.x;
+  }
+};
+
+int64_t ChunkKey(int chunk_x, int chunk_y);
+TileChunkCoordinate DecodeChunkKey(int64_t key);
+
+// One persistent world-space depth slice. Layers are stored back to front in
+// Level::layers; within one layer tiles draw before entities, and entity
+// sort_order breaks ties among those entities.
+//
+// This is deliberately not a ParallaxLayer. Parallax layers are camera-relative
+// textures owned by reusable themes, while a WorldLayer owns level geometry and
+// placed entities in world coordinates.
+struct WorldLayer {
+  int id = -1;
+  std::string name;
+  absl::flat_hash_map<int64_t, TileChunk> tile_chunks;
+  std::map<uint64_t, Entity> entities;
+
+  bool operator==(const WorldLayer& other) const = default;
+};
+
 struct Level {
   std::string id;
   std::string name;
@@ -75,13 +109,10 @@ struct Level {
   // GAMEPLAY
   Vec spawn_point;  // Where to start
 
-  // TILE DATA (The World)
-  // Stored in chunks for memory efficiency
-  absl::flat_hash_map<int64_t, TileChunk> tile_chunks;
-
-  // SPATIAL LOOKUP (Optimization)
-  // A separate map to find entities by ID without looping through the vector
-  std::map<uint64_t, Entity> entities;
+  // WORLD CONTENT
+  // Ordered back to front. A level always has at least one layer so every
+  // placement operation has an explicit destination.
+  std::vector<WorldLayer> layers = {WorldLayer{.id = 0, .name = "Base"}};
 
   // ENVIRONMENT
   // A theme is an ordered stack of parallax layers; a zone binds one theme to a
@@ -98,7 +129,30 @@ struct Level {
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
 
-  void AddEntity(Entity entity) { entities[entity.id] = std::move(entity); }
+  // Adds an entity to one layer while preserving the level-wide entity-ID
+  // invariant. Refuses an invalid layer, ID zero, or a duplicate ID.
+  absl::Status AddEntity(int layer_id, Entity entity);
 };
+
+WorldLayer* FindWorldLayer(Level& level, int layer_id);
+const WorldLayer* FindWorldLayer(const Level& level, int layer_id);
+
+// Finds an entity across every layer. Entity IDs are unique within the whole
+// level, so the result is unambiguous.
+Entity* FindEntity(Level& level, uint64_t entity_id);
+const Entity* FindEntity(const Level& level, uint64_t entity_id);
+WorldLayer* FindEntityLayer(Level& level, uint64_t entity_id);
+const WorldLayer* FindEntityLayer(const Level& level, uint64_t entity_id);
+
+absl::StatusOr<int> NextAvailableWorldLayerId(const Level& level);
+absl::StatusOr<uint64_t> NextAvailableEntityId(const Level& level);
+
+// Moves an entity without changing its ID. Validation happens before mutation,
+// so failure never leaves it absent from both layers or present in both.
+absl::Status MoveEntityToLayer(Level& level, uint64_t entity_id, int destination_layer_id);
+
+// Intrinsic definition validation shared by loading and saving. Catalog-wide
+// constraints such as unique level names remain LevelManager's responsibility.
+absl::Status ValidateLevel(const Level& level);
 
 }  // namespace zebes

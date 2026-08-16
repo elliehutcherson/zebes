@@ -45,7 +45,8 @@ class ViewportTabTestPeer {
 
   static absl::Status RenderTerrainGhost(ViewportTab& tab, const ViewportRenderOptions& options,
                                          const Tileset* tileset, Vec world_pos) {
-    return tab.RenderTerrainGhost(options, tileset, TextureHandle{}, world_pos);
+    return tab.RenderTerrainGhost(options.level->layers.front(), options, tileset, TextureHandle{},
+                                  world_pos);
   }
 };
 
@@ -177,22 +178,27 @@ TEST(CreateEntityFromBlueprintTest, InvisibleBlueprintNoStatesSpriteRemainsNull)
 // NextAvailableEntityId tests
 
 TEST(NextAvailableEntityIdTest, EmptyMapReturnsOne) {
-  std::map<uint64_t, Entity> entities;
-  EXPECT_EQ(NextAvailableEntityId(entities), 1u);
+  Level level;
+  ASSERT_OK_AND_ASSIGN(const uint64_t id, NextAvailableEntityId(level));
+  EXPECT_EQ(id, 1u);
 }
 
 TEST(NextAvailableEntityIdTest, SingleEntity) {
-  Entity e = {.id = 5};
-  std::map<uint64_t, Entity> entities{{e.id, e}};
-  EXPECT_EQ(NextAvailableEntityId(entities), 6u);
+  Level level;
+  level.layers.front().entities.emplace(5, Entity{.id = 5});
+  ASSERT_OK_AND_ASSIGN(const uint64_t id, NextAvailableEntityId(level));
+  EXPECT_EQ(id, 6u);
 }
 
-TEST(NextAvailableEntityIdTest, ReturnsOnePastMax) {
-  std::map<uint64_t, Entity> entities;
-  for (uint64_t id : {1u, 50u, 120u, 7u}) {
-    entities[id] = Entity{.id = id};
-  }
-  EXPECT_EQ(NextAvailableEntityId(entities), 121u);
+TEST(NextAvailableEntityIdTest, ReturnsOnePastMaxAcrossLayers) {
+  Level level;
+  level.layers.front().entities.emplace(1, Entity{.id = 1});
+  level.layers.front().entities.emplace(50, Entity{.id = 50});
+  level.layers.push_back(WorldLayer{.id = 1, .name = "Foreground"});
+  level.layers.back().entities.emplace(120, Entity{.id = 120});
+  level.layers.back().entities.emplace(7, Entity{.id = 7});
+  ASSERT_OK_AND_ASSIGN(const uint64_t id, NextAvailableEntityId(level));
+  EXPECT_EQ(id, 121u);
 }
 
 // Regression: placing entities after loading a saved level must not reuse
@@ -201,12 +207,13 @@ TEST(NextAvailableEntityIdTest, ReturnsOnePastMax) {
 // counter is advanced past all loaded IDs before the first placement.
 TEST(NextAvailableEntityIdTest, NeverCollisdesWithLoadedLevel) {
   constexpr uint64_t kLoadedCount = 100;
-  std::map<uint64_t, Entity> entities;
+  Level level;
+  std::map<uint64_t, Entity>& entities = level.layers.front().entities;
   for (uint64_t id = 1; id <= kLoadedCount; ++id) {
     entities[id] = Entity{.id = id};
   }
 
-  uint64_t next_id = NextAvailableEntityId(entities);
+  ASSERT_OK_AND_ASSIGN(uint64_t next_id, NextAvailableEntityId(level));
   EXPECT_EQ(next_id, kLoadedCount + 1);
 
   // Simulating placement: every ID issued by the counter must be absent from
@@ -254,10 +261,34 @@ TEST(ViewportTabTest, RenderRejectsInvalidLevelGeometryBeforeOpeningCanvas) {
       .width = std::numeric_limits<double>::infinity(),
   };
 
-  EXPECT_EQ(tab.Render({.level = &level}).code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(tab.Render({.level = &level, .active_world_layer_id = 0}).code(),
+            absl::StatusCode::kInvalidArgument);
 
   level.width = 0;
+  EXPECT_EQ(tab.Render({.level = &level, .active_world_layer_id = 0}).code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ViewportTabTest, RenderRejectsMissingActiveWorldLayerBeforeOpeningCanvas) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  Level level{.tile_render_width = 16, .tile_render_height = 16, .width = 100, .height = 100};
+
   EXPECT_EQ(tab.Render({.level = &level}).code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ViewportTabTest, RenderRejectsHiddenLayerMarkedEditable) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  Level level{.tile_render_width = 16, .tile_render_height = 16, .width = 100, .height = 100};
+  const absl::flat_hash_set<int> hidden{0};
+
+  EXPECT_EQ(
+      tab.Render({.level = &level, .active_world_layer_id = 0, .hidden_world_layer_ids = &hidden})
+          .code(),
+      absl::StatusCode::kInvalidArgument);
 }
 
 // A tile is stored as a bare ID resolved against the level's own tileset, so
@@ -450,9 +481,10 @@ TEST(PickEntityTest, InvalidSpriteBoundsFailFast) {
 TEST(TileMutationTest, RejectsNegativeCoordinates) {
   Level level;
 
-  EXPECT_EQ(SetTileAt(level, -1, 0, 1).code(), absl::StatusCode::kInvalidArgument);
-  EXPECT_EQ(GetTileAt(level, 0, -1).status().code(), absl::StatusCode::kInvalidArgument);
-  EXPECT_TRUE(level.tile_chunks.empty());
+  WorldLayer& layer = level.layers.front();
+  EXPECT_EQ(SetTileAt(layer, -1, 0, 1).code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(GetTileAt(layer, 0, -1).status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_TRUE(layer.tile_chunks.empty());
 }
 
 TEST(TileChunkKeyTest, RoundTripsSignedCoordinatesWithoutUndefinedShifts) {
@@ -512,6 +544,7 @@ TEST(TerrainGhostTest, HoveringPreviewsRatherThanResolving) {
   RecordingTileProvider provider;
   ViewportRenderOptions options{
       .level = &level,
+      .active_world_layer_id = 0,
       .paint_terrain_id = 1,
       .terrain_index = &*index,
       .terrain_provider = &provider,

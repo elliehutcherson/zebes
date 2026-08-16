@@ -8,11 +8,13 @@
 #include "editor/level_editor/derived_terrain_session.h"
 #include "editor/level_editor/level_panel_interface.h"
 #include "editor/level_editor/level_panel_model.h"
-#include "editor/level_editor/palette_panel.h"
 #include "editor/level_editor/level_selection_state.h"
+#include "editor/level_editor/palette_panel.h"
 #include "editor/level_editor/parallax_theme_panel.h"
 #include "editor/level_editor/parallax_zone_panel.h"
 #include "editor/level_editor/viewport_tab.h"
+#include "editor/level_editor/world_layer_model.h"
+#include "editor/level_editor/world_layer_panel.h"
 #include "objects/level.h"
 
 namespace zebes {
@@ -38,6 +40,7 @@ class LevelEditor {
     std::unique_ptr<ParallaxThemePanel> parallax_theme_panel;
     std::unique_ptr<ParallaxZonePanel> parallax_zone_panel;
     std::unique_ptr<PalettePanel> palette_panel;
+    std::unique_ptr<WorldLayerPanel> world_layer_panel;
   };
 
   // Creates a new instance of the LevelEditor.
@@ -87,12 +90,14 @@ class LevelEditor {
   std::unique_ptr<ParallaxThemePanel> parallax_theme_panel_;
   std::unique_ptr<ParallaxZonePanel> parallax_zone_panel_;
   std::unique_ptr<PalettePanel> palette_panel_;
+  std::unique_ptr<WorldLayerPanel> world_layer_panel_;
 
   // Center viewport
   std::unique_ptr<ViewportTab> viewport_tab_;
 
   // State
   LevelPanelModel level_model_;
+  WorldLayerModel world_layer_model_;
   SelectionState selection_;
   std::optional<std::string> save_error_;
   // Long-lived on purpose: it carries a content index rebuilt from the atlas

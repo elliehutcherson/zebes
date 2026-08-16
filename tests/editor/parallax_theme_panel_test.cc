@@ -7,11 +7,11 @@
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/level.h"
 #include "objects/texture.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
-#include "macros.h"
 
 namespace zebes {
 
@@ -138,7 +138,7 @@ TEST_F(ParallaxThemePanelTest, AddLayerUpdatesThemeAndSelection) {
   ASSERT_OK(RenderThemeDetails());
 
   EXPECT_EQ(level_.themes[1].layers.size(), 1);
-  EXPECT_EQ(selection_.type, SelectionState::Type::kLayer);
+  EXPECT_EQ(selection_.type, SelectionState::Type::kParallaxLayer);
   EXPECT_EQ(selection_.theme_id, 1);
   EXPECT_EQ(selection_.layer_index, 0);
 }
@@ -164,7 +164,7 @@ TEST_F(ParallaxThemePanelTest, DeleteLayerRemovesIt) {
   theme.layers.push_back(ParallaxLayer{.name = "Layer 0"});
   level_.themes[1] = theme;
 
-  selection_.type = SelectionState::Type::kLayer;
+  selection_.type = SelectionState::Type::kParallaxLayer;
   selection_.theme_id = 1;
   selection_.layer_index = 0;
 
@@ -216,7 +216,7 @@ TEST_F(ParallaxThemePanelTest, SelectionChangesOnLayerSelect) {
 
   ASSERT_OK(RenderNavigator());
 
-  EXPECT_EQ(selection_.type, SelectionState::Type::kLayer);
+  EXPECT_EQ(selection_.type, SelectionState::Type::kParallaxLayer);
   EXPECT_EQ(selection_.theme_id, 1);
   EXPECT_EQ(selection_.layer_index, 0);
 }
@@ -224,15 +224,13 @@ TEST_F(ParallaxThemePanelTest, SelectionChangesOnLayerSelect) {
 TEST_F(ParallaxThemePanelTest, EmptyThemeNameUsesSafeStableLabel) {
   level_.themes[1] = ParallaxTheme{.name = ""};
 
-  EXPECT_CALL(gui_, CollapsingHeader(StrEq("(unnamed theme)##theme_1"), _))
-      .WillOnce(Return(false));
+  EXPECT_CALL(gui_, CollapsingHeader(StrEq("(unnamed theme)##theme_1"), _)).WillOnce(Return(false));
 
   EXPECT_OK(RenderNavigator());
 }
 
 TEST_F(ParallaxThemePanelTest, EmptyLayerNameUsesSafeStableLabel) {
-  level_.themes[1] =
-      ParallaxTheme{.name = "Theme", .layers = {ParallaxLayer{.name = ""}}};
+  level_.themes[1] = ParallaxTheme{.name = "Theme", .layers = {ParallaxLayer{.name = ""}}};
 
   EXPECT_CALL(gui_, CollapsingHeader(StrEq("Theme##theme_1"), _)).WillOnce(Return(true));
   EXPECT_CALL(gui_, Selectable(StrEq("(unnamed layer)##layer_1_0"), Matcher<bool>(false), _, _))
@@ -244,7 +242,7 @@ TEST_F(ParallaxThemePanelTest, EmptyLayerNameUsesSafeStableLabel) {
 // Renamed slightly to reflect the new fallback behavior
 TEST_F(ParallaxThemePanelTest, RenderLayerDetailsFallsBackToThemeOnInvalidSelection) {
   level_.themes[1] = ParallaxTheme{.name = "Theme 1"};
-  selection_.type = SelectionState::Type::kLayer;
+  selection_.type = SelectionState::Type::kParallaxLayer;
   selection_.theme_id = 1;
   selection_.layer_index = 5;
 

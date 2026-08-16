@@ -12,7 +12,7 @@ decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | Next |
-| 4 | Features: layers, prop artwork, zone seaming | After 3 |
+| 4 | Features: layers, prop artwork, zone seaming | **In progress** — layers done |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -127,14 +127,12 @@ The phase is merged and the editor walk is done, so nothing here blocks layers.
 
 ## Track 4 — Features
 
-**Layers.** An ordered list of depth slices, each holding its own tile grid and
-its own entities. `Level` (`src/objects/level.h`) holds one `tile_chunks` map
-and one `entities` map directly today; both move inside a layer.
-`Entity::sort_order` was deliberately named for within-layer ordering, so it
-becomes the tiebreaker rather than being renamed. A format change, so it needs a
-`migrate_definitions.py` block wrapping the existing grid as layer 0. This is
-what makes a canopy the player walks under possible, and
-[`prop-artwork.md`](prop-artwork.md) §7 names it as the blocker there too.
+**Layers — done.** [`level-layers.md`](level-layers.md) records the implemented
+contract. `Level` owns ordered `WorldLayer` depth slices, each with one sparse
+tile grid and entity map; `Entity::sort_order` remains within-layer ordering.
+The strict format and migration wrap old root collections as `Base`, editor
+visibility/locking stay transient, and the viewport renders and edits one
+explicit active layer while keeping parallax theme layers specialized.
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md),
 design only, nothing built. Its §6 sequence; steps 1-3 need no format change:

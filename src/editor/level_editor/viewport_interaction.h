@@ -78,7 +78,7 @@ class ViewportInteractionController {
   // Clears transient drag and ID-allocation state when the active level changes.
   void Reset();
 
-  absl::StatusOr<ViewportInteractionResult> Update(Level& level,
+  absl::StatusOr<ViewportInteractionResult> Update(Level& level, WorldLayer& layer,
                                                    const ViewportInteractionInput& input,
                                                    const ViewportInteractionOptions& options);
 
@@ -88,13 +88,13 @@ class ViewportInteractionController {
     Vec pointer_offset;
   };
 
-  absl::StatusOr<ViewportInteractionResult> UpdateTile(Level& level,
+  absl::StatusOr<ViewportInteractionResult> UpdateTile(const Level& level, WorldLayer& layer,
                                                        const ViewportInteractionInput& input,
                                                        int tile_id);
-  absl::StatusOr<ViewportInteractionResult> UpdateTerrain(Level& level,
-                                                          const ViewportInteractionInput& input,
-                                                          const ViewportInteractionOptions& options);
-  absl::StatusOr<ViewportInteractionResult> UpdateEntity(Level& level,
+  absl::StatusOr<ViewportInteractionResult> UpdateTerrain(
+      const Level& level, WorldLayer& layer, const ViewportInteractionInput& input,
+      const ViewportInteractionOptions& options);
+  absl::StatusOr<ViewportInteractionResult> UpdateEntity(Level& level, WorldLayer& layer,
                                                          const ViewportInteractionInput& input,
                                                          const ViewportInteractionOptions& options);
 

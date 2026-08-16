@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <optional>
+#include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "api/api.h"
@@ -33,6 +35,13 @@ enum class ParallaxPreviewMode {
 struct ViewportRenderOptions {
   // Level to render and interact with. Must outlive the Render() call.
   Level* level = nullptr;
+  // Stable ID of the only world layer authoring operations may mutate.
+  int active_world_layer_id = -1;
+  // Editor-only visibility state. Null means every layer is visible.
+  const absl::flat_hash_set<int>* hidden_world_layer_ids = nullptr;
+  // False when the active layer is hidden or locked. The scene remains
+  // visible, but placement, picking, dragging, and deletion are disabled.
+  bool active_world_layer_editable = true;
   // Terrain painted while dragging; empty = not in terrain-painting mode.
   std::optional<int> paint_terrain_id;
   // Collision geometry the terrain brush lays down. Authored by the user, never
@@ -125,6 +134,7 @@ class ViewportTab {
   struct SceneFrame {
     std::optional<ActiveParallaxZone> active_zone;
     SpriteLookup entity_sprites;
+    std::vector<EntityRenderItem> entity_overlays;
   };
 
   // What the placement preview settles for the interaction phase. The preview
@@ -133,6 +143,11 @@ class ViewportTab {
   struct PlacementFrame {
     Vec interaction_world;
     ResolvedSprite sprite;
+  };
+
+  struct RenderedScene {
+    SceneFrame scene;
+    PlacementFrame placement;
   };
 
   // Rejects option combinations that would render an undefined frame.
@@ -147,13 +162,14 @@ class ViewportTab {
                                bool canvas_hovered);
 
   // Draws background, grid, bounds, tiles, entities, and zone gizmos.
-  absl::StatusOr<SceneFrame> RenderScene(const Level& level,
-                                         const ViewportRenderOptions& options,
-                                         const ActiveTileset& active);
+  absl::StatusOr<RenderedScene> RenderScene(const Level& level,
+                                            const ViewportRenderOptions& options,
+                                            const ActiveTileset& active, Vec mouse_world,
+                                            bool mouse_in_level);
 
   // Draws whichever preview the current mode calls for, and settles where a
   // click would land.
-  absl::StatusOr<PlacementFrame> RenderPlacementPreview(const Level& level,
+  absl::StatusOr<PlacementFrame> RenderPlacementPreview(const Level& level, const WorldLayer& layer,
                                                         const ViewportRenderOptions& options,
                                                         const ActiveTileset& active,
                                                         Vec mouse_world, bool mouse_in_level);
@@ -174,8 +190,8 @@ class ViewportTab {
 
   // Draws the tile the hovered cell would actually receive, so the brush shows
   // its resolved edge or corner artwork rather than a generic swatch.
-  absl::Status RenderTerrainGhost(const ViewportRenderOptions& options, const Tileset* tileset,
-                                  TextureHandle texture, Vec world_pos);
+  absl::Status RenderTerrainGhost(const WorldLayer& layer, const ViewportRenderOptions& options,
+                                  const Tileset* tileset, TextureHandle texture, Vec world_pos);
 
   // Draws artwork that belongs to no tile, for a cell whose picture would be
   // created only if the user actually painted it.
@@ -218,7 +234,7 @@ class ViewportTab {
   // Entities store only IDs, so rendering and picking share this lookup rather
   // than reading pointers off the level definition.
   absl::StatusOr<SpriteLookup> ResolveEntitySprites(
-      const std::map<uint64_t, Entity>& entities) const;
+      const Level& level, const absl::flat_hash_set<int>* hidden_layer_ids) const;
 
   // Resolves the tileset's platform-neutral atlas handle. An empty texture ID
   // deliberately produces an invalid handle for placeholder-only rendering.

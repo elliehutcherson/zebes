@@ -15,3 +15,8 @@ target_link_libraries(tile_shape_geometry_test
 )
 target_include_directories(tile_shape_geometry_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(tile_shape_geometry_test)
+
+add_executable(level_test level_test.cc)
+target_link_libraries(level_test level macros gtest_main)
+target_include_directories(level_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(level_test)

@@ -26,8 +26,8 @@ TEST(LevelTilesTest, AnEmptyLevelHasNoTiles) {
 // tileset binding the moment it was first opened.
 TEST(LevelTilesTest, AllocatedButEmptyChunksDoNotCount) {
   Level level;
-  level.tile_chunks[0] = TileChunk{};
-  level.tile_chunks[1] = TileChunk{};
+  level.layers.front().tile_chunks[0] = TileChunk{};
+  level.layers.front().tile_chunks[1] = TileChunk{};
 
   EXPECT_FALSE(LevelHasTiles(level));
   EXPECT_EQ(CountPlacedTiles(level), 0);
@@ -35,7 +35,7 @@ TEST(LevelTilesTest, AllocatedButEmptyChunksDoNotCount) {
 
 TEST(LevelTilesTest, OnePlacedTileCounts) {
   Level level;
-  level.tile_chunks[0] = ChunkWithTiles(1);
+  level.layers.front().tile_chunks[0] = ChunkWithTiles(1);
 
   EXPECT_TRUE(LevelHasTiles(level));
   EXPECT_EQ(CountPlacedTiles(level), 1);
@@ -43,9 +43,10 @@ TEST(LevelTilesTest, OnePlacedTileCounts) {
 
 TEST(LevelTilesTest, TilesAreCountedAcrossChunks) {
   Level level;
-  level.tile_chunks[0] = ChunkWithTiles(3);
-  level.tile_chunks[1] = TileChunk{};
-  level.tile_chunks[2] = ChunkWithTiles(2);
+  level.layers.front().tile_chunks[0] = ChunkWithTiles(3);
+  level.layers.front().tile_chunks[1] = TileChunk{};
+  level.layers.push_back(WorldLayer{.id = 1, .name = "Foreground"});
+  level.layers.back().tile_chunks[2] = ChunkWithTiles(2);
 
   EXPECT_TRUE(LevelHasTiles(level));
   EXPECT_EQ(CountPlacedTiles(level), 5);

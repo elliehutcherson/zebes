@@ -3,9 +3,11 @@
 namespace zebes {
 
 bool LevelHasTiles(const Level& level) {
-  for (const auto& [key, chunk] : level.tile_chunks) {
-    for (const int tile_id : chunk.tiles) {
-      if (tile_id != 0) return true;
+  for (const WorldLayer& layer : level.layers) {
+    for (const auto& entry : layer.tile_chunks) {
+      for (const int tile_id : entry.second.tiles) {
+        if (tile_id != 0) return true;
+      }
     }
   }
   return false;
@@ -13,9 +15,11 @@ bool LevelHasTiles(const Level& level) {
 
 int CountPlacedTiles(const Level& level) {
   int count = 0;
-  for (const auto& [key, chunk] : level.tile_chunks) {
-    for (const int tile_id : chunk.tiles) {
-      if (tile_id != 0) ++count;
+  for (const WorldLayer& layer : level.layers) {
+    for (const auto& entry : layer.tile_chunks) {
+      for (const int tile_id : entry.second.tiles) {
+        if (tile_id != 0) ++count;
+      }
     }
   }
   return count;

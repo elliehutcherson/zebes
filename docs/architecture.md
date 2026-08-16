@@ -244,9 +244,18 @@ terrain would also re-resolve its eight neighbours every frame.
 `ViewportTab` translates the canvas into a per-frame `ViewportInteractionInput`.
 `ViewportInteractionController` owns mode priority, continuous paint/erase and
 entity-drag state, and discrete placement, selection, and deletion results. The
-controller may mutate level tiles and existing entity positions, but it depends
-only on Zebes domain types; ImGui button state and `Api` resource lookup remain
-in `ViewportTab`.
+controller may mutate tiles and existing entity positions in one explicit
+`WorldLayer`, but it depends only on Zebes domain types; ImGui button state and
+`Api` resource lookup remain in `ViewportTab`.
+
+`Level::layers` is the persistent world-depth model. It is ordered back to
+front, and every `WorldLayer` owns one sparse tile grid and one entity map.
+Tiles draw before entities inside a layer; `Entity::sort_order` orders only the
+entities in that layer. Entity IDs remain unique across the whole level. The
+active layer plus transient hidden/locked sets belong to `WorldLayerModel`, not
+the serialized definition. Parallax layers remain specialized, reusable theme
+content: the viewport composes the resolved parallax theme first, then visible
+world layers, then editor-only overlays.
 
 Viewport scene composition is separate from presentation. `ViewportScene`
 builds platform-neutral entity and zone render items with validated world-space
@@ -262,13 +271,16 @@ their translucent presentation. A blueprint without a sprite is a valid
 placeholder; a referenced sprite with no frame or managed texture is invalid and
 stops the render pass instead of silently changing appearance.
 
-Level tiles follow the same boundary. `ViewportScene` culls offscreen chunks
+World-layer tiles follow the same boundary. `ViewportScene` culls offscreen chunks
 before scanning their cells and emits a `TileRenderBatch` containing one opaque
 atlas handle plus the visible world rectangles, pixel source rectangles, and
 collision shapes. Placement previews use the same description. Atlas queries,
 UV normalization, tinting, and collision-overlay drawing live exclusively in
 `ViewportRenderer`. Tile mutation rejects negative coordinates so invalid
-world positions cannot become out-of-bounds chunk-array indices.
+world positions cannot become out-of-bounds chunk-array indices. Chunk-key
+encoding belongs to the level domain because it is serialized and validated;
+terrain neighbourhood queries receive one layer explicitly and never connect
+cells across depth slices.
 
 Parallax-zone activation is also a pure editor/runtime rule: resolve one zone
 from a world-space reference point, currently the camera center, and then render

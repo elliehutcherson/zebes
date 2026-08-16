@@ -118,7 +118,7 @@ TEST_F(ApiValidationTest, DeleteSpritePlacedInALevelReturnsError) {
   Entity entity;
   entity.id = 3;
   entity.sprite_id = sprite_id;
-  level.AddEntity(std::move(entity));
+  level.layers.front().entities.emplace(3, std::move(entity));
   EXPECT_CALL(level_manager_, GetAllLevels())
       .WillOnce(Return(std::vector<Level>{std::move(level)}));
   EXPECT_CALL(sprite_manager_, DeleteSprite(_)).Times(0);
@@ -179,7 +179,7 @@ TEST_F(ApiValidationTest, CheckTileDeletablePaintedInALevelReturnsError) {
   TileChunk chunk;
   chunk.tiles[0] = 7;
   chunk.tiles[1] = 7;
-  level.tile_chunks[0] = chunk;
+  level.layers.front().tile_chunks[0] = chunk;
   EXPECT_CALL(level_manager_, GetAllLevels())
       .WillOnce(Return(std::vector<Level>{std::move(level)}));
 
@@ -205,7 +205,7 @@ TEST_F(ApiValidationTest, CheckTileDeletableIgnoresLevelsBoundToAnotherTileset) 
   Level level = LevelUsingTileset("some_other_tileset");
   TileChunk chunk;
   chunk.tiles[0] = 7;
-  level.tile_chunks[0] = chunk;
+  level.layers.front().tile_chunks[0] = chunk;
   EXPECT_CALL(level_manager_, GetAllLevels())
       .WillOnce(Return(std::vector<Level>{std::move(level)}));
 
@@ -344,7 +344,7 @@ TEST_F(ApiValidationTest, DeleteBlueprintPlacedInALevelReturnsError) {
   Entity entity;
   entity.id = 9;
   entity.blueprint_id = blueprint_id;
-  level.AddEntity(std::move(entity));
+  level.layers.front().entities.emplace(9, std::move(entity));
   EXPECT_CALL(level_manager_, GetAllLevels())
       .WillOnce(Return(std::vector<Level>{std::move(level)}));
   EXPECT_CALL(blueprint_manager_, DeleteBlueprint(_)).Times(0);

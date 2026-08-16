@@ -19,8 +19,8 @@ bool Intersects(const WorldRect& rect, const VisibleWorldBounds& visible) {
 }
 
 bool IntersectsHalfOpen(const WorldRect& rect, const VisibleWorldBounds& visible) {
-  return rect.max.x > visible.min.x && rect.min.x < visible.max.x &&
-         rect.max.y > visible.min.y && rect.min.y < visible.max.y;
+  return rect.max.x > visible.min.x && rect.min.x < visible.max.x && rect.max.y > visible.min.y &&
+         rect.min.y < visible.max.y;
 }
 
 absl::Status ValidateCamera(const Camera& camera) {
@@ -42,15 +42,13 @@ absl::Status ValidateTileRenderInputs(const Tileset& tileset, int tile_render_wi
   if (tile_render_width <= 0 || tile_render_height <= 0) {
     return absl::InvalidArgumentError("tile render dimensions must be positive");
   }
-  if (!std::isfinite(overlay_opacity) || overlay_opacity < 0.0f ||
-      overlay_opacity > 1.0f) {
+  if (!std::isfinite(overlay_opacity) || overlay_opacity < 0.0f || overlay_opacity > 1.0f) {
     return absl::InvalidArgumentError("tile overlay opacity must be between zero and one");
   }
   return absl::OkStatus();
 }
 
-absl::StatusOr<absl::flat_hash_map<int, const Tile*>> BuildTileLookup(
-    const Tileset& tileset) {
+absl::StatusOr<absl::flat_hash_map<int, const Tile*>> BuildTileLookup(const Tileset& tileset) {
   absl::flat_hash_map<int, const Tile*> tiles;
   tiles.reserve(tileset.tiles.size());
   for (const Tile& tile : tileset.tiles) {
@@ -75,8 +73,7 @@ TileRenderItem MakeTileRenderItem(const Tile& tile, const Tileset& tileset, int6
   };
   return {
       .tile_id = tile.id,
-      .bounds = {.min = min,
-                 .max = {min.x + tile_render_width, min.y + tile_render_height}},
+      .bounds = {.min = min, .max = {min.x + tile_render_width, min.y + tile_render_height}},
       .source = {.x = tile.source_x,
                  .y = tile.source_y,
                  .width = tileset.tile_width,
@@ -85,8 +82,7 @@ TileRenderItem MakeTileRenderItem(const Tile& tile, const Tileset& tileset, int6
   };
 }
 
-absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id,
-                                                         const Entity& entity,
+absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id, const Entity& entity,
                                                          const ResolvedSprite& resolved,
                                                          EntityRenderMode mode,
                                                          const EntityRenderOptions& options) {
@@ -163,8 +159,7 @@ absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
   if (!std::isfinite(world_position.x) || !std::isfinite(world_position.y)) {
     return absl::InvalidArgumentError("entity placement position must be finite");
   }
-  if (resolved.sprite != nullptr &&
-      (resolved.sprite->frames.empty() || !resolved.texture)) {
+  if (resolved.sprite != nullptr && (resolved.sprite->frames.empty() || !resolved.texture)) {
     return absl::FailedPreconditionError(
         "entity placement sprite requires a frame and texture resource");
   }
@@ -206,8 +201,8 @@ absl::StatusOr<std::vector<ZoneGizmoItem>> ComposeZoneGizmoItems(
 }
 
 absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
-    const Level& level, const Tileset& tileset, TextureHandle atlas_texture,
-    const Camera& camera, const TileRenderOptions& options) {
+    const Level& level, const WorldLayer& layer, const Tileset& tileset,
+    TextureHandle atlas_texture, const Camera& camera, const TileRenderOptions& options) {
   absl::Status input_status = ValidateTileRenderInputs(
       tileset, level.tile_render_width, level.tile_render_height, options.overlay_opacity);
   if (!input_status.ok()) return input_status;
@@ -218,13 +213,12 @@ absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
     return absl::InvalidArgumentError("level world dimensions must be finite and non-negative");
   }
 
-  absl::StatusOr<absl::flat_hash_map<int, const Tile*>> tile_lookup =
-      BuildTileLookup(tileset);
+  absl::StatusOr<absl::flat_hash_map<int, const Tile*>> tile_lookup = BuildTileLookup(tileset);
   if (!tile_lookup.ok()) return tile_lookup.status();
 
   const VisibleWorldBounds visible = CalculateVisibleWorldBounds(camera);
   std::map<TileChunkCoordinate, const TileChunk*> visible_chunks;
-  for (const auto& [key, chunk] : level.tile_chunks) {
+  for (const auto& [key, chunk] : layer.tile_chunks) {
     const TileChunkCoordinate coordinate = DecodeChunkKey(key);
     if (coordinate.x < 0 || coordinate.y < 0) {
       return absl::InvalidArgumentError("level contains a tile chunk with negative coordinates");
@@ -236,10 +230,8 @@ absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
     };
     const WorldRect chunk_bounds{
         .min = chunk_min,
-        .max = {chunk_min.x +
-                    static_cast<double>(TileChunk::kSize) * level.tile_render_width,
-                chunk_min.y +
-                    static_cast<double>(TileChunk::kSize) * level.tile_render_height},
+        .max = {chunk_min.x + static_cast<double>(TileChunk::kSize) * level.tile_render_width,
+                chunk_min.y + static_cast<double>(TileChunk::kSize) * level.tile_render_height},
     };
     if (IntersectsHalfOpen(chunk_bounds, visible)) {
       visible_chunks.emplace(coordinate, &chunk);
@@ -264,13 +256,12 @@ absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
             absl::StrCat("level references unknown tile ID: ", tile_id));
       }
 
-      const int64_t tile_x = static_cast<int64_t>(coordinate.x) * TileChunk::kSize +
-                             index % TileChunk::kSize;
-      const int64_t tile_y = static_cast<int64_t>(coordinate.y) * TileChunk::kSize +
-                             index / TileChunk::kSize;
+      const int64_t tile_x =
+          static_cast<int64_t>(coordinate.x) * TileChunk::kSize + index % TileChunk::kSize;
+      const int64_t tile_y =
+          static_cast<int64_t>(coordinate.y) * TileChunk::kSize + index / TileChunk::kSize;
       TileRenderItem item = MakeTileRenderItem(*tile->second, tileset, tile_x, tile_y,
-                                               level.tile_render_width,
-                                               level.tile_render_height);
+                                               level.tile_render_width, level.tile_render_height);
       if (!IntersectsHalfOpen(item.bounds, visible)) continue;
       if (item.bounds.max.x > level.width || item.bounds.max.y > level.height) {
         return absl::InvalidArgumentError("level contains a tile outside its world bounds");
@@ -281,9 +272,10 @@ absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
   return batch;
 }
 
-absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(
-    const Tile& tile, const Tileset& tileset, TextureHandle atlas_texture,
-    Vec mouse_world, int tile_render_width, int tile_render_height) {
+absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(const Tile& tile, const Tileset& tileset,
+                                                          TextureHandle atlas_texture,
+                                                          Vec mouse_world, int tile_render_width,
+                                                          int tile_render_height) {
   absl::Status input_status =
       ValidateTileRenderInputs(tileset, tile_render_width, tile_render_height, 0.0f);
   if (!input_status.ok()) return input_status;
@@ -291,8 +283,7 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(
       WorldToTileCoordinate(mouse_world, tile_render_width, tile_render_height);
   if (!coordinate.ok()) return coordinate.status();
 
-  absl::StatusOr<absl::flat_hash_map<int, const Tile*>> tile_lookup =
-      BuildTileLookup(tileset);
+  absl::StatusOr<absl::flat_hash_map<int, const Tile*>> tile_lookup = BuildTileLookup(tileset);
   if (!tile_lookup.ok()) return tile_lookup.status();
   const auto selected_tile = tile_lookup->find(tile.id);
   if (selected_tile == tile_lookup->end()) {
@@ -308,20 +299,17 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(
       .mode = TileRenderMode::kPlacementGhost,
   };
   batch.items.push_back(MakeTileRenderItem(*selected_tile->second, tileset, coordinate->x,
-                                           coordinate->y, tile_render_width,
-                                           tile_render_height));
+                                           coordinate->y, tile_render_width, tile_render_height));
   return batch;
 }
 
 absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
     const ParallaxTheme& theme, const Camera& camera,
-    const std::map<std::string, TextureHandle>& textures,
-    const ParallaxRenderOptions& options) {
+    const std::map<std::string, TextureHandle>& textures, const ParallaxRenderOptions& options) {
   absl::Status camera_status = ValidateCamera(camera);
   if (!camera_status.ok()) return camera_status;
   if (options.layer_index.has_value() &&
-      (*options.layer_index < 0 ||
-       *options.layer_index >= static_cast<int>(theme.layers.size()))) {
+      (*options.layer_index < 0 || *options.layer_index >= static_cast<int>(theme.layers.size()))) {
     return absl::InvalidArgumentError("parallax preview layer index is out of range");
   }
 

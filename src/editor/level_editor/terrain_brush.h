@@ -156,7 +156,8 @@ class Blob47TileProvider : public TerrainTileProvider {
 // `shape` is the cell's own collision geometry and belongs to the caller: on a
 // fresh paint it comes from the placement unit, and on a refresh it is what the
 // cell already has. The brush reads geometry and never chooses it.
-absl::StatusOr<TerrainCellKey> ComputeTerrainCellKey(const Level& level, const TerrainIndex& index,
+absl::StatusOr<TerrainCellKey> ComputeTerrainCellKey(const Level& level, const WorldLayer& layer,
+                                                     const TerrainIndex& index,
                                                      const Terrain& terrain, TileShape shape,
                                                      int tile_x, int tile_y);
 
@@ -164,8 +165,9 @@ absl::StatusOr<TerrainCellKey> ComputeTerrainCellKey(const Level& level, const T
 //
 // This is ComputeTerrainCellKey projected down to one bit per neighbour, which
 // is all a blob-47 terrain's artwork was authored against.
-absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const TerrainIndex& index,
-                                           const Terrain& terrain, int tile_x, int tile_y);
+absl::StatusOr<uint8_t> ComputeTerrainMask(const Level& level, const WorldLayer& layer,
+                                           const TerrainIndex& index, const Terrain& terrain,
+                                           int tile_x, int tile_y);
 
 // Picks a tile for a rule deterministically from the cell's coordinates.
 //
@@ -181,9 +183,9 @@ absl::StatusOr<int> SelectVariant(const Terrain& terrain, const TerrainRule& rul
 // Recomputes the artwork for a cell already owned by terrain, without changing
 // which terrain occupies it or the geometry it holds. Exposed for tests and for
 // bulk refresh after a tileset edit.
-absl::Status ResolveTerrainCell(Level& level, TerrainIndex& index, const Terrain& terrain,
-                                TerrainTileProvider& provider, TileShape shape, int tile_x,
-                                int tile_y);
+absl::Status ResolveTerrainCell(const Level& level, WorldLayer& layer, TerrainIndex& index,
+                                const Terrain& terrain, TerrainTileProvider& provider,
+                                TileShape shape, int tile_x, int tile_y);
 
 // Writes terrain_id at (tile_x, tile_y) with the given collision geometry, and
 // re-resolves the neighbouring cells of the same terrain so their edges and
@@ -191,12 +193,13 @@ absl::Status ResolveTerrainCell(Level& level, TerrainIndex& index, const Terrain
 //
 // A refresh may change a neighbour's artwork; it can never change a neighbour's
 // shape, because it hands each cell back the geometry that cell already had.
-absl::Status PaintTerrain(Level& level, TerrainIndex& index, TerrainTileProvider& provider,
-                          int terrain_id, TileShape shape, int tile_x, int tile_y);
+absl::Status PaintTerrain(const Level& level, WorldLayer& layer, TerrainIndex& index,
+                          TerrainTileProvider& provider, int terrain_id, TileShape shape,
+                          int tile_x, int tile_y);
 
 // Clears the cell and re-resolves the neighbours that belonged to whatever
 // terrain occupied it. Erasing a cell holding no terrain still clears it.
-absl::Status EraseTerrain(Level& level, TerrainIndex& index, TerrainTileProvider& provider,
-                          int tile_x, int tile_y);
+absl::Status EraseTerrain(const Level& level, WorldLayer& layer, TerrainIndex& index,
+                          TerrainTileProvider& provider, int tile_x, int tile_y);
 
 }  // namespace zebes

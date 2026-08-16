@@ -16,7 +16,7 @@ Level LevelWithTiles(std::string tileset_id, int count) {
   Level level{.id = "alpha", .tileset_id = std::move(tileset_id)};
   TileChunk chunk{};
   for (int i = 0; i < count; ++i) chunk.tiles[i] = i + 1;
-  level.tile_chunks[0] = chunk;
+  level.layers.front().tile_chunks[0] = chunk;
   return level;
 }
 
@@ -71,8 +71,7 @@ TEST(LevelPanelModelTest, InvalidSelectionDoesNotOpenLevel) {
   model.SetLevels({{.id = "cave", .name = "Cave"}});
 
   EXPECT_EQ(model.SelectLevel("missing").code(), absl::StatusCode::kNotFound);
-  EXPECT_EQ(model.BeginEditingSelectedLevel().code(),
-            absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(model.BeginEditingSelectedLevel().code(), absl::StatusCode::kFailedPrecondition);
   EXPECT_FALSE(model.has_active_level());
 }
 
@@ -86,8 +85,7 @@ TEST(LevelPanelModelTest, DeleteClearsSelectionAndActiveLevel) {
 
   EXPECT_FALSE(model.has_level_selection());
   EXPECT_FALSE(model.has_active_level());
-  EXPECT_EQ(model.BuildSaveRequest().status().code(),
-            absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(model.BuildSaveRequest().status().code(), absl::StatusCode::kFailedPrecondition);
 }
 
 TEST(LevelPanelModelTilesetTest, ActiveTilesetNameFallsBackToTheRawId) {
@@ -215,11 +213,11 @@ TEST(LevelPanelModelTest, EditsToAnyPartOfALevelCount) {
   // Painting is the edit that matters most and the one a flag is most likely
   // to miss, since it goes straight into the chunk map.
   ASSERT_OK(model.BeginEditingSelectedLevel());
-  model.active_level()->tile_chunks[0].tiles[5] = 7;
+  model.active_level()->layers.front().tile_chunks[0].tiles[5] = 7;
   EXPECT_TRUE(model.has_unsaved_changes());
 
   ASSERT_OK(model.BeginEditingSelectedLevel());
-  model.active_level()->entities[1] = Entity{.id = 1};
+  model.active_level()->layers.front().entities[1] = Entity{.id = 1};
   EXPECT_TRUE(model.has_unsaved_changes());
 }
 
@@ -231,10 +229,10 @@ TEST(LevelPanelModelTest, UndoingAnEditByHandIsCleanAgain) {
   ASSERT_OK(model.SelectLevel("a"));
   ASSERT_OK(model.BeginEditingSelectedLevel());
 
-  model.active_level()->tile_chunks[0].tiles[5] = 7;
+  model.active_level()->layers.front().tile_chunks[0].tiles[5] = 7;
   ASSERT_TRUE(model.has_unsaved_changes());
 
-  model.active_level()->tile_chunks.erase(0);
+  model.active_level()->layers.front().tile_chunks.erase(0);
   EXPECT_FALSE(model.has_unsaved_changes());
 }
 
