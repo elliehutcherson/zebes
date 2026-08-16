@@ -68,17 +68,21 @@ absl::Status EditorEngine::Init() {
 
   // Create Terrain Recipe Manager. Generated terrain renders artwork the level
   // asks for, so the Level tab needs recipes as much as the Terrain tab does.
-  ASSIGN_OR_RETURN(terrain_recipe_manager_,
-                   TerrainRecipeManager::Create(config_.paths.assets()));
+  ASSIGN_OR_RETURN(terrain_recipe_manager_, TerrainRecipeManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(terrain_recipe_manager_->LoadAllRecipes());
+
+  ASSIGN_OR_RETURN(source_artwork_manager_, SourceArtworkManager::Create(config_.paths.assets()));
+  RETURN_IF_ERROR(source_artwork_manager_->LoadAllArtwork());
+
+  ASSIGN_OR_RETURN(prop_recipe_manager_, PropRecipeManager::Create(config_.paths.assets()));
+  RETURN_IF_ERROR(prop_recipe_manager_->LoadAllRecipes());
 
   // Create ImGui Wrapper
   imgui_wrapper_ = ImGuiWrapper::Create();
 
   // Translate platform input before it reaches engine logic.
   sdl_input_source_ = std::make_unique<SdlInputSource>(*sdl_, *imgui_wrapper_);
-  ASSIGN_OR_RETURN(input_manager_,
-                   InputManager::Create({.input_source = sdl_input_source_.get()}));
+  ASSIGN_OR_RETURN(input_manager_, InputManager::Create({.input_source = sdl_input_source_.get()}));
 
   // Create API
   Api::Options api_options = {
@@ -90,6 +94,8 @@ absl::Status EditorEngine::Init() {
       .level_manager = level_manager_.get(),
       .tileset_manager = tileset_manager_.get(),
       .terrain_recipe_manager = terrain_recipe_manager_.get(),
+      .source_artwork_manager = source_artwork_manager_.get(),
+      .prop_recipe_manager = prop_recipe_manager_.get(),
   };
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
@@ -160,6 +166,9 @@ void EditorEngine::Shutdown() {
 
   ui_.reset();
   api_.reset();
+  prop_recipe_manager_.reset();
+  source_artwork_manager_.reset();
+  terrain_recipe_manager_.reset();
   tileset_manager_.reset();
   sprite_manager_.reset();
   texture_manager_.reset();

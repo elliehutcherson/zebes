@@ -3,6 +3,7 @@ add_library(prop_artwork
   compose_prop.cc
   edge_treatment.cc
   isolate_subject.cc
+  prop_artwork_pipeline.cc
   quantize_prop.cc
   rasterize_prop.cc
 )
@@ -10,10 +11,43 @@ add_library(prop_artwork
 target_link_libraries(prop_artwork
   PUBLIC
   image_io
+  image_digest
+  prop_artwork_style
   terrain_palette
   absl::span
   absl::statusor
   PRIVATE
   absl::status
+  absl::strings
+)
+
+add_library(prop_artwork_style prop_artwork_style.cc)
+target_link_libraries(prop_artwork_style
+  PUBLIC
+  terrain_palette
+  absl::status
+)
+
+add_library(source_artwork source_artwork.cc)
+target_link_libraries(source_artwork
+  PUBLIC
+  absl::status
+  absl::statusor
+  nlohmann_json::nlohmann_json
+  PRIVATE
+  status_macros
+  absl::strings
+)
+
+add_library(prop_recipe prop_recipe.cc)
+target_link_libraries(prop_recipe
+  PUBLIC
+  prop_artwork_style
+  sprite
+  nlohmann_json::nlohmann_json
+  absl::status
+  absl::statusor
+  PRIVATE
+  status_macros
   absl::strings
 )

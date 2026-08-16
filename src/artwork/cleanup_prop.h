@@ -10,7 +10,6 @@ namespace zebes {
 struct PropCleanupConfig {
   int alpha_threshold = 128;
   int minimum_component_area = 2;
-  int tile_size = 32;
   int grounded_tolerance = 3;
 };
 
@@ -18,6 +17,6 @@ struct PropCleanupConfig {
 // the finished prop contract.
 absl::StatusOr<PropArtwork> CleanupAndValidateProp(const PropArtwork& artwork,
                                                    absl::Span<const RgbaColor> palette,
-                                                   const PropCleanupConfig& config);
+                                                   int tile_size, const PropCleanupConfig& config);
 
 }  // namespace zebes

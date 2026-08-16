@@ -61,6 +61,12 @@ absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
   if (options.terrain_recipe_manager == nullptr) {
     return absl::InvalidArgumentError("TerrainRecipeManager is null.");
   }
+  if (options.source_artwork_manager == nullptr) {
+    return absl::InvalidArgumentError("SourceArtworkManager is null.");
+  }
+  if (options.prop_recipe_manager == nullptr) {
+    return absl::InvalidArgumentError("PropRecipeManager is null.");
+  }
   return std::unique_ptr<Api>(new Api(options));
 }
 
@@ -72,7 +78,9 @@ Api::Api(const Options& options)
       blueprint_manager_(options.blueprint_manager),
       level_manager_(options.level_manager),
       tileset_manager_(options.tileset_manager),
-      terrain_recipe_manager_(options.terrain_recipe_manager) {}
+      terrain_recipe_manager_(options.terrain_recipe_manager),
+      source_artwork_manager_(options.source_artwork_manager),
+      prop_recipe_manager_(options.prop_recipe_manager) {}
 
 absl::Status Api::SaveConfig(const EngineConfig& config) {
   LOG(INFO) << "SaveConfig in the api....";
@@ -147,11 +155,12 @@ Api::CatalogSnapshot Api::SnapshotCatalog() {
       .blueprints = blueprint_manager_->GetAllBlueprints(),
       .levels = level_manager_->GetAllLevels(),
       .recipes = terrain_recipe_manager_->GetAllRecipes(),
+      .prop_recipes = prop_recipe_manager_->GetAllRecipes(),
   };
 }
 
 AssetCatalog Api::CatalogSnapshot::View() const {
-  return AssetCatalog{tilesets, sprites, blueprints, levels, recipes};
+  return AssetCatalog{tilesets, sprites, blueprints, levels, recipes, prop_recipes};
 }
 
 absl::Status Api::DeleteSprite(const std::string& sprite_id) {
@@ -268,6 +277,9 @@ absl::Status Api::SaveTerrainRecipe(const TerrainRecipe& recipe) {
 }
 
 absl::Status Api::DeleteTerrainRecipe(const std::string& recipe_id) {
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("terrain recipe '", recipe_id, "'"),
+                                     FindTerrainRecipeReferrers(catalog.View(), recipe_id)));
   return terrain_recipe_manager_->DeleteRecipe(recipe_id);
 }
 
@@ -332,13 +344,68 @@ absl::StatusOr<std::optional<TerrainRecipe>> Api::FindTerrainRecipeForTileset(
     if (recipe.tileset_id != tileset_id) continue;
     if (found.has_value()) {
       return absl::FailedPreconditionError(
-          absl::StrCat("recipes '", found->id, "' and '", recipe.id,
-                       "' both claim tileset ", tileset_id,
-                       "; which one regenerates it would be arbitrary"));
+          absl::StrCat("recipes '", found->id, "' and '", recipe.id, "' both claim tileset ",
+                       tileset_id, "; which one regenerates it would be arbitrary"));
     }
     found = std::move(recipe);
   }
   return found;
+}
+
+absl::StatusOr<std::string> Api::CreateSourceArtwork(std::string name,
+                                                     SourceArtworkProvenance provenance,
+                                                     const RgbaImage& image) {
+  return source_artwork_manager_->CreateArtwork(std::move(name), std::move(provenance), image);
+}
+
+absl::StatusOr<SourceArtwork*> Api::GetSourceArtwork(const std::string& source_artwork_id) {
+  return source_artwork_manager_->GetArtwork(source_artwork_id);
+}
+
+std::vector<SourceArtwork> Api::GetAllSourceArtwork() const {
+  return source_artwork_manager_->GetAllArtwork();
+}
+
+absl::StatusOr<RgbaImage> Api::ReadSourceArtworkPixels(const std::string& source_artwork_id) const {
+  return source_artwork_manager_->ReadArtworkPixels(source_artwork_id);
+}
+
+absl::Status Api::DeleteSourceArtwork(const std::string& source_artwork_id) {
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(
+      RefuseIfReferenced(absl::StrCat("source artwork '", source_artwork_id, "'"),
+                         FindSourceArtworkReferrers(catalog.View(), source_artwork_id)));
+  return source_artwork_manager_->DeleteArtwork(source_artwork_id);
+}
+
+absl::StatusOr<std::string> Api::CreatePropRecipe(PropRecipe recipe) {
+  RETURN_IF_ERROR(source_artwork_manager_->GetArtwork(recipe.source_artwork_id).status());
+  if (recipe.terrain_recipe_id.has_value()) {
+    RETURN_IF_ERROR(terrain_recipe_manager_->GetRecipe(*recipe.terrain_recipe_id).status());
+  }
+  RETURN_IF_ERROR(texture_manager_->GetTexture(recipe.texture_id).status());
+  RETURN_IF_ERROR(sprite_manager_->GetSprite(recipe.sprite_id).status());
+  RETURN_IF_ERROR(blueprint_manager_->GetBlueprint(recipe.blueprint_id).status());
+  return prop_recipe_manager_->CreateRecipe(std::move(recipe));
+}
+
+absl::Status Api::SavePropRecipe(const PropRecipe& recipe) {
+  RETURN_IF_ERROR(source_artwork_manager_->GetArtwork(recipe.source_artwork_id).status());
+  if (recipe.terrain_recipe_id.has_value()) {
+    RETURN_IF_ERROR(terrain_recipe_manager_->GetRecipe(*recipe.terrain_recipe_id).status());
+  }
+  RETURN_IF_ERROR(texture_manager_->GetTexture(recipe.texture_id).status());
+  RETURN_IF_ERROR(sprite_manager_->GetSprite(recipe.sprite_id).status());
+  RETURN_IF_ERROR(blueprint_manager_->GetBlueprint(recipe.blueprint_id).status());
+  return prop_recipe_manager_->SaveRecipe(recipe);
+}
+
+absl::StatusOr<PropRecipe*> Api::GetPropRecipe(const std::string& recipe_id) {
+  return prop_recipe_manager_->GetRecipe(recipe_id);
+}
+
+std::vector<PropRecipe> Api::GetAllPropRecipes() const {
+  return prop_recipe_manager_->GetAllRecipes();
 }
 
 }  // namespace zebes

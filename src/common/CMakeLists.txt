@@ -44,6 +44,15 @@ target_link_libraries(image_io absl::span)
 target_link_libraries(image_io absl::strings)
 target_include_directories(image_io PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../include/stb)
 
+add_library(image_digest image_digest.cc)
+target_link_libraries(image_digest
+  PUBLIC
+  image_io
+  absl::statusor
+  PRIVATE
+  absl::status
+)
+
 add_library(sdl_wrapper sdl_wrapper.cc)
 target_link_libraries(sdl_wrapper config)
 target_link_libraries(sdl_wrapper absl::status)

@@ -5,6 +5,8 @@
 #include "resources/blueprint_manager_mock.h"
 #include "resources/collider_manager_mock.h"
 #include "resources/level_manager_mock.h"
+#include "resources/prop_recipe_manager_mock.h"
+#include "resources/source_artwork_manager_mock.h"
 #include "resources/sprite_manager_mock.h"
 #include "resources/terrain_recipe_manager_mock.h"
 #include "resources/texture_manager_mock.h"
@@ -30,6 +32,8 @@ class ApiValidationTest : public ::testing::Test {
         .level_manager = &level_manager_,
         .tileset_manager = &tileset_manager_,
         .terrain_recipe_manager = &terrain_recipe_manager_,
+        .source_artwork_manager = &source_artwork_manager_,
+        .prop_recipe_manager = &prop_recipe_manager_,
     };
 
     ASSERT_OK_AND_ASSIGN(api_, Api::Create(options));
@@ -46,6 +50,8 @@ class ApiValidationTest : public ::testing::Test {
   NiceMock<LevelManagerMock> level_manager_;
   NiceMock<TilesetManagerMock> tileset_manager_;
   NiceMock<TerrainRecipeManagerMock> terrain_recipe_manager_;
+  NiceMock<SourceArtworkManagerMock> source_artwork_manager_;
+  NiceMock<PropRecipeManagerMock> prop_recipe_manager_;
   std::unique_ptr<Api> api_;
 };
 
@@ -357,6 +363,47 @@ TEST_F(ApiValidationTest, DeleteBlueprintUnplacedCallsDelete) {
   EXPECT_CALL(blueprint_manager_, DeleteBlueprint(blueprint_id)).WillOnce(Return(absl::OkStatus()));
 
   EXPECT_OK(api_->DeleteBlueprint(blueprint_id));
+}
+
+TEST_F(ApiValidationTest, DeleteSourceArtworkReferencedByAPropRecipeReturnsError) {
+  EXPECT_CALL(prop_recipe_manager_, GetAllRecipes())
+      .WillOnce(Return(std::vector<PropRecipe>{
+          PropRecipe{.id = "prop", .name = "Tree", .source_artwork_id = "source"}}));
+  EXPECT_CALL(source_artwork_manager_, DeleteArtwork(_)).Times(0);
+
+  const absl::Status status = api_->DeleteSourceArtwork("source");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Tree"));
+}
+
+TEST_F(ApiValidationTest, DeleteSourceArtworkUnreferencedCallsDelete) {
+  EXPECT_CALL(source_artwork_manager_, DeleteArtwork("source")).WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_OK(api_->DeleteSourceArtwork("source"));
+}
+
+TEST_F(ApiValidationTest, DeleteTerrainRecipeAttachedToAPropReturnsError) {
+  EXPECT_CALL(prop_recipe_manager_, GetAllRecipes())
+      .WillOnce(Return(std::vector<PropRecipe>{PropRecipe{
+          .id = "prop",
+          .name = "Tree",
+          .terrain_recipe_id = "terrain",
+      }}));
+  EXPECT_CALL(terrain_recipe_manager_, DeleteRecipe(_)).Times(0);
+
+  const absl::Status status = api_->DeleteTerrainRecipe("terrain");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Tree"));
+}
+
+TEST_F(ApiValidationTest, CreatePropRecipeRefusesAMissingSourceBeforePublishingRecipe) {
+  PropRecipe recipe;
+  recipe.source_artwork_id = "missing";
+  EXPECT_CALL(source_artwork_manager_, GetArtwork("missing"))
+      .WillOnce(Return(absl::NotFoundError("missing source")));
+  EXPECT_CALL(prop_recipe_manager_, CreateRecipe(_)).Times(0);
+
+  EXPECT_EQ(api_->CreatePropRecipe(std::move(recipe)).status().code(), absl::StatusCode::kNotFound);
 }
 
 }  // namespace

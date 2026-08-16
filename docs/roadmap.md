@@ -138,19 +138,24 @@ visibility/locking stay transient, and the viewport renders and edits one
 explicit active layer while keeping parallax theme layers specialized.
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
-Milestone 0 is implemented and its `lucinda_cave` comparison is ready for the
-visual go/no-go; durable resources, editor workflow, and provider integration
-remain unbuilt. Its §12 sequence:
+Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved
+terrain colours are the production palette policy. The first Milestones 1-2
+hardening pass adds canonical source hashing, input limits, a versioned pipeline
+coordinator, and retained preview artifacts. Strict source-artwork and prop-recipe
+resources, managers, editor ownership, and reference scans are now implemented;
+prepared bundle lifecycle, editor workflow, and provider integration remain.
+Its §12 sequence:
 
-0. **Implemented; visual decision pending.** Run the visual feasibility spike:
+0. **Accepted.** Run the visual feasibility spike:
    one imported boulder, one real terrain recipe, the deterministic C++ stages,
    and three palette policies. Do not build persistence, UI, or provider
    infrastructure unless an in-context result looks like production-quality
    Zebes art.
 1. Keep the accepted shared palette, image primitives, and deterministic C++
    stages without changing terrain output.
-2. Add managed source art, strict prop recipes, and generated-prop bundle
-   commit, regeneration, reference scanning, and deletion.
+2. **In progress.** Managed source art, strict prop recipes, ID-backed source
+   storage, and reference scanning are implemented. Add generated-prop bundle
+   commit, regeneration, and deletion.
 3. Prove the full editor workflow with imported sources, per-stage preview, and
    finished-only preview before adding a network dependency.
 4. Add the cancellable image-generation service and first provider adapter.

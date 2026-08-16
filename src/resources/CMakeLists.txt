@@ -61,10 +61,44 @@ add_library(terrain_recipe_manager terrain_recipe_manager.cc)
 target_link_libraries(terrain_recipe_manager
   PUBLIC
   terrain_recipe
+  prop_recipe
   absl::status
   absl::statusor
   PRIVATE
   common
+  status_macros
+  absl::flat_hash_map
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
+add_library(source_artwork_manager source_artwork_manager.cc)
+target_link_libraries(source_artwork_manager
+  PUBLIC
+  source_artwork
+  prop_artwork
+  image_io
+  absl::status
+  absl::statusor
+  PRIVATE
+  common
+  image_digest
+  resource_utils
+  status_macros
+  absl::flat_hash_map
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
+add_library(prop_recipe_manager prop_recipe_manager.cc)
+target_link_libraries(prop_recipe_manager
+  PUBLIC
+  prop_recipe
+  absl::status
+  absl::statusor
+  PRIVATE
+  common
+  resource_utils
   status_macros
   absl::flat_hash_map
   absl::strings
@@ -79,6 +113,7 @@ target_link_libraries(asset_references
   sprite
   tileset
   terrain_recipe
+  prop_recipe
   PRIVATE
   absl::strings
 )

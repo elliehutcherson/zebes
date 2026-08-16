@@ -23,8 +23,11 @@ struct Catalogs {
   std::vector<Blueprint> blueprints;
   std::vector<Level> levels;
   std::vector<TerrainRecipe> recipes;
+  std::vector<PropRecipe> prop_recipes;
 
-  AssetCatalog View() const { return {tilesets, sprites, blueprints, levels, recipes}; }
+  AssetCatalog View() const {
+    return {tilesets, sprites, blueprints, levels, recipes, prop_recipes};
+  }
 };
 
 Level LevelWithParallax(std::string id, std::string name, std::string theme_name,
@@ -60,13 +63,36 @@ TEST(AssetReferencesTest, FindsATextureAcrossEveryKindThatCanNameOne) {
   c.sprites.push_back(Sprite{.id = "sp", .name = "Crystal", .texture_id = "tex"});
   c.levels.push_back(LevelWithParallax("lv", "Donut Plains", "Sky", "Clouds", "tex"));
   c.recipes.push_back(TerrainRecipe{.id = "rc", .name = "Cave", .texture_id = "tex"});
+  c.prop_recipes.push_back(PropRecipe{.id = "prop", .name = "Tree", .texture_id = "tex"});
 
   const std::vector<AssetReference> referrers = FindTextureReferrers(c.View(), "tex");
 
   EXPECT_THAT(referrers, ElementsAre(Field(&AssetReference::kind, AssetKind::kTileset),
                                      Field(&AssetReference::kind, AssetKind::kSprite),
                                      Field(&AssetReference::kind, AssetKind::kLevel),
-                                     Field(&AssetReference::kind, AssetKind::kTerrainRecipe)));
+                                     Field(&AssetReference::kind, AssetKind::kTerrainRecipe),
+                                     Field(&AssetReference::kind, AssetKind::kPropRecipe)));
+}
+
+TEST(AssetReferencesTest, FindsPropAuthoringAndOutputReferences) {
+  Catalogs c;
+  c.prop_recipes.push_back(PropRecipe{
+      .id = "prop",
+      .name = "Tree",
+      .source_artwork_id = "source",
+      .terrain_recipe_id = "terrain",
+      .sprite_id = "sprite",
+      .blueprint_id = "blueprint",
+  });
+
+  EXPECT_THAT(FindSourceArtworkReferrers(c.View(), "source"),
+              ElementsAre(Field(&AssetReference::kind, AssetKind::kPropRecipe)));
+  EXPECT_THAT(FindTerrainRecipeReferrers(c.View(), "terrain"),
+              ElementsAre(Field(&AssetReference::field, "terrain_recipe_id")));
+  EXPECT_THAT(FindSpriteReferrers(c.View(), "sprite"),
+              ElementsAre(Field(&AssetReference::field, "sprite_id")));
+  EXPECT_THAT(FindBlueprintReferrers(c.View(), "blueprint"),
+              ElementsAre(Field(&AssetReference::field, "blueprint_id")));
 }
 
 // A level may hold many themes, so "Level references this" would leave the user

@@ -75,10 +75,4 @@ ResolvedTerrainPalette BuildTerrainPalette(const TerrainGenConfig& config,
 // Validates and resolves a standalone palette for artwork tools.
 absl::StatusOr<ResolvedTerrainPalette> ResolveTerrainPalette(const TerrainGenConfig& config);
 
-// One named step of terrain's HSV ramp policy. The feasibility spike uses this
-// to test whether props need extra tones derived by the same rules rather than
-// literal terrain swatches only.
-RgbaColor DeriveTerrainTone(uint32_t base, float step, float hue_shift,
-                            float saturation_shift = 0.10f);
-
 }  // namespace zebes

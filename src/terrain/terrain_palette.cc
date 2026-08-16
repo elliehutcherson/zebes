@@ -103,13 +103,18 @@ Hsv MixHsv(const Hsv& from, const Hsv& to, float amount) {
 
 }  // namespace
 
-RgbaColor DeriveTerrainTone(uint32_t base, float step, float hue_shift, float saturation_shift) {
+namespace {
+
+RgbaColor DeriveTerrainTone(uint32_t base, float step, float hue_shift,
+                            float saturation_shift = 0.10f) {
   Hsv hsv = ToHsv(base);
   hsv.h += hue_shift * step;
   hsv.s = std::clamp(hsv.s + saturation_shift * step, 0.0f, 1.0f);
   hsv.v = std::clamp(hsv.v - 0.13f * step, 0.0f, 1.0f);
   return ToRgba(hsv);
 }
+
+}  // namespace
 
 ResolvedTerrainPalette BuildTerrainPalette(const TerrainGenConfig& config,
                                            const ResolvedTerrainStyle& style) {

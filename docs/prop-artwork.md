@@ -1,10 +1,13 @@
 # Generated prop artwork pipeline
 
-**Status: Milestone 0 implemented and ready for visual acceptance.** The shared
-terrain palette, deterministic spike transforms, command-line runner, and
-focused tests now exist. The spike produces three boulder treatments beside
-real `lucinda_cave` terrain. A human visual go/no-go remains deliberately open;
-resource ownership, editor workflow, and provider integration have not started.
+**Status: Milestone 0 accepted; authoring-resource foundation implemented.**
+The boulder/`lucinda_cave` and tree/`Cozy Meadow` checks both support the visual
+approach. The production policy is the complete resolved terrain palette.
+Source hashing, input limits, a versioned coordinator, retained stage artifacts,
+and typed stage diagnostics now form the Milestones 1-2 foundation. Strict
+`SourceArtwork` and `PropRecipe` schemas, managers, editor ownership, and
+reference scans are implemented. Prepared bundle commit/regeneration/deletion,
+the editor workflow, and provider integration remain.
 
 This design covers a static world prop such as a boulder, tree, sign, or ruin.
 The result is ordinary Zebes data: a texture, a one-frame sprite, and a blueprint
@@ -39,15 +42,15 @@ The remaining gaps are equally concrete:
 
 - There is no network client, image-generation provider abstraction, credential
   boundary, cancellation contract, or remote-request timeout policy.
-- The terrain palette is now a shared platform-neutral boundary, and Milestone
-  0 provides the minimum in-process transforms needed for visual evaluation.
-  Those spike stages still need broader fixtures, diagnostics, content limits,
-  and a versioned pipeline coordinator before they are an editor-ready library.
-- `assets/source_art/` is a directory convention, not a managed authoring
-  resource. Nothing records ownership or generation provenance for an image in
-  it.
-- There is no prop recipe, pipeline coordinator, generated-prop bundle commit,
-  regeneration path, or editor tab.
+- The terrain palette and deterministic transforms are shared platform-neutral
+  boundaries. The versioned coordinator enforces source limits, records a
+  canonical source digest, retains each preview artifact, and reports typed
+  stage metrics. Stage-specific diagnostics and fixtures still need to expand
+  as the imported-source editor workflow exercises them.
+- Source artwork and prop recipes now have strict, versioned managers and are
+  part of reference scans, but no prepared generated-prop bundle transaction
+  creates their texture, sprite, blueprint, and recipe together yet.
+- There is no regeneration path or Prop Artwork editor tab.
 
 The feature should fill those gaps. It should not embed Python in the editor,
 shell out to a provider CLI, put provider JSON into domain objects, or add AI to
@@ -91,10 +94,9 @@ Provider request data is provenance.
 
 ## 3. The shared style contract
 
-Literal terrain colours are the strongest available starting hypothesis, not a
-settled visual rule. A prop restricted to those colours may fit perfectly, or
-terrain's palette may be too narrow for a larger freestanding object. That has
-to be decided from rendered comparisons before it becomes recipe infrastructure.
+Literal terrain colours are the accepted initial style rule. They survived two
+contrasting rendered checks: a rock whose material family resembles its cave,
+and a tree whose foliage and bark must separate inside a bright meadow palette.
 
 The palette is no longer just the five fields in `TerrainMaterial`.
 `BuildPalette` also uses pattern contrast, wall darkness, compact-palette policy,
@@ -115,23 +117,23 @@ reimplements terrain palette construction. Terrain generation must keep using
 the extracted function, and its existing pixel tests must remain unchanged.
 That is how the extraction proves it did not subtly restyle shipped terrain.
 
-Milestone 0 uses those semantic results to compare three explicit prop palette
-policies against the same source and transform settings:
+Milestone 0 compared three explicit prop palette policies against the same
+source and transform settings:
 
 1. every opaque colour in the resolved terrain palette;
 2. a semantic subset, initially outline, substrate, wall, botanical, and accent
    roles;
 3. deterministic additional tonal ramps derived from those semantic colours.
 
-The third policy tests whether props need to share terrain's style-generation
-rules rather than its literal final swatches. Any added ramp has a named,
-versionable algorithm and deterministic parameters; it is not a hand-edited
-escape palette. The spike chooses the production default. Experimental policies
-that do not prove useful should be removed rather than carried forever.
+The complete resolved palette was accepted. It retained the boulder's planes,
+and the second tree/meadow run confirmed that one literal palette can separate
+foliage and trunk while staying inside terrain colours. The semantic subset was
+too flat and derived ramps did not improve the result enough to justify another
+style contract, so both experimental policies were removed from the production
+library.
 
-The accepted prop palette plus the tile size and raster policy form the resolved
-artwork-style snapshot. Downstream quantization consumes that snapshot and does
-not care which experimental policy produced it.
+The resolved terrain palette plus the tile size and raster policy form the
+artwork-style snapshot. Downstream quantization consumes that snapshot.
 
 The Prop Editor initially selects a `TerrainRecipe` as its style source. A prop
 recipe stores both that recipe ID and a snapshot of the resolved artwork style:
@@ -204,6 +206,14 @@ Add an editor-only `SourceArtwork` resource under
 `assets/definitions/source_artworks/`; store its lossless image under
 `assets/source_art/props/` using an ID-backed filename. It is not a `Texture`, is
 never loaded by the renderer resource store, and is not shipped as runtime art.
+
+Implemented: `SourceArtworkManager` constructs the ID-backed path rather than
+accepting one from a caller, writes lossless PNG pixels plus the strict
+definition, validates canonical decoded-pixel SHA-256 on every load/read, and
+enforces the same source limits as the deterministic coordinator. Imported and
+generated provenance are tagged alternatives; nullable generated fields are
+written explicitly. API deletion is blocked while any prop recipe references
+the source.
 
 Its strict, versioned definition contains:
 
@@ -389,6 +399,13 @@ reproduce the final pixels from the retained source:
 - expected generated `SpriteFrame` and final pixel digest;
 - pipeline implementation version.
 
+Implemented: the initial schema writes every style role and every current
+pipeline setting. Tile size and pixel-block policy live only in the resolved
+style snapshot, while canvas dimensions live only in composition settings; the
+raster and cleanup stages receive derived values so a persisted recipe cannot
+contain contradictory copies. Managers preserve stable pointers on save, and
+API creation/save preflight every referenced source and output definition.
+
 The implementation version is not permission to carry every old algorithm
 forever. A deliberate migration either preserves old output by translating its
 settings or marks the recipe as requiring explicit reprocessing. Unknown future
@@ -513,7 +530,7 @@ are never part of the ordinary test suite or required to build the editor.
 Each milestone leaves a useful, tested boundary and avoids committing the UI to
 unfinished provider behavior.
 
-0. **Visual feasibility spike (implemented; visual decision pending).** Build
+0. **Visual feasibility spike (accepted).** Build
    only the shared palette extraction,
    deterministic transforms, and `scripts/prop_artwork_spike.cc`. Feed it one
    externally generated boulder plus a real terrain recipe such as
@@ -524,15 +541,17 @@ unfinished provider behavior.
    invariants is necessary to inspect the result but is not the success
    criterion. If the answer is no, iterate on transforms and palette policy
    without building resources, lifecycle, UI, or provider integration.
-1. **Shared palette and image primitives.** Keep the accepted spike code: extract
+1. **Shared palette and image primitives (foundation implemented).** Keep the accepted spike code: extract
    the terrain palette without changing terrain output; add safe in-memory
    decode and content digests.
-2. **Deterministic artwork library.** Implement typed stages, diagnostics,
+2. **Deterministic artwork library (foundation implemented; diagnostics still expand).** Implement typed stages, diagnostics,
    final validation, and focused fixtures beyond the spike's minimum path. No
    editor or provider dependency.
-3. **Authoring resources and lifecycle.** Add `SourceArtwork`, `PropRecipe`,
-   strict managers, migrations, asset references, prepared output, bundle
-   commit/regeneration/deletion, and ID-backed generated paths.
+3. **Authoring resources and lifecycle (in progress).** `SourceArtwork`,
+   `PropRecipe`, strict initial schemas, managers, asset references, editor
+   ownership, and ID-backed source paths are implemented. Add prepared output
+   plus bundle commit/regeneration/deletion next. No migration is needed until
+   an initial schema has shipped and later changes.
 4. **Editor workflow from imported sources.** Add the model, per-stage and
    final-only preview policies, in-context preview, background processing, and
    finished texture/sprite/blueprint creation. This proves the entire durable
@@ -558,6 +577,9 @@ src/artwork/
   quantize_prop.{h,cc}
   edge_treatment.{h,cc}
   cleanup_prop.{h,cc}
+  prop_artwork_pipeline.{h,cc}
+
+src/common/image_digest.{h,cc}
 
 scripts/prop_artwork_spike.cc
 
@@ -565,18 +587,19 @@ tests/terrain/terrain_palette_test.cc
 tests/artwork/prop_artwork_pipeline_test.cc
 ```
 
-The executable accepts an imported image and existing terrain recipe and writes
-comparison images outside the authored asset tree. `scripts/` is the established
-home for repository command-line tools; adding a new top-level `tools/` tree
-would create a second convention for the same responsibility.
+The executable accepts an imported image and either an existing terrain recipe
+or an explicit built-in preset. It writes comparison images outside the authored
+asset tree. `scripts/` is the established home for repository command-line
+tools; adding a new top-level `tools/` tree would create a second convention for
+the same responsibility.
 
-The implemented spike writes every intermediate stage, each finished palette
-variant, a native in-context comparison, and a nearest-neighbor 4x comparison.
-Its initial boulder run establishes that the pipeline mechanics and all three
-palette policies work. The full-palette and derived-ramp variants retain more
-rock-plane detail; the semantic subset is visibly flatter. This observation is
-not the milestone decision: the author must still decide whether at least one
-variant belongs in Zebes before Milestones 1-6 proceed unchanged.
+The initial boulder run compared all three candidate policies. After accepting
+the full palette, the spike converged on the production coordinator and now
+writes every intermediate stage plus native and nearest-neighbor 4x context
+views. A second 3x3 tree run against `Cozy Meadow` increased confidence and
+exposed enclosed backdrop pockets inside the canopy. Isolation now clears only
+enclosed pixels that closely match the estimated background while retaining the
+broader border-connected rule for subject safety.
 
 ## 13. Deliberately out of scope
 

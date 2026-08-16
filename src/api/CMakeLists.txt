@@ -18,5 +18,7 @@ target_link_libraries(api
   level_manager
   tileset_manager
   terrain_recipe_manager
+  source_artwork_manager
+  prop_recipe_manager
   absl::strings
 )

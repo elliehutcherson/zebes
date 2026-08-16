@@ -484,6 +484,18 @@ commit compares that snapshot with the live definition before replacing pixels.
 This refuses a stale result if a level saved newly derived tiles while the
 worker was running.
 
+Generated prop authoring follows the same thread and ownership boundary.
+`SourceArtworkManager` owns editor-only retained PNG inputs and their strict
+definitions; it never creates renderer resources. `PropRecipeManager` owns the
+versioned deterministic build record, including a resolved terrain-style
+snapshot and stable output IDs. Both managers are singletons owned by
+`EditorEngine` and exposed through `Api`, so editors cannot create competing
+caches over the same directories. Source deletion scans prop recipes first, and
+an attached terrain recipe cannot be deleted until the prop style is detached
+or the prop bundle is removed. Runtime texture, sprite, and blueprint
+definitions remain ordinary engine assets; neither authoring resource enters
+runtime rendering.
+
 `terrain_detect` turns an atlas into a `Terrain`. Both sources converge on
 `BuildTerrainCandidate`, which is the only place tile naming, rule ordering and
 slope membership are decided; manifest import parses a described atlas back into

@@ -52,6 +52,10 @@ std::string_view AssetKindName(AssetKind kind) {
       return "Level";
     case AssetKind::kTerrainRecipe:
       return "Terrain recipe";
+    case AssetKind::kSourceArtwork:
+      return "Source artwork";
+    case AssetKind::kPropRecipe:
+      return "Prop recipe";
   }
   return "Unknown";
 }
@@ -77,6 +81,11 @@ std::vector<AssetReference> FindTextureReferrers(const AssetCatalog& catalog,
   for (const TerrainRecipe& recipe : catalog.recipes) {
     if (Names(recipe.texture_id, texture_id)) {
       Add(referrers, AssetKind::kTerrainRecipe, recipe.id, recipe.name, "texture_id");
+    }
+  }
+  for (const PropRecipe& recipe : catalog.prop_recipes) {
+    if (Names(recipe.texture_id, texture_id)) {
+      Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "texture_id");
     }
   }
   return referrers;
@@ -123,6 +132,11 @@ std::vector<AssetReference> FindSpriteReferrers(const AssetCatalog& catalog,
       }
     }
   }
+  for (const PropRecipe& recipe : catalog.prop_recipes) {
+    if (Names(recipe.sprite_id, sprite_id)) {
+      Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "sprite_id");
+    }
+  }
   return referrers;
 }
 
@@ -162,6 +176,36 @@ std::vector<AssetReference> FindBlueprintReferrers(const AssetCatalog& catalog,
         Add(referrers, AssetKind::kLevel, level.id, level.name,
             absl::StrCat("layer '", layer.name, "', entity ", entity_id));
       }
+    }
+  }
+  for (const PropRecipe& recipe : catalog.prop_recipes) {
+    if (Names(recipe.blueprint_id, blueprint_id)) {
+      Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "blueprint_id");
+    }
+  }
+  return referrers;
+}
+
+std::vector<AssetReference> FindSourceArtworkReferrers(const AssetCatalog& catalog,
+                                                       std::string_view source_artwork_id) {
+  std::vector<AssetReference> referrers;
+  if (source_artwork_id.empty()) return referrers;
+  for (const PropRecipe& recipe : catalog.prop_recipes) {
+    if (Names(recipe.source_artwork_id, source_artwork_id)) {
+      Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "source_artwork_id");
+    }
+  }
+  return referrers;
+}
+
+std::vector<AssetReference> FindTerrainRecipeReferrers(const AssetCatalog& catalog,
+                                                       std::string_view terrain_recipe_id) {
+  std::vector<AssetReference> referrers;
+  if (terrain_recipe_id.empty()) return referrers;
+  for (const PropRecipe& recipe : catalog.prop_recipes) {
+    if (recipe.terrain_recipe_id.has_value() &&
+        Names(*recipe.terrain_recipe_id, terrain_recipe_id)) {
+      Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "terrain_recipe_id");
     }
   }
   return referrers;

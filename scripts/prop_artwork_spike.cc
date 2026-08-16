@@ -1,27 +1,22 @@
 // Milestone-0 visual feasibility experiment for deterministic prop artwork.
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <utility>
-#include <vector>
+#include <string_view>
 
 #include "absl/log/globals.h"
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
-#include "artwork/cleanup_prop.h"
-#include "artwork/compose_prop.h"
-#include "artwork/edge_treatment.h"
-#include "artwork/isolate_subject.h"
-#include "artwork/quantize_prop.h"
-#include "artwork/rasterize_prop.h"
+#include "artwork/prop_artwork_pipeline.h"
 #include "common/image_io.h"
 #include "common/status_macros.h"
 #include "nlohmann/json.hpp"
@@ -31,26 +26,17 @@
 
 namespace {
 
-using ::zebes::ApplyPropEdgeTreatment;
-using ::zebes::BuildPropPalette;
-using ::zebes::CleanupAndValidateProp;
-using ::zebes::ComposeProp;
-using ::zebes::IsolateSubject;
 using ::zebes::PropArtwork;
-using ::zebes::PropCleanupConfig;
-using ::zebes::PropCompositionConfig;
-using ::zebes::PropEdgeConfig;
-using ::zebes::PropPalette;
-using ::zebes::PropPalettePolicy;
-using ::zebes::PropRasterConfig;
-using ::zebes::QuantizeProp;
-using ::zebes::RasterizeProp;
+using ::zebes::PropArtworkPipelineConfig;
+using ::zebes::PropArtworkPipelineResult;
+using ::zebes::PropArtworkStyle;
 using ::zebes::ReadPng;
 using ::zebes::RenderShapeScene;
 using ::zebes::ResolveTerrainPalette;
 using ::zebes::RgbaImage;
+using ::zebes::RunPropArtworkPipeline;
 using ::zebes::ShapeScene;
-using ::zebes::SubjectIsolationConfig;
+using ::zebes::TerrainGenConfig;
 using ::zebes::TerrainPixelProfile;
 using ::zebes::TerrainRecipe;
 using ::zebes::TerrainRecipeFromJson;
@@ -61,7 +47,17 @@ absl::Status WriteImage(const std::string& path, const RgbaImage& image) {
   return zebes::WritePng(path, image.width, image.height, image.pixels);
 }
 
-absl::StatusOr<TerrainRecipe> ReadRecipe(const std::string& path) {
+absl::StatusOr<TerrainGenConfig> ReadTerrainConfig(const std::string& source) {
+  constexpr std::string_view kPresetPrefix = "preset:";
+  if (absl::StartsWith(source, kPresetPrefix)) {
+    const std::string name = source.substr(kPresetPrefix.size());
+    for (const zebes::TerrainPreset& preset : zebes::BuiltInTerrainPresets()) {
+      if (preset.name == name) return preset.config;
+    }
+    return absl::NotFoundError(absl::StrCat("unknown built-in terrain preset ", name));
+  }
+
+  const std::string& path = source;
   std::ifstream stream(path);
   if (!stream.is_open()) return absl::NotFoundError(absl::StrCat("could not open ", path));
   nlohmann::json document;
@@ -71,12 +67,13 @@ absl::StatusOr<TerrainRecipe> ReadRecipe(const std::string& path) {
     return absl::InvalidArgumentError(
         absl::StrCat("could not parse terrain recipe ", path, ": ", error.what()));
   }
-  return TerrainRecipeFromJson(document);
+  ASSIGN_OR_RETURN(const TerrainRecipe recipe, TerrainRecipeFromJson(document));
+  return recipe.config;
 }
 
-int PixelBlockSize(const TerrainRecipe& recipe) {
-  if (recipe.config.pixel_profile != TerrainPixelProfile::kChunky16) return 1;
-  return recipe.config.tile_size % 16 == 0 ? recipe.config.tile_size / 16 : 1;
+int PixelBlockSize(const TerrainGenConfig& config) {
+  if (config.pixel_profile != TerrainPixelProfile::kChunky16) return 1;
+  return config.tile_size % 16 == 0 ? config.tile_size / 16 : 1;
 }
 
 RgbaImage Checkerboard(int width, int height) {
@@ -143,21 +140,6 @@ absl::StatusOr<RgbaImage> RenderComparisonTerrain(const TerrainRenderer& rendere
   return RenderShapeScene(renderer, scene);
 }
 
-RgbaImage ContactSheet(const std::vector<RgbaImage>& scenes) {
-  constexpr int kGutter = 8;
-  const int width = scenes.empty() ? 1
-                                   : static_cast<int>(scenes.size()) * scenes[0].width +
-                                         static_cast<int>(scenes.size() - 1) * kGutter;
-  const int height = scenes.empty() ? 1 : scenes[0].height;
-  RgbaImage sheet = Checkerboard(width, height);
-  int left = 0;
-  for (const RgbaImage& scene : scenes) {
-    Composite(scene, left, 0, sheet);
-    left += scene.width + kGutter;
-  }
-  return sheet;
-}
-
 RgbaImage ScaleNearest(const RgbaImage& source, int scale) {
   RgbaImage output;
   output.width = source.width * scale;
@@ -174,20 +156,9 @@ RgbaImage ScaleNearest(const RgbaImage& source, int scale) {
   return output;
 }
 
-const char* PolicyName(PropPalettePolicy policy) {
-  switch (policy) {
-    case PropPalettePolicy::kFullTerrain:
-      return "full";
-    case PropPalettePolicy::kSemanticSubset:
-      return "semantic";
-    case PropPalettePolicy::kDerivedRamps:
-      return "derived";
-  }
-  return "unknown";
-}
-
-absl::Status Run(const std::string& source_path, const std::string& recipe_path,
-                 const std::string& output_directory) {
+absl::Status Run(const std::string& source_path, const std::string& terrain_source,
+                 const std::string& output_directory, int canvas_tiles_wide,
+                 int canvas_tiles_high) {
   std::error_code create_error;
   std::filesystem::create_directories(output_directory, create_error);
   if (create_error) {
@@ -196,54 +167,41 @@ absl::Status Run(const std::string& source_path, const std::string& recipe_path,
   }
 
   ASSIGN_OR_RETURN(const RgbaImage source, ReadPng(source_path));
-  ASSIGN_OR_RETURN(const TerrainRecipe recipe, ReadRecipe(recipe_path));
+  ASSIGN_OR_RETURN(const TerrainGenConfig terrain_config, ReadTerrainConfig(terrain_source));
   ASSIGN_OR_RETURN(const zebes::ResolvedTerrainPalette terrain_palette,
-                   ResolveTerrainPalette(recipe.config));
-  ASSIGN_OR_RETURN(const RgbaImage isolated, IsolateSubject(source, SubjectIsolationConfig{}));
-  ASSIGN_OR_RETURN(const PropArtwork composed, ComposeProp(isolated, PropCompositionConfig{}));
-  ASSIGN_OR_RETURN(const PropArtwork rasterized,
-                   RasterizeProp(composed, PropRasterConfig{
-                                               .tile_size = recipe.config.tile_size,
-                                               .canvas_tiles_wide = 3,
-                                               .canvas_tiles_high = 2,
-                                               .pixel_block_size = PixelBlockSize(recipe),
-                                           }));
-  ASSIGN_OR_RETURN(const TerrainRenderer renderer, TerrainRenderer::Create(recipe.config));
+                   ResolveTerrainPalette(terrain_config));
+  const PropArtworkStyle style{
+      .tile_size = terrain_config.tile_size,
+      .pixel_block_size = PixelBlockSize(terrain_config),
+      .palette = terrain_palette,
+  };
+  PropArtworkPipelineConfig pipeline_config;
+  pipeline_config.composition.canvas_tiles_wide = canvas_tiles_wide;
+  pipeline_config.composition.canvas_tiles_high = canvas_tiles_high;
+  ASSIGN_OR_RETURN(const PropArtworkPipelineResult result,
+                   RunPropArtworkPipeline(source, style, pipeline_config));
+
+  ASSIGN_OR_RETURN(const TerrainRenderer renderer, TerrainRenderer::Create(terrain_config));
   ASSIGN_OR_RETURN(const RgbaImage terrain_scene, RenderComparisonTerrain(renderer));
 
-  RETURN_IF_ERROR(WriteImage(absl::StrCat(output_directory, "/isolated.png"), isolated));
-  RETURN_IF_ERROR(WriteImage(absl::StrCat(output_directory, "/composed.png"), composed.image));
-  RETURN_IF_ERROR(WriteImage(absl::StrCat(output_directory, "/rasterized.png"), rasterized.image));
+  RETURN_IF_ERROR(WriteImage(absl::StrCat(output_directory, "/isolated.png"), result.isolated));
+  RETURN_IF_ERROR(
+      WriteImage(absl::StrCat(output_directory, "/composed.png"), result.composed.image));
+  RETURN_IF_ERROR(
+      WriteImage(absl::StrCat(output_directory, "/rasterized.png"), result.rasterized.image));
+  RETURN_IF_ERROR(
+      WriteImage(absl::StrCat(output_directory, "/quantized.png"), result.quantized.image));
+  RETURN_IF_ERROR(
+      WriteImage(absl::StrCat(output_directory, "/edge-treated.png"), result.edge_treated.image));
+  RETURN_IF_ERROR(
+      WriteImage(absl::StrCat(output_directory, "/finished-prop.png"), result.finished.image));
 
-  constexpr std::array<PropPalettePolicy, 3> kPolicies = {
-      PropPalettePolicy::kFullTerrain,
-      PropPalettePolicy::kSemanticSubset,
-      PropPalettePolicy::kDerivedRamps,
-  };
-  std::vector<RgbaImage> contexts;
-  for (const PropPalettePolicy policy : kPolicies) {
-    ASSIGN_OR_RETURN(const PropPalette prop_palette,
-                     BuildPropPalette(terrain_palette, recipe.config.material, policy));
-    ASSIGN_OR_RETURN(const PropArtwork quantized, QuantizeProp(rasterized, prop_palette));
-    ASSIGN_OR_RETURN(const PropArtwork outlined,
-                     ApplyPropEdgeTreatment(quantized, prop_palette.outline, PropEdgeConfig{}));
-    ASSIGN_OR_RETURN(
-        const PropArtwork finished,
-        CleanupAndValidateProp(outlined, prop_palette.colors,
-                               PropCleanupConfig{.tile_size = recipe.config.tile_size}));
-
-    const std::string name = PolicyName(policy);
-    RETURN_IF_ERROR(
-        WriteImage(absl::StrCat(output_directory, "/", name, "-prop.png"), finished.image));
-    RgbaImage context = InContext(finished, terrain_scene, recipe.config.tile_size);
-    RETURN_IF_ERROR(WriteImage(absl::StrCat(output_directory, "/", name, "-context.png"), context));
-    contexts.push_back(std::move(context));
-    LOG(INFO) << name << " palette: " << prop_palette.colors.size() << " colours";
-  }
-  const RgbaImage comparison = ContactSheet(contexts);
-  RETURN_IF_ERROR(WriteImage(absl::StrCat(output_directory, "/comparison.png"), comparison));
-  RETURN_IF_ERROR(WriteImage(absl::StrCat(output_directory, "/comparison-4x.png"),
-                             ScaleNearest(comparison, 4)));
+  const RgbaImage context = InContext(result.finished, terrain_scene, terrain_config.tile_size);
+  RETURN_IF_ERROR(WriteImage(absl::StrCat(output_directory, "/context.png"), context));
+  RETURN_IF_ERROR(
+      WriteImage(absl::StrCat(output_directory, "/context-4x.png"), ScaleNearest(context, 4)));
+  LOG(INFO) << "source digest: " << result.source_digest;
+  LOG(INFO) << "full terrain palette: " << result.palette.colors.size() << " colours";
   LOG(INFO) << "wrote prop artwork comparison to " << output_directory;
   return absl::OkStatus();
 }
@@ -253,11 +211,21 @@ absl::Status Run(const std::string& source_path, const std::string& recipe_path,
 int main(int argc, char* argv[]) {
   absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
   absl::InitializeLog();
-  if (argc != 4) {
-    LOG(ERROR) << "Usage: " << argv[0] << " <source.png> <terrain_recipe.json> <output_dir>";
+  if (argc != 4 && argc != 6) {
+    LOG(ERROR) << "Usage: " << argv[0]
+               << " <source.png> <terrain_recipe.json|preset:NAME> <output_dir>"
+                  " [canvas_tiles_wide canvas_tiles_high]";
     return 1;
   }
-  const absl::Status status = Run(argv[1], argv[2], argv[3]);
+  int canvas_tiles_wide = 3;
+  int canvas_tiles_high = 2;
+  if (argc == 6 && (!absl::SimpleAtoi(argv[4], &canvas_tiles_wide) ||
+                    !absl::SimpleAtoi(argv[5], &canvas_tiles_high) || canvas_tiles_wide <= 0 ||
+                    canvas_tiles_high <= 0)) {
+    LOG(ERROR) << "canvas tile dimensions must be positive integers";
+    return 1;
+  }
+  const absl::Status status = Run(argv[1], argv[2], argv[3], canvas_tiles_wide, canvas_tiles_high);
   if (!status.ok()) {
     LOG(ERROR) << status.message();
     return 1;

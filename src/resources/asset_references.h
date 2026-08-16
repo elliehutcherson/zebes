@@ -4,6 +4,7 @@
 #include <string_view>
 #include <vector>
 
+#include "artwork/prop_recipe.h"
 #include "objects/blueprint.h"
 #include "objects/level.h"
 #include "objects/sprite.h"
@@ -21,6 +22,8 @@ enum class AssetKind {
   kBlueprint,
   kLevel,
   kTerrainRecipe,
+  kSourceArtwork,
+  kPropRecipe,
 };
 
 // Human-facing name for a kind, for refusal messages.
@@ -53,6 +56,7 @@ struct AssetCatalog {
   const std::vector<Blueprint>& blueprints;
   const std::vector<Level>& levels;
   const std::vector<TerrainRecipe>& recipes;
+  const std::vector<PropRecipe>& prop_recipes;
 };
 
 // Everything naming this texture: tilesets, sprites, and the parallax layers
@@ -74,6 +78,12 @@ std::vector<AssetReference> FindColliderReferrers(const AssetCatalog& catalog,
 
 std::vector<AssetReference> FindBlueprintReferrers(const AssetCatalog& catalog,
                                                    std::string_view blueprint_id);
+
+std::vector<AssetReference> FindSourceArtworkReferrers(const AssetCatalog& catalog,
+                                                       std::string_view source_artwork_id);
+
+std::vector<AssetReference> FindTerrainRecipeReferrers(const AssetCatalog& catalog,
+                                                       std::string_view terrain_recipe_id);
 
 // Levels that have painted this tile.
 //

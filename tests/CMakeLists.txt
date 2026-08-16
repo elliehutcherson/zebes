@@ -21,6 +21,10 @@ target_link_libraries(image_io_test image_io gtest_main)
 
 gtest_discover_tests(image_io_test)
 
+add_executable(image_digest_test common/image_digest_test.cc)
+target_link_libraries(image_digest_test image_digest macros gtest_main)
+gtest_discover_tests(image_digest_test)
+
 add_executable(background_task_test common/background_task_test.cc)
 target_link_libraries(background_task_test background_task macros gtest_main)
 gtest_discover_tests(background_task_test)
@@ -104,6 +108,26 @@ target_link_libraries(terrain_recipe_manager_test
   nlohmann_json::nlohmann_json
 )
 gtest_discover_tests(terrain_recipe_manager_test)
+
+add_executable(source_artwork_manager_test resources/source_artwork_manager_test.cc)
+target_link_libraries(source_artwork_manager_test
+  source_artwork_manager
+  macros
+  gtest_main
+  gmock
+  nlohmann_json::nlohmann_json
+)
+gtest_discover_tests(source_artwork_manager_test)
+
+add_executable(prop_recipe_manager_test resources/prop_recipe_manager_test.cc)
+target_link_libraries(prop_recipe_manager_test
+  prop_recipe_manager
+  macros
+  gtest_main
+  gmock
+  nlohmann_json::nlohmann_json
+)
+gtest_discover_tests(prop_recipe_manager_test)
 
 # --- Shipped assets ---
 # Reads the repository's assets/ directly, so the path is baked in rather than

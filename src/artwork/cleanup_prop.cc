@@ -67,14 +67,13 @@ bool PaletteContains(absl::Span<const RgbaColor> palette, const RgbaColor& candi
 
 absl::StatusOr<PropArtwork> CleanupAndValidateProp(const PropArtwork& artwork,
                                                    absl::Span<const RgbaColor> palette,
-                                                   const PropCleanupConfig& config) {
+                                                   int tile_size, const PropCleanupConfig& config) {
   if (!artwork.IsValid()) return absl::InvalidArgumentError("prop artwork is invalid");
   if (palette.empty() || config.alpha_threshold < 0 || config.alpha_threshold > 255 ||
-      config.minimum_component_area <= 0 || config.tile_size <= 0 ||
-      config.grounded_tolerance < 0) {
+      config.minimum_component_area <= 0 || tile_size <= 0 || config.grounded_tolerance < 0) {
     return absl::InvalidArgumentError("prop cleanup settings are invalid");
   }
-  if (artwork.image.width % config.tile_size != 0 || artwork.image.height % config.tile_size != 0) {
+  if (artwork.image.width % tile_size != 0 || artwork.image.height % tile_size != 0) {
     return absl::FailedPreconditionError("prop canvas is not a whole number of tiles");
   }
 

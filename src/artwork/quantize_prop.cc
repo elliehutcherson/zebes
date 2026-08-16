@@ -1,12 +1,10 @@
 #include "artwork/quantize_prop.h"
 
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <limits>
 
 #include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
 
 namespace zebes {
 namespace {
@@ -43,65 +41,17 @@ double DistanceSquared(const Oklab& left, const Oklab& right) {
   return lightness * lightness + green_red * green_red + blue_yellow * blue_yellow;
 }
 
-void AppendUnique(std::vector<RgbaColor>& colors, RgbaColor candidate) {
-  candidate.a = 255;
-  for (const RgbaColor& color : colors) {
-    if (color == candidate) return;
-  }
-  colors.push_back(candidate);
-}
-
-std::vector<RgbaColor> SemanticSubset(const ResolvedTerrainPalette& terrain) {
-  constexpr std::array<TerrainPaletteRole, 9> kRoles = {
-      TerrainPaletteRole::kOutline,        TerrainPaletteRole::kInteriorHigh,
-      TerrainPaletteRole::kInterior,       TerrainPaletteRole::kInteriorShade,
-      TerrainPaletteRole::kWall,           TerrainPaletteRole::kBotanical,
-      TerrainPaletteRole::kBotanicalShade, TerrainPaletteRole::kAccent0,
-      TerrainPaletteRole::kAccent7,
-  };
-  std::vector<RgbaColor> colors;
-  for (const TerrainPaletteRole role : kRoles) AppendUnique(colors, terrain.at(role));
-  return colors;
-}
-
 }  // namespace
 
-absl::StatusOr<PropPalette> BuildPropPalette(const ResolvedTerrainPalette& terrain,
-                                             const TerrainMaterial& material,
-                                             PropPalettePolicy policy) {
+absl::StatusOr<PropPalette> BuildPropPalette(const ResolvedTerrainPalette& terrain) {
   PropPalette palette{
-      .policy = policy,
+      .colors = terrain.OpaqueColors(),
       .outline = terrain.at(TerrainPaletteRole::kOutline),
   };
-  switch (policy) {
-    case PropPalettePolicy::kFullTerrain:
-      palette.colors = terrain.OpaqueColors();
-      break;
-    case PropPalettePolicy::kSemanticSubset:
-      palette.colors = SemanticSubset(terrain);
-      break;
-    case PropPalettePolicy::kDerivedRamps: {
-      palette.colors = SemanticSubset(terrain);
-      constexpr std::array<float, 4> kSteps = {-1.5f, -0.75f, 0.75f, 1.5f};
-      constexpr std::array<uint32_t TerrainMaterial::*, 4> kBases = {
-          &TerrainMaterial::substrate,
-          &TerrainMaterial::surface,
-          &TerrainMaterial::accent_primary,
-          &TerrainMaterial::accent_secondary,
-      };
-      for (const uint32_t TerrainMaterial::* base : kBases) {
-        for (const float step : kSteps) {
-          AppendUnique(palette.colors, DeriveTerrainTone(material.*base, step * material.contrast,
-                                                         material.hue_shift));
-        }
-      }
-      break;
-    }
-    default:
-      return absl::InvalidArgumentError(
-          absl::StrCat("unknown prop palette policy ", static_cast<int>(policy)));
-  }
   if (palette.colors.empty()) return absl::FailedPreconditionError("prop palette is empty");
+  if (palette.outline.a != 255) {
+    return absl::FailedPreconditionError("resolved terrain palette has no opaque outline");
+  }
   return palette;
 }
 

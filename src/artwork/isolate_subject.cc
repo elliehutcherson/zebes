@@ -85,6 +85,9 @@ absl::StatusOr<RgbaImage> IsolateSubject(const RgbaImage& source,
   if (!source.IsValid()) return absl::InvalidArgumentError("source image is invalid");
   if (config.alpha_threshold < 0 || config.alpha_threshold > 255 ||
       !std::isfinite(config.background_distance) || config.background_distance < 0.0f ||
+      !std::isfinite(config.enclosed_background_distance) ||
+      config.enclosed_background_distance < 0.0f ||
+      config.enclosed_background_distance > config.background_distance ||
       config.minimum_subject_area <= 0 || !std::isfinite(config.competing_subject_ratio) ||
       config.competing_subject_ratio < 0.0f || config.competing_subject_ratio > 1.0f) {
     return absl::InvalidArgumentError("subject isolation settings are invalid");
@@ -106,7 +109,10 @@ absl::StatusOr<RgbaImage> IsolateSubject(const RgbaImage& source,
     const std::array<uint8_t, 3> background = {BorderMedian(source, 0), BorderMedian(source, 1),
                                                BorderMedian(source, 2)};
     const float threshold_squared = config.background_distance * config.background_distance;
+    const float enclosed_threshold_squared =
+        config.enclosed_background_distance * config.enclosed_background_distance;
     std::vector<uint8_t> background_candidate(pixel_count, 0);
+    std::vector<float> background_distances(pixel_count, 0.0f);
     for (size_t pixel = 0; pixel < pixel_count; ++pixel) {
       float distance_squared = 0.0f;
       for (int channel = 0; channel < 3; ++channel) {
@@ -114,6 +120,7 @@ absl::StatusOr<RgbaImage> IsolateSubject(const RgbaImage& source,
                                  static_cast<float>(background[channel]);
         distance_squared += difference * difference;
       }
+      background_distances[pixel] = distance_squared;
       background_candidate[pixel] = distance_squared <= threshold_squared ? 1 : 0;
     }
 
@@ -152,7 +159,8 @@ absl::StatusOr<RgbaImage> IsolateSubject(const RgbaImage& source,
       }
     }
     for (size_t pixel = 0; pixel < pixel_count; ++pixel) {
-      foreground[pixel] = exterior[pixel] == 0 ? 1 : 0;
+      const bool enclosed_background = background_distances[pixel] <= enclosed_threshold_squared;
+      foreground[pixel] = exterior[pixel] == 0 && !enclosed_background ? 1 : 0;
     }
   }
 

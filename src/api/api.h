@@ -3,6 +3,8 @@
 #include <memory>
 
 #include "absl/status/statusor.h"
+#include "artwork/prop_recipe.h"
+#include "artwork/source_artwork.h"
 #include "common/config.h"
 #include "engine/texture_handle.h"
 #include "objects/texture.h"
@@ -10,6 +12,8 @@
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
 #include "resources/level_manager.h"
+#include "resources/prop_recipe_manager.h"
+#include "resources/source_artwork_manager.h"
 #include "resources/sprite_manager.h"
 #include "resources/terrain_recipe_manager.h"
 #include "resources/texture_manager.h"
@@ -28,6 +32,8 @@ class Api {
     LevelManager* level_manager;
     TilesetManager* tileset_manager;
     TerrainRecipeManager* terrain_recipe_manager;
+    SourceArtworkManager* source_artwork_manager;
+    PropRecipeManager* prop_recipe_manager;
   };
 
   static absl::StatusOr<std::unique_ptr<Api>> Create(const Options& options);
@@ -132,6 +138,23 @@ class Api {
   virtual absl::StatusOr<std::optional<TerrainRecipe>> FindTerrainRecipeForTileset(
       const std::string& tileset_id);
 
+  virtual absl::StatusOr<std::string> CreateSourceArtwork(std::string name,
+                                                          SourceArtworkProvenance provenance,
+                                                          const RgbaImage& image);
+  virtual absl::StatusOr<SourceArtwork*> GetSourceArtwork(const std::string& source_artwork_id);
+  virtual std::vector<SourceArtwork> GetAllSourceArtwork() const;
+  virtual absl::StatusOr<RgbaImage> ReadSourceArtworkPixels(
+      const std::string& source_artwork_id) const;
+  virtual absl::Status DeleteSourceArtwork(const std::string& source_artwork_id);
+
+  // Prop recipes are exposed for creation, regeneration edits, and lookup.
+  // Their deletion is intentionally reserved for the generated-prop bundle
+  // operation so artwork outputs cannot be orphaned by deleting only a recipe.
+  virtual absl::StatusOr<std::string> CreatePropRecipe(PropRecipe recipe);
+  virtual absl::Status SavePropRecipe(const PropRecipe& recipe);
+  virtual absl::StatusOr<PropRecipe*> GetPropRecipe(const std::string& recipe_id);
+  virtual std::vector<PropRecipe> GetAllPropRecipes() const;
+
  protected:
   // Allow default construction for mocks
   Api()
@@ -142,7 +165,9 @@ class Api {
         blueprint_manager_(nullptr),
         level_manager_(nullptr),
         tileset_manager_(nullptr),
-        terrain_recipe_manager_(nullptr) {}
+        terrain_recipe_manager_(nullptr),
+        source_artwork_manager_(nullptr),
+        prop_recipe_manager_(nullptr) {}
 
  private:
   // Every catalogue a reference can live in, read once for one deletion check.
@@ -156,6 +181,7 @@ class Api {
     std::vector<Blueprint> blueprints;
     std::vector<Level> levels;
     std::vector<TerrainRecipe> recipes;
+    std::vector<PropRecipe> prop_recipes;
 
     AssetCatalog View() const;
   };
@@ -173,6 +199,8 @@ class Api {
   LevelManager* level_manager_;
   TilesetManager* tileset_manager_;
   TerrainRecipeManager* terrain_recipe_manager_;
+  SourceArtworkManager* source_artwork_manager_;
+  PropRecipeManager* prop_recipe_manager_;
 };
 
 }  // namespace zebes
