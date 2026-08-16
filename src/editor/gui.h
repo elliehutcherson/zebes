@@ -9,31 +9,79 @@ class Gui : public GuiInterface {
   Gui() = default;
   ~Gui() override = default;
 
-  bool Begin(const char* name, bool* p_open = nullptr, ImGuiWindowFlags flags = 0) override;
+  using GuiInterface::Begin;
+  using GuiInterface::BeginChild;
+  using GuiInterface::BeginCombo;
+  using GuiInterface::BeginDisabled;
+  using GuiInterface::BeginListBox;
+  using GuiInterface::BeginPopupContextItem;
+  using GuiInterface::BeginTabBar;
+  using GuiInterface::BeginTabItem;
+  using GuiInterface::BeginTable;
+  using GuiInterface::Button;
+  using GuiInterface::CollapsingHeader;
+  using GuiInterface::ColorEdit3;
+  using GuiInterface::CreateScopedChild;
+  using GuiInterface::CreateScopedCombo;
+  using GuiInterface::CreateScopedDisabled;
+  using GuiInterface::CreateScopedListBox;
+  using GuiInterface::CreateScopedPopupContextItem;
+  using GuiInterface::CreateScopedTabBar;
+  using GuiInterface::CreateScopedTabItem;
+  using GuiInterface::CreateScopedTable;
+  using GuiInterface::CreateScopedWindow;
+  using GuiInterface::Image;
+  using GuiInterface::Indent;
+  using GuiInterface::InputDouble;
+  using GuiInterface::InputFloat;
+  using GuiInterface::InputInt;
+  using GuiInterface::InputText;
+  using GuiInterface::InvisibleButton;
+  using GuiInterface::IsItemClicked;
+  using GuiInterface::IsItemHovered;
+  using GuiInterface::IsKeyPressed;
+  using GuiInterface::IsMouseDragging;
+  using GuiInterface::IsWindowFocused;
+  using GuiInterface::IsWindowHovered;
+  using GuiInterface::MenuItem;
+  using GuiInterface::OpenFileDialog;
+  using GuiInterface::PopStyleColor;
+  using GuiInterface::PopStyleVar;
+  using GuiInterface::SameLine;
+  using GuiInterface::Selectable;
+  using GuiInterface::SetNextWindowPos;
+  using GuiInterface::SetNextWindowSize;
+  using GuiInterface::ShowMetricsWindow;
+  using GuiInterface::SliderFloat;
+  using GuiInterface::SliderInt;
+  using GuiInterface::TableNextRow;
+  using GuiInterface::TableSetupColumn;
+  using GuiInterface::TreeNodeEx;
+  using GuiInterface::Unindent;
+
+  bool Begin(const char* name, bool* p_open, ImGuiWindowFlags flags) override;
   void End() override;
-  bool BeginListBox(const char* label, const ImVec2& size = ImVec2(0, 0)) override;
+  bool BeginListBox(const char* label, const ImVec2& size) override;
   void EndListBox() override;
-  bool BeginChild(const char* str_id, const ImVec2& size = ImVec2(0, 0), bool border = false,
-                  ImGuiWindowFlags flags = 0) override;
+  bool BeginChild(const char* str_id, const ImVec2& size, bool border,
+                  ImGuiWindowFlags flags) override;
   void EndChild() override;
-  bool BeginTabBar(const char* str_id, ImGuiTabBarFlags flags = 0) override;
+  bool BeginTabBar(const char* str_id, ImGuiTabBarFlags flags) override;
   void EndTabBar() override;
-  bool BeginTabItem(const char* label, bool* p_open = nullptr,
-                    ImGuiTabItemFlags flags = 0) override;
+  bool BeginTabItem(const char* label, bool* p_open, ImGuiTabItemFlags flags) override;
   void EndTabItem() override;
-  bool BeginTable(const char* str_id, int column, ImGuiTableFlags flags = 0,
-                  const ImVec2& outer_size = ImVec2(0.0f, 0.0f), float inner_width = 0.0f) override;
+  bool BeginTable(const char* str_id, int column, ImGuiTableFlags flags, const ImVec2& outer_size,
+                  float inner_width) override;
   void EndTable() override;
-  void BeginDisabled(bool disabled = true) override;
+  void BeginDisabled(bool disabled) override;
   void EndDisabled() override;
-  bool BeginCombo(const char* label, const char* preview_value, ImGuiComboFlags flags = 0) override;
+  bool BeginCombo(const char* label, const char* preview_value, ImGuiComboFlags flags) override;
   void EndCombo() override;
   void BeginGroup() override;
   void EndGroup() override;
-  bool BeginPopupContextItem(const char* str_id = nullptr, ImGuiPopupFlags flags = 0) override;
+  bool BeginPopupContextItem(const char* str_id, ImGuiPopupFlags flags) override;
   void EndPopup() override;
-  bool MenuItem(const char* label, const char* shortcut = nullptr, bool selected = false,
-                bool enabled = true) override;
+  bool MenuItem(const char* label, const char* shortcut, bool selected, bool enabled) override;
 
   void PushID(const char* str_id) override;
   void PushID(const char* str_id_begin, const char* str_id_end) override;
@@ -43,22 +91,22 @@ class Gui : public GuiInterface {
 
   void PushStyleColor(ImGuiCol idx, ImU32 col) override;
   void PushStyleColor(ImGuiCol idx, const ImVec4& col) override;
-  void PopStyleColor(int count = 1) override;
+  void PopStyleColor(int count) override;
 
   void PushStyleVar(ImGuiStyleVar idx, float val) override;
   void PushStyleVar(ImGuiStyleVar idx, const ImVec2& val) override;
-  void PopStyleVar(int count = 1) override;
+  void PopStyleVar(int count) override;
 
-  void Indent(float indent_w = 0.0f) override;
-  void Unindent(float indent_w = 0.0f) override;
+  void Indent(float indent_w) override;
+  void Unindent(float indent_w) override;
   void Separator() override;
-  void SameLine(float offset_from_start_x = 0.0f, float spacing = -1.0f) override;
+  void SameLine(float offset_from_start_x, float spacing) override;
   void NewFrame() override;
   void AlignTextToFramePadding() override;
   void Render() override;
 
-  bool Button(const char* label, const ImVec2& size = ImVec2(0, 0)) override;
-  bool InvisibleButton(const char* str_id, const ImVec2& size, ImGuiButtonFlags flags = 0) override;
+  bool Button(const char* label, const ImVec2& size) override;
+  bool InvisibleButton(const char* str_id, const ImVec2& size, ImGuiButtonFlags flags) override;
   bool ArrowButton(const char* str_id, ImGuiDir dir) override;
   void Text(const char* fmt, ...) override;
   void TextColored(const ImVec4& col, const char* fmt, ...) override;
@@ -67,37 +115,36 @@ class Gui : public GuiInterface {
   void LabelText(const char* label, const char* fmt, ...) override;
 
   bool Checkbox(const char* label, bool* v) override;
-  bool SliderFloat(const char* label, float* v, float v_min, float v_max,
-                   const char* format = "%.3f", ImGuiSliderFlags flags = 0) override;
-  bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d",
-                 ImGuiSliderFlags flags = 0) override;
-  bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags = 0) override;
-  bool InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags = 0,
-                 ImGuiInputTextCallback callback = nullptr, void* user_data = nullptr) override;
-  bool InputText(const char* label, std::string* str, ImGuiInputTextFlags flags = 0,
-                 ImGuiInputTextCallback callback = nullptr, void* user_data = nullptr) override;
-  bool InputInt(const char* label, int* v, int step = 1, int step_fast = 100,
-                ImGuiInputTextFlags flags = 0) override;
-  bool InputDouble(const char* label, double* v, double step = 0.0, double step_fast = 0.0,
-                   const char* format = "%.6f", ImGuiInputTextFlags flags = 0) override;
-  bool InputFloat(const char* label, float* v, float step = 0.0f, float step_fast = 0.0f,
-                  const char* format = "%.3f", ImGuiInputTextFlags flags = 0) override;
+  bool SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format,
+                   ImGuiSliderFlags flags) override;
+  bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format,
+                 ImGuiSliderFlags flags) override;
+  bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags) override;
+  bool InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags,
+                 ImGuiInputTextCallback callback, void* user_data) override;
+  bool InputText(const char* label, std::string* str, ImGuiInputTextFlags flags,
+                 ImGuiInputTextCallback callback, void* user_data) override;
+  bool InputInt(const char* label, int* v, int step, int step_fast,
+                ImGuiInputTextFlags flags) override;
+  bool InputDouble(const char* label, double* v, double step, double step_fast, const char* format,
+                   ImGuiInputTextFlags flags) override;
+  bool InputFloat(const char* label, float* v, float step, float step_fast, const char* format,
+                  ImGuiInputTextFlags flags) override;
 
-  bool Selectable(const char* label, bool selected = false, ImGuiSelectableFlags flags = 0,
-                  const ImVec2& size = ImVec2(0, 0)) override;
-  bool Selectable(const char* label, bool* p_selected, ImGuiSelectableFlags flags = 0,
-                  const ImVec2& size = ImVec2(0, 0)) override;
+  bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags,
+                  const ImVec2& size) override;
+  bool Selectable(const char* label, bool* p_selected, ImGuiSelectableFlags flags,
+                  const ImVec2& size) override;
 
-  void Image(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0),
-             const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1),
-             const ImVec4& border_col = ImVec4(0, 0, 0, 0)) override;
+  void Image(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1,
+             const ImVec4& tint_col, const ImVec4& border_col) override;
   void Dummy(const ImVec2& size) override;
   void Spacing() override;
 
-  void TableSetupColumn(const char* label, ImGuiTableColumnFlags flags = 0,
-                        float init_width_or_weight = 0.0f, ImGuiID user_id = 0) override;
+  void TableSetupColumn(const char* label, ImGuiTableColumnFlags flags, float init_width_or_weight,
+                        ImGuiID user_id) override;
   void TableHeadersRow() override;
-  void TableNextRow(ImGuiTableRowFlags row_flags = 0, float min_row_height = 0.0f) override;
+  void TableNextRow(ImGuiTableRowFlags row_flags, float min_row_height) override;
   bool TableNextColumn() override;
 
   void SetCursorPos(const ImVec2& local_pos) override;
@@ -107,9 +154,8 @@ class Gui : public GuiInterface {
   float GetCursorPosX() const override;
   float GetCursorPosY() const override;
   ImVec2 GetCursorScreenPos() const override;
-  void SetNextWindowPos(const ImVec2& pos, ImGuiCond cond = 0,
-                        const ImVec2& pivot = ImVec2(0, 0)) override;
-  void SetNextWindowSize(const ImVec2& size, ImGuiCond cond = 0) override;
+  void SetNextWindowPos(const ImVec2& pos, ImGuiCond cond, const ImVec2& pivot) override;
+  void SetNextWindowSize(const ImVec2& size, ImGuiCond cond) override;
 
   void PushItemWidth(float item_width) override;
   void PopItemWidth() override;
@@ -121,46 +167,44 @@ class Gui : public GuiInterface {
   ImVec2 GetMousePos() const override;
   ImGuiIO& GetIO() override;
   ImGuiStyle& GetStyle() override;
-  bool IsItemHovered(ImGuiHoveredFlags flags = 0) override;
+  bool IsItemHovered(ImGuiHoveredFlags flags) override;
   bool IsAnyItemActive() override;
   void SetTooltip(const char* fmt, ...) override;
   void SetItemKeyOwner(ImGuiKey key) override;
   void SetItemDefaultFocus() override;
   bool IsItemActive() override;
-  bool IsItemClicked(ImGuiMouseButton mouse_button = 0) override;
+  bool IsItemClicked(ImGuiMouseButton mouse_button) override;
   bool IsMouseDoubleClicked(ImGuiMouseButton button) override;
   bool IsItemDeactivatedAfterEdit() override;
-  bool IsMouseDragging(ImGuiMouseButton button, float lock_threshold = -1.0f) override;
+  bool IsMouseDragging(ImGuiMouseButton button, float lock_threshold) override;
   ImVec2 GetWindowSize() const override;
-  bool IsWindowHovered(ImGuiHoveredFlags flags = 0) override;
-  bool IsWindowFocused(ImGuiFocusedFlags flags = 0) override;
+  bool IsWindowHovered(ImGuiHoveredFlags flags) override;
+  bool IsWindowFocused(ImGuiFocusedFlags flags) override;
 
   void OpenFileDialog(const char* key, const char* title, const char* filters,
-                      const char* start_path = ".") override;
+                      const char* start_path) override;
   std::optional<std::string> DisplayFileDialog(const char* key) override;
 
-  bool CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags = 0) override;
-  bool TreeNodeEx(const char* label, ImGuiTreeNodeFlags flags = 0) override;
+  bool CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags) override;
+  bool TreeNodeEx(const char* label, ImGuiTreeNodeFlags flags) override;
 
   ImGuiViewport* GetMainViewport() override;
   bool IsKeyDown(ImGuiKey key) override;
-  bool IsKeyPressed(ImGuiKey key, bool repeat = true) override;
-  void ShowMetricsWindow(bool* p_open = nullptr) override;
+  bool IsKeyPressed(ImGuiKey key, bool repeat) override;
+  void ShowMetricsWindow(bool* p_open) override;
 
-  ScopedListBox CreateScopedListBox(const char* label, ImVec2 size = ImVec2(0, 0)) override;
-  ScopedChild CreateScopedChild(const char* str_id, ImVec2 size = ImVec2(0, 0), bool border = false,
-                                ImGuiWindowFlags flags = 0) override;
-  ScopedTabBar CreateScopedTabBar(const char* str_id, ImGuiTabBarFlags flags = 0) override;
-  ScopedTabItem CreateScopedTabItem(const char* label, bool* p_open = nullptr,
-                                    ImGuiTabItemFlags flags = 0) override;
-  ScopedTable CreateScopedTable(const char* str_id, int column, ImGuiTableFlags flags = 0,
-                                const ImVec2& outer_size = ImVec2(0.0f, 0.0f),
-                                float inner_width = 0.0f) override;
-  ScopedDisabled CreateScopedDisabled(bool disabled = true) override;
-  ScopedWindow CreateScopedWindow(const char* name, bool* p_open = nullptr,
-                                  ImGuiWindowFlags flags = 0) override;
+  ScopedListBox CreateScopedListBox(const char* label, ImVec2 size) override;
+  ScopedChild CreateScopedChild(const char* str_id, ImVec2 size, bool border,
+                                ImGuiWindowFlags flags) override;
+  ScopedTabBar CreateScopedTabBar(const char* str_id, ImGuiTabBarFlags flags) override;
+  ScopedTabItem CreateScopedTabItem(const char* label, bool* p_open,
+                                    ImGuiTabItemFlags flags) override;
+  ScopedTable CreateScopedTable(const char* str_id, int column, ImGuiTableFlags flags,
+                                const ImVec2& outer_size, float inner_width) override;
+  ScopedDisabled CreateScopedDisabled(bool disabled) override;
+  ScopedWindow CreateScopedWindow(const char* name, bool* p_open, ImGuiWindowFlags flags) override;
   ScopedCombo CreateScopedCombo(const char* label, const char* preview_value,
-                                ImGuiComboFlags flags = 0) override;
+                                ImGuiComboFlags flags) override;
   ScopedGroup CreateScopedGroup() override;
   ScopedId CreateScopedId(const char* str_id) override;
   ScopedId CreateScopedId(const char* str_id_begin, const char* str_id_end) override;
@@ -170,8 +214,7 @@ class Gui : public GuiInterface {
   ScopedStyleColor CreateScopedStyleColor(ImGuiCol idx, const ImVec4& col) override;
   ScopedStyleVar CreateScopedStyleVar(ImGuiStyleVar idx, float val) override;
   ScopedStyleVar CreateScopedStyleVar(ImGuiStyleVar idx, const ImVec2& val) override;
-  ScopedPopup CreateScopedPopupContextItem(const char* str_id = nullptr,
-                                           ImGuiPopupFlags flags = 0) override;
+  ScopedPopup CreateScopedPopupContextItem(const char* str_id, ImGuiPopupFlags flags) override;
 };
 
 }  // namespace zebes

@@ -37,8 +37,7 @@ QuadrantSheet MakeSheet(int variant_count, const std::set<int>& opaque_variant_s
   sheet.variant_count = variant_count;
   sheet.image.width = kQuadrantSize * kQuadrantStateCount * variant_count;
   sheet.image.height = kQuadrantSize * kQuadrantCount;
-  sheet.image.pixels.assign(
-      static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 0);
+  sheet.image.pixels.assign(static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 0);
 
   for (int variant = 0; variant < variant_count; ++variant) {
     for (int q = 0; q < kQuadrantCount; ++q) {
@@ -55,12 +54,10 @@ QuadrantSheet MakeSheet(int variant_count, const std::set<int>& opaque_variant_s
 
 // Reads the marker at the centre of one quadrant of a composed tile.
 uint8_t ReadQuadrantMarker(const RgbaImage& image, int tile_x, int tile_y, Quadrant quadrant) {
-  const int offset_x = (quadrant == Quadrant::kNorthEast || quadrant == Quadrant::kSouthEast)
-                           ? kQuadrantSize
-                           : 0;
-  const int offset_y = (quadrant == Quadrant::kSouthEast || quadrant == Quadrant::kSouthWest)
-                           ? kQuadrantSize
-                           : 0;
+  const int offset_x =
+      (quadrant == Quadrant::kNorthEast || quadrant == Quadrant::kSouthEast) ? kQuadrantSize : 0;
+  const int offset_y =
+      (quadrant == Quadrant::kSouthEast || quadrant == Quadrant::kSouthWest) ? kQuadrantSize : 0;
   const int x = tile_x + offset_x + kQuadrantSize / 2;
   const int y = tile_y + offset_y + kQuadrantSize / 2;
   return image.pixels[(static_cast<size_t>(y) * image.width + x) * 4];
@@ -218,12 +215,11 @@ SlopeSheet MakeSlopeSheet(const std::set<int>& provided_columns) {
   sheet.tile_size = tile_size;
   sheet.image.width = tile_size * kSlopeShapeCount;
   sheet.image.height = tile_size;
-  sheet.image.pixels.assign(
-      static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 0);
+  sheet.image.pixels.assign(static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 0);
 
   for (int column : provided_columns) {
-    FillCell(sheet.image, column * tile_size, 0, tile_size,
-             static_cast<uint8_t>(200 + column), 255);
+    FillCell(sheet.image, column * tile_size, 0, tile_size, static_cast<uint8_t>(200 + column),
+             255);
   }
   return sheet;
 }
@@ -242,8 +238,8 @@ TEST(Blob47ComposeTest, ProvidedSlopeColumnsAreAppendedBelowTheBlobBlocks) {
   ASSERT_TRUE(atlas.ok()) << atlas.status();
 
   ASSERT_EQ(atlas->slopes.size(), 2u);
-  EXPECT_EQ(atlas->slopes[0].shape, TileShape::kSlope45BottomLeft);
-  EXPECT_EQ(atlas->slopes[1].shape, TileShape::kSlope45BottomRight);
+  EXPECT_EQ(atlas->slopes[0].shape, TileShape::kSlope45FloorTallRight);
+  EXPECT_EQ(atlas->slopes[1].shape, TileShape::kSlope45FloorTallLeft);
 
   // One extra atlas row, immediately below the single blob block.
   const int tile_size = kQuadrantSize * 2;
@@ -260,7 +256,7 @@ TEST(Blob47ComposeTest, TransparentSlopeColumnsAreSkipped) {
   ASSERT_TRUE(atlas.ok()) << atlas.status();
 
   ASSERT_EQ(atlas->slopes.size(), 2u);
-  EXPECT_EQ(atlas->slopes[0].shape, TileShape::kSlope45BottomLeft);
+  EXPECT_EQ(atlas->slopes[0].shape, TileShape::kSlope45FloorTallRight);
   // Column 7 is the eighth slope shape, not the eighth atlas cell.
   EXPECT_EQ(static_cast<int>(atlas->slopes[1].shape), kFirstSlopeShape + 7);
   // They pack contiguously regardless of which columns were drawn.
@@ -293,8 +289,7 @@ TEST(Blob47ComposeTest, SlopesStackBelowMultipleVariantBlocks) {
 TEST(Blob47ComposeTest, RejectsWronglySizedSlopeSheet) {
   SlopeSheet slopes = MakeSlopeSheet({0});
   slopes.image.width -= kQuadrantSize * 2;
-  slopes.image.pixels.resize(
-      static_cast<size_t>(slopes.image.width) * slopes.image.height * 4);
+  slopes.image.pixels.resize(static_cast<size_t>(slopes.image.width) * slopes.image.height * 4);
 
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1), &slopes);
   ASSERT_FALSE(atlas.ok());
@@ -319,7 +314,7 @@ TEST(Blob47ComposeTest, ManifestCarriesSlopeShapes) {
   ASSERT_EQ(json["slopes"].size(), 2u);
   // Spelled with the stable identifier, so renumbering TileShape cannot silently
   // reinterpret a manifest written today.
-  EXPECT_EQ(json["slopes"][0]["shape"], "kSlope45BottomLeft");
+  EXPECT_EQ(json["slopes"][0]["shape"], "kSlope45FloorTallRight");
   EXPECT_EQ(json["slopes"][0]["source_y"], atlas->slopes[0].source_y);
 }
 
@@ -369,7 +364,8 @@ TEST(Blob47ComposeTest, SeedFrom3x3ExtractsSixteenQuadrantsAndBlanksInnerCorners
   for (int q = 0; q < kQuadrantCount; ++q) {
     for (int s = 0; s < kQuadrantStateCount; ++s) {
       const size_t pixel = (static_cast<size_t>(q * sheet->quadrant_size) * sheet->image.width +
-                            s * sheet->quadrant_size) * 4;
+                            s * sheet->quadrant_size) *
+                           4;
       if (sheet->image.pixels[pixel + 3] == 0) {
         ++blank_cells;
         EXPECT_EQ(s, static_cast<int>(QuadrantState::kInnerCorner))
@@ -392,10 +388,10 @@ TEST(Blob47ComposeTest, SeedFrom3x3SamplesTheCorrectBlockCells) {
   ASSERT_TRUE(sheet.ok()) << sheet.status();
 
   const auto marker_at = [&](Quadrant quadrant, QuadrantState state) {
-    const size_t pixel =
-        (static_cast<size_t>(static_cast<int>(quadrant) * sheet->quadrant_size) *
-             sheet->image.width +
-         static_cast<int>(state) * sheet->quadrant_size) * 4;
+    const size_t pixel = (static_cast<size_t>(static_cast<int>(quadrant) * sheet->quadrant_size) *
+                              sheet->image.width +
+                          static_cast<int>(state) * sheet->quadrant_size) *
+                         4;
     return sheet->image.pixels[pixel];
   };
   // Marker value is 1 + row * 3 + column for the sampled 3x3 cell.
@@ -433,14 +429,13 @@ TEST(Blob47ComposeTest, SeedFrom3x3WithPlaceholdersComposesAndUsesInteriorArt) {
   constexpr int kTileSize = 8;
   RgbaImage source = Make3x3Atlas(kTileSize, 0, 0);
 
-  absl::StatusOr<QuadrantSheet> sheet = SeedQuadrantSheetFrom3x3(
-      source, kTileSize, 0, 0, InnerCornerSeed::kPlaceholderFromFill);
+  absl::StatusOr<QuadrantSheet> sheet =
+      SeedQuadrantSheetFrom3x3(source, kTileSize, 0, 0, InnerCornerSeed::kPlaceholderFromFill);
   ASSERT_TRUE(sheet.ok()) << sheet.status();
 
   // The placeholder samples the block's centre cell, same as kFill.
   const size_t inner_pixel =
-      static_cast<size_t>(static_cast<int>(QuadrantState::kInnerCorner)) *
-      sheet->quadrant_size * 4;
+      static_cast<size_t>(static_cast<int>(QuadrantState::kInnerCorner)) * sheet->quadrant_size * 4;
   EXPECT_EQ(sheet->image.pixels[inner_pixel + 3], 255);
   EXPECT_EQ(sheet->image.pixels[inner_pixel], static_cast<uint8_t>(1 + 1 * 3 + 1));
 
@@ -499,7 +494,8 @@ TEST(Blob47ComposeTest, RingSeedCompletesTheSheetAndItComposes) {
   for (int q = 0; q < kQuadrantCount; ++q) {
     for (int s = 0; s < kQuadrantStateCount; ++s) {
       const size_t pixel = (static_cast<size_t>(q * sheet->quadrant_size) * sheet->image.width +
-                            s * sheet->quadrant_size) * 4;
+                            s * sheet->quadrant_size) *
+                           4;
       EXPECT_EQ(sheet->image.pixels[pixel + 3], 255)
           << "quadrant " << q << " state " << s << " is still blank";
     }
@@ -523,10 +519,10 @@ TEST(Blob47ComposeTest, RingSeedSamplesTheCellFacingTheHole) {
   ASSERT_TRUE(SeedInnerCornersFromRing(ring, 0, 0, *sheet).ok());
 
   const auto marker_at = [&](Quadrant quadrant) {
-    const size_t pixel =
-        (static_cast<size_t>(static_cast<int>(quadrant) * sheet->quadrant_size) *
-             sheet->image.width +
-         static_cast<int>(QuadrantState::kInnerCorner) * sheet->quadrant_size) * 4;
+    const size_t pixel = (static_cast<size_t>(static_cast<int>(quadrant) * sheet->quadrant_size) *
+                              sheet->image.width +
+                          static_cast<int>(QuadrantState::kInnerCorner) * sheet->quadrant_size) *
+                         4;
     return sheet->image.pixels[pixel];
   };
   const auto cell = [](int column, int row) { return static_cast<uint8_t>(1 + row * 3 + column); };

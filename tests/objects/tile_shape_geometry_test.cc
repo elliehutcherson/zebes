@@ -72,7 +72,8 @@ float TopmostYAtX(const Points& points, float x) {
 
 std::vector<TileShape> AllShapes() {
   std::vector<TileShape> shapes;
-  for (int value = 0; value <= static_cast<int>(TileShape::kSteepSlopeTopRight_Top); ++value) {
+  for (int value = 0; value <= static_cast<int>(TileShape::kSteepSlopeCeilingTallLeftTop);
+       ++value) {
     shapes.push_back(static_cast<TileShape>(value));
   }
   return shapes;
@@ -87,28 +88,28 @@ TEST(TileShapeGeometryTest, EveryShapeHasTheExpectedPolygon) {
       {TileShape::kHalfBlockLeft, {{0, 0}, {.5f, 0}, {.5f, 1}, {0, 1}}},
       {TileShape::kHalfBlockRight, {{.5f, 0}, {1, 0}, {1, 1}, {.5f, 1}}},
 
-      {TileShape::kSlope45BottomLeft, {{0, 1}, {1, 0}, {1, 1}}},
-      {TileShape::kSlope45BottomRight, {{0, 0}, {0, 1}, {1, 1}}},
-      {TileShape::kSlope45TopLeft, {{0, 0}, {1, 0}, {1, 1}}},
-      {TileShape::kSlope45TopRight, {{0, 0}, {1, 0}, {0, 1}}},
+      {TileShape::kSlope45FloorTallRight, {{0, 1}, {1, 0}, {1, 1}}},
+      {TileShape::kSlope45FloorTallLeft, {{0, 0}, {0, 1}, {1, 1}}},
+      {TileShape::kSlope45CeilingTallRight, {{0, 0}, {1, 0}, {1, 1}}},
+      {TileShape::kSlope45CeilingTallLeft, {{0, 0}, {1, 0}, {0, 1}}},
 
-      {TileShape::kGentleSlopeBottomLeft_Lower, {{0, 1}, {1, .5f}, {1, 1}}},
-      {TileShape::kGentleSlopeBottomLeft_Upper, {{0, .5f}, {1, 0}, {1, 1}, {0, 1}}},
-      {TileShape::kGentleSlopeBottomRight_Lower, {{0, .5f}, {1, 1}, {0, 1}}},
-      {TileShape::kGentleSlopeBottomRight_Upper, {{0, 0}, {1, .5f}, {1, 1}, {0, 1}}},
-      {TileShape::kGentleSlopeTopLeft_Lower, {{0, 0}, {1, 0}, {1, .5f}}},
-      {TileShape::kGentleSlopeTopLeft_Upper, {{0, 0}, {1, 0}, {1, 1}, {0, .5f}}},
-      {TileShape::kGentleSlopeTopRight_Lower, {{0, 0}, {1, 0}, {0, .5f}}},
-      {TileShape::kGentleSlopeTopRight_Upper, {{0, 0}, {1, 0}, {1, .5f}, {0, 1}}},
+      {TileShape::kGentleSlopeFloorTallRightLower, {{0, 1}, {1, .5f}, {1, 1}}},
+      {TileShape::kGentleSlopeFloorTallRightUpper, {{0, .5f}, {1, 0}, {1, 1}, {0, 1}}},
+      {TileShape::kGentleSlopeFloorTallLeftLower, {{0, .5f}, {1, 1}, {0, 1}}},
+      {TileShape::kGentleSlopeFloorTallLeftUpper, {{0, 0}, {1, .5f}, {1, 1}, {0, 1}}},
+      {TileShape::kGentleSlopeCeilingTallRightLower, {{0, 0}, {1, 0}, {1, .5f}}},
+      {TileShape::kGentleSlopeCeilingTallRightUpper, {{0, 0}, {1, 0}, {1, 1}, {0, .5f}}},
+      {TileShape::kGentleSlopeCeilingTallLeftLower, {{0, 0}, {1, 0}, {0, .5f}}},
+      {TileShape::kGentleSlopeCeilingTallLeftUpper, {{0, 0}, {1, 0}, {1, .5f}, {0, 1}}},
 
-      {TileShape::kSteepSlopeBottomLeft_Bottom, {{0, 1}, {.5f, 0}, {1, 0}, {1, 1}}},
-      {TileShape::kSteepSlopeBottomLeft_Top, {{.5f, 1}, {1, 0}, {1, 1}}},
-      {TileShape::kSteepSlopeBottomRight_Bottom, {{0, 0}, {.5f, 0}, {1, 1}, {0, 1}}},
-      {TileShape::kSteepSlopeBottomRight_Top, {{0, 0}, {.5f, 1}, {0, 1}}},
-      {TileShape::kSteepSlopeTopLeft_Bottom, {{.5f, 0}, {1, 0}, {1, 1}}},
-      {TileShape::kSteepSlopeTopLeft_Top, {{0, 0}, {1, 0}, {1, 1}, {.5f, 1}}},
-      {TileShape::kSteepSlopeTopRight_Bottom, {{0, 0}, {.5f, 0}, {0, 1}}},
-      {TileShape::kSteepSlopeTopRight_Top, {{0, 0}, {1, 0}, {.5f, 1}, {0, 1}}},
+      {TileShape::kSteepSlopeFloorTallRightBottom, {{0, 1}, {.5f, 0}, {1, 0}, {1, 1}}},
+      {TileShape::kSteepSlopeFloorTallRightTop, {{.5f, 1}, {1, 0}, {1, 1}}},
+      {TileShape::kSteepSlopeFloorTallLeftBottom, {{0, 0}, {.5f, 0}, {1, 1}, {0, 1}}},
+      {TileShape::kSteepSlopeFloorTallLeftTop, {{0, 0}, {.5f, 1}, {0, 1}}},
+      {TileShape::kSteepSlopeCeilingTallRightBottom, {{.5f, 0}, {1, 0}, {1, 1}}},
+      {TileShape::kSteepSlopeCeilingTallRightTop, {{0, 0}, {1, 0}, {1, 1}, {.5f, 1}}},
+      {TileShape::kSteepSlopeCeilingTallLeftBottom, {{0, 0}, {.5f, 0}, {0, 1}}},
+      {TileShape::kSteepSlopeCeilingTallLeftTop, {{0, 0}, {1, 0}, {.5f, 1}, {0, 1}}},
   };
 
   for (const auto& [shape, points] : expected) {
@@ -146,18 +147,18 @@ TEST(TileShapeGeometryTest, CeilingShapesMirrorTheirFloorCounterparts) {
   const std::vector<std::pair<TileShape, TileShape>> mirrored = {
       {TileShape::kHalfBlockBottom, TileShape::kHalfBlockTop},
 
-      {TileShape::kSlope45BottomLeft, TileShape::kSlope45TopLeft},
-      {TileShape::kSlope45BottomRight, TileShape::kSlope45TopRight},
+      {TileShape::kSlope45FloorTallRight, TileShape::kSlope45CeilingTallRight},
+      {TileShape::kSlope45FloorTallLeft, TileShape::kSlope45CeilingTallLeft},
 
-      {TileShape::kGentleSlopeBottomLeft_Lower, TileShape::kGentleSlopeTopLeft_Lower},
-      {TileShape::kGentleSlopeBottomLeft_Upper, TileShape::kGentleSlopeTopLeft_Upper},
-      {TileShape::kGentleSlopeBottomRight_Lower, TileShape::kGentleSlopeTopRight_Lower},
-      {TileShape::kGentleSlopeBottomRight_Upper, TileShape::kGentleSlopeTopRight_Upper},
+      {TileShape::kGentleSlopeFloorTallRightLower, TileShape::kGentleSlopeCeilingTallRightLower},
+      {TileShape::kGentleSlopeFloorTallRightUpper, TileShape::kGentleSlopeCeilingTallRightUpper},
+      {TileShape::kGentleSlopeFloorTallLeftLower, TileShape::kGentleSlopeCeilingTallLeftLower},
+      {TileShape::kGentleSlopeFloorTallLeftUpper, TileShape::kGentleSlopeCeilingTallLeftUpper},
 
-      {TileShape::kSteepSlopeBottomLeft_Top, TileShape::kSteepSlopeTopLeft_Bottom},
-      {TileShape::kSteepSlopeBottomLeft_Bottom, TileShape::kSteepSlopeTopLeft_Top},
-      {TileShape::kSteepSlopeBottomRight_Top, TileShape::kSteepSlopeTopRight_Bottom},
-      {TileShape::kSteepSlopeBottomRight_Bottom, TileShape::kSteepSlopeTopRight_Top},
+      {TileShape::kSteepSlopeFloorTallRightTop, TileShape::kSteepSlopeCeilingTallRightBottom},
+      {TileShape::kSteepSlopeFloorTallRightBottom, TileShape::kSteepSlopeCeilingTallRightTop},
+      {TileShape::kSteepSlopeFloorTallLeftTop, TileShape::kSteepSlopeCeilingTallLeftBottom},
+      {TileShape::kSteepSlopeFloorTallLeftBottom, TileShape::kSteepSlopeCeilingTallLeftTop},
   };
 
   for (const auto& [floor, ceiling] : mirrored) {
@@ -173,14 +174,14 @@ TEST(TileShapeGeometryTest, LeftAndRightFamiliesMirrorHorizontally) {
   const std::vector<std::pair<TileShape, TileShape>> mirrored = {
       {TileShape::kHalfBlockLeft, TileShape::kHalfBlockRight},
 
-      {TileShape::kSlope45BottomLeft, TileShape::kSlope45BottomRight},
-      {TileShape::kSlope45TopLeft, TileShape::kSlope45TopRight},
+      {TileShape::kSlope45FloorTallRight, TileShape::kSlope45FloorTallLeft},
+      {TileShape::kSlope45CeilingTallRight, TileShape::kSlope45CeilingTallLeft},
 
-      {TileShape::kGentleSlopeBottomLeft_Lower, TileShape::kGentleSlopeBottomRight_Lower},
-      {TileShape::kGentleSlopeBottomLeft_Upper, TileShape::kGentleSlopeBottomRight_Upper},
+      {TileShape::kGentleSlopeFloorTallRightLower, TileShape::kGentleSlopeFloorTallLeftLower},
+      {TileShape::kGentleSlopeFloorTallRightUpper, TileShape::kGentleSlopeFloorTallLeftUpper},
 
-      {TileShape::kSteepSlopeBottomLeft_Bottom, TileShape::kSteepSlopeBottomRight_Bottom},
-      {TileShape::kSteepSlopeBottomLeft_Top, TileShape::kSteepSlopeBottomRight_Top},
+      {TileShape::kSteepSlopeFloorTallRightBottom, TileShape::kSteepSlopeFloorTallLeftBottom},
+      {TileShape::kSteepSlopeFloorTallRightTop, TileShape::kSteepSlopeFloorTallLeftTop},
   };
 
   for (const auto& [left, right] : mirrored) {
@@ -223,26 +224,26 @@ TEST(TileShapeGeometryTest, EveryVertexIsInsideTheTile) {
 // one tile at the height it enters the next.
 TEST(TileShapeGeometryTest, GentleSlopeHalvesMeetAtHalfHeight) {
   // Rising to the right: Lower is the left tile, Upper the right one.
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeBottomLeft_Lower), 1.0f), 0.5f);
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeBottomLeft_Upper), 0.0f), 0.5f);
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeBottomLeft_Lower), 0.0f), 1.0f);
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeBottomLeft_Upper), 1.0f), 0.0f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeFloorTallRightLower), 1.0f), 0.5f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeFloorTallRightUpper), 0.0f), 0.5f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeFloorTallRightLower), 0.0f), 1.0f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeFloorTallRightUpper), 1.0f), 0.0f);
 
   // Rising to the left: Upper is the left tile, Lower the right one.
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeBottomRight_Upper), 1.0f), 0.5f);
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeBottomRight_Lower), 0.0f), 0.5f);
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeBottomRight_Lower), 1.0f), 1.0f);
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeBottomRight_Upper), 0.0f), 0.0f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeFloorTallLeftUpper), 1.0f), 0.5f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeFloorTallLeftLower), 0.0f), 0.5f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeFloorTallLeftLower), 1.0f), 1.0f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kGentleSlopeFloorTallLeftUpper), 0.0f), 0.0f);
 }
 
 // A steep slope is two stacked tiles, so they meet along a horizontal edge: the
 // upper tile's solid width at its bottom edge is the lower tile's at its top.
 TEST(TileShapeGeometryTest, SteepSlopeHalvesMeetAtHalfWidth) {
   // Rising to the right: the surface crosses x = 0.5 exactly at the seam.
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kSteepSlopeBottomLeft_Bottom), 0.5f), 0.0f);
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kSteepSlopeBottomLeft_Top), 0.5f), 1.0f);
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kSteepSlopeBottomLeft_Bottom), 0.0f), 1.0f);
-  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kSteepSlopeBottomLeft_Top), 1.0f), 0.0f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kSteepSlopeFloorTallRightBottom), 0.5f), 0.0f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kSteepSlopeFloorTallRightTop), 0.5f), 1.0f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kSteepSlopeFloorTallRightBottom), 0.0f), 1.0f);
+  EXPECT_EQ(TopmostYAtX(PolygonOf(TileShape::kSteepSlopeFloorTallRightTop), 1.0f), 0.0f);
 }
 
 }  // namespace

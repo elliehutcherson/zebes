@@ -42,13 +42,20 @@ TerrainGenConfig RecipeConfig() {
 
 TileShape ShapeFromChar(char c) {
   switch (c) {
-    case '#': return TileShape::kFullBlock;
-    case '/': return TileShape::kSlope45BottomLeft;
-    case '\\': return TileShape::kSlope45BottomRight;
-    case 'a': return TileShape::kGentleSlopeBottomLeft_Lower;
-    case 'b': return TileShape::kGentleSlopeBottomLeft_Upper;
-    case 'h': return TileShape::kHalfBlockBottom;
-    default: return TileShape::kNone;
+    case '#':
+      return TileShape::kFullBlock;
+    case '/':
+      return TileShape::kSlope45FloorTallRight;
+    case '\\':
+      return TileShape::kSlope45FloorTallLeft;
+    case 'a':
+      return TileShape::kGentleSlopeFloorTallRightLower;
+    case 'b':
+      return TileShape::kGentleSlopeFloorTallRightUpper;
+    case 'h':
+      return TileShape::kHalfBlockBottom;
+    default:
+      return TileShape::kNone;
   }
 }
 
@@ -191,9 +198,9 @@ class DerivedArtworkTest : public ::testing::Test {
           from_scene.neighbors[i] =
               SceneShapeAt(x + kNeighborOffsets[i].dx, y + kNeighborOffsets[i].dy);
         }
-        EXPECT_EQ(*key, from_scene) << "cell (" << x << ", " << y << ")\n  level: "
-                                    << DebugString(*key)
-                                    << "\n  scene: " << DebugString(from_scene);
+        EXPECT_EQ(*key, from_scene)
+            << "cell (" << x << ", " << y << ")\n  level: " << DebugString(*key)
+            << "\n  scene: " << DebugString(from_scene);
       }
     }
   }

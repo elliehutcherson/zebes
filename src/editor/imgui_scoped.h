@@ -262,4 +262,69 @@ class ScopedStyleVar {
   bool moved_from_ = false;
 };
 
+inline ScopedListBox GuiInterface::CreateScopedListBox(const char* label) {
+  return CreateScopedListBox(label, ImVec2(0, 0));
+}
+
+inline ScopedChild GuiInterface::CreateScopedChild(const char* str_id) {
+  return CreateScopedChild(str_id, ImVec2(0, 0), false, 0);
+}
+
+inline ScopedChild GuiInterface::CreateScopedChild(const char* str_id, ImVec2 size) {
+  return CreateScopedChild(str_id, size, false, 0);
+}
+
+inline ScopedChild GuiInterface::CreateScopedChild(const char* str_id, ImVec2 size, bool border) {
+  return CreateScopedChild(str_id, size, border, 0);
+}
+
+inline ScopedTabBar GuiInterface::CreateScopedTabBar(const char* str_id) {
+  return CreateScopedTabBar(str_id, 0);
+}
+
+inline ScopedTabItem GuiInterface::CreateScopedTabItem(const char* label) {
+  return CreateScopedTabItem(label, nullptr, 0);
+}
+
+inline ScopedTabItem GuiInterface::CreateScopedTabItem(const char* label, bool* p_open) {
+  return CreateScopedTabItem(label, p_open, 0);
+}
+
+inline ScopedTable GuiInterface::CreateScopedTable(const char* str_id, int column) {
+  return CreateScopedTable(str_id, column, 0, ImVec2(0.0f, 0.0f), 0.0f);
+}
+
+inline ScopedTable GuiInterface::CreateScopedTable(const char* str_id, int column,
+                                                   ImGuiTableFlags flags) {
+  return CreateScopedTable(str_id, column, flags, ImVec2(0.0f, 0.0f), 0.0f);
+}
+
+inline ScopedTable GuiInterface::CreateScopedTable(const char* str_id, int column,
+                                                   ImGuiTableFlags flags,
+                                                   const ImVec2& outer_size) {
+  return CreateScopedTable(str_id, column, flags, outer_size, 0.0f);
+}
+
+inline ScopedDisabled GuiInterface::CreateScopedDisabled() { return CreateScopedDisabled(true); }
+
+inline ScopedWindow GuiInterface::CreateScopedWindow(const char* name) {
+  return CreateScopedWindow(name, nullptr, 0);
+}
+
+inline ScopedWindow GuiInterface::CreateScopedWindow(const char* name, bool* p_open) {
+  return CreateScopedWindow(name, p_open, 0);
+}
+
+inline ScopedCombo GuiInterface::CreateScopedCombo(const char* label, const char* preview_value) {
+  return CreateScopedCombo(label, preview_value, 0);
+}
+
+inline ScopedPopup GuiInterface::CreateScopedPopupContextItem() {
+  return CreateScopedPopupContextItem(nullptr, 0);
+}
+
+inline ScopedPopup GuiInterface::CreateScopedPopupContextItem(const char* str_id) {
+  return CreateScopedPopupContextItem(str_id, 0);
+}
+
 }  // namespace zebes

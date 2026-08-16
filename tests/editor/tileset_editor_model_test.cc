@@ -127,8 +127,7 @@ std::string MakeManifest(int variant_count) {
   sheet.variant_count = variant_count;
   sheet.image.width = sheet.quadrant_size * kQuadrantStateCount * variant_count;
   sheet.image.height = sheet.quadrant_size * kQuadrantCount;
-  sheet.image.pixels.assign(
-      static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 255);
+  sheet.image.pixels.assign(static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 255);
 
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(sheet);
   EXPECT_TRUE(atlas.ok()) << atlas.status();
@@ -237,7 +236,7 @@ TEST(TilesetEditorModelTest, TerrainMembershipAssignsAndClears) {
 
   // A hand-drawn slope that the brush never paints.
   model.active_tileset()->tiles.push_back(
-      Tile{.id = 900, .name = "Slope", .shape = TileShape::kSlope45BottomLeft});
+      Tile{.id = 900, .name = "Slope", .shape = TileShape::kSlope45FloorTallRight});
 
   EXPECT_FALSE(model.GetTileTerrainMembership(900).has_value());
   ASSERT_TRUE(model.SetTileTerrainMembership(900, terrain_id).ok());
@@ -379,8 +378,8 @@ TEST(TilesetEditorModelTest, ARegionAddsOneTilePerCell) {
   TilesetEditorModel model;
   model.BeginNewTileset();
 
-  absl::StatusOr<int> added = model.AddTilesForRegion({.source_x = 0, .source_y = 0},
-                                                      {.source_x = 64, .source_y = 32});
+  absl::StatusOr<int> added =
+      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 64, .source_y = 32});
   ASSERT_TRUE(added.ok()) << added.status();
   EXPECT_EQ(*added, 6);
 
@@ -404,18 +403,17 @@ TEST(TilesetEditorModelTest, ARegionAddsOneTilePerCell) {
 TEST(TilesetEditorModelTest, RegionCornersMayBeGivenInAnyOrder) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(model.AddTilesForRegion({.source_x = 64, .source_y = 32},
-                                      {.source_x = 0, .source_y = 0})
-                  .ok());
+  ASSERT_TRUE(
+      model.AddTilesForRegion({.source_x = 64, .source_y = 32}, {.source_x = 0, .source_y = 0})
+          .ok());
 
   std::vector<std::pair<int, int>> sources;
   for (const Tile& tile : model.active_tileset()->tiles) {
     sources.push_back({tile.source_x, tile.source_y});
   }
-  EXPECT_THAT(sources,
-              ::testing::UnorderedElementsAre(std::pair(0, 0), std::pair(32, 0), std::pair(64, 0),
-                                              std::pair(0, 32), std::pair(32, 32),
-                                              std::pair(64, 32)));
+  EXPECT_THAT(sources, ::testing::UnorderedElementsAre(std::pair(0, 0), std::pair(32, 0),
+                                                       std::pair(64, 0), std::pair(0, 32),
+                                                       std::pair(32, 32), std::pair(64, 32)));
 }
 
 // Dragging back over work already done should add what is missing, not a second
@@ -427,15 +425,15 @@ TEST(TilesetEditorModelTest, ARegionSkipsCellsThatAlreadyHaveATile) {
   model.selected_tile()->source_x = 32;
   model.selected_tile()->source_y = 0;
 
-  absl::StatusOr<int> added = model.AddTilesForRegion({.source_x = 0, .source_y = 0},
-                                                      {.source_x = 64, .source_y = 0});
+  absl::StatusOr<int> added =
+      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 64, .source_y = 0});
   ASSERT_TRUE(added.ok()) << added.status();
   EXPECT_EQ(*added, 2);
   EXPECT_EQ(model.active_tileset()->tiles.size(), 3u);
 
   // Dragging the same region again adds nothing at all.
-  absl::StatusOr<int> again = model.AddTilesForRegion({.source_x = 0, .source_y = 0},
-                                                      {.source_x = 64, .source_y = 0});
+  absl::StatusOr<int> again =
+      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 64, .source_y = 0});
   ASSERT_TRUE(again.ok()) << again.status();
   EXPECT_EQ(*again, 0);
 }
@@ -446,9 +444,9 @@ TEST(TilesetEditorModelTest, ARegionSkipsCellsThatAlreadyHaveATile) {
 TEST(TilesetEditorModelTest, BulkAddedTilesAreSolidByDefault) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(model.AddTilesForRegion({.source_x = 0, .source_y = 0},
-                                      {.source_x = 32, .source_y = 0})
-                  .ok());
+  ASSERT_TRUE(
+      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 32, .source_y = 0})
+          .ok());
 
   for (const Tile& tile : model.active_tileset()->tiles) {
     EXPECT_EQ(tile.shape, TileShape::kFullBlock);
@@ -458,9 +456,9 @@ TEST(TilesetEditorModelTest, BulkAddedTilesAreSolidByDefault) {
 TEST(TilesetEditorModelTest, ARegionSelectsTheLastTileItAdded) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(model.AddTilesForRegion({.source_x = 0, .source_y = 0},
-                                      {.source_x = 32, .source_y = 32})
-                  .ok());
+  ASSERT_TRUE(
+      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 32, .source_y = 32})
+          .ok());
 
   ASSERT_NE(model.selected_tile(), nullptr);
   EXPECT_EQ(model.selected_tile()->source_x, 32);
@@ -471,8 +469,8 @@ TEST(TilesetEditorModelTest, ARegionOffTheCellGridIsRejected) {
   TilesetEditorModel model;
   model.BeginNewTileset();
 
-  absl::StatusOr<int> added = model.AddTilesForRegion({.source_x = 5, .source_y = 0},
-                                                      {.source_x = 32, .source_y = 0});
+  absl::StatusOr<int> added =
+      model.AddTilesForRegion({.source_x = 5, .source_y = 0}, {.source_x = 32, .source_y = 0});
   EXPECT_EQ(added.status().code(), absl::StatusCode::kInvalidArgument);
   EXPECT_TRUE(model.active_tileset()->tiles.empty());
 }
@@ -480,8 +478,8 @@ TEST(TilesetEditorModelTest, ARegionOffTheCellGridIsRejected) {
 TEST(TilesetEditorModelTest, ARegionNeedsATilesetToAddTo) {
   TilesetEditorModel model;
 
-  absl::StatusOr<int> added = model.AddTilesForRegion({.source_x = 0, .source_y = 0},
-                                                      {.source_x = 0, .source_y = 0});
+  absl::StatusOr<int> added =
+      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 0, .source_y = 0});
   EXPECT_EQ(added.status().code(), absl::StatusCode::kFailedPrecondition);
 }
 

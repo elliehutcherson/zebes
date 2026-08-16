@@ -12,33 +12,38 @@ namespace {
 
 // Display strings for TileShape, indexed by numeric value (0..25).
 // Must stay in sync with the TileShape enum in src/objects/tileset.h.
+//
+// Phrased the same way as the terrain palette's catalogue
+// (terrain/terrain_placement.cc), because both panels name the same shapes and
+// two vocabularies for one set of wedges is how a designer picks the mirror of
+// what they wanted.
 constexpr const char* kTileShapeNames[] = {
-    "None",                       // 0  kNone
-    "Full Block",                 // 1  kFullBlock
-    "Half Block Bottom",          // 2  kHalfBlockBottom
-    "Half Block Top",             // 3  kHalfBlockTop
-    "Half Block Left",            // 4  kHalfBlockLeft
-    "Half Block Right",           // 5  kHalfBlockRight
-    "Slope 45 Bottom-Left",       // 6  kSlope45BottomLeft
-    "Slope 45 Bottom-Right",      // 7  kSlope45BottomRight
-    "Slope 45 Top-Left",          // 8  kSlope45TopLeft
-    "Slope 45 Top-Right",         // 9  kSlope45TopRight
-    "Gentle Slope BL Lower",      // 10 kGentleSlopeBottomLeft_Lower
-    "Gentle Slope BL Upper",      // 11 kGentleSlopeBottomLeft_Upper
-    "Gentle Slope BR Lower",      // 12 kGentleSlopeBottomRight_Lower
-    "Gentle Slope BR Upper",      // 13 kGentleSlopeBottomRight_Upper
-    "Gentle Slope TL Lower",      // 14 kGentleSlopeTopLeft_Lower
-    "Gentle Slope TL Upper",      // 15 kGentleSlopeTopLeft_Upper
-    "Gentle Slope TR Lower",      // 16 kGentleSlopeTopRight_Lower
-    "Gentle Slope TR Upper",      // 17 kGentleSlopeTopRight_Upper
-    "Steep Slope BL Bottom",      // 18 kSteepSlopeBottomLeft_Bottom
-    "Steep Slope BL Top",         // 19 kSteepSlopeBottomLeft_Top
-    "Steep Slope BR Bottom",      // 20 kSteepSlopeBottomRight_Bottom
-    "Steep Slope BR Top",         // 21 kSteepSlopeBottomRight_Top
-    "Steep Slope TL Bottom",      // 22 kSteepSlopeTopLeft_Bottom
-    "Steep Slope TL Top",         // 23 kSteepSlopeTopLeft_Top
-    "Steep Slope TR Bottom",      // 24 kSteepSlopeTopRight_Bottom
-    "Steep Slope TR Top",         // 25 kSteepSlopeTopRight_Top
+    "None",                                    // 0  kNone
+    "Full Block",                              // 1  kFullBlock
+    "Half Block Bottom",                       // 2  kHalfBlockBottom
+    "Half Block Top",                          // 3  kHalfBlockTop
+    "Half Block Left",                         // 4  kHalfBlockLeft
+    "Half Block Right",                        // 5  kHalfBlockRight
+    "45 floor, up right",                      // 6  kSlope45FloorTallRight
+    "45 floor, up left",                       // 7  kSlope45FloorTallLeft
+    "45 ceiling, down right",                  // 8  kSlope45CeilingTallRight
+    "45 ceiling, down left",                   // 9  kSlope45CeilingTallLeft
+    "Gentle floor, up right, lower half",      // 10 kGentleSlopeFloorTallRightLower
+    "Gentle floor, up right, upper half",      // 11 kGentleSlopeFloorTallRightUpper
+    "Gentle floor, up left, lower half",       // 12 kGentleSlopeFloorTallLeftLower
+    "Gentle floor, up left, upper half",       // 13 kGentleSlopeFloorTallLeftUpper
+    "Gentle ceiling, down right, lower half",  // 14 kGentleSlopeCeilingTallRightLower
+    "Gentle ceiling, down right, upper half",  // 15 kGentleSlopeCeilingTallRightUpper
+    "Gentle ceiling, down left, lower half",   // 16 kGentleSlopeCeilingTallLeftLower
+    "Gentle ceiling, down left, upper half",   // 17 kGentleSlopeCeilingTallLeftUpper
+    "Steep floor, up right, bottom cell",      // 18 kSteepSlopeFloorTallRightBottom
+    "Steep floor, up right, top cell",         // 19 kSteepSlopeFloorTallRightTop
+    "Steep floor, up left, bottom cell",       // 20 kSteepSlopeFloorTallLeftBottom
+    "Steep floor, up left, top cell",          // 21 kSteepSlopeFloorTallLeftTop
+    "Steep ceiling, down right, bottom cell",  // 22 kSteepSlopeCeilingTallRightBottom
+    "Steep ceiling, down right, top cell",     // 23 kSteepSlopeCeilingTallRightTop
+    "Steep ceiling, down left, bottom cell",   // 24 kSteepSlopeCeilingTallLeftBottom
+    "Steep ceiling, down left, top cell",      // 25 kSteepSlopeCeilingTallLeftTop
 };
 constexpr int kTileShapeCount = static_cast<int>(std::size(kTileShapeNames));
 
@@ -58,10 +63,9 @@ absl::Status TilePanel::RenderDetails(Tile& tile) {
 
   // Shape combo — indexed directly by the enum's numeric value.
   int shape_index = static_cast<int>(tile.shape);
-  const char* shape_preview =
-      (shape_index >= 0 && shape_index < kTileShapeCount)
-          ? kTileShapeNames[shape_index]
-          : "Unknown";
+  const char* shape_preview = (shape_index >= 0 && shape_index < kTileShapeCount)
+                                  ? kTileShapeNames[shape_index]
+                                  : "Unknown";
   if (ScopedCombo combo = gui_->CreateScopedCombo("Shape", shape_preview); combo) {
     for (int i = 0; i < kTileShapeCount; ++i) {
       bool is_selected = (shape_index == i);

@@ -1,11 +1,15 @@
 #include "editor/level_editor/terrain_palette_panel.h"
 
+#include <string_view>
+#include <vector>
+
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "editor/imgui_scoped.h"
 #include "imgui.h"
 #include "objects/texture.h"
+#include "objects/tile_shape_geometry.h"
 #include "terrain/terrain_placement.h"
 
 namespace zebes {
@@ -16,20 +20,37 @@ constexpr float kSwatchSize = 48.0f;
 // Gap between a swatch and its label.
 constexpr float kSwatchPad = 8.0f;
 
-// The fully surrounded mask. Its tile is the interior of a filled region, which
-// reads as the material itself rather than one of its edges.
-constexpr uint8_t kSolidMask = 255;
+// Display size of a shape glyph in the picker grid. Smaller than a terrain
+// swatch because there are twenty-five of them and a silhouette stays legible
+// far below the size artwork needs.
+constexpr float kShapeSize = 32.0f;
 
-// Returns the tile a terrain paints in the middle of a solid region, or null
-// when the terrain has no rule for it.
-const Tile* FindSwatchTile(const Tileset& tileset, const Terrain& terrain) {
-  for (const TerrainRule& rule : terrain.rules) {
-    if (rule.mask != kSolidMask || rule.variants.empty()) continue;
-    for (const Tile& tile : tileset.tiles) {
-      if (tile.id == rule.variants.front().tile_id) return &tile;
+// Draws a shape's solid region as a filled polygon.
+//
+// A silhouette rather than a thumbnail of artwork, because this picker chooses
+// collision geometry and the artwork follows from it. What a cell actually
+// looks like depends on its whole neighbourhood, so any single thumbnail would
+// have to invent one and would then disagree with what lands. The geometry does
+// not: it is exactly what the click places. The cursor ghost already shows the
+// real artwork for the real neighbourhood.
+void DrawShapeGlyph(ImDrawList* draw_list, ImVec2 cursor, TileShape shape, bool is_selected,
+                    bool is_hovered) {
+  const ImVec2 max = ImVec2(cursor.x + kShapeSize, cursor.y + kShapeSize);
+  draw_list->AddRectFilled(cursor, max, IM_COL32(28, 28, 32, 255));
+
+  const absl::Span<const TilePoint> polygon = TileShapePolygon(shape);
+  if (!polygon.empty()) {
+    std::vector<ImVec2> points;
+    points.reserve(polygon.size());
+    for (const TilePoint& point : polygon) {
+      points.push_back(ImVec2(cursor.x + point.x * kShapeSize, cursor.y + point.y * kShapeSize));
     }
+    const ImU32 fill = is_selected ? IM_COL32(120, 170, 255, 255) : IM_COL32(170, 175, 185, 255);
+    draw_list->AddConvexPolyFilled(points.data(), static_cast<int>(points.size()), fill);
   }
-  return nullptr;
+
+  if (is_hovered) draw_list->AddRect(cursor, max, IM_COL32(200, 200, 200, 180), 0.0f, 0, 1.0f);
+  if (is_selected) draw_list->AddRect(cursor, max, IM_COL32(60, 120, 255, 255), 0.0f, 0, 2.0f);
 }
 
 void DrawSwatch(ImDrawList* draw_list, ImVec2 cursor, const AtlasBinding& atlas, const Tile* tile,
@@ -92,7 +113,7 @@ absl::Status TerrainPalettePanel::RenderTerrainList(const AtlasBinding& atlas) {
 
     ImDrawList* draw_list = gui_->GetWindowDrawList();
     if (draw_list != nullptr) {
-      DrawSwatch(draw_list, cursor, atlas, FindSwatchTile(*selected_tileset_, terrain),
+      DrawSwatch(draw_list, cursor, atlas, TerrainSwatchTile(*selected_tileset_, terrain),
                  *selected_tileset_, is_selected, hovered);
     }
 
@@ -118,44 +139,52 @@ void TerrainPalettePanel::RenderShapePicker() {
   }
 
   if (terrain == nullptr) {
-    ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
-    if (ScopedCombo combo = gui_->CreateScopedCombo("Shape##terrain_palette", "(no terrain)");
-        combo) {
-    }
+    gui_->TextDisabled("Select a terrain to choose a shape.");
     return;
   }
 
   const std::vector<TerrainShapeChoice> choices =
       ShapeChoicesWithin(PaintableShapesOf(*terrain, *selected_tileset_));
   if (choices.empty()) {
-    ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
-    if (ScopedCombo combo = gui_->CreateScopedCombo("Shape##terrain_palette", "(no artwork)");
-        combo) {
-    }
+    gui_->TextDisabled("This terrain has artwork for no shape.");
     return;
   }
 
   // Selecting a different terrain can strand a shape the new one cannot paint,
   // so the picker moves to something it can rather than leaving the brush
   // pointed at geometry with no artwork behind it.
-  const TerrainShapeChoice* current = nullptr;
+  bool selection_is_offered = false;
   for (const TerrainShapeChoice& choice : choices) {
-    if (choice.shape == selected_shape_) current = &choice;
+    if (choice.shape == selected_shape_) selection_is_offered = true;
   }
-  if (current == nullptr) {
-    selected_shape_ = choices.front().shape;
-    current = &choices.front();
-  }
+  if (!selection_is_offered) selected_shape_ = choices.front().shape;
 
-  if (ScopedCombo combo = gui_->CreateScopedCombo("Shape##terrain_palette", current->name.c_str());
-      combo) {
-    for (const TerrainShapeChoice& choice : choices) {
-      const std::string label = absl::StrCat(
-          choice.name, "##terrain_shape_", static_cast<int>(choice.shape));
-      if (gui_->Selectable(label.c_str(), choice.shape == selected_shape_)) {
-        selected_shape_ = choice.shape;
-      }
+  // Laid out as a grid of silhouettes rather than a list of names. There are
+  // twenty-five of these, and a name like "Steep ceiling, down to the left,
+  // bottom cell" describes a picture nobody should have to reconstruct. The
+  // names stay as tooltips, where they explain a glyph instead of replacing it.
+  std::string_view rendered_group;
+  for (const TerrainShapeChoice& choice : choices) {
+    const bool starts_group = choice.group != rendered_group;
+    if (starts_group) {
+      gui_->TextDisabled("%s", choice.group.c_str());
+      rendered_group = choice.group;
+    } else {
+      gui_->SameLine();
     }
+
+    ScopedId scoped_id = gui_->CreateScopedId(static_cast<int>(choice.shape));
+    const ImVec2 cursor = gui_->GetCursorScreenPos();
+    gui_->InvisibleButton("##shape", ImVec2(kShapeSize, kShapeSize));
+    const bool clicked = gui_->IsItemClicked(0);
+    const bool hovered = gui_->IsItemHovered();
+    if (hovered) gui_->SetTooltip("%s", choice.name.c_str());
+
+    if (ImDrawList* draw_list = gui_->GetWindowDrawList(); draw_list != nullptr) {
+      DrawShapeGlyph(draw_list, cursor, choice.shape, choice.shape == selected_shape_, hovered);
+    }
+
+    if (clicked) selected_shape_ = choice.shape;
   }
 }
 

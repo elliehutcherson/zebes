@@ -135,8 +135,8 @@ class TerrainBrushTest : public ::testing::Test {
   }
 
   void Paint(int x, int y) {
-    ASSERT_TRUE(PaintTerrain(level_, index_, *provider_, kTerrainId, TileShape::kFullBlock, x, y)
-                    .ok());
+    ASSERT_TRUE(
+        PaintTerrain(level_, index_, *provider_, kTerrainId, TileShape::kFullBlock, x, y).ok());
   }
 
   Tileset tileset_;
@@ -209,8 +209,7 @@ TEST_F(TerrainBrushTest, LShapedRegionProducesAnInnerCorner) {
   // Filling the diagonal turns that same quadrant into plain interior.
   Paint(3, 3);
   EXPECT_EQ(MaskAt(level_, 4, 4), NormalizeNeighborMask(kNorth | kWest | kNorthWest));
-  EXPECT_EQ(QuadrantStateForMask(MaskAt(level_, 4, 4), Quadrant::kNorthWest),
-            QuadrantState::kFill);
+  EXPECT_EQ(QuadrantStateForMask(MaskAt(level_, 4, 4), Quadrant::kNorthWest), QuadrantState::kFill);
 }
 
 TEST_F(TerrainBrushTest, DiagonalOnlyNeighbourIsNormalizedAway) {
@@ -420,18 +419,17 @@ TEST_F(TerrainBrushTest, TheKeyRecordsWhatANeighbourIsNotMerelyThatItIsThere) {
   ASSERT_TRUE(SetTileAt(level_, 5, 4, kSlopeNeighbourTileId).ok());
 
   Tileset with_slope = tileset_;
-  with_slope.tiles.push_back(Tile{.id = kSlopeNeighbourTileId,
-                                  .name = "Slope",
-                                  .shape = TileShape::kSlope45BottomLeft});
+  with_slope.tiles.push_back(Tile{
+      .id = kSlopeNeighbourTileId, .name = "Slope", .shape = TileShape::kSlope45FloorTallRight});
   with_slope.terrains[0].shape_tile_ids = {kSlopeNeighbourTileId};
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(with_slope);
   ASSERT_TRUE(index.ok()) << index.status();
 
-  absl::StatusOr<TerrainCellKey> key = ComputeTerrainCellKey(
-      level_, *index, with_slope.terrains[0], TileShape::kFullBlock, 4, 4);
+  absl::StatusOr<TerrainCellKey> key =
+      ComputeTerrainCellKey(level_, *index, with_slope.terrains[0], TileShape::kFullBlock, 4, 4);
   ASSERT_TRUE(key.ok()) << key.status();
 
-  EXPECT_EQ(key->neighbors[2], TileShape::kSlope45BottomLeft) << "east is the slope";
+  EXPECT_EQ(key->neighbors[2], TileShape::kSlope45FloorTallRight) << "east is the slope";
   EXPECT_EQ(key->neighbors[6], TileShape::kNone) << "west is air";
   // Projected down to a mask, the slope becomes indistinguishable from ground.
   EXPECT_EQ(NeighborMaskOf(*key), kEast);
@@ -478,9 +476,8 @@ class TerrainMemberTest : public ::testing::Test {
 
   void SetUp() override {
     tileset_ = MakeTileset(MakeTerrain());
-    tileset_.tiles.push_back(Tile{.id = kSlopeTileId,
-                                  .name = "Slope45Up",
-                                  .shape = TileShape::kSlope45BottomLeft});
+    tileset_.tiles.push_back(
+        Tile{.id = kSlopeTileId, .name = "Slope45Up", .shape = TileShape::kSlope45FloorTallRight});
     tileset_.terrains[0].shape_tile_ids = {kSlopeTileId};
 
     absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset_);
@@ -490,8 +487,8 @@ class TerrainMemberTest : public ::testing::Test {
   }
 
   void Paint(int x, int y) {
-    ASSERT_TRUE(PaintTerrain(level_, index_, *provider_, kTerrainId, TileShape::kFullBlock, x, y)
-                    .ok());
+    ASSERT_TRUE(
+        PaintTerrain(level_, index_, *provider_, kTerrainId, TileShape::kFullBlock, x, y).ok());
   }
 
   Tileset tileset_;
@@ -508,7 +505,7 @@ TEST_F(TerrainMemberTest, MemberTileResolvesToItsTerrain) {
   // tile. A refresh now hands a cell back the shape it already had, so
   // re-resolving that slope returns the same slope and the question has no
   // remaining user. PaintingBesideASlopeNeverOverwritesIt is what holds it.
-  EXPECT_EQ(index_.ShapeOfTile(kSlopeTileId), TileShape::kSlope45BottomLeft);
+  EXPECT_EQ(index_.ShapeOfTile(kSlopeTileId), TileShape::kSlope45FloorTallRight);
   EXPECT_EQ(index_.ShapeOfTile(kFirstTileId), TileShape::kFullBlock);
 }
 
@@ -531,8 +528,7 @@ TEST_F(TerrainMemberTest, WithoutMembershipTheSameSlopeWouldReadAsAir) {
   Blob47TileProvider provider(*index);
 
   ASSERT_TRUE(SetTileAt(level_, 5, 4, kSlopeTileId).ok());
-  ASSERT_TRUE(
-      PaintTerrain(level_, *index, provider, kTerrainId, TileShape::kFullBlock, 4, 4).ok());
+  ASSERT_TRUE(PaintTerrain(level_, *index, provider, kTerrainId, TileShape::kFullBlock, 4, 4).ok());
 
   EXPECT_EQ(MaskAt(level_, 4, 4), 0) << "this is the seam the membership fix removes";
 }
@@ -643,7 +639,7 @@ TEST_F(TerrainMemberTest, TheProviderResolvesAShapeThroughTheTerrainsShapeTiles)
   // A blob-47 terrain keys its painted artwork on a mask, but a slope is not a
   // mask -- it resolves by the shape asked for.
   TerrainCellKey key;
-  key.shape = TileShape::kSlope45BottomLeft;
+  key.shape = TileShape::kSlope45FloorTallRight;
   key.neighbors.fill(TileShape::kFullBlock);
 
   absl::StatusOr<int> tile = provider_->TileForKey(tileset_.terrains[0], key, 4, 4);
@@ -656,7 +652,7 @@ TEST_F(TerrainMemberTest, AShapeTheTerrainHasNoArtworkForIsRefused) {
   // Fail loudly rather than substitute a block, which would put geometry in the
   // level that the player collides with but nobody chose.
   TerrainCellKey key;
-  key.shape = TileShape::kSteepSlopeTopRight_Top;
+  key.shape = TileShape::kSteepSlopeCeilingTallLeftTop;
   key.neighbors.fill(TileShape::kFullBlock);
 
   absl::StatusOr<int> tile = provider_->TileForKey(tileset_.terrains[0], key, 4, 4);
@@ -677,7 +673,7 @@ TEST_F(TerrainMemberTest, ARefreshHandsACellBackTheGeometryItAlreadyHad) {
   Paint(6, 4);
 
   ASSERT_EQ(GetTileAt(level_, 5, 4).value(), kSlopeTileId);
-  EXPECT_EQ(index_.ShapeOfTile(GetTileAt(level_, 5, 4).value()), TileShape::kSlope45BottomLeft);
+  EXPECT_EQ(index_.ShapeOfTile(GetTileAt(level_, 5, 4).value()), TileShape::kSlope45FloorTallRight);
 }
 
 TEST(TerrainIndexTest, RejectsTwoTilesClaimingOneShape) {
@@ -685,9 +681,9 @@ TEST(TerrainIndexTest, RejectsTwoTilesClaimingOneShape) {
   // shape_tile_ids.
   Tileset tileset = MakeTileset(MakeTerrain());
   tileset.tiles.push_back(
-      Tile{.id = 901, .name = "SlopeA", .shape = TileShape::kSlope45BottomLeft});
+      Tile{.id = 901, .name = "SlopeA", .shape = TileShape::kSlope45FloorTallRight});
   tileset.tiles.push_back(
-      Tile{.id = 902, .name = "SlopeB", .shape = TileShape::kSlope45BottomLeft});
+      Tile{.id = 902, .name = "SlopeB", .shape = TileShape::kSlope45FloorTallRight});
   tileset.terrains[0].shape_tile_ids = {901, 902};
 
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);

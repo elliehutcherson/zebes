@@ -1,26 +1,83 @@
 ---
 # .clang-tidy
+#
+# clang-tidy ships with the Homebrew llvm formula, which is keg-only, so it is
+# not on PATH. The project wrapper locates it and supplies the macOS SDK:
+#
+#   scripts/lint.sh src/example.cc
+#   scripts/lint.sh --all
+#
+# The -isysroot pair is required. The build compiles with Apple's /usr/bin/c++,
+# which locates the SDK implicitly, so CMake records no -isysroot in
+# compile_commands.json; Homebrew's clang-tidy then cannot find libc++ and
+# reports confident nonsense off a half-parsed AST rather than failing outright.
+# Do not try to fix this by setting CMAKE_OSX_SYSROOT: an explicit sysroot also
+# drops Apple clang's implicit /usr/local/include, and SDL_image's libavif and
+# libwebp backends are found only there.
+#
+# Scope: the Google style checks, plus the two readability checks that back
+# rules written down in .claude/rules/cpp-style.md. bugprone-* and modernize-*
+# were dropped deliberately; re-add either as one line if that changes.
 Checks: >
   -*,
-  readability-identifier-naming,
-  bugprone-*,
   google-*,
-  modernize-*
-  -modernize-use-trailing-return-type 
+  readability-identifier-naming,
+  readability-convert-member-functions-to-static
+
+# Vendored SDL, Abseil, and nlohmann live under include/. Without this the
+# analysis of one .cc file reports ~1700 warnings, essentially all of them
+# theirs.
+HeaderFilterRegex: '/zebes/(src|tests)/'
+# The include filter alone is not enough: stb is reached as
+# src/common/../../include/stb/stb_image.h, which contains /zebes/src/ and so
+# matches. That one path accounted for 741 of 961 findings across src/.
+ExcludeHeaderFilterRegex: '/include/'
 
 CheckOptions:
-  # Variable Naming (Google Style)
-  # - { key: readability-identifier-naming.VariableCase,        value: lower_case }
-  # - { key: readability-identifier-naming.LocalVariableCase,   value: lower_case }
-  
-  # Class Members (Google Style: snake_case with trailing underscore)
-  # - { key: readability-identifier-naming.ClassMemberCase,     value: lower_case }
-  # - { key: readability-identifier-naming.ClassMemberSuffix,   value: _ }
-  
-  # Functions (Google Style: PascalCase)
-  # - { key: readability-identifier-naming.FunctionCase,        value: CamelCase }
-  
-  # Constants (Google Style: kPascalCase)
-  # - { key: readability-identifier-naming.ConstantCase,        value: CamelCase }
-  # - { key: readability-identifier-naming.ConstantPrefix,      value: k }
+  # Types
+  - { key: readability-identifier-naming.ClassCase,               value: CamelCase }
+  - { key: readability-identifier-naming.StructCase,              value: CamelCase }
+  - { key: readability-identifier-naming.EnumCase,                value: CamelCase }
+  - { key: readability-identifier-naming.TypeAliasCase,           value: CamelCase }
+  - { key: readability-identifier-naming.NamespaceCase,           value: lower_case }
+
+  # Functions (Google: PascalCase, which clang-tidy spells CamelCase)
+  - { key: readability-identifier-naming.FunctionCase,            value: CamelCase }
+
+  # Google style permits accessors to be named like the variable they expose,
+  # and STL-shaped APIs to use STL spelling: `empty()`, `armed()`,
+  # `has_active_level()`. 83 of those exist in src/. FunctionCase cannot carve
+  # out the exception, so exempt all-lowercase names. Hybrids like
+  # `Get_Tileset` are still caught, since they match neither this nor CamelCase.
+  - { key: readability-identifier-naming.FunctionIgnoredRegexp,   value: '^[a-z][a-z0-9_]*$' }
+
+  # Variables
+  - { key: readability-identifier-naming.VariableCase,            value: lower_case }
+  - { key: readability-identifier-naming.ParameterCase,           value: lower_case }
+
+  # Class members (Google: snake_case with trailing underscore)
+  - { key: readability-identifier-naming.PrivateMemberCase,       value: lower_case }
+  - { key: readability-identifier-naming.PrivateMemberSuffix,     value: _ }
+  - { key: readability-identifier-naming.ProtectedMemberCase,     value: lower_case }
+  - { key: readability-identifier-naming.ProtectedMemberSuffix,   value: _ }
+
+  # Constants: kPascalCase applies to constexpr, static, and class constants.
+  # Plain local `const int foo` stays lower_case, so ConstantCase is left unset
+  # on purpose.
+  - { key: readability-identifier-naming.ConstexprVariableCase,   value: CamelCase }
+  - { key: readability-identifier-naming.ConstexprVariablePrefix, value: k }
+  - { key: readability-identifier-naming.ClassConstantCase,       value: CamelCase }
+  - { key: readability-identifier-naming.ClassConstantPrefix,     value: k }
+  - { key: readability-identifier-naming.GlobalConstantCase,      value: CamelCase }
+  - { key: readability-identifier-naming.GlobalConstantPrefix,    value: k }
+  - { key: readability-identifier-naming.StaticConstantCase,      value: CamelCase }
+  - { key: readability-identifier-naming.StaticConstantPrefix,    value: k }
+  - { key: readability-identifier-naming.EnumConstantCase,        value: CamelCase }
+  - { key: readability-identifier-naming.EnumConstantPrefix,      value: k }
+
+  - { key: readability-identifier-naming.MacroDefinitionCase,     value: UPPER_CASE }
+
+  # Google style header guards end in an underscore (ZEBES_FOO_BAR_H_), which
+  # UPPER_CASE rejects. Exempt the guard shape only; other macros still checked.
+  - { key: readability-identifier-naming.MacroDefinitionIgnoredRegexp, value: '^[A-Z][A-Z0-9_]*_H_$' }
 ---

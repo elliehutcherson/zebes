@@ -1,11 +1,13 @@
 #include "editor/level_editor/terrain_palette_panel.h"
 
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "objects/tileset.h"
+#include "terrain/terrain_placement.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
 
@@ -38,7 +40,8 @@ Terrain MakeTerrain(int id, std::string name, int tile_id) {
   terrain.id = id;
   terrain.name = std::move(name);
   terrain.scheme = TerrainScheme::kBlob47;
-  terrain.rules.push_back(TerrainRule{.mask = 255, .variants = {TerrainVariant{.tile_id = tile_id}}});
+  terrain.rules.push_back(
+      TerrainRule{.mask = 255, .variants = {TerrainVariant{.tile_id = tile_id}}});
   return terrain;
 }
 
@@ -74,8 +77,9 @@ class TerrainPalettePanelTest : public ::testing::Test {
     ON_CALL(gui_, IsItemClicked(_)).WillByDefault(Return(false));
     ON_CALL(gui_, IsItemHovered(_)).WillByDefault(Return(false));
     ON_CALL(gui_, SameLine(_, _)).WillByDefault(Return());
-    ON_CALL(gui_, CreateScopedId(An<int>()))
-        .WillByDefault(Invoke([this](int id) { return ScopedId(&gui_, id); }));
+    ON_CALL(gui_, CreateScopedId(An<int>())).WillByDefault(Invoke([this](int id) {
+      return ScopedId(&gui_, id);
+    }));
   }
 
   // Selects a tileset without driving the combo, matching how the tile palette
@@ -87,6 +91,21 @@ class TerrainPalettePanelTest : public ::testing::Test {
   }
 
   absl::Status Render() { return panel_->Render(); }
+
+  // How many shape glyphs the picker drew this frame. The grid gives one
+  // clickable button per offered shape, so counting them is how a test sees
+  // what the picker is offering without a draw list.
+  int RenderCountingShapeGlyphs() {
+    int glyphs = 0;
+    ON_CALL(gui_, InvisibleButton(_, _, _))
+        .WillByDefault(Invoke([&glyphs](const char* id, const ImVec2&, ImGuiButtonFlags) {
+          if (std::string_view(id) == "##shape") ++glyphs;
+          return false;
+        }));
+    EXPECT_TRUE(Render().ok());
+    ON_CALL(gui_, InvisibleButton(_, _, _)).WillByDefault(Return(false));
+    return glyphs;
+  }
 
   std::unique_ptr<NiceMock<MockApi>> api_ = std::make_unique<NiceMock<MockApi>>();
   NiceMock<MockGui> gui_;
@@ -218,17 +237,15 @@ TEST_F(TerrainPalettePanelTest, TheBrushPaintsBlocksUntilSomethingElseIsChosen) 
   EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kFullBlock);
 }
 
-TEST_F(TerrainPalettePanelTest, TheShapePickerIsDisabledWithNoTerrainSelected) {
+TEST_F(TerrainPalettePanelTest, TheShapePickerOffersNothingWithNoTerrainSelected) {
   tileset_.terrains = {MakeTerrain(3, "Grass", 7)};
   PreselectTileset();
 
   // A shape means nothing without a material to make it out of.
-  EXPECT_CALL(gui_, CreateScopedDisabled(true)).Times(1);
-
-  ASSERT_TRUE(Render().ok());
+  EXPECT_EQ(RenderCountingShapeGlyphs(), 0);
 }
 
-TEST_F(TerrainPalettePanelTest, ASelectedTerrainEnablesTheShapePicker) {
+TEST_F(TerrainPalettePanelTest, ASelectedTerrainOffersTheShapesItCanPaint) {
   tileset_.tiles = {Tile{.id = 7, .name = "solid", .shape = TileShape::kFullBlock}};
   tileset_.terrains = {MakeTerrain(3, "Grass", 7)};
   PreselectTileset();
@@ -237,9 +254,27 @@ TEST_F(TerrainPalettePanelTest, ASelectedTerrainEnablesTheShapePicker) {
   ASSERT_TRUE(Render().ok());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
 
-  EXPECT_CALL(gui_, CreateScopedDisabled(true)).Times(0);
+  // Artwork for one shape, so one glyph. The picker offers what can be painted
+  // rather than the whole catalogue.
+  EXPECT_EQ(RenderCountingShapeGlyphs(), 1);
+}
 
+// Twenty-five named entries in a dropdown was the thing that made this palette
+// unreadable. Every shape a terrain can paint gets its own clickable glyph.
+TEST_F(TerrainPalettePanelTest, ADerivedTerrainOffersEveryShapeAsItsOwnGlyph) {
+  tileset_.tiles = {};
+  Terrain derived;
+  derived.id = 3;
+  derived.name = "Cave";
+  derived.scheme = TerrainScheme::kDerived;
+  tileset_.terrains = {std::move(derived)};
+  PreselectTileset();
+  EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
   ASSERT_TRUE(Render().ok());
+  ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
+
+  EXPECT_EQ(RenderCountingShapeGlyphs(), static_cast<int>(AllTerrainShapeChoices().size()))
+      << "a derived terrain renders on demand, so it can paint the whole catalogue";
 }
 
 TEST_F(TerrainPalettePanelTest, AShapeTheNewTerrainCannotPaintIsNotLeftSelected) {
@@ -248,7 +283,7 @@ TEST_F(TerrainPalettePanelTest, AShapeTheNewTerrainCannotPaintIsNotLeftSelected)
   // choice the user never made.
   tileset_.tiles = {
       Tile{.id = 7, .name = "solid", .shape = TileShape::kFullBlock},
-      Tile{.id = 8, .name = "ramp", .shape = TileShape::kSlope45BottomLeft},
+      Tile{.id = 8, .name = "ramp", .shape = TileShape::kSlope45FloorTallRight},
   };
   Terrain slopes = MakeTerrain(3, "Grass", 7);
   slopes.shape_tile_ids = {8};
@@ -257,7 +292,7 @@ TEST_F(TerrainPalettePanelTest, AShapeTheNewTerrainCannotPaintIsNotLeftSelected)
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
   ASSERT_TRUE(Render().ok());
 
-  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSlope45BottomLeft);
+  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSlope45FloorTallRight);
   // A terrain with only block artwork replaces it.
   tileset_.terrains = {MakeTerrain(3, "Grass", 7)};
 
@@ -279,11 +314,11 @@ TEST_F(TerrainPalettePanelTest, ADerivedTerrainOffersShapesItHasNoArtworkForYet)
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
   ASSERT_TRUE(Render().ok());
 
-  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSteepSlopeTopRight_Top);
+  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSteepSlopeCeilingTallLeftTop);
 
   ASSERT_TRUE(Render().ok());
 
-  EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kSteepSlopeTopRight_Top)
+  EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kSteepSlopeCeilingTallLeftTop)
       << "a derived terrain can render any shape, so none should be stranded";
 }
 

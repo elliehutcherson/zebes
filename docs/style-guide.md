@@ -1,102 +1,252 @@
 # Zebes Style Guide
 
 Zebes follows the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
-with the project-specific rules below. This document is the human-facing coding
-guide; `.clang-format` is the formatting authority.
+with the project-specific rules below. This is the guide for people working on
+Zebes, and it is the source of truth for the rules it states.
 
-## Naming
+Some sections are marked up so that `scripts/sync_rules.py` can extract them into
+`.claude/rules/`, where Claude Code loads them automatically when someone edits a
+matching file. Those generated files are copies. **Edit this document, then run:**
 
-- Types and functions use `PascalCase`.
-- Local variables and parameters use `snake_case`.
-- Data members use `snake_case_`.
-- Constants use `kPascalCase`.
-- CMake target and source names use `snake_case`.
+```bash
+scripts/sync_rules.py
+```
 
-## Types and initialization
+`scripts/build_and_test.sh` fails if the copies are stale, so the two cannot
+drift apart. Never edit a file in `.claude/rules/` directly; the next
+regeneration overwrites it.
 
-- Prefer Zebes-owned domain types at library boundaries.
-- Do not expose SDL, ImGui, or another dependency's data structures from engine
-  or resource interfaces.
-- Prefer brace initialization for aggregates and value initialization.
-- Use explicit types when they improve readability. Use `auto` when the type is
-  cumbersome or already obvious from the expression.
-- Prefer references for required dependencies and pointers only for nullable or
-  reseatable relationships.
+---
+
+<!-- rule:cpp-style paths="**/*.cc,**/*.h,**/CMakeLists.txt,**/*.cmake" -->
+
+## C++
+
+The [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html),
+plus the rules below. `.clang-format` is the formatting authority; a hook runs it
+on files Claude edits, and your own edits should go through your editor's
+clang-format integration or `clang-format -i`.
+
+### Naming
+
+- Types and functions: `PascalCase`
+- Locals and parameters: `snake_case`
+- Data members: `snake_case_`
+- Constants: `kPascalCase`
+- CMake targets and source file names: `snake_case`
+
+### Types and initialization
+
+- Brace-initialize aggregates and PODs.
+- Use explicit types. Use `auto` only for cumbersome types (iterators) or when
+  the expression already names the type (`std::make_unique<Foo>()`).
+- References for required dependencies. Pointers only for nullable or
+  reseatable ones. Never null-check a reference.
 - Express ownership with RAII types such as `std::unique_ptr`.
+- Mark a member function `static` when it does not read or modify instance
+  state. clang-tidy enforces this with
+  `readability-convert-member-functions-to-static`.
+- Prefer Zebes-owned domain types at library boundaries. Do not expose SDL or
+  ImGui types from engine or resource interfaces.
 
-## Errors and control flow
+### Libraries
 
-- Use `absl::Status` and `absl::StatusOr` for recoverable failures.
-- Prefer `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` for propagation.
-- Fail early rather than leaving partially valid objects behind.
-- Favor guard clauses and small helpers over deeply nested control flow.
-- Do not add `else` after a branch that always returns.
+Use `absl::Status`, `absl::StatusOr`, `absl::flat_hash_map`, `absl::StrFormat`
+over their STL equivalents.
 
-## Dependencies and architecture
+### Errors
+
+- `absl::Status` and `absl::StatusOr` for recoverable failures.
+- `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` to propagate.
+- Fail immediately. Never return a partially constructed object or fall back to
+  a default state.
+
+### Control flow
+
+- Guard clauses and early returns over `if`/`else`.
+- No `else` after a branch that returns.
+- More than two levels of indentation means extract a private helper.
+
+### Headers
+
+- Include what the file uses. Do not rely on transitive includes.
+- Include type declarations directly by default. Forward declare only when it
+  materially cuts coupling or build time.
+- Document ownership, nullability, lifetime, and error behavior when the type
+  does not make them obvious.
+- Comment intent, invariants, and tradeoffs. Never restate the code.
+
+### Layering
 
 - Depend on interfaces owned by the layer above an external library.
-- Keep SDL implementations under `src/platform/sdl` or SDL-specific UI code.
-- Keep ImGui in the editor/UI layer.
-- Wire concrete dependencies in the application composition root.
-- Do not introduce globals or service locators to avoid normal dependency
-  injection.
-- Record new cross-layer ownership or lifetime rules in `architecture.md`.
+- SDL implementations live under `src/platform/sdl` or SDL-specific UI code.
+- ImGui stays in the editor/UI layer.
+- Wire concrete dependencies in the application composition root. No globals,
+  no service locators.
+- Record new cross-layer ownership or lifetime rules in `docs/architecture.md`.
 
-## Serialized formats
+<!-- /rule -->
 
-- **No optional fields.** Every writer emits every field of the record it is
-  writing, and every reader requires it with `.at()`. A definition missing a
-  field is corruption, not permission to substitute a default.
-- Write collections even when empty. An absent list and an empty one would
-  otherwise be two spellings of one state, and the reader would have to guess
-  which the author meant.
-- **Add a field by adding a migration, not a default.** Extend
-  `scripts/migrate_definitions.py` and run it once. A tolerant reader silently
-  reinterprets old data forever; a migration moves it once and then the
-  invariant holds.
-- A record may be a tagged union, and that is not an optional field. When a
-  discriminator such as `TerrainScheme` says which variant a record is, each
-  variant's fields are required for that variant and absent from the others. The
-  reader knows which set to demand before it reads them.
-- Read exactly one schema version. Carrying a translation for a version no file
-  uses lets absent data decide the parser's shape.
-- Every shipped definition is loaded by a test, and every `LoadAll*` reports the
-  files it could not read rather than logging and returning success. Strict
-  parsing without both is a trap rather than an invariant.
+<!-- rule:definitions paths="src/resources/**,src/objects/**,scripts/migrate_definitions.py,tests/resources/**,tests/assets/**" -->
 
-## Headers
+## Serialized definitions
 
-- Public headers should document ownership, nullability, lifetime, and error
-  behavior when those are not obvious from the type.
-- Include what the file uses; do not depend on transitive includes.
-- Include required type declarations directly by default. Use forward
-  declarations only when they materially reduce coupling or build cost without
-  making the header unclear or fragile.
-- Comments should explain intent, invariants, and tradeoffs rather than repeat
-  the code.
+Every field is required. There are no optional fields in this format.
+
+### Reading and writing
+
+- Writers emit every field of the record they write.
+- Readers require every field with `.at()`. A missing field is corruption.
+  Do not substitute a default, and do not add one to make a load succeed.
+- Write collections even when empty. An absent list and an empty list must not
+  both be spellings of the same state.
+- Read exactly one schema version. Do not carry a translation path for a
+  version no file on disk uses.
+
+### Adding a field
+
+Add a migration, not a default:
+
+1. Add the field to the writer and the reader.
+2. Extend `scripts/migrate_definitions.py` to populate it in existing files.
+3. Run the migration once and commit the migrated definitions.
+
+A tolerant reader reinterprets old data forever. A migration moves it once and
+the invariant holds afterward.
+
+### Tagged unions
+
+A discriminator such as `TerrainScheme` selects which variant a record is. Each
+variant's fields are required for that variant and absent from the others. The
+reader determines the variant before reading variant fields. This is not an
+optional field.
+
+### Required backstops
+
+Strict parsing is a trap without both of these:
+
+- Every shipped definition is loaded by a test.
+- Every `LoadAll*` reports the files it could not read. It must not log a
+  failure and return `absl::OkStatus()`.
+
+<!-- /rule -->
+
+<!-- rule:testing paths="tests/**" -->
 
 ## Testing
 
-- Add deterministic tests for new behavior and failure paths.
-- Prefer fakes for stateful platform-neutral interfaces and mocks for verifying
-  important interactions.
-- Keep engine and resource tests headless.
-- Put tests requiring SDL windows or ImGui interaction in the UI test preset.
-- A test must fail when required setup or data is missing; do not conditionally
-  skip assertions to make it pass.
+### Determinism
 
-## Formatting and verification
+Tests must be deterministic. If something is expected to exist, assert that it
+exists and fail when it does not.
 
-Format changed C++ files with the repository `.clang-format` configuration.
-Before handing off a change, run:
+Never guard an assertion with an `if` to make a test pass. Never skip a case
+because setup or data is missing — a missing fixture is a failure, not a
+reason to pass silently.
 
-```bash
-./scripts/build_and_test.sh
-git diff --check
-```
+Add tests for the failure paths, not only the success path. Every
+`absl::Status` a function can return should have a test that produces it.
 
-Use the UI test workflow when changing behavior that depends on SDL or ImGui:
+### Fakes and mocks
+
+- Fakes for stateful, platform-neutral interfaces.
+- Mocks only to verify an interaction that matters. Do not mock a type just to
+  hand it to a constructor; use the real type or a fake.
+
+### Headless by default
+
+Engine and resource tests run headless. A test that needs an SDL window or
+ImGui interaction belongs in the UI test preset, run with:
 
 ```bash
 ./scripts/build_and_test.sh --ui-tests
 ```
+
+If a test needs a window, that usually means the code under test reaches too
+far down the stack. Check whether the dependency can be an interface first.
+
+### Definitions
+
+Every shipped definition file is loaded by a test. Adding a definition means
+adding it to that test.
+
+<!-- /rule -->
+
+---
+
+## Why these rules
+
+Rationale that would bloat the rules themselves, kept for the reader deciding
+whether one still earns its place. This section is not extracted.
+
+**No optional fields in serialized formats.** A tolerant reader is a permanent
+tax: every future reader has to reason about what an absent field meant, and the
+answer changes as the format grows. A migration pays the cost once, at a moment
+when someone still understands the old data. A tile whose `shape` was absent
+once loaded as `kNone` — solid artwork colliding with nothing — which is what a
+default on read buys you.
+
+**Strict parsing needs its backstops.** Demanding every field turns a silent
+misparse into a loud failure only if something exercises the failure. Two
+mechanisms carry that weight: every shipped definition is loaded by a test, and
+every `LoadAll*` reports the files it could not read rather than logging and
+returning success. Strict parsing without both is a trap, not an invariant.
+
+**Domain types at library boundaries.** Keeping SDL and ImGui types out of
+engine and resource interfaces is what makes the headless test preset possible.
+When a test needs a window, that is usually the boundary leaking, not a
+legitimate need for a display.
+
+**Fail immediately rather than partially construct.** A half-built object
+outlives the error that produced it and fails somewhere unrelated, usually in
+code that did nothing wrong. `absl::Status` propagation keeps the failure
+adjacent to its cause.
+
+## Verification
+
+Use a layered loop. While editing, build and run one affected C++ test
+executable; an optional GoogleTest filter makes the inner loop narrower:
+
+```bash
+./scripts/test.sh terrain_generator_test
+./scripts/test.sh terrain_generator_test TerrainGeneratorTest.EverySlopeShapeRenders
+./scripts/test.sh --ui sanity_test
+```
+
+Before handoff, run the complete affected test executable, lint each edited
+translation unit, and check the patch:
+
+```bash
+./scripts/lint.sh src/terrain/terrain_generator.cc
+git diff --check
+```
+
+Header files have no independent compilation command. For a header change,
+lint representative `.cc` files that include it. Run the comprehensive local
+suite only for cross-cutting changes such as shared headers, serialization,
+CMake/build logic, or broad refactors:
+
+```bash
+./scripts/build_and_test.sh
+./scripts/build_and_test.sh --ui-tests   # behavior requiring SDL or ImGui
+```
+
+GitHub Actions runs the comprehensive suite for every pull request and push to
+`main`. A new session alone is not a reason to rerun it.
+
+`.clang-tidy` runs the Google checks plus the two readability checks that back
+rules above. `scripts/lint.sh` locates LLVM, supplies the macOS SDK when needed,
+and refuses an unscoped invocation. `scripts/lint.sh --all` is reserved for CI
+and explicit cleanup milestones; it uses two workers by default because a full
+analysis is CPU-intensive. Set `LINT_JOBS` deliberately to override that limit.
+Findings it reports are real; this guide still decides what a rule means when
+the two disagree.
+
+## Related documents
+
+- [`AGENTS.md`](../AGENTS.md): concise shared agent workflow and engineering
+  principles. `CLAUDE.md` imports it instead of duplicating it.
+- [`architecture.md`](architecture.md): cross-layer ownership and lifetime.
+  Update it when adding or changing an architectural boundary.
+- [`roadmap.md`](roadmap.md): what is left to build, including the clang-tidy
+  backlog this guide's checks produce.

@@ -31,6 +31,13 @@ struct TerrainShapeChoice {
   // starts at floor level, the upper half reaches the top of its cell. That is
   // what the TileShape enumerators mean, spelled for someone choosing one.
   std::string name;
+  // Which family the piece belongs to, so a palette can lay the catalogue out
+  // in rows instead of as one list of twenty-five.
+  //
+  // It matters most for the two-cell families: a gentle or steep ramp is built
+  // from a pair, and a flat list gives no way to see that the halves belong
+  // together. Grouping puts them side by side, where the pairing is visible.
+  std::string group;
 
   bool operator==(const TerrainShapeChoice& other) const = default;
 };
@@ -59,5 +66,18 @@ std::vector<TerrainShapeChoice> ShapeChoicesWithin(
 // a tileset missing a piece is a palette that does not offer it instead of a
 // palette that offers a blank.
 absl::flat_hash_set<TileShape> PaintableShapesOf(const Terrain& terrain, const Tileset& tileset);
+
+// The tile that best represents a terrain in a palette, or null when it has
+// drawn none.
+//
+// The interior of a filled region: a block with the same material on all eight
+// sides, which reads as the material itself rather than one of its edges.
+//
+// The two schemes record that tile in different places and there is no shared
+// one to read. A blob-47 terrain has a rule for the fully surrounded mask; a
+// derived terrain deliberately has no rule table at all, and instead has a
+// derived tile whose key says the same thing. Reading only the rules found
+// nothing for every derived terrain, which is why they all drew a blank.
+const Tile* TerrainSwatchTile(const Tileset& tileset, const Terrain& terrain);
 
 }  // namespace zebes

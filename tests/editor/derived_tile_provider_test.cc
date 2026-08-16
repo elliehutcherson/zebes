@@ -114,8 +114,7 @@ TEST_F(DerivedTileProviderTest, TheSameKeyNeverRendersTwice) {
 
 TEST_F(DerivedTileProviderTest, DifferentNeighbourhoodsProduceDifferentTiles) {
   const int isolated = Resolve(KeyOf(TileShape::kFullBlock, {}));
-  const int with_ground_east =
-      Resolve(KeyOf(TileShape::kFullBlock, {{2, TileShape::kFullBlock}}));
+  const int with_ground_east = Resolve(KeyOf(TileShape::kFullBlock, {{2, TileShape::kFullBlock}}));
 
   EXPECT_NE(isolated, with_ground_east);
   EXPECT_EQ(provider_->appended_tile_count(), 2);
@@ -132,12 +131,11 @@ TEST_F(DerivedTileProviderTest, DeduplicationIsExactSoANearMissStillEarnsATile) 
   // threshold, and a threshold is a claim about how much difference the eye
   // forgives -- exactly the kind of guess about the renderer this design set out
   // to stop making. Paying one extra tile is cheaper than owning that number.
-  const int into_wall = Resolve(
-      KeyOf(TileShape::kSlope45BottomLeft,
-            {{2, TileShape::kFullBlock}, {4, TileShape::kFullBlock}}));
-  const int at_a_peak = Resolve(
-      KeyOf(TileShape::kSlope45BottomLeft,
-            {{2, TileShape::kSlope45BottomRight}, {4, TileShape::kFullBlock}}));
+  const int into_wall = Resolve(KeyOf(TileShape::kSlope45FloorTallRight,
+                                      {{2, TileShape::kFullBlock}, {4, TileShape::kFullBlock}}));
+  const int at_a_peak =
+      Resolve(KeyOf(TileShape::kSlope45FloorTallRight,
+                    {{2, TileShape::kSlope45FloorTallLeft}, {4, TileShape::kFullBlock}}));
 
   EXPECT_NE(into_wall, at_a_peak);
   EXPECT_EQ(provider_->appended_tile_count(), 2);
@@ -160,25 +158,24 @@ TEST_F(DerivedTileProviderTest, IdenticalArtworkReachedByTwoKeysCollapsesOntoOne
 TEST_F(DerivedTileProviderTest, ARampEndingInAirGetsItsOwnTile) {
   // The join the baked atlas could not express at all. Here it is simply
   // another key, and it earns a tile because it genuinely looks different.
-  const int into_wall = Resolve(
-      KeyOf(TileShape::kSlope45BottomLeft,
-            {{2, TileShape::kFullBlock}, {4, TileShape::kFullBlock}}));
-  const int into_air = Resolve(
-      KeyOf(TileShape::kSlope45BottomLeft, {{4, TileShape::kFullBlock}}));
+  const int into_wall = Resolve(KeyOf(TileShape::kSlope45FloorTallRight,
+                                      {{2, TileShape::kFullBlock}, {4, TileShape::kFullBlock}}));
+  const int into_air =
+      Resolve(KeyOf(TileShape::kSlope45FloorTallRight, {{4, TileShape::kFullBlock}}));
 
   EXPECT_NE(into_wall, into_air);
 }
 
 TEST_F(DerivedTileProviderTest, AppendedTilesCarryTheGeometryTheyWereAskedFor) {
-  const int tile_id = Resolve(
-      KeyOf(TileShape::kSlope45BottomLeft, {{4, TileShape::kFullBlock}}));
+  const int tile_id =
+      Resolve(KeyOf(TileShape::kSlope45FloorTallRight, {{4, TileShape::kFullBlock}}));
 
   const Tile* tile = nullptr;
   for (const Tile& candidate : provider_->tileset().tiles) {
     if (candidate.id == tile_id) tile = &candidate;
   }
   ASSERT_NE(tile, nullptr);
-  EXPECT_EQ(tile->shape, TileShape::kSlope45BottomLeft)
+  EXPECT_EQ(tile->shape, TileShape::kSlope45FloorTallRight)
       << "the level collides with this, so it must be what was authored";
 }
 
@@ -192,7 +189,7 @@ TEST_F(DerivedTileProviderTest, TheAtlasGrowsByWholeRowsWhenOneFills) {
   // allowed to assume.
   std::set<int> tiles;
   for (int shape = static_cast<int>(TileShape::kFullBlock);
-       shape <= static_cast<int>(TileShape::kSlope45TopRight); ++shape) {
+       shape <= static_cast<int>(TileShape::kSlope45CeilingTallLeft); ++shape) {
     tiles.insert(Resolve(KeyOf(static_cast<TileShape>(shape), {{4, TileShape::kFullBlock}})));
   }
   ASSERT_EQ(tiles.size(), 9) << "nine shapes must give nine pictures";
@@ -215,7 +212,8 @@ TEST_F(DerivedTileProviderTest, ExistingArtworkIsReusedRatherThanRedrawn) {
       DerivedTileProvider::Create(std::move(*renderer), grown, atlas);
   ASSERT_OK(reopened);
 
-  absl::StatusOr<int> again = reopened->TileForKey(terrain_, KeyOf(TileShape::kFullBlock, {}), 0, 0);
+  absl::StatusOr<int> again =
+      reopened->TileForKey(terrain_, KeyOf(TileShape::kFullBlock, {}), 0, 0);
 
   ASSERT_OK(again);
   EXPECT_EQ(*again, first);
@@ -263,7 +261,7 @@ TEST_F(DerivedTileProviderTest, PreviewingACellWhoseArtworkExistsNamesItsTile) {
 // What the user actually does: move over a cell, then click it. The preview must
 // not change what lands, and the render it already paid for is reused.
 TEST_F(DerivedTileProviderTest, PaintingAfterPreviewingAppendsExactlyOneTile) {
-  const TerrainCellKey key = KeyOf(TileShape::kSlope45BottomLeft, {{4, TileShape::kFullBlock}});
+  const TerrainCellKey key = KeyOf(TileShape::kSlope45FloorTallRight, {{4, TileShape::kFullBlock}});
   ASSERT_FALSE(Preview(key).tile_id.has_value());
 
   const int painted = Resolve(key);

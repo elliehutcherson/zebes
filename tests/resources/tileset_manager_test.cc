@@ -68,8 +68,7 @@ TEST_F(TilesetManagerTest, DeleteTileset) {
   ASSERT_OK(manager_->DeleteTileset(id));
   EXPECT_FALSE(manager_->GetTileset(id).ok());
 
-  std::string expected_file =
-      test_dir_ + "/definitions/tilesets/ToDelete-" + id + ".json";
+  std::string expected_file = test_dir_ + "/definitions/tilesets/ToDelete-" + id + ".json";
   EXPECT_FALSE(std::filesystem::exists(expected_file));
 }
 
@@ -357,8 +356,7 @@ TEST_F(TilesetManagerTest, LoadTileset_NotFound_Fails) {
 }
 
 TEST_F(TilesetManagerTest, LoadTileset_MissingRequiredField_Fails) {
-  std::string file_path =
-      test_dir_ + "/definitions/tilesets/bad_tileset.json";
+  std::string file_path = test_dir_ + "/definitions/tilesets/bad_tileset.json";
   std::ofstream out(file_path);
   // Missing "texture_id" required field.
   out << R"({"id": "abc", "name": "BadTileset"})";
@@ -550,12 +548,11 @@ TEST_F(TilesetManagerTest, SaveTileset_PeriodicTerrainMissingAPhase_Fails) {
 // An absent list and an empty one would mean the same thing, and offering the
 // reader two spellings of one state is exactly what forces it to guess.
 TEST_F(TilesetManagerTest, TilesetWithoutTerrainsStillWritesTheKey) {
-  ASSERT_OK_AND_ASSIGN(std::string id,
-                       manager_->CreateTileset(Tileset{
-                           .name = "Plain",
-                           .texture_id = "tx",
-                           .tiles = {Tile{.id = 1, .name = "Solid"}},
-                       }));
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTileset(Tileset{
+                                           .name = "Plain",
+                                           .texture_id = "tx",
+                                           .tiles = {Tile{.id = 1, .name = "Solid"}},
+                                       }));
 
   std::ifstream in(test_dir_ + "/definitions/tilesets/Plain-" + id + ".json");
   ASSERT_TRUE(in.is_open());
@@ -604,7 +601,8 @@ TEST_F(TilesetManagerTest, SaveTileset_TerrainWithNonPositiveWeight_Fails) {
 
 TEST_F(TilesetManagerTest, TerrainMemberTileIdsSurviveRoundTrip) {
   Tileset tileset = MakeTerrainTileset();
-  tileset.tiles.push_back(Tile{.id = 4, .name = "Slope", .shape = TileShape::kSlope45BottomLeft});
+  tileset.tiles.push_back(
+      Tile{.id = 4, .name = "Slope", .shape = TileShape::kSlope45FloorTallRight});
   tileset.terrains[0].shape_tile_ids = {4};
 
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTileset(std::move(tileset)));

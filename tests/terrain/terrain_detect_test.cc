@@ -24,8 +24,7 @@ QuadrantSheet MakeSheet(int variant_count) {
   sheet.variant_count = variant_count;
   sheet.image.width = sheet.quadrant_size * kQuadrantStateCount * variant_count;
   sheet.image.height = sheet.quadrant_size * kQuadrantCount;
-  sheet.image.pixels.assign(
-      static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 255);
+  sheet.image.pixels.assign(static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 255);
   return sheet;
 }
 
@@ -200,8 +199,7 @@ SlopeSheet MakeSlopeSheet() {
   sheet.tile_size = kTileSize;
   sheet.image.width = kTileSize * kSlopeShapeCount;
   sheet.image.height = kTileSize;
-  sheet.image.pixels.assign(
-      static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 0);
+  sheet.image.pixels.assign(static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 0);
 
   for (int column : {0, 1}) {
     for (int y = 0; y < kTileSize; ++y) {
@@ -253,8 +251,8 @@ TEST(TerrainDetectTest, ImportedSlopesCarryTheirTileShape) {
       if (tile.id == member_id) shapes.insert(tile.shape);
     }
   }
-  EXPECT_EQ(shapes, (std::set<TileShape>{TileShape::kSlope45BottomLeft,
-                                         TileShape::kSlope45BottomRight}));
+  EXPECT_EQ(shapes, (std::set<TileShape>{TileShape::kSlope45FloorTallRight,
+                                         TileShape::kSlope45FloorTallLeft}));
 }
 
 TEST(TerrainDetectTest, ImportWithoutSlopesLeavesMembersEmpty) {
@@ -280,7 +278,21 @@ TEST(TerrainDetectTest, ImportRejectsShapeTheMaskRulesAlreadyCover) {
 TEST(TerrainDetectTest, ImportRejectsUnknownShapeIdentifier) {
   absl::StatusOr<TerrainCandidate> candidate = ImportBlob47Manifest(
       R"({"scheme":"blob47","tile_size":32,"variant_period":1,"tiles":[],)"
-      R"("slopes":[{"shape":"kSlope45BottomLeftt","source_x":0,"source_y":0}]})",
+      R"("slopes":[{"shape":"kSlope45FloorTallRightt","source_x":0,"source_y":0}]})",
+      1, 1);
+  ASSERT_FALSE(candidate.ok());
+  EXPECT_EQ(candidate.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
+// The slope vocabulary was renamed from naming the thin end (kSlope45BottomLeft)
+// to naming the tall one (kSlope45FloorTallRight), and the two spellings mean
+// mirrored shapes. Reusing a retired name would have made an unmigrated
+// manifest load as the mirror in silence, so the new names deliberately share no
+// spelling with the old ones and a stale manifest has to fail here.
+TEST(TerrainDetectTest, ImportRejectsARetiredShapeIdentifier) {
+  absl::StatusOr<TerrainCandidate> candidate = ImportBlob47Manifest(
+      R"({"scheme":"blob47","tile_size":32,"variant_period":1,"tiles":[],)"
+      R"("slopes":[{"shape":"kSlope45BottomLeft","source_x":0,"source_y":0}]})",
       1, 1);
   ASSERT_FALSE(candidate.ok());
   EXPECT_EQ(candidate.status().code(), absl::StatusCode::kInvalidArgument);

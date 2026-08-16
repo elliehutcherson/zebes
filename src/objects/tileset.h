@@ -25,44 +25,56 @@ enum TileShape : uint8_t {
   kHalfBlockLeft = 4,
   kHalfBlockRight = 5,
 
+  // --- SLOPES ---
+  // Every slope name says two things. "Floor"/"Ceiling" is the edge the solid
+  // mass hugs. "TallLeft"/"TallRight" is the side of the tile where the solid
+  // reaches full height -- the wedge tapers away toward the other side.
+  //
+  // Naming the tall side rather than the thin one is what makes the vocabulary
+  // survive mirroring: a ceiling shape is the vertical mirror of the floor
+  // shape with the same direction word, so kSlope45CeilingTallRight is
+  // kSlope45FloorTallRight flipped. Naming a rise direction instead would not
+  // work, because a surface rising to the right and one falling to the left are
+  // the same surface.
+  //
+  // The exact polygons live in objects/tile_shape_geometry.h and are the
+  // authority; the sketches below are a reading aid.
+
   // --- 45-DEGREE SLOPES (1x1 Ratio) ---
-  // "Bottom"/"Top" is the edge the solid mass hugs; "Left"/"Right" is the side
-  // the wedge tapers away to nothing on, so the right angle sits at the
-  // opposite corner. The exact polygons live in objects/tile_shape_geometry.h.
-  kSlope45BottomLeft = 6,   // /| shape (walking up to the right)
-  kSlope45BottomRight = 7,  // |\ shape (walking up to the left)
-  kSlope45TopLeft = 8,      // \| shape (ceiling slope)
-  kSlope45TopRight = 9,     // |/ shape (ceiling slope)
+  kSlope45FloorTallRight = 6,    // /| walk up to the right
+  kSlope45FloorTallLeft = 7,     // |\ walk up to the left
+  kSlope45CeilingTallRight = 8,  // \| ceiling, mirror of FloorTallRight
+  kSlope45CeilingTallLeft = 9,   // |/ ceiling, mirror of FloorTallLeft
 
   // --- GENTLE SLOPES (2x1 Ratio, ~26.5 degrees) ---
   // It takes two adjacent tiles to make one smooth gentle slope.
   // "Lower" means the wedge that starts from 0 height.
   // "Upper" means the wedge that connects to the top of the tile.
-  kGentleSlopeBottomLeft_Lower = 10,
-  kGentleSlopeBottomLeft_Upper = 11,
-  kGentleSlopeBottomRight_Lower = 12,
-  kGentleSlopeBottomRight_Upper = 13,
+  kGentleSlopeFloorTallRightLower = 10,
+  kGentleSlopeFloorTallRightUpper = 11,
+  kGentleSlopeFloorTallLeftLower = 12,
+  kGentleSlopeFloorTallLeftUpper = 13,
 
   // Ceiling variations of gentle slopes
-  kGentleSlopeTopLeft_Lower = 14,
-  kGentleSlopeTopLeft_Upper = 15,
-  kGentleSlopeTopRight_Lower = 16,
-  kGentleSlopeTopRight_Upper = 17,
+  kGentleSlopeCeilingTallRightLower = 14,
+  kGentleSlopeCeilingTallRightUpper = 15,
+  kGentleSlopeCeilingTallLeftLower = 16,
+  kGentleSlopeCeilingTallLeftUpper = 17,
 
   // --- STEEP SLOPES (1x2 Ratio, ~63.4 degrees) ---
   // It takes two vertically stacked tiles to make one steep slope.
   // "Bottom" is the tile resting on the ground.
   // "Top" is the tile above it.
-  kSteepSlopeBottomLeft_Bottom = 18,
-  kSteepSlopeBottomLeft_Top = 19,
-  kSteepSlopeBottomRight_Bottom = 20,
-  kSteepSlopeBottomRight_Top = 21,
+  kSteepSlopeFloorTallRightBottom = 18,
+  kSteepSlopeFloorTallRightTop = 19,
+  kSteepSlopeFloorTallLeftBottom = 20,
+  kSteepSlopeFloorTallLeftTop = 21,
 
   // Ceiling variations of steep slopes
-  kSteepSlopeTopLeft_Bottom = 22,
-  kSteepSlopeTopLeft_Top = 23,
-  kSteepSlopeTopRight_Bottom = 24,
-  kSteepSlopeTopRight_Top = 25
+  kSteepSlopeCeilingTallRightBottom = 22,
+  kSteepSlopeCeilingTallRightTop = 23,
+  kSteepSlopeCeilingTallLeftBottom = 24,
+  kSteepSlopeCeilingTallLeftTop = 25
 };
 
 // Stable identifiers for TileShape, matching the enumerator spellings and
@@ -79,29 +91,29 @@ inline constexpr const char* kTileShapeIdentifiers[] = {
     "kHalfBlockTop",
     "kHalfBlockLeft",
     "kHalfBlockRight",
-    "kSlope45BottomLeft",
-    "kSlope45BottomRight",
-    "kSlope45TopLeft",
-    "kSlope45TopRight",
-    "kGentleSlopeBottomLeft_Lower",
-    "kGentleSlopeBottomLeft_Upper",
-    "kGentleSlopeBottomRight_Lower",
-    "kGentleSlopeBottomRight_Upper",
-    "kGentleSlopeTopLeft_Lower",
-    "kGentleSlopeTopLeft_Upper",
-    "kGentleSlopeTopRight_Lower",
-    "kGentleSlopeTopRight_Upper",
-    "kSteepSlopeBottomLeft_Bottom",
-    "kSteepSlopeBottomLeft_Top",
-    "kSteepSlopeBottomRight_Bottom",
-    "kSteepSlopeBottomRight_Top",
-    "kSteepSlopeTopLeft_Bottom",
-    "kSteepSlopeTopLeft_Top",
-    "kSteepSlopeTopRight_Bottom",
-    "kSteepSlopeTopRight_Top",
+    "kSlope45FloorTallRight",
+    "kSlope45FloorTallLeft",
+    "kSlope45CeilingTallRight",
+    "kSlope45CeilingTallLeft",
+    "kGentleSlopeFloorTallRightLower",
+    "kGentleSlopeFloorTallRightUpper",
+    "kGentleSlopeFloorTallLeftLower",
+    "kGentleSlopeFloorTallLeftUpper",
+    "kGentleSlopeCeilingTallRightLower",
+    "kGentleSlopeCeilingTallRightUpper",
+    "kGentleSlopeCeilingTallLeftLower",
+    "kGentleSlopeCeilingTallLeftUpper",
+    "kSteepSlopeFloorTallRightBottom",
+    "kSteepSlopeFloorTallRightTop",
+    "kSteepSlopeFloorTallLeftBottom",
+    "kSteepSlopeFloorTallLeftTop",
+    "kSteepSlopeCeilingTallRightBottom",
+    "kSteepSlopeCeilingTallRightTop",
+    "kSteepSlopeCeilingTallLeftBottom",
+    "kSteepSlopeCeilingTallLeftTop",
 };
 static_assert(std::size(kTileShapeIdentifiers) ==
-                  static_cast<size_t>(TileShape::kSteepSlopeTopRight_Top) + 1,
+                  static_cast<size_t>(TileShape::kSteepSlopeCeilingTallLeftTop) + 1,
               "kTileShapeIdentifiers must name every TileShape");
 
 // Resolves an identifier back to its shape. Returns nullopt for unknown names so
@@ -140,8 +152,8 @@ struct NeighborOffset {
 };
 
 inline constexpr NeighborOffset kNeighborOffsets[kNeighborCount] = {
-    {.dx = 0, .dy = -1},  {.dx = 1, .dy = -1}, {.dx = 1, .dy = 0},  {.dx = 1, .dy = 1},
-    {.dx = 0, .dy = 1},   {.dx = -1, .dy = 1}, {.dx = -1, .dy = 0}, {.dx = -1, .dy = -1},
+    {.dx = 0, .dy = -1}, {.dx = 1, .dy = -1}, {.dx = 1, .dy = 0},  {.dx = 1, .dy = 1},
+    {.dx = 0, .dy = 1},  {.dx = -1, .dy = 1}, {.dx = -1, .dy = 0}, {.dx = -1, .dy = -1},
 };
 
 // Everything a generated tile's appearance depends on, and nothing else.

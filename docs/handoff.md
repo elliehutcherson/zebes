@@ -1,10 +1,57 @@
-# Handoff: derived terrain artwork
+# Handoff
 
-State as of 2026-08-15. All of it is **merged to `main`**, with the two fixes the
-editor walk turned up on top. 686 C++ tests and 26 Python tests pass through
-`scripts/build_and_test.sh`.
+## Current: Track 0, on a branch, not merged
 
-Three phases landed together, each with its own design document:
+Branch `track0-lint-and-shape-names`, five commits, 2026-08-15. 693 C++ and 43
+Python tests pass; `--ui-tests` passes; `git diff --check` is clean.
+[`roadmap.md`](roadmap.md) has the full picture — Track 0 is done there, and
+Tracks 1-4 are what is left.
+
+**What I did.**
+
+1. **Made clang-tidy runnable.** It ships with the keg-only Homebrew llvm
+   formula, so it was never on `PATH`. `.clang-tidy` now records the working
+   invocation and why `-isysroot` cannot be dropped.
+2. **Fixed the leaky header filter.** `HeaderFilterRegex` did not exclude
+   vendored code: stb is reached as `src/common/../../include/stb/stb_image.h`,
+   which contains `/zebes/src/`. That one path was 741 of 961 findings. Added
+   `ExcludeHeaderFilterRegex: '/include/'`. Real backlog: **220 findings in
+   `src/`, 200 in `tests/`**, itemised in the roadmap.
+3. **Trued up `docs/style-guide.md` §Verification**, which still said clang-tidy
+   was not installed. It is outside every rule block, so `sync_rules.py`
+   regenerated nothing.
+4. **Verified and committed the underscore rename** that was sitting uncommitted
+   and unbuilt in the working tree (`kGentleSlopeBottomLeft_Lower` →
+   `kGentleSlopeBottomLeftLower`).
+5. **Renamed all twenty slope enumerators** onto one vocabulary:
+   `kSlope45BottomLeft` → `kSlope45FloorTallRight`. "Floor"/"Ceiling" is the
+   edge the solid mass hugs, "TallLeft"/"TallRight" the side at full tile
+   height.
+6. **Wrote `roadmap.md`** and trimmed this file's plan half into it.
+
+**The one decision worth checking.** Renaming each shape to its right-angle
+corner — the obvious fix — would have *swapped* `kSlope45BottomLeft` and
+`kSlope45BottomRight`. A definition that escaped the migration would then have
+loaded as the mirrored shape in silence: the numeric `shape` field is untouched
+and `TileShapeFromIdentifier` would still have resolved it. So the new names
+share no spelling with the old ones, and a stale file fails the lookup instead.
+`TerrainDetectTest.ImportRejectsARetiredShapeIdentifier` pins that.
+
+**Beyond what was planned:** three tests (one C++ for the retired identifier, two
+Python for both migration eras), and the Tileset Editor's shape combo, which
+still read "Slope 45 Bottom-Left" — the mirror of what the enum now says. Both
+follow from the rename.
+
+**Left to do:** merge the branch. Then Track 1, starting with the 153
+`google-default-arguments` on `GuiInterface` — the only finding in the backlog
+that is a defect rather than a cleanup.
+
+---
+
+## Earlier: derived terrain artwork
+
+Merged to `main`. Three phases landed together, each with its own design
+document:
 
 | Phase | Document | State |
 |---|---|---|
@@ -179,74 +226,42 @@ Worth knowing because most were invisible to reading:
 
 ---
 
-## What is left
+## What the walk found
 
-### In this phase
+**The editor walk is done, and it earned its keep.** Painting cell by cell, ramps
+and ledges of every shape, save, reopen, both Delete buttons, the Autumn Forest
+preset, the shape picker with no terrain selected, and the atlas growing
+mid-stroke were all driven in a live window and all behave.
 
-1. **The editor walk is nearly done, and it earned its keep.** Painting cell by
-   cell, ramps and ledges of every shape, save, reopen, both Delete buttons and
-   the Autumn Forest preset were all driven in a live window and all behave.
+Two bugs came out of it that nothing headless had caught:
 
-   Two bugs came out of it that nothing headless had caught:
+- **Hovering created artwork.** The ghost resolved through the same call a paint
+  uses, so mouse movement appended tiles and grew the atlas. The grown atlas is
+  not uploaded until the frame ends, so the ghost then drew itself against a
+  texture still at the old size and failed the frame -- and the failure skipped
+  the upload that would have fixed it, so it repeated every frame forever.
+  Previewing is now its own question; see `PreviewForKey`.
+- **Saving freed what the editor was holding.** Every manager's save assigned a
+  fresh `unique_ptr` over its map entry, so every pointer `Get*` had handed out
+  dangled. Saving a level with derived terrain hit it every time, because
+  committing artwork saves the tileset. Six managers; each now has a test that
+  the address survives a save.
 
-   - **Hovering created artwork.** The ghost resolved through the same call a
-     paint uses, so mouse movement appended tiles and grew the atlas. The grown
-     atlas is not uploaded until the frame ends, so the ghost then drew itself
-     against a texture still at the old size and failed the frame -- and the
-     failure skipped the upload that would have fixed it, so it repeated every
-     frame forever. Previewing is now its own question; see `PreviewForKey`.
-   - **Saving freed what the editor was holding.** Every manager's save assigned
-     a fresh `unique_ptr` over its map entry, so every pointer `Get*` had handed
-     out dangled. Saving a level with derived terrain hit it every time, because
-     committing artwork saves the tileset. Six managers; each now has a test
-     that the address survives a save.
-
-   Still unwalked: the shape picker greying out with no terrain selected, and
-   watching the atlas grow mid-stroke -- which was impossible to check by
-   looking until the level editor grew the artwork readout, and is worth one
-   more pass now that it is there.
-
-Done in this phase: the manifest true-up (all four items, plus the shape range,
-which was replaced by naming the two shapes a unit cannot be rather than by
-deleting validation), the design-doc true-up, the merge to `main`, and
+Also done in this phase: the manifest true-up (all four items, plus the shape
+range, which was replaced by naming the two shapes a unit cannot be rather than
+by deleting validation), the design-doc true-up, the merge to `main`, and
 `lucinda_cave` shipped as a derived terrain.
-
-### Next
-
-**Layers.** The ordering phase `prop-artwork.md` §7 and the `sort_order` note
-below both point at: an ordered list of depth slices, each holding its own tile
-grid and its own entities. `Entity::sort_order` was shaped to become the
-within-layer tiebreaker rather than be renamed. The stated precondition was
-driving the terrain work in a live editor, and that walk is still only part
-done.
 
 Deletion is finished and needs nothing further. Its buttons went in behind the
 checks deliberately, so there was never a frame in which the editor could strand
 a reference.
 
-### Carried over from before this phase
+## What is left
 
-- **The Autumn Forest visual check.** Wall darkness became a bounded blend
-  toward the authored outline colour and the preset was retuned 1.8 -> 1.2.
-  Tests pin both endpoints; nothing automated can judge whether it looks right.
-- **`Create` blocks for seconds** with no progress indication. It still renders
-  all 47 masks per phase up front. The real fix is moving generation off the
-  render thread.
-- **`kSlope45*` names describe the taper end, not the right angle.**
-  `kTileShapeIdentifiers` is a tool contract that asset pipelines parse, so
-  renaming means changing that contract deliberately.
-
-### Deliberate limitations
-
-- **Slopes ignore `variant_period`.** A derived terrain's key carries the phase,
-  so this is fixed for derived artwork; a hand-drawn terrain still has one
-  drawing per slope shape whatever the period.
-- **Compaction does not exist**, per the fragmentation note above.
-- Phase 3's edge-detail limits remain: edge motifs inherit the material's
-  surface palette rather than owning a tint, and short/dry grass and snow favour
-  upward-facing edges while moss may continue onto walls. Neither should be
-  removed by overloading existing controls; a future edge palette or
-  facing-policy control should be explicit recipe state.
+In [`roadmap.md`](roadmap.md), which carries what this section used to: the
+terrain carry-overs, the layers phase, and the limitations this phase accepted
+on purpose. One of them is closed — the `kSlope45*` names now describe the tall
+side rather than the taper end.
 
 ---
 

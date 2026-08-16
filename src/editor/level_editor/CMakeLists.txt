@@ -259,6 +259,7 @@ add_library(terrain_palette_panel
 target_link_libraries(terrain_palette_panel
   api
   tileset
+  tile_shape_geometry
   terrain_placement
   imgui_scoped
   ${IMGUI_LIBRARIES}
