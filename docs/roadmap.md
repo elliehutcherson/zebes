@@ -10,8 +10,8 @@ decided and why. This document only says what has not happened yet.
 |---|---|---|
 | 0 | Land the clang-tidy tooling and the slope rename | **Done** |
 | 1 | The clang-tidy backlog | **Done** |
-| 2 | Repo hygiene | Next |
-| 3 | Terrain carry-overs | After 1-2 |
+| 2 | Repo hygiene | **Done** |
+| 3 | Terrain carry-overs | Next |
 | 4 | Features: layers, prop artwork, zone seaming | After 3 |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
@@ -99,12 +99,12 @@ merge gate.
 
 ---
 
-## Track 2 — Repo hygiene
+## Track 2 — Repo hygiene (done)
 
-`check_test.cc`, `test_issue.cc`, `test_output.txt` and `old/`
-(`level_panel.{h,cc}`, `level_panel_test.cc`, `rules-0.md`) are tracked in the
-repo root and are not part of the project. Confirm no `CMakeLists.txt` names
-them, then delete.
+The unreferenced root scratch files (`check_test.cc`, `test_issue.cc`, and
+`test_output.txt`), obsolete `old/` tree, and superseded `notes/prompts.txt`
+were removed. A repository `.ignore` keeps default searches out of vendored,
+generated, and non-normative trees without changing Git's tracking behavior.
 
 ---
 

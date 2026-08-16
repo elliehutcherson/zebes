@@ -35,15 +35,17 @@ The project bundles most dependencies in the `include/` directory, managed via C
 Build and run the affected C++ test executable while developing:
 
 ```bash
+./scripts/test.sh --list
 ./scripts/test.sh terrain_generator_test
 ./scripts/test.sh terrain_generator_test TerrainGeneratorTest.EverySlopeShapeRenders
 ./scripts/test.sh --ui sanity_test
 ```
 
-The first command runs the whole test executable; the second filters to one
-GoogleTest case. `--ui` selects the display-dependent preset. The helper
-configures the selected preset on first use and then builds only the requested
-target.
+The first command lists the available first-party C++ test targets. A target
+without a filter runs the whole test executable; an optional second argument
+filters to one GoogleTest case. `--ui` selects the display-dependent preset.
+The helper configures the selected preset on first use and then builds only the
+requested target.
 
 Lint edited translation units rather than the entire tree:
 

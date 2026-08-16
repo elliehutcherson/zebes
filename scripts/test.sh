@@ -7,14 +7,33 @@ PRESET="dev"
 Usage() {
   cat >&2 <<'EOF'
 Usage: scripts/test.sh [--ui] <test-target> [gtest-filter]
+       scripts/test.sh --list
 
 Build and run one C++ test executable. Examples:
+  scripts/test.sh --list
   scripts/test.sh terrain_generator_test
   scripts/test.sh terrain_generator_test TerrainGeneratorTest.EverySlopeShapeRenders
   scripts/test.sh --ui sanity_test
 EOF
   exit 2
 }
+
+ListTargets() {
+  find "${PROJECT_ROOT}/tests" -type f -name CMakeLists.txt -print0 |
+    while IFS= read -r -d '' cmake_file; do
+      sed -nE \
+        -e 's/^[[:space:]]*gtest_discover_tests\(([a-zA-Z0-9_+-]+).*/\1/p' \
+        -e 's/^[[:space:]]*add_test\(NAME[[:space:]]+([a-zA-Z0-9_+-]+).*/\1/p' \
+        "${cmake_file}"
+    done |
+    sort -u
+}
+
+if [[ "${1:-}" == "--list" ]]; then
+  [[ $# -eq 1 ]] || Usage
+  ListTargets
+  exit 0
+fi
 
 if [[ "${1:-}" == "--ui" ]]; then
   PRESET="ui"

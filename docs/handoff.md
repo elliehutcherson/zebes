@@ -1,10 +1,9 @@
 # Handoff
 
-## Current: casts and status assertions cleaned up; resume Track 1
+## Current: tooling and repository cleanup complete; resume Track 3
 
-As of 2026-08-16, PRs #1-4 and the next Track 1 cleanup group are on `main`.
-[`roadmap.md`](roadmap.md) remains the source of truth for sequencing; Track 0
-is done and Track 1 is in progress.
+As of 2026-08-16, [`roadmap.md`](roadmap.md) remains the source of truth for
+sequencing. Tracks 0-2 are complete; Track 3 is next.
 
 **What landed.**
 
@@ -33,34 +32,31 @@ is done and Track 1 is in progress.
    or `ASSERT_OK_AND_ASSIGN`; negative-path tests keep explicit status checks.
    The status-test macros have collision-resistant helper names and no header
    namespace diagnostics.
+9. The clang-tidy backlog is complete and CI enforces
+   `scripts/lint.sh --strict --all`.
+10. Repository hygiene removed the obsolete root scratch files, `old/` sources,
+   and superseded prompt rules. Default searches now exclude generated,
+   vendored, and non-normative trees, and `scripts/test.sh --list` discovers
+   focused C++ test targets.
 
 The repository is public. The workflow uses standard GitHub-hosted runners, not
 billable larger runners.
 
 ### Pick up here tomorrow
 
-Continue Track 1 with its three single-argument constructor decisions. Start by
-checking whether implicit conversion is used for `Api`, `Db`, or
-`CameraController`:
+Begin Track 3 with the Autumn Forest visual check. Build and launch the editor:
 
 ```bash
-rg -n '\b(Api|Db|CameraController)\b' src tests
-scripts/lint.sh src/api/api.cc src/db/db.cc src/engine/camera_controller.cc
+scripts/run_editor.sh
 ```
 
-Mark each constructor `explicit` unless a real conversion call site establishes
-that implicit construction is intentional. Keep `imgui_scoped.h`'s guard
-conversions implicit with documented `NOLINT`, as the roadmap records. Build the
-affected targets, run the narrowest relevant tests, then rerun focused lint and
-`git diff --check`.
+Inspect the wall-darkness result against the authored outline color and record
+whether the current 1.2 preset is visually acceptable. The next implementation
+item is moving terrain creation off the render thread; preserve the roadmap's
+decision to defer atlas compaction until real atlas growth justifies it.
 
 ### What remains
 
-- **Track 1:** 125 known clang-tidy findings after the completed virtual-default
-  and cast fixes: finish the small source groups and judgement calls, then the
-  GoogleTest-name sweep. Turn CI strict only after the tree is clean.
-- **Track 2:** confirm the root scratch files and `old/` are unreferenced, then
-  remove them.
 - **Track 3:** Autumn Forest visual check, move terrain creation off the render
   thread, and defer atlas compaction until real atlas growth justifies it.
 - **Track 4:** layers first, then prop artwork; parallax zone seaming is the

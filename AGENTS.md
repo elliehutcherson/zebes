@@ -19,6 +19,15 @@ Prefer code that:
 Diagnose failures from their logs and focused instrumentation. Do not permute
 syntax hoping for a fix or weaken an assertion to make a test pass.
 
+## Repository boundaries
+
+- First-party implementation and tests live under `src/`, `tests/`, `scripts/`,
+  and `cmake/`.
+- `include/` contains vendored submodules. Do not search or edit it unless the
+  task explicitly concerns a dependency; use `rg --no-ignore` for that case.
+- `build/` is generated output, and `notes/` contains non-normative research.
+  Neither is a source of project requirements.
+
 ## Editing and verification
 
 Use the native patch or edit tool for repository changes. Do not rewrite files
@@ -29,6 +38,7 @@ Do not run tests merely because a session started. During implementation, run
 the narrowest test that exercises the changed behavior:
 
 ```bash
+scripts/test.sh --list
 scripts/test.sh terrain_generator_test
 scripts/test.sh terrain_generator_test TerrainGeneratorTest.EverySlopeShapeRenders
 scripts/test.sh --ui sanity_test
@@ -42,10 +52,20 @@ or broad refactors, or when the user explicitly requests it. Use the focused
 `build_and_test.sh --ui-tests` when warranted. GitHub Actions is the
 comprehensive merge gate.
 
+Run `clang-format -i` on edited C++ source and header files before linting.
 Run clang-tidy on edited translation units with `scripts/lint.sh <file.cc>`.
 For a header, lint representative `.cc` files that include it. Reserve
 `scripts/lint.sh --all` for CI and explicit cleanup milestones; the command
 deliberately uses only two workers by default to limit heat and contention.
+
+## Code review rules
+
+- Domain and engine interfaces use Zebes-owned types. SDL and ImGui types stay
+  behind platform or editor adapters.
+- Serialized format changes require a migration and tests that load every
+  shipped definition.
+- Do not manually construct texture handles or retain them beyond their owning
+  resource store's lifetime.
 
 ## Project references
 

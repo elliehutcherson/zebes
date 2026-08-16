@@ -1,0 +1,7 @@
+# Keep default repository searches focused on first-party, current sources.
+# Use an explicit path with `rg --no-ignore` when dependency or archival work
+# genuinely requires one of these trees.
+/build/
+/include/
+/notes/
+/old/
