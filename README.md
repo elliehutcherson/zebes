@@ -83,6 +83,16 @@ separate preset:
 Or run the stages directly with `cmake --preset ui`,
 `cmake --build --preset ui`, and `ctest --preset ui`.
 
+CI uses the same UI-enabled build tree for every C++ test so it compiles the
+project only once, then runs the Python suite once:
+
+```bash
+./scripts/build_and_test.sh --all-tests-with-ui
+```
+
+This comprehensive form is intended for CI; normal local work should continue
+to use the focused commands above.
+
 For an optimized editor build without tests:
 
 ```bash

@@ -75,6 +75,14 @@
       "output": {
         "outputOnFailure": true
       }
+    },
+    {
+      "name": "ui-all",
+      "displayName": "All Tests with UI Support",
+      "configurePreset": "ui",
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }

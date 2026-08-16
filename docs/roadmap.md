@@ -8,18 +8,18 @@ decided and why. This document only says what has not happened yet.
 
 | Track | What | State |
 |---|---|---|
-| 0 | Land the clang-tidy tooling and the slope rename | **Done, except the merge** |
+| 0 | Land the clang-tidy tooling and the slope rename | **Done** |
 | 1 | The clang-tidy backlog | **In progress** |
 | 2 | Repo hygiene | Next |
 | 3 | Terrain carry-overs | After 1-2 |
 | 4 | Features: layers, prop artwork, zone seaming | After 3 |
 
-Track 0 is complete on branch `track0-lint-and-shape-names` and is not merged.
-That merge is the only item outstanding.
+Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
+the headless, SDL/ImGui, and Python suites from that single build.
 
 ---
 
-## Track 0 — Tooling and the slope rename (done, unmerged)
+## Track 0 — Tooling and the slope rename (done)
 
 clang-tidy runs through `scripts/lint.sh`. The wrapper finds the keg-only
 Homebrew LLVM installation, supplies the macOS SDK, and requires either named
