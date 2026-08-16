@@ -19,11 +19,19 @@ jobs:
     name: Full test suite
     runs-on: macos-latest
     timeout-minutes: 45
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPILERCHECK: content
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
-          submodules: recursive
+          # SDL_image and SDL_ttf use Homebrew libraries on macOS, so their
+          # nested vendored dependencies are not part of this build.
+          submodules: true
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -31,13 +39,28 @@ jobs:
           python-version: '3.12'
 
       - name: Install native dependencies
-        run: brew install llvm freetype libavif libtiff webp
+        run: brew install ccache llvm freetype libavif libtiff webp
+
+      - name: Restore compiler cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-v1-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Reset compiler cache statistics
+        run: ccache --zero-stats
 
       - name: Build once and run all tests
         run: ./scripts/build_and_test.sh --all-tests-with-ui
         env:
           SDL_VIDEODRIVER: dummy
           SDL_RENDER_DRIVER: software
+
+      - name: Report compiler cache statistics
+        if: ${{ always() }}
+        run: ccache --show-stats
 
   clang-tidy:
     name: Clang-tidy
@@ -47,7 +70,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
-          submodules: recursive
+          submodules: true
 
       - name: Install analysis dependencies
         run: brew install llvm freetype libavif libtiff webp
