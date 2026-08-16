@@ -66,6 +66,11 @@ jobs:
     name: Clang-tidy
     runs-on: macos-latest
     timeout-minutes: 45
+    # Standard GitHub-hosted ARM macOS runners provide three CPUs. Keep local
+    # full scans at lint.sh's heat-conscious two-worker default, but use the
+    # runner's full capacity in CI.
+    env:
+      LINT_JOBS: 3
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
