@@ -51,19 +51,19 @@ absl::StatusOr<TileShape> ShapeFromChar(char c) {
       return TileShape::kHalfBlockBottom;
     // 45-degree floor units. '/' rises to the right, '\' rises to the left.
     case '/':
-      return TileShape::kSlope45BottomLeft;
+      return TileShape::kSlope45FloorTallRight;
     case '\\':
-      return TileShape::kSlope45BottomRight;
+      return TileShape::kSlope45FloorTallLeft;
     // Gentle floor ramp rising to the right: the lower half leads.
     case 'a':
-      return TileShape::kGentleSlopeBottomLeftLower;
+      return TileShape::kGentleSlopeFloorTallRightLower;
     case 'b':
-      return TileShape::kGentleSlopeBottomLeftUpper;
+      return TileShape::kGentleSlopeFloorTallRightUpper;
     // Steep floor ramp rising to the right, stacked top over bottom.
     case 't':
-      return TileShape::kSteepSlopeBottomLeftTop;
+      return TileShape::kSteepSlopeFloorTallRightTop;
     case 'u':
-      return TileShape::kSteepSlopeBottomLeftBottom;
+      return TileShape::kSteepSlopeFloorTallRightBottom;
     default:
       return absl::InvalidArgumentError(
           absl::StrCat("unknown scene character '", std::string(1, c), "'"));

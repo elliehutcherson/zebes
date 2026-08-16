@@ -38,40 +38,44 @@ std::vector<TerrainShapeChoice> BuildCatalogue() {
       {TileShape::kHalfBlockLeft, "Half block, left", kHalfBlockGroup},
       {TileShape::kHalfBlockRight, "Half block, right", kHalfBlockGroup},
 
-      {TileShape::kSlope45BottomLeft, "45 floor, up to the right", kSlope45Group},
-      {TileShape::kSlope45BottomRight, "45 floor, up to the left", kSlope45Group},
-      {TileShape::kSlope45TopLeft, "45 ceiling, down to the right", kSlope45Group},
-      {TileShape::kSlope45TopRight, "45 ceiling, down to the left", kSlope45Group},
+      {TileShape::kSlope45FloorTallRight, "45 floor, up to the right", kSlope45Group},
+      {TileShape::kSlope45FloorTallLeft, "45 floor, up to the left", kSlope45Group},
+      {TileShape::kSlope45CeilingTallRight, "45 ceiling, down to the right", kSlope45Group},
+      {TileShape::kSlope45CeilingTallLeft, "45 ceiling, down to the left", kSlope45Group},
 
-      {TileShape::kGentleSlopeBottomLeftLower, "Gentle floor, up to the right, lower half",
+      {TileShape::kGentleSlopeFloorTallRightLower, "Gentle floor, up to the right, lower half",
        kGentleGroup},
-      {TileShape::kGentleSlopeBottomLeftUpper, "Gentle floor, up to the right, upper half",
+      {TileShape::kGentleSlopeFloorTallRightUpper, "Gentle floor, up to the right, upper half",
        kGentleGroup},
-      {TileShape::kGentleSlopeBottomRightLower, "Gentle floor, up to the left, lower half",
+      {TileShape::kGentleSlopeFloorTallLeftLower, "Gentle floor, up to the left, lower half",
        kGentleGroup},
-      {TileShape::kGentleSlopeBottomRightUpper, "Gentle floor, up to the left, upper half",
+      {TileShape::kGentleSlopeFloorTallLeftUpper, "Gentle floor, up to the left, upper half",
        kGentleGroup},
-      {TileShape::kGentleSlopeTopLeftLower, "Gentle ceiling, down to the right, lower half",
+      {TileShape::kGentleSlopeCeilingTallRightLower,
+       "Gentle ceiling, down to the right, lower half", kGentleGroup},
+      {TileShape::kGentleSlopeCeilingTallRightUpper,
+       "Gentle ceiling, down to the right, upper half", kGentleGroup},
+      {TileShape::kGentleSlopeCeilingTallLeftLower, "Gentle ceiling, down to the left, lower half",
        kGentleGroup},
-      {TileShape::kGentleSlopeTopLeftUpper, "Gentle ceiling, down to the right, upper half",
-       kGentleGroup},
-      {TileShape::kGentleSlopeTopRightLower, "Gentle ceiling, down to the left, lower half",
-       kGentleGroup},
-      {TileShape::kGentleSlopeTopRightUpper, "Gentle ceiling, down to the left, upper half",
+      {TileShape::kGentleSlopeCeilingTallLeftUpper, "Gentle ceiling, down to the left, upper half",
        kGentleGroup},
 
-      {TileShape::kSteepSlopeBottomLeftBottom, "Steep floor, up to the right, bottom cell",
+      {TileShape::kSteepSlopeFloorTallRightBottom, "Steep floor, up to the right, bottom cell",
        kSteepGroup},
-      {TileShape::kSteepSlopeBottomLeftTop, "Steep floor, up to the right, top cell", kSteepGroup},
-      {TileShape::kSteepSlopeBottomRightBottom, "Steep floor, up to the left, bottom cell",
+      {TileShape::kSteepSlopeFloorTallRightTop, "Steep floor, up to the right, top cell",
        kSteepGroup},
-      {TileShape::kSteepSlopeBottomRightTop, "Steep floor, up to the left, top cell", kSteepGroup},
-      {TileShape::kSteepSlopeTopLeftBottom, "Steep ceiling, down to the right, bottom cell",
+      {TileShape::kSteepSlopeFloorTallLeftBottom, "Steep floor, up to the left, bottom cell",
        kSteepGroup},
-      {TileShape::kSteepSlopeTopLeftTop, "Steep ceiling, down to the right, top cell", kSteepGroup},
-      {TileShape::kSteepSlopeTopRightBottom, "Steep ceiling, down to the left, bottom cell",
+      {TileShape::kSteepSlopeFloorTallLeftTop, "Steep floor, up to the left, top cell",
        kSteepGroup},
-      {TileShape::kSteepSlopeTopRightTop, "Steep ceiling, down to the left, top cell", kSteepGroup},
+      {TileShape::kSteepSlopeCeilingTallRightBottom,
+       "Steep ceiling, down to the right, bottom cell", kSteepGroup},
+      {TileShape::kSteepSlopeCeilingTallRightTop, "Steep ceiling, down to the right, top cell",
+       kSteepGroup},
+      {TileShape::kSteepSlopeCeilingTallLeftBottom, "Steep ceiling, down to the left, bottom cell",
+       kSteepGroup},
+      {TileShape::kSteepSlopeCeilingTallLeftTop, "Steep ceiling, down to the left, top cell",
+       kSteepGroup},
   };
 }
 
@@ -95,7 +99,7 @@ absl::flat_hash_set<TileShape> PaintableShapesOf(const Terrain& terrain, const T
   absl::flat_hash_set<TileShape> shapes;
 
   if (terrain.scheme == TerrainScheme::kDerived) {
-    for (int i = 1; i <= static_cast<int>(TileShape::kSteepSlopeTopRightTop); ++i) {
+    for (int i = 1; i <= static_cast<int>(TileShape::kSteepSlopeCeilingTallLeftTop); ++i) {
       shapes.insert(static_cast<TileShape>(i));
     }
     return shapes;

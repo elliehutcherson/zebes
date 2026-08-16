@@ -249,6 +249,54 @@ class MigrateDefinitionsTest(unittest.TestCase):
         terrains = json.loads(path.read_text(encoding="utf-8"))["terrains"]
         self.assertEqual(terrains[0]["derived_tiles"], [])
 
+    # A derived tile is named "<terrain> <shape identifier>", so the identifier
+    # spelling is data on disk, not just a C++ token. Both renames have to be
+    # reachable from one run: a tileset written before either one is still the
+    # oldest thing this migration has to move.
+    def test_a_tile_name_from_before_both_renames_arrives_current(self):
+        path = self.write_tileset(
+            "grass.json",
+            {
+                "id": "t",
+                "name": "Grass",
+                "texture_id": "x",
+                "tiles": [{"id": 1, "name": "grass kGentleSlopeBottomLeft_Lower", "shape": 10}],
+                "terrains": [],
+            },
+        )
+
+        migrate_definitions.migrate_directory(self.root, "tilesets", dry_run=False)
+
+        tiles = json.loads(path.read_text(encoding="utf-8"))["tiles"]
+        self.assertEqual(tiles[0]["name"], "grass kGentleSlopeFloorTallRightLower")
+        # The shape is a number and means what it always meant.
+        self.assertEqual(tiles[0]["shape"], 10)
+
+    def test_the_vocabulary_rename_maps_to_the_mirrored_side(self):
+        # kSlope45BottomLeft named the side the wedge tapered to nothing on;
+        # kSlope45FloorTallRight names the side at full height. Same shape,
+        # opposite word. Getting this backwards would mirror every ramp on disk,
+        # so it is pinned rather than left to the reader of the rename table.
+        path = self.write_tileset(
+            "grass.json",
+            {
+                "id": "t",
+                "name": "Grass",
+                "texture_id": "x",
+                "tiles": [
+                    {"id": 1, "name": "grass kSlope45BottomLeft", "shape": 6},
+                    {"id": 2, "name": "grass kSteepSlopeTopRightTop", "shape": 25},
+                ],
+                "terrains": [],
+            },
+        )
+
+        migrate_definitions.migrate_directory(self.root, "tilesets", dry_run=False)
+
+        tiles = json.loads(path.read_text(encoding="utf-8"))["tiles"]
+        self.assertEqual(tiles[0]["name"], "grass kSlope45FloorTallRight")
+        self.assertEqual(tiles[1]["name"], "grass kSteepSlopeCeilingTallLeftTop")
+
     def test_a_current_tileset_is_left_alone(self):
         self.write_tileset(
             "grass.json",

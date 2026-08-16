@@ -283,7 +283,7 @@ TEST_F(TerrainPalettePanelTest, AShapeTheNewTerrainCannotPaintIsNotLeftSelected)
   // choice the user never made.
   tileset_.tiles = {
       Tile{.id = 7, .name = "solid", .shape = TileShape::kFullBlock},
-      Tile{.id = 8, .name = "ramp", .shape = TileShape::kSlope45BottomLeft},
+      Tile{.id = 8, .name = "ramp", .shape = TileShape::kSlope45FloorTallRight},
   };
   Terrain slopes = MakeTerrain(3, "Grass", 7);
   slopes.shape_tile_ids = {8};
@@ -292,7 +292,7 @@ TEST_F(TerrainPalettePanelTest, AShapeTheNewTerrainCannotPaintIsNotLeftSelected)
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
   ASSERT_TRUE(Render().ok());
 
-  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSlope45BottomLeft);
+  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSlope45FloorTallRight);
   // A terrain with only block artwork replaces it.
   tileset_.terrains = {MakeTerrain(3, "Grass", 7)};
 
@@ -314,11 +314,11 @@ TEST_F(TerrainPalettePanelTest, ADerivedTerrainOffersShapesItHasNoArtworkForYet)
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
   ASSERT_TRUE(Render().ok());
 
-  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSteepSlopeTopRightTop);
+  TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSteepSlopeCeilingTallLeftTop);
 
   ASSERT_TRUE(Render().ok());
 
-  EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kSteepSlopeTopRightTop)
+  EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kSteepSlopeCeilingTallLeftTop)
       << "a derived terrain can render any shape, so none should be stranded";
 }
 

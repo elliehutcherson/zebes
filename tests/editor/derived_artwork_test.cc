@@ -45,13 +45,13 @@ TileShape ShapeFromChar(char c) {
     case '#':
       return TileShape::kFullBlock;
     case '/':
-      return TileShape::kSlope45BottomLeft;
+      return TileShape::kSlope45FloorTallRight;
     case '\\':
-      return TileShape::kSlope45BottomRight;
+      return TileShape::kSlope45FloorTallLeft;
     case 'a':
-      return TileShape::kGentleSlopeBottomLeftLower;
+      return TileShape::kGentleSlopeFloorTallRightLower;
     case 'b':
-      return TileShape::kGentleSlopeBottomLeftUpper;
+      return TileShape::kGentleSlopeFloorTallRightUpper;
     case 'h':
       return TileShape::kHalfBlockBottom;
     default:

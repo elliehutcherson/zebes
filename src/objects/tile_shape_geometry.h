@@ -21,20 +21,21 @@ struct TilePoint {
 // terrain and the overlay that visualizes it must read their polygon from here,
 // or they will disagree with no test able to notice.
 //
-// NAMING. The enumerator names describe the wedge, not its right angle:
+// NAMING. Two words locate the wedge:
 //
-//   Bottom / Top   which tile edge the solid mass hugs. Bottom is ground you
-//                  walk on; Top is a ceiling.
-//   Left / Right   the side the wedge tapers to zero thickness on -- the low
-//                  end of the slope surface. The right angle therefore sits at
-//                  the opposite horizontal corner, so kSlope45BottomLeft is the
-//                  "/|" triangle: thin at the left, right-angled at the
-//                  bottom-right.
+//   Floor / Ceiling      which tile edge the solid mass hugs. Floor is ground
+//                        you walk on; Ceiling is overhead.
+//   TallLeft / TallRight the side where the solid reaches full tile height. The
+//                        wedge tapers toward the other side, so
+//                        kSlope45FloorTallRight is the "/|" triangle: thin at
+//                        the left, full height at the right.
 //
-// Ceiling shapes are exact vertical mirrors of their floor counterparts. For
-// the two-tile steep families the mirror also swaps the halves, since flipping
-// a 1x2 unit turns its lower tile into its upper one: kSteepSlopeTopLeftBottom
-// mirrors kSteepSlopeBottomLeftTop, not ..._Bottom.
+// Ceiling shapes are exact vertical mirrors of their floor counterparts and
+// keep the same direction word, because mirroring a shape vertically does not
+// move which side is tall. For the two-tile steep families the mirror also
+// swaps the halves, since flipping a 1x2 unit turns its lower tile into its
+// upper one: kSteepSlopeCeilingTallRightBottom mirrors
+// kSteepSlopeFloorTallRightTop, not ...Bottom.
 //
 // kNone yields an empty span.
 inline absl::Span<const TilePoint> TileShapePolygon(TileShape shape) {
@@ -66,87 +67,87 @@ inline absl::Span<const TilePoint> TileShapePolygon(TileShape shape) {
     }
 
     // --- 45-degree slopes (1:1) ---
-    case TileShape::kSlope45BottomLeft: {
+    case TileShape::kSlope45FloorTallRight: {
       static constexpr TilePoint kPoly[] = {{0, 1}, {1, 0}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kSlope45BottomRight: {
+    case TileShape::kSlope45FloorTallLeft: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kSlope45TopLeft: {
+    case TileShape::kSlope45CeilingTallRight: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kSlope45TopRight: {
+    case TileShape::kSlope45CeilingTallLeft: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {0, 1}};
       return kPoly;
     }
 
     // --- Gentle slopes (2:1). Lower spans heights 0 to 1/2, Upper 1/2 to 1. ---
-    case TileShape::kGentleSlopeBottomLeftLower: {
+    case TileShape::kGentleSlopeFloorTallRightLower: {
       static constexpr TilePoint kPoly[] = {{0, 1}, {1, .5f}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeBottomLeftUpper: {
+    case TileShape::kGentleSlopeFloorTallRightUpper: {
       static constexpr TilePoint kPoly[] = {{0, .5f}, {1, 0}, {1, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeBottomRightLower: {
+    case TileShape::kGentleSlopeFloorTallLeftLower: {
       static constexpr TilePoint kPoly[] = {{0, .5f}, {1, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeBottomRightUpper: {
+    case TileShape::kGentleSlopeFloorTallLeftUpper: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, .5f}, {1, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeTopLeftLower: {
+    case TileShape::kGentleSlopeCeilingTallRightLower: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {1, .5f}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeTopLeftUpper: {
+    case TileShape::kGentleSlopeCeilingTallRightUpper: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {1, 1}, {0, .5f}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeTopRightLower: {
+    case TileShape::kGentleSlopeCeilingTallLeftLower: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {0, .5f}};
       return kPoly;
     }
-    case TileShape::kGentleSlopeTopRightUpper: {
+    case TileShape::kGentleSlopeCeilingTallLeftUpper: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {1, .5f}, {0, 1}};
       return kPoly;
     }
 
     // --- Steep slopes (1:2). Bottom rests on the ground, Top stacks above. ---
-    case TileShape::kSteepSlopeBottomLeftBottom: {
+    case TileShape::kSteepSlopeFloorTallRightBottom: {
       static constexpr TilePoint kPoly[] = {{0, 1}, {.5f, 0}, {1, 0}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeBottomLeftTop: {
+    case TileShape::kSteepSlopeFloorTallRightTop: {
       static constexpr TilePoint kPoly[] = {{.5f, 1}, {1, 0}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeBottomRightBottom: {
+    case TileShape::kSteepSlopeFloorTallLeftBottom: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {.5f, 0}, {1, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeBottomRightTop: {
+    case TileShape::kSteepSlopeFloorTallLeftTop: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {.5f, 1}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeTopLeftBottom: {
+    case TileShape::kSteepSlopeCeilingTallRightBottom: {
       static constexpr TilePoint kPoly[] = {{.5f, 0}, {1, 0}, {1, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeTopLeftTop: {
+    case TileShape::kSteepSlopeCeilingTallRightTop: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {1, 1}, {.5f, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeTopRightBottom: {
+    case TileShape::kSteepSlopeCeilingTallLeftBottom: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {.5f, 0}, {0, 1}};
       return kPoly;
     }
-    case TileShape::kSteepSlopeTopRightTop: {
+    case TileShape::kSteepSlopeCeilingTallLeftTop: {
       static constexpr TilePoint kPoly[] = {{0, 0}, {1, 0}, {.5f, 1}, {0, 1}};
       return kPoly;
     }

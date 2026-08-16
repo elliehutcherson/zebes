@@ -191,12 +191,14 @@ As with the quadrants, you draw them in the atlas and name their cells. The
 ```bash
 build/dev/bin/compose_blob47 slopes assets/source_art/pixel_32px.png 32 \
   build/grass_slopes.png \
-  --tile kSlope45BottomLeft=10,11 \
-  --tile kSlope45BottomRight=12,11
+  --tile kSlope45FloorTallRight=10,11 \
+  --tile kSlope45FloorTallLeft=12,11
 ```
 
 Shape names are the `TileShape` enumerators, so a typo fails loudly instead of
-landing in the wrong column. Unnamed shapes stay transparent and are skipped, so
+landing in the wrong column. `FloorTallRight` is the ramp you walk up going
+right: "Floor"/"Ceiling" is the edge the solid mass hugs, and "Tall" names the
+side that reaches full tile height. Unnamed shapes stay transparent and are skipped, so
 gentle 2:1 and steep 1:2 variants can be added later without any code change.
 Pass the sheet to `compose`:
 

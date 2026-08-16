@@ -86,6 +86,58 @@ SLOPE_IDENTIFIER_RENAMES = {
     "kSteepSlopeTopRight_Top": "kSteepSlopeTopRightTop",
 }
 
+# The slope vocabulary then changed meaning, not just spelling. A name used to
+# say which side the wedge tapered away on; it now says which side reaches full
+# tile height, which is the opposite side. So kSlope45BottomLeft and
+# kSlope45FloorTallRight are the same shape.
+#
+# The new names deliberately share no spelling with the old ones. Had the rename
+# reused them -- kSlope45BottomLeft coming to mean what kSlope45BottomRight
+# meant -- a definition that escaped this migration would have loaded as the
+# mirrored shape in silence, since the numeric `shape` field is untouched and
+# TileShapeFromIdentifier would still have resolved it. Sharing no spelling
+# makes a missed file fail the lookup instead.
+#
+# Applied after SLOPE_IDENTIFIER_RENAMES, so a definition from either earlier
+# era arrives at the current names in one pass.
+SLOPE_VOCABULARY_RENAMES = {
+    "kSlope45BottomLeft": "kSlope45FloorTallRight",
+    "kSlope45BottomRight": "kSlope45FloorTallLeft",
+    "kSlope45TopLeft": "kSlope45CeilingTallRight",
+    "kSlope45TopRight": "kSlope45CeilingTallLeft",
+    "kGentleSlopeBottomLeftLower": "kGentleSlopeFloorTallRightLower",
+    "kGentleSlopeBottomLeftUpper": "kGentleSlopeFloorTallRightUpper",
+    "kGentleSlopeBottomRightLower": "kGentleSlopeFloorTallLeftLower",
+    "kGentleSlopeBottomRightUpper": "kGentleSlopeFloorTallLeftUpper",
+    "kGentleSlopeTopLeftLower": "kGentleSlopeCeilingTallRightLower",
+    "kGentleSlopeTopLeftUpper": "kGentleSlopeCeilingTallRightUpper",
+    "kGentleSlopeTopRightLower": "kGentleSlopeCeilingTallLeftLower",
+    "kGentleSlopeTopRightUpper": "kGentleSlopeCeilingTallLeftUpper",
+    "kSteepSlopeBottomLeftBottom": "kSteepSlopeFloorTallRightBottom",
+    "kSteepSlopeBottomLeftTop": "kSteepSlopeFloorTallRightTop",
+    "kSteepSlopeBottomRightBottom": "kSteepSlopeFloorTallLeftBottom",
+    "kSteepSlopeBottomRightTop": "kSteepSlopeFloorTallLeftTop",
+    "kSteepSlopeTopLeftBottom": "kSteepSlopeCeilingTallRightBottom",
+    "kSteepSlopeTopLeftTop": "kSteepSlopeCeilingTallRightTop",
+    "kSteepSlopeTopRightBottom": "kSteepSlopeCeilingTallLeftBottom",
+    "kSteepSlopeTopRightTop": "kSteepSlopeCeilingTallLeftTop",
+}
+
+
+def _rename_shape_identifiers(name: str) -> str:
+    """Brings one tile name onto the current slope identifiers.
+
+    Era order matters: the underscore map first, so a name from before either
+    rename reaches the current spelling in one pass. Within an era no key is a
+    prefix of another, so order there is free; longest-first anyway, because the
+    day someone adds a key that is a prefix the failure would be a silently
+    mangled tail rather than an error.
+    """
+    for renames in (SLOPE_IDENTIFIER_RENAMES, SLOPE_VOCABULARY_RENAMES):
+        for old in sorted(renames, key=len, reverse=True):
+            name = name.replace(old, renames[old])
+    return name
+
 
 def migrate_tileset(document: dict) -> bool:
     """Materialises collections that used to be omitted when empty, and brings
@@ -97,9 +149,7 @@ def migrate_tileset(document: dict) -> bool:
     """
     changed = False
     for tile in document.get("tiles", []):
-        name = tile["name"]
-        for old, new in SLOPE_IDENTIFIER_RENAMES.items():
-            name = name.replace(old, new)
+        name = _rename_shape_identifiers(tile["name"])
         if name != tile["name"]:
             tile["name"] = name
             changed = True

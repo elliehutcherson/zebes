@@ -14,7 +14,7 @@ using ::testing::Not;
 
 absl::flat_hash_set<TileShape> EveryShape() {
   absl::flat_hash_set<TileShape> shapes;
-  for (int i = 1; i <= static_cast<int>(TileShape::kSteepSlopeTopRightTop); ++i) {
+  for (int i = 1; i <= static_cast<int>(TileShape::kSteepSlopeCeilingTallLeftTop); ++i) {
     shapes.insert(static_cast<TileShape>(i));
   }
   return shapes;
@@ -39,7 +39,7 @@ TEST(TerrainPlacementTest, EveryShapeIsOfferedExactlyOnce) {
         << kTileShapeIdentifiers[static_cast<size_t>(choice.shape)] << " is offered twice";
   }
 
-  for (int i = 1; i <= static_cast<int>(TileShape::kSteepSlopeTopRightTop); ++i) {
+  for (int i = 1; i <= static_cast<int>(TileShape::kSteepSlopeCeilingTallLeftTop); ++i) {
     EXPECT_TRUE(offered.contains(static_cast<TileShape>(i)))
         << kTileShapeIdentifiers[i] << " cannot be painted";
   }
@@ -71,8 +71,8 @@ TEST(TerrainPlacementTest, ATerrainWithOnlyBlocksOffersOnlyTheBlock) {
 }
 
 TEST(TerrainPlacementTest, AShapeWithNoArtworkIsNotOffered) {
-  const std::vector<std::string> names =
-      NamesOf(ShapeChoicesWithin({TileShape::kFullBlock, TileShape::kGentleSlopeBottomLeftLower}));
+  const std::vector<std::string> names = NamesOf(
+      ShapeChoicesWithin({TileShape::kFullBlock, TileShape::kGentleSlopeFloorTallRightLower}));
 
   EXPECT_THAT(names, Contains("Gentle floor, up to the right, lower half"));
   EXPECT_THAT(names, Not(Contains("Gentle floor, up to the right, upper half")));

@@ -391,8 +391,8 @@ TEST(TerrainGeneratorTest, SlopeArtworkFollowsItsPolygonExactly) {
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/1));
   ASSERT_OK(renderer);
 
-  const absl::StatusOr<RgbaImage> tile =
-      renderer->RenderShapeTileInContext(TileShape::kSlope45BottomLeft, InOpenAir(), /*variant=*/0);
+  const absl::StatusOr<RgbaImage> tile = renderer->RenderShapeTileInContext(
+      TileShape::kSlope45FloorTallRight, InOpenAir(), /*variant=*/0);
   ASSERT_OK(tile);
 
   // Solid below the hypotenuse running from the bottom-left to the top-right,
@@ -421,9 +421,9 @@ TEST(TerrainGeneratorTest, SlopesBlendTowardTheirUpwardOrDownwardSurfaceDepth) {
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
   ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> floor =
-      renderer->RenderShapeTileInContext(TileShape::kSlope45BottomLeft, InOpenAir(), 0);
+      renderer->RenderShapeTileInContext(TileShape::kSlope45FloorTallRight, InOpenAir(), 0);
   const absl::StatusOr<RgbaImage> ceiling =
-      renderer->RenderShapeTileInContext(TileShape::kSlope45TopLeft, InOpenAir(), 0);
+      renderer->RenderShapeTileInContext(TileShape::kSlope45CeilingTallRight, InOpenAir(), 0);
   ASSERT_OK(floor);
   ASSERT_OK(ceiling);
 

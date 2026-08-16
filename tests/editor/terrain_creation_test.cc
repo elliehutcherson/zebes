@@ -292,9 +292,9 @@ TEST_F(RecipeTerrainCreationTest, RegenerationRedrawsTilesAddedAfterGeneration) 
   terrain.derived_tiles.push_back(DerivedTile{.tile_id = 1, .key = buried});
 
   tileset.tiles.push_back(
-      Tile{.id = 2, .name = "ledge", .source_y = 8, .shape = TileShape::kSlope45BottomLeft});
+      Tile{.id = 2, .name = "ledge", .source_y = 8, .shape = TileShape::kSlope45FloorTallRight});
   TerrainCellKey ledge;
-  ledge.shape = TileShape::kSlope45BottomLeft;
+  ledge.shape = TileShape::kSlope45FloorTallRight;
   ledge.neighbors.fill(TileShape::kNone);
   ledge.neighbors[4] = TileShape::kFullBlock;
   terrain.derived_tiles.push_back(DerivedTile{.tile_id = 2, .key = ledge});

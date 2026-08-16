@@ -12,33 +12,38 @@ namespace {
 
 // Display strings for TileShape, indexed by numeric value (0..25).
 // Must stay in sync with the TileShape enum in src/objects/tileset.h.
+//
+// Phrased the same way as the terrain palette's catalogue
+// (terrain/terrain_placement.cc), because both panels name the same shapes and
+// two vocabularies for one set of wedges is how a designer picks the mirror of
+// what they wanted.
 constexpr const char* kTileShapeNames[] = {
-    "None",                   // 0  kNone
-    "Full Block",             // 1  kFullBlock
-    "Half Block Bottom",      // 2  kHalfBlockBottom
-    "Half Block Top",         // 3  kHalfBlockTop
-    "Half Block Left",        // 4  kHalfBlockLeft
-    "Half Block Right",       // 5  kHalfBlockRight
-    "Slope 45 Bottom-Left",   // 6  kSlope45BottomLeft
-    "Slope 45 Bottom-Right",  // 7  kSlope45BottomRight
-    "Slope 45 Top-Left",      // 8  kSlope45TopLeft
-    "Slope 45 Top-Right",     // 9  kSlope45TopRight
-    "Gentle Slope BL Lower",  // 10 kGentleSlopeBottomLeftLower
-    "Gentle Slope BL Upper",  // 11 kGentleSlopeBottomLeftUpper
-    "Gentle Slope BR Lower",  // 12 kGentleSlopeBottomRightLower
-    "Gentle Slope BR Upper",  // 13 kGentleSlopeBottomRightUpper
-    "Gentle Slope TL Lower",  // 14 kGentleSlopeTopLeftLower
-    "Gentle Slope TL Upper",  // 15 kGentleSlopeTopLeftUpper
-    "Gentle Slope TR Lower",  // 16 kGentleSlopeTopRightLower
-    "Gentle Slope TR Upper",  // 17 kGentleSlopeTopRightUpper
-    "Steep Slope BL Bottom",  // 18 kSteepSlopeBottomLeftBottom
-    "Steep Slope BL Top",     // 19 kSteepSlopeBottomLeftTop
-    "Steep Slope BR Bottom",  // 20 kSteepSlopeBottomRightBottom
-    "Steep Slope BR Top",     // 21 kSteepSlopeBottomRightTop
-    "Steep Slope TL Bottom",  // 22 kSteepSlopeTopLeftBottom
-    "Steep Slope TL Top",     // 23 kSteepSlopeTopLeftTop
-    "Steep Slope TR Bottom",  // 24 kSteepSlopeTopRightBottom
-    "Steep Slope TR Top",     // 25 kSteepSlopeTopRightTop
+    "None",                                    // 0  kNone
+    "Full Block",                              // 1  kFullBlock
+    "Half Block Bottom",                       // 2  kHalfBlockBottom
+    "Half Block Top",                          // 3  kHalfBlockTop
+    "Half Block Left",                         // 4  kHalfBlockLeft
+    "Half Block Right",                        // 5  kHalfBlockRight
+    "45 floor, up right",                      // 6  kSlope45FloorTallRight
+    "45 floor, up left",                       // 7  kSlope45FloorTallLeft
+    "45 ceiling, down right",                  // 8  kSlope45CeilingTallRight
+    "45 ceiling, down left",                   // 9  kSlope45CeilingTallLeft
+    "Gentle floor, up right, lower half",      // 10 kGentleSlopeFloorTallRightLower
+    "Gentle floor, up right, upper half",      // 11 kGentleSlopeFloorTallRightUpper
+    "Gentle floor, up left, lower half",       // 12 kGentleSlopeFloorTallLeftLower
+    "Gentle floor, up left, upper half",       // 13 kGentleSlopeFloorTallLeftUpper
+    "Gentle ceiling, down right, lower half",  // 14 kGentleSlopeCeilingTallRightLower
+    "Gentle ceiling, down right, upper half",  // 15 kGentleSlopeCeilingTallRightUpper
+    "Gentle ceiling, down left, lower half",   // 16 kGentleSlopeCeilingTallLeftLower
+    "Gentle ceiling, down left, upper half",   // 17 kGentleSlopeCeilingTallLeftUpper
+    "Steep floor, up right, bottom cell",      // 18 kSteepSlopeFloorTallRightBottom
+    "Steep floor, up right, top cell",         // 19 kSteepSlopeFloorTallRightTop
+    "Steep floor, up left, bottom cell",       // 20 kSteepSlopeFloorTallLeftBottom
+    "Steep floor, up left, top cell",          // 21 kSteepSlopeFloorTallLeftTop
+    "Steep ceiling, down right, bottom cell",  // 22 kSteepSlopeCeilingTallRightBottom
+    "Steep ceiling, down right, top cell",     // 23 kSteepSlopeCeilingTallRightTop
+    "Steep ceiling, down left, bottom cell",   // 24 kSteepSlopeCeilingTallLeftBottom
+    "Steep ceiling, down left, top cell",      // 25 kSteepSlopeCeilingTallLeftTop
 };
 constexpr int kTileShapeCount = static_cast<int>(std::size(kTileShapeNames));
 

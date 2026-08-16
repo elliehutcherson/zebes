@@ -23,7 +23,7 @@ TEST(TerrainCellKeyTest, KeysDifferingOnlyInANeighboursShapeAreDistinct) {
   // drawing.
   TerrainCellKey with_block = GroundKey();
   TerrainCellKey with_ramp = GroundKey();
-  with_ramp.neighbors[2] = TileShape::kSlope45BottomLeft;
+  with_ramp.neighbors[2] = TileShape::kSlope45FloorTallRight;
 
   EXPECT_NE(with_block, with_ramp);
   EXPECT_NE(absl::HashOf(with_block), absl::HashOf(with_ramp));
@@ -41,7 +41,7 @@ TEST(TerrainCellKeyTest, KeysAreUsableAsHashTableEntries) {
   absl::flat_hash_set<TerrainCellKey> keys;
 
   TerrainCellKey ramp = GroundKey();
-  ramp.shape = TileShape::kSlope45BottomLeft;
+  ramp.shape = TileShape::kSlope45FloorTallRight;
 
   EXPECT_TRUE(keys.insert(GroundKey()).second);
   EXPECT_TRUE(keys.insert(ramp).second);
@@ -56,7 +56,7 @@ TEST(TerrainCellKeyTest, TheMaskProjectionMatchesTheOldSchemesQuestion) {
   TerrainCellKey key = GroundKey();
   key.neighbors.fill(TileShape::kNone);
   key.neighbors[0] = TileShape::kFullBlock;
-  key.neighbors[2] = TileShape::kSlope45BottomLeft;
+  key.neighbors[2] = TileShape::kSlope45FloorTallRight;
 
   EXPECT_EQ(NeighborMaskOf(key), kNorth | kEast);
 }
@@ -71,13 +71,13 @@ TEST(TerrainCellKeyTest, AnAllAirNeighbourhoodProjectsToAnEmptyMask) {
 
 TEST(TerrainCellKeyTest, DebugStringNamesShapesRatherThanNumbers) {
   TerrainCellKey key = GroundKey();
-  key.shape = TileShape::kSlope45BottomLeft;
-  key.neighbors[4] = TileShape::kGentleSlopeBottomLeftUpper;
+  key.shape = TileShape::kSlope45FloorTallRight;
+  key.neighbors[4] = TileShape::kGentleSlopeFloorTallRightUpper;
 
   const std::string described = DebugString(key);
 
-  EXPECT_THAT(described, HasSubstr("kSlope45BottomLeft"));
-  EXPECT_THAT(described, HasSubstr("kGentleSlopeBottomLeftUpper"));
+  EXPECT_THAT(described, HasSubstr("kSlope45FloorTallRight"));
+  EXPECT_THAT(described, HasSubstr("kGentleSlopeFloorTallRightUpper"));
 }
 
 }  // namespace
