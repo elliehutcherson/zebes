@@ -9,7 +9,7 @@ decided and why. This document only says what has not happened yet.
 | Track | What | State |
 |---|---|---|
 | 0 | Land the clang-tidy tooling and the slope rename | **Done, except the merge** |
-| 1 | The clang-tidy backlog | Next |
+| 1 | The clang-tidy backlog | **In progress** |
 | 2 | Repo hygiene | Next |
 | 3 | Terrain carry-overs | After 1-2 |
 | 4 | Features: layers, prop artwork, zone seaming | After 3 |
@@ -54,14 +54,15 @@ shape in silence, since the numeric `shape` field is untouched and
 
 ## Track 1 — The clang-tidy backlog
 
-Measured with vendored code excluded and repeated diagnostics deduplicated by
-location and check: **220 findings in `src/`, 86 in `tests/`**. Re-measure with
-`scripts/lint.sh --all`; its raw output can repeat a header finding for multiple
-translation units.
+The baseline, with vendored code excluded and repeated diagnostics deduplicated
+by location and check, was **220 findings in `src/`, 86 in `tests/`**. Removing
+the 153 virtual-default findings leaves **153 known findings**. Re-measure at
+the end of each group with `scripts/lint.sh --all`; its raw output can repeat a
+header finding for multiple translation units.
 
 | Count | Check | Where |
 |---|---|---|
-| 153 | `google-default-arguments` | `editor/gui_interface.h`, `gui.h`, `gui.cc` — 51 each |
+| 153 | `google-default-arguments` | **Done** — `gui_interface.h`, `gui.h`, `gui.cc` |
 | 28 | `google-readability-casting` | `sprite_editor.cc` 15, `canvas_sprite.cc` 10, `canvas.cc` 2 |
 | 13 | `google-explicit-constructor` | `imgui_scoped.h` 10, `camera_controller.h`, `db.h`, `api.h` |
 | 9 | `readability-identifier-naming` | `terrain_motifs.cc` 8, `sprite_editor.cc` 1 |
@@ -69,13 +70,13 @@ translation units.
 | 5 | `readability-convert-member-functions-to-static` | spread across the editor |
 | 6 | runtime-float / runtime-int / todo | `viewport_model.cc` 4, two others |
 
-**1. `GuiInterface`'s virtual defaults (153).** The one item here that is a
-defect rather than a cleanup. A default argument on a virtual method binds
-statically to the declared type, so a call through `GuiInterface&` and a call
-through `Gui&` can pass different values for the same omitted argument. `MockGui`
-is what makes that reachable: tests observe the interface, the editor calls the
-concrete type. Fix by hoisting each default into a non-virtual overload that
-forwards to a full-arity virtual, which also shrinks what a mock implements.
+**1. `GuiInterface`'s virtual defaults (153) — done.** A default argument on a
+virtual method binds statically to the declared type, so a call through
+`GuiInterface&` and a call through `Gui&` could pass different values for the
+same omitted argument. Defaults now live in non-virtual convenience overloads
+that forward to full-arity virtual methods. A regression test exercises the
+forwarding through `GuiInterface&`, and a compile-time check keeps the same
+convenience surface on concrete `Gui`.
 
 **2. Mechanical (45).** C-style casts, braces, static members, int and float
 widths. One commit per file group.
