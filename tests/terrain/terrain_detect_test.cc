@@ -30,7 +30,7 @@ QuadrantSheet MakeSheet(int variant_count) {
 
 std::string ManifestFor(int variant_count) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(variant_count));
-  EXPECT_TRUE(atlas.ok()) << atlas.status();
+  EXPECT_OK(atlas);
   return WriteBlob47Manifest(*atlas);
 }
 
@@ -66,7 +66,7 @@ Tileset MakeBlockTileset(int origin_column, int origin_row, int variant_count,
 TEST(TerrainDetectTest, ImportCreatesOneTilePerManifestCell) {
   absl::StatusOr<TerrainCandidate> candidate =
       ImportBlob47Manifest(ManifestFor(1), /*first_tile_id=*/1, /*terrain_id=*/1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
 
   EXPECT_EQ(candidate->tiles.size(), kBlob47TileCount);
   EXPECT_EQ(candidate->terrain.rules.size(), kBlob47TileCount);
@@ -76,7 +76,7 @@ TEST(TerrainDetectTest, ImportCreatesOneTilePerManifestCell) {
 TEST(TerrainDetectTest, ImportAssignsSequentialTileIdsFromTheGivenStart) {
   absl::StatusOr<TerrainCandidate> candidate =
       ImportBlob47Manifest(ManifestFor(1), /*first_tile_id=*/100, /*terrain_id=*/3);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
 
   EXPECT_EQ(candidate->terrain.id, 3);
   for (int i = 0; i < kBlob47TileCount; ++i) {
@@ -87,7 +87,7 @@ TEST(TerrainDetectTest, ImportAssignsSequentialTileIdsFromTheGivenStart) {
 TEST(TerrainDetectTest, ImportCoversEveryMaskInTheTable) {
   absl::StatusOr<TerrainCandidate> candidate =
       ImportBlob47Manifest(ManifestFor(1), /*first_tile_id=*/1, /*terrain_id=*/1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
 
   std::set<uint8_t> rule_masks;
   for (const TerrainRule& rule : candidate->terrain.rules) {
@@ -105,7 +105,7 @@ TEST(TerrainDetectTest, ImportCoversEveryMaskInTheTable) {
 TEST(TerrainDetectTest, ImportGroupsVariantsUnderOneRulePerMask) {
   absl::StatusOr<TerrainCandidate> candidate =
       ImportBlob47Manifest(ManifestFor(3), /*first_tile_id=*/1, /*terrain_id=*/1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
 
   EXPECT_EQ(candidate->tiles.size(), static_cast<size_t>(kBlob47TileCount) * 3);
   ASSERT_EQ(candidate->terrain.rules.size(), kBlob47TileCount);
@@ -118,7 +118,7 @@ TEST(TerrainDetectTest, ImportTilesPointAtTheManifestSourceRects) {
   const std::string manifest = ManifestFor(1);
   absl::StatusOr<TerrainCandidate> candidate =
       ImportBlob47Manifest(manifest, /*first_tile_id=*/1, /*terrain_id=*/1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
 
   // Index 0 sits at the atlas origin; index 8 begins the second row.
   EXPECT_EQ(candidate->tiles[0].source_x, 0);
@@ -144,7 +144,7 @@ TEST(TerrainDetectTest, ImportCarriesTheVariantPeriodOntoTheTerrain) {
   json["variant_period"] = 2;
 
   absl::StatusOr<TerrainCandidate> candidate = ImportBlob47Manifest(json.dump(), 1, 1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
   EXPECT_EQ(candidate->terrain.variant_period, 2);
 }
 
@@ -216,7 +216,7 @@ SlopeSheet MakeSlopeSheet() {
 std::string ManifestWithSlopes() {
   SlopeSheet slopes = MakeSlopeSheet();
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1), &slopes);
-  EXPECT_TRUE(atlas.ok()) << atlas.status();
+  EXPECT_OK(atlas);
   return WriteBlob47Manifest(*atlas);
 }
 
@@ -225,7 +225,7 @@ std::string ManifestWithSlopes() {
 TEST(TerrainDetectTest, ImportRegistersSlopesAsTerrainMembers) {
   absl::StatusOr<TerrainCandidate> candidate =
       ImportBlob47Manifest(ManifestWithSlopes(), /*first_tile_id=*/1, /*terrain_id=*/1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
 
   EXPECT_EQ(candidate->tiles.size(), kBlob47TileCount + 2);
   ASSERT_EQ(candidate->terrain.shape_tile_ids.size(), 2u);
@@ -243,7 +243,7 @@ TEST(TerrainDetectTest, ImportRegistersSlopesAsTerrainMembers) {
 TEST(TerrainDetectTest, ImportedSlopesCarryTheirTileShape) {
   absl::StatusOr<TerrainCandidate> candidate =
       ImportBlob47Manifest(ManifestWithSlopes(), /*first_tile_id=*/1, /*terrain_id=*/1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
 
   std::set<TileShape> shapes;
   for (int member_id : candidate->terrain.shape_tile_ids) {
@@ -258,7 +258,7 @@ TEST(TerrainDetectTest, ImportedSlopesCarryTheirTileShape) {
 TEST(TerrainDetectTest, ImportWithoutSlopesLeavesMembersEmpty) {
   absl::StatusOr<TerrainCandidate> candidate =
       ImportBlob47Manifest(ManifestFor(1), /*first_tile_id=*/1, /*terrain_id=*/1);
-  ASSERT_TRUE(candidate.ok()) << candidate.status();
+  ASSERT_OK(candidate);
   EXPECT_TRUE(candidate->terrain.shape_tile_ids.empty());
 }
 
@@ -315,7 +315,7 @@ TEST(TerrainDetectTest, ImportAcceptsAHalfBlockShapeUnit) {
 TEST(TerrainDetectTest, DetectFindsABlockAtTheAtlasOrigin) {
   absl::StatusOr<std::vector<TerrainCandidate>> candidates =
       DetectBlob47Terrains(MakeBlockTileset(0, 0, 1));
-  ASSERT_TRUE(candidates.ok()) << candidates.status();
+  ASSERT_OK(candidates);
   ASSERT_EQ(candidates->size(), 1u);
 
   const TerrainCandidate& candidate = (*candidates)[0];
@@ -327,7 +327,7 @@ TEST(TerrainDetectTest, DetectFindsABlockAtTheAtlasOrigin) {
 TEST(TerrainDetectTest, DetectFindsABlockAtAnOffsetOrigin) {
   absl::StatusOr<std::vector<TerrainCandidate>> candidates =
       DetectBlob47Terrains(MakeBlockTileset(3, 5, 1));
-  ASSERT_TRUE(candidates.ok()) << candidates.status();
+  ASSERT_OK(candidates);
   ASSERT_EQ(candidates->size(), 1u);
   EXPECT_EQ((*candidates)[0].terrain.rules.size(), kBlob47TileCount);
 }
@@ -335,7 +335,7 @@ TEST(TerrainDetectTest, DetectFindsABlockAtAnOffsetOrigin) {
 TEST(TerrainDetectTest, DetectAssignsMasksInTableOrder) {
   Tileset tileset = MakeBlockTileset(0, 0, 1);
   absl::StatusOr<std::vector<TerrainCandidate>> candidates = DetectBlob47Terrains(tileset);
-  ASSERT_TRUE(candidates.ok()) << candidates.status();
+  ASSERT_OK(candidates);
   ASSERT_EQ(candidates->size(), 1u);
 
   const TerrainCandidate& candidate = (*candidates)[0];
@@ -350,7 +350,7 @@ TEST(TerrainDetectTest, DetectAssignsMasksInTableOrder) {
 TEST(TerrainDetectTest, DetectMergesStackedBlocksAsVariants) {
   absl::StatusOr<std::vector<TerrainCandidate>> candidates =
       DetectBlob47Terrains(MakeBlockTileset(0, 0, 3));
-  ASSERT_TRUE(candidates.ok()) << candidates.status();
+  ASSERT_OK(candidates);
   ASSERT_EQ(candidates->size(), 1u) << "stacked blocks are one terrain, not three";
 
   const TerrainCandidate& candidate = (*candidates)[0];
@@ -365,7 +365,7 @@ TEST(TerrainDetectTest, DetectRejectsABlockWithAHole) {
   tileset.tiles.erase(tileset.tiles.begin() + 20);
 
   absl::StatusOr<std::vector<TerrainCandidate>> candidates = DetectBlob47Terrains(tileset);
-  ASSERT_TRUE(candidates.ok()) << candidates.status();
+  ASSERT_OK(candidates);
   EXPECT_TRUE(candidates->empty());
 }
 
@@ -396,14 +396,14 @@ TEST(TerrainDetectTest, DetectFindsNothingInAHandAuthoredTileset) {
   }
 
   absl::StatusOr<std::vector<TerrainCandidate>> candidates = DetectBlob47Terrains(tileset);
-  ASSERT_TRUE(candidates.ok()) << candidates.status();
+  ASSERT_OK(candidates);
   EXPECT_TRUE(candidates->empty());
 }
 
 TEST(TerrainDetectTest, DetectSuggestsNameFromSharedTilePrefix) {
   absl::StatusOr<std::vector<TerrainCandidate>> candidates =
       DetectBlob47Terrains(MakeBlockTileset(0, 0, 1, "MossyStone"));
-  ASSERT_TRUE(candidates.ok()) << candidates.status();
+  ASSERT_OK(candidates);
   ASSERT_EQ(candidates->size(), 1u);
   EXPECT_EQ((*candidates)[0].suggested_name, "MossyStone");
   EXPECT_EQ((*candidates)[0].terrain.name, "MossyStone");
@@ -415,7 +415,7 @@ TEST(TerrainDetectTest, DetectIgnoresTilesThatAreNotCellAligned) {
   tileset.tiles[10].source_x += 3;
 
   absl::StatusOr<std::vector<TerrainCandidate>> candidates = DetectBlob47Terrains(tileset);
-  ASSERT_TRUE(candidates.ok()) << candidates.status();
+  ASSERT_OK(candidates);
   EXPECT_TRUE(candidates->empty());
 }
 

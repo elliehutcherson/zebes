@@ -323,7 +323,7 @@ TEST(ViewportTabTest, ActiveZoneWithoutAssignedThemeDoesNotFailPreview) {
 
   auto active = ViewportTabTestPeer::RenderParallaxBackground(tab, level, {});
 
-  ASSERT_TRUE(active.ok()) << active.status();
+  ASSERT_OK(active);
   ASSERT_TRUE(active->has_value());
   EXPECT_EQ(active->value().zone_id, 4);
 }
@@ -336,7 +336,7 @@ TEST(SnapEntityToGridTest, ColliderCenterAlignedAndBottomAligned) {
   Collider collider;
   collider.polygons.push_back({{-8, -16}, {8, -16}, {8, 0}, {-8, 0}});
   absl::StatusOr<Vec> result = SnapEntityToGrid({20, 20}, 16, 16, &collider, nullptr);
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   EXPECT_DOUBLE_EQ(result->x, 24.0);  // cell_center_x - 0
   EXPECT_DOUBLE_EQ(result->y, 32.0);  // cell_bottom_y - 0
 }
@@ -347,7 +347,7 @@ TEST(SnapEntityToGridTest, ColliderAsymmetricBoundingBox) {
   Collider collider;
   collider.polygons.push_back({{4, 0}, {12, 0}, {12, 10}, {4, 10}});
   absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, nullptr);
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   EXPECT_DOUBLE_EQ(result->x, 0.0);   // 8 - 8
   EXPECT_DOUBLE_EQ(result->y, 6.0);   // 16 - 10
 }
@@ -360,7 +360,7 @@ TEST(SnapEntityToGridTest, SpriteFallbackWhenNoCollider) {
   sprite.frames.push_back(
       SpriteFrame{.render_w = 48, .render_h = 64, .offset_x = -24, .offset_y = 0});
   absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, nullptr, &sprite);
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   EXPECT_DOUBLE_EQ(result->x, 8.0);    // 8 - 0
   EXPECT_DOUBLE_EQ(result->y, -48.0);  // 16 - 64
 }
@@ -374,7 +374,7 @@ TEST(SnapEntityToGridTest, ColliderTakesPriorityOverSprite) {
   Sprite sprite;
   sprite.frames.push_back(SpriteFrame{.render_w = 48, .render_h = 64});
   absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, &sprite);
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   EXPECT_DOUBLE_EQ(result->x, 0.0);
   EXPECT_DOUBLE_EQ(result->y, 0.0);
 }
@@ -421,7 +421,7 @@ TEST(SnapEntityToGridTest, EmptyColliderFallsBackToSprite) {
   // Tile grid: 16×16. Mouse at (0, 0) → center_x=8, bottom_y=16.
   // Sprite: center_x_offset=8, bottom_y_offset=16 → pos=(0, 0).
   absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, &sprite);
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   EXPECT_DOUBLE_EQ(result->x, 0.0);
   EXPECT_DOUBLE_EQ(result->y, 0.0);
 }

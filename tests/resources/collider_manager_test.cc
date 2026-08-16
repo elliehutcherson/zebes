@@ -23,9 +23,7 @@ class ColliderManagerTest : public ::testing::Test {
     std::filesystem::create_directories(test_dir_ + "/definitions/colliders");
 
     // Create manager
-    auto cm = ColliderManager::Create(test_dir_);
-    ASSERT_TRUE(cm.ok());
-    manager_ = std::move(*cm);
+    ASSERT_OK_AND_ASSIGN(manager_, ColliderManager::Create(test_dir_));
   }
 
   void TearDown() override {
@@ -47,15 +45,11 @@ TEST_F(ColliderManagerTest, CreateAndGetCollider) {
   poly1.push_back({0, 10});
   collider.polygons.push_back(poly1);
 
-  auto id_or = manager_->CreateCollider(collider);
-  ASSERT_TRUE(id_or.ok()) << id_or.status();
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateCollider(collider));
   EXPECT_FALSE(id.empty());
   EXPECT_NE(id, "test-collider");  // Should be generated
 
-  auto collider_or = manager_->GetCollider(id);
-  ASSERT_TRUE(collider_or.ok());
-  Collider* loaded_collider = *collider_or;
+  ASSERT_OK_AND_ASSIGN(Collider * loaded_collider, manager_->GetCollider(id));
   EXPECT_EQ(loaded_collider->id, id);
   ASSERT_EQ(loaded_collider->polygons.size(), 1);
   EXPECT_EQ(loaded_collider->polygons[0].size(), 3);
@@ -82,14 +76,12 @@ TEST_F(ColliderManagerTest, LoadAllColliders) {
   }
 
   // Load
-  auto status = manager_->LoadAllColliders();
-  ASSERT_TRUE(status.ok()) << status;
+  ASSERT_OK(manager_->LoadAllColliders());
 
-  auto collider_or = manager_->GetCollider(id);
-  ASSERT_TRUE(collider_or.ok());
-  EXPECT_EQ((*collider_or)->id, "manual-collider");
-  EXPECT_EQ((*collider_or)->polygons.size(), 1);
-  EXPECT_EQ((*collider_or)->polygons[0][0].x, 1);
+  ASSERT_OK_AND_ASSIGN(Collider * loaded, manager_->GetCollider(id));
+  EXPECT_EQ(loaded->id, "manual-collider");
+  EXPECT_EQ(loaded->polygons.size(), 1);
+  EXPECT_EQ(loaded->polygons[0][0].x, 1);
 }
 
 TEST_F(ColliderManagerTest, UpdateCollider) {
@@ -97,23 +89,21 @@ TEST_F(ColliderManagerTest, UpdateCollider) {
   // collider.id = "update-test"; // ID is generated
   collider.name = "UpdateTest";
 
-  auto id_or = manager_->CreateCollider(collider);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateCollider(collider));
 
   // Update
-  collider = *(*manager_->GetCollider(id));
+  ASSERT_OK_AND_ASSIGN(Collider * stored, manager_->GetCollider(id));
+  collider = *stored;
   Polygon p;
   p.push_back({5, 5});
   collider.polygons.push_back(p);
 
-  auto status = manager_->SaveCollider(collider);
-  ASSERT_TRUE(status.ok());
+  ASSERT_OK(manager_->SaveCollider(collider));
 
   // Check
-  auto collider_or = manager_->GetCollider(id);
-  EXPECT_EQ((*collider_or)->polygons.size(), 1);
-  EXPECT_EQ((*collider_or)->polygons[0][0].x, 5);
+  ASSERT_OK_AND_ASSIGN(Collider * updated, manager_->GetCollider(id));
+  EXPECT_EQ(updated->polygons.size(), 1);
+  EXPECT_EQ(updated->polygons[0][0].x, 5);
 }
 
 // Editors hold a Collider* for as long as they are editing it. Replacing the
@@ -138,12 +128,9 @@ TEST_F(ColliderManagerTest, DeleteCollider) {
   // collider.id = "delete-test"; // ID is generated
   collider.name = "DeleteTest";
 
-  auto id_or = manager_->CreateCollider(collider);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateCollider(collider));
 
-  auto status = manager_->DeleteCollider(id);
-  ASSERT_TRUE(status.ok());
+  ASSERT_OK(manager_->DeleteCollider(id));
 
   EXPECT_FALSE(
       std::filesystem::exists(test_dir_ + "/definitions/colliders/DeleteTest-" + id + ".json"));
@@ -176,9 +163,7 @@ TEST_F(ColliderManagerTest, RenameCollider) {
   // collider.id = "rename-test";  // Will be ignored
   collider.name = "OldName";
 
-  auto id_or = manager_->CreateCollider(collider);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateCollider(collider));
 
   std::string old_file = test_dir_ + "/definitions/colliders/OldName-" + id + ".json";
   ASSERT_TRUE(std::filesystem::exists(old_file));
@@ -188,7 +173,7 @@ TEST_F(ColliderManagerTest, RenameCollider) {
   // we have with the new ID
   collider.id = id;
   collider.name = "NewName";
-  ASSERT_TRUE(manager_->SaveCollider(collider).ok());
+  ASSERT_OK(manager_->SaveCollider(collider));
 
   std::string new_file = test_dir_ + "/definitions/colliders/NewName-" + id + ".json";
   EXPECT_TRUE(std::filesystem::exists(new_file));

@@ -10,6 +10,7 @@
 #include "objects/tileset.h"
 #include "terrain/blob47_compose.h"
 #include "terrain/terrain_mask.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -27,12 +28,12 @@ TEST(TilesetEditorModelTest, OrderedCatalogPreservesDuplicateNames) {
 TEST(TilesetEditorModelTest, SelectionUsesStableIdsAcrossCatalogRefresh) {
   TilesetEditorModel model;
   model.SetTilesets({{.id = "forest", .name = "Forest"}, {.id = "cave", .name = "Cave"}});
-  ASSERT_TRUE(model.SelectTileset("forest").ok());
+  ASSERT_OK(model.SelectTileset("forest"));
 
   model.SetTilesets({{.id = "cave", .name = "A Cave"}, {.id = "forest", .name = "Z Forest"}});
 
   EXPECT_EQ(model.selected_tileset_id(), "forest");
-  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+  ASSERT_OK(model.BeginEditingSelectedTileset());
   EXPECT_EQ(model.active_tileset()->id, "forest");
 }
 
@@ -41,9 +42,9 @@ TEST(TilesetEditorModelTest, NewAndExistingSaveTransitionsAreExplicit) {
   model.BeginNewTileset();
   ASSERT_TRUE(model.has_active_tileset());
   EXPECT_TRUE(model.is_new_tileset());
-  ASSERT_TRUE(model.BuildSaveRequest().ok());
+  ASSERT_OK(model.BuildSaveRequest());
 
-  ASSERT_TRUE(model.FinishSave("generated-id").ok());
+  ASSERT_OK(model.FinishSave("generated-id"));
   EXPECT_FALSE(model.is_new_tileset());
   EXPECT_EQ(model.selected_tileset_id(), "generated-id");
 
@@ -57,7 +58,7 @@ TEST(TilesetEditorModelTest, TextureSelectionResolvesActiveTexture) {
   model.SetTextures({{.id = "lava", .name = "Lava"}, {.id = "ice", .name = "Ice"}});
   model.BeginNewTileset();
 
-  ASSERT_TRUE(model.SelectTexture("ice").ok());
+  ASSERT_OK(model.SelectTexture("ice"));
   ASSERT_NE(model.active_texture(), nullptr);
   EXPECT_EQ(model.active_texture()->id, "ice");
   EXPECT_EQ(model.SelectTexture("missing").code(), absl::StatusCode::kNotFound);
@@ -68,19 +69,19 @@ TEST(TilesetEditorModelTest, TileOperationsUseStableIds) {
   model.SetTilesets({{.id = "tileset",
                       .name = "Tileset",
                       .tiles = {{.id = 8, .name = "Eight"}, {.id = 3, .name = "Three"}}}});
-  ASSERT_TRUE(model.SelectTileset("tileset").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+  ASSERT_OK(model.SelectTileset("tileset"));
+  ASSERT_OK(model.BeginEditingSelectedTileset());
 
-  ASSERT_TRUE(model.SelectTile(3).ok());
+  ASSERT_OK(model.SelectTile(3));
   ASSERT_NE(model.selected_tile(), nullptr);
   EXPECT_EQ(model.selected_tile()->name, "Three");
 
-  ASSERT_TRUE(model.AddTile().ok());
+  ASSERT_OK(model.AddTile());
   EXPECT_EQ(model.selected_tile_id(), 9);
   ASSERT_NE(model.selected_tile(), nullptr);
   EXPECT_EQ(model.selected_tile()->id, 9);
 
-  ASSERT_TRUE(model.DeleteSelectedTile().ok());
+  ASSERT_OK(model.DeleteSelectedTile());
   EXPECT_EQ(model.selected_tile_id(), 0);
   EXPECT_EQ(model.active_tileset()->tiles.size(), 2);
 }
@@ -90,13 +91,13 @@ TEST(TilesetEditorModelTest, AtlasCellsSnapUsingBothTileDimensions) {
   model.BeginNewTileset();
   model.active_tileset()->tile_width = 16;
   model.active_tileset()->tile_height = 8;
-  ASSERT_TRUE(model.AddTile().ok());
+  ASSERT_OK(model.AddTile());
 
   absl::StatusOr<AtlasCell> cell = model.CalculateAtlasCell(31.9, 17.0, 64, 32);
-  ASSERT_TRUE(cell.ok());
+  ASSERT_OK(cell);
   EXPECT_EQ(cell->source_x, 16);
   EXPECT_EQ(cell->source_y, 16);
-  ASSERT_TRUE(model.SetSelectedTileSource(*cell).ok());
+  ASSERT_OK(model.SetSelectedTileSource(*cell));
   EXPECT_EQ(model.selected_tile()->source_x, 16);
   EXPECT_EQ(model.selected_tile()->source_y, 16);
 
@@ -130,7 +131,7 @@ std::string MakeManifest(int variant_count) {
   sheet.image.pixels.assign(static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 255);
 
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(sheet);
-  EXPECT_TRUE(atlas.ok()) << atlas.status();
+  EXPECT_OK(atlas);
   return WriteBlob47Manifest(*atlas);
 }
 
@@ -140,7 +141,7 @@ TEST(TilesetEditorModelTest, ImportTerrainAddsTilesAndOneTerrain) {
   TilesetEditorModel model;
   model.BeginNewTileset();
 
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
 
   EXPECT_EQ(model.active_tileset()->tiles.size(), kBlob47TileCount);
   ASSERT_EQ(model.active_tileset()->terrains.size(), 1u);
@@ -153,7 +154,7 @@ TEST(TilesetEditorModelTest, ImportTerrainPreservesExistingTileIds) {
   model.BeginNewTileset();
   model.active_tileset()->tiles.push_back(Tile{.id = 4, .name = "Existing"});
 
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
 
   EXPECT_EQ(model.active_tileset()->tiles.front().id, 4);
   EXPECT_EQ(model.active_tileset()->tiles.front().name, "Existing");
@@ -165,8 +166,8 @@ TEST(TilesetEditorModelTest, ImportTerrainTwiceProducesDistinctTerrainIds) {
   TilesetEditorModel model;
   model.BeginNewTileset();
 
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
 
   ASSERT_EQ(model.active_tileset()->terrains.size(), 2u);
   EXPECT_NE(model.active_tileset()->terrains[0].id, model.active_tileset()->terrains[1].id);
@@ -177,7 +178,7 @@ TEST(TilesetEditorModelTest, ImportTerrainGroupsVariantsUnderOneRule) {
   TilesetEditorModel model;
   model.BeginNewTileset();
 
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(2)).ok());
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(2)));
 
   ASSERT_EQ(model.active_tileset()->terrains.size(), 1u);
   for (const TerrainRule& rule : model.active_tileset()->terrains[0].rules) {
@@ -204,12 +205,12 @@ TEST(TilesetEditorModelTest, DetectTerrainsFindsAnImportedBlock) {
   model.BeginNewTileset();
   model.active_tileset()->tile_width = 16;
   model.active_tileset()->tile_height = 16;
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
   // Drop the imported terrain so detection has to rediscover it from the tiles.
   model.active_tileset()->terrains.clear();
 
   absl::StatusOr<int> added = model.DetectTerrains();
-  ASSERT_TRUE(added.ok()) << added.status();
+  ASSERT_OK(added);
   EXPECT_EQ(*added, 1);
   EXPECT_EQ(model.active_tileset()->terrains.size(), 1u);
 }
@@ -223,7 +224,7 @@ TEST(TilesetEditorModelTest, DetectTerrainsFindsNothingInAHandAuthoredTileset) {
   }
 
   absl::StatusOr<int> added = model.DetectTerrains();
-  ASSERT_TRUE(added.ok()) << added.status();
+  ASSERT_OK(added);
   EXPECT_EQ(*added, 0);
   EXPECT_TRUE(model.active_tileset()->terrains.empty());
 }
@@ -231,7 +232,7 @@ TEST(TilesetEditorModelTest, DetectTerrainsFindsNothingInAHandAuthoredTileset) {
 TEST(TilesetEditorModelTest, TerrainMembershipAssignsAndClears) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
   const int terrain_id = model.active_tileset()->terrains[0].id;
 
   // A hand-drawn slope that the brush never paints.
@@ -239,11 +240,11 @@ TEST(TilesetEditorModelTest, TerrainMembershipAssignsAndClears) {
       Tile{.id = 900, .name = "Slope", .shape = TileShape::kSlope45FloorTallRight});
 
   EXPECT_FALSE(model.GetTileTerrainMembership(900).has_value());
-  ASSERT_TRUE(model.SetTileTerrainMembership(900, terrain_id).ok());
+  ASSERT_OK(model.SetTileTerrainMembership(900, terrain_id));
   EXPECT_EQ(model.GetTileTerrainMembership(900), terrain_id);
   EXPECT_THAT(model.active_tileset()->terrains[0].shape_tile_ids, ::testing::ElementsAre(900));
 
-  ASSERT_TRUE(model.SetTileTerrainMembership(900, std::nullopt).ok());
+  ASSERT_OK(model.SetTileTerrainMembership(900, std::nullopt));
   EXPECT_FALSE(model.GetTileTerrainMembership(900).has_value());
   EXPECT_TRUE(model.active_tileset()->terrains[0].shape_tile_ids.empty());
 }
@@ -253,14 +254,14 @@ TEST(TilesetEditorModelTest, TerrainMembershipAssignsAndClears) {
 TEST(TilesetEditorModelTest, TerrainMembershipIsExclusive) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
   const int first = model.active_tileset()->terrains[0].id;
   const int second = model.active_tileset()->terrains[1].id;
   model.active_tileset()->tiles.push_back(Tile{.id = 900, .name = "Slope"});
 
-  ASSERT_TRUE(model.SetTileTerrainMembership(900, first).ok());
-  ASSERT_TRUE(model.SetTileTerrainMembership(900, second).ok());
+  ASSERT_OK(model.SetTileTerrainMembership(900, first));
+  ASSERT_OK(model.SetTileTerrainMembership(900, second));
 
   EXPECT_TRUE(model.active_tileset()->terrains[0].shape_tile_ids.empty());
   EXPECT_THAT(model.active_tileset()->terrains[1].shape_tile_ids, ::testing::ElementsAre(900));
@@ -270,7 +271,7 @@ TEST(TilesetEditorModelTest, TerrainMembershipIsExclusive) {
 TEST(TilesetEditorModelTest, TerrainMembershipRejectsAPaintedTile) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
   const int terrain_id = model.active_tileset()->terrains[0].id;
   const int painted_tile_id = model.active_tileset()->tiles[0].id;
 
@@ -289,18 +290,18 @@ TEST(TilesetEditorModelTest, TerrainMembershipRejectsUnknownTerrain) {
 TEST(TilesetEditorModelTest, DeleteTerrainRemovesOnlyThatTerrain) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
-  ASSERT_TRUE(model.ImportTerrainManifest(MakeManifest(1)).ok());
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
+  ASSERT_OK(model.ImportTerrainManifest(MakeManifest(1)));
   const int removed_id = model.active_tileset()->terrains[0].id;
   const int kept_id = model.active_tileset()->terrains[1].id;
 
-  ASSERT_TRUE(model.DeleteTerrain(removed_id).ok());
+  ASSERT_OK(model.DeleteTerrain(removed_id));
 
   ASSERT_EQ(model.active_tileset()->terrains.size(), 1u);
   EXPECT_EQ(model.active_tileset()->terrains[0].id, kept_id);
 
   // Deleting an absent terrain is a no-op, not an error.
-  ASSERT_TRUE(model.DeleteTerrain(removed_id).ok());
+  ASSERT_OK(model.DeleteTerrain(removed_id));
   EXPECT_EQ(model.active_tileset()->terrains.size(), 1u);
 }
 
@@ -320,8 +321,8 @@ TEST(TilesetEditorModelTest, ANewlyOpenedTilesetHasNothingToLose) {
   EXPECT_FALSE(model.has_unsaved_changes()) << "nothing is being edited";
 
   model.SetTilesets({{.id = "grass", .name = "Grass", .tile_width = 32, .tile_height = 32}});
-  ASSERT_TRUE(model.SelectTileset("grass").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+  ASSERT_OK(model.SelectTileset("grass"));
+  ASSERT_OK(model.BeginEditingSelectedTileset());
 
   EXPECT_FALSE(model.has_unsaved_changes());
 }
@@ -329,17 +330,17 @@ TEST(TilesetEditorModelTest, ANewlyOpenedTilesetHasNothingToLose) {
 TEST(TilesetEditorModelTest, EditsToAnyPartOfATilesetCount) {
   TilesetEditorModel model;
   model.SetTilesets({{.id = "grass", .name = "Grass", .tile_width = 32, .tile_height = 32}});
-  ASSERT_TRUE(model.SelectTileset("grass").ok());
+  ASSERT_OK(model.SelectTileset("grass"));
 
-  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+  ASSERT_OK(model.BeginEditingSelectedTileset());
   model.active_tileset()->name = "Renamed";
   EXPECT_TRUE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
-  ASSERT_TRUE(model.AddTile().ok());
+  ASSERT_OK(model.BeginEditingSelectedTileset());
+  ASSERT_OK(model.AddTile());
   EXPECT_TRUE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+  ASSERT_OK(model.BeginEditingSelectedTileset());
   model.active_tileset()->terrains.push_back(Terrain{.id = 1, .name = "Dirt"});
   EXPECT_TRUE(model.has_unsaved_changes());
 }
@@ -349,8 +350,8 @@ TEST(TilesetEditorModelTest, EditsToAnyPartOfATilesetCount) {
 TEST(TilesetEditorModelTest, RestoringAnEditedFieldIsCleanAgain) {
   TilesetEditorModel model;
   model.SetTilesets({{.id = "grass", .name = "Grass", .tile_width = 32, .tile_height = 32}});
-  ASSERT_TRUE(model.SelectTileset("grass").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedTileset().ok());
+  ASSERT_OK(model.SelectTileset("grass"));
+  ASSERT_OK(model.BeginEditingSelectedTileset());
 
   model.active_tileset()->name = "Renamed";
   ASSERT_TRUE(model.has_unsaved_changes());
@@ -365,7 +366,7 @@ TEST(TilesetEditorModelTest, SavingMakesTheCurrentStateTheCleanOne) {
   model.active_tileset()->name = "Cavern";
   ASSERT_TRUE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.FinishSave("cavern-id").ok());
+  ASSERT_OK(model.FinishSave("cavern-id"));
   EXPECT_FALSE(model.has_unsaved_changes());
 
   model.active_tileset()->tile_width = 16;
@@ -380,7 +381,7 @@ TEST(TilesetEditorModelTest, ARegionAddsOneTilePerCell) {
 
   absl::StatusOr<int> added =
       model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 64, .source_y = 32});
-  ASSERT_TRUE(added.ok()) << added.status();
+  ASSERT_OK(added);
   EXPECT_EQ(*added, 6);
 
   const std::vector<Tile>& tiles = model.active_tileset()->tiles;
@@ -403,9 +404,8 @@ TEST(TilesetEditorModelTest, ARegionAddsOneTilePerCell) {
 TEST(TilesetEditorModelTest, RegionCornersMayBeGivenInAnyOrder) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(
-      model.AddTilesForRegion({.source_x = 64, .source_y = 32}, {.source_x = 0, .source_y = 0})
-          .ok());
+  ASSERT_OK(
+      model.AddTilesForRegion({.source_x = 64, .source_y = 32}, {.source_x = 0, .source_y = 0}));
 
   std::vector<std::pair<int, int>> sources;
   for (const Tile& tile : model.active_tileset()->tiles) {
@@ -421,20 +421,20 @@ TEST(TilesetEditorModelTest, RegionCornersMayBeGivenInAnyOrder) {
 TEST(TilesetEditorModelTest, ARegionSkipsCellsThatAlreadyHaveATile) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(model.AddTile().ok());
+  ASSERT_OK(model.AddTile());
   model.selected_tile()->source_x = 32;
   model.selected_tile()->source_y = 0;
 
   absl::StatusOr<int> added =
       model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 64, .source_y = 0});
-  ASSERT_TRUE(added.ok()) << added.status();
+  ASSERT_OK(added);
   EXPECT_EQ(*added, 2);
   EXPECT_EQ(model.active_tileset()->tiles.size(), 3u);
 
   // Dragging the same region again adds nothing at all.
   absl::StatusOr<int> again =
       model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 64, .source_y = 0});
-  ASSERT_TRUE(again.ok()) << again.status();
+  ASSERT_OK(again);
   EXPECT_EQ(*again, 0);
 }
 
@@ -444,9 +444,8 @@ TEST(TilesetEditorModelTest, ARegionSkipsCellsThatAlreadyHaveATile) {
 TEST(TilesetEditorModelTest, BulkAddedTilesAreSolidByDefault) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(
-      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 32, .source_y = 0})
-          .ok());
+  ASSERT_OK(
+      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 32, .source_y = 0}));
 
   for (const Tile& tile : model.active_tileset()->tiles) {
     EXPECT_EQ(tile.shape, TileShape::kFullBlock);
@@ -456,9 +455,8 @@ TEST(TilesetEditorModelTest, BulkAddedTilesAreSolidByDefault) {
 TEST(TilesetEditorModelTest, ARegionSelectsTheLastTileItAdded) {
   TilesetEditorModel model;
   model.BeginNewTileset();
-  ASSERT_TRUE(
-      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 32, .source_y = 32})
-          .ok());
+  ASSERT_OK(
+      model.AddTilesForRegion({.source_x = 0, .source_y = 0}, {.source_x = 32, .source_y = 32}));
 
   ASSERT_NE(model.selected_tile(), nullptr);
   EXPECT_EQ(model.selected_tile()->source_x, 32);

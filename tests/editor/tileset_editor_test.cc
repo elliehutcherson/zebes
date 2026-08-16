@@ -8,6 +8,7 @@
 #include "objects/tileset.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
+#include "macros.h"
 
 namespace zebes {
 
@@ -50,7 +51,7 @@ class TilesetEditorTest : public ::testing::Test {
  protected:
   void SetUp() override {
     absl::StatusOr<std::unique_ptr<TilesetEditor>> editor = TilesetEditor::Create(&api_, &gui_);
-    ASSERT_TRUE(editor.ok()) << editor.status();
+    ASSERT_OK(editor);
     editor_ = *std::move(editor);
 
     model().BeginNewTileset();
@@ -84,7 +85,7 @@ class TilesetEditorTest : public ::testing::Test {
     cursor_ = TilesetEditorTestPeer::GetCanvas(*editor_).WorldToScreen({x, y});
     const absl::Status status =
         TilesetEditorTestPeer::HandleAtlasInteraction(*editor_, kAtlasWidth, kAtlasHeight);
-    ASSERT_TRUE(status.ok()) << status;
+    ASSERT_OK(status);
   }
 
   // Press at one cell, drag through the rest, release. Mirrors the frame
@@ -126,7 +127,7 @@ TEST_F(TilesetEditorTest, DraggingAcrossCellsAddsATilePerCell) {
 // had. The two can only be told apart once the button comes up, which is why
 // the whole thing resolves on release.
 TEST_F(TilesetEditorTest, ClickingOneCellRepointsTheSelectedTile) {
-  ASSERT_TRUE(model().AddTile().ok());
+  ASSERT_OK(model().AddTile());
   const int tile_id = model().selected_tile_id();
 
   ClickAt(64.0f, 32.0f);

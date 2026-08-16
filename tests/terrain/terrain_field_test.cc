@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -87,7 +88,7 @@ TEST(RuffleFieldTest, IsExactlyPeriodic) {
   const absl::StatusOr<RuffleField> field =
       RuffleField::Create(/*period_px=*/64, /*tile_px=*/32, /*density=*/2.0f,
                           /*sharpness=*/0.65f, /*octaves=*/2, /*seed=*/7);
-  ASSERT_TRUE(field.ok()) << field.status();
+  ASSERT_OK(field);
 
   for (int y = 0; y < 64; ++y) {
     for (int x = 0; x < 64; ++x) {
@@ -108,7 +109,7 @@ TEST(RuffleFieldTest, AMultiTilePeriodDoesNotCollapseToOneTile) {
     const absl::StatusOr<RuffleField> field =
         RuffleField::Create(/*period_px=*/32 * tiles, /*tile_px=*/32, /*density=*/2.0f,
                             /*sharpness=*/1.0f, /*octaves=*/1, /*seed=*/11);
-    ASSERT_TRUE(field.ok()) << field.status();
+    ASSERT_OK(field);
 
     bool differs_within_period = false;
     for (int y = 0; y < 32 * tiles && !differs_within_period; ++y) {
@@ -129,7 +130,7 @@ TEST(RuffleFieldTest, OneOctaveDoesNotCollapseToIdenticalBumpsAlongStraightEdges
   const absl::StatusOr<RuffleField> field =
       RuffleField::Create(kPeriod, kPeriod, /*density=*/4.0f,
                           /*sharpness=*/1.0f, /*octaves=*/1, /*seed=*/1234);
-  ASSERT_TRUE(field.ok()) << field.status();
+  ASSERT_OK(field);
 
   bool horizontal_differs = false;
   bool vertical_differs = false;
@@ -145,7 +146,7 @@ TEST(RuffleFieldTest, OneOctaveDoesNotCollapseToIdenticalBumpsAlongStraightEdges
 
 TEST(RuffleFieldTest, StaysWithinTheUnitRange) {
   const absl::StatusOr<RuffleField> field = RuffleField::Create(96, 32, 3.0f, 1.0f, 1, 99);
-  ASSERT_TRUE(field.ok()) << field.status();
+  ASSERT_OK(field);
 
   for (int y = 0; y < 96; ++y) {
     for (int x = 0; x < 96; ++x) {
@@ -159,7 +160,7 @@ TEST(RuffleFieldTest, StaysWithinTheUnitRange) {
 // at all, which is what the contrast stretch inside Create exists to prevent.
 TEST(RuffleFieldTest, UsesTheFullContrastRange) {
   const absl::StatusOr<RuffleField> field = RuffleField::Create(64, 32, 2.0f, 0.65f, 1, 3);
-  ASSERT_TRUE(field.ok()) << field.status();
+  ASSERT_OK(field);
 
   float low = 1.0f;
   float high = 0.0f;
@@ -177,7 +178,9 @@ TEST(RuffleFieldTest, SameSeedGivesTheSameField) {
   const absl::StatusOr<RuffleField> first = RuffleField::Create(64, 32, 2.0f, 0.65f, 1, 42);
   const absl::StatusOr<RuffleField> second = RuffleField::Create(64, 32, 2.0f, 0.65f, 1, 42);
   const absl::StatusOr<RuffleField> other = RuffleField::Create(64, 32, 2.0f, 0.65f, 1, 43);
-  ASSERT_TRUE(first.ok() && second.ok() && other.ok());
+  ASSERT_OK(first);
+  ASSERT_OK(second);
+  ASSERT_OK(other);
 
   bool differs_from_other = false;
   for (int y = 0; y < 64; ++y) {
@@ -192,7 +195,7 @@ TEST(RuffleFieldTest, SameSeedGivesTheSameField) {
 TEST(ValueNoiseFieldTest, WrapsOnItsPeriod) {
   const absl::StatusOr<ValueNoiseField> field =
       ValueNoiseField::Create(/*period_px=*/64, /*cells_per_period=*/5, /*octaves=*/3, /*seed=*/5);
-  ASSERT_TRUE(field.ok()) << field.status();
+  ASSERT_OK(field);
 
   for (int y = 0; y < 64; ++y) {
     for (int x = 0; x < 64; ++x) {
@@ -204,7 +207,7 @@ TEST(ValueNoiseFieldTest, WrapsOnItsPeriod) {
 
 TEST(ValueNoiseFieldTest, SpansTheUnitRange) {
   const absl::StatusOr<ValueNoiseField> field = ValueNoiseField::Create(64, 4, 3, 17);
-  ASSERT_TRUE(field.ok()) << field.status();
+  ASSERT_OK(field);
 
   float low = 1.0f;
   float high = 0.0f;
@@ -223,7 +226,7 @@ TEST(ValueNoiseFieldTest, SpansTheUnitRange) {
 // sinusoid field revisits the same few values; noise should not.
 TEST(ValueNoiseFieldTest, DoesNotRepeatWithinItsPeriod) {
   const absl::StatusOr<ValueNoiseField> field = ValueNoiseField::Create(64, 4, 3, 23);
-  ASSERT_TRUE(field.ok()) << field.status();
+  ASSERT_OK(field);
 
   for (const int stride : {8, 16, 32}) {
     bool differs = false;
@@ -254,7 +257,7 @@ TEST(PeriodicPatternGridTest, FitsAnIndivisibleFeatureSizeWithoutLosingPeriodici
   // indivisible. The fitted grid still has exactly the requested 96px period.
   const absl::StatusOr<PeriodicPatternGrid> grid =
       PeriodicPatternGrid::Create(/*period_px=*/96, /*cells_per_period=*/19);
-  ASSERT_TRUE(grid.ok()) << grid.status();
+  ASSERT_OK(grid);
 
   for (int x = -96; x < 192; ++x) {
     EXPECT_EQ(grid->Cell(x), grid->Cell(x + 96));
@@ -267,7 +270,8 @@ TEST(PeriodicPatternGridTest, FitsAnIndivisibleFeatureSizeWithoutLosingPeriodici
 TEST(CellularFieldTest, IsDeterministicAndExactlyPeriodic) {
   const absl::StatusOr<CellularField> first = CellularField::Create(96, 16, 123);
   const absl::StatusOr<CellularField> second = CellularField::Create(96, 16, 123);
-  ASSERT_TRUE(first.ok() && second.ok());
+  ASSERT_OK(first);
+  ASSERT_OK(second);
 
   for (int y = 0; y < 96; ++y) {
     for (int x = 0; x < 96; ++x) {

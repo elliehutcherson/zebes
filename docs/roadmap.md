@@ -56,18 +56,18 @@ shape in silence, since the numeric `shape` field is untouched and
 
 The baseline, with vendored code excluded and repeated diagnostics deduplicated
 by location and check, was **220 findings in `src/`, 86 in `tests/`**. Removing
-the 153 virtual-default findings leaves **153 known findings**. Re-measure at
-the end of each group with `scripts/lint.sh --all`; its raw output can repeat a
-header finding for multiple translation units.
+the 153 virtual-default and 28 casting findings leaves **125 known findings**.
+Re-measure at the end of each group with `scripts/lint.sh --all`; its raw output
+can repeat a header finding for multiple translation units.
 
 | Count | Check | Where |
 |---|---|---|
 | 153 | `google-default-arguments` | **Done** — `gui_interface.h`, `gui.h`, `gui.cc` |
-| 28 | `google-readability-casting` | `sprite_editor.cc` 15, `canvas_sprite.cc` 10, `canvas.cc` 2 |
+| 28 | `google-readability-casting` | **Done** — `sprite_editor.{h,cc}`, `canvas_sprite.cc`, `canvas.cc` |
 | 13 | `google-explicit-constructor` | `imgui_scoped.h` 10, `camera_controller.h`, `db.h`, `api.h` |
-| 9 | `readability-identifier-naming` | `terrain_motifs.cc` 8, `sprite_editor.cc` 1 |
+| 8 | `readability-identifier-naming` | `terrain_motifs.cc` 8 |
 | 6 | `google-readability-braces-around-statements` | `sprite_editor_model.cc` 5 |
-| 5 | `readability-convert-member-functions-to-static` | spread across the editor |
+| 4 | `readability-convert-member-functions-to-static` | spread across the editor |
 | 6 | runtime-float / runtime-int / todo | `viewport_model.cc` 4, two others |
 
 **1. `GuiInterface`'s virtual defaults (153) — done.** A default argument on a

@@ -470,13 +470,13 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
     model_.ClampFrameToTexture(index, tex_w, tex_h).IgnoreError();
 
     // Calculate UVs
-    ImVec2 uv0((float)frame.texture_x / tex_w, (float)frame.texture_y / tex_h);
-    ImVec2 uv1((float)(frame.texture_x + frame.texture_w) / tex_w,
-               (float)(frame.texture_y + frame.texture_h) / tex_h);
+    ImVec2 uv0(static_cast<float>(frame.texture_x) / tex_w, static_cast<float>(frame.texture_y) / tex_h);
+    ImVec2 uv1(static_cast<float>(frame.texture_x + frame.texture_w) / tex_w,
+               static_cast<float>(frame.texture_y + frame.texture_h) / tex_h);
 
     // Fixed display size height, maintain aspect ratio
     float display_h = 100.0f;
-    float aspect = (frame.texture_h > 0) ? (float)frame.texture_w / frame.texture_h : 1.0f;
+    float aspect = (frame.texture_h > 0) ? static_cast<float>(frame.texture_w) / frame.texture_h : 1.0f;
     float display_w = display_h * aspect;
 
     gui_->Image(ImTextureId(), ImVec2(display_w, display_h), uv0, uv1, ImVec4(1, 1, 1, 1),
@@ -489,7 +489,7 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   gui_->PushItemWidth(80);
 
   // Helper lambda for integer fields to reduce duplication
-  auto RenderIntField = [&](const char* label, int* value, int min = 0, int max = 10000) {
+  auto render_int_field = [&](const char* label, int* value, int min = 0, int max = 10000) {
     gui_->AlignTextToFramePadding();
     gui_->Text("%s", label);
     gui_->SameLine();
@@ -505,21 +505,21 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   };
 
   // Note: We use unique labels/ids here
-  RenderIntField("X:", &frame.texture_x, 0, tex_w > 0 ? tex_w - frame.texture_w : 0);
-  RenderIntField("Y:", &frame.texture_y, 0, tex_h > 0 ? tex_h - frame.texture_h : 0);
-  RenderIntField("W:", &frame.texture_w, 0, tex_w > 0 ? tex_w - frame.texture_x : 0);
-  RenderIntField("H:", &frame.texture_h, 0, tex_h > 0 ? tex_h - frame.texture_y : 0);
+  render_int_field("X:", &frame.texture_x, 0, tex_w > 0 ? tex_w - frame.texture_w : 0);
+  render_int_field("Y:", &frame.texture_y, 0, tex_h > 0 ? tex_h - frame.texture_h : 0);
+  render_int_field("W:", &frame.texture_w, 0, tex_w > 0 ? tex_w - frame.texture_x : 0);
+  render_int_field("H:", &frame.texture_h, 0, tex_h > 0 ? tex_h - frame.texture_y : 0);
 
   gui_->Text("Render:");
-  RenderIntField("Render W:", &frame.render_w, 1, 10000);
-  RenderIntField("Render H:", &frame.render_h, 1, 10000);
+  render_int_field("Render W:", &frame.render_w, 1, 10000);
+  render_int_field("Render H:", &frame.render_h, 1, 10000);
 
   gui_->Text("Offsets:");
-  RenderIntField("Offset X:", &frame.offset_x, -10000, 10000);
-  RenderIntField("Offset Y:", &frame.offset_y, -10000, 10000);
+  render_int_field("Offset X:", &frame.offset_x, -10000, 10000);
+  render_int_field("Offset Y:", &frame.offset_y, -10000, 10000);
 
   gui_->Text("Anim:");
-  RenderIntField("Duration:", &frame.frames_per_cycle, 1, 1000);
+  render_int_field("Duration:", &frame.frames_per_cycle, 1, 1000);
 
   // Scale Tool
   gui_->Separator();
@@ -558,7 +558,7 @@ void SpriteEditor::RenderFullTextureView() {
   SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
 
   const float texture_zoom = model_.texture_zoom();
-  ImVec2 canvas_size = ImVec2((float)tex_w * texture_zoom, (float)tex_h * texture_zoom);
+  ImVec2 canvas_size = ImVec2(static_cast<float>(tex_w) * texture_zoom, static_cast<float>(tex_h) * texture_zoom);
 
   ScopedChild child =
       gui_->CreateScopedChild("FullTextureRegion", ImVec2(0, 400), true,
@@ -601,22 +601,22 @@ void SpriteEditor::RenderFullTextureView() {
   float rel_y = (mouse_pos.y - canvas_pos.y) / texture_zoom;
 
   // Clamp to texture bounds
-  rel_x = std::max(0.0f, std::min(rel_x, (float)tex_w));
-  rel_y = std::max(0.0f, std::min(rel_y, (float)tex_h));
+  rel_x = std::max(0.0f, std::min(rel_x, static_cast<float>(tex_w)));
+  rel_y = std::max(0.0f, std::min(rel_y, static_cast<float>(tex_h)));
 
   if (!is_dragging_rect_) {
     is_dragging_rect_ = true;
     drag_start_ = ImVec2(rel_x, rel_y);
-    active_frame.texture_x = (int)rel_x;
-    active_frame.texture_y = (int)rel_y;
+    active_frame.texture_x = static_cast<int>(rel_x);
+    active_frame.texture_y = static_cast<int>(rel_y);
     active_frame.texture_w = 0;
     active_frame.texture_h = 0;
   } else {
     // Update WH based on drag
-    int start_x = (int)drag_start_.x;
-    int start_y = (int)drag_start_.y;
-    int curr_x = (int)rel_x;
-    int curr_y = (int)rel_y;
+    int start_x = static_cast<int>(drag_start_.x);
+    int start_y = static_cast<int>(drag_start_.y);
+    int curr_x = static_cast<int>(rel_x);
+    int curr_y = static_cast<int>(rel_y);
 
     // Allow dragging in any direction
     active_frame.texture_x = std::min(start_x, curr_x);

@@ -30,6 +30,7 @@
 #include "resources/tileset_manager.h"
 #include "resources/fake_texture_resource_store.h"
 #include "terrain/terrain_mask.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -62,11 +63,11 @@ absl::flat_hash_map<std::string, std::string> TexturePathsById() {
 std::vector<Tileset> LoadShippedTilesets() {
   absl::StatusOr<std::unique_ptr<TilesetManager>> manager =
       TilesetManager::Create(kAssetsRoot);
-  EXPECT_TRUE(manager.ok()) << manager.status();
+  EXPECT_OK(manager);
   if (!manager.ok()) return {};
 
   const absl::Status loaded = (*manager)->LoadAllTilesets();
-  EXPECT_TRUE(loaded.ok()) << loaded;
+  EXPECT_OK(loaded);
   if (!loaded.ok()) return {};
 
   return (*manager)->GetAllTilesets();
@@ -81,7 +82,7 @@ TEST(ShippedAssetsTest, ThereAreTilesetsToCheck) {
 TEST(ShippedAssetsTest, EveryShippedTilesetValidates) {
   for (const Tileset& tileset : LoadShippedTilesets()) {
     const absl::Status status = ValidateTileset(tileset);
-    EXPECT_TRUE(status.ok()) << "tileset '" << tileset.name << "': " << status;
+    EXPECT_OK(status) << "tileset '" << tileset.name << "'";
   }
 }
 
@@ -135,10 +136,10 @@ size_t DefinitionFileCount(const std::string& kind) {
 
 TEST(ShippedAssetsTest, EveryShippedLevelLoads) {
   absl::StatusOr<std::unique_ptr<LevelManager>> manager = LevelManager::Create(kAssetsRoot);
-  ASSERT_TRUE(manager.ok()) << manager.status();
+  ASSERT_OK(manager);
 
   const absl::Status loaded = (*manager)->LoadAllLevels();
-  EXPECT_TRUE(loaded.ok()) << loaded;
+  EXPECT_OK(loaded);
   EXPECT_EQ((*manager)->GetAllLevels().size(), DefinitionFileCount("levels"));
 }
 
@@ -149,34 +150,34 @@ TEST(ShippedAssetsTest, EveryShippedSpriteLoads) {
   FakeTextureResourceStore store;
   absl::StatusOr<std::unique_ptr<TextureManager>> textures =
       TextureManager::Create(&store, kAssetsRoot);
-  ASSERT_TRUE(textures.ok()) << textures.status();
-  ASSERT_TRUE((*textures)->LoadAllTextures().ok());
+  ASSERT_OK(textures);
+  ASSERT_OK((*textures)->LoadAllTextures());
 
   absl::StatusOr<std::unique_ptr<SpriteManager>> manager =
       SpriteManager::Create(textures->get(), kAssetsRoot);
-  ASSERT_TRUE(manager.ok()) << manager.status();
+  ASSERT_OK(manager);
 
   const absl::Status loaded = (*manager)->LoadAllSprites();
-  EXPECT_TRUE(loaded.ok()) << loaded;
+  EXPECT_OK(loaded);
   EXPECT_EQ((*manager)->GetAllSprites().size(), DefinitionFileCount("sprites"));
 }
 
 TEST(ShippedAssetsTest, EveryShippedBlueprintLoads) {
   absl::StatusOr<std::unique_ptr<BlueprintManager>> manager =
       BlueprintManager::Create(kAssetsRoot);
-  ASSERT_TRUE(manager.ok()) << manager.status();
+  ASSERT_OK(manager);
 
   const absl::Status loaded = (*manager)->LoadAllBlueprints();
-  EXPECT_TRUE(loaded.ok()) << loaded;
+  EXPECT_OK(loaded);
   EXPECT_EQ((*manager)->GetAllBlueprints().size(), DefinitionFileCount("blueprints"));
 }
 
 TEST(ShippedAssetsTest, EveryShippedColliderLoads) {
   absl::StatusOr<std::unique_ptr<ColliderManager>> manager = ColliderManager::Create(kAssetsRoot);
-  ASSERT_TRUE(manager.ok()) << manager.status();
+  ASSERT_OK(manager);
 
   const absl::Status loaded = (*manager)->LoadAllColliders();
-  EXPECT_TRUE(loaded.ok()) << loaded;
+  EXPECT_OK(loaded);
   EXPECT_EQ((*manager)->GetAllColliders().size(), DefinitionFileCount("colliders"));
 }
 
@@ -214,7 +215,7 @@ TEST(ShippedAssetsTest, EveryShippedImageHasADefinitionNamingIt) {
 TEST(ShippedAssetsTest, EveryBlob47TerrainIsPaintableForAllFortySevenMasks) {
   for (const Tileset& tileset : LoadShippedTilesets()) {
     absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
-    ASSERT_TRUE(index.ok()) << "tileset '" << tileset.name << "': " << index.status();
+    ASSERT_OK(index) << "tileset '" << tileset.name << "'";
 
     for (const Terrain& terrain : tileset.terrains) {
       if (terrain.scheme != TerrainScheme::kBlob47) continue;

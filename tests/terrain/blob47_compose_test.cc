@@ -4,6 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -65,7 +66,7 @@ uint8_t ReadQuadrantMarker(const RgbaImage& image, int tile_x, int tile_y, Quadr
 
 TEST(Blob47ComposeTest, EmitsEveryMaskOnce) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   EXPECT_EQ(atlas->tile_size, kQuadrantSize * 2);
   ASSERT_EQ(atlas->tiles.size(), kBlob47TileCount);
@@ -77,7 +78,7 @@ TEST(Blob47ComposeTest, EmitsEveryMaskOnce) {
 
 TEST(Blob47ComposeTest, AtlasDimensionsFollowTheBlobGrid) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   EXPECT_EQ(atlas->image.width, kBlob47Columns * kQuadrantSize * 2);
   EXPECT_EQ(atlas->image.height, kBlob47Rows * kQuadrantSize * 2);
@@ -88,7 +89,7 @@ TEST(Blob47ComposeTest, AtlasDimensionsFollowTheBlobGrid) {
 // table says it should be. If this drifts, painted levels render wrong art.
 TEST(Blob47ComposeTest, EveryQuadrantMatchesQuadrantStateForMask) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   for (const ComposedTile& tile : atlas->tiles) {
     for (int q = 0; q < kQuadrantCount; ++q) {
@@ -104,7 +105,7 @@ TEST(Blob47ComposeTest, EveryQuadrantMatchesQuadrantStateForMask) {
 
 TEST(Blob47ComposeTest, FullySurroundedTileIsAllFillQuadrants) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   const ComposedTile* solid = nullptr;
   for (const ComposedTile& tile : atlas->tiles) {
@@ -122,7 +123,7 @@ TEST(Blob47ComposeTest, FullySurroundedTileIsAllFillQuadrants) {
 TEST(Blob47ComposeTest, VariantsEmitSeparateBlocks) {
   absl::StatusOr<Blob47Atlas> atlas =
       ComposeBlob47(MakeSheet(3, {static_cast<int>(QuadrantState::kFill)}));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   EXPECT_EQ(atlas->tiles.size(), static_cast<size_t>(kBlob47TileCount) * 3);
   EXPECT_EQ(atlas->image.height, kBlob47Rows * kQuadrantSize * 2 * 3);
@@ -141,7 +142,7 @@ TEST(Blob47ComposeTest, VariantsEmitSeparateBlocks) {
 TEST(Blob47ComposeTest, TransparentVariantCellsInheritFromBaseVariant) {
   absl::StatusOr<Blob47Atlas> atlas =
       ComposeBlob47(MakeSheet(2, {static_cast<int>(QuadrantState::kFill)}));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   const ComposedTile* solid = nullptr;
   const ComposedTile* isolated = nullptr;
@@ -188,7 +189,7 @@ TEST(Blob47ComposeTest, RejectsWronglySizedSheet) {
 
 TEST(Blob47ComposeTest, ManifestDescribesEveryEmittedCell) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(2));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   nlohmann::json json = nlohmann::json::parse(WriteBlob47Manifest(*atlas));
   EXPECT_EQ(json["scheme"], "blob47");
@@ -226,7 +227,7 @@ SlopeSheet MakeSlopeSheet(const std::set<int>& provided_columns) {
 
 TEST(Blob47ComposeTest, SlopeSheetIsOptional) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1), nullptr);
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
   EXPECT_TRUE(atlas->slopes.empty());
   EXPECT_EQ(atlas->image.height, kBlob47Rows * kQuadrantSize * 2);
 }
@@ -235,7 +236,7 @@ TEST(Blob47ComposeTest, ProvidedSlopeColumnsAreAppendedBelowTheBlobBlocks) {
   // Columns 0 and 1 are the two 45° floor variants.
   SlopeSheet slopes = MakeSlopeSheet({0, 1});
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1), &slopes);
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   ASSERT_EQ(atlas->slopes.size(), 2u);
   EXPECT_EQ(atlas->slopes[0].shape, TileShape::kSlope45FloorTallRight);
@@ -253,7 +254,7 @@ TEST(Blob47ComposeTest, ProvidedSlopeColumnsAreAppendedBelowTheBlobBlocks) {
 TEST(Blob47ComposeTest, TransparentSlopeColumnsAreSkipped) {
   SlopeSheet slopes = MakeSlopeSheet({0, 7});
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1), &slopes);
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   ASSERT_EQ(atlas->slopes.size(), 2u);
   EXPECT_EQ(atlas->slopes[0].shape, TileShape::kSlope45FloorTallRight);
@@ -266,7 +267,7 @@ TEST(Blob47ComposeTest, TransparentSlopeColumnsAreSkipped) {
 TEST(Blob47ComposeTest, SlopeArtworkLandsInTheAtlas) {
   SlopeSheet slopes = MakeSlopeSheet({0});
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1), &slopes);
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
   ASSERT_EQ(atlas->slopes.size(), 1u);
 
   const ComposedSlope& slope = atlas->slopes[0];
@@ -279,7 +280,7 @@ TEST(Blob47ComposeTest, SlopeArtworkLandsInTheAtlas) {
 TEST(Blob47ComposeTest, SlopesStackBelowMultipleVariantBlocks) {
   SlopeSheet slopes = MakeSlopeSheet({0});
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(3), &slopes);
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   const int tile_size = kQuadrantSize * 2;
   EXPECT_EQ(atlas->slopes[0].source_y, kBlob47Rows * 3 * tile_size);
@@ -308,7 +309,7 @@ TEST(Blob47ComposeTest, RejectsSlopeSheetWithMismatchedTileSize) {
 TEST(Blob47ComposeTest, ManifestCarriesSlopeShapes) {
   SlopeSheet slopes = MakeSlopeSheet({0, 1});
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1), &slopes);
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   nlohmann::json json = nlohmann::json::parse(WriteBlob47Manifest(*atlas));
   ASSERT_EQ(json["slopes"].size(), 2u);
@@ -322,7 +323,7 @@ TEST(Blob47ComposeTest, ManifestCarriesSlopeShapes) {
 // the reader to guess which the author meant.
 TEST(Blob47ComposeTest, ManifestWritesAnEmptySlopesArrayWhenNoneSupplied) {
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(MakeSheet(1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   nlohmann::json json = nlohmann::json::parse(WriteBlob47Manifest(*atlas));
   ASSERT_TRUE(json.contains("slopes"));
@@ -354,7 +355,7 @@ TEST(Blob47ComposeTest, SeedFrom3x3ExtractsSixteenQuadrantsAndBlanksInnerCorners
   RgbaImage source = Make3x3Atlas(kTileSize, 1, 1);
 
   absl::StatusOr<QuadrantSheet> sheet = SeedQuadrantSheetFrom3x3(source, kTileSize, 1, 1);
-  ASSERT_TRUE(sheet.ok()) << sheet.status();
+  ASSERT_OK(sheet);
 
   EXPECT_EQ(sheet->quadrant_size, kTileSize / 2);
   EXPECT_EQ(sheet->variant_count, 1);
@@ -385,7 +386,7 @@ TEST(Blob47ComposeTest, SeedFrom3x3SamplesTheCorrectBlockCells) {
   RgbaImage source = Make3x3Atlas(kTileSize, 0, 0);
 
   absl::StatusOr<QuadrantSheet> sheet = SeedQuadrantSheetFrom3x3(source, kTileSize, 0, 0);
-  ASSERT_TRUE(sheet.ok()) << sheet.status();
+  ASSERT_OK(sheet);
 
   const auto marker_at = [&](Quadrant quadrant, QuadrantState state) {
     const size_t pixel = (static_cast<size_t>(static_cast<int>(quadrant) * sheet->quadrant_size) *
@@ -417,7 +418,7 @@ TEST(Blob47ComposeTest, SeedFrom3x3LeavesSheetUncomposableUntilCornersAreDrawn) 
   RgbaImage source = Make3x3Atlas(kTileSize, 0, 0);
 
   absl::StatusOr<QuadrantSheet> sheet = SeedQuadrantSheetFrom3x3(source, kTileSize, 0, 0);
-  ASSERT_TRUE(sheet.ok()) << sheet.status();
+  ASSERT_OK(sheet);
 
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(*sheet);
   ASSERT_FALSE(atlas.ok());
@@ -431,7 +432,7 @@ TEST(Blob47ComposeTest, SeedFrom3x3WithPlaceholdersComposesAndUsesInteriorArt) {
 
   absl::StatusOr<QuadrantSheet> sheet =
       SeedQuadrantSheetFrom3x3(source, kTileSize, 0, 0, InnerCornerSeed::kPlaceholderFromFill);
-  ASSERT_TRUE(sheet.ok()) << sheet.status();
+  ASSERT_OK(sheet);
 
   // The placeholder samples the block's centre cell, same as kFill.
   const size_t inner_pixel =
@@ -440,7 +441,7 @@ TEST(Blob47ComposeTest, SeedFrom3x3WithPlaceholdersComposesAndUsesInteriorArt) {
   EXPECT_EQ(sheet->image.pixels[inner_pixel], static_cast<uint8_t>(1 + 1 * 3 + 1));
 
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(*sheet);
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
   EXPECT_EQ(atlas->tiles.size(), kBlob47TileCount);
   EXPECT_EQ(atlas->tile_size, kTileSize);
 }
@@ -488,8 +489,8 @@ TEST(Blob47ComposeTest, RingSeedCompletesTheSheetAndItComposes) {
   RgbaImage ring = MakeRingAtlas(kTileSize, 0, 0);
 
   absl::StatusOr<QuadrantSheet> sheet = SeedQuadrantSheetFrom3x3(block, kTileSize, 0, 0);
-  ASSERT_TRUE(sheet.ok()) << sheet.status();
-  ASSERT_TRUE(SeedInnerCornersFromRing(ring, 0, 0, *sheet).ok());
+  ASSERT_OK(sheet);
+  ASSERT_OK(SeedInnerCornersFromRing(ring, 0, 0, *sheet));
 
   for (int q = 0; q < kQuadrantCount; ++q) {
     for (int s = 0; s < kQuadrantStateCount; ++s) {
@@ -502,7 +503,7 @@ TEST(Blob47ComposeTest, RingSeedCompletesTheSheetAndItComposes) {
   }
 
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(*sheet);
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
   EXPECT_EQ(atlas->tiles.size(), kBlob47TileCount);
 }
 
@@ -515,8 +516,8 @@ TEST(Blob47ComposeTest, RingSeedSamplesTheCellFacingTheHole) {
   RgbaImage ring = MakeRingAtlas(kTileSize, 0, 0);
 
   absl::StatusOr<QuadrantSheet> sheet = SeedQuadrantSheetFrom3x3(block, kTileSize, 0, 0);
-  ASSERT_TRUE(sheet.ok()) << sheet.status();
-  ASSERT_TRUE(SeedInnerCornersFromRing(ring, 0, 0, *sheet).ok());
+  ASSERT_OK(sheet);
+  ASSERT_OK(SeedInnerCornersFromRing(ring, 0, 0, *sheet));
 
   const auto marker_at = [&](Quadrant quadrant) {
     const size_t pixel = (static_cast<size_t>(static_cast<int>(quadrant) * sheet->quadrant_size) *
@@ -538,7 +539,7 @@ TEST(Blob47ComposeTest, RingSeedRejectsASolidBlock) {
   RgbaImage block = Make3x3Atlas(kTileSize, 0, 0);
 
   absl::StatusOr<QuadrantSheet> sheet = SeedQuadrantSheetFrom3x3(block, kTileSize, 0, 0);
-  ASSERT_TRUE(sheet.ok()) << sheet.status();
+  ASSERT_OK(sheet);
 
   const absl::Status status = SeedInnerCornersFromRing(block, 0, 0, *sheet);
   ASSERT_FALSE(status.ok());
@@ -554,7 +555,7 @@ TEST(Blob47ComposeTest, RingSeedRejectsAHollowWall) {
   FillCell(ring, 0, 0, kTileSize, 0, 0);
 
   absl::StatusOr<QuadrantSheet> sheet = SeedQuadrantSheetFrom3x3(block, kTileSize, 0, 0);
-  ASSERT_TRUE(sheet.ok()) << sheet.status();
+  ASSERT_OK(sheet);
 
   const absl::Status status = SeedInnerCornersFromRing(ring, 0, 0, *sheet);
   ASSERT_FALSE(status.ok());
@@ -567,7 +568,7 @@ TEST(Blob47ComposeTest, RingSeedRejectsARingOutsideTheAtlas) {
   RgbaImage ring = MakeRingAtlas(kTileSize, 0, 0);
 
   absl::StatusOr<QuadrantSheet> sheet = SeedQuadrantSheetFrom3x3(block, kTileSize, 0, 0);
-  ASSERT_TRUE(sheet.ok()) << sheet.status();
+  ASSERT_OK(sheet);
 
   const absl::Status status = SeedInnerCornersFromRing(ring, 2, 0, *sheet);
   ASSERT_FALSE(status.ok());
@@ -585,7 +586,7 @@ TEST(Blob47ComposeTest, CopyTileMovesOneTileBetweenImages) {
   target.height = kTileSize;
   target.pixels.assign(static_cast<size_t>(target.width) * target.height * 4, 0);
 
-  ASSERT_TRUE(CopyTile(source, 2 * kTileSize, kTileSize, kTileSize, target, kTileSize, 0).ok());
+  ASSERT_OK(CopyTile(source, 2 * kTileSize, kTileSize, kTileSize, target, kTileSize, 0));
 
   // Source cell (2, 1) carries marker 1 + 1 * 3 + 2.
   EXPECT_EQ(target.pixels[(static_cast<size_t>(kTileSize) + 0) * 4], 6);

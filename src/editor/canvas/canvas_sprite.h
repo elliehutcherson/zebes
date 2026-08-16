@@ -30,7 +30,7 @@ class CanvasSprite {
 
  private:
   // Helper for smooth dragging
-  void ApplyDrag(double& val, double& accumulator, double delta, bool snap);
+  static void ApplyDrag(double& val, double& accumulator, double delta, bool snap);
 
   // Updates the animation ticks.
   void UpdateAnimation();

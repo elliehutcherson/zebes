@@ -79,7 +79,7 @@ Level MakeLevel(int tiles_wide = 16, int tiles_high = 16) {
 // Reads the mask a cell currently depicts.
 uint8_t MaskAt(const Level& level, int x, int y) {
   absl::StatusOr<int> tile = GetTileAt(level, x, y);
-  EXPECT_TRUE(tile.ok()) << tile.status();
+  EXPECT_OK(tile);
   return MaskForTileId(*tile);
 }
 
@@ -88,7 +88,7 @@ uint8_t MaskAt(const Level& level, int x, int y) {
 TEST(TerrainIndexTest, ResolvesTilesAndTerrainsById) {
   Tileset tileset = MakeTileset(MakeTerrain());
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
 
   ASSERT_NE(index->FindById(kTerrainId), nullptr);
   EXPECT_EQ(index->FindById(kTerrainId)->name, "Grass");
@@ -128,15 +128,15 @@ class TerrainBrushTest : public ::testing::Test {
   void Build(bool solid_outside_level = false) {
     tileset_ = MakeTileset(MakeTerrain(solid_outside_level));
     absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset_);
-    ASSERT_TRUE(index.ok()) << index.status();
+    ASSERT_OK(index);
     index_ = std::move(*index);
     terrain_ = &tileset_.terrains[0];
     provider_.emplace(index_);
   }
 
   void Paint(int x, int y) {
-    ASSERT_TRUE(
-        PaintTerrain(level_, index_, *provider_, kTerrainId, TileShape::kFullBlock, x, y).ok());
+    ASSERT_OK(
+        PaintTerrain(level_, index_, *provider_, kTerrainId, TileShape::kFullBlock, x, y));
   }
 
   Tileset tileset_;
@@ -246,7 +246,7 @@ TEST_F(TerrainBrushTest, EraseClearsTheCellAndReresolvesSurvivors) {
   Paint(5, 4);
   ASSERT_EQ(MaskAt(level_, 4, 4), kEast);
 
-  ASSERT_TRUE(EraseTerrain(level_, index_, *provider_, 5, 4).ok());
+  ASSERT_OK(EraseTerrain(level_, index_, *provider_, 5, 4));
 
   EXPECT_EQ(GetTileAt(level_, 5, 4).value(), 0);
   EXPECT_EQ(MaskAt(level_, 4, 4), 0) << "survivor lost its eastern neighbour";
@@ -254,7 +254,7 @@ TEST_F(TerrainBrushTest, EraseClearsTheCellAndReresolvesSurvivors) {
 
 TEST_F(TerrainBrushTest, EraseOnEmptyCellIsHarmless) {
   Build();
-  ASSERT_TRUE(EraseTerrain(level_, index_, *provider_, 7, 7).ok());
+  ASSERT_OK(EraseTerrain(level_, index_, *provider_, 7, 7));
   EXPECT_EQ(GetTileAt(level_, 7, 7).value(), 0);
 }
 
@@ -273,7 +273,7 @@ TEST(TerrainVariantTest, SelectionIsStableAcrossRepeatedCalls) {
                                 {.tile_id = 12, .weight = 1}}};
 
   absl::StatusOr<int> first = SelectVariant(terrain, rule, 3, 9);
-  ASSERT_TRUE(first.ok()) << first.status();
+  ASSERT_OK(first);
   for (int i = 0; i < 10; ++i) {
     EXPECT_EQ(SelectVariant(terrain, rule, 3, 9).value(), *first);
   }
@@ -416,18 +416,18 @@ TEST_F(TerrainBrushTest, TheKeyRecordsWhatANeighbourIsNotMerelyThatItIsThere) {
   // it, and the artwork was baked against a guess.
   Build();
   Paint(4, 4);
-  ASSERT_TRUE(SetTileAt(level_, 5, 4, kSlopeNeighbourTileId).ok());
+  ASSERT_OK(SetTileAt(level_, 5, 4, kSlopeNeighbourTileId));
 
   Tileset with_slope = tileset_;
   with_slope.tiles.push_back(Tile{
       .id = kSlopeNeighbourTileId, .name = "Slope", .shape = TileShape::kSlope45FloorTallRight});
   with_slope.terrains[0].shape_tile_ids = {kSlopeNeighbourTileId};
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(with_slope);
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
 
   absl::StatusOr<TerrainCellKey> key =
       ComputeTerrainCellKey(level_, *index, with_slope.terrains[0], TileShape::kFullBlock, 4, 4);
-  ASSERT_TRUE(key.ok()) << key.status();
+  ASSERT_OK(key);
 
   EXPECT_EQ(key->neighbors[2], TileShape::kSlope45FloorTallRight) << "east is the slope";
   EXPECT_EQ(key->neighbors[6], TileShape::kNone) << "west is air";
@@ -440,7 +440,7 @@ TEST_F(TerrainBrushTest, ACellOutsideTheLevelReadsAsAFullBlockWhenGroundIsContin
 
   absl::StatusOr<TerrainCellKey> key =
       ComputeTerrainCellKey(level_, index_, *terrain_, TileShape::kFullBlock, 0, 0);
-  ASSERT_TRUE(key.ok()) << key.status();
+  ASSERT_OK(key);
 
   EXPECT_EQ(key->neighbors[6], TileShape::kFullBlock) << "west is outside the level";
   EXPECT_EQ(key->neighbors[0], TileShape::kFullBlock) << "north is outside the level";
@@ -454,7 +454,7 @@ TEST_F(TerrainBrushTest, ThePhaseFollowsWhereTheCellSitsInTheRepeat) {
   const auto phase_at = [&](int x, int y) {
     absl::StatusOr<TerrainCellKey> key =
         ComputeTerrainCellKey(level_, index_, periodic, TileShape::kFullBlock, x, y);
-    EXPECT_TRUE(key.ok()) << key.status();
+    EXPECT_OK(key);
     return key.ok() ? key->phase : -1;
   };
 
@@ -481,14 +481,14 @@ class TerrainMemberTest : public ::testing::Test {
     tileset_.terrains[0].shape_tile_ids = {kSlopeTileId};
 
     absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset_);
-    ASSERT_TRUE(index.ok()) << index.status();
+    ASSERT_OK(index);
     index_ = std::move(*index);
     provider_.emplace(index_);
   }
 
   void Paint(int x, int y) {
-    ASSERT_TRUE(
-        PaintTerrain(level_, index_, *provider_, kTerrainId, TileShape::kFullBlock, x, y).ok());
+    ASSERT_OK(
+        PaintTerrain(level_, index_, *provider_, kTerrainId, TileShape::kFullBlock, x, y));
   }
 
   Tileset tileset_;
@@ -511,7 +511,7 @@ TEST_F(TerrainMemberTest, MemberTileResolvesToItsTerrain) {
 
 TEST_F(TerrainMemberTest, GroundPaintedBesideASlopeHasNoEdge) {
   // Place a slope by hand to the east, then paint ground beside it.
-  ASSERT_TRUE(SetTileAt(level_, 5, 4, kSlopeTileId).ok());
+  ASSERT_OK(SetTileAt(level_, 5, 4, kSlopeTileId));
   Paint(4, 4);
 
   // The east bit is set: the slope reads as the same material, not as air.
@@ -523,18 +523,18 @@ TEST_F(TerrainMemberTest, WithoutMembershipTheSameSlopeWouldReadAsAir) {
   Tileset without_members = tileset_;
   without_members.terrains[0].shape_tile_ids.clear();
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(without_members);
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
   // The provider must read the index this test built, not the fixture's.
   Blob47TileProvider provider(*index);
 
-  ASSERT_TRUE(SetTileAt(level_, 5, 4, kSlopeTileId).ok());
-  ASSERT_TRUE(PaintTerrain(level_, *index, provider, kTerrainId, TileShape::kFullBlock, 4, 4).ok());
+  ASSERT_OK(SetTileAt(level_, 5, 4, kSlopeTileId));
+  ASSERT_OK(PaintTerrain(level_, *index, provider, kTerrainId, TileShape::kFullBlock, 4, 4));
 
   EXPECT_EQ(MaskAt(level_, 4, 4), 0) << "this is the seam the membership fix removes";
 }
 
 TEST_F(TerrainMemberTest, PaintingBesideASlopeNeverOverwritesIt) {
-  ASSERT_TRUE(SetTileAt(level_, 5, 4, kSlopeTileId).ok());
+  ASSERT_OK(SetTileAt(level_, 5, 4, kSlopeTileId));
 
   // Paint all around the slope, repeatedly.
   for (int repeat = 0; repeat < 2; ++repeat) {
@@ -549,18 +549,18 @@ TEST_F(TerrainMemberTest, PaintingBesideASlopeNeverOverwritesIt) {
 }
 
 TEST_F(TerrainMemberTest, ErasingASlopeReresolvesSurvivingGround) {
-  ASSERT_TRUE(SetTileAt(level_, 5, 4, kSlopeTileId).ok());
+  ASSERT_OK(SetTileAt(level_, 5, 4, kSlopeTileId));
   Paint(4, 4);
   ASSERT_EQ(MaskAt(level_, 4, 4), kEast);
 
-  ASSERT_TRUE(EraseTerrain(level_, index_, *provider_, 5, 4).ok());
+  ASSERT_OK(EraseTerrain(level_, index_, *provider_, 5, 4));
 
   EXPECT_EQ(GetTileAt(level_, 5, 4).value(), 0);
   EXPECT_EQ(MaskAt(level_, 4, 4), 0) << "ground should grow an edge where the slope was";
 }
 
 TEST_F(TerrainMemberTest, PaintingDirectlyOnASlopeReplacesItDeliberately) {
-  ASSERT_TRUE(SetTileAt(level_, 4, 4, kSlopeTileId).ok());
+  ASSERT_OK(SetTileAt(level_, 4, 4, kSlopeTileId));
   Paint(4, 4);
 
   EXPECT_NE(GetTileAt(level_, 4, 4).value(), kSlopeTileId)
@@ -623,7 +623,7 @@ TEST_F(TerrainBrushTest, MissingRuleFailsInsteadOfGuessing) {
   rules.erase(rules.begin());
 
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset_);
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
   // The provider must read the index this test built, not the fixture's.
   Blob47TileProvider provider(*index);
 
@@ -644,7 +644,7 @@ TEST_F(TerrainMemberTest, TheProviderResolvesAShapeThroughTheTerrainsShapeTiles)
 
   absl::StatusOr<int> tile = provider_->TileForKey(tileset_.terrains[0], key, 4, 4);
 
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
   EXPECT_EQ(*tile, kSlopeTileId);
 }
 
@@ -666,7 +666,7 @@ TEST_F(TerrainMemberTest, ARefreshHandsACellBackTheGeometryItAlreadyHad) {
   // looks, never what the player collides with. RefreshNeighbors reads each
   // neighbour's shape and passes it straight back, so there is no path that
   // chooses geometry on the author's behalf.
-  ASSERT_TRUE(SetTileAt(level_, 5, 4, kSlopeTileId).ok());
+  ASSERT_OK(SetTileAt(level_, 5, 4, kSlopeTileId));
 
   Paint(4, 4);
   Paint(5, 5);

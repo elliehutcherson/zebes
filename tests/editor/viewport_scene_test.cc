@@ -42,7 +42,7 @@ TEST(ViewportSceneEntityTest, ComposesStableSpriteGeometryAndPresentationState) 
       entities, Lookup(sprite, texture),
       {.selected_entity_id = 7, .show_borders = true, .overlay_opacity = 0.25f});
 
-  ASSERT_TRUE(items.ok()) << items.status();
+  ASSERT_OK(items);
   ASSERT_EQ(items->size(), 1u);
   const EntityRenderItem& item = items->front();
   EXPECT_EQ(item.mode, EntityRenderMode::kLevel);
@@ -105,7 +105,7 @@ TEST(ViewportSceneEntityTest, OmitsInactiveEntitiesAndCentersPlaceholderBounds) 
   absl::StatusOr<std::vector<EntityRenderItem>> items =
       ComposeEntityRenderItems(entities, {}, {});
 
-  ASSERT_TRUE(items.ok()) << items.status();
+  ASSERT_OK(items);
   ASSERT_EQ(items->size(), 1u);
   EXPECT_EQ(items->front().entity_id, 2u);
   EXPECT_EQ(items->front().bounds.min, (Vec{84, 184}));
@@ -124,7 +124,7 @@ TEST(ViewportSceneEntityTest, SpriteWithoutTextureStillUsesSpriteBounds) {
   absl::StatusOr<std::vector<EntityRenderItem>> items =
       ComposeEntityRenderItems(entities, Lookup(sprite), {});
 
-  ASSERT_TRUE(items.ok()) << items.status();
+  ASSERT_OK(items);
   ASSERT_EQ(items->size(), 1u);
   EXPECT_EQ(items->front().bounds.min, (Vec{45, 50}));
   EXPECT_EQ(items->front().bounds.max, (Vec{65, 80}));
@@ -175,7 +175,7 @@ TEST(ViewportSceneEntityTest, ComposesPlacementGhostWithSharedEntityGeometry) {
   absl::StatusOr<EntityRenderItem> item = ComposeEntityPlacementItem(
       {100, 200}, ResolvedSprite{.sprite = &sprite, .texture = texture});
 
-  ASSERT_TRUE(item.ok()) << item.status();
+  ASSERT_OK(item);
   EXPECT_EQ(item->mode, EntityRenderMode::kPlacementGhost);
   EXPECT_EQ(item->entity_id, Entity::kInvalidId);
   EXPECT_EQ(item->bounds.min, (Vec{90, 180}));
@@ -188,7 +188,7 @@ TEST(ViewportSceneEntityTest, ComposesPlacementGhostWithSharedEntityGeometry) {
 
 TEST(ViewportSceneEntityTest, PlacementGhostAllowsNoSpriteButRejectsBrokenSprite) {
   absl::StatusOr<EntityRenderItem> placeholder = ComposeEntityPlacementItem({100, 200}, {});
-  ASSERT_TRUE(placeholder.ok()) << placeholder.status();
+  ASSERT_OK(placeholder);
   EXPECT_EQ(placeholder->bounds.min, (Vec{84, 184}));
   EXPECT_EQ(placeholder->bounds.max, (Vec{116, 216}));
   EXPECT_FALSE(placeholder->sprite.has_value());
@@ -227,7 +227,7 @@ TEST(ViewportSceneZoneTest, CullsOffscreenZonesAndGivesSelectionPrecedence) {
   absl::StatusOr<std::vector<ZoneGizmoItem>> items =
       ComposeZoneGizmoItems(zones, camera, /*selected_zone_id=*/1, /*active_zone_id=*/1);
 
-  ASSERT_TRUE(items.ok()) << items.status();
+  ASSERT_OK(items);
   ASSERT_EQ(items->size(), 1u);
   EXPECT_EQ(items->front().zone_id, 1);
   EXPECT_EQ(items->front().state, ZoneGizmoState::kSelected);
@@ -268,7 +268,7 @@ TEST(ViewportSceneParallaxTest, BindsTexturesInAuthoredLayerOrder) {
   absl::StatusOr<ParallaxRenderBatch> batch =
       ComposeParallaxRenderBatch(theme, camera, textures);
 
-  ASSERT_TRUE(batch.ok()) << batch.status();
+  ASSERT_OK(batch);
   ASSERT_EQ(batch->layers.size(), 3u);
   EXPECT_EQ(batch->layers[0].layer.name, "Forest");
   EXPECT_EQ(batch->layers[0].texture, forest);
@@ -315,7 +315,7 @@ TEST(ViewportSceneParallaxTest, IsolatesSelectedLayerAndRejectsStaleIndex) {
   absl::StatusOr<ParallaxRenderBatch> batch =
       ComposeParallaxRenderBatch(theme, camera, textures, {.layer_index = 1});
 
-  ASSERT_TRUE(batch.ok()) << batch.status();
+  ASSERT_OK(batch);
   ASSERT_EQ(batch->layers.size(), 1u);
   EXPECT_EQ(batch->layers.front().layer.name, "Front");
   EXPECT_EQ(batch->layers.front().texture, front);
@@ -332,8 +332,8 @@ TEST(ViewportSceneTileTest, ComposesOnlyVisibleTilesWithAtlasAndPresentationStat
       .width = 2048,
       .height = 1024,
   };
-  ASSERT_TRUE(SetTileAt(level, 1, 2, 7).ok());
-  ASSERT_TRUE(SetTileAt(level, 70, 2, 7).ok());
+  ASSERT_OK(SetTileAt(level, 1, 2, 7));
+  ASSERT_OK(SetTileAt(level, 70, 2, 7));
   Tileset tileset{
       .tile_width = 16,
       .tile_height = 24,
@@ -355,7 +355,7 @@ TEST(ViewportSceneTileTest, ComposesOnlyVisibleTilesWithAtlasAndPresentationStat
       level, tileset, texture, camera,
       {.overlay_opacity = 0.5f, .show_frame = true, .show_collision = true});
 
-  ASSERT_TRUE(batch.ok()) << batch.status();
+  ASSERT_OK(batch);
   EXPECT_EQ(batch->atlas_texture, texture);
   EXPECT_EQ(batch->mode, TileRenderMode::kLevel);
   EXPECT_FLOAT_EQ(batch->overlay_opacity, 0.5f);
@@ -382,14 +382,14 @@ TEST(ViewportSceneTileTest, OffscreenChunksAreNotScanned) {
   };
   // Unknown tile data is deliberately placed in a distant chunk. The camera
   // only composes the visible chunk, avoiding 1,024-cell scans elsewhere.
-  ASSERT_TRUE(SetTileAt(level, 100, 2, 999).ok());
+  ASSERT_OK(SetTileAt(level, 100, 2, 999));
   Tileset tileset{.tiles = {{.id = 1, .source_x = 0, .source_y = 0}}};
   Camera camera{.position = {32, 32}, .zoom = 1, .viewport_width = 64, .viewport_height = 64};
 
   absl::StatusOr<TileRenderBatch> batch =
       ComposeLevelTileRenderBatch(level, tileset, {}, camera, {});
 
-  ASSERT_TRUE(batch.ok()) << batch.status();
+  ASSERT_OK(batch);
   EXPECT_TRUE(batch->items.empty());
 }
 
@@ -400,7 +400,7 @@ TEST(ViewportSceneTileTest, RejectsUnknownVisibleTileAndDuplicateDefinitions) {
       .width = 128,
       .height = 128,
   };
-  ASSERT_TRUE(SetTileAt(level, 1, 1, 9).ok());
+  ASSERT_OK(SetTileAt(level, 1, 1, 9));
   Camera camera{.position = {32, 32}, .zoom = 1, .viewport_width = 64, .viewport_height = 64};
   Tileset tileset{.tiles = {{.id = 1}}};
 
@@ -419,7 +419,7 @@ TEST(ViewportSceneTileTest, RejectsTileOutsideLevelBounds) {
       .width = 16,
       .height = 16,
   };
-  ASSERT_TRUE(SetTileAt(level, 1, 0, 1).ok());
+  ASSERT_OK(SetTileAt(level, 1, 0, 1));
   Tileset tileset{.tiles = {{.id = 1}}};
   Camera camera{.position = {16, 8}, .zoom = 1, .viewport_width = 64, .viewport_height = 64};
 
@@ -438,7 +438,7 @@ TEST(ViewportSceneTileTest, PlacementSnapsToRenderGrid) {
   absl::StatusOr<TileRenderBatch> batch =
       ComposeTilePlacementBatch(tile, tileset, {}, {33, 47}, 16, 24);
 
-  ASSERT_TRUE(batch.ok()) << batch.status();
+  ASSERT_OK(batch);
   EXPECT_EQ(batch->mode, TileRenderMode::kPlacementGhost);
   ASSERT_EQ(batch->items.size(), 1u);
   EXPECT_EQ(batch->items.front().bounds.min, (Vec{32, 24}));

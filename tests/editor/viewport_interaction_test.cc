@@ -7,6 +7,7 @@
 #include "editor/level_editor/viewport_model.h"
 #include "gtest/gtest.h"
 #include "terrain/terrain_mask.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -24,11 +25,9 @@ TEST(ViewportInteractionTileTest, PaintsAndErasesFromTranslatedPointerState) {
   ViewportInteractionController controller;
   Level level = MakeLevel();
 
-  ASSERT_TRUE(
-      controller
-          .Update(level, {.world_position = {8, 8}, .pointer_in_level = true, .primary_down = true},
-                  {.paint_tile_id = 7})
-          .ok());
+  ASSERT_OK(controller.Update(
+      level, {.world_position = {8, 8}, .pointer_in_level = true, .primary_down = true},
+      {.paint_tile_id = 7}));
   EXPECT_EQ(GetTileAt(level, 0, 0).value(), 7);
 
   ASSERT_TRUE(controller
@@ -63,10 +62,8 @@ TEST(ViewportInteractionTileTest, OutsidePointerIsANoOpAndInconsistentBoundsFail
   ViewportInteractionController controller;
   Level level = MakeLevel();
 
-  EXPECT_TRUE(
-      controller
-          .Update(level, {.world_position = {-1, 8}, .primary_down = true}, {.paint_tile_id = 7})
-          .ok());
+  EXPECT_OK(controller.Update(level, {.world_position = {-1, 8}, .primary_down = true},
+                              {.paint_tile_id = 7}));
   EXPECT_TRUE(level.tile_chunks.empty());
   const double unavailable = -std::numeric_limits<float>::max();
   EXPECT_TRUE(controller
@@ -96,7 +93,7 @@ TEST(ViewportInteractionEntityTest, PlacesInvisibleBlueprintWithoutASprite) {
       level, {.world_position = {32, 48}, .pointer_in_level = true, .primary_pressed = true},
       {.placement_blueprint = &blueprint});
 
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   ASSERT_TRUE(result->placed_entity.has_value());
   EXPECT_TRUE(result->placed_entity->sprite_id.empty());
 }
@@ -119,7 +116,7 @@ TEST(ViewportInteractionEntityTest, PlacesResolvedBlueprintWithStableId) {
                          .primary_down = true},
                         {.placement_blueprint = &blueprint, .placement_sprite = &sprite});
 
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   ASSERT_TRUE(result->placed_entity.has_value());
   EXPECT_EQ(result->placed_entity->id, 51);
   EXPECT_EQ(result->placed_entity->blueprint_id, "enemy");
@@ -160,7 +157,7 @@ TEST(ViewportInteractionEntityTest, UsesFinalEntityIdThenFailsWhenExhausted) {
 
   absl::StatusOr<ViewportInteractionResult> final_placement =
       controller.Update(level, input, {.placement_blueprint = &blueprint});
-  ASSERT_TRUE(final_placement.ok()) << final_placement.status();
+  ASSERT_OK(final_placement);
   ASSERT_TRUE(final_placement->placed_entity.has_value());
   EXPECT_EQ(final_placement->placed_entity->id, final_id);
 
@@ -181,25 +178,19 @@ TEST(ViewportInteractionEntityTest, SelectsAndDragsWithStablePointerOffset) {
                          .primary_pressed = true,
                          .primary_down = true},
                         {.selected_entity_id = 4});
-  ASSERT_TRUE(pressed.ok()) << pressed.status();
+  ASSERT_OK(pressed);
   EXPECT_EQ(pressed->selected_entity_id, 4);
 
-  ASSERT_TRUE(
-      controller
-          .Update(level,
-                  {.world_position = {130, 140}, .pointer_in_level = true, .primary_down = true},
-                  {.selected_entity_id = 4})
-          .ok());
+  ASSERT_OK(controller.Update(
+      level, {.world_position = {130, 140}, .pointer_in_level = true, .primary_down = true},
+      {.selected_entity_id = 4}));
   EXPECT_EQ(level.entities.at(4).transform.position, (Vec{126, 135}));
 
-  ASSERT_TRUE(
-      controller.Update(level, {.world_position = {130, 140}}, {.selected_entity_id = 4}).ok());
-  ASSERT_TRUE(
-      controller
-          .Update(level,
-                  {.world_position = {150, 150}, .pointer_in_level = true, .primary_down = true},
-                  {.selected_entity_id = 4})
-          .ok());
+  ASSERT_OK(
+      controller.Update(level, {.world_position = {130, 140}}, {.selected_entity_id = 4}));
+  ASSERT_OK(controller.Update(
+      level, {.world_position = {150, 150}, .pointer_in_level = true, .primary_down = true},
+      {.selected_entity_id = 4}));
   EXPECT_EQ(level.entities.at(4).transform.position, (Vec{126, 135}));
 }
 
@@ -212,7 +203,7 @@ TEST(ViewportInteractionEntityTest, RequestsDeletionWithoutMutatingTheLevel) {
       level, {.world_position = {100, 100}, .pointer_in_level = true, .secondary_pressed = true},
       {.selected_entity_id = 4, .delete_mode = true});
 
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   EXPECT_EQ(result->delete_entity_id, 4);
   EXPECT_TRUE(level.entities.contains(4));
 }
@@ -230,13 +221,10 @@ TEST(ViewportInteractionEntityTest, ChangingAuthoringModeCancelsAnActiveDrag) {
                            .primary_down = true},
                           {.selected_entity_id = 4})
                   .ok());
-  ASSERT_TRUE(controller.Update(level, {}, {.paint_tile_id = 7}).ok());
-  ASSERT_TRUE(
-      controller
-          .Update(level,
-                  {.world_position = {130, 140}, .pointer_in_level = true, .primary_down = true},
-                  {.selected_entity_id = 4})
-          .ok());
+  ASSERT_OK(controller.Update(level, {}, {.paint_tile_id = 7}));
+  ASSERT_OK(controller.Update(
+      level, {.world_position = {130, 140}, .pointer_in_level = true, .primary_down = true},
+      {.selected_entity_id = 4}));
 
   EXPECT_EQ(level.entities.at(4).transform.position, (Vec{100, 100}));
 }
@@ -260,13 +248,13 @@ TEST(ViewportInteractionTileTest, HoldingOverOneCellDoesNotRewriteItEveryFrame) 
   const ViewportInteractionInput held{
       .world_position = {8, 8}, .pointer_in_level = true, .primary_down = true};
 
-  ASSERT_TRUE(controller.Update(level, held, {.paint_tile_id = 7}).ok());
+  ASSERT_OK(controller.Update(level, held, {.paint_tile_id = 7}));
   ASSERT_EQ(GetTileAt(level, 0, 0).value(), 7);
 
   // A second frame on the same cell is a no-op, so overwriting the cell behind
   // the controller's back stays overwritten.
-  ASSERT_TRUE(SetTileAt(level, 0, 0, 99).ok());
-  ASSERT_TRUE(controller.Update(level, held, {.paint_tile_id = 7}).ok());
+  ASSERT_OK(SetTileAt(level, 0, 0, 99));
+  ASSERT_OK(controller.Update(level, held, {.paint_tile_id = 7}));
   EXPECT_EQ(GetTileAt(level, 0, 0).value(), 99);
 }
 
@@ -299,15 +287,13 @@ TEST(ViewportInteractionTileTest, ReleasingTheButtonAllowsRepaintingTheSameCell)
   const ViewportInteractionInput held{
       .world_position = {8, 8}, .pointer_in_level = true, .primary_down = true};
 
-  ASSERT_TRUE(controller.Update(level, held, {.paint_tile_id = 7}).ok());
+  ASSERT_OK(controller.Update(level, held, {.paint_tile_id = 7}));
   // A frame with nothing held ends the stroke.
-  ASSERT_TRUE(controller
-                  .Update(level, {.world_position = {8, 8}, .pointer_in_level = true},
-                          {.paint_tile_id = 7})
-                  .ok());
+  ASSERT_OK(controller.Update(level, {.world_position = {8, 8}, .pointer_in_level = true},
+                              {.paint_tile_id = 7}));
 
-  ASSERT_TRUE(SetTileAt(level, 0, 0, 0).ok());
-  ASSERT_TRUE(controller.Update(level, held, {.paint_tile_id = 7}).ok());
+  ASSERT_OK(SetTileAt(level, 0, 0, 0));
+  ASSERT_OK(controller.Update(level, held, {.paint_tile_id = 7}));
   EXPECT_EQ(GetTileAt(level, 0, 0).value(), 7);
 }
 
@@ -348,7 +334,7 @@ Tileset MakeTerrainTileset() {
 TEST(ViewportInteractionTerrainTest, PaintsAndErasesThroughTheBrush) {
   Tileset tileset = MakeTerrainTileset();
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
   Blob47TileProvider provider(*index);
 
   ViewportInteractionController controller;
@@ -378,7 +364,7 @@ TEST(ViewportInteractionTerrainTest, PaintsAndErasesThroughTheBrush) {
 TEST(ViewportInteractionTerrainTest, PaintingANeighbourReresolvesTheExistingCell) {
   Tileset tileset = MakeTerrainTileset();
   absl::StatusOr<TerrainIndex> index = TerrainIndex::Build(tileset);
-  ASSERT_TRUE(index.ok()) << index.status();
+  ASSERT_OK(index);
   Blob47TileProvider provider(*index);
 
   ViewportInteractionController controller;

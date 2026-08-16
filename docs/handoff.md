@@ -1,50 +1,71 @@
 # Handoff
 
-## Current: Track 0, on a branch, not merged
+## Current: casts and status assertions cleaned up; resume Track 1
 
-Branch `track0-lint-and-shape-names`, five commits, 2026-08-15. 693 C++ and 43
-Python tests pass; `--ui-tests` passes; `git diff --check` is clean.
-[`roadmap.md`](roadmap.md) has the full picture — Track 0 is done there, and
-Tracks 1-4 are what is left.
+As of 2026-08-16, PRs #1-4 and the next Track 1 cleanup group are on `main`.
+[`roadmap.md`](roadmap.md) remains the source of truth for sequencing; Track 0
+is done and Track 1 is in progress.
 
-**What I did.**
+**What landed.**
 
-1. **Made clang-tidy runnable.** It ships with the keg-only Homebrew llvm
-   formula, so it was never on `PATH`. `.clang-tidy` now records the working
-   invocation and why `-isysroot` cannot be dropped.
-2. **Fixed the leaky header filter.** `HeaderFilterRegex` did not exclude
-   vendored code: stb is reached as `src/common/../../include/stb/stb_image.h`,
-   which contains `/zebes/src/`. That one path was 741 of 961 findings. Added
-   `ExcludeHeaderFilterRegex: '/include/'`. Real backlog: **220 findings in
-   `src/`, 200 in `tests/`**, itemised in the roadmap.
-3. **Trued up `docs/style-guide.md` §Verification**, which still said clang-tidy
-   was not installed. It is outside every rule block, so `sync_rules.py`
-   regenerated nothing.
-4. **Verified and committed the underscore rename** that was sitting uncommitted
-   and unbuilt in the working tree (`kGentleSlopeBottomLeft_Lower` →
-   `kGentleSlopeBottomLeftLower`).
-5. **Renamed all twenty slope enumerators** onto one vocabulary:
-   `kSlope45BottomLeft` → `kSlope45FloorTallRight`. "Floor"/"Ceiling" is the
-   edge the solid mass hugs, "TallLeft"/"TallRight" the side at full tile
-   height.
-6. **Wrote `roadmap.md`** and trimmed this file's plan half into it.
+1. `scripts/lint.sh` makes clang-tidy reliable on macOS, excludes vendored
+   diagnostics, accepts focused translation units, and requires an explicit
+   `--all` for a full scan.
+2. Local verification is target-oriented. Build and run the affected test with
+   `scripts/test.sh`; lint edited translation units instead of repeatedly
+   running the full suite or full-tree analysis.
+3. `docs/style-guide.md` is the source for generated Claude rules. `AGENTS.md`
+   carries the compact Codex/GPT workflow. Repository edits use the native patch
+   tool, not Python, Perl, or shell rewriting.
+4. CI builds one UI-enabled tree, runs every headless, SDL/ImGui, and Python test,
+   and caches compiler outputs between runs. Top-level-only submodule checkout
+   avoids cloning unused vendored SDL dependencies.
+5. CI clang-tidy uses the hosted macOS runner's three CPUs; local full scans keep
+   the two-worker default to limit heat. The post-merge run
+   [31925261184](https://github.com/elliehutcherson/zebes/actions/runs/31925261184)
+   passed with both clang-tidy and the full test suite at **4m42s**.
+6. The slope migration and safe tall-side naming are merged. Retired identifiers
+   fail rather than silently resolving to a mirrored shape.
+7. All 28 `google-readability-casting` findings in the canvas and sprite editor
+   use the appropriate C++ cast. The adjacent naming and static-member findings
+   are fixed as well.
+8. Positive status assertions across the test suite use `EXPECT_OK`, `ASSERT_OK`,
+   or `ASSERT_OK_AND_ASSIGN`; negative-path tests keep explicit status checks.
+   The status-test macros have collision-resistant helper names and no header
+   namespace diagnostics.
 
-**The one decision worth checking.** Renaming each shape to its right-angle
-corner — the obvious fix — would have *swapped* `kSlope45BottomLeft` and
-`kSlope45BottomRight`. A definition that escaped the migration would then have
-loaded as the mirrored shape in silence: the numeric `shape` field is untouched
-and `TileShapeFromIdentifier` would still have resolved it. So the new names
-share no spelling with the old ones, and a stale file fails the lookup instead.
-`TerrainDetectTest.ImportRejectsARetiredShapeIdentifier` pins that.
+The repository is public. The workflow uses standard GitHub-hosted runners, not
+billable larger runners.
 
-**Beyond what was planned:** three tests (one C++ for the retired identifier, two
-Python for both migration eras), and the Tileset Editor's shape combo, which
-still read "Slope 45 Bottom-Left" — the mirror of what the enum now says. Both
-follow from the rename.
+### Pick up here tomorrow
 
-**Left to do:** merge the branch. Then Track 1, starting with the 153
-`google-default-arguments` on `GuiInterface` — the only finding in the backlog
-that is a defect rather than a cleanup.
+Continue Track 1 with its three single-argument constructor decisions. Start by
+checking whether implicit conversion is used for `Api`, `Db`, or
+`CameraController`:
+
+```bash
+rg -n '\b(Api|Db|CameraController)\b' src tests
+scripts/lint.sh src/api/api.cc src/db/db.cc src/engine/camera_controller.cc
+```
+
+Mark each constructor `explicit` unless a real conversion call site establishes
+that implicit construction is intentional. Keep `imgui_scoped.h`'s guard
+conversions implicit with documented `NOLINT`, as the roadmap records. Build the
+affected targets, run the narrowest relevant tests, then rerun focused lint and
+`git diff --check`.
+
+### What remains
+
+- **Track 1:** 125 known clang-tidy findings after the completed virtual-default
+  and cast fixes: finish the small source groups and judgement calls, then the
+  GoogleTest-name sweep. Turn CI strict only after the tree is clean.
+- **Track 2:** confirm the root scratch files and `old/` are unreferenced, then
+  remove them.
+- **Track 3:** Autumn Forest visual check, move terrain creation off the render
+  thread, and defer atlas compaction until real atlas growth justifies it.
+- **Track 4:** layers first, then prop artwork; parallax zone seaming is the
+  smallest independent feature. See [`roadmap.md`](roadmap.md) for the design
+  constraints and settled decisions.
 
 ---
 

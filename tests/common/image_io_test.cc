@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -33,10 +34,10 @@ TEST(ImageIoTest, WrittenPixelsReadBackExactly) {
   std::filesystem::remove(path);
   const std::vector<uint8_t> pixels = Checkerboard(8, 6);
 
-  ASSERT_TRUE(WritePng(path, 8, 6, pixels).ok());
+  ASSERT_OK(WritePng(path, 8, 6, pixels));
 
   const absl::StatusOr<RgbaImage> loaded = ReadPng(path);
-  ASSERT_TRUE(loaded.ok()) << loaded.status();
+  ASSERT_OK(loaded);
   EXPECT_EQ(loaded->width, 8);
   EXPECT_EQ(loaded->height, 6);
 
@@ -65,7 +66,7 @@ TEST(ImageIoTest, CreatesMissingDirectories) {
   std::filesystem::remove_all(directory);
   const std::string path = directory + "/deeper/art.png";
 
-  ASSERT_TRUE(WritePng(path, 2, 2, Checkerboard(2, 2)).ok());
+  ASSERT_OK(WritePng(path, 2, 2, Checkerboard(2, 2)));
   EXPECT_TRUE(std::filesystem::exists(path));
   std::filesystem::remove_all(directory);
 }

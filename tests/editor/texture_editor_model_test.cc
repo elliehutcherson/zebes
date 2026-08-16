@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "common/common.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -32,7 +33,7 @@ TEST(TextureEditorModelTest, BeginNewTextureResetsSelectionAndBuildsCreateReques
 
   ASSERT_TRUE(model.is_new_texture());
   absl::StatusOr<Texture> texture = model.BuildTextureForCreate();
-  ASSERT_TRUE(texture.ok());
+  ASSERT_OK(texture);
   EXPECT_TRUE(texture->id.empty());
   EXPECT_EQ(texture->name, "New");
   EXPECT_EQ(texture->path, "new.png");
@@ -62,7 +63,7 @@ TEST(TextureEditorModelTest, BuildUpdateAppliesEditedNameWithoutMutatingUntilFin
   model.edit_name_buffer().replace(0, 3, "New");
 
   absl::StatusOr<Texture> update = model.BuildTextureForUpdate();
-  ASSERT_TRUE(update.ok());
+  ASSERT_OK(update);
   EXPECT_EQ(update->name, "New");
   EXPECT_EQ(model.selected_texture()->name, "Old");
 

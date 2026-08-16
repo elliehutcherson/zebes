@@ -83,7 +83,7 @@ class TerrainRecipeManagerTest : public ::testing::Test {
             ("zebes-terrain-recipes-" + std::to_string(++sequence_));
     std::filesystem::remove_all(path_);
     ASSERT_OK_AND_ASSIGN(manager_, TerrainRecipeManager::Create(path_.string()));
-    ASSERT_TRUE(manager_->LoadAllRecipes().ok());
+    ASSERT_OK(manager_->LoadAllRecipes());
   }
 
   void TearDown() override { std::filesystem::remove_all(path_); }
@@ -101,7 +101,7 @@ TEST_F(TerrainRecipeManagerTest, RoundTripsEveryConfigurationField) {
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<TerrainRecipeManager> reloaded,
                        TerrainRecipeManager::Create(path_.string()));
-  ASSERT_TRUE(reloaded->LoadAllRecipes().ok());
+  ASSERT_OK(reloaded->LoadAllRecipes());
   ASSERT_OK_AND_ASSIGN(TerrainRecipe * loaded, reloaded->GetRecipe(id));
 
   recipe.id = id;
@@ -134,7 +134,7 @@ TEST_F(TerrainRecipeManagerTest, SavingAnEditReplacesTheRecipeWithoutChangingIts
   TerrainRecipe edited = *recipe;
   edited.config.seed = 42;
   edited.name = "Renamed";
-  ASSERT_TRUE(manager_->SaveRecipe(edited).ok());
+  ASSERT_OK(manager_->SaveRecipe(edited));
 
   ASSERT_OK_AND_ASSIGN(TerrainRecipe * saved, manager_->GetRecipe(id));
   EXPECT_EQ(saved->id, id);

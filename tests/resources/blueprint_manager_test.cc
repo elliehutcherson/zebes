@@ -21,9 +21,7 @@ class BlueprintManagerTest : public ::testing::Test {
     std::filesystem::create_directories(test_dir_ + "/definitions/blueprints");
 
     // Create manager
-    auto bm = BlueprintManager::Create(test_dir_);
-    ASSERT_TRUE(bm.ok());
-    manager_ = std::move(*bm);
+    ASSERT_OK_AND_ASSIGN(manager_, BlueprintManager::Create(test_dir_));
   }
 
   void TearDown() override {
@@ -43,16 +41,12 @@ TEST_F(BlueprintManagerTest, CreateAndGetBlueprint) {
                       {.name = "run", .sprite_id = "run-sprite"},
                       {.name = "jump", .collider_id = "jump-collider"}};
 
-  auto id_or = manager_->CreateBlueprint(blueprint);
-  ASSERT_TRUE(id_or.ok()) << id_or.status();
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateBlueprint(blueprint));
   // CHECK ID
   EXPECT_FALSE(id.empty());
   EXPECT_NE(id, "test-blueprint");
 
-  auto blueprint_or = manager_->GetBlueprint(id);
-  ASSERT_TRUE(blueprint_or.ok());
-  Blueprint* loaded_blueprint = *blueprint_or;
+  ASSERT_OK_AND_ASSIGN(Blueprint * loaded_blueprint, manager_->GetBlueprint(id));
   EXPECT_EQ(loaded_blueprint->id, id);
   ASSERT_EQ(loaded_blueprint->states.size(), 3);
 
@@ -90,8 +84,7 @@ TEST_F(BlueprintManagerTest, SaveBlueprintFileFormat) {
   blueprint.name = "FileFormatTest";
   blueprint.states = {{.name = "idle"}};
 
-  auto status = manager_->SaveBlueprint(blueprint);
-  ASSERT_TRUE(status.ok());
+  ASSERT_OK(manager_->SaveBlueprint(blueprint));
 
   EXPECT_TRUE(std::filesystem::exists(test_dir_ + "/definitions/blueprints/" + blueprint.name +
                                       "-" + blueprint.id + ".json"));
@@ -109,8 +102,7 @@ TEST_F(BlueprintManagerTest, ValidationLogic) {
 
   // Correction
   blueprint.states[0].name = "valid";
-  status = manager_->SaveBlueprint(blueprint);
-  EXPECT_TRUE(status.ok());
+  EXPECT_OK(manager_->SaveBlueprint(blueprint));
 }
 
 TEST_F(BlueprintManagerTest, DeleteBlueprint) {
@@ -118,12 +110,9 @@ TEST_F(BlueprintManagerTest, DeleteBlueprint) {
   // blueprint.id = "delete-test"; // ID is generated
   blueprint.name = "DeleteTest";
 
-  auto id_or = manager_->CreateBlueprint(blueprint);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateBlueprint(blueprint));
 
-  auto status = manager_->DeleteBlueprint(id);
-  ASSERT_TRUE(status.ok());
+  ASSERT_OK(manager_->DeleteBlueprint(id));
 
   EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/definitions/blueprints/" + blueprint.name +
                                        "-" + id + ".json"));
@@ -135,9 +124,7 @@ TEST_F(BlueprintManagerTest, RenameBlueprint) {
   // blueprint.id = "rename-test"; // ID is generated
   blueprint.name = "OldName";
 
-  auto id_or = manager_->CreateBlueprint(blueprint);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateBlueprint(blueprint));
 
   std::string old_file = test_dir_ + "/definitions/blueprints/OldName-" + id + ".json";
   ASSERT_TRUE(std::filesystem::exists(old_file));
@@ -147,7 +134,7 @@ TEST_F(BlueprintManagerTest, RenameBlueprint) {
 
   // Rename
   blueprint.name = "NewName";
-  ASSERT_TRUE(manager_->SaveBlueprint(blueprint).ok());
+  ASSERT_OK(manager_->SaveBlueprint(blueprint));
 
   std::string new_file = test_dir_ + "/definitions/blueprints/NewName-" + id + ".json";
   EXPECT_TRUE(std::filesystem::exists(new_file));

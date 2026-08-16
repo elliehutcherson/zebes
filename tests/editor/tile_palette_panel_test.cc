@@ -8,6 +8,7 @@
 #include "objects/tileset.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
+#include "macros.h"
 
 namespace zebes {
 
@@ -33,7 +34,7 @@ class TilePalettePanelTest : public ::testing::Test {
  protected:
   void SetUp() override {
     auto panel_or = TilePalettePanel::Create({.api = api_.get(), .gui = &gui_});
-    ASSERT_TRUE(panel_or.ok());
+    ASSERT_OK(panel_or);
     panel_ = *std::move(panel_or);
 
     // Combo: closed by default.
@@ -94,7 +95,7 @@ TEST(TilePalettePanelCreateTest, FailsWithNullGui) {
 
 TEST_F(TilePalettePanelTest, Render_NoTilesets_SucceedsAndSelectionIsNull) {
   ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{}));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedTile(), nullptr);
   EXPECT_EQ(panel_->GetSelectedTileset(), nullptr);
 }
@@ -116,7 +117,7 @@ TEST_F(TilePalettePanelTest, Render_WithTilesetPreSelected_RendersGrid) {
   ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{stable_ts_}));
   // Inject tileset directly to bypass the combo's Selectable overload ambiguity.
   TilePalettePanelTestPeer::SetSelectedTileset(*panel_, &stable_ts_);
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedTileset(), &stable_ts_);
 }
 
@@ -132,7 +133,7 @@ TEST_F(TilePalettePanelTest, Render_ClickTile_SelectsTile) {
   EXPECT_CALL(gui_, InvisibleButton(_, _, _)).WillOnce(Return(false));
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_NE(panel_->GetSelectedTile(), nullptr);
   EXPECT_EQ(panel_->GetSelectedTile()->id, 1);
 }
@@ -146,13 +147,13 @@ TEST_F(TilePalettePanelTest, Render_ClickSameTile_Deselects) {
   // First click: select.
   EXPECT_CALL(gui_, InvisibleButton(_, _, _)).WillOnce(Return(false));
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_NE(panel_->GetSelectedTile(), nullptr);
 
   // Second click on same tile: deselect.
   EXPECT_CALL(gui_, InvisibleButton(_, _, _)).WillOnce(Return(false));
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedTile(), nullptr);
 }
 
@@ -166,7 +167,7 @@ TEST_F(TilePalettePanelTest, ClearSelection_ResetsSelectedTile) {
 
   EXPECT_CALL(gui_, InvisibleButton(_, _, _)).WillOnce(Return(false));
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_NE(panel_->GetSelectedTile(), nullptr);
 
   panel_->ClearSelection();

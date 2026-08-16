@@ -4,6 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "terrain/terrain_mask.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -68,7 +69,7 @@ TEST(TerrainEditorModelTest, TileCountCountsEveryPhaseAndNoSlopes) {
 // The picture has to arrive without the user touching anything.
 TEST(TerrainEditorModelTest, DrawsAPreviewOnTheFirstRefresh) {
   TerrainEditorModel model = MakeModel();
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(/*interacting=*/false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(/*interacting=*/false));
   ASSERT_TRUE(model.preview().has_value());
   EXPECT_GT(model.preview()->width, 0);
 }
@@ -77,24 +78,24 @@ TEST(TerrainEditorModelTest, DrawsAPreviewOnTheFirstRefresh) {
 // on a picture nobody asked to change.
 TEST(TerrainEditorModelTest, DoesNotRedrawWhenNothingChanged) {
   TerrainEditorModel model = MakeModel();
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(false));
+  ASSERT_OK(model.RefreshPreviewIfNeeded(false));
 
   const int width = model.preview()->width;
   model.config().tile_size = 16;  // Changed behind the model's back.
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(false));
   EXPECT_EQ(model.preview()->width, width)
       << "the model redrew without being told the configuration moved";
 }
 
 TEST(TerrainEditorModelTest, RedrawsAfterBeingMarkedStale) {
   TerrainEditorModel model = MakeModel();
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(false));
   const int width = model.preview()->width;
 
   model.config().tile_size = 16;
   model.MarkPreviewStale();
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(false));
   EXPECT_NE(model.preview()->width, width);
 }
 
@@ -106,19 +107,19 @@ TEST(TerrainEditorModelTest, SettlesToFullQualityOnlyAfterInteractionEnds) {
 
   // A change while dragging draws a draft, and holding does not settle it.
   model.MarkPreviewStale();
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(/*interacting=*/true).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(/*interacting=*/true));
   ASSERT_TRUE(model.preview().has_value());
   const std::vector<uint8_t> draft = model.preview()->pixels;
 
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(/*interacting=*/true).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(/*interacting=*/true));
   EXPECT_EQ(model.preview()->pixels, draft) << "settled while the control was still held";
 
   // Releasing settles it, and once settled it stays put.
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(/*interacting=*/false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(/*interacting=*/false));
   const std::vector<uint8_t> settled = model.preview()->pixels;
   EXPECT_NE(settled, draft) << "releasing did not redraw at full quality";
 
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(false));
   EXPECT_EQ(model.preview()->pixels, settled) << "redrew a preview that was already final";
 }
 
@@ -136,13 +137,13 @@ TEST(TerrainEditorModelTest, ReportsAConfigurationItCannotDraw) {
 // nothing to spend time drawing.
 TEST(TerrainEditorModelTest, ImportingDropsThePreview) {
   TerrainEditorModel model = MakeModel();
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(false));
   ASSERT_TRUE(model.preview().has_value());
 
   model.SetSource(TerrainEditorModel::Source::kImportManifest);
   EXPECT_FALSE(model.preview().has_value());
 
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(false));
   EXPECT_FALSE(model.preview().has_value());
 }
 
@@ -151,7 +152,7 @@ TEST(TerrainEditorModelTest, ReturningToGenerateRedrawsThePreview) {
   model.SetSource(TerrainEditorModel::Source::kImportManifest);
   model.SetSource(TerrainEditorModel::Source::kGenerate);
 
-  ASSERT_TRUE(model.RefreshPreviewIfNeeded(false).ok());
+  ASSERT_OK(model.RefreshPreviewIfNeeded(false));
   EXPECT_TRUE(model.preview().has_value());
 }
 

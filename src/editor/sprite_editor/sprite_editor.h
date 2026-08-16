@@ -52,7 +52,7 @@ class SpriteEditor {
   SDL_Texture* SdlTexture() {
     return SdlTextureHandleAdapter::ToNative(model_.texture());
   }
-  ImTextureID ImTextureId() { return (ImTextureID)(SdlTexture()); }
+  ImTextureID ImTextureId() { return reinterpret_cast<ImTextureID>(SdlTexture()); }
 
   Api* api_;
   SdlWrapper* sdl_;

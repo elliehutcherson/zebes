@@ -5,6 +5,7 @@
 
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -31,12 +32,12 @@ TEST(LevelPanelModelTest, OrderedCatalogPreservesDuplicateNames) {
 TEST(LevelPanelModelTest, SelectionUsesStableIdAcrossRefresh) {
   LevelPanelModel model;
   model.SetLevels({{.id = "west", .name = "Z West"}, {.id = "east", .name = "A East"}});
-  ASSERT_TRUE(model.SelectLevel("west").ok());
+  ASSERT_OK(model.SelectLevel("west"));
 
   model.SetLevels({{.id = "west", .name = "A West"}, {.id = "east", .name = "Z East"}});
 
   EXPECT_EQ(model.selected_level_id(), "west");
-  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  ASSERT_OK(model.BeginEditingSelectedLevel());
   ASSERT_NE(model.active_level(), nullptr);
   EXPECT_EQ(model.active_level()->id, "west");
 }
@@ -44,8 +45,8 @@ TEST(LevelPanelModelTest, SelectionUsesStableIdAcrossRefresh) {
 TEST(LevelPanelModelTest, EditingUsesCopyInsteadOfCatalogStorage) {
   LevelPanelModel model;
   model.SetLevels({{.id = "cave", .name = "Cave"}});
-  ASSERT_TRUE(model.SelectLevel("cave").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  ASSERT_OK(model.SelectLevel("cave"));
+  ASSERT_OK(model.BeginEditingSelectedLevel());
 
   model.active_level()->name = "Changed";
 
@@ -58,7 +59,7 @@ TEST(LevelPanelModelTest, CreateFinishesAsExistingLevel) {
 
   ASSERT_TRUE(model.is_new_level());
   EXPECT_EQ(model.active_level()->name, "name");
-  ASSERT_TRUE(model.FinishCreate("generated").ok());
+  ASSERT_OK(model.FinishCreate("generated"));
   EXPECT_FALSE(model.is_new_level());
   EXPECT_EQ(model.active_level()->id, "generated");
   EXPECT_EQ(model.selected_level_id(), "generated");
@@ -78,8 +79,8 @@ TEST(LevelPanelModelTest, InvalidSelectionDoesNotOpenLevel) {
 TEST(LevelPanelModelTest, DeleteClearsSelectionAndActiveLevel) {
   LevelPanelModel model;
   model.SetLevels({{.id = "cave", .name = "Cave"}});
-  ASSERT_TRUE(model.SelectLevel("cave").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  ASSERT_OK(model.SelectLevel("cave"));
+  ASSERT_OK(model.BeginEditingSelectedLevel());
 
   model.FinishDelete();
 
@@ -116,7 +117,7 @@ TEST(LevelPanelModelTilesetTest, AnEmptyLevelRebindsWithoutConfirmation) {
   LevelPanelModel model;
   model.BeginEditingLevel(Level{.id = "alpha", .tileset_id = "sunny"});
 
-  ASSERT_TRUE(model.RequestTilesetChange("grass").ok());
+  ASSERT_OK(model.RequestTilesetChange("grass"));
 
   EXPECT_FALSE(model.has_pending_tileset_change());
   EXPECT_EQ(model.active_level()->tileset_id, "grass");
@@ -128,7 +129,7 @@ TEST(LevelPanelModelTilesetTest, ReselectingTheCurrentTilesetIsANoOp) {
   LevelPanelModel model;
   model.BeginEditingLevel(LevelWithTiles("sunny", 1));
 
-  ASSERT_TRUE(model.RequestTilesetChange("sunny").ok());
+  ASSERT_OK(model.RequestTilesetChange("sunny"));
 
   EXPECT_FALSE(model.has_pending_tileset_change());
   EXPECT_EQ(model.placed_tile_count(), 1);
@@ -138,7 +139,7 @@ TEST(LevelPanelModelTilesetTest, APopulatedLevelStagesTheChangeAndKeepsItsTiles)
   LevelPanelModel model;
   model.BeginEditingLevel(LevelWithTiles("sunny", 2));
 
-  ASSERT_TRUE(model.RequestTilesetChange("grass").ok());
+  ASSERT_OK(model.RequestTilesetChange("grass"));
 
   EXPECT_TRUE(model.has_pending_tileset_change());
   EXPECT_EQ(model.pending_tileset_id(), "grass");
@@ -150,9 +151,9 @@ TEST(LevelPanelModelTilesetTest, APopulatedLevelStagesTheChangeAndKeepsItsTiles)
 TEST(LevelPanelModelTilesetTest, ConfirmingDiscardsTilesAndRebinds) {
   LevelPanelModel model;
   model.BeginEditingLevel(LevelWithTiles("sunny", 1));
-  ASSERT_TRUE(model.RequestTilesetChange("grass").ok());
+  ASSERT_OK(model.RequestTilesetChange("grass"));
 
-  ASSERT_TRUE(model.ConfirmTilesetChange().ok());
+  ASSERT_OK(model.ConfirmTilesetChange());
 
   EXPECT_EQ(model.active_level()->tileset_id, "grass");
   EXPECT_EQ(model.placed_tile_count(), 0);
@@ -162,7 +163,7 @@ TEST(LevelPanelModelTilesetTest, ConfirmingDiscardsTilesAndRebinds) {
 TEST(LevelPanelModelTilesetTest, CancellingKeepsBothTilesetAndTiles) {
   LevelPanelModel model;
   model.BeginEditingLevel(LevelWithTiles("sunny", 1));
-  ASSERT_TRUE(model.RequestTilesetChange("grass").ok());
+  ASSERT_OK(model.RequestTilesetChange("grass"));
 
   model.CancelTilesetChange();
 
@@ -182,7 +183,7 @@ TEST(LevelPanelModelTilesetTest, ConfirmingWithNothingStagedFails) {
 TEST(LevelPanelModelTilesetTest, ClosingTheLevelDropsAStagedChange) {
   LevelPanelModel model;
   model.BeginEditingLevel(LevelWithTiles("sunny", 1));
-  ASSERT_TRUE(model.RequestTilesetChange("grass").ok());
+  ASSERT_OK(model.RequestTilesetChange("grass"));
 
   model.CloseActiveLevel();
 
@@ -196,8 +197,8 @@ TEST(LevelPanelModelTest, AFreshlyOpenedLevelHasNothingToLose) {
   EXPECT_FALSE(model.has_unsaved_changes()) << "nothing is being edited";
 
   model.SetLevels({Level{.id = "a", .name = "Alpha"}});
-  ASSERT_TRUE(model.SelectLevel("a").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  ASSERT_OK(model.SelectLevel("a"));
+  ASSERT_OK(model.BeginEditingSelectedLevel());
 
   EXPECT_FALSE(model.has_unsaved_changes());
 }
@@ -205,19 +206,19 @@ TEST(LevelPanelModelTest, AFreshlyOpenedLevelHasNothingToLose) {
 TEST(LevelPanelModelTest, EditsToAnyPartOfALevelCount) {
   LevelPanelModel model;
   model.SetLevels({Level{.id = "a", .name = "Alpha"}});
-  ASSERT_TRUE(model.SelectLevel("a").ok());
+  ASSERT_OK(model.SelectLevel("a"));
 
-  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  ASSERT_OK(model.BeginEditingSelectedLevel());
   model.active_level()->name = "Renamed";
   EXPECT_TRUE(model.has_unsaved_changes());
 
   // Painting is the edit that matters most and the one a flag is most likely
   // to miss, since it goes straight into the chunk map.
-  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  ASSERT_OK(model.BeginEditingSelectedLevel());
   model.active_level()->tile_chunks[0].tiles[5] = 7;
   EXPECT_TRUE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  ASSERT_OK(model.BeginEditingSelectedLevel());
   model.active_level()->entities[1] = Entity{.id = 1};
   EXPECT_TRUE(model.has_unsaved_changes());
 }
@@ -227,8 +228,8 @@ TEST(LevelPanelModelTest, EditsToAnyPartOfALevelCount) {
 TEST(LevelPanelModelTest, UndoingAnEditByHandIsCleanAgain) {
   LevelPanelModel model;
   model.SetLevels({Level{.id = "a", .name = "Alpha"}});
-  ASSERT_TRUE(model.SelectLevel("a").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedLevel().ok());
+  ASSERT_OK(model.SelectLevel("a"));
+  ASSERT_OK(model.BeginEditingSelectedLevel());
 
   model.active_level()->tile_chunks[0].tiles[5] = 7;
   ASSERT_TRUE(model.has_unsaved_changes());
@@ -243,7 +244,7 @@ TEST(LevelPanelModelTest, SavingMakesTheCurrentStateTheCleanOne) {
   model.active_level()->name = "Cavern";
   ASSERT_TRUE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.FinishCreate("cavern-id").ok());
+  ASSERT_OK(model.FinishCreate("cavern-id"));
   EXPECT_FALSE(model.has_unsaved_changes());
 
   model.active_level()->name = "Renamed";

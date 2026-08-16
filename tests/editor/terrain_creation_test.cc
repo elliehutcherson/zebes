@@ -42,7 +42,7 @@ std::string ManifestFor(int variant_count) {
   sheet.image.pixels.assign(static_cast<size_t>(sheet.image.width) * sheet.image.height * 4, 255);
 
   absl::StatusOr<Blob47Atlas> atlas = ComposeBlob47(sheet);
-  EXPECT_TRUE(atlas.ok()) << atlas.status();
+  EXPECT_OK(atlas);
   return WriteBlob47Manifest(*atlas);
 }
 
@@ -86,7 +86,7 @@ class RecipeTerrainCreationTest : public ::testing::Test {
     path_ = std::filesystem::temp_directory_path() / "zebes-terrain-creation-recipes";
     std::filesystem::remove_all(path_);
     ASSERT_OK_AND_ASSIGN(recipes_, TerrainRecipeManager::Create(path_.string()));
-    ASSERT_TRUE(recipes_->LoadAllRecipes().ok());
+    ASSERT_OK(recipes_->LoadAllRecipes());
     // Recipes reach the editor through the Api now, but this fixture still
     // wants real persistence: it asserts what actually lands on disk.
     api_.DelegateTerrainRecipesTo(*recipes_);
@@ -114,7 +114,7 @@ TEST_F(TerrainCreationTest, GeneratingWritesArtworkAndSavesATileset) {
 
   absl::StatusOr<CreatedTerrain> created =
       CreateGeneratedTerrainTileset(api_, "meadow", SmallConfig());
-  ASSERT_TRUE(created.ok()) << created.status();
+  ASSERT_OK(created);
   EXPECT_EQ(created->texture_id, "texture-id");
   EXPECT_EQ(created->tileset_id, "tileset-id");
 
@@ -185,7 +185,7 @@ TEST_F(TerrainCreationTest, ImportingUsesTheChosenTextureAndWritesNoArtwork) {
 
   absl::StatusOr<CreatedTerrain> created =
       CreateImportedTerrainTileset(api_, "drawn", "existing-texture", ManifestFor(1));
-  ASSERT_TRUE(created.ok()) << created.status();
+  ASSERT_OK(created);
 
   EXPECT_EQ(saved.texture_id, "existing-texture");
   // The cell size comes from the manifest; the tileset has no other way to know
@@ -254,7 +254,7 @@ TEST_F(RecipeTerrainCreationTest, RegenerationReplacesOnlyPixelsAndPreservesIds)
 
   TerrainGenConfig edited = recipe.config;
   edited.seed = 777;
-  ASSERT_TRUE(RegenerateTerrainTileset(api_, recipe, edited).ok());
+  ASSERT_OK(RegenerateTerrainTileset(api_, recipe, edited));
 
   ASSERT_OK_AND_ASSIGN(TerrainRecipe * saved, recipes_->GetRecipe(recipe.id));
   EXPECT_EQ(saved->tileset_id, recipe.tileset_id);

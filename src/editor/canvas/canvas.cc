@@ -312,8 +312,8 @@ void Canvas::ClampCamera() {
   // Ensure the viewport is never larger than the world.
   if (world_w > 1.0 && world_h > 1.0) {
     // Calculate the minimum zoom required to fill the screen
-    float min_zoom_x = (float)(camera_->viewport_width / world_w);
-    float min_zoom_y = (float)(camera_->viewport_height / world_h);
+    float min_zoom_x = static_cast<float>(camera_->viewport_width / world_w);
+    float min_zoom_y = static_cast<float>(camera_->viewport_height / world_h);
 
     // We must satisfy the stricter of the two constraints
     float min_required_zoom = std::max(min_zoom_x, min_zoom_y);

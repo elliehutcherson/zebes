@@ -5,6 +5,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "tests/editor/mock_gui.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -23,7 +24,7 @@ class LevelPanelTest : public ::testing::Test {
  protected:
   void SetUp() override {
     auto panel = LevelPanel::Create(&gui_);
-    ASSERT_TRUE(panel.ok());
+    ASSERT_OK(panel);
     panel_ = *std::move(panel);
 
     static ImGuiIO io;
@@ -66,7 +67,7 @@ TEST_F(LevelPanelTest, RenderListShowsOrderedLevelNames) {
       .WillOnce(Return(false));
 
   absl::StatusOr<LevelPanelEvent> event = panel_->RenderList(model_);
-  ASSERT_TRUE(event.ok());
+  ASSERT_OK(event);
   EXPECT_EQ(event->action, LevelPanelAction::kNone);
 }
 
@@ -76,7 +77,7 @@ TEST_F(LevelPanelTest, RenderListUsesSafeLabelForEmptyLevelName) {
   EXPECT_CALL(gui_, Selectable(StrEq("(unnamed level)##level_level-id"), false, _, _))
       .WillOnce(Return(false));
 
-  EXPECT_TRUE(panel_->RenderList(model_).ok());
+  EXPECT_OK(panel_->RenderList(model_));
 }
 
 TEST_F(LevelPanelTest, CreateBeginsDraftAndReportsPersistenceIntent) {
@@ -84,7 +85,7 @@ TEST_F(LevelPanelTest, CreateBeginsDraftAndReportsPersistenceIntent) {
 
   absl::StatusOr<LevelPanelEvent> event = panel_->RenderList(model_);
 
-  ASSERT_TRUE(event.ok());
+  ASSERT_OK(event);
   EXPECT_EQ(event->action, LevelPanelAction::kCreate);
   ASSERT_NE(model_.active_level(), nullptr);
   EXPECT_TRUE(model_.is_new_level());
@@ -92,12 +93,12 @@ TEST_F(LevelPanelTest, CreateBeginsDraftAndReportsPersistenceIntent) {
 
 TEST_F(LevelPanelTest, EditOpensSelectedCatalogLevel) {
   model_.SetLevels({{.id = "alpha", .name = "Alpha"}});
-  ASSERT_TRUE(model_.SelectLevel("alpha").ok());
+  ASSERT_OK(model_.SelectLevel("alpha"));
   EXPECT_CALL(gui_, Button(StrEq("Edit"), _)).WillOnce(Return(true));
 
   absl::StatusOr<LevelPanelEvent> event = panel_->RenderList(model_);
 
-  ASSERT_TRUE(event.ok());
+  ASSERT_OK(event);
   EXPECT_EQ(event->action, LevelPanelAction::kOpen);
   ASSERT_NE(model_.active_level(), nullptr);
   EXPECT_EQ(model_.active_level()->id, "alpha");
@@ -109,7 +110,7 @@ TEST_F(LevelPanelTest, SaveReportsIntentWithoutPersisting) {
 
   absl::StatusOr<LevelPanelEvent> event = panel_->RenderDetails(model_);
 
-  ASSERT_TRUE(event.ok());
+  ASSERT_OK(event);
   EXPECT_EQ(event->action, LevelPanelAction::kSave);
   EXPECT_TRUE(model_.has_active_level());
 }
@@ -120,7 +121,7 @@ TEST_F(LevelPanelTest, BackClosesActiveLevel) {
 
   absl::StatusOr<LevelPanelEvent> event = panel_->RenderDetails(model_);
 
-  ASSERT_TRUE(event.ok());
+  ASSERT_OK(event);
   EXPECT_EQ(event->action, LevelPanelAction::kClose);
   EXPECT_FALSE(model_.has_active_level());
 }
@@ -131,7 +132,7 @@ TEST_F(LevelPanelTest, TilesetComboPreviewsTheLevelsTilesetByName) {
 
   EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Tileset"), StrEq("Grass"), _));
 
-  EXPECT_TRUE(panel_->RenderDetails(model_).ok());
+  EXPECT_OK(panel_->RenderDetails(model_));
 }
 
 TEST_F(LevelPanelTest, AnUnboundLevelPreviewsNone) {
@@ -140,7 +141,7 @@ TEST_F(LevelPanelTest, AnUnboundLevelPreviewsNone) {
 
   EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Tileset"), StrEq("(none)"), _));
 
-  EXPECT_TRUE(panel_->RenderDetails(model_).ok());
+  EXPECT_OK(panel_->RenderDetails(model_));
 }
 
 TEST_F(LevelPanelTest, PickingATilesetRebindsAnEmptyLevel) {
@@ -149,7 +150,7 @@ TEST_F(LevelPanelTest, PickingATilesetRebindsAnEmptyLevel) {
   OpenTilesetCombo();
   EXPECT_CALL(gui_, Selectable(StrEq("Grass"), false, _, _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(panel_->RenderDetails(model_).ok());
+  ASSERT_OK(panel_->RenderDetails(model_));
 
   EXPECT_EQ(model_.active_level()->tileset_id, "grass-uuid");
   EXPECT_FALSE(model_.has_pending_tileset_change());
@@ -166,7 +167,7 @@ TEST_F(LevelPanelTest, PickingATilesetForAPopulatedLevelAsksFirst) {
   EXPECT_CALL(gui_, Selectable(StrEq("Grass"), false, _, _)).WillOnce(Return(true));
   EXPECT_CALL(gui_, Button(StrEq("Discard tiles and switch"), _)).WillOnce(Return(false));
 
-  ASSERT_TRUE(panel_->RenderDetails(model_).ok());
+  ASSERT_OK(panel_->RenderDetails(model_));
 
   EXPECT_TRUE(model_.has_pending_tileset_change());
   EXPECT_EQ(model_.active_level()->tileset_id, "sunny-uuid");
@@ -179,12 +180,12 @@ TEST_F(LevelPanelTest, ConfirmingTheSwitchDiscardsTheTiles) {
   chunk.tiles[0] = 4;
   level.tile_chunks[0] = chunk;
   model_.BeginEditingLevel(std::move(level));
-  ASSERT_TRUE(model_.RequestTilesetChange("grass-uuid").ok());
+  ASSERT_OK(model_.RequestTilesetChange("grass-uuid"));
   ASSERT_TRUE(model_.has_pending_tileset_change());
 
   EXPECT_CALL(gui_, Button(StrEq("Discard tiles and switch"), _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(panel_->RenderDetails(model_).ok());
+  ASSERT_OK(panel_->RenderDetails(model_));
 
   EXPECT_EQ(model_.active_level()->tileset_id, "grass-uuid");
   EXPECT_EQ(model_.placed_tile_count(), 0);
@@ -197,12 +198,12 @@ TEST_F(LevelPanelTest, KeepingTheTilesetCancelsTheSwitch) {
   chunk.tiles[0] = 4;
   level.tile_chunks[0] = chunk;
   model_.BeginEditingLevel(std::move(level));
-  ASSERT_TRUE(model_.RequestTilesetChange("grass-uuid").ok());
+  ASSERT_OK(model_.RequestTilesetChange("grass-uuid"));
 
   EXPECT_CALL(gui_, Button(StrEq("Discard tiles and switch"), _)).WillOnce(Return(false));
   EXPECT_CALL(gui_, Button(StrEq("Keep tileset"), _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(panel_->RenderDetails(model_).ok());
+  ASSERT_OK(panel_->RenderDetails(model_));
 
   EXPECT_FALSE(model_.has_pending_tileset_change());
   EXPECT_EQ(model_.active_level()->tileset_id, "sunny-uuid");
@@ -217,7 +218,7 @@ TEST_F(LevelPanelTest, NoConfirmationWithoutAPendingChange) {
 
   EXPECT_CALL(gui_, Button(StrEq("Discard tiles and switch"), _)).Times(0);
 
-  EXPECT_TRUE(panel_->RenderDetails(model_).ok());
+  EXPECT_OK(panel_->RenderDetails(model_));
 }
 
 }  // namespace

@@ -6,6 +6,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "objects/camera.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -32,7 +33,7 @@ class CameraControllerTest : public ::testing::Test {
     options.zoom_speed = 1.0;
 
     auto controller_or = CameraController::Create(options);
-    ASSERT_TRUE(controller_or.ok());
+    ASSERT_OK(controller_or);
     controller_ = std::move(controller_or.value());
 
     // Default behavior: Return false for any action not explicitly expected

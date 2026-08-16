@@ -4,6 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "objects/sprite.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -14,14 +15,14 @@ TEST(AnimatorTest, ReadsLiveFramesAddedAfterPlaybackStarts) {
       {.index = 0, .texture_x = 10, .frames_per_cycle = 1},
   };
 
-  ASSERT_TRUE(animator.GetCurrentFrame(frames).ok());
+  ASSERT_OK(animator.GetCurrentFrame(frames));
   animator.Update(frames);
 
   frames.push_back({.index = 1, .texture_x = 20, .frames_per_cycle = 1});
   animator.Update(frames);
 
   absl::StatusOr<SpriteFrame> current = animator.GetCurrentFrame(frames);
-  ASSERT_TRUE(current.ok());
+  ASSERT_OK(current);
   EXPECT_EQ(current->index, 1);
   EXPECT_EQ(current->texture_x, 20);
 }
@@ -34,7 +35,7 @@ TEST(AnimatorTest, UsesEachFramesDuration) {
   };
 
   animator.Update(frames);
-  ASSERT_TRUE(animator.GetCurrentFrame(frames).ok());
+  ASSERT_OK(animator.GetCurrentFrame(frames));
   EXPECT_EQ(animator.GetCurrentFrame(frames)->index, 0);
 
   animator.Update(frames);
@@ -55,7 +56,7 @@ TEST(AnimatorTest, HandlesFramesRemovedDuringPlayback) {
 
   frames.resize(1);
 
-  ASSERT_TRUE(animator.GetCurrentFrame(frames).ok());
+  ASSERT_OK(animator.GetCurrentFrame(frames));
   EXPECT_EQ(animator.GetCurrentFrame(frames)->index, 0);
   animator.Update(frames);
   EXPECT_EQ(animator.GetCurrentFrame(frames)->index, 0);

@@ -1,12 +1,10 @@
+#pragma once
+
 #include "absl/status/statusor.h"
-
-#include "gtest/gtest.h"
 #include "gtest/gtest-matchers.h"
+#include "gtest/gtest.h"
 
-namespace {
-
-template <typename T>
-using StatusOr = absl::StatusOr<T>;
+namespace zebes::test_internal {
 
 // The printable status behind either kind of value.
 //
@@ -19,8 +17,7 @@ const absl::Status& StatusForMessage(const absl::StatusOr<T>& status_or) {
   return status_or.status();
 }
 
-}  // namespace
-
+}  // namespace zebes::test_internal
 
 // Assert that a Status or StatusOr is ok, reporting the error when it is not.
 //
@@ -31,28 +28,27 @@ const absl::Status& StatusForMessage(const absl::StatusOr<T>& status_or) {
 // `ASSERT_OK(manager_->CreateLevel(std::move(level)))` moved from an
 // already-moved value to build its own error text.
 #define EXPECT_OK(expression) \
-  EXPECT_OK_IMPL(STATUS_MACROS_CONCAT_NAME(_status_value, __COUNTER__), expression)
+  EXPECT_OK_IMPL(ZEBES_TEST_STATUS_MACROS_CONCAT_NAME(_status_value, __COUNTER__), expression)
 
 #define EXPECT_OK_IMPL(status, expression) \
   const auto& status = (expression);       \
-  EXPECT_TRUE(status.ok()) << StatusForMessage(status)
+  EXPECT_TRUE(status.ok()) << ::zebes::test_internal::StatusForMessage(status)
 
 #define ASSERT_OK(expression) \
-  ASSERT_OK_IMPL(STATUS_MACROS_CONCAT_NAME(_status_value, __COUNTER__), expression)
+  ASSERT_OK_IMPL(ZEBES_TEST_STATUS_MACROS_CONCAT_NAME(_status_value, __COUNTER__), expression)
 
 #define ASSERT_OK_IMPL(status, expression) \
   const auto& status = (expression);       \
-  ASSERT_TRUE(status.ok()) << StatusForMessage(status)
+  ASSERT_TRUE(status.ok()) << ::zebes::test_internal::StatusForMessage(status)
 
-#define ASSERT_OK_AND_ASSIGN(lhs, rexpr)                                \
-  ASSERT_OK_AND_ASSIGN_IMPL(                                            \
-      STATUS_MACROS_CONCAT_NAME(_status_or_value, __COUNTER__), lhs,    \
-      rexpr);
+#define ASSERT_OK_AND_ASSIGN(lhs, rexpr)                                                         \
+  ASSERT_OK_AND_ASSIGN_IMPL(ZEBES_TEST_STATUS_MACROS_CONCAT_NAME(_status_or_value, __COUNTER__), \
+                            lhs, rexpr);
 
 #define ASSERT_OK_AND_ASSIGN_IMPL(statusor, lhs, rexpr)     \
   auto statusor = (rexpr);                                  \
   ASSERT_TRUE(statusor.status().ok()) << statusor.status(); \
   lhs = std::move(statusor).value()
 
-#define STATUS_MACROS_CONCAT_NAME(x, y) STATUS_MACROS_CONCAT_IMPL(x, y)
-#define STATUS_MACROS_CONCAT_IMPL(x, y) x##y
+#define ZEBES_TEST_STATUS_MACROS_CONCAT_NAME(x, y) ZEBES_TEST_STATUS_MACROS_CONCAT_IMPL(x, y)
+#define ZEBES_TEST_STATUS_MACROS_CONCAT_IMPL(x, y) x##y

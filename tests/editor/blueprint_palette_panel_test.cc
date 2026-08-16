@@ -8,6 +8,7 @@
 #include "objects/blueprint.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
+#include "macros.h"
 
 namespace zebes {
 
@@ -30,7 +31,7 @@ class BlueprintPalettePanelTest : public ::testing::Test {
  protected:
   void SetUp() override {
     auto panel_or = BlueprintPalettePanel::Create({.api = api_.get(), .gui = &gui_});
-    ASSERT_TRUE(panel_or.ok());
+    ASSERT_OK(panel_or);
     panel_ = *std::move(panel_or);
 
     // ScopedChild: open by default
@@ -69,7 +70,7 @@ class BlueprintPalettePanelTest : public ::testing::Test {
 TEST_F(BlueprintPalettePanelTest, EmptyBlueprintList_RendersWithoutError) {
   ON_CALL(*api_, GetAllBlueprints()).WillByDefault(Return(std::vector<Blueprint>{}));
 
-  EXPECT_TRUE(Render().ok());
+  EXPECT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedBlueprint(), nullptr);
 }
 
@@ -79,7 +80,7 @@ TEST_F(BlueprintPalettePanelTest, ButtonClick_SelectsBlueprint) {
 
   EXPECT_CALL(gui_, Button(HasSubstr("Samus"), _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 
   ASSERT_NE(panel_->GetSelectedBlueprint(), nullptr);
   EXPECT_EQ(panel_->GetSelectedBlueprint()->id, "bp-abc");
@@ -90,7 +91,7 @@ TEST_F(BlueprintPalettePanelTest, ClearSelection_ResetsToNull) {
   ON_CALL(*api_, GetBlueprint("bp-abc")).WillByDefault(Return(&stable_bp_));
 
   EXPECT_CALL(gui_, Button(HasSubstr("Samus"), _)).WillOnce(Return(true));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_NE(panel_->GetSelectedBlueprint(), nullptr);
 
   panel_->ClearSelection();
@@ -103,12 +104,12 @@ TEST_F(BlueprintPalettePanelTest, ClickingSelectedBlueprint_TogglesOff) {
 
   // First click: select
   EXPECT_CALL(gui_, Button(HasSubstr("Samus"), _)).WillOnce(Return(true));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_NE(panel_->GetSelectedBlueprint(), nullptr);
 
   // Second click on same blueprint: deselect
   EXPECT_CALL(gui_, Button(HasSubstr("Samus"), _)).WillOnce(Return(true));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedBlueprint(), nullptr);
 }
 
@@ -124,7 +125,7 @@ TEST_F(BlueprintPalettePanelTest, Checkbox_TogglesSnapToGrid) {
   }));
   EXPECT_CALL(gui_, Checkbox("Show Entity Borders", _)).WillOnce(Return(false));
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   EXPECT_FALSE(panel_->GetSnapToGrid());
 }
 
@@ -141,7 +142,7 @@ TEST_F(BlueprintPalettePanelTest, Checkbox_TogglesShowEntityBorders) {
         return true;
       }));
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   EXPECT_TRUE(panel_->GetShowEntityBorders());
 }
 

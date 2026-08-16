@@ -32,9 +32,9 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
   }
 
   // 2. Coordinate Conversion (World -> Screen)
-  ImVec2 p1 = canvas.WorldToScreen({(double)frame_ptr->offset_x, (double)frame_ptr->offset_y});
-  ImVec2 p2 = canvas.WorldToScreen({(double)frame_ptr->offset_x + frame_ptr->render_w,
-                                    (double)frame_ptr->offset_y + frame_ptr->render_h});
+  ImVec2 p1 = canvas.WorldToScreen({static_cast<double>(frame_ptr->offset_x), static_cast<double>(frame_ptr->offset_y)});
+  ImVec2 p2 = canvas.WorldToScreen({static_cast<double>(frame_ptr->offset_x) + frame_ptr->render_w,
+                                    static_cast<double>(frame_ptr->offset_y) + frame_ptr->render_h});
 
   ImDrawList* draw_list = canvas.GetDrawList();
 
@@ -44,9 +44,9 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
   SDL_QueryTexture(texture, nullptr, nullptr, &tex_w, &tex_h);
 
   if (tex_w > 0 && tex_h > 0) {
-    ImVec2 uv0((float)frame_ptr->texture_x / tex_w, (float)frame_ptr->texture_y / tex_h);
-    ImVec2 uv1((float)(frame_ptr->texture_x + frame_ptr->texture_w) / tex_w,
-               (float)(frame_ptr->texture_y + frame_ptr->texture_h) / tex_h);
+    ImVec2 uv0(static_cast<float>(frame_ptr->texture_x) / tex_w, static_cast<float>(frame_ptr->texture_y) / tex_h);
+    ImVec2 uv1(static_cast<float>(frame_ptr->texture_x + frame_ptr->texture_w) / tex_w,
+               static_cast<float>(frame_ptr->texture_y + frame_ptr->texture_h) / tex_h);
 
     draw_list->AddImage(reinterpret_cast<ImTextureID>(texture), p1, p2, uv0, uv1);
   }
@@ -98,8 +98,8 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
     double dy = ImGui::GetIO().MouseDelta.y / canvas.GetZoom();
 
     // Use a temp copy to calculate new positions using double precision
-    double x = (double)frame_ptr->offset_x;
-    double y = (double)frame_ptr->offset_y;
+    double x = static_cast<double>(frame_ptr->offset_x);
+    double y = static_cast<double>(frame_ptr->offset_y);
 
     ApplyDrag(x, drag_acc_x_, dx, true);  // Always snap sprites
     ApplyDrag(y, drag_acc_y_, dy, true);

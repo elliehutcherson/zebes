@@ -4,6 +4,7 @@
 
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -20,12 +21,12 @@ TEST(ColliderPanelModelTest, OrderedCatalogPreservesDuplicateNames) {
 TEST(ColliderPanelModelTest, SelectionUsesStableIdAcrossRefresh) {
   ColliderPanelModel model;
   model.SetColliders({{.id = "left", .name = "Z Left"}, {.id = "right", .name = "A Right"}});
-  ASSERT_TRUE(model.SelectCollider("left").ok());
+  ASSERT_OK(model.SelectCollider("left"));
 
   model.SetColliders({{.id = "left", .name = "A Left"}, {.id = "right", .name = "Z Right"}});
 
   EXPECT_EQ(model.selected_collider_id(), "left");
-  ASSERT_TRUE(model.BeginEditingSelectedCollider().ok());
+  ASSERT_OK(model.BeginEditingSelectedCollider());
   ASSERT_NE(model.active_collider(), nullptr);
   EXPECT_EQ(model.active_collider()->id, "left");
 }
@@ -47,9 +48,9 @@ TEST(ColliderPanelModelTest, NewColliderCreationTransitionIsExplicit) {
   model.BeginNewCollider();
   ASSERT_TRUE(model.is_new_collider());
   EXPECT_EQ(model.active_collider()->name, "collider_1");
-  ASSERT_TRUE(model.BuildSaveRequest().ok());
+  ASSERT_OK(model.BuildSaveRequest());
 
-  ASSERT_TRUE(model.FinishCreate("generated").ok());
+  ASSERT_OK(model.FinishCreate("generated"));
   EXPECT_FALSE(model.is_new_collider());
   EXPECT_EQ(model.active_collider()->id, "generated");
   EXPECT_EQ(model.selected_collider_id(), "generated");
@@ -58,12 +59,12 @@ TEST(ColliderPanelModelTest, NewColliderCreationTransitionIsExplicit) {
 TEST(ColliderPanelModelTest, ResetRestoresCatalogCopy) {
   ColliderPanelModel model;
   model.SetColliders({{.id = "body", .name = "Body", .polygons = {{{1, 2}, {3, 4}}}}});
-  ASSERT_TRUE(model.BeginEditingCollider("body").ok());
+  ASSERT_OK(model.BeginEditingCollider("body"));
   model.active_collider()->name = "Changed";
   model.active_collider()->polygons[0][0] = {99, 100};
   const std::uint64_t revision = model.active_revision();
 
-  ASSERT_TRUE(model.ResetActiveCollider().ok());
+  ASSERT_OK(model.ResetActiveCollider());
 
   EXPECT_EQ(model.active_collider()->name, "Body");
   EXPECT_EQ(model.active_collider()->polygons[0][0].x, 1);
@@ -75,18 +76,18 @@ TEST(ColliderPanelModelTest, PolygonAndVertexOperationsValidateIndices) {
   model.BeginNewCollider();
   const std::uint64_t initial_revision = model.active_revision();
 
-  ASSERT_TRUE(model.AddPolygon().ok());
+  ASSERT_OK(model.AddPolygon());
   EXPECT_GT(model.active_revision(), initial_revision);
   ASSERT_EQ(model.active_collider()->polygons.size(), 1);
   EXPECT_EQ(model.active_collider()->polygons[0].size(), 4);
 
-  ASSERT_TRUE(model.AddVertex(0).ok());
+  ASSERT_OK(model.AddVertex(0));
   EXPECT_EQ(model.active_collider()->polygons[0].size(), 5);
-  ASSERT_TRUE(model.DeleteVertex(0, 1).ok());
+  ASSERT_OK(model.DeleteVertex(0, 1));
   EXPECT_EQ(model.active_collider()->polygons[0].size(), 4);
   EXPECT_EQ(model.DeleteVertex(2, 0).code(), absl::StatusCode::kOutOfRange);
 
-  ASSERT_TRUE(model.DeletePolygon(0).ok());
+  ASSERT_OK(model.DeletePolygon(0));
   EXPECT_TRUE(model.active_collider()->polygons.empty());
   EXPECT_EQ(model.DeletePolygon(0).code(), absl::StatusCode::kOutOfRange);
 }
@@ -94,8 +95,8 @@ TEST(ColliderPanelModelTest, PolygonAndVertexOperationsValidateIndices) {
 TEST(ColliderPanelModelTest, CloseAndDeleteClearAuthoringState) {
   ColliderPanelModel model;
   model.SetColliders({{.id = "body", .name = "Body"}});
-  ASSERT_TRUE(model.SelectCollider("body").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedCollider().ok());
+  ASSERT_OK(model.SelectCollider("body"));
+  ASSERT_OK(model.BeginEditingSelectedCollider());
 
   model.FinishDelete();
 
@@ -112,8 +113,8 @@ TEST(ColliderPanelModelTest, AFreshlyOpenedColliderHasNothingToLose) {
   EXPECT_FALSE(model.has_unsaved_changes()) << "nothing is being edited";
 
   model.SetColliders({Collider{.id = "a", .name = "Standing"}});
-  ASSERT_TRUE(model.SelectCollider("a").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedCollider().ok());
+  ASSERT_OK(model.SelectCollider("a"));
+  ASSERT_OK(model.BeginEditingSelectedCollider());
 
   EXPECT_FALSE(model.has_unsaved_changes());
 }
@@ -121,8 +122,8 @@ TEST(ColliderPanelModelTest, AFreshlyOpenedColliderHasNothingToLose) {
 TEST(ColliderPanelModelTest, MovingAVertexCounts) {
   ColliderPanelModel model;
   model.SetColliders({Collider{.id = "a", .name = "Standing", .polygons = {{{0, 0}, {1, 0}}}}});
-  ASSERT_TRUE(model.SelectCollider("a").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedCollider().ok());
+  ASSERT_OK(model.SelectCollider("a"));
+  ASSERT_OK(model.BeginEditingSelectedCollider());
 
   model.active_collider()->polygons[0][1].x = 5.0;
   EXPECT_TRUE(model.has_unsaved_changes());
@@ -137,26 +138,26 @@ TEST(ColliderPanelModelTest, MovingAVertexCounts) {
 TEST(ColliderPanelModelTest, ResettingIsCleanAgain) {
   ColliderPanelModel model;
   model.SetColliders({Collider{.id = "a", .name = "Standing", .polygons = {{{0, 0}, {1, 0}}}}});
-  ASSERT_TRUE(model.SelectCollider("a").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedCollider().ok());
+  ASSERT_OK(model.SelectCollider("a"));
+  ASSERT_OK(model.BeginEditingSelectedCollider());
 
-  ASSERT_TRUE(model.AddPolygon().ok());
+  ASSERT_OK(model.AddPolygon());
   ASSERT_TRUE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.ResetActiveCollider().ok());
+  ASSERT_OK(model.ResetActiveCollider());
   EXPECT_FALSE(model.has_unsaved_changes());
 }
 
 TEST(ColliderPanelModelTest, SavingMakesTheCurrentStateTheCleanOne) {
   ColliderPanelModel model;
   model.BeginNewCollider();
-  ASSERT_TRUE(model.AddPolygon().ok());
+  ASSERT_OK(model.AddPolygon());
   ASSERT_TRUE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.FinishCreate("new-id").ok());
+  ASSERT_OK(model.FinishCreate("new-id"));
   EXPECT_FALSE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.AddPolygon().ok());
+  ASSERT_OK(model.AddPolygon());
   ASSERT_TRUE(model.has_unsaved_changes());
 
   model.MarkSaved();

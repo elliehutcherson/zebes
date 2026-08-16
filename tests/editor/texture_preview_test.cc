@@ -3,6 +3,7 @@
 #include <limits>
 
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -10,13 +11,13 @@ namespace {
 TEST(TexturePreviewLayoutTest, FitsWideAndTallTexturesWithinBounds) {
   absl::StatusOr<TexturePreviewLayout> wide =
       CalculateTexturePreviewLayout(400, 200, 240.0f, 140.0f);
-  ASSERT_TRUE(wide.ok()) << wide.status();
+  ASSERT_OK(wide);
   EXPECT_FLOAT_EQ(wide->display_width, 240.0f);
   EXPECT_FLOAT_EQ(wide->display_height, 120.0f);
 
   absl::StatusOr<TexturePreviewLayout> tall =
       CalculateTexturePreviewLayout(100, 400, 240.0f, 140.0f);
-  ASSERT_TRUE(tall.ok()) << tall.status();
+  ASSERT_OK(tall);
   EXPECT_FLOAT_EQ(tall->display_width, 35.0f);
   EXPECT_FLOAT_EQ(tall->display_height, 140.0f);
 }

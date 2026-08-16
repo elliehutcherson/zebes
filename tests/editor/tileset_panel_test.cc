@@ -37,7 +37,7 @@ class TilesetPanelTest : public ::testing::Test {
 
   void SetUp() override {
     absl::StatusOr<std::unique_ptr<TilesetPanel>> panel = TilesetPanel::Create(&gui_);
-    ASSERT_TRUE(panel.ok()) << panel.status();
+    ASSERT_OK(panel);
     panel_ = *std::move(panel);
 
     // Every scoped guard the panel builds needs a real object; none of them are
@@ -89,7 +89,7 @@ class TilesetPanelTest : public ::testing::Test {
 
   void RenderDetails() {
     absl::StatusOr<TilesetPanel::Action> action = panel_->RenderDetails(model_);
-    ASSERT_TRUE(action.ok()) << action.status();
+    ASSERT_OK(action);
   }
 
   // Same render, but keeps what the panel reported, for the intents the
@@ -119,7 +119,7 @@ class TilesetPanelTest : public ::testing::Test {
   // details view every other test in this file drives.
   TilesetPanel::Action RenderList() {
     absl::StatusOr<TilesetPanel::Action> action = panel_->RenderList(model_);
-    EXPECT_TRUE(action.ok()) << action.status();
+    EXPECT_OK(action);
     return action.ok() ? *action : TilesetPanel::Action::kNone;
   }
 
@@ -208,7 +208,7 @@ TEST_F(TilesetPanelTest, SaveIsReported) {
   ClickOnly("Save");
 
   absl::StatusOr<TilesetPanel::Action> action = panel_->RenderDetails(model_);
-  ASSERT_TRUE(action.ok()) << action.status();
+  ASSERT_OK(action);
   EXPECT_EQ(*action, TilesetPanel::Action::kSave);
 }
 
@@ -243,7 +243,7 @@ TEST_F(TilesetPanelTest, EditAndDeleteAreDisabledWithNoSelection) {
 
 TEST_F(TilesetPanelTest, EditAndDeleteAreEnabledOnceATilesetIsSelected) {
   BeginListView();
-  ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
+  ASSERT_OK(model_.SelectTileset("grass-1"));
 
   EXPECT_CALL(gui_, CreateScopedDisabled(false)).Times(2);
   EXPECT_CALL(gui_, CreateScopedDisabled(true)).Times(0);
@@ -253,7 +253,7 @@ TEST_F(TilesetPanelTest, EditAndDeleteAreEnabledOnceATilesetIsSelected) {
 
 TEST_F(TilesetPanelTest, DeletingATilesetAsksBeforeDestroyingIt) {
   BeginListView();
-  ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
+  ASSERT_OK(model_.SelectTileset("grass-1"));
 
   ClickOnly("Delete##Tileset");
   EXPECT_EQ(RenderList(), TilesetPanel::Action::kNone);
@@ -272,7 +272,7 @@ TEST_F(TilesetPanelTest, DeletingATilesetAsksBeforeDestroyingIt) {
 
 TEST_F(TilesetPanelTest, CancellingADeleteRestoresThePlainButton) {
   BeginListView();
-  ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
+  ASSERT_OK(model_.SelectTileset("grass-1"));
 
   ClickOnly("Delete##Tileset");
   RenderList();
@@ -291,12 +291,12 @@ TEST_F(TilesetPanelTest, CancellingADeleteRestoresThePlainButton) {
 // different one must not leave a primed Confirm pointing at the new selection.
 TEST_F(TilesetPanelTest, ChangingSelectionDropsAPendingDelete) {
   BeginListView();
-  ASSERT_TRUE(model_.SelectTileset("grass-1").ok());
+  ASSERT_OK(model_.SelectTileset("grass-1"));
 
   ClickOnly("Delete##Tileset");
   RenderList();
 
-  ASSERT_TRUE(model_.SelectTileset("stone-2").ok());
+  ASSERT_OK(model_.SelectTileset("stone-2"));
   ClickOnly("Confirm##Tileset");
   EXPECT_EQ(RenderList(), TilesetPanel::Action::kNone);
 }

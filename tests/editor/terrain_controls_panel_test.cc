@@ -7,6 +7,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "tests/editor/mock_gui.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -23,7 +24,7 @@ class TerrainControlsPanelTest : public ::testing::Test {
   void SetUp() override {
     absl::StatusOr<std::unique_ptr<TerrainControlsPanel>> panel =
         TerrainControlsPanel::Create(&gui_);
-    ASSERT_TRUE(panel.ok()) << panel.status();
+    ASSERT_OK(panel);
     panel_ = *std::move(panel);
 
     // Sections open by default, so the controls inside them actually run.

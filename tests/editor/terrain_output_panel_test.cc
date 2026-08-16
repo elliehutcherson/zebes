@@ -25,7 +25,7 @@ class TerrainOutputPanelTest : public ::testing::Test {
  protected:
   void SetUp() override {
     absl::StatusOr<std::unique_ptr<TerrainOutputPanel>> panel = TerrainOutputPanel::Create(&gui_);
-    ASSERT_TRUE(panel.ok()) << panel.status();
+    ASSERT_OK(panel);
     panel_ = *std::move(panel);
 
     ON_CALL(gui_, CreateScopedCombo(_, _, _))
@@ -64,7 +64,7 @@ TEST(TerrainOutputPanelCreateTest, RequiresAGui) {
 
 TEST_F(TerrainOutputPanelTest, ReportsNothingWhenIdle) {
   absl::StatusOr<TerrainOutputPanel::Action> action = Render();
-  ASSERT_TRUE(action.ok()) << action.status();
+  ASSERT_OK(action);
   EXPECT_EQ(*action, TerrainOutputPanel::Action::kNone);
 }
 
@@ -72,19 +72,19 @@ TEST_F(TerrainOutputPanelTest, ReportsCreateWhenPressed) {
   ON_CALL(gui_, Button(StrEq("Create##TerrainOut"), _)).WillByDefault(Return(true));
 
   absl::StatusOr<TerrainOutputPanel::Action> action = Render();
-  ASSERT_TRUE(action.ok()) << action.status();
+  ASSERT_OK(action);
   EXPECT_EQ(*action, TerrainOutputPanel::Action::kCreate);
 }
 
 TEST_F(TerrainOutputPanelTest, GeneratingIsReadyOutOfTheBox) {
   EXPECT_CALL(gui_, BeginDisabled(false)).Times(1);
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 }
 
 TEST_F(TerrainOutputPanelTest, DisablesCreateWithoutAName) {
   model_.name().clear();
   EXPECT_CALL(gui_, BeginDisabled(true)).Times(1);
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 }
 
 // Importing needs both halves: a manifest describing the layout and the artwork
@@ -92,7 +92,7 @@ TEST_F(TerrainOutputPanelTest, DisablesCreateWithoutAName) {
 TEST_F(TerrainOutputPanelTest, DisablesCreateWhileAnImportIsIncomplete) {
   model_.SetSource(TerrainEditorModel::Source::kImportManifest);
   EXPECT_CALL(gui_, BeginDisabled(true)).Times(1);
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 }
 
 TEST_F(TerrainOutputPanelTest, EnablesCreateOnceAnImportIsComplete) {
@@ -101,7 +101,7 @@ TEST_F(TerrainOutputPanelTest, EnablesCreateOnceAnImportIsComplete) {
   model_.texture_id() = "tex-1";
 
   EXPECT_CALL(gui_, BeginDisabled(false)).Times(1);
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 }
 
 // The texture picker only makes sense for artwork that already exists;
@@ -113,7 +113,7 @@ TEST_F(TerrainOutputPanelTest, OffersTheTexturePickerOnlyWhenImporting) {
   // the texture picker can be asserted on specifically.
   EXPECT_CALL(gui_, CreateScopedCombo(_, _, _)).Times(::testing::AnyNumber());
   EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Texture##TerrainOut"), _, _)).Times(0);
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ::testing::Mock::VerifyAndClearExpectations(&gui_);
 
   ON_CALL(gui_, CreateScopedCombo(_, _, _))
@@ -123,18 +123,18 @@ TEST_F(TerrainOutputPanelTest, OffersTheTexturePickerOnlyWhenImporting) {
   model_.SetSource(TerrainEditorModel::Source::kImportManifest);
   EXPECT_CALL(gui_, CreateScopedCombo(_, _, _)).Times(::testing::AnyNumber());
   EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Texture##TerrainOut"), _, _)).Times(1);
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 }
 
 // Quality only affects the written artwork, which is why it sits here rather
 // than with the controls that change the picture.
 TEST_F(TerrainOutputPanelTest, OffersQualityOnlyWhenGenerating) {
   EXPECT_CALL(gui_, SliderInt(StrEq("Quality##TerrainOut"), _, _, _, _, _)).Times(1);
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 
   model_.SetSource(TerrainEditorModel::Source::kImportManifest);
   EXPECT_CALL(gui_, SliderInt(StrEq("Quality##TerrainOut"), _, _, _, _, _)).Times(0);
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 }
 
 TEST_F(TerrainOutputPanelTest, LoadedRecipeRegeneratesInsteadOfCreatingNewIds) {

@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <vector>
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -24,7 +25,7 @@ TEST(SpritePanelModelTest, SortsSpritesAndAttachesSelection) {
   EXPECT_EQ(model.sprites()[1].id, "z");
 
   model.SelectSpriteIndex(1);
-  ASSERT_TRUE(model.AttachSelectedSprite().ok());
+  ASSERT_OK(model.AttachSelectedSprite());
   ASSERT_NE(model.editing_sprite(), nullptr);
   EXPECT_EQ(model.editing_sprite()->id, "z");
 }
@@ -43,8 +44,8 @@ TEST(SpritePanelModelTest, DetachResetsEditingAndSelectionState) {
   SpritePanelModel model;
   model.SetSprites({MakeSprite("a", "Aether", 2)});
   model.SelectSpriteIndex(0);
-  ASSERT_TRUE(model.AttachSelectedSprite().ok());
-  ASSERT_TRUE(model.SetFrameIndex(1).ok());
+  ASSERT_OK(model.AttachSelectedSprite());
+  ASSERT_OK(model.SetFrameIndex(1));
 
   model.DetachSprite();
 
@@ -60,7 +61,7 @@ TEST(SpritePanelModelTest, FrameSelectionRequiresValidAttachedFrame) {
 
   model.AttachSprite(MakeSprite("a", "Aether", 2));
   EXPECT_EQ(model.SetFrameIndex(2).code(), absl::StatusCode::kOutOfRange);
-  EXPECT_TRUE(model.SetFrameIndex(1).ok());
+  EXPECT_OK(model.SetFrameIndex(1));
   ASSERT_NE(model.current_frame(), nullptr);
   EXPECT_EQ(model.current_frame()->index, 1);
 }
@@ -76,7 +77,7 @@ TEST(SpritePanelModelTest, CalculatesUvsAndScalesPreviewToAvailableWidth) {
   absl::StatusOr<SpriteFramePreview> preview =
       SpritePanelModel::CalculateFramePreview(frame, 256, 128, 32.0f);
 
-  ASSERT_TRUE(preview.ok());
+  ASSERT_OK(preview);
   EXPECT_FLOAT_EQ(preview->uv0_x, 0.125f);
   EXPECT_FLOAT_EQ(preview->uv0_y, 0.125f);
   EXPECT_FLOAT_EQ(preview->uv1_x, 0.375f);

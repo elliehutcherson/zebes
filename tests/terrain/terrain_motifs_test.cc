@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -17,14 +18,14 @@ TEST(TerrainMotifsTest, EverySupportedProfileAndFamilyHasValidTypedArtwork) {
           TerrainSubstratePattern::kMixedEarth}) {
       const absl::Span<const TerrainMotif> motifs = TerrainSubstrateMotifsFor(pattern, profile);
       ASSERT_FALSE(motifs.empty());
-      EXPECT_TRUE(ValidateTerrainMotifs(motifs).ok());
+      EXPECT_OK(ValidateTerrainMotifs(motifs));
     }
 
     for (const TerrainDetailSet detail : {TerrainDetailSet::kMeadow, TerrainDetailSet::kForestFloor,
                                           TerrainDetailSet::kSnow, TerrainDetailSet::kCrystals}) {
       const absl::Span<const TerrainMotif> motifs = TerrainDetailMotifsFor(detail, profile);
       ASSERT_FALSE(motifs.empty());
-      EXPECT_TRUE(ValidateTerrainMotifs(motifs).ok());
+      EXPECT_OK(ValidateTerrainMotifs(motifs));
     }
 
     for (const TerrainEdgeDetailSet detail :
@@ -32,7 +33,7 @@ TEST(TerrainMotifsTest, EverySupportedProfileAndFamilyHasValidTypedArtwork) {
           TerrainEdgeDetailSet::kMossFringe, TerrainEdgeDetailSet::kSnowLip}) {
       const absl::Span<const TerrainEdgeMotif> motifs = TerrainEdgeMotifsFor(detail, profile);
       ASSERT_FALSE(motifs.empty());
-      EXPECT_TRUE(ValidateTerrainEdgeMotifs(motifs).ok());
+      EXPECT_OK(ValidateTerrainEdgeMotifs(motifs));
     }
   }
 }

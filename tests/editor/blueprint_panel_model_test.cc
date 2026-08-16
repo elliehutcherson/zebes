@@ -2,6 +2,7 @@
 
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -19,13 +20,13 @@ TEST(BlueprintPanelModelTest, SelectionUsesStableIdAcrossRefresh) {
   BlueprintPanelModel model;
   model.SetBlueprints(
       {{.id = "player", .name = "Z Player"}, {.id = "enemy", .name = "A Enemy"}});
-  ASSERT_TRUE(model.SelectBlueprint("player").ok());
+  ASSERT_OK(model.SelectBlueprint("player"));
 
   model.SetBlueprints(
       {{.id = "player", .name = "A Player"}, {.id = "enemy", .name = "Z Enemy"}});
 
   EXPECT_EQ(model.selected_blueprint_id(), "player");
-  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+  ASSERT_OK(model.BeginEditingSelectedBlueprint());
   ASSERT_NE(model.active_blueprint(), nullptr);
   EXPECT_EQ(model.active_blueprint()->id, "player");
 }
@@ -33,8 +34,8 @@ TEST(BlueprintPanelModelTest, SelectionUsesStableIdAcrossRefresh) {
 TEST(BlueprintPanelModelTest, EditingUsesCopyInsteadOfCatalogStorage) {
   BlueprintPanelModel model;
   model.SetBlueprints({{.id = "player", .name = "Player"}});
-  ASSERT_TRUE(model.SelectBlueprint("player").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+  ASSERT_OK(model.SelectBlueprint("player"));
+  ASSERT_OK(model.BeginEditingSelectedBlueprint());
 
   model.active_blueprint()->name = "Changed";
 
@@ -47,9 +48,9 @@ TEST(BlueprintPanelModelTest, CreateFinishesAsExistingBlueprint) {
 
   ASSERT_TRUE(model.is_new_blueprint());
   EXPECT_EQ(model.active_blueprint()->name, "New Blueprint");
-  ASSERT_TRUE(model.BuildSaveRequest().ok());
+  ASSERT_OK(model.BuildSaveRequest());
 
-  ASSERT_TRUE(model.FinishCreate("generated").ok());
+  ASSERT_OK(model.FinishCreate("generated"));
   EXPECT_FALSE(model.is_new_blueprint());
   EXPECT_EQ(model.active_blueprint()->id, "generated");
   EXPECT_EQ(model.selected_blueprint_id(), "generated");
@@ -61,14 +62,14 @@ TEST(BlueprintPanelModelTest, StateOperationsValidateIndices) {
   EXPECT_EQ(model.AddState().code(), absl::StatusCode::kFailedPrecondition);
 
   model.BeginNewBlueprint();
-  ASSERT_TRUE(model.AddState().ok());
-  ASSERT_TRUE(model.AddState().ok());
+  ASSERT_OK(model.AddState());
+  ASSERT_OK(model.AddState());
   ASSERT_EQ(model.active_blueprint()->states.size(), 2);
   EXPECT_EQ(model.active_blueprint()->states[0].name, "new state");
-  EXPECT_TRUE(model.ValidateStateIndex(1).ok());
+  EXPECT_OK(model.ValidateStateIndex(1));
   EXPECT_EQ(model.ValidateStateIndex(2).code(), absl::StatusCode::kOutOfRange);
 
-  ASSERT_TRUE(model.DeleteState(0).ok());
+  ASSERT_OK(model.DeleteState(0));
   EXPECT_EQ(model.active_blueprint()->states.size(), 1);
   EXPECT_EQ(model.DeleteState(-1).code(), absl::StatusCode::kOutOfRange);
 }
@@ -86,8 +87,8 @@ TEST(BlueprintPanelModelTest, FailedLookupDoesNotCreateEditingState) {
 TEST(BlueprintPanelModelTest, DeleteClearsSelectionAndEditingState) {
   BlueprintPanelModel model;
   model.SetBlueprints({{.id = "player", .name = "Player"}});
-  ASSERT_TRUE(model.SelectBlueprint("player").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+  ASSERT_OK(model.SelectBlueprint("player"));
+  ASSERT_OK(model.BeginEditingSelectedBlueprint());
 
   model.FinishDelete();
 
@@ -104,8 +105,8 @@ TEST(BlueprintPanelModelTest, AFreshlyOpenedBlueprintHasNothingToLose) {
   EXPECT_FALSE(model.has_unsaved_changes()) << "nothing is being edited";
 
   model.SetBlueprints({Blueprint{.id = "a", .name = "Samus"}});
-  ASSERT_TRUE(model.SelectBlueprint("a").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+  ASSERT_OK(model.SelectBlueprint("a"));
+  ASSERT_OK(model.BeginEditingSelectedBlueprint());
 
   EXPECT_FALSE(model.has_unsaved_changes());
 }
@@ -113,22 +114,22 @@ TEST(BlueprintPanelModelTest, AFreshlyOpenedBlueprintHasNothingToLose) {
 TEST(BlueprintPanelModelTest, EditsToAnyPartOfABlueprintCount) {
   BlueprintPanelModel model;
   model.SetBlueprints({Blueprint{.id = "a", .name = "Samus"}});
-  ASSERT_TRUE(model.SelectBlueprint("a").ok());
+  ASSERT_OK(model.SelectBlueprint("a"));
 
-  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+  ASSERT_OK(model.BeginEditingSelectedBlueprint());
   model.active_blueprint()->name = "Renamed";
   EXPECT_TRUE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
-  ASSERT_TRUE(model.AddState().ok());
+  ASSERT_OK(model.BeginEditingSelectedBlueprint());
+  ASSERT_OK(model.AddState());
   EXPECT_TRUE(model.has_unsaved_changes());
 }
 
 TEST(BlueprintPanelModelTest, UndoingAnEditByHandIsCleanAgain) {
   BlueprintPanelModel model;
   model.SetBlueprints({Blueprint{.id = "a", .name = "Samus"}});
-  ASSERT_TRUE(model.SelectBlueprint("a").ok());
-  ASSERT_TRUE(model.BeginEditingSelectedBlueprint().ok());
+  ASSERT_OK(model.SelectBlueprint("a"));
+  ASSERT_OK(model.BeginEditingSelectedBlueprint());
 
   model.active_blueprint()->name = "Renamed";
   ASSERT_TRUE(model.has_unsaved_changes());
@@ -143,10 +144,10 @@ TEST(BlueprintPanelModelTest, SavingMakesTheCurrentStateTheCleanOne) {
   model.active_blueprint()->name = "Metroid";
   ASSERT_TRUE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.FinishCreate("metroid-id").ok());
+  ASSERT_OK(model.FinishCreate("metroid-id"));
   EXPECT_FALSE(model.has_unsaved_changes());
 
-  ASSERT_TRUE(model.AddState().ok());
+  ASSERT_OK(model.AddState());
   ASSERT_TRUE(model.has_unsaved_changes());
 
   model.MarkSaved();

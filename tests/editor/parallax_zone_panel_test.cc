@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 #include "objects/level.h"
 #include "tests/editor/mock_gui.h"
+#include "macros.h"
 
 namespace zebes {
 
@@ -45,7 +46,7 @@ class ParallaxZonePanelTest : public ::testing::Test {
     level_.themes[1] = ParallaxTheme{.name = "Theme1"};
 
     auto panel_or = ParallaxZonePanel::Create({.gui = &gui_});
-    ASSERT_TRUE(panel_or.ok());
+    ASSERT_OK(panel_or);
     panel_ = *std::move(panel_or);
 
     // Mock IO and Style
@@ -105,7 +106,7 @@ TEST_F(ParallaxZonePanelTest, CreateZoneAddsToLevel) {
   EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _)).WillOnce(Return(true));
 
   // Create zone
-  ASSERT_TRUE(RenderNavigator().ok());
+  ASSERT_OK(RenderNavigator());
 
   // Verify zone added and selected
   ASSERT_EQ(level_.zones.size(), 1);
@@ -125,7 +126,7 @@ TEST_F(ParallaxZonePanelTest, CreateZoneIsDisabledForLevelWithoutPositiveDimensi
   // here also verifies that the model-side guard preserves the invariant.
   EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(RenderNavigator().ok());
+  ASSERT_OK(RenderNavigator());
 
   EXPECT_TRUE(level_.zones.empty());
   EXPECT_EQ(selection_.type, SelectionState::Type::kNone);
@@ -138,7 +139,7 @@ TEST_F(ParallaxZonePanelTest, DeleteZoneRemovesFromLevel) {
 
   EXPECT_CALL(gui_, Button(StrEq("Delete Zone"), _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(RenderDetails().ok());
+  ASSERT_OK(RenderDetails());
 
   EXPECT_TRUE(level_.zones.empty());
   EXPECT_EQ(selection_.type, SelectionState::Type::kNone);
@@ -152,7 +153,7 @@ TEST_F(ParallaxZonePanelTest, SelectionStateUpdatedOnSelect) {
 
   EXPECT_CALL(gui_, Selectable(StrEq("My Zone##zone_0"), false, _, _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(RenderNavigator().ok());
+  ASSERT_OK(RenderNavigator());
 
   EXPECT_EQ(selection_.type, SelectionState::Type::kZone);
   EXPECT_EQ(selection_.zone_id, 0);
@@ -166,12 +167,12 @@ TEST_F(ParallaxZonePanelTest, CreateZone_AssignsUniqueIds) {
   EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _))
       .WillOnce(Return(true))
       .WillRepeatedly(Return(false));
-  ASSERT_TRUE(RenderNavigator().ok());
+  ASSERT_OK(RenderNavigator());
 
   EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _))
       .WillOnce(Return(true))
       .WillRepeatedly(Return(false));
-  ASSERT_TRUE(RenderNavigator().ok());
+  ASSERT_OK(RenderNavigator());
 
   ASSERT_EQ(level_.zones.size(), 2);
   EXPECT_NE(level_.zones[0].id, level_.zones[1].id);
@@ -200,7 +201,7 @@ TEST_F(ParallaxZonePanelTest, SelectionUsesStableIdAfterZoneOrderChanges) {
 
   level_.zones.erase(level_.zones.begin());
 
-  ASSERT_TRUE(RenderDetails().ok());
+  ASSERT_OK(RenderDetails());
   EXPECT_EQ(selection_.zone_id, 20);
 }
 
@@ -214,7 +215,7 @@ TEST_F(ParallaxZonePanelTest, NavigatorShowsThemeNameInLabel) {
   EXPECT_CALL(gui_, Selectable(StrEq("My Zone (Theme1)##zone_0"), false, _, _))
       .WillOnce(Return(false));
 
-  ASSERT_TRUE(RenderNavigator().ok());
+  ASSERT_OK(RenderNavigator());
 }
 
 TEST_F(ParallaxZonePanelTest, NavigatorUsesSafeLabelsForEmptyNames) {
@@ -224,7 +225,7 @@ TEST_F(ParallaxZonePanelTest, NavigatorUsesSafeLabelsForEmptyNames) {
   EXPECT_CALL(gui_, Selectable(StrEq("(unnamed zone) (unnamed theme)##zone_4"), false, _, _))
       .WillOnce(Return(false));
 
-  EXPECT_TRUE(RenderNavigator().ok());
+  EXPECT_OK(RenderNavigator());
 }
 
 TEST_F(ParallaxZonePanelTest, ComboPreviewShowsSelectedTheme) {
@@ -241,7 +242,7 @@ TEST_F(ParallaxZonePanelTest, ComboPreviewShowsSelectedTheme) {
         return ScopedCombo(&gui_, label, preview, flags);
       }));
 
-  ASSERT_TRUE(RenderDetails().ok());
+  ASSERT_OK(RenderDetails());
 }
 
 TEST_F(ParallaxZonePanelTest, RenderDetails_ShowsLayerOffsets) {
@@ -270,7 +271,7 @@ TEST_F(ParallaxZonePanelTest, RenderDetails_ShowsLayerOffsets) {
 
   EXPECT_CALL(gui_, InputDouble).WillRepeatedly(Return(false));
 
-  ASSERT_TRUE(RenderDetails().ok());
+  ASSERT_OK(RenderDetails());
 }
 
 }  // namespace

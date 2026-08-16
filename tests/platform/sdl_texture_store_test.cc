@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "platform/sdl/sdl_texture_handle.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -33,9 +34,9 @@ TEST(SdlTextureStoreTest, UsesStableHandlesAndResolvesNativeTextures) {
   FakeSdlWrapper sdl;
   SdlTextureStore store(sdl);
 
-  ASSERT_TRUE(store.Load("first.png").ok());
+  ASSERT_OK(store.Load("first.png"));
   absl::StatusOr<TextureHandle> second = store.Load("second.png");
-  ASSERT_TRUE(second.ok());
+  ASSERT_OK(second);
 
   EXPECT_EQ(second->id(), 2);
   EXPECT_EQ(SdlTextureHandleAdapter::ToNative(*second),
@@ -47,9 +48,9 @@ TEST(SdlTextureStoreTest, UnloadDestroysAndInvalidatesResource) {
   FakeSdlWrapper sdl;
   SdlTextureStore store(sdl);
   absl::StatusOr<TextureHandle> handle = store.Load("texture.png");
-  ASSERT_TRUE(handle.ok());
+  ASSERT_OK(handle);
 
-  EXPECT_TRUE(store.Unload(*handle).ok());
+  EXPECT_OK(store.Unload(*handle));
   ASSERT_EQ(sdl.destroyed.size(), 1);
   EXPECT_EQ(SdlTextureHandleAdapter::ToNative(*handle), nullptr);
   EXPECT_FALSE(store.Unload(*handle).ok());

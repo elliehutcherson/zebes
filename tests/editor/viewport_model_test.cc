@@ -3,6 +3,7 @@
 #include "gtest/gtest.h"
 #include "objects/level.h"
 #include "objects/tileset.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -53,7 +54,7 @@ TEST(ResolvePaletteBindingTest, AnEmptyBoundLevelKeepsItsTileset) {
 TEST(ResolvePaletteBindingTest, ATerrainFromAnotherTilesetIsRefused) {
   Level level;
   level.tileset_id = "sunny";
-  ASSERT_TRUE(SetTileAt(level, 0, 0, 5).ok());
+  ASSERT_OK(SetTileAt(level, 0, 0, 5));
   const Tileset palette{.id = "grass"};
 
   const PaletteBinding binding =
@@ -67,7 +68,7 @@ TEST(ResolvePaletteBindingTest, ATerrainFromAnotherTilesetIsRefused) {
 TEST(ResolvePaletteBindingTest, ATerrainFromTheLevelsTilesetIsPaintable) {
   Level level;
   level.tileset_id = "grass";
-  ASSERT_TRUE(SetTileAt(level, 0, 0, 5).ok());
+  ASSERT_OK(SetTileAt(level, 0, 0, 5));
   const Tileset palette{.id = "grass"};
 
   const PaletteBinding binding =

@@ -31,14 +31,10 @@ class SpriteManagerTest : public ::testing::Test {
 
     resources_ = std::make_unique<FakeTextureResourceStore>();
     // Create Texture Manager
-    auto tm = TextureManager::Create(resources_.get(), test_dir_);
-    ASSERT_TRUE(tm.ok());
-    texture_manager_ = std::move(*tm);
+    ASSERT_OK_AND_ASSIGN(texture_manager_, TextureManager::Create(resources_.get(), test_dir_));
 
     // Create manager
-    auto sm = SpriteManager::Create(texture_manager_.get(), test_dir_);
-    ASSERT_TRUE(sm.ok());
-    manager_ = std::move(*sm);
+    ASSERT_OK_AND_ASSIGN(manager_, SpriteManager::Create(texture_manager_.get(), test_dir_));
   }
 
   void TearDown() override {
@@ -64,18 +60,12 @@ TEST_F(SpriteManagerTest, CreateAndGetSprite) {
 
   // Create a dummy texture first so we have a valid ID
   // Note: TextureManager expects path relative to images dir
-  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
-  ASSERT_TRUE(tex_id_or.ok()) << tex_id_or.status();
-  sprite.texture_id = *tex_id_or;
+  ASSERT_OK_AND_ASSIGN(sprite.texture_id, texture_manager_->CreateTexture({.path = tex_path}));
 
-  auto id_or = manager_->CreateSprite(sprite);
-  ASSERT_TRUE(id_or.ok()) << id_or.status();
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateSprite(sprite));
   EXPECT_FALSE(id.empty());
 
-  auto sprite_or = manager_->GetSprite(id);
-  ASSERT_TRUE(sprite_or.ok());
-  Sprite* loaded_sprite = *sprite_or;
+  ASSERT_OK_AND_ASSIGN(Sprite * loaded_sprite, manager_->GetSprite(id));
   EXPECT_EQ(loaded_sprite->id, id);
   EXPECT_EQ(loaded_sprite->name, "TestSprite");
 
@@ -89,9 +79,7 @@ TEST_F(SpriteManagerTest, LoadAllSprites) {
   std::string tex_path = test_dir_ + "/textures/tex.png";
   std::ofstream f(tex_path);
 
-  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
-  ASSERT_TRUE(tex_id_or.ok());
-  std::string tex_id = *tex_id_or;
+  ASSERT_OK_AND_ASSIGN(std::string tex_id, texture_manager_->CreateTexture({.path = tex_path}));
 
   // Manually create a JSON file
   std::string id = "manual-id";
@@ -110,12 +98,10 @@ TEST_F(SpriteManagerTest, LoadAllSprites) {
   }
 
   // Load
-  auto status = manager_->LoadAllSprites();
-  ASSERT_TRUE(status.ok()) << status;
+  ASSERT_OK(manager_->LoadAllSprites());
 
-  auto sprite_or = manager_->GetSprite(id);
-  ASSERT_TRUE(sprite_or.ok());
-  EXPECT_EQ((*sprite_or)->name, "Manual");
+  ASSERT_OK_AND_ASSIGN(Sprite * loaded, manager_->GetSprite(id));
+  EXPECT_EQ(loaded->name, "Manual");
 }
 
 TEST_F(SpriteManagerTest, UpdateSprite) {
@@ -125,23 +111,19 @@ TEST_F(SpriteManagerTest, UpdateSprite) {
   std::string tex_path = test_dir_ + "/textures/t.png";
   std::ofstream f(tex_path);
 
-  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
-  ASSERT_TRUE(tex_id_or.ok());
-  sprite.texture_id = *tex_id_or;
+  ASSERT_OK_AND_ASSIGN(sprite.texture_id, texture_manager_->CreateTexture({.path = tex_path}));
 
-  auto id_or = manager_->CreateSprite(sprite);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateSprite(sprite));
 
   // Update
-  sprite = *(*manager_->GetSprite(id));
+  ASSERT_OK_AND_ASSIGN(Sprite * stored, manager_->GetSprite(id));
+  sprite = *stored;
   sprite.name = "Updated";
-  auto status = manager_->SaveSprite(sprite);
-  ASSERT_TRUE(status.ok());
+  ASSERT_OK(manager_->SaveSprite(sprite));
 
   // Check
-  auto sprite_or = manager_->GetSprite(id);
-  EXPECT_EQ((*sprite_or)->name, "Updated");
+  ASSERT_OK_AND_ASSIGN(Sprite * updated, manager_->GetSprite(id));
+  EXPECT_EQ(updated->name, "Updated");
 }
 
 // Editors hold a Sprite* for as long as they are editing it. Replacing the
@@ -171,16 +153,11 @@ TEST_F(SpriteManagerTest, DeleteSprite) {
   auto tex_path = test_dir_ + "/textures/t2.png";
   std::ofstream f(tex_path);
 
-  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
-  ASSERT_TRUE(tex_id_or.ok());
-  sprite.texture_id = *tex_id_or;
+  ASSERT_OK_AND_ASSIGN(sprite.texture_id, texture_manager_->CreateTexture({.path = tex_path}));
 
-  auto id_or = manager_->CreateSprite(sprite);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateSprite(sprite));
 
-  auto status = manager_->DeleteSprite(id);
-  ASSERT_TRUE(status.ok());
+  ASSERT_OK(manager_->DeleteSprite(id));
 
   EXPECT_FALSE(
       std::filesystem::exists(test_dir_ + "/definitions/sprites/TestSprite-" + id + ".json"));
@@ -194,9 +171,7 @@ TEST_F(SpriteManagerTest, SaveAndLoadSpriteWithFrames) {
   std::string tex_path = test_dir_ + "/textures/f.png";
   std::ofstream f(tex_path);
 
-  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
-  ASSERT_TRUE(tex_id_or.ok());
-  sprite.texture_id = *tex_id_or;
+  ASSERT_OK_AND_ASSIGN(sprite.texture_id, texture_manager_->CreateTexture({.path = tex_path}));
 
   // Add frames
   SpriteFrame frame1;
@@ -216,20 +191,14 @@ TEST_F(SpriteManagerTest, SaveAndLoadSpriteWithFrames) {
   sprite.frames.push_back(frame1);
   sprite.frames.push_back(frame2);
 
-  auto id_or = manager_->CreateSprite(sprite);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateSprite(sprite));
 
   // Reload using a new manager to simulate restart
-  auto sm2_or = SpriteManager::Create(texture_manager_.get(), test_dir_);
-  ASSERT_TRUE(sm2_or.ok());
-  auto sm2 = std::move(*sm2_or);
+  ASSERT_OK_AND_ASSIGN(auto sm2, SpriteManager::Create(texture_manager_.get(), test_dir_));
 
   // New manager needs to load everything or just load the specific sprite
-  ASSERT_TRUE(sm2->LoadAllSprites().ok());
-  auto loaded_or = sm2->GetSprite(id);
-  ASSERT_TRUE(loaded_or.ok());
-  Sprite* loaded = *loaded_or;
+  ASSERT_OK(sm2->LoadAllSprites());
+  ASSERT_OK_AND_ASSIGN(Sprite * loaded, sm2->GetSprite(id));
 
   // Verify JSON on disk
   std::ifstream f2(test_dir_ + "/definitions/sprites/FrameSprite-" + id + ".json");
@@ -250,9 +219,7 @@ TEST_F(SpriteManagerTest, LoadPartialSpriteFrame) {
   std::string tex_path = test_dir_ + "/textures/partial.png";
   std::ofstream f(tex_path);
 
-  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
-  ASSERT_TRUE(tex_id_or.ok());
-  std::string tex_id = *tex_id_or;
+  ASSERT_OK_AND_ASSIGN(std::string tex_id, texture_manager_->CreateTexture({.path = tex_path}));
 
   std::string id = "partial-id";
   // Missing texture_w, texture_h, etc.
@@ -291,9 +258,7 @@ TEST_F(SpriteManagerTest, SaveAndLoadSpriteWithOffsets) {
   std::string tex_path = test_dir_ + "/textures/off.png";
   std::ofstream f(tex_path);
 
-  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
-  ASSERT_TRUE(tex_id_or.ok());
-  sprite.texture_id = *tex_id_or;
+  ASSERT_OK_AND_ASSIGN(sprite.texture_id, texture_manager_->CreateTexture({.path = tex_path}));
 
   // Add frames with offsets
   SpriteFrame frame1;
@@ -307,19 +272,13 @@ TEST_F(SpriteManagerTest, SaveAndLoadSpriteWithOffsets) {
 
   sprite.frames.push_back(frame1);
 
-  auto id_or = manager_->CreateSprite(sprite);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateSprite(sprite));
 
   // Reload using a new manager to simulate restart
-  auto sm2_or = SpriteManager::Create(texture_manager_.get(), test_dir_);
-  ASSERT_TRUE(sm2_or.ok());
-  auto sm2 = std::move(*sm2_or);
+  ASSERT_OK_AND_ASSIGN(auto sm2, SpriteManager::Create(texture_manager_.get(), test_dir_));
 
-  ASSERT_TRUE(sm2->LoadAllSprites().ok());
-  auto loaded_or = sm2->GetSprite(id);
-  ASSERT_TRUE(loaded_or.ok());
-  Sprite* loaded = *loaded_or;
+  ASSERT_OK(sm2->LoadAllSprites());
+  ASSERT_OK_AND_ASSIGN(Sprite * loaded, sm2->GetSprite(id));
 
   EXPECT_EQ(loaded->frames.size(), 1);
   if (loaded->frames.size() >= 1) {
@@ -334,13 +293,9 @@ TEST_F(SpriteManagerTest, RenameSprite) {
 
   std::string tex_path = test_dir_ + "/textures/rename.png";
   std::ofstream f(tex_path);
-  auto tex_id_or = texture_manager_->CreateTexture({.path = tex_path});
-  ASSERT_TRUE(tex_id_or.ok());
-  sprite.texture_id = *tex_id_or;
+  ASSERT_OK_AND_ASSIGN(sprite.texture_id, texture_manager_->CreateTexture({.path = tex_path}));
 
-  auto id_or = manager_->CreateSprite(sprite);
-  ASSERT_TRUE(id_or.ok());
-  std::string id = *id_or;
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateSprite(sprite));
 
   std::string old_file = test_dir_ + "/definitions/sprites/OldName-" + id + ".json";
   ASSERT_TRUE(std::filesystem::exists(old_file));
@@ -348,7 +303,7 @@ TEST_F(SpriteManagerTest, RenameSprite) {
   // Rename
   sprite.id = id;
   sprite.name = "NewName";
-  ASSERT_TRUE(manager_->SaveSprite(sprite).ok());
+  ASSERT_OK(manager_->SaveSprite(sprite));
 
   std::string new_file = test_dir_ + "/definitions/sprites/NewName-" + id + ".json";
   EXPECT_TRUE(std::filesystem::exists(new_file));

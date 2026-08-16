@@ -10,6 +10,7 @@
 #include "terrain/terrain_placement.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
+#include "macros.h"
 
 namespace zebes {
 
@@ -50,7 +51,7 @@ class TerrainPalettePanelTest : public ::testing::Test {
   void SetUp() override {
     absl::StatusOr<std::unique_ptr<TerrainPalettePanel>> panel_or =
         TerrainPalettePanel::Create({.api = api_.get(), .gui = &gui_});
-    ASSERT_TRUE(panel_or.ok()) << panel_or.status();
+    ASSERT_OK(panel_or);
     panel_ = *std::move(panel_or);
 
     // Combo closed by default, so Render walks past the tileset selector.
@@ -102,7 +103,7 @@ class TerrainPalettePanelTest : public ::testing::Test {
           if (std::string_view(id) == "##shape") ++glyphs;
           return false;
         }));
-    EXPECT_TRUE(Render().ok());
+    EXPECT_OK(Render());
     ON_CALL(gui_, InvisibleButton(_, _, _)).WillByDefault(Return(false));
     return glyphs;
   }
@@ -131,7 +132,7 @@ TEST(TerrainPalettePanelCreateTest, FailsWithNullGui) {
 TEST_F(TerrainPalettePanelTest, NoTilesetsRendersWithNothingSelected) {
   ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{}));
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedTileset(), nullptr);
   EXPECT_FALSE(panel_->GetSelectedTerrainId().has_value());
 }
@@ -140,7 +141,7 @@ TEST_F(TerrainPalettePanelTest, NoTilesetsRendersWithNothingSelected) {
 TEST_F(TerrainPalettePanelTest, TilesetWithoutTerrainsRendersAndSelectsNothing) {
   PreselectTileset();
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedTileset(), &tileset_);
   EXPECT_FALSE(panel_->GetSelectedTerrainId().has_value());
 }
@@ -154,7 +155,7 @@ TEST_F(TerrainPalettePanelTest, ClickingATerrainSelectsIt) {
 
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
   EXPECT_EQ(*panel_->GetSelectedTerrainId(), 3);
 }
@@ -165,11 +166,11 @@ TEST_F(TerrainPalettePanelTest, ClickingTheSelectedTerrainDeselectsIt) {
   PreselectTileset();
 
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
 
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   EXPECT_FALSE(panel_->GetSelectedTerrainId().has_value());
 }
 
@@ -181,7 +182,7 @@ TEST_F(TerrainPalettePanelTest, ClickingASecondTerrainReplacesTheSelection) {
   // Second swatch in the list, first frame.
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(false)).WillOnce(Return(true));
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
   EXPECT_EQ(*panel_->GetSelectedTerrainId(), 4);
 }
@@ -192,7 +193,7 @@ TEST_F(TerrainPalettePanelTest, ClearSelectionResetsTheSelectedTerrain) {
   PreselectTileset();
 
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
 
   panel_->ClearSelection();
@@ -213,7 +214,7 @@ TEST_F(TerrainPalettePanelTest, TilesetWithoutATextureStillRendersAndSelects) {
   EXPECT_CALL(*api_, GetTextureHandle(_)).Times(0);
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
   EXPECT_EQ(*panel_->GetSelectedTerrainId(), 3);
 }
@@ -226,7 +227,7 @@ TEST_F(TerrainPalettePanelTest, TerrainWithNoSwatchTileIsStillSelectable) {
 
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
   EXPECT_EQ(*panel_->GetSelectedTerrainId(), 3);
 }
@@ -251,7 +252,7 @@ TEST_F(TerrainPalettePanelTest, ASelectedTerrainOffersTheShapesItCanPaint) {
   PreselectTileset();
   // Clicked once to select, then left alone while the picker is inspected.
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
 
   // Artwork for one shape, so one glyph. The picker offers what can be painted
@@ -270,7 +271,7 @@ TEST_F(TerrainPalettePanelTest, ADerivedTerrainOffersEveryShapeAsItsOwnGlyph) {
   tileset_.terrains = {std::move(derived)};
   PreselectTileset();
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
   ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
 
   EXPECT_EQ(RenderCountingShapeGlyphs(), static_cast<int>(AllTerrainShapeChoices().size()))
@@ -290,13 +291,13 @@ TEST_F(TerrainPalettePanelTest, AShapeTheNewTerrainCannotPaintIsNotLeftSelected)
   tileset_.terrains = {std::move(slopes)};
   PreselectTileset();
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 
   TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSlope45FloorTallRight);
   // A terrain with only block artwork replaces it.
   tileset_.terrains = {MakeTerrain(3, "Grass", 7)};
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 
   EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kFullBlock);
 }
@@ -312,11 +313,11 @@ TEST_F(TerrainPalettePanelTest, ADerivedTerrainOffersShapesItHasNoArtworkForYet)
   tileset_.terrains = {std::move(derived)};
   PreselectTileset();
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true)).WillRepeatedly(Return(false));
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 
   TerrainPalettePanelTestPeer::SetSelectedShape(*panel_, TileShape::kSteepSlopeCeilingTallLeftTop);
 
-  ASSERT_TRUE(Render().ok());
+  ASSERT_OK(Render());
 
   EXPECT_EQ(panel_->GetSelectedShape(), TileShape::kSteepSlopeCeilingTallLeftTop)
       << "a derived terrain can render any shape, so none should be stranded";

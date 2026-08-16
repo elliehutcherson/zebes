@@ -119,7 +119,7 @@ TEST_F(LevelManagerTest, DeleteLevel) {
   };
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
 
-  ASSERT_TRUE(manager_->DeleteLevel(id).ok());
+  ASSERT_OK(manager_->DeleteLevel(id));
   EXPECT_FALSE(manager_->GetLevel(id).ok());
 }
 

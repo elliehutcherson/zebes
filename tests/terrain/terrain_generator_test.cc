@@ -89,10 +89,10 @@ int EdgeTreatmentDepth(const RgbaImage& image, int dx, int dy) {
 TEST(TerrainGeneratorTest, RendersAFullTileForASolidNeighbourhood) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/1));
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
 
   const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/255, /*variant=*/0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
   ASSERT_TRUE(tile->IsValid());
   EXPECT_EQ(tile->width, 32);
   EXPECT_EQ(tile->height, 32);
@@ -107,10 +107,10 @@ TEST(TerrainGeneratorTest, RendersAFullTileForASolidNeighbourhood) {
 TEST(TerrainGeneratorTest, AnIsolatedTileIsSurfaceOnEverySide) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/1));
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
 
   const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/0, /*variant=*/0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
 
   // With air on all sides every edge pixel is outline, so no edge pixel can
   // match the tile's own centre.
@@ -134,9 +134,9 @@ TEST(TerrainGeneratorTest, SurfaceDepthIsControlledIndependentlyForEachFacing) {
   config.surface.texture_amount = 0.0f;
 
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/0, /*variant=*/0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
 
   const int top = EdgeTreatmentDepth(*tile, /*dx=*/0, /*dy=*/1);
   const int side = EdgeTreatmentDepth(*tile, /*dx=*/1, /*dy=*/0);
@@ -160,9 +160,9 @@ TEST(TerrainGeneratorTest, WallTreatmentDarkensSidesWithoutContaminatingTheTop) 
   config.surface.texture_amount = 0.0f;
 
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/0, /*variant=*/0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
 
   const Pixel interior = At(*tile, 16, 16);
   EXPECT_EQ(At(*tile, 16, 5), interior) << "up-facing ground unexpectedly received wall shade";
@@ -185,9 +185,9 @@ TEST(TerrainGeneratorTest, DarkWallsApproachTheOutlineWithoutClippingToBlack) {
   config.material.contrast = 1.1f;
 
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/0, /*variant=*/0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
 
   const Pixel interior = At(*tile, 16, 16);
   const Pixel outline = At(*tile, 0, 16);
@@ -210,9 +210,9 @@ TEST(TerrainGeneratorTest, ZeroWallDarknessMatchesTheInteriorColour) {
   config.surface.texture_amount = 0.0f;
 
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/0, /*variant=*/0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
 
   EXPECT_EQ(At(*tile, 5, 16), At(*tile, 16, 16));
 }
@@ -256,10 +256,10 @@ TEST(TerrainGeneratorTest, EdgeDetailsAddReadablePixelsWithoutChangingTheSilhoue
 TEST(TerrainGeneratorTest, TheBandIsContinuousAcrossATileSeam) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/1));
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
 
   const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(kFlatTopMask, /*variant=*/0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
 
   // The largest step the band takes between neighbouring columns inside the
   // tile is the yardstick: crossing the seam must not be worse than that.
@@ -281,14 +281,15 @@ TEST(TerrainGeneratorTest, TheBandIsContinuousAcrossATileSeam) {
 TEST(TerrainGeneratorTest, TheBandIsContinuousBetweenAdjacentVariants) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/2));
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   ASSERT_EQ(renderer->variant_count(), 4);
 
   // A level lays variant (y mod 2) * 2 + (x mod 2), so variant 0's eastern
   // neighbour is variant 1 and variant 1's is variant 0 again.
   const absl::StatusOr<RgbaImage> left = renderer->RenderBlobTile(kFlatTopMask, /*variant=*/0);
   const absl::StatusOr<RgbaImage> right = renderer->RenderBlobTile(kFlatTopMask, /*variant=*/1);
-  ASSERT_TRUE(left.ok() && right.ok());
+  ASSERT_OK(left);
+  ASSERT_OK(right);
 
   int largest_interior_step = 0;
   for (int x = 0; x + 1 < left->width; ++x) {
@@ -314,7 +315,7 @@ TEST(TerrainGeneratorTest, SurfaceColourDoesNotJumpAtTheHorizontalOrVerticalPeri
     config.surface.texture_size = 5.0f;  // Does not divide the 96px period.
     config.surface.ruffle_amplitude = 0.0f;
     const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-    ASSERT_TRUE(renderer.ok()) << renderer.status();
+    ASSERT_OK(renderer);
 
     std::array<RgbaImage, kPeriod> horizontal;
     std::array<RgbaImage, kPeriod> vertical;
@@ -324,7 +325,8 @@ TEST(TerrainGeneratorTest, SurfaceColourDoesNotJumpAtTheHorizontalOrVerticalPeri
       const absl::StatusOr<RgbaImage> h = renderer->RenderBlobTile(kFlatTopMask, /*variant=*/phase);
       const absl::StatusOr<RgbaImage> v =
           renderer->RenderBlobTile(kExposedWestMask, /*variant=*/phase * kPeriod);
-      ASSERT_TRUE(h.ok() && v.ok());
+      ASSERT_OK(h);
+      ASSERT_OK(v);
       horizontal[phase] = *h;
       vertical[phase] = *v;
     }
@@ -362,11 +364,12 @@ TEST(TerrainGeneratorTest, SurfaceColourDoesNotJumpAtTheHorizontalOrVerticalPeri
 TEST(TerrainGeneratorTest, VariantsOfTheSameMaskDiffer) {
   const absl::StatusOr<TerrainRenderer> renderer =
       TerrainRenderer::Create(FlatInteriorConfig(/*variant_period=*/2));
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
 
   const absl::StatusOr<RgbaImage> first = renderer->RenderBlobTile(kFlatTopMask, 0);
   const absl::StatusOr<RgbaImage> second = renderer->RenderBlobTile(kFlatTopMask, 3);
-  ASSERT_TRUE(first.ok() && second.ok());
+  ASSERT_OK(first);
+  ASSERT_OK(second);
   EXPECT_NE(first->pixels, second->pixels)
       << "every variant drew the same tile, so raising variant_period bought nothing";
 }
@@ -464,11 +467,13 @@ TEST(TerrainGeneratorTest, SameConfigRendersTheSamePixels) {
   const TerrainGenConfig config = FlatInteriorConfig(/*variant_period=*/1);
   const absl::StatusOr<TerrainRenderer> first = TerrainRenderer::Create(config);
   const absl::StatusOr<TerrainRenderer> second = TerrainRenderer::Create(config);
-  ASSERT_TRUE(first.ok() && second.ok());
+  ASSERT_OK(first);
+  ASSERT_OK(second);
 
   const absl::StatusOr<RgbaImage> a = first->RenderBlobTile(kFlatTopMask, 0);
   const absl::StatusOr<RgbaImage> b = second->RenderBlobTile(kFlatTopMask, 0);
-  ASSERT_TRUE(a.ok() && b.ok());
+  ASSERT_OK(a);
+  ASSERT_OK(b);
   EXPECT_EQ(a->pixels, b->pixels);
 }
 
@@ -588,7 +593,7 @@ TEST(TerrainGeneratorTest, ResolvesMeasurementsThroughThePixelProfile) {
   config.interior.base.feature_size = 4.0f;
 
   const absl::StatusOr<ResolvedTerrainStyle> compact = ResolveTerrainStyle(config);
-  ASSERT_TRUE(compact.ok()) << compact.status();
+  ASSERT_OK(compact);
   EXPECT_TRUE(compact->compact_palette);
   EXPECT_FLOAT_EQ(compact->surface_top_depth, 5.0f);
   EXPECT_EQ(compact->surface_texture_size, 3);
@@ -599,7 +604,7 @@ TEST(TerrainGeneratorTest, ResolvesMeasurementsThroughThePixelProfile) {
   // silently become the Balanced32 policy.
   config.tile_size = 32;
   const absl::StatusOr<ResolvedTerrainStyle> enlarged = ResolveTerrainStyle(config);
-  ASSERT_TRUE(enlarged.ok()) << enlarged.status();
+  ASSERT_OK(enlarged);
   EXPECT_TRUE(enlarged->compact_palette);
   EXPECT_FLOAT_EQ(enlarged->surface_top_depth, 10.0f);
   EXPECT_EQ(enlarged->surface_texture_size, 6);
@@ -642,9 +647,9 @@ TEST(TerrainGeneratorTest, ShipsRichAndChunkyPresetsAsCompleteConfigurations) {
   TerrainGenConfig quick = chunky->config;
   quick.supersample = 1;
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(quick);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(kFlatTopMask, 0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
   EXPECT_EQ(tile->width, 16);
   EXPECT_EQ(tile->height, 16);
 }
@@ -654,9 +659,9 @@ TEST(TerrainGeneratorTest, EveryBuiltInPresetCreatesARenderer) {
     TerrainGenConfig quick = preset.config;
     quick.supersample = 1;
     const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(quick);
-    ASSERT_TRUE(renderer.ok()) << preset.name << ": " << renderer.status();
+    ASSERT_OK(renderer) << preset.name;
     const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(kFlatTopMask, 0);
-    EXPECT_TRUE(tile.ok()) << preset.name << ": " << tile.status();
+    EXPECT_OK(tile) << preset.name;
   }
 }
 
@@ -669,10 +674,11 @@ TEST(TerrainGeneratorTest, SubstratePatternDoesNotMoveWhenTheNeighborMaskChanges
   config.interior.pattern.margin = 0;
 
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> enclosed = renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> exposed = renderer->RenderBlobTile(kFlatTopMask, 0);
-  ASSERT_TRUE(enclosed.ok() && exposed.ok());
+  ASSERT_OK(enclosed);
+  ASSERT_OK(exposed);
 
   std::set<std::array<uint8_t, 4>> colors;
   for (int y = 20; y < 32; ++y) {
@@ -700,10 +706,11 @@ TEST(TerrainGeneratorTest, MagnifiedSubstratePatternDoesNotMoveWhenTheNeighborMa
   config.interior.pattern.scale = 3;
 
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> enclosed = renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> exposed = renderer->RenderBlobTile(kFlatTopMask, 0);
-  ASSERT_TRUE(enclosed.ok() && exposed.ok());
+  ASSERT_OK(enclosed);
+  ASSERT_OK(exposed);
 
   std::set<std::array<uint8_t, 4>> colors;
   for (int y = 20; y < 32; ++y) {
@@ -728,10 +735,11 @@ TEST(TerrainGeneratorTest, SemanticDetailsDoNotMoveWhenTheNeighborMaskChanges) {
   config.interior.details.margin = 0;
 
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> enclosed = renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> exposed = renderer->RenderBlobTile(kFlatTopMask, 0);
-  ASSERT_TRUE(enclosed.ok() && exposed.ok());
+  ASSERT_OK(enclosed);
+  ASSERT_OK(exposed);
 
   std::set<std::array<uint8_t, 4>> colors;
   for (int y = 20; y < 32; ++y) {
@@ -767,13 +775,17 @@ TEST(TerrainGeneratorTest, SemanticDetailsPreserveTheSubstratePatternBelowThem) 
   const absl::StatusOr<TerrainRenderer> blank_renderer = TerrainRenderer::Create(blank);
   const absl::StatusOr<TerrainRenderer> pattern_renderer = TerrainRenderer::Create(pattern);
   const absl::StatusOr<TerrainRenderer> combined_renderer = TerrainRenderer::Create(combined);
-  ASSERT_TRUE(blank_renderer.ok() && pattern_renderer.ok() && combined_renderer.ok());
+  ASSERT_OK(blank_renderer);
+  ASSERT_OK(pattern_renderer);
+  ASSERT_OK(combined_renderer);
 
   const absl::StatusOr<RgbaImage> blank_tile = blank_renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> pattern_tile = pattern_renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> combined_tile =
       combined_renderer->RenderBlobTile(/*mask=*/255, 0);
-  ASSERT_TRUE(blank_tile.ok() && pattern_tile.ok() && combined_tile.ok());
+  ASSERT_OK(blank_tile);
+  ASSERT_OK(pattern_tile);
+  ASSERT_OK(combined_tile);
 
   int pattern_pixels = 0;
   int detail_pixels = 0;
@@ -811,12 +823,16 @@ TEST(TerrainGeneratorTest, PatternContrastCanHideMarksWithoutChangingTheirFamily
   const absl::StatusOr<TerrainRenderer> blank_renderer = TerrainRenderer::Create(blank);
   const absl::StatusOr<TerrainRenderer> quiet_renderer = TerrainRenderer::Create(quiet);
   const absl::StatusOr<TerrainRenderer> strong_renderer = TerrainRenderer::Create(strong);
-  ASSERT_TRUE(blank_renderer.ok() && quiet_renderer.ok() && strong_renderer.ok());
+  ASSERT_OK(blank_renderer);
+  ASSERT_OK(quiet_renderer);
+  ASSERT_OK(strong_renderer);
 
   const absl::StatusOr<RgbaImage> blank_tile = blank_renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> quiet_tile = quiet_renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> strong_tile = strong_renderer->RenderBlobTile(/*mask=*/255, 0);
-  ASSERT_TRUE(blank_tile.ok() && quiet_tile.ok() && strong_tile.ok());
+  ASSERT_OK(blank_tile);
+  ASSERT_OK(quiet_tile);
+  ASSERT_OK(strong_tile);
   EXPECT_EQ(quiet_tile->pixels, blank_tile->pixels);
   EXPECT_NE(strong_tile->pixels, blank_tile->pixels);
 }
@@ -867,13 +883,13 @@ TEST(TerrainGeneratorTest, MotifSizeQuadruplesTheAreaAMarkCovers) {
 
   const absl::StatusOr<TerrainRenderer> small_renderer = TerrainRenderer::Create(small);
   const absl::StatusOr<TerrainRenderer> large_renderer = TerrainRenderer::Create(large);
-  ASSERT_TRUE(small_renderer.ok()) << small_renderer.status();
-  ASSERT_TRUE(large_renderer.ok()) << large_renderer.status();
+  ASSERT_OK(small_renderer);
+  ASSERT_OK(large_renderer);
 
   const absl::StatusOr<RgbaImage> small_tile = small_renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> large_tile = large_renderer->RenderBlobTile(/*mask=*/255, 0);
-  ASSERT_TRUE(small_tile.ok()) << small_tile.status();
-  ASSERT_TRUE(large_tile.ok()) << large_tile.status();
+  ASSERT_OK(small_tile);
+  ASSERT_OK(large_tile);
 
   const int small_covered = TotalPixels(MotifColors(*small_tile));
   const int large_covered = TotalPixels(MotifColors(*large_tile));
@@ -896,12 +912,13 @@ TEST(TerrainGeneratorTest, MotifSizeIntroducesNoNewColours) {
 
   const absl::StatusOr<TerrainRenderer> small_renderer = TerrainRenderer::Create(small);
   const absl::StatusOr<TerrainRenderer> large_renderer = TerrainRenderer::Create(large);
-  ASSERT_TRUE(small_renderer.ok()) << small_renderer.status();
-  ASSERT_TRUE(large_renderer.ok()) << large_renderer.status();
+  ASSERT_OK(small_renderer);
+  ASSERT_OK(large_renderer);
 
   const absl::StatusOr<RgbaImage> small_tile = small_renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> large_tile = large_renderer->RenderBlobTile(/*mask=*/255, 0);
-  ASSERT_TRUE(small_tile.ok() && large_tile.ok());
+  ASSERT_OK(small_tile);
+  ASSERT_OK(large_tile);
 
   const std::map<std::array<uint8_t, 4>, int> small_colors = MotifColors(*small_tile);
   const std::map<std::array<uint8_t, 4>, int> large_colors = MotifColors(*large_tile);
@@ -928,12 +945,13 @@ TEST(TerrainGeneratorTest, SubstratePatternsCanUseAccentColours) {
 
   const absl::StatusOr<TerrainRenderer> material_renderer = TerrainRenderer::Create(material);
   const absl::StatusOr<TerrainRenderer> accent_renderer = TerrainRenderer::Create(accented);
-  ASSERT_TRUE(material_renderer.ok()) << material_renderer.status();
-  ASSERT_TRUE(accent_renderer.ok()) << accent_renderer.status();
+  ASSERT_OK(material_renderer);
+  ASSERT_OK(accent_renderer);
 
   const absl::StatusOr<RgbaImage> material_tile = material_renderer->RenderBlobTile(255, 0);
   const absl::StatusOr<RgbaImage> accent_tile = accent_renderer->RenderBlobTile(255, 0);
-  ASSERT_TRUE(material_tile.ok() && accent_tile.ok());
+  ASSERT_OK(material_tile);
+  ASSERT_OK(accent_tile);
 
   const std::array<uint8_t, 4> red{0xff, 0x00, 0x00, 0xff};
   const std::array<uint8_t, 4> blue{0x00, 0x00, 0xff, 0xff};
@@ -964,12 +982,13 @@ TEST(TerrainGeneratorTest, GradientAccentSweepsBetweenTheAccentColours) {
 
   const absl::StatusOr<TerrainRenderer> flat_renderer = TerrainRenderer::Create(flat);
   const absl::StatusOr<TerrainRenderer> swept_renderer = TerrainRenderer::Create(swept);
-  ASSERT_TRUE(flat_renderer.ok()) << flat_renderer.status();
-  ASSERT_TRUE(swept_renderer.ok()) << swept_renderer.status();
+  ASSERT_OK(flat_renderer);
+  ASSERT_OK(swept_renderer);
 
   const absl::StatusOr<RgbaImage> flat_tile = flat_renderer->RenderBlobTile(/*mask=*/255, 0);
   const absl::StatusOr<RgbaImage> swept_tile = swept_renderer->RenderBlobTile(/*mask=*/255, 0);
-  ASSERT_TRUE(flat_tile.ok() && swept_tile.ok());
+  ASSERT_OK(flat_tile);
+  ASSERT_OK(swept_tile);
 
   const std::map<std::array<uint8_t, 4>, int> flat_colors = MotifColors(*flat_tile);
   const std::map<std::array<uint8_t, 4>, int> swept_colors = MotifColors(*swept_tile);
@@ -1002,9 +1021,9 @@ TEST(TerrainGeneratorTest, TheAccentGradientStaysSaturated) {
   config.material.accent_secondary = 0x00b0ff;
 
   const absl::StatusOr<TerrainRenderer> renderer = TerrainRenderer::Create(config);
-  ASSERT_TRUE(renderer.ok()) << renderer.status();
+  ASSERT_OK(renderer);
   const absl::StatusOr<RgbaImage> tile = renderer->RenderBlobTile(/*mask=*/255, 0);
-  ASSERT_TRUE(tile.ok()) << tile.status();
+  ASSERT_OK(tile);
 
   const std::map<std::array<uint8_t, 4>, int> colors = MotifColors(*tile);
   ASSERT_GT(colors.size(), 2u) << "the gradient did not produce intermediate steps to check";
@@ -1040,7 +1059,7 @@ TEST(TerrainGeneratorTest, MaterialAccentModeIsTheDefaultForNonAccentFamilies) {
 TEST(TerrainGeneratorTest, AtlasMatchesTheComposedLayout) {
   const absl::StatusOr<Blob47Atlas> atlas =
       GenerateBlob47Atlas(FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   EXPECT_EQ(atlas->tile_size, 32);
   EXPECT_EQ(atlas->image.width, kBlob47Columns * 32);
@@ -1082,7 +1101,7 @@ TEST(TerrainGeneratorTest, AtlasStacksOneBlockPerVariant) {
 TEST(TerrainGeneratorTest, EveryAtlasCellHasArtwork) {
   const absl::StatusOr<Blob47Atlas> atlas =
       GenerateBlob47Atlas(FlatInteriorConfig(/*variant_period=*/1, /*supersample=*/1));
-  ASSERT_TRUE(atlas.ok()) << atlas.status();
+  ASSERT_OK(atlas);
 
   for (const ComposedTile& tile : atlas->tiles) {
     int opaque = 0;

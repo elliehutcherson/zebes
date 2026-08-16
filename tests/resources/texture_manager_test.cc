@@ -30,9 +30,7 @@ class TextureManagerTest : public ::testing::Test {
     std::filesystem::create_directories(test_dir_ + "/textures");
 
     resources_ = std::make_unique<FakeTextureResourceStore>();
-    auto tm = TextureManager::Create(resources_.get(), test_dir_);
-    ASSERT_TRUE(tm.ok());
-    manager_ = std::move(*tm);
+    ASSERT_OK_AND_ASSIGN(manager_, TextureManager::Create(resources_.get(), test_dir_));
   }
 
   void TearDown() override {
@@ -55,24 +53,23 @@ TEST_F(TextureManagerTest, CreateAndGetTexture) {
   }
 
   // Path must be absolute for import
-  auto id = manager_->CreateTexture({.path = std::filesystem::absolute(img_path).string()});
-  ASSERT_TRUE(id.ok()) << id.status();
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTexture(
+                                           {.path = std::filesystem::absolute(img_path).string()}));
 
-  auto tex = manager_->GetTexture(*id);
-  ASSERT_TRUE(tex.ok());
-  EXPECT_EQ((*tex)->id, *id);
+  ASSERT_OK_AND_ASSIGN(Texture * tex, manager_->GetTexture(id));
+  EXPECT_EQ(tex->id, id);
   // Checked path should be what was saved (relative)
-  EXPECT_EQ((*tex)->path, "textures/test.png");
+  EXPECT_EQ(tex->path, "textures/test.png");
   // Default name should be the stem
-  EXPECT_EQ((*tex)->name, "test");
+  EXPECT_EQ(tex->name, "test");
   // The runtime handle lives on the manager, not on the definition.
-  ASSERT_OK_AND_ASSIGN(TextureHandle handle, manager_->GetTextureHandle(*id));
+  ASSERT_OK_AND_ASSIGN(TextureHandle handle, manager_->GetTextureHandle(id));
   EXPECT_TRUE(handle);
   ASSERT_EQ(resources_->loaded_paths.size(), 1);
   EXPECT_EQ(resources_->loaded_paths.front(), test_dir_ + "/textures/test.png");
 
   // Verify JSON exists in definitions path
-  std::string json_path = test_dir_ + "/definitions/textures/test-" + *id + ".json";
+  std::string json_path = test_dir_ + "/definitions/textures/test-" + id + ".json";
   ASSERT_TRUE(std::filesystem::exists(json_path));
 }
 
@@ -90,13 +87,11 @@ TEST_F(TextureManagerTest, LoadAllTextures) {
     img << "dummy";
   }
 
-  auto status = manager_->LoadAllTextures();
-  ASSERT_TRUE(status.ok());
+  ASSERT_OK(manager_->LoadAllTextures());
 
-  auto tex = manager_->GetTexture("existing-texture-id");
-  ASSERT_TRUE(tex.ok());
-  EXPECT_EQ((*tex)->id, "existing-texture-id");
-  EXPECT_EQ((*tex)->name, "existing");
+  ASSERT_OK_AND_ASSIGN(Texture * tex, manager_->GetTexture("existing-texture-id"));
+  EXPECT_EQ(tex->id, "existing-texture-id");
+  EXPECT_EQ(tex->name, "existing");
 }
 
 TEST_F(TextureManagerTest, UpdateTexture) {
@@ -107,34 +102,30 @@ TEST_F(TextureManagerTest, UpdateTexture) {
     f << "dummy data";
   }
 
-  auto id = manager_->CreateTexture({.path = std::filesystem::absolute(img_path).string()});
-  ASSERT_TRUE(id.ok());
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTexture(
+                                           {.path = std::filesystem::absolute(img_path).string()}));
 
-  auto tex = manager_->GetTexture(*id);
-  ASSERT_TRUE(tex.ok());
-  EXPECT_EQ((*tex)->name, "update");
+  ASSERT_OK_AND_ASSIGN(Texture * tex, manager_->GetTexture(id));
+  EXPECT_EQ(tex->name, "update");
 
-  Texture new_data = **tex;
+  Texture new_data = *tex;
   new_data.name = "New Name";
 
-  auto status = manager_->UpdateTexture(new_data);
-  ASSERT_TRUE(status.ok());
+  ASSERT_OK(manager_->UpdateTexture(new_data));
 
   // Check in-memory update
-  EXPECT_EQ((*tex)->name, "New Name");
+  EXPECT_EQ(tex->name, "New Name");
 
   // Reload to check persistence
   EXPECT_OK(manager_->LoadAllTextures());
-  auto reloaded = manager_->GetTexture(*id);
-  ASSERT_TRUE(reloaded.ok());
-  EXPECT_EQ((*reloaded)->name, "New Name");
+  ASSERT_OK_AND_ASSIGN(Texture * reloaded, manager_->GetTexture(id));
+  EXPECT_EQ(reloaded->name, "New Name");
 
   // Check file was renamed
   // Old name "update", New name "New Name"
-  EXPECT_FALSE(
-      std::filesystem::exists(test_dir_ + "/definitions/textures/update-" + *id + ".json"));
+  EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/definitions/textures/update-" + id + ".json"));
   EXPECT_TRUE(
-      std::filesystem::exists(test_dir_ + "/definitions/textures/New Name-" + *id + ".json"));
+      std::filesystem::exists(test_dir_ + "/definitions/textures/New Name-" + id + ".json"));
 }
 
 TEST_F(TextureManagerTest, DeleteTexture) {
@@ -144,24 +135,23 @@ TEST_F(TextureManagerTest, DeleteTexture) {
     std::ofstream f(img_path);
     f << "dummy";
   }
-  auto id = manager_->CreateTexture({.path = std::filesystem::absolute(img_path).string()});
-  ASSERT_TRUE(id.ok());
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTexture(
+                                           {.path = std::filesystem::absolute(img_path).string()}));
 
   // Check exists
-  ASSERT_TRUE(std::filesystem::exists(test_dir_ + "/definitions/textures/del-" + *id + ".json"));
+  ASSERT_TRUE(std::filesystem::exists(test_dir_ + "/definitions/textures/del-" + id + ".json"));
 
   // Delete
-  auto status = manager_->DeleteTexture(*id);
-  ASSERT_TRUE(status.ok());
+  ASSERT_OK(manager_->DeleteTexture(id));
   ASSERT_EQ(resources_->unloaded_ids.size(), 1);
   EXPECT_NE(resources_->unloaded_ids.front(), 0);
 
   // Check removed from manager
-  auto tex = manager_->GetTexture(*id);
+  auto tex = manager_->GetTexture(id);
   EXPECT_FALSE(tex.ok());
 
   // Check removed from disk
-  EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/definitions/textures/del-" + *id + ".json"));
+  EXPECT_FALSE(std::filesystem::exists(test_dir_ + "/definitions/textures/del-" + id + ".json"));
 
   // The artwork goes with it. A file left in textures/ that no definition names
   // is unreachable and indistinguishable from art still in use.
@@ -188,15 +178,14 @@ TEST_F(TextureManagerTest, DeletingGeneratedArtworkRemovesTheImageItWrote) {
 TEST_F(TextureManagerTest, CreateTextureFromPixelsWritesArtworkAndRegistersIt) {
   const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
 
-  auto id = manager_->CreateTextureFromPixels("generated", 4, 4, pixels);
-  ASSERT_TRUE(id.ok()) << id.status();
+  ASSERT_OK_AND_ASSIGN(std::string id,
+                       manager_->CreateTextureFromPixels("generated", 4, 4, pixels));
 
   EXPECT_TRUE(std::filesystem::exists(test_dir_ + "/textures/generated.png"));
 
-  auto texture = manager_->GetTexture(*id);
-  ASSERT_TRUE(texture.ok()) << texture.status();
-  EXPECT_EQ((*texture)->name, "generated");
-  EXPECT_EQ((*texture)->path, "textures/generated.png");
+  ASSERT_OK_AND_ASSIGN(Texture * texture, manager_->GetTexture(id));
+  EXPECT_EQ(texture->name, "generated");
+  EXPECT_EQ(texture->path, "textures/generated.png");
 }
 
 // Silently replacing artwork would repoint every tileset already using it at a
@@ -204,7 +193,7 @@ TEST_F(TextureManagerTest, CreateTextureFromPixelsWritesArtworkAndRegistersIt) {
 // to prevent.
 TEST_F(TextureManagerTest, CreateTextureFromPixelsRefusesToReplaceExistingArtwork) {
   const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
-  ASSERT_TRUE(manager_->CreateTextureFromPixels("generated", 4, 4, pixels).ok());
+  ASSERT_OK(manager_->CreateTextureFromPixels("generated", 4, 4, pixels));
 
   absl::Status status = manager_->CreateTextureFromPixels("generated", 4, 4, pixels).status();
   EXPECT_FALSE(status.ok());
@@ -220,7 +209,7 @@ TEST_F(TextureManagerTest, ReplaceTexturePixelsKeepsIdentityAndReloadsTheRuntime
   ASSERT_OK_AND_ASSIGN(const TextureHandle handle_before, manager_->GetTextureHandle(id));
 
   const std::vector<uint8_t> replacement(4 * 4 * 4, 0xDD);
-  ASSERT_TRUE(manager_->ReplaceTexturePixels(id, 4, 4, replacement).ok());
+  ASSERT_OK(manager_->ReplaceTexturePixels(id, 4, 4, replacement));
 
   ASSERT_OK_AND_ASSIGN(Texture * texture_after, manager_->GetTexture(id));
   ASSERT_OK_AND_ASSIGN(const TextureHandle handle_after, manager_->GetTextureHandle(id));
@@ -244,7 +233,7 @@ TEST_F(TextureManagerTest, ShowTexturePixelsSwapsTheHandleAndLeavesTheFileAlone)
   const auto written_at = std::filesystem::last_write_time(image_path);
 
   const std::vector<uint8_t> grown(4 * 4 * 4, 0xDD);
-  ASSERT_TRUE(manager_->ShowTexturePixels(id, 4, 4, grown).ok());
+  ASSERT_OK(manager_->ShowTexturePixels(id, 4, 4, grown));
 
   ASSERT_OK_AND_ASSIGN(const TextureHandle handle_after, manager_->GetTextureHandle(id));
   EXPECT_NE(handle_after, handle_before) << "the viewport must sample the new artwork";
@@ -276,14 +265,12 @@ TEST_F(TextureManagerTest, CreateTextureWithCopy) {
   }
 
   // Path is absolute (or relative to cwd, but outside assets)
-  auto id = manager_->CreateTexture({.path = external_img_path});
-  ASSERT_TRUE(id.ok()) << id.status();
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTexture({.path = external_img_path}));
 
-  auto tex = manager_->GetTexture(*id);
-  ASSERT_TRUE(tex.ok());
+  ASSERT_OK_AND_ASSIGN(Texture * tex, manager_->GetTexture(id));
 
   // Verify path is relative to assets
-  EXPECT_EQ((*tex)->path, "textures/external_image.png");
+  EXPECT_EQ(tex->path, "textures/external_image.png");
 
   // Verify file was copied
   std::string copied_path = test_dir_ + "/textures/external_image.png";
@@ -313,13 +300,12 @@ TEST_F(TextureManagerTest, UpdateTextureNameTooLong) {
     std::ofstream f(img_path);
     f << "dummy data";
   }
-  auto id = manager_->CreateTexture({.path = std::filesystem::absolute(img_path).string()});
-  ASSERT_TRUE(id.ok());
+  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateTexture(
+                                           {.path = std::filesystem::absolute(img_path).string()}));
 
-  auto tex = manager_->GetTexture(*id);
-  ASSERT_TRUE(tex.ok());
+  ASSERT_OK_AND_ASSIGN(Texture * tex, manager_->GetTexture(id));
 
-  Texture new_data = **tex;
+  Texture new_data = *tex;
   new_data.name = std::string(kMaxTextureNameLength + 1, 'a');
 
   auto status = manager_->UpdateTexture(new_data);
@@ -334,22 +320,21 @@ TEST_F(TextureManagerTest, RenameTexture) {
     f << "dummy";
   }
 
-  auto id = manager_->CreateTexture(
-      {.path = std::filesystem::absolute(img_path).string(), .name = "OldName"});
-  ASSERT_TRUE(id.ok());
+  ASSERT_OK_AND_ASSIGN(
+      std::string id, manager_->CreateTexture({.path = std::filesystem::absolute(img_path).string(),
+                                               .name = "OldName"}));
 
-  std::string old_file = test_dir_ + "/definitions/textures/OldName-" + *id + ".json";
+  std::string old_file = test_dir_ + "/definitions/textures/OldName-" + id + ".json";
   ASSERT_TRUE(std::filesystem::exists(old_file));
 
   // Rename
-  auto tex = manager_->GetTexture(*id);
-  ASSERT_TRUE(tex.ok());
+  ASSERT_OK_AND_ASSIGN(Texture * tex, manager_->GetTexture(id));
 
-  Texture new_tex = **tex;
+  Texture new_tex = *tex;
   new_tex.name = "NewName";
-  ASSERT_TRUE(manager_->UpdateTexture(new_tex).ok());
+  ASSERT_OK(manager_->UpdateTexture(new_tex));
 
-  std::string new_file = test_dir_ + "/definitions/textures/NewName-" + *id + ".json";
+  std::string new_file = test_dir_ + "/definitions/textures/NewName-" + id + ".json";
   EXPECT_TRUE(std::filesystem::exists(new_file));
   EXPECT_FALSE(std::filesystem::exists(old_file));
 }

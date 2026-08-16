@@ -5,6 +5,7 @@
 #include "engine/input_types.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -21,7 +22,7 @@ class InputManagerTest : public ::testing::Test {
   void CreateManager() {
     absl::StatusOr<std::unique_ptr<InputManager>> manager_or =
         InputManager::Create({.input_source = &input_source_});
-    ASSERT_TRUE(manager_or.ok());
+    ASSERT_OK(manager_or);
     input_manager_ = std::move(manager_or.value());
   }
 

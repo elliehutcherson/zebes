@@ -11,6 +11,7 @@
 #include "objects/texture.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
+#include "macros.h"
 
 namespace zebes {
 
@@ -60,7 +61,7 @@ class ParallaxThemePanelTest : public Test {
     ON_CALL(*api_, GetAllTextures()).WillByDefault(Return(textures_));
 
     auto panel_or = ParallaxThemePanel::Create({.api = api_.get(), .gui = &gui_});
-    ASSERT_TRUE(panel_or.ok());
+    ASSERT_OK(panel_or);
     panel_ = *std::move(panel_or);
 
     // Mock IO and Style
@@ -119,7 +120,7 @@ TEST_F(ParallaxThemePanelTest, AddThemeUpdatesLevelAndSelection) {
 
   EXPECT_CALL(gui_, Button(StrEq("Add Theme"), _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(RenderNavigator().ok());
+  ASSERT_OK(RenderNavigator());
 
   EXPECT_EQ(level_.themes.size(), 1);
   EXPECT_EQ(selection_.type, SelectionState::Type::kTheme);
@@ -134,7 +135,7 @@ TEST_F(ParallaxThemePanelTest, AddLayerUpdatesThemeAndSelection) {
 
   EXPECT_CALL(gui_, Button(StrEq("Add Layer"), _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(RenderThemeDetails().ok());
+  ASSERT_OK(RenderThemeDetails());
 
   EXPECT_EQ(level_.themes[1].layers.size(), 1);
   EXPECT_EQ(selection_.type, SelectionState::Type::kLayer);
@@ -150,7 +151,7 @@ TEST_F(ParallaxThemePanelTest, DeleteThemeRemovesIt) {
 
   EXPECT_CALL(gui_, Button(StrEq("Delete Theme"), _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(RenderThemeDetails().ok());
+  ASSERT_OK(RenderThemeDetails());
 
   EXPECT_TRUE(level_.themes.empty());
   EXPECT_EQ(level_.zones[0].theme_id, -1);
@@ -174,7 +175,7 @@ TEST_F(ParallaxThemePanelTest, DeleteLayerRemovesIt) {
 
   EXPECT_CALL(gui_, Button(StrEq("Delete Layer"), _)).WillOnce(Return(true));
 
-  ASSERT_TRUE(RenderLayerDetails().ok());
+  ASSERT_OK(RenderLayerDetails());
 
   EXPECT_CALL(gui_, CreateScopedCombo(_, _, _))
       .WillRepeatedly(Invoke([this](const char* label, const char* preview, ImGuiComboFlags flags) {
@@ -194,7 +195,7 @@ TEST_F(ParallaxThemePanelTest, SelectionChangesOnTreeNode) {
   EXPECT_CALL(gui_, CollapsingHeader(StrEq("Theme 1##theme_1"), _)).WillOnce(Return(false));
   EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
 
-  ASSERT_TRUE(RenderNavigator().ok());
+  ASSERT_OK(RenderNavigator());
 
   EXPECT_EQ(selection_.type, SelectionState::Type::kTheme);
   EXPECT_EQ(selection_.theme_id, 1);
@@ -213,7 +214,7 @@ TEST_F(ParallaxThemePanelTest, SelectionChangesOnLayerSelect) {
   EXPECT_CALL(gui_, Selectable(StrEq("Layer 0##layer_1_0"), Matcher<bool>(false), _, _))
       .WillOnce(Return(true));
 
-  ASSERT_TRUE(RenderNavigator().ok());
+  ASSERT_OK(RenderNavigator());
 
   EXPECT_EQ(selection_.type, SelectionState::Type::kLayer);
   EXPECT_EQ(selection_.theme_id, 1);
@@ -226,7 +227,7 @@ TEST_F(ParallaxThemePanelTest, EmptyThemeNameUsesSafeStableLabel) {
   EXPECT_CALL(gui_, CollapsingHeader(StrEq("(unnamed theme)##theme_1"), _))
       .WillOnce(Return(false));
 
-  EXPECT_TRUE(RenderNavigator().ok());
+  EXPECT_OK(RenderNavigator());
 }
 
 TEST_F(ParallaxThemePanelTest, EmptyLayerNameUsesSafeStableLabel) {
@@ -237,7 +238,7 @@ TEST_F(ParallaxThemePanelTest, EmptyLayerNameUsesSafeStableLabel) {
   EXPECT_CALL(gui_, Selectable(StrEq("(unnamed layer)##layer_1_0"), Matcher<bool>(false), _, _))
       .WillOnce(Return(false));
 
-  EXPECT_TRUE(RenderNavigator().ok());
+  EXPECT_OK(RenderNavigator());
 }
 
 // Renamed slightly to reflect the new fallback behavior
@@ -248,7 +249,7 @@ TEST_F(ParallaxThemePanelTest, RenderLayerDetailsFallsBackToThemeOnInvalidSelect
   selection_.layer_index = 5;
 
   // Now returns OkStatus() but modifies selection to kTheme
-  EXPECT_TRUE(RenderLayerDetails().ok());
+  EXPECT_OK(RenderLayerDetails());
   EXPECT_EQ(selection_.type, SelectionState::Type::kTheme);
 }
 
