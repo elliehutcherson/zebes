@@ -8,15 +8,18 @@ decided and why. This document only says what has not happened yet.
 
 | Track | What | State |
 |---|---|---|
-| 0 | Land the clang-tidy tooling and the slope rename | **Done** |
+| 0 | Land the clang-tidy tooling and the slope rename | **Done, except the merge** |
 | 1 | The clang-tidy backlog | Next |
 | 2 | Repo hygiene | Next |
 | 3 | Terrain carry-overs | After 1-2 |
 | 4 | Features: layers, prop artwork, zone seaming | After 3 |
 
+Track 0 is complete on branch `track0-lint-and-shape-names` and is not merged.
+That merge is the only item outstanding.
+
 ---
 
-## Track 0 — Tooling and the slope rename (done)
+## Track 0 — Tooling and the slope rename (done, unmerged)
 
 clang-tidy runs. It ships with the keg-only Homebrew llvm formula, so it was
 never on `PATH` and the config said so; the working invocation and the reason
