@@ -38,3 +38,5 @@ assertion with an `if` to make a test pass.
   rule in the guide and rerun the script; never edit a generated file.
 - Cross-layer ownership and lifetime rules: `docs/architecture.md`. Update it
   when adding or changing an architectural boundary.
+- What is left to build, and what was settled on purpose: `docs/roadmap.md`.
+  Read it before proposing work; update it when a track closes.

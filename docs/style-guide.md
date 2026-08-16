@@ -230,3 +230,5 @@ when the two disagree.
   escalation rule. Loaded into every Claude Code session.
 - [`architecture.md`](architecture.md): cross-layer ownership and lifetime.
   Update it when adding or changing an architectural boundary.
+- [`roadmap.md`](roadmap.md): what is left to build, including the clang-tidy
+  backlog this guide's checks produce.
