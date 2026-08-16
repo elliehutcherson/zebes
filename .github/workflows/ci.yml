@@ -31,7 +31,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install native dependencies
-        run: brew install freetype libavif libtiff webp
+        run: brew install llvm freetype libavif libtiff webp
 
       - name: Run headless tests
         run: ./scripts/build_and_test.sh
