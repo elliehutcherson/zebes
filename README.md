@@ -84,7 +84,9 @@ Or run the stages directly with `cmake --preset ui`,
 `cmake --build --preset ui`, and `ctest --preset ui`.
 
 CI uses the same UI-enabled build tree for every C++ test so it compiles the
-project only once, then runs the Python suite once:
+project only once, then runs the Python suite once. GitHub Actions persists a
+ccache compiler cache between runs; a cold run seeds the cache, while later
+runs reuse unchanged third-party and project objects:
 
 ```bash
 ./scripts/build_and_test.sh --all-tests-with-ui
