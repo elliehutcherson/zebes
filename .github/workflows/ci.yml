@@ -33,11 +33,8 @@ jobs:
       - name: Install native dependencies
         run: brew install llvm freetype libavif libtiff webp
 
-      - name: Run headless tests
-        run: ./scripts/build_and_test.sh
-
-      - name: Run SDL and ImGui tests
-        run: ./scripts/build_and_test.sh --ui-tests
+      - name: Build once and run all tests
+        run: ./scripts/build_and_test.sh --all-tests-with-ui
         env:
           SDL_VIDEODRIVER: dummy
           SDL_RENDER_DRIVER: software

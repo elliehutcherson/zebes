@@ -5,6 +5,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_TESTS=true
 TEST_FILTER=""
 PRESET="dev"
+TEST_PRESET="dev"
 VENV_PYTHON="${PROJECT_ROOT}/build/tileset-venv/bin/python"
 
 while [[ $# -gt 0 ]]; do
@@ -15,6 +16,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     --ui-tests|--ui_tests)
       PRESET="ui"
+      TEST_PRESET="ui"
+      shift
+      ;;
+    --all-tests-with-ui|--all_tests_with_ui)
+      PRESET="ui"
+      TEST_PRESET="ui-all"
       shift
       ;;
     --test_filter|--test-filter)
@@ -52,9 +59,9 @@ cmake --build --preset "${PRESET}"
 if [ "$RUN_TESTS" = true ]; then
     echo "[4/4] Running Tests..."
     if [ -n "$TEST_FILTER" ]; then
-        ctest --preset "${PRESET}" -R "${TEST_FILTER}"
+        ctest --preset "${TEST_PRESET}" -R "${TEST_FILTER}"
     else
-        ctest --preset "${PRESET}"
+        ctest --preset "${TEST_PRESET}"
     fi
     # The asset-tool tests need numpy/Pillow, which live in an isolated venv
     # under build/. That directory is gitignored and is routinely deleted, so
