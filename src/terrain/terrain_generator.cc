@@ -12,6 +12,7 @@
 #include "common/status_macros.h"
 #include "terrain/terrain_mask.h"
 #include "terrain/terrain_motifs.h"
+#include "terrain/terrain_palette.h"
 
 namespace zebes {
 namespace {
@@ -19,11 +20,7 @@ namespace {
 // How many palette entries the accent gradient spans. Eight is enough for a
 // sweep to read as continuous at these tile sizes without the palette growing
 // past what a pixel-art tileset should hold.
-constexpr int kAccentRampSteps = 8;
-// A compact palette carries the same ramp quantised to this many colours, so
-// chunky artwork gets genuinely fewer tones rather than eight near-identical
-// ones.
-constexpr int kCompactAccentRampSteps = 4;
+constexpr int kAccentRampSteps = kTerrainAccentRampSteps;
 
 // Semantic pixel indices. Everything stays in this space until the very last
 // step, which keeps palette changes independent from the geometry passes.
@@ -81,184 +78,6 @@ float HashUnit(uint64_t value) {
 // centred on the tile, so recentring it on the canvas is the whole conversion.
 constexpr int NeighborCellX(int neighbor) { return kNeighborOffsets[neighbor].dx + 1; }
 constexpr int NeighborCellY(int neighbor) { return kNeighborOffsets[neighbor].dy + 1; }
-
-struct Rgba {
-  uint8_t r = 0;
-  uint8_t g = 0;
-  uint8_t b = 0;
-  uint8_t a = 0;
-};
-
-struct Hsv {
-  float h = 0.0f;
-  float s = 0.0f;
-  float v = 0.0f;
-};
-
-Hsv ToHsv(uint32_t rgb) {
-  const float r = static_cast<float>((rgb >> 16) & 0xff) / 255.0f;
-  const float g = static_cast<float>((rgb >> 8) & 0xff) / 255.0f;
-  const float b = static_cast<float>(rgb & 0xff) / 255.0f;
-  const float high = std::max({r, g, b});
-  const float low = std::min({r, g, b});
-  const float span = high - low;
-
-  Hsv hsv;
-  hsv.v = high;
-  hsv.s = high <= 0.0f ? 0.0f : span / high;
-  if (span <= 0.0f) return hsv;
-
-  if (high == r) {
-    hsv.h = (g - b) / span / 6.0f;
-  } else if (high == g) {
-    hsv.h = (2.0f + (b - r) / span) / 6.0f;
-  } else {
-    hsv.h = (4.0f + (r - g) / span) / 6.0f;
-  }
-  hsv.h = hsv.h - std::floor(hsv.h);
-  return hsv;
-}
-
-Rgba ToRgba(const Hsv& hsv) {
-  const float h = (hsv.h - std::floor(hsv.h)) * 6.0f;
-  const int sector = static_cast<int>(h) % 6;
-  const float fraction = h - std::floor(h);
-  const float p = hsv.v * (1.0f - hsv.s);
-  const float q = hsv.v * (1.0f - hsv.s * fraction);
-  const float t = hsv.v * (1.0f - hsv.s * (1.0f - fraction));
-
-  float r = 0.0f;
-  float g = 0.0f;
-  float b = 0.0f;
-  switch (sector) {
-    case 0:
-      r = hsv.v;
-      g = t;
-      b = p;
-      break;
-    case 1:
-      r = q;
-      g = hsv.v;
-      b = p;
-      break;
-    case 2:
-      r = p;
-      g = hsv.v;
-      b = t;
-      break;
-    case 3:
-      r = p;
-      g = q;
-      b = hsv.v;
-      break;
-    case 4:
-      r = t;
-      g = p;
-      b = hsv.v;
-      break;
-    default:
-      r = hsv.v;
-      g = p;
-      b = q;
-      break;
-  }
-  return Rgba{static_cast<uint8_t>(std::lround(r * 255.0f)),
-              static_cast<uint8_t>(std::lround(g * 255.0f)),
-              static_cast<uint8_t>(std::lround(b * 255.0f)), 255};
-}
-
-// Blends two colours in HSV, taking the shorter way around the hue circle.
-//
-// The hue arc is the whole reason this is not a component-wise RGB mix. Between
-// a warm gold and a cool blue, RGB passes through desaturated grey and the
-// sweep reads as dirt; rotating the hue instead keeps every intermediate step
-// as saturated as its endpoints, which is what makes the result read as
-// iridescent rather than as two colours fading into each other.
-Hsv MixHsv(const Hsv& from, const Hsv& to, float t) {
-  float arc = to.h - from.h;
-  arc -= std::floor(arc);
-  if (arc > 0.5f) arc -= 1.0f;
-
-  Hsv mixed;
-  mixed.h = from.h + arc * t;
-  mixed.h -= std::floor(mixed.h);
-  mixed.s = from.s + (to.s - from.s) * t;
-  mixed.v = from.v + (to.v - from.v) * t;
-  return mixed;
-}
-
-// One step along a theme ramp. Negative steps are lighter and warmer, positive
-// darker and cooler; the hue drift is the point, not a side effect.
-Rgba Ramp(uint32_t base, float step, float hue_shift, float saturation_shift = 0.10f) {
-  Hsv hsv = ToHsv(base);
-  hsv.h = hsv.h + hue_shift * step;
-  hsv.s = std::clamp(hsv.s + saturation_shift * step, 0.0f, 1.0f);
-  hsv.v = std::clamp(hsv.v - 0.13f * step, 0.0f, 1.0f);
-  return ToRgba(hsv);
-}
-
-std::array<Rgba, kIndexCount> BuildPalette(const TerrainMaterial& material, float pattern_contrast,
-                                           float wall_darkness, bool compact_palette) {
-  std::array<Rgba, kIndexCount> palette{};
-  palette[kIndexEmpty] = Rgba{0, 0, 0, 0};
-  const float contrast = material.contrast;
-  palette[kIndexSurfaceHigh] = Ramp(material.surface, -1.0f * contrast, material.hue_shift);
-  palette[kIndexSurface] = Ramp(material.surface, 0.0f, material.hue_shift);
-  palette[kIndexSurfaceShade] = Ramp(material.surface, 1.2f * contrast, material.hue_shift);
-  palette[kIndexContact] = Ramp(material.substrate, 1.9f * contrast, material.hue_shift);
-  palette[kIndexInterior] = Ramp(material.substrate, 0.0f, material.hue_shift);
-  // The interior mottle is a texture, not a feature: it wants to read as the
-  // same material catching the light differently. A full ramp step here drags
-  // the hue far enough to look like a second material growing in patches, so it
-  // takes a short step with most of the hue drift held back.
-  palette[kIndexInteriorShade] = Ramp(
-      material.substrate, (compact_palette ? 0.9f : 0.5f) * contrast, material.hue_shift * 0.3f);
-  palette[kIndexInteriorHigh] =
-      Ramp(material.substrate, (compact_palette ? -0.65f : -0.35f) * contrast,
-           material.hue_shift * 0.2f);
-  palette[kIndexOutline] = ToRgba(ToHsv(material.outline));
-  // Substrate marks own a short ramp. They can be made quiet without also
-  // flattening roots, flowers, or the base material's cellular relief.
-  palette[kIndexPattern] =
-      Ramp(material.substrate, -0.85f * contrast * pattern_contrast, material.hue_shift * 0.3f);
-  palette[kIndexPatternShade] =
-      Ramp(material.substrate, 0.75f * contrast * pattern_contrast, material.hue_shift * 0.3f);
-  // Neutral semantic decorations are derived from the substrate, not the
-  // surface. Surface-tinted roots read as stray noise rather than objects in
-  // the dirt.
-  palette[kIndexDecor] = Ramp(material.substrate, -0.85f * contrast, material.hue_shift);
-  palette[kIndexDecorShade] = Ramp(material.substrate, 0.75f * contrast, material.hue_shift);
-  palette[kIndexSurfaceTextureHigh] =
-      compact_palette ? palette[kIndexSurfaceHigh]
-                      : Ramp(material.surface, -0.55f * contrast, material.hue_shift);
-  palette[kIndexSurfaceTextureShade] =
-      compact_palette ? palette[kIndexSurfaceShade]
-                      : Ramp(material.surface, 0.65f * contrast, material.hue_shift);
-  palette[kIndexBotanical] = Ramp(material.surface, -0.25f * contrast, material.hue_shift);
-  palette[kIndexBotanicalShade] = Ramp(material.surface, 0.9f * contrast, material.hue_shift);
-  // The endpoints land on the authored colours exactly, so flat accent shading
-  // is unchanged by the ramp existing.
-  const Hsv accent_from = ToHsv(material.accent_primary);
-  const Hsv accent_to = ToHsv(material.accent_secondary);
-  const int distinct = compact_palette ? kCompactAccentRampSteps : kAccentRampSteps;
-  for (int step = 0; step < kAccentRampSteps; ++step) {
-    // Quantising the position before mixing, rather than the colour after,
-    // keeps the two endpoints exact at every quantisation.
-    const int bucket = step * (distinct - 1) / (kAccentRampSteps - 1);
-    const float t = static_cast<float>(bucket) / static_cast<float>(distinct - 1);
-    palette[kIndexAccentRamp + step] = ToRgba(MixHsv(accent_from, accent_to, t));
-  }
-  // Wall darkness is a bounded material transition, not another open-ended
-  // ramp step. Subtractive shading clipped dark substrates to RGB black long
-  // before the slider reached its maximum (Autumn Forest clipped around 1.2),
-  // erasing both hue and authored outline warmth. An exponential approach
-  // keeps the existing 0..4 strength range useful while guaranteeing that the
-  // wall stays between the substrate and the explicitly authored outline.
-  const float wall_mix = 1.0f - std::exp(-wall_darkness);
-  palette[kIndexWall] =
-      ToRgba(MixHsv(ToHsv(material.substrate), ToHsv(material.outline), wall_mix));
-  return palette;
-}
 
 // The lowest and highest position along the light diagonal that a motif
 // actually paints, in source pixels.
@@ -981,16 +800,15 @@ void TerrainRenderer::ApplyMotifs(std::vector<uint8_t>& indices, int origin_x, i
 }
 
 RgbaImage TerrainRenderer::Colorize(const std::vector<uint8_t>& indices) const {
-  const std::array<Rgba, kIndexCount> palette =
-      BuildPalette(config_.material, config_.interior.pattern.contrast,
-                   config_.surface.wall_darkness, style_.compact_palette);
+  static_assert(kIndexCount == static_cast<int>(kTerrainPaletteColorCount));
+  const ResolvedTerrainPalette palette = BuildTerrainPalette(config_, style_);
 
   RgbaImage image;
   image.width = config_.tile_size;
   image.height = config_.tile_size;
   image.pixels.resize(indices.size() * 4);
   for (size_t i = 0; i < indices.size(); ++i) {
-    const Rgba& color = palette[indices[i]];
+    const RgbaColor& color = palette.colors[indices[i]];
     image.pixels[i * 4 + 0] = color.r;
     image.pixels[i * 4 + 1] = color.g;
     image.pixels[i * 4 + 2] = color.b;

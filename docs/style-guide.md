@@ -58,6 +58,10 @@ over their STL equivalents.
 
 - `absl::Status` and `absl::StatusOr` for recoverable failures.
 - `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` to propagate.
+- Do not use `try`/`catch` in domain, engine, or editor logic. When an external
+  or standard-library API can only report failure by throwing, translate that
+  exception to `absl::Status` inside the narrow common/resource adapter that
+  owns the API. Callers stay entirely in the status error model.
 - Fail immediately. Never return a partially constructed object or fall back to
   a default state.
 
@@ -222,9 +226,14 @@ git diff --check
 ```
 
 Header files have no independent compilation command. For a header change,
-lint representative `.cc` files that include it. Run the comprehensive local
-suite only for cross-cutting changes such as shared headers, serialization,
-CMake/build logic, or broad refactors:
+lint representative `.cc` files that include it. When a changed CMake target
+has several consumers, use `./scripts/test.sh --affected-target <target>` to
+run the test executables in its reverse dependency closure.
+
+Run the comprehensive local suite only when the affected set cannot be bounded
+confidently, such as serialization changes, broadly consumed headers, central
+build or toolchain logic, and broad refactors. A header or CMake edit with a
+small known consumer set is not inherently cross-cutting:
 
 ```bash
 ./scripts/build_and_test.sh

@@ -472,6 +472,18 @@ finished tileset, which is why it needs nothing to exist beforehand: a tileset
 names exactly one texture, so a generated terrain and the tileset carrying it
 are made together or not at all.
 
+Full-atlas creation and regeneration run through `common/BackgroundTask`.
+Workers receive copied, platform-neutral inputs and return typed `StatusOr`
+results; the editor thread alone commits resource-manager, filesystem, and GPU
+state. `BackgroundTask` is the standard-threading adapter and exception
+boundary, so editor and engine code never own a future or use `try`/`catch`.
+Its interface is deliberately submission/poll/result rather than terrain-
+specific, allowing other bounded CPU work to use the same ownership model.
+Regeneration carries the tileset snapshot it rendered, and the editor-thread
+commit compares that snapshot with the live definition before replacing pixels.
+This refuses a stale result if a level saved newly derived tiles while the
+worker was running.
+
 `terrain_detect` turns an atlas into a `Terrain`. Both sources converge on
 `BuildTerrainCandidate`, which is the only place tile naming, rule ordering and
 slope membership are decided; manifest import parses a described atlas back into

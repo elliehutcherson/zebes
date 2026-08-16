@@ -1,0 +1,19 @@
+add_library(prop_artwork
+  cleanup_prop.cc
+  compose_prop.cc
+  edge_treatment.cc
+  isolate_subject.cc
+  quantize_prop.cc
+  rasterize_prop.cc
+)
+
+target_link_libraries(prop_artwork
+  PUBLIC
+  image_io
+  terrain_palette
+  absl::span
+  absl::statusor
+  PRIVATE
+  absl::status
+  absl::strings
+)

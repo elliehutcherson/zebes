@@ -60,6 +60,8 @@ absl::Status TerrainEditor::Init() {
 }
 
 absl::Status TerrainEditor::RenderControls() {
+  gui_->BeginDisabled(HasPendingTerrainWork());
+  auto controls_enabled = absl::MakeCleanup([this] { gui_->EndDisabled(); });
   if (controls_panel_->Render(model_)) model_.MarkPreviewStale();
 
   // Asked of the whole panel rather than of the last widget: the item rendered
@@ -135,18 +137,36 @@ absl::Status TerrainEditor::RenderViewport() {
 }
 
 void TerrainEditor::CreateTerrain() {
-  absl::StatusOr<CreatedTerrain> created = absl::InternalError("Unknown terrain source");
-
   if (model_.source() == TerrainEditorModel::Source::kGenerate) {
-    created = CreateGeneratedTerrainTileset(*api_, model_.name(), model_.config(),
-                                            model_.selected_preset());
-  } else {
-    absl::StatusOr<std::string> manifest = ReadFile(model_.manifest_path());
-    created = manifest.ok() ? CreateImportedTerrainTileset(*api_, model_.name(),
-                                                           model_.texture_id(), *manifest)
-                            : absl::StatusOr<CreatedTerrain>(manifest.status());
+    if (HasPendingTerrainWork()) {
+      model_.SetStatus("Terrain artwork is already rendering.");
+      return;
+    }
+
+    const std::string name = model_.name();
+    const TerrainGenConfig config = model_.config();
+    absl::StatusOr<BackgroundTask<PreparedGeneratedTerrain>> work =
+        BackgroundTask<PreparedGeneratedTerrain>::Start(
+            [name, config] { return PrepareGeneratedTerrain(name, config); });
+    if (!work.ok()) {
+      model_.SetStatus(std::string(work.status().message()));
+      return;
+    }
+    pending_work_.emplace<PendingCreation>(PendingCreation{
+        .name = name,
+        .config = config,
+        .source_preset = model_.selected_preset(),
+        .work = *std::move(work),
+    });
+    model_.SetStatus(absl::StrCat("Creating '", model_.name(), "' in the background..."));
+    return;
   }
 
+  absl::StatusOr<std::string> manifest = ReadFile(model_.manifest_path());
+  absl::StatusOr<CreatedTerrain> created =
+      manifest.ok()
+          ? CreateImportedTerrainTileset(*api_, model_.name(), model_.texture_id(), *manifest)
+          : absl::StatusOr<CreatedTerrain>(manifest.status());
   if (!created.ok()) {
     model_.SetStatus(std::string(created.status().message()));
     return;
@@ -157,6 +177,74 @@ void TerrainEditor::CreateTerrain() {
     if (recipe.ok()) model_.LoadRecipe(**recipe);
   }
   model_.SetStatus(absl::StrCat("Created '", model_.name(), "'. Open it in the Tileset Editor."));
+}
+
+bool TerrainEditor::HasPendingTerrainWork() const {
+  return !std::holds_alternative<std::monostate>(pending_work_);
+}
+
+void TerrainEditor::PollTerrainWork() {
+  if (PendingCreation* pending = std::get_if<PendingCreation>(&pending_work_); pending != nullptr) {
+    absl::StatusOr<bool> ready = pending->work.IsReady();
+    if (!ready.ok()) {
+      pending_work_.emplace<std::monostate>();
+      model_.SetStatus(std::string(ready.status().message()));
+      return;
+    }
+    if (!*ready) return;
+
+    PendingCreation completed = std::move(*pending);
+    pending_work_.emplace<std::monostate>();
+    absl::StatusOr<PreparedGeneratedTerrain> prepared = completed.work.TakeResult();
+    if (!prepared.ok()) {
+      model_.SetStatus(std::string(prepared.status().message()));
+      return;
+    }
+    absl::StatusOr<CreatedTerrain> created = CommitGeneratedTerrain(
+        *api_, completed.name, completed.config, completed.source_preset, *std::move(prepared));
+    if (!created.ok()) {
+      model_.SetStatus(std::string(created.status().message()));
+      return;
+    }
+
+    model_.SetResult(*created);
+    if (!created->recipe_id.empty()) {
+      absl::StatusOr<TerrainRecipe*> recipe = api_->GetTerrainRecipe(created->recipe_id);
+      if (recipe.ok()) model_.LoadRecipe(**recipe);
+    }
+    model_.SetStatus(
+        absl::StrCat("Created '", completed.name, "'. Open it in the Tileset Editor."));
+    return;
+  }
+
+  if (PendingRegeneration* pending = std::get_if<PendingRegeneration>(&pending_work_);
+      pending != nullptr) {
+    absl::StatusOr<bool> ready = pending->work.IsReady();
+    if (!ready.ok()) {
+      pending_work_.emplace<std::monostate>();
+      model_.SetStatus(std::string(ready.status().message()));
+      return;
+    }
+    if (!*ready) return;
+
+    PendingRegeneration completed = std::move(*pending);
+    pending_work_.emplace<std::monostate>();
+    absl::StatusOr<PreparedTerrainRegeneration> prepared = completed.work.TakeResult();
+    if (!prepared.ok()) {
+      model_.SetStatus(std::string(prepared.status().message()));
+      return;
+    }
+    const absl::Status status =
+        CommitTerrainRegeneration(*api_, completed.recipe, completed.config, *std::move(prepared));
+    if (!status.ok()) {
+      model_.SetStatus(std::string(status.message()));
+      return;
+    }
+    absl::StatusOr<TerrainRecipe*> saved = api_->GetTerrainRecipe(completed.recipe.id);
+    if (saved.ok()) model_.LoadRecipe(**saved);
+    model_.SetStatus(
+        absl::StrCat("Regenerated '", completed.recipe.name, "' without changing asset IDs."));
+  }
 }
 
 void TerrainEditor::OpenRecipe() {
@@ -176,15 +264,39 @@ void TerrainEditor::RegenerateTerrain() {
     return;
   }
   const TerrainRecipe recipe = *model_.active_recipe();
-  const absl::Status status =
-      RegenerateTerrainTileset(*api_, recipe, model_.config());
-  if (!status.ok()) {
-    model_.SetStatus(std::string(status.message()));
+  if (HasPendingTerrainWork()) {
+    model_.SetStatus("Terrain artwork is already rendering.");
     return;
   }
-  absl::StatusOr<TerrainRecipe*> saved = api_->GetTerrainRecipe(recipe.id);
-  if (saved.ok()) model_.LoadRecipe(**saved);
-  model_.SetStatus(absl::StrCat("Regenerated '", recipe.name, "' without changing asset IDs."));
+
+  const absl::Status config_status = ValidateTerrainRegenerationConfig(recipe, model_.config());
+  if (!config_status.ok()) {
+    model_.SetStatus(std::string(config_status.message()));
+    return;
+  }
+
+  absl::StatusOr<Tileset*> tileset = api_->GetTileset(recipe.tileset_id);
+  if (!tileset.ok()) {
+    model_.SetStatus(std::string(tileset.status().message()));
+    return;
+  }
+
+  const TerrainGenConfig config = model_.config();
+  absl::StatusOr<BackgroundTask<PreparedTerrainRegeneration>> work =
+      BackgroundTask<PreparedTerrainRegeneration>::Start(
+          [tileset = **tileset, recipe, config]() mutable {
+            return PrepareTerrainRegeneration(std::move(tileset), recipe, config);
+          });
+  if (!work.ok()) {
+    model_.SetStatus(std::string(work.status().message()));
+    return;
+  }
+  pending_work_.emplace<PendingRegeneration>(PendingRegeneration{
+      .recipe = recipe,
+      .config = config,
+      .work = *std::move(work),
+  });
+  model_.SetStatus(absl::StrCat("Regenerating '", recipe.name, "' in the background..."));
 }
 
 void TerrainEditor::DeleteTerrain() {
@@ -216,8 +328,11 @@ absl::Status TerrainEditor::RenderOutput() {
     if (loaded.ok()) textures = *std::move(loaded);
   }
 
+  gui_->BeginDisabled(HasPendingTerrainWork());
+  auto output_enabled = absl::MakeCleanup([this] { gui_->EndDisabled(); });
   ASSIGN_OR_RETURN(const TerrainOutputPanel::Action action,
-                   output_panel_->Render(model_, textures, api_->GetAllTerrainRecipes()));
+                   output_panel_->Render(model_, textures, api_->GetAllTerrainRecipes(),
+                                         HasPendingTerrainWork()));
   switch (action) {
     case TerrainOutputPanel::Action::kNone:
       break;
@@ -245,6 +360,8 @@ absl::Status TerrainEditor::RenderOutput() {
 }
 
 absl::Status TerrainEditor::Render() {
+  PollTerrainWork();
+
   if (error_message_.has_value()) {
     gui_->TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Error: %s", error_message_->c_str());
     gui_->SameLine();

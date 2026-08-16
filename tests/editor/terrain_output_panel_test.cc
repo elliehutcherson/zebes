@@ -81,6 +81,11 @@ TEST_F(TerrainOutputPanelTest, GeneratingIsReadyOutOfTheBox) {
   ASSERT_OK(Render());
 }
 
+TEST_F(TerrainOutputPanelTest, DisablesCreateWhileArtworkIsRendering) {
+  EXPECT_CALL(gui_, BeginDisabled(true)).Times(1);
+  ASSERT_OK(panel_->Render(model_, textures_, {}, /*work_in_progress=*/true));
+}
+
 TEST_F(TerrainOutputPanelTest, DisablesCreateWithoutAName) {
   model_.name().clear();
   EXPECT_CALL(gui_, BeginDisabled(true)).Times(1);

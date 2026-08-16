@@ -21,6 +21,10 @@ target_link_libraries(image_io_test image_io gtest_main)
 
 gtest_discover_tests(image_io_test)
 
+add_executable(background_task_test common/background_task_test.cc)
+target_link_libraries(background_task_test background_task macros gtest_main)
+gtest_discover_tests(background_task_test)
+
 # --- Texture Manager ---
 add_executable(texture_manager_test resources/texture_manager_test.cc)
 target_link_libraries(texture_manager_test texture_manager macros gtest_main)
@@ -124,6 +128,7 @@ target_include_directories(shipped_assets_test PRIVATE ${CMAKE_CURRENT_SOURCE_DI
 gtest_discover_tests(shipped_assets_test)
 
 add_subdirectory(editor)
+add_subdirectory(artwork)
 add_subdirectory(objects)
 add_subdirectory(terrain)
 add_subdirectory(tools)

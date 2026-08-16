@@ -1,9 +1,9 @@
 # Handoff
 
-## Current: tooling and repository cleanup complete; resume Track 3
+## Current: Track 3 complete; begin Track 4 with layers
 
 As of 2026-08-16, [`roadmap.md`](roadmap.md) remains the source of truth for
-sequencing. Tracks 0-2 are complete; Track 3 is next.
+sequencing. Tracks 0-3 are complete; Track 4 is next.
 
 **What landed.**
 
@@ -35,33 +35,37 @@ sequencing. Tracks 0-2 are complete; Track 3 is next.
 9. The clang-tidy backlog is complete and CI enforces
    `scripts/lint.sh --strict --all`.
 10. Repository hygiene removed the obsolete root scratch files, `old/` sources,
-   and superseded prompt rules. Default searches now exclude generated,
-   vendored, and non-normative trees, and `scripts/test.sh --list` discovers
-   focused C++ test targets.
+    and superseded prompt rules. Default searches now exclude generated,
+    vendored, and non-normative trees, and `scripts/test.sh --list` discovers
+    focused C++ test targets.
+11. The Autumn Forest 1.2 wall-darkness preset passed its visual check against
+    the authored outline colour.
+12. Terrain Create and Regenerate submit copied inputs through the reusable
+    `common/BackgroundTask` boundary. The editor stays responsive and reports
+    the in-progress operation, while asset-manager and GPU work commits on the
+    editor thread. Regeneration verifies that the live tileset still matches its
+    input snapshot before replacing artwork, so a concurrent level save cannot
+    lose newly derived tiles.
 
 The repository is public. The workflow uses standard GitHub-hosted runners, not
 billable larger runners.
 
-### Pick up here tomorrow
+### Pick up here next
 
-Begin Track 3 with the Autumn Forest visual check. Build and launch the editor:
-
-```bash
-scripts/run_editor.sh
-```
-
-Inspect the wall-darkness result against the authored outline color and record
-whether the current 1.2 preset is visually acceptable. The next implementation
-item is moving terrain creation off the render thread; preserve the roadmap's
-decision to defer atlas compaction until real atlas growth justifies it.
+Begin Track 4 with layers. `Level` currently owns one `tile_chunks` map and one
+`entities` map directly; move both into an ordered depth-slice structure, keep
+`Entity::sort_order` as the within-layer tiebreaker, and migrate every existing
+level into layer 0. This is the format boundary that unlocks canopy artwork, so
+the migration must load every shipped level definition in tests.
 
 ### What remains
 
-- **Track 3:** Autumn Forest visual check, move terrain creation off the render
-  thread, and defer atlas compaction until real atlas growth justifies it.
 - **Track 4:** layers first, then prop artwork; parallax zone seaming is the
   smallest independent feature. See [`roadmap.md`](roadmap.md) for the design
   constraints and settled decisions.
+- **Deferred terrain tool:** atlas compaction remains unjustified until real
+  atlas growth becomes uncomfortable. It must be explicit because compaction
+  renumbers tile IDs that levels store.
 
 ---
 

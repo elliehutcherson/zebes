@@ -41,6 +41,15 @@ target_link_libraries(terrain_generator_test
 target_include_directories(terrain_generator_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(terrain_generator_test)
 
+add_executable(terrain_palette_test terrain_palette_test.cc)
+target_link_libraries(terrain_palette_test
+  gtest_main
+  macros
+  terrain_palette
+)
+target_include_directories(terrain_palette_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(terrain_palette_test)
+
 add_executable(terrain_content_index_test terrain_content_index_test.cc)
 target_link_libraries(terrain_content_index_test
   gtest_main

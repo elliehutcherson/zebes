@@ -2,6 +2,18 @@ add_library(status_macros INTERFACE status_macros.h)
 target_link_libraries(status_macros INTERFACE absl::status)
 target_link_libraries(status_macros INTERFACE absl::statusor)
 
+find_package(Threads REQUIRED)
+
+add_library(background_task INTERFACE background_task.h)
+target_link_libraries(background_task
+  INTERFACE
+  absl::status
+  absl::statusor
+  absl::strings
+  status_macros
+  Threads::Threads
+)
+
 add_library(vector INTERFACE vector.h)
 target_link_libraries(vector INTERFACE absl::strings)
 

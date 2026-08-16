@@ -59,6 +59,7 @@ add_library(terrain_editor terrain_editor.cc)
 target_link_libraries(terrain_editor
   PUBLIC
   api
+  background_task
   camera
   editor_canvas
   gui_interface

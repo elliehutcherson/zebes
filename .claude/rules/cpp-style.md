@@ -47,6 +47,10 @@ over their STL equivalents.
 
 - `absl::Status` and `absl::StatusOr` for recoverable failures.
 - `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` to propagate.
+- Do not use `try`/`catch` in domain, engine, or editor logic. When an external
+  or standard-library API can only report failure by throwing, translate that
+  exception to `absl::Status` inside the narrow common/resource adapter that
+  owns the API. Callers stay entirely in the status error model.
 - Fail immediately. Never return a partially constructed object or fall back to
   a default state.
 

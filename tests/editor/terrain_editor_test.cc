@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
@@ -16,6 +17,23 @@ namespace zebes {
 // answer.
 class TerrainEditorTestPeer {
  public:
+  static void CreateTerrain(TerrainEditor& editor) { editor.CreateTerrain(); }
+  static void RegenerateTerrain(TerrainEditor& editor) { editor.RegenerateTerrain(); }
+  static void PollTerrainWork(TerrainEditor& editor) { editor.PollTerrainWork(); }
+  static bool HasPendingTerrainWork(const TerrainEditor& editor) {
+    return editor.HasPendingTerrainWork();
+  }
+  static absl::Status WaitForTerrainWork(TerrainEditor& editor) {
+    if (auto* pending = std::get_if<TerrainEditor::PendingCreation>(&editor.pending_work_);
+        pending != nullptr) {
+      return pending->work.Wait();
+    }
+    if (auto* pending = std::get_if<TerrainEditor::PendingRegeneration>(&editor.pending_work_);
+        pending != nullptr) {
+      return pending->work.Wait();
+    }
+    return absl::FailedPreconditionError("No terrain work is pending");
+  }
   static void DeleteTerrain(TerrainEditor& editor) { editor.DeleteTerrain(); }
   static TerrainEditorModel& GetModel(TerrainEditor& editor) { return editor.model_; }
 };
@@ -24,6 +42,7 @@ namespace {
 
 using ::testing::_;
 using ::testing::HasSubstr;
+using ::testing::Mock;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrEq;
@@ -95,6 +114,90 @@ TEST_F(TerrainEditorTest, ARefusedDeleteLeavesTheTerrainOpenAndSaysWhatBlockedIt
   ASSERT_TRUE(model().active_recipe().has_value());
   EXPECT_EQ(model().active_recipe()->id, "recipe-1");
   EXPECT_THAT(model().status(), HasSubstr("Level 'Donut Plains' (tileset_id)"));
+}
+
+TEST_F(TerrainEditorTest, GeneratedArtworkCommitsOnlyWhenTheEditorPollsTheWorker) {
+  model().name() = "meadow";
+  model().config().tile_size = 8;
+  model().config().supersample = 1;
+  model().config().variant_period = 1;
+
+  // The worker owns only copied generator input. Even after it finishes, Api
+  // remains untouched until the editor thread polls and commits the result.
+  EXPECT_CALL(api_, CreateTextureFromPixels(_, _, _, _)).Times(0);
+  EXPECT_CALL(api_, CreateTileset(_)).Times(0);
+  EXPECT_CALL(api_, CreateTerrainRecipe(_)).Times(0);
+
+  TerrainEditorTestPeer::CreateTerrain(*editor_);
+  EXPECT_TRUE(TerrainEditorTestPeer::HasPendingTerrainWork(*editor_));
+  EXPECT_THAT(model().status(), HasSubstr("background"));
+  ASSERT_OK(TerrainEditorTestPeer::WaitForTerrainWork(*editor_));
+  Mock::VerifyAndClearExpectations(&api_);
+
+  EXPECT_CALL(api_, CreateTextureFromPixels("meadow", _, _, _))
+      .WillOnce(Return(std::string("texture-id")));
+  EXPECT_CALL(api_, CreateTileset(_)).WillOnce(Return(std::string("tileset-id")));
+  EXPECT_CALL(api_, CreateTerrainRecipe(_)).WillOnce(Return(std::string("recipe-id")));
+  EXPECT_CALL(api_, GetTerrainRecipe("recipe-id"))
+      .WillOnce(Return(absl::NotFoundError("not cached in this mock")));
+
+  TerrainEditorTestPeer::PollTerrainWork(*editor_);
+
+  EXPECT_FALSE(TerrainEditorTestPeer::HasPendingTerrainWork(*editor_));
+  ASSERT_TRUE(model().result().has_value());
+  EXPECT_EQ(model().result()->texture_id, "texture-id");
+  EXPECT_EQ(model().result()->tileset_id, "tileset-id");
+  EXPECT_EQ(model().result()->recipe_id, "recipe-id");
+  EXPECT_THAT(model().status(), HasSubstr("Created 'meadow'"));
+}
+
+TEST_F(TerrainEditorTest, RegeneratedArtworkAlsoCommitsOnlyWhenPolled) {
+  TerrainGenConfig config;
+  config.tile_size = 8;
+  config.supersample = 1;
+  config.variant_period = 1;
+  TerrainRecipe recipe{.id = "recipe-id",
+                       .name = "meadow",
+                       .tileset_id = "tileset-id",
+                       .texture_id = "texture-id",
+                       .terrain_id = 1,
+                       .config = config};
+  model().LoadRecipe(recipe);
+
+  Tileset tileset{.id = "tileset-id",
+                  .name = "meadow",
+                  .texture_id = "texture-id",
+                  .tile_width = 8,
+                  .tile_height = 8};
+  tileset.tiles.push_back(Tile{.id = 1, .name = "block", .shape = TileShape::kFullBlock});
+  TerrainCellKey key;
+  key.shape = TileShape::kFullBlock;
+  key.neighbors.fill(TileShape::kFullBlock);
+  tileset.terrains.push_back(Terrain{.id = 1,
+                                     .name = "meadow",
+                                     .scheme = TerrainScheme::kDerived,
+                                     .variant_period = 1,
+                                     .derived_tiles = {{.tile_id = 1, .key = key}}});
+
+  EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
+  EXPECT_CALL(api_, SaveTerrainRecipe(_)).Times(0);
+  EXPECT_CALL(api_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  TerrainEditorTestPeer::RegenerateTerrain(*editor_);
+  EXPECT_TRUE(TerrainEditorTestPeer::HasPendingTerrainWork(*editor_));
+  ASSERT_OK(TerrainEditorTestPeer::WaitForTerrainWork(*editor_));
+  Mock::VerifyAndClearExpectations(&api_);
+
+  EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
+  EXPECT_CALL(api_, SaveTerrainRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(api_, ReplaceTexturePixels("texture-id", _, _, _)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(api_, GetTerrainRecipe("recipe-id"))
+      .WillOnce(Return(absl::NotFoundError("not cached in this mock")));
+
+  TerrainEditorTestPeer::PollTerrainWork(*editor_);
+
+  EXPECT_FALSE(TerrainEditorTestPeer::HasPendingTerrainWork(*editor_));
+  EXPECT_THAT(model().status(), HasSubstr("Regenerated 'meadow'"));
 }
 
 }  // namespace

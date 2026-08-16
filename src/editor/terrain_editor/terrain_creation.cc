@@ -76,13 +76,12 @@ absl::StatusOr<Blob47Atlas> RerenderDerivedTiles(const Tileset& tileset, const T
   for (const DerivedTile& derived : terrain.derived_tiles) {
     auto found = by_id.find(derived.tile_id);
     if (found == by_id.end()) {
-      return absl::FailedPreconditionError(absl::StrCat(
-          "terrain '", terrain.name, "' records artwork for tile ", derived.tile_id,
-          ", which the tileset no longer has"));
+      return absl::FailedPreconditionError(
+          absl::StrCat("terrain '", terrain.name, "' records artwork for tile ", derived.tile_id,
+                       ", which the tileset no longer has"));
     }
     rows = std::max(rows, found->second->source_y / tileset.tile_height + 1);
-    atlas.image.width = std::max(atlas.image.width,
-                                 found->second->source_x + tileset.tile_width);
+    atlas.image.width = std::max(atlas.image.width, found->second->source_x + tileset.tile_width);
   }
   atlas.image.height = rows * tileset.tile_height;
   atlas.image.pixels.assign(
@@ -94,35 +93,39 @@ absl::StatusOr<Blob47Atlas> RerenderDerivedTiles(const Tileset& tileset, const T
     ASSIGN_OR_RETURN(const RgbaImage artwork,
                      renderer.RenderShapeTileInContext(derived.key.shape, derived.key.neighbors,
                                                        derived.key.phase));
-    RETURN_IF_ERROR(CopyTile(artwork, 0, 0, config.tile_size, atlas.image, tile.source_x,
-                             tile.source_y));
+    RETURN_IF_ERROR(
+        CopyTile(artwork, 0, 0, config.tile_size, atlas.image, tile.source_x, tile.source_y));
   }
   return atlas;
 }
 
 }  // namespace
 
-absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(Api& api, const std::string& name,
-                                                             const TerrainGenConfig& config) {
+absl::StatusOr<PreparedGeneratedTerrain> PrepareGeneratedTerrain(const std::string& name,
+                                                                 const TerrainGenConfig& config) {
   RETURN_IF_ERROR(ValidateName(name));
 
-  ASSIGN_OR_RETURN(const Blob47Atlas atlas, GenerateBlob47Atlas(config));
+  ASSIGN_OR_RETURN(Blob47Atlas atlas, GenerateBlob47Atlas(config));
+  ASSIGN_OR_RETURN(
+      TerrainCandidate candidate,
+      BuildTerrainCandidate(atlas, /*first_tile_id=*/1, /*terrain_id=*/1, TerrainScheme::kDerived));
+  return PreparedGeneratedTerrain{.atlas = std::move(atlas), .candidate = std::move(candidate)};
+}
+
+absl::StatusOr<CreatedTerrain> CommitGeneratedTerrain(
+    Api& api, const std::string& name, const TerrainGenConfig& config,
+    const std::optional<std::string>& source_preset, PreparedGeneratedTerrain prepared) {
+  RETURN_IF_ERROR(ValidateName(name));
+
   // Artwork first: if the name collides with existing artwork this fails before
   // anything has been written, leaving no half-made tileset behind.
   ASSIGN_OR_RETURN(
       const std::string texture_id,
-      api.CreateTextureFromPixels(name, atlas.image.width, atlas.image.height, atlas.image.pixels));
-  ASSIGN_OR_RETURN(TerrainCandidate candidate,
-                   BuildTerrainCandidate(atlas, /*first_tile_id=*/1, /*terrain_id=*/1,
-                                         TerrainScheme::kDerived));
+      api.CreateTextureFromPixels(name, prepared.atlas.image.width, prepared.atlas.image.height,
+                                  prepared.atlas.image.pixels));
 
-  return SaveTilesetForCandidate(api, name, texture_id, std::move(candidate));
-}
-
-absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(
-    Api& api, const std::string& name,
-    const TerrainGenConfig& config, const std::optional<std::string>& source_preset) {
-  ASSIGN_OR_RETURN(CreatedTerrain created, CreateGeneratedTerrainTileset(api, name, config));
+  ASSIGN_OR_RETURN(CreatedTerrain created,
+                   SaveTilesetForCandidate(api, name, texture_id, std::move(prepared.candidate)));
 
   TerrainRecipe recipe{
       .name = name,
@@ -144,27 +147,52 @@ absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(
   return created;
 }
 
-absl::Status RegenerateTerrainTileset(Api& api, const TerrainRecipe& recipe,
-                                      const TerrainGenConfig& config) {
+absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(Api& api, const std::string& name,
+                                                             const TerrainGenConfig& config) {
+  ASSIGN_OR_RETURN(PreparedGeneratedTerrain prepared, PrepareGeneratedTerrain(name, config));
+
+  // This lower-level overload predates recipes and remains useful to tests and
+  // tools that only need the paired artwork and tileset.
+  ASSIGN_OR_RETURN(
+      const std::string texture_id,
+      api.CreateTextureFromPixels(name, prepared.atlas.image.width, prepared.atlas.image.height,
+                                  prepared.atlas.image.pixels));
+  return SaveTilesetForCandidate(api, name, texture_id, std::move(prepared.candidate));
+}
+
+absl::StatusOr<CreatedTerrain> CreateGeneratedTerrainTileset(
+    Api& api, const std::string& name, const TerrainGenConfig& config,
+    const std::optional<std::string>& source_preset) {
+  ASSIGN_OR_RETURN(PreparedGeneratedTerrain prepared, PrepareGeneratedTerrain(name, config));
+  return CommitGeneratedTerrain(api, name, config, source_preset, std::move(prepared));
+}
+
+absl::Status ValidateTerrainRegenerationConfig(const TerrainRecipe& recipe,
+                                               const TerrainGenConfig& config) {
   if (config.tile_size != recipe.config.tile_size ||
       config.variant_period != recipe.config.variant_period) {
     return absl::FailedPreconditionError(
         "tile size and repeat period change atlas topology; use Save As to create new IDs");
   }
+  return absl::OkStatus();
+}
 
-  ASSIGN_OR_RETURN(Tileset * tileset, api.GetTileset(recipe.tileset_id));
-  if (tileset->texture_id != recipe.texture_id) {
+absl::StatusOr<PreparedTerrainRegeneration> PrepareTerrainRegeneration(
+    Tileset tileset, const TerrainRecipe& recipe, const TerrainGenConfig& config) {
+  RETURN_IF_ERROR(ValidateTerrainRegenerationConfig(recipe, config));
+
+  if (tileset.texture_id != recipe.texture_id) {
     return absl::FailedPreconditionError(
         "terrain recipe texture no longer matches its tileset; refusing to overwrite artwork");
   }
-  if (tileset->tile_width != recipe.config.tile_size ||
-      tileset->tile_height != recipe.config.tile_size) {
+  if (tileset.tile_width != recipe.config.tile_size ||
+      tileset.tile_height != recipe.config.tile_size) {
     return absl::FailedPreconditionError(
         "terrain tileset cell size changed after generation; use Save As");
   }
 
   const Terrain* terrain = nullptr;
-  for (const Terrain& candidate : tileset->terrains) {
+  for (const Terrain& candidate : tileset.terrains) {
     if (candidate.id == recipe.terrain_id) terrain = &candidate;
   }
   if (terrain == nullptr || terrain->variant_period != recipe.config.variant_period) {
@@ -189,14 +217,28 @@ absl::Status RegenerateTerrainTileset(Api& api, const TerrainRecipe& recipe,
   // has grown as levels asked for neighbourhoods regenerates as exactly as one
   // that has not. Nothing here depends on the atlas layout, which is what limited
   // the old positional rewrite to the tiles generation itself produced.
-  ASSIGN_OR_RETURN(const Blob47Atlas atlas, RerenderDerivedTiles(*tileset, *terrain, config));
+  ASSIGN_OR_RETURN(Blob47Atlas atlas, RerenderDerivedTiles(tileset, *terrain, config));
+  return PreparedTerrainRegeneration{.source_tileset = std::move(tileset),
+                                     .atlas = std::move(atlas)};
+}
+
+absl::Status CommitTerrainRegeneration(Api& api, const TerrainRecipe& recipe,
+                                       const TerrainGenConfig& config,
+                                       PreparedTerrainRegeneration prepared) {
+  ASSIGN_OR_RETURN(Tileset * current, api.GetTileset(recipe.tileset_id));
+  if (*current != prepared.source_tileset) {
+    return absl::FailedPreconditionError(
+        "terrain tileset changed while its artwork was rendering; retry regeneration so newly "
+        "added tiles are not overwritten");
+  }
 
   TerrainRecipe updated = recipe;
   updated.config = config;
   RETURN_IF_ERROR(api.SaveTerrainRecipe(updated));
 
-  const absl::Status replaced = api.ReplaceTexturePixels(recipe.texture_id, atlas.image.width,
-                                                         atlas.image.height, atlas.image.pixels);
+  const absl::Status replaced =
+      api.ReplaceTexturePixels(recipe.texture_id, prepared.atlas.image.width,
+                               prepared.atlas.image.height, prepared.atlas.image.pixels);
   if (replaced.ok()) return absl::OkStatus();
 
   const absl::Status rolled_back = api.SaveTerrainRecipe(recipe);
@@ -206,6 +248,15 @@ absl::Status RegenerateTerrainTileset(Api& api, const TerrainRecipe& recipe,
                                             rolled_back.message(), ")"));
   }
   return replaced;
+}
+
+absl::Status RegenerateTerrainTileset(Api& api, const TerrainRecipe& recipe,
+                                      const TerrainGenConfig& config) {
+  RETURN_IF_ERROR(ValidateTerrainRegenerationConfig(recipe, config));
+  ASSIGN_OR_RETURN(Tileset * tileset, api.GetTileset(recipe.tileset_id));
+  ASSIGN_OR_RETURN(PreparedTerrainRegeneration prepared,
+                   PrepareTerrainRegeneration(*tileset, recipe, config));
+  return CommitTerrainRegeneration(api, recipe, config, std::move(prepared));
 }
 
 absl::StatusOr<CreatedTerrain> CreateImportedTerrainTileset(Api& api, const std::string& name,

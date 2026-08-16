@@ -3,9 +3,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "common/background_task.h"
 #include "editor/canvas/canvas.h"
 #include "editor/gui_interface.h"
 #include "editor/preview_texture_sink.h"
@@ -35,6 +37,8 @@ class TerrainEditor {
   static absl::StatusOr<std::unique_ptr<TerrainEditor>> Create(Api* api, GuiInterface* gui,
                                                                PreviewTextureSink* preview);
 
+  // An in-flight worker owns only copied configuration and platform-neutral
+  // output. Destroying the editor waits for it before those members disappear.
   ~TerrainEditor() = default;
 
   absl::Status Render();
@@ -49,8 +53,11 @@ class TerrainEditor {
   absl::Status RenderOutput();
 
   // Runs the creation routine for the model's current source and records where
-  // the assets landed.
+  // the assets landed. Generated artwork starts a worker; imported artwork is
+  // already present and commits immediately.
   void CreateTerrain();
+  void PollTerrainWork();
+  bool HasPendingTerrainWork() const;
   void OpenRecipe();
   void RegenerateTerrain();
   // Removes the open terrain whole -- recipe, tileset and artwork -- and
@@ -74,6 +81,23 @@ class TerrainEditor {
   std::unique_ptr<TerrainControlsPanel> controls_panel_;
   std::unique_ptr<TerrainOutputPanel> output_panel_;
   std::optional<std::string> error_message_;
+
+  struct PendingCreation {
+    std::string name;
+    TerrainGenConfig config;
+    std::optional<std::string> source_preset;
+    BackgroundTask<PreparedGeneratedTerrain> work;
+  };
+
+  struct PendingRegeneration {
+    TerrainRecipe recipe;
+    TerrainGenConfig config;
+    BackgroundTask<PreparedTerrainRegeneration> work;
+  };
+
+  // Api is deliberately absent: workers render copied inputs, and
+  // PollTerrainWork performs every resource mutation here.
+  std::variant<std::monostate, PendingCreation, PendingRegeneration> pending_work_;
 };
 
 }  // namespace zebes

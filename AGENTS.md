@@ -45,10 +45,13 @@ scripts/test.sh --ui sanity_test
 ```
 
 Before handoff, run the complete affected test executable and check the patch
-with `git diff --check`. Run `scripts/build_and_test.sh` locally for
-cross-cutting changes such as shared headers, serialization, CMake/build logic,
-or broad refactors, or when the user explicitly requests it. Use the focused
-`test.sh --ui` form for SDL or ImGui work and the comprehensive
+with `git diff --check`. Use `scripts/test.sh --affected-target <target>` when
+a changed CMake target has several consumers. Run `scripts/build_and_test.sh`
+locally only when the affected set cannot be bounded confidently, such as
+serialization changes, broadly consumed headers, central build/toolchain logic,
+or broad refactors, or when the user explicitly requests it. A header or CMake
+edit with a small known consumer set is not inherently cross-cutting. Use the
+focused `test.sh --ui` form for SDL or ImGui work and the comprehensive
 `build_and_test.sh --ui-tests` when warranted. GitHub Actions is the
 comprehensive merge gate.
 

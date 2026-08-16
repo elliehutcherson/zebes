@@ -91,7 +91,7 @@ bool TerrainOutputPanel::RenderDeleteControl(TerrainEditorModel& model) {
 
 absl::StatusOr<TerrainOutputPanel::Action> TerrainOutputPanel::Render(
     TerrainEditorModel& model, const std::vector<Texture>& textures,
-    const std::vector<TerrainRecipe>& recipes) {
+    const std::vector<TerrainRecipe>& recipes, bool work_in_progress) {
   gui_->Text("Output");
 
   RenderSourceSelector(model);
@@ -142,7 +142,8 @@ absl::StatusOr<TerrainOutputPanel::Action> TerrainOutputPanel::Render(
   const bool importing = model.source() == TerrainEditorModel::Source::kImportManifest;
   const bool missing_texture = importing && model.texture_id().empty();
   const bool missing_manifest = importing && model.manifest_path().empty();
-  const bool blocked = model.name().empty() || missing_texture || missing_manifest;
+  const bool blocked =
+      work_in_progress || model.name().empty() || missing_texture || missing_manifest;
 
   gui_->BeginDisabled(blocked);
   if (model.active_recipe().has_value()) {

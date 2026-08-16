@@ -22,8 +22,7 @@ class TerrainOutputPanel {
  public:
   enum class Action {
     kNone,
-    // The caller should run the creation routine for the model's source. It
-    // blocks for seconds, so the panel reports rather than performs it.
+    // The caller should start the creation routine for the model's source.
     kCreate,
     kOpenRecipe,
     kNewRecipe,
@@ -39,7 +38,8 @@ class TerrainOutputPanel {
   // textures populates the picker used when importing a manifest, which
   // describes artwork that already exists.
   absl::StatusOr<Action> Render(TerrainEditorModel& model, const std::vector<Texture>& textures,
-                                const std::vector<TerrainRecipe>& recipes = {});
+                                const std::vector<TerrainRecipe>& recipes = {},
+                                bool work_in_progress = false);
 
  private:
   explicit TerrainOutputPanel(GuiInterface* gui) : gui_(gui) {}

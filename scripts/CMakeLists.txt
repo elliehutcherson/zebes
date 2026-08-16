@@ -26,3 +26,11 @@ target_link_libraries(
   generate_blob47_mask
   PRIVATE terrain_mask absl::log absl::log_initialize absl::status absl::strings
 )
+
+add_executable(prop_artwork_spike prop_artwork_spike.cc)
+target_link_libraries(
+  prop_artwork_spike
+  PRIVATE prop_artwork terrain_generator terrain_palette terrain_recipe image_io status_macros
+          nlohmann_json::nlohmann_json absl::log absl::log_initialize absl::status
+          absl::statusor absl::strings
+)

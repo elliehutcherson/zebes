@@ -74,6 +74,7 @@ target_link_libraries(terrain_generator
   blob47_compose
   terrain_field
   terrain_motifs
+  terrain_palette
   terrain_style
   tile_shape_geometry
   tileset
@@ -84,6 +85,18 @@ target_link_libraries(terrain_generator
   terrain_mask
   absl::status
   absl::strings
+)
+
+add_library(terrain_palette
+  terrain_palette.cc
+)
+
+target_link_libraries(terrain_palette
+  PUBLIC
+  terrain_style
+  absl::statusor
+  PRIVATE
+  status_macros
 )
 
 add_library(terrain_motifs

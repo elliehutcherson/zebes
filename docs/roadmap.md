@@ -11,7 +11,7 @@ decided and why. This document only says what has not happened yet.
 | 0 | Land the clang-tidy tooling and the slope rename | **Done** |
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
-| 3 | Terrain carry-overs | Next |
+| 3 | Terrain carry-overs | **Done** |
 | 4 | Features: layers, prop artwork, zone seaming | **In progress** — layers done |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
@@ -108,16 +108,19 @@ generated, and non-normative trees without changing Git's tracking behavior.
 
 ---
 
-## Track 3 — Terrain carry-overs
+## Track 3 — Terrain carry-overs (done)
 
 The phase is merged and the editor walk is done, so nothing here blocks layers.
 
-1. **The Autumn Forest visual check.** Wall darkness became a bounded blend
-   toward the authored outline colour and the preset was retuned 1.8 → 1.2.
-   Tests pin both endpoints; only looking at it can say whether it is right.
-2. **`Create` blocks for seconds** with no progress indication — it renders all
-   47 masks per phase on the render thread. The fix is moving generation off
-   that thread. Largest remaining terrain debt.
+1. **The Autumn Forest visual check passed.** Wall darkness is a bounded blend
+   toward the authored outline colour, and the 1.2 preset was accepted in the
+   live editor on 2026-08-16.
+2. **Terrain generation is off the render thread.** Create and Regenerate use
+   the reusable `common/BackgroundTask` boundary to render platform-neutral
+   output from copied inputs on a worker, show an in-progress status, and commit
+   resource-manager and GPU state on the editor thread. A regeneration commit
+   refuses a stale tileset snapshot rather than overwriting derived tiles
+   appended by a level save while rendering was in flight.
 3. **Atlas compaction does not exist.** Deliberate: reclaiming fragmented tiles
    renumbers IDs that levels already name, so it has to be an explicit tool
    rather than something that happens on its own. Leave it until an atlas is
@@ -134,17 +137,24 @@ The strict format and migration wrap old root collections as `Base`, editor
 visibility/locking stay transient, and the viewport renders and edits one
 explicit active layer while keeping parallax theme layers specialized.
 
-**Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md),
-design only, nothing built. Its §6 sequence; steps 1-3 need no format change:
+**Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
+Milestone 0 is implemented and its `lucinda_cave` comparison is ready for the
+visual go/no-go; durable resources, editor workflow, and provider integration
+remain unbuilt. Its §12 sequence:
 
-1. Expose the resolved palette from `terrain_generator` (`BuildPalette` is
-   file-local, `Colorize` private). Pure addition.
-2. The Python quantiser, tested standalone.
-3. Sheet packing and a manifest, mirroring `blob47_compose`'s split.
-4. `PropRecipe` and its manager, mirroring `TerrainRecipeManager`.
-5. An editor tab, mirroring the Terrain Editor.
-
-Landing 1-3 gives usable art before committing to the format change in 4-5.
+0. **Implemented; visual decision pending.** Run the visual feasibility spike:
+   one imported boulder, one real terrain recipe, the deterministic C++ stages,
+   and three palette policies. Do not build persistence, UI, or provider
+   infrastructure unless an in-context result looks like production-quality
+   Zebes art.
+1. Keep the accepted shared palette, image primitives, and deterministic C++
+   stages without changing terrain output.
+2. Add managed source art, strict prop recipes, and generated-prop bundle
+   commit, regeneration, reference scanning, and deletion.
+3. Prove the full editor workflow with imported sources, per-stage preview, and
+   finished-only preview before adding a network dependency.
+4. Add the cancellable image-generation service and first provider adapter.
+5. Harden shutdown, retry, staging cleanup, and provider failure behavior.
 
 **`ParallaxZone::fade_length`** — authored, serialized, validated, and ignored.
 `ResolveActiveParallaxZone` returns one zone by a half-open bounds test, so every

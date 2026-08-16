@@ -246,7 +246,7 @@ TEST_F(RecipeTerrainCreationTest, RegenerationReplacesOnlyPixelsAndPreservesIds)
                   .tile_width = 8,
                   .tile_height = 8};
   tileset.terrains.push_back(MakeDerivedTerrain(/*terrain_id=*/9, tileset));
-  EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
+  EXPECT_CALL(api_, GetTileset("tileset-id")).Times(2).WillRepeatedly(Return(&tileset));
   EXPECT_CALL(api_, ReplaceTexturePixels("texture-id", _, _, _)).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(api_, CreateTextureFromPixels(_, _, _, _)).Times(0);
   EXPECT_CALL(api_, CreateTileset(_)).Times(0);
@@ -300,7 +300,7 @@ TEST_F(RecipeTerrainCreationTest, RegenerationRedrawsTilesAddedAfterGeneration) 
   terrain.derived_tiles.push_back(DerivedTile{.tile_id = 2, .key = ledge});
 
   tileset.terrains.push_back(std::move(terrain));
-  EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
+  EXPECT_CALL(api_, GetTileset("tileset-id")).Times(2).WillRepeatedly(Return(&tileset));
 
   // Both rows are rewritten, so the added tile is redrawn rather than left
   // showing the old material.
@@ -377,7 +377,7 @@ TEST_F(RecipeTerrainCreationTest, ArtworkFailureRollsRecipeBack) {
   Tileset tileset{
       .id = "tileset-id", .texture_id = "texture-id", .tile_width = 8, .tile_height = 8};
   tileset.terrains.push_back(MakeDerivedTerrain(/*terrain_id=*/1, tileset));
-  EXPECT_CALL(api_, GetTileset(_)).WillOnce(Return(&tileset));
+  EXPECT_CALL(api_, GetTileset(_)).Times(2).WillRepeatedly(Return(&tileset));
   EXPECT_CALL(api_, ReplaceTexturePixels(_, _, _, _))
       .WillOnce(Return(absl::InternalError("disk full")));
 
@@ -386,6 +386,36 @@ TEST_F(RecipeTerrainCreationTest, ArtworkFailureRollsRecipeBack) {
   EXPECT_FALSE(RegenerateTerrainTileset(api_, recipe, edited).ok());
   ASSERT_OK_AND_ASSIGN(TerrainRecipe * saved, recipes_->GetRecipe(recipe.id));
   EXPECT_EQ(saved->config.seed, recipe.config.seed);
+}
+
+TEST_F(TerrainCreationTest, RegenerationRefusesToCommitAStaleTilesetSnapshot) {
+  TerrainRecipe recipe{.id = "recipe-id",
+                       .name = "meadow",
+                       .tileset_id = "tileset-id",
+                       .texture_id = "texture-id",
+                       .terrain_id = 1,
+                       .config = SmallConfig()};
+  Tileset tileset{.id = "tileset-id",
+                  .name = "meadow",
+                  .texture_id = "texture-id",
+                  .tile_width = 8,
+                  .tile_height = 8};
+  tileset.terrains.push_back(MakeDerivedTerrain(/*terrain_id=*/1, tileset));
+  ASSERT_OK_AND_ASSIGN(PreparedTerrainRegeneration prepared,
+                       PrepareTerrainRegeneration(tileset, recipe, recipe.config));
+
+  // A level save can append a derived tile while the worker renders. Committing
+  // the old-size atlas would discard that artwork, so the main-thread phase
+  // compares the complete definition it rendered with the live one.
+  tileset.tiles.push_back(Tile{.id = 1000, .name = "newly appended"});
+  EXPECT_CALL(api_, GetTileset("tileset-id")).WillOnce(Return(&tileset));
+  EXPECT_CALL(api_, SaveTerrainRecipe(_)).Times(0);
+  EXPECT_CALL(api_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  const absl::Status status =
+      CommitTerrainRegeneration(api_, recipe, recipe.config, std::move(prepared));
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("changed while"));
 }
 
 }  // namespace
