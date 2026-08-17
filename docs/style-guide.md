@@ -245,11 +245,13 @@ GitHub Actions runs the comprehensive suite for every pull request and push to
 
 `.clang-tidy` runs the Google checks plus the two readability checks that back
 rules above. `scripts/lint.sh` locates LLVM, supplies the macOS SDK when needed,
-and refuses an unscoped invocation. `scripts/lint.sh --all` is reserved for CI
-and explicit cleanup milestones; it uses two workers by default because a full
-analysis is CPU-intensive. Set `LINT_JOBS` deliberately to override that limit.
-Findings it reports are real; this guide still decides what a rule means when
-the two disagree.
+and refuses an unscoped invocation. A scoped file list runs at most two
+translation units concurrently, reports one concise success line per file, and
+prints the complete diagnostic output for failures. `scripts/lint.sh --all` is
+reserved for CI and explicit cleanup milestones; it uses two workers by default
+because a full analysis is CPU-intensive. Set `LINT_JOBS` deliberately to
+override the full-scan limit. Findings it reports are real; this guide still
+decides what a rule means when the two disagree.
 
 ## Related documents
 

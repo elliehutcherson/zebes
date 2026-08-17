@@ -630,20 +630,50 @@ unfinished provider behavior.
    free/background anchors, strict persistence and migration, matching context
    previews, sprite offsets, regeneration, and editor controls share one
    deterministic contract.
-4b. **Developer feedback loop (next).** Shorten the local verification cycle
-   before provider work adds network and adapter test surfaces. The Milestone
-   4a session observed 5 minutes 44 seconds in
-   `scripts/test.sh --affected-target prop_artwork`, while the affected test
-   bodies themselves reported less than one second in aggregate; scoped
-   clang-tidy took another 1 minute 24 seconds. Treat those as observations,
-   then establish repeatable warm and source-touch baselines. Make
-   `--affected-target` configure once, build every selected executable in one
-   CMake invocation, and run each binary exactly once. Keep successful output
-   concise while retaining complete failure logs. Evaluate Ninja against Unix
-   Makefiles, add at most two workers for scoped clang-tidy, and measure compiler
-   caching separately rather than assuming it helps. Completion requires the
-   same affected-test selection and failure semantics, recorded before/after
-   timings, and focused tests for the orchestration scripts.
+4b. **Developer feedback loop (implemented).** The first implementation slice
+   batches the complete reverse-dependency set into one CMake build and runs
+   each selected binary exactly once. Successful configure, build, test, and
+   scoped-lint output is concise; a failure prints the complete captured output
+   and preserves the failing status. Scoped clang-tidy processes at most two
+   translation units concurrently. Focused script tests cover selection
+   handoff, one-build/one-run behavior, bounded lint concurrency, and configure,
+   build, test, and lint failures.
+
+   Measurements on the same warm x86_64 macOS checkout, using CMake 4.4.0, GNU
+   Make 3.81, and Apple clang 17, are:
+
+   | Case | Before | Batched/two-worker | Change |
+   |---|---:|---:|---:|
+   | warm `--affected-target prop_artwork`, 28 executables | 87.59s | 73.24s | -16% |
+   | same sweep after touching `prop_artwork_pipeline.cc` | 97.83s | 97.06s | -1% |
+   | strict clang-tidy, same 18 translation units | 84s | 51.36s | -39% |
+
+   The earlier 5m44 affected sweep remains a real Milestone 4a observation, but
+   it was not a controlled warm comparison. The new source-touch result showed
+   that compilation/linking, rather than shell orchestration, dominated once a
+   common source changed; even the warm batched build spent 65s inside GNU Make.
+
+   An isolated Ninja 1.13 benchmark selected the same 28 executables. After
+   adopting it, the real `scripts/test.sh --affected-target prop_artwork`
+   command took 6.32s warm and 22.23s for the same source-touch case: reductions
+   of 91% and 77% from the batched Makefile results. Unbounded Ninja parallelism
+   caused several five-second GoogleTest discovery timeouts during link-heavy
+   builds, while two workers completed reliably and were only about one second
+   slower than four in the isolated source-touch comparison. The project
+   therefore uses Ninja with two jobs for the `dev` and `ui` build presets;
+   release builds retain native parallelism because they have no test discovery
+   hooks.
+
+   The remaining optimizations were measured separately and rejected for the
+   local default. Apple ld's debug-speed flags (`-O0`, `-no_deduplicate`, and
+   `-random_uuid`) made the source-touch cycle slightly slower at 23.41s and did
+   not reduce the 576 MB test-binary footprint. For the real prop-pipeline
+   compile, ccache reduced a 2.30s miss to a 0.03s hit; unchanged, touched, and
+   edit-then-reverted content all hit, and the two cached objects used 1.5 MB.
+   That can remove only about 2.27s, or 10%, from the 22.23s source-touch loop
+   because linking remains dominant. CI retains its existing compiler cache,
+   while local presets explicitly disable SDL's implicit ccache discovery so a
+   machine with ccache installed does not silently get a partial cache policy.
 5. **Generation service and first adapter.** Add cancellable provider requests,
    credential/configuration plumbing, candidate processing, provenance, limits,
    and opt-in integration tests. Imported and generated sources converge at the

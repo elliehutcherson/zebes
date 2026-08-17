@@ -10,11 +10,12 @@
       "name": "dev",
       "displayName": "Development",
       "description": "Debug build with headless tests enabled",
-      "generator": "Unix Makefiles",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/dev",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "BUILD_TESTING": "ON"
+        "BUILD_TESTING": "ON",
+        "SDL_CCACHE": "OFF"
       }
     },
     {
@@ -31,11 +32,12 @@
       "name": "release",
       "displayName": "Release",
       "description": "Optimized editor build without test dependencies",
-      "generator": "Unix Makefiles",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "BUILD_TESTING": "OFF"
+        "BUILD_TESTING": "OFF",
+        "SDL_CCACHE": "OFF"
       }
     }
   ],
@@ -43,7 +45,7 @@
     {
       "name": "dev",
       "configurePreset": "dev",
-      "jobs": 0
+      "jobs": 2
     },
     {
       "name": "release",
@@ -53,7 +55,7 @@
     {
       "name": "ui",
       "configurePreset": "ui",
-      "jobs": 0
+      "jobs": 2
     }
   ],
   "testPresets": [

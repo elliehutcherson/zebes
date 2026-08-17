@@ -148,9 +148,9 @@ discarded on replacement, Clear, or normal shutdown; retained sources can be
 deleted explicitly through the same reference checks as other assets.
 Grounded, ceiling, and free/background attachment modes are persisted and feed
 composition, validation, context preview, sprite offsets, and regeneration.
-Provider integration remains, but the local feedback-loop milestone comes first
-so provider work does not multiply an already expensive verification cycle.
-Its §12 sequence:
+Provider integration remains. The local feedback-loop milestone is complete,
+so provider work can proceed without multiplying an expensive verification
+cycle. Its §12 sequence:
 
 0. **Accepted.** Run the visual feasibility spike:
    one imported boulder, one real terrain recipe, the deterministic C++ stages,
@@ -164,12 +164,19 @@ Its §12 sequence:
    Canvas navigation and unclipped context framing.
 4a. **Implemented.** Persist grounded, ceiling, and free/background attachment
     modes, with a version-1 grounded migration.
-4b. **Next.** Optimize the developer feedback loop. Begin with controlled
-    baselines, then batch affected test targets into one build, preserve concise
-    success and complete failure output, evaluate Ninja, and allow at most two
-    scoped clang-tidy workers. The observed Milestone 4a session spent 5m44s in
-    the affected-target sweep and 1m24s in clang-tidy even though the test bodies
-    themselves took less than one second.
+4b. **Implemented.** Affected tests now configure once, build all 28 selected
+    executables in one invocation, run each once, and keep complete failure
+    logs behind concise success output. Warm time fell from 87.59s to 73.24s;
+    the controlled source-touch case was effectively unchanged at 97.83s versus
+    97.06s because compile/link work dominates. Two-worker scoped clang-tidy cut
+    the same 18-file check from 84s to 51.36s. Focused orchestration tests cover
+    the success and failure contracts. Ninja reduced the real full warm cycle
+    to 6.32s and the source-touch cycle to 22.23s. `dev` and `ui` now use Ninja
+    with two workers; unbounded parallelism was rejected because it caused
+    test-discovery timeouts. Apple ld debug-speed flags slightly regressed the
+    source-touch cycle. Ccache made a 2.30s compile a 0.03s hit, but linking
+    limits that to about 10% of the full loop, so caching remains in CI without
+    becoming a required local dependency.
 5. Add the cancellable image-generation service and first provider adapter.
 6. Harden shutdown, retry, staging cleanup, and provider failure behavior.
 

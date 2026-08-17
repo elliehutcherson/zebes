@@ -147,4 +147,44 @@ for file in "${FILES[@]}"; do
   esac
 done
 
-"${CLANG_TIDY_BIN}" "${TIDY_ARGS[@]}" "${CANONICAL_FILES[@]}"
+RunScopedBatch() {
+  local files=("$@")
+  local logs=()
+  local pids=()
+  local command_status=0
+  local file=""
+  local index=0
+  local log_file=""
+  local status=0
+
+  for file in "${files[@]}"; do
+    log_file="$(mktemp "${TMPDIR:-/tmp}/zebes-clang-tidy.XXXXXX")"
+    logs+=("${log_file}")
+    "${CLANG_TIDY_BIN}" "${TIDY_ARGS[@]}" "${file}" \
+      >"${log_file}" 2>&1 &
+    pids+=("$!")
+  done
+
+  for ((index = 0; index < ${#files[@]}; ++index)); do
+    if wait "${pids[index]}"; then
+      echo "PASS clang-tidy ${files[index]#"${PROJECT_ROOT}/"}"
+    else
+      command_status=$?
+      if [[ ${status} -eq 0 ]]; then
+        status=${command_status}
+      fi
+      echo "FAIL clang-tidy ${files[index]#"${PROJECT_ROOT}/"}" >&2
+      cat "${logs[index]}" >&2
+    fi
+    rm -f "${logs[index]}"
+  done
+
+  return "${status}"
+}
+
+lint_status=0
+for ((batch_start = 0; batch_start < ${#CANONICAL_FILES[@]}; batch_start += 2)); do
+  batch=("${CANONICAL_FILES[@]:batch_start:2}")
+  RunScopedBatch "${batch[@]}" || lint_status=$?
+done
+exit "${lint_status}"

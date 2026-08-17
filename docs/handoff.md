@@ -4,7 +4,7 @@
 > [`roadmap.md`](roadmap.md) for sequencing and the linked feature design—such
 > as [`prop-artwork.md`](prop-artwork.md)—for durable decisions and TODOs.
 
-## Current: Prop artwork Milestones 4/4a complete, feedback-loop performance next
+## Current: Prop artwork Milestones 4/4a and developer feedback loop complete
 
 As of 2026-08-17, [`roadmap.md`](roadmap.md) remains the source of truth for
 sequencing. Tracks 0-3 are complete. Track 4 layers and the imported-source prop
@@ -26,20 +26,19 @@ changing their prior settings or frame geometry.
 
 ### Pick up here next
 
-Implement Milestone 4b, the developer feedback-loop optimization recorded in
-[`prop-artwork.md`](prop-artwork.md) §12. The Milestone 4a session spent 5m44s
-in `scripts/test.sh --affected-target prop_artwork` and 1m24s in scoped
-clang-tidy, while affected test bodies reported less than one second total.
-Establish controlled baselines, batch affected targets into one build, keep full
-failure diagnostics with concise success output, evaluate Ninja, and add no
-more than two workers to scoped clang-tidy. Provider integration follows as
-Milestone 5.
+Begin Milestone 5, the provider-neutral generation service and first adapter
+recorded in [`prop-artwork.md`](prop-artwork.md) §12. Milestone 4b is complete:
+affected tests configure and build once with concise success/full failure
+output, scoped clang-tidy uses two workers, and Ninja reduced the real warm and
+source-touch cycles to 6.32s and 22.23s. Apple ld debug-speed flags regressed
+slightly. Ccache reduced the measured compile from 2.30s to 0.03s, but linking
+limits the full-loop benefit to roughly 10%, so it remains a CI optimization
+rather than a required local dependency.
 
 ### What remains
 
-- **Track 4:** developer feedback-loop performance is next, followed by the
-  provider-neutral generation service and first adapter. Parallax zone seaming
-  remains the smallest independent
+- **Track 4:** the provider-neutral generation service and first adapter are
+  next. Parallax zone seaming remains the smallest independent
   feature. See [`roadmap.md`](roadmap.md) and [`prop-artwork.md`](prop-artwork.md).
 - **Deferred terrain tool:** atlas compaction remains unjustified until real
   atlas growth becomes uncomfortable. It must be explicit because compaction

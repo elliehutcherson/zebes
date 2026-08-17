@@ -28,6 +28,13 @@ The project bundles most dependencies in the `include/` directory, managed via C
 * **Abseil**: C++ library augmentations.
 * **nlohmann/json**: JSON parsing.
 
+Local builds use the Ninja generator. On macOS, install it with
+`brew install ninja`; other platforms may use their package manager's Ninja
+package. If the checkout already has a `build/dev`, `build/ui`, or
+`build/release` directory configured with the former Unix Makefiles generator,
+remove that generated directory once before configuring the corresponding
+preset again.
+
 ## Building and Testing
 
 ### Focused Local Loop

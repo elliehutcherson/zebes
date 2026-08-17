@@ -57,23 +57,68 @@ if [[ "${1:-}" == "--affected-target" ]]; then
   REPLY_DIR="${BUILD_DIR}/.cmake/api/v1/reply"
   mkdir -p "${QUERY_DIR}"
   touch "${QUERY_DIR}/codemodel-v2"
-  cmake --preset "${PRESET}" -S "${PROJECT_ROOT}"
 
   AFFECTED_FILE="$(mktemp "${TMPDIR:-/tmp}/zebes-affected-tests.XXXXXX")"
-  trap 'rm -f "${AFFECTED_FILE}"' EXIT
+  COMMAND_OUTPUT="$(mktemp "${TMPDIR:-/tmp}/zebes-test-output.XXXXXX")"
+  trap 'rm -f "${AFFECTED_FILE}" "${COMMAND_OUTPUT}"' EXIT
+
+  if cmake --preset "${PRESET}" -S "${PROJECT_ROOT}" \
+      >"${COMMAND_OUTPUT}" 2>&1; then
+    echo "Configured ${PRESET} test build."
+  else
+    status=$?
+    echo "Failed to configure ${PRESET} test build:" >&2
+    cat "${COMMAND_OUTPUT}" >&2
+    exit "${status}"
+  fi
+
   python3 "${PROJECT_ROOT}/scripts/affected_tests.py" \
     --reply-dir "${REPLY_DIR}" "${AFFECTED_TARGET}" >"${AFFECTED_FILE}"
 
-  echo "Affected tests for ${AFFECTED_TARGET}:"
+  AFFECTED_TESTS=()
   while IFS= read -r test_target; do
     [[ -n "${test_target}" ]] || continue
-    echo "  ${test_target}"
-    if [[ "${PRESET}" == "ui" ]]; then
-      "${PROJECT_ROOT}/scripts/test.sh" --ui "${test_target}"
-    else
-      "${PROJECT_ROOT}/scripts/test.sh" "${test_target}"
+    if [[ ! "${test_target}" =~ ^[a-zA-Z0-9_+-]+$ ]]; then
+      echo "Invalid affected test target: ${test_target}" >&2
+      exit 1
     fi
+    AFFECTED_TESTS+=("${test_target}")
   done <"${AFFECTED_FILE}"
+
+  echo "Affected tests for ${AFFECTED_TARGET}:"
+  for test_target in "${AFFECTED_TESTS[@]}"; do
+    echo "  ${test_target}"
+  done
+
+  build_started=${SECONDS}
+  if cmake --build --preset "${PRESET}" \
+      --target "${AFFECTED_TESTS[@]}" >"${COMMAND_OUTPUT}" 2>&1; then
+    echo "Built ${#AFFECTED_TESTS[@]} affected test targets in $((SECONDS - build_started))s."
+  else
+    status=$?
+    echo "Failed to build affected tests for ${AFFECTED_TARGET}:" >&2
+    cat "${COMMAND_OUTPUT}" >&2
+    exit "${status}"
+  fi
+
+  test_started=${SECONDS}
+  for test_target in "${AFFECTED_TESTS[@]}"; do
+    TEST_BINARY="${BUILD_DIR}/bin/tests/${test_target}"
+    if [[ ! -x "${TEST_BINARY}" ]]; then
+      echo "Target did not produce a test executable at ${TEST_BINARY}" >&2
+      exit 1
+    fi
+
+    if "${TEST_BINARY}" >"${COMMAND_OUTPUT}" 2>&1; then
+      echo "PASS ${test_target}"
+    else
+      status=$?
+      echo "FAIL ${test_target}" >&2
+      cat "${COMMAND_OUTPUT}" >&2
+      exit "${status}"
+    fi
+  done
+  echo "Passed ${#AFFECTED_TESTS[@]} affected test executables in $((SECONDS - test_started))s."
   exit 0
 fi
 
