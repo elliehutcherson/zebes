@@ -48,6 +48,7 @@ target_link_libraries(prop_recipe
   absl::status
   absl::statusor
   PRIVATE
+  prop_artwork
   status_macros
   absl::strings
 )

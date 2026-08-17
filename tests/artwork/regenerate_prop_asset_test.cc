@@ -58,7 +58,7 @@ class RegeneratePropAssetTest : public ::testing::Test {
         .canvas_tiles_high = 1,
         .padding_fraction = 0.05f,
     };
-    settings_.pipeline.cleanup.grounded_tolerance = 2;
+    settings_.pipeline.cleanup.contact_tolerance = 2;
     const PreparePropAssetRequest request{
         .name = "Cave boulder",
         .style = settings_.style,
@@ -136,6 +136,21 @@ TEST_F(RegeneratePropAssetTest, RetainsEveryPreviewForEditorReview) {
   EXPECT_TRUE(prepared.artwork.quantized.IsValid());
   EXPECT_TRUE(prepared.artwork.edge_treated.IsValid());
   EXPECT_TRUE(prepared.artwork.finished.IsValid());
+}
+
+TEST_F(RegeneratePropAssetTest, ChangingAttachmentModeUpdatesThePersistedFrameAnchor) {
+  settings_.pipeline.composition.attachment = PropAttachmentConfig{
+      .mode = PropAttachmentMode::kFree,
+      .free_anchor = PropFreeAnchor{.x = 3, .y = 5},
+  };
+
+  ASSERT_OK_AND_ASSIGN(const PreparedPropRegeneration prepared,
+                       PreparePropRegeneration(source_, source_pixels_, recipe_, texture_,
+                                               texture_pixels_, sprite_, settings_));
+  EXPECT_EQ(prepared.updated_sprite.frames.front().offset_x, -3);
+  EXPECT_EQ(prepared.updated_sprite.frames.front().offset_y, -5);
+  EXPECT_EQ(prepared.updated_recipe.pipeline.composition.attachment.mode,
+            PropAttachmentMode::kFree);
 }
 
 }  // namespace

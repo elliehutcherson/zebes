@@ -1,6 +1,7 @@
 #pragma once
 
 #include "absl/status/statusor.h"
+#include "artwork/compose_prop.h"
 #include "artwork/prop_artwork.h"
 #include "common/image_io.h"
 #include "terrain/terrain_style.h"
@@ -18,6 +19,7 @@ struct PropArtworkContextPreview {
 // space, even when the terrain scene has less room above its ground line. The
 // returned pixels are never committed to the prop texture.
 absl::StatusOr<PropArtworkContextPreview> BuildPropArtworkContextPreview(
-    const PropArtwork& prop, const TerrainGenConfig& terrain_config);
+    const PropArtwork& prop, const TerrainGenConfig& terrain_config,
+    PropAttachmentMode attachment_mode);
 
 }  // namespace zebes

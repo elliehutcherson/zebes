@@ -99,6 +99,54 @@ absl::StatusOr<PropArtworkStyle> StyleFromJson(const nlohmann::json& json) {
   return style;
 }
 
+const char* AttachmentModeToString(PropAttachmentMode mode) {
+  switch (mode) {
+    case PropAttachmentMode::kGrounded:
+      return "grounded";
+    case PropAttachmentMode::kCeiling:
+      return "ceiling";
+    case PropAttachmentMode::kFree:
+      return "free";
+  }
+  return "invalid";
+}
+
+absl::StatusOr<PropAttachmentMode> AttachmentModeFromString(const std::string& value) {
+  if (value == "grounded") return PropAttachmentMode::kGrounded;
+  if (value == "ceiling") return PropAttachmentMode::kCeiling;
+  if (value == "free") return PropAttachmentMode::kFree;
+  return absl::InvalidArgumentError(absl::StrCat("prop attachment mode is invalid: ", value));
+}
+
+nlohmann::json AttachmentToJson(const PropAttachmentConfig& attachment) {
+  nlohmann::json free_anchor = nullptr;
+  if (attachment.free_anchor.has_value()) {
+    free_anchor = {{"x", attachment.free_anchor->x}, {"y", attachment.free_anchor->y}};
+  }
+  return {
+      {"mode", AttachmentModeToString(attachment.mode)},
+      {"free_anchor", std::move(free_anchor)},
+  };
+}
+
+absl::StatusOr<PropAttachmentConfig> AttachmentFromJson(const nlohmann::json& json) {
+  PropAttachmentConfig attachment;
+  ASSIGN_OR_RETURN(const std::string mode, Required<std::string>(json, "mode"));
+  ASSIGN_OR_RETURN(attachment.mode, AttachmentModeFromString(mode));
+  if (!json.contains("free_anchor")) {
+    return absl::InvalidArgumentError("prop recipe is missing 'free_anchor'");
+  }
+  if (!json.at("free_anchor").is_null()) {
+    ASSIGN_OR_RETURN(const nlohmann::json free_anchor,
+                     Required<nlohmann::json>(json, "free_anchor"));
+    PropFreeAnchor parsed;
+    ASSIGN_OR_RETURN(parsed.x, Required<int>(free_anchor, "x"));
+    ASSIGN_OR_RETURN(parsed.y, Required<int>(free_anchor, "y"));
+    attachment.free_anchor = parsed;
+  }
+  return attachment;
+}
+
 nlohmann::json PipelineToJson(const PropArtworkPipelineConfig& pipeline) {
   return {
       {"source_limits",
@@ -115,13 +163,14 @@ nlohmann::json PipelineToJson(const PropArtworkPipelineConfig& pipeline) {
       {"composition",
        {{"canvas_tiles_wide", pipeline.composition.canvas_tiles_wide},
         {"canvas_tiles_high", pipeline.composition.canvas_tiles_high},
-        {"padding_fraction", pipeline.composition.padding_fraction}}},
+        {"padding_fraction", pipeline.composition.padding_fraction},
+        {"attachment", AttachmentToJson(pipeline.composition.attachment)}}},
       {"edge",
        {{"width", pipeline.edge.width}, {"alpha_threshold", pipeline.edge.alpha_threshold}}},
       {"cleanup",
        {{"alpha_threshold", pipeline.cleanup.alpha_threshold},
         {"minimum_component_area", pipeline.cleanup.minimum_component_area},
-        {"grounded_tolerance", pipeline.cleanup.grounded_tolerance}}},
+        {"contact_tolerance", pipeline.cleanup.contact_tolerance}}},
   };
 }
 
@@ -152,6 +201,9 @@ absl::StatusOr<PropArtworkPipelineConfig> PipelineFromJson(const nlohmann::json&
                    Required<int>(composition, "canvas_tiles_high"));
   ASSIGN_OR_RETURN(pipeline.composition.padding_fraction,
                    Required<float>(composition, "padding_fraction"));
+  ASSIGN_OR_RETURN(const nlohmann::json attachment,
+                   Required<nlohmann::json>(composition, "attachment"));
+  ASSIGN_OR_RETURN(pipeline.composition.attachment, AttachmentFromJson(attachment));
 
   ASSIGN_OR_RETURN(const nlohmann::json edge, Required<nlohmann::json>(json, "edge"));
   ASSIGN_OR_RETURN(pipeline.edge.width, Required<int>(edge, "width"));
@@ -161,8 +213,7 @@ absl::StatusOr<PropArtworkPipelineConfig> PipelineFromJson(const nlohmann::json&
   ASSIGN_OR_RETURN(pipeline.cleanup.alpha_threshold, Required<int>(cleanup, "alpha_threshold"));
   ASSIGN_OR_RETURN(pipeline.cleanup.minimum_component_area,
                    Required<int>(cleanup, "minimum_component_area"));
-  ASSIGN_OR_RETURN(pipeline.cleanup.grounded_tolerance,
-                   Required<int>(cleanup, "grounded_tolerance"));
+  ASSIGN_OR_RETURN(pipeline.cleanup.contact_tolerance, Required<int>(cleanup, "contact_tolerance"));
   return pipeline;
 }
 
@@ -191,7 +242,8 @@ absl::StatusOr<SpriteFrame> FrameFromJson(const nlohmann::json& json) {
   return frame;
 }
 
-absl::Status ValidatePipelineSettings(const PropArtworkPipelineConfig& pipeline) {
+absl::Status ValidatePipelineSettings(const PropArtworkPipelineConfig& pipeline,
+                                      const PropArtworkStyle& style) {
   const PropSourceLimits& limits = pipeline.source_limits;
   if (limits.maximum_width <= 0 || limits.maximum_height <= 0 || limits.maximum_pixels == 0 ||
       limits.maximum_bytes == 0) {
@@ -217,9 +269,19 @@ absl::Status ValidatePipelineSettings(const PropArtworkPipelineConfig& pipeline)
     return absl::InvalidArgumentError("prop recipe edge settings are invalid");
   }
   if (pipeline.cleanup.alpha_threshold < 0 || pipeline.cleanup.alpha_threshold > 255 ||
-      pipeline.cleanup.minimum_component_area <= 0 || pipeline.cleanup.grounded_tolerance < 0) {
+      pipeline.cleanup.minimum_component_area <= 0 || pipeline.cleanup.contact_tolerance < 0) {
     return absl::InvalidArgumentError("prop recipe cleanup settings are invalid");
   }
+  const int64_t output_width =
+      static_cast<int64_t>(style.tile_size) * composition.canvas_tiles_wide;
+  const int64_t output_height =
+      static_cast<int64_t>(style.tile_size) * composition.canvas_tiles_high;
+  if (output_width > std::numeric_limits<int>::max() ||
+      output_height > std::numeric_limits<int>::max()) {
+    return absl::InvalidArgumentError("prop recipe canvas dimensions overflow integer storage");
+  }
+  RETURN_IF_ERROR(ValidatePropAttachment(composition.attachment, static_cast<int>(output_width),
+                                         static_cast<int>(output_height)));
   return absl::OkStatus();
 }
 
@@ -234,7 +296,7 @@ absl::Status ValidatePropRecipe(const PropRecipe& recipe) {
     return absl::InvalidArgumentError("attached terrain recipe ID cannot be empty");
   }
   RETURN_IF_ERROR(ValidatePropArtworkStyle(recipe.style));
-  RETURN_IF_ERROR(ValidatePipelineSettings(recipe.pipeline));
+  RETURN_IF_ERROR(ValidatePipelineSettings(recipe.pipeline, recipe.style));
   if (recipe.pipeline_version != kPropArtworkPipelineVersion) {
     return absl::FailedPreconditionError(
         absl::StrCat("prop recipe pipeline version ", recipe.pipeline_version,
@@ -255,6 +317,13 @@ absl::Status ValidatePropRecipe(const PropRecipe& recipe) {
       frame.frames_per_cycle != 0) {
     return absl::InvalidArgumentError(
         "prop recipe expected frame must be one full-size, 1:1 static frame");
+  }
+  const PropAttachmentConfig& attachment = recipe.pipeline.composition.attachment;
+  if (attachment.mode == PropAttachmentMode::kFree &&
+      (frame.offset_x != -attachment.free_anchor->x ||
+       frame.offset_y != -attachment.free_anchor->y)) {
+    return absl::InvalidArgumentError(
+        "prop recipe frame offset does not match its explicit free anchor");
   }
   if (!IsSha256(recipe.final_pixel_digest)) {
     return absl::InvalidArgumentError("prop recipe final pixel digest is not lowercase SHA-256");

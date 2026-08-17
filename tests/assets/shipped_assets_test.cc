@@ -21,16 +21,18 @@
 #include "absl/container/flat_hash_set.h"
 #include "editor/level_editor/terrain_brush.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "nlohmann/json.hpp"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
+#include "resources/fake_texture_resource_store.h"
 #include "resources/level_manager.h"
+#include "resources/prop_recipe_manager.h"
+#include "resources/source_artwork_manager.h"
 #include "resources/sprite_manager.h"
 #include "resources/texture_manager.h"
 #include "resources/tileset_manager.h"
-#include "resources/fake_texture_resource_store.h"
 #include "terrain/terrain_mask.h"
-#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -39,9 +41,7 @@ namespace {
 // test does not depend on the working directory ctest happens to use.
 constexpr char kAssetsRoot[] = ZEBES_TEST_ASSETS_DIR;
 
-std::string TilesetDefinitionsDir() {
-  return std::string(kAssetsRoot) + "/definitions/tilesets";
-}
+std::string TilesetDefinitionsDir() { return std::string(kAssetsRoot) + "/definitions/tilesets"; }
 
 // Maps every texture definition's ID to the image path it declares. Read
 // directly rather than through TextureManager, which needs a live SDL resource
@@ -49,8 +49,7 @@ std::string TilesetDefinitionsDir() {
 absl::flat_hash_map<std::string, std::string> TexturePathsById() {
   absl::flat_hash_map<std::string, std::string> paths;
   const std::string dir = std::string(kAssetsRoot) + "/definitions/textures";
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(dir)) {
+  for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(dir)) {
     if (entry.path().extension() != ".json") continue;
     std::ifstream stream(entry.path());
     nlohmann::json json;
@@ -61,8 +60,7 @@ absl::flat_hash_map<std::string, std::string> TexturePathsById() {
 }
 
 std::vector<Tileset> LoadShippedTilesets() {
-  absl::StatusOr<std::unique_ptr<TilesetManager>> manager =
-      TilesetManager::Create(kAssetsRoot);
+  absl::StatusOr<std::unique_ptr<TilesetManager>> manager = TilesetManager::Create(kAssetsRoot);
   EXPECT_OK(manager);
   if (!manager.ok()) return {};
 
@@ -94,8 +92,7 @@ TEST(ShippedAssetsTest, EveryTilesetTextureResolvesToAFileOnDisk) {
   for (const Tileset& tileset : LoadShippedTilesets()) {
     const auto found = texture_paths.find(tileset.texture_id);
     ASSERT_NE(found, texture_paths.end())
-        << "tileset '" << tileset.name << "' references unknown texture ID "
-        << tileset.texture_id;
+        << "tileset '" << tileset.name << "' references unknown texture ID " << tileset.texture_id;
 
     const std::string image = ResolveTextureImagePath(kAssetsRoot, found->second);
     EXPECT_TRUE(std::filesystem::exists(image))
@@ -127,11 +124,43 @@ TEST(ShippedAssetsTest, EveryTextureDefinitionPointsAtRealArtwork) {
 size_t DefinitionFileCount(const std::string& kind) {
   size_t count = 0;
   const std::string dir = std::string(kAssetsRoot) + "/definitions/" + kind;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(dir)) {
+  if (!std::filesystem::exists(dir)) return 0;
+  for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(dir)) {
     if (entry.path().extension() == ".json") ++count;
   }
   return count;
+}
+
+TEST(ShippedAssetsTest, EveryShippedSourceArtworkLoads) {
+  const std::string directory = std::string(kAssetsRoot) + "/definitions/source_artworks";
+  if (!std::filesystem::exists(directory)) {
+    EXPECT_EQ(DefinitionFileCount("source_artworks"), 0);
+    return;
+  }
+
+  absl::StatusOr<std::unique_ptr<SourceArtworkManager>> manager =
+      SourceArtworkManager::Create(kAssetsRoot);
+  ASSERT_OK(manager);
+
+  const absl::Status loaded = (*manager)->LoadAllArtwork();
+  EXPECT_OK(loaded);
+  EXPECT_EQ((*manager)->GetAllArtwork().size(), DefinitionFileCount("source_artworks"));
+}
+
+TEST(ShippedAssetsTest, EveryShippedPropRecipeLoads) {
+  const std::string directory = std::string(kAssetsRoot) + "/definitions/prop_recipes";
+  if (!std::filesystem::exists(directory)) {
+    EXPECT_EQ(DefinitionFileCount("prop_recipes"), 0);
+    return;
+  }
+
+  absl::StatusOr<std::unique_ptr<PropRecipeManager>> manager =
+      PropRecipeManager::Create(kAssetsRoot);
+  ASSERT_OK(manager);
+
+  const absl::Status loaded = (*manager)->LoadAllRecipes();
+  EXPECT_OK(loaded);
+  EXPECT_EQ((*manager)->GetAllRecipes().size(), DefinitionFileCount("prop_recipes"));
 }
 
 TEST(ShippedAssetsTest, EveryShippedLevelLoads) {
@@ -163,8 +192,7 @@ TEST(ShippedAssetsTest, EveryShippedSpriteLoads) {
 }
 
 TEST(ShippedAssetsTest, EveryShippedBlueprintLoads) {
-  absl::StatusOr<std::unique_ptr<BlueprintManager>> manager =
-      BlueprintManager::Create(kAssetsRoot);
+  absl::StatusOr<std::unique_ptr<BlueprintManager>> manager = BlueprintManager::Create(kAssetsRoot);
   ASSERT_OK(manager);
 
   const absl::Status loaded = (*manager)->LoadAllBlueprints();

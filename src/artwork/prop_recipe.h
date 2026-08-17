@@ -30,7 +30,7 @@ struct PropRecipe {
   int pipeline_version = kPropArtworkPipelineVersion;
 };
 
-inline constexpr int kPropRecipeSchemaVersion = 1;
+inline constexpr int kPropRecipeSchemaVersion = 2;
 
 absl::Status ValidatePropRecipe(const PropRecipe& recipe);
 nlohmann::json PropRecipeToJson(const PropRecipe& recipe);

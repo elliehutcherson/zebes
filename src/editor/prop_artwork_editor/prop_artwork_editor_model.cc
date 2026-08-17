@@ -1,5 +1,6 @@
 #include "editor/prop_artwork_editor/prop_artwork_editor_model.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <utility>
@@ -76,6 +77,17 @@ void DiscardIntermediateImages(PropArtworkPipelineResult& artwork) {
   artwork.edge_treated = PropArtwork{};
 }
 
+void ClampFreeAnchor(PropRegenerationSettings& settings) {
+  PropAttachmentConfig& attachment = settings.pipeline.composition.attachment;
+  if (attachment.mode != PropAttachmentMode::kFree || !attachment.free_anchor.has_value()) return;
+  const int maximum_x =
+      settings.style.tile_size * settings.pipeline.composition.canvas_tiles_wide - 1;
+  const int maximum_y =
+      settings.style.tile_size * settings.pipeline.composition.canvas_tiles_high - 1;
+  attachment.free_anchor->x = std::clamp(attachment.free_anchor->x, 0, maximum_x);
+  attachment.free_anchor->y = std::clamp(attachment.free_anchor->y, 0, maximum_y);
+}
+
 }  // namespace
 
 const char* PropPreviewStageLabel(PropPreviewStage stage) {
@@ -144,6 +156,7 @@ absl::Status PropArtworkEditorModel::AttachTerrain(const TerrainRecipe& terrain_
       .palette = palette,
   };
   settings_.terrain_recipe_id = terrain_recipe.id;
+  ClampFreeAnchor(settings_);
   terrain_recipe_ = terrain_recipe;
   has_style_ = true;
   MarkInputsChanged();

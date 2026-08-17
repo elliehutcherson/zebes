@@ -4,69 +4,43 @@
 > [`roadmap.md`](roadmap.md) for sequencing and the linked feature design—such
 > as [`prop-artwork.md`](prop-artwork.md)—for durable decisions and TODOs.
 
-## Current: Track 3 complete; begin Track 4 with layers
+## Current: Prop artwork Milestones 4/4a complete, feedback-loop performance next
 
-As of 2026-08-16, [`roadmap.md`](roadmap.md) remains the source of truth for
-sequencing. Tracks 0-3 are complete; Track 4 is next.
+As of 2026-08-17, [`roadmap.md`](roadmap.md) remains the source of truth for
+sequencing. Tracks 0-3 are complete. Track 4 layers and the imported-source prop
+artwork workflow are implemented on `main`.
 
-**What landed.**
+The prop workflow now covers deterministic processing, strict source and recipe
+resources, compensated bundle creation, snapshot-guarded regeneration,
+reference-safe deletion, and the three-column editor. Imported sources belong to
+the current draft until bundle creation succeeds: replacing or clearing the
+draft, or normally closing the editor, removes an uncommitted source. Existing
+retained sources are never taken over by a session merely because the author
+selects them.
 
-1. `scripts/lint.sh` makes clang-tidy reliable on macOS, excludes vendored
-   diagnostics, accepts focused translation units, and requires an explicit
-   `--all` for a full scan.
-2. Local verification is target-oriented. Build and run the affected test with
-   `scripts/test.sh`; lint edited translation units instead of repeatedly
-   running the full suite or full-tree analysis.
-3. `docs/style-guide.md` is the source for generated Claude rules. `AGENTS.md`
-   carries the compact Codex/GPT workflow. Repository edits use the native patch
-   tool, not Python, Perl, or shell rewriting.
-4. CI builds one UI-enabled tree, runs every headless, SDL/ImGui, and Python test,
-   and caches compiler outputs between runs. Top-level-only submodule checkout
-   avoids cloning unused vendored SDL dependencies.
-5. CI clang-tidy uses the hosted macOS runner's three CPUs; local full scans keep
-   the two-worker default to limit heat. The post-merge run
-   [31925261184](https://github.com/elliehutcherson/zebes/actions/runs/31925261184)
-   passed with both clang-tidy and the full test suite at **4m42s**.
-6. The slope migration and safe tall-side naming are merged. Retired identifiers
-   fail rather than silently resolving to a mirrored shape.
-7. All 28 `google-readability-casting` findings in the canvas and sprite editor
-   use the appropriate C++ cast. The adjacent naming and static-member findings
-   are fixed as well.
-8. Positive status assertions across the test suite use `EXPECT_OK`, `ASSERT_OK`,
-   or `ASSERT_OK_AND_ASSIGN`; negative-path tests keep explicit status checks.
-   The status-test macros have collision-resistant helper names and no header
-   namespace diagnostics.
-9. The clang-tidy backlog is complete and CI enforces
-   `scripts/lint.sh --strict --all`.
-10. Repository hygiene removed the obsolete root scratch files, `old/` sources,
-    and superseded prompt rules. Default searches now exclude generated,
-    vendored, and non-normative trees, and `scripts/test.sh --list` discovers
-    focused C++ test targets.
-11. The Autumn Forest 1.2 wall-darkness preset passed its visual check against
-    the authored outline colour.
-12. Terrain Create and Regenerate submit copied inputs through the reusable
-    `common/BackgroundTask` boundary. The editor stays responsive and reports
-    the in-progress operation, while asset-manager and GPU work commits on the
-    editor thread. Regeneration verifies that the live tileset still matches its
-    input snapshot before replacing artwork, so a concurrent level save cannot
-    lose newly derived tiles.
-
-The repository is public. The workflow uses standard GitHub-hosted runners, not
-billable larger runners.
+Attachment modes are also complete. Grounded and ceiling modes derive and
+validate their respective subject contacts; free/background stores an explicit
+final-texture pixel anchor. Recipe schema and pipeline version 2 persist the
+tagged contract, and the migration maps version-1 recipes to grounded without
+changing their prior settings or frame geometry.
 
 ### Pick up here next
 
-Begin Track 4 with layers. `Level` currently owns one `tile_chunks` map and one
-`entities` map directly; move both into an ordered depth-slice structure, keep
-`Entity::sort_order` as the within-layer tiebreaker, and migrate every existing
-level into layer 0. This is the format boundary that unlocks canopy artwork, so
-the migration must load every shipped level definition in tests.
+Implement Milestone 4b, the developer feedback-loop optimization recorded in
+[`prop-artwork.md`](prop-artwork.md) §12. The Milestone 4a session spent 5m44s
+in `scripts/test.sh --affected-target prop_artwork` and 1m24s in scoped
+clang-tidy, while affected test bodies reported less than one second total.
+Establish controlled baselines, batch affected targets into one build, keep full
+failure diagnostics with concise success output, evaluate Ninja, and add no
+more than two workers to scoped clang-tidy. Provider integration follows as
+Milestone 5.
 
 ### What remains
 
-- **Track 4:** layers first, then prop artwork; parallax zone seaming is the
-  smallest independent feature. See [`roadmap.md`](roadmap.md) for the design
-  constraints and settled decisions.
+- **Track 4:** developer feedback-loop performance is next, followed by the
+  provider-neutral generation service and first adapter. Parallax zone seaming
+  remains the smallest independent
+  feature. See [`roadmap.md`](roadmap.md) and [`prop-artwork.md`](prop-artwork.md).
 - **Deferred terrain tool:** atlas compaction remains unjustified until real
   atlas growth becomes uncomfortable. It must be explicit because compaction
   renumbers tile IDs that levels store.
@@ -82,7 +56,7 @@ document:
 |---|---|---|
 | Derived terrain artwork | [`terrain-derived-artwork.md`](terrain-derived-artwork.md) | Implemented; doc trued up against the code |
 | Safe asset deletion | [`asset-deletion.md`](asset-deletion.md) | Implemented, checks and buttons both |
-| Prop artwork from generated images | [`prop-artwork.md`](prop-artwork.md) | Milestones 0-4 implemented; attachment modes and provider work remain |
+| Prop artwork from generated images | [`prop-artwork.md`](prop-artwork.md) | Milestones 0-4a implemented; provider work remains |
 
 ---
 

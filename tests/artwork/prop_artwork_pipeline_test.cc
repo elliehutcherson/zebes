@@ -136,11 +136,46 @@ TEST(PropArtworkPipelineTest, CleanupRejectsAColourOutsideTheAcceptedPalette) {
   const PropArtwork artwork{.image = image, .anchor_x = 3, .anchor_y = 3};
   const std::vector<RgbaColor> palette = {RgbaColor{10, 20, 30, 255}};
 
-  const absl::Status status = CleanupAndValidateProp(artwork, palette, 8,
-                                                     PropCleanupConfig{.minimum_component_area = 1,
-                                                                       .grounded_tolerance = 0})
-                                  .status();
+  const absl::Status status =
+      CleanupAndValidateProp(artwork, palette, 8,
+                             PropCleanupConfig{.minimum_component_area = 1, .contact_tolerance = 0},
+                             PropAttachmentMode::kGrounded)
+          .status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInternal);
+}
+
+TEST(PropArtworkPipelineTest, FreeAttachmentDoesNotRequireAnOpaqueContactPixel) {
+  RgbaImage image = SolidImage(8, 8, RgbaColor{0, 0, 0, 0});
+  const RgbaColor subject{100, 100, 100, 255};
+  PaintRect(image, 3, 3, 2, 2, subject);
+  const PropArtwork artwork{.image = image, .anchor_x = 0, .anchor_y = 0};
+  const std::vector<RgbaColor> palette = {subject};
+
+  ASSERT_OK_AND_ASSIGN(
+      const PropArtwork cleaned,
+      CleanupAndValidateProp(artwork, palette, 8,
+                             PropCleanupConfig{.minimum_component_area = 1, .contact_tolerance = 0},
+                             PropAttachmentMode::kFree));
+  EXPECT_EQ(cleaned.anchor_x, 0);
+  EXPECT_EQ(cleaned.anchor_y, 0);
+}
+
+TEST(PropArtworkPipelineTest, AttachmentConfigIsAStrictTaggedUnion) {
+  EXPECT_EQ(ValidatePropAttachment(PropAttachmentConfig{.mode = PropAttachmentMode::kFree}, 16, 16)
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(
+      ValidatePropAttachment(PropAttachmentConfig{.mode = PropAttachmentMode::kGrounded,
+                                                  .free_anchor = PropFreeAnchor{.x = 3, .y = 4}},
+                             16, 16)
+          .code(),
+      absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(
+      ValidatePropAttachment(PropAttachmentConfig{.mode = PropAttachmentMode::kFree,
+                                                  .free_anchor = PropFreeAnchor{.x = 16, .y = 4}},
+                             16, 16)
+          .code(),
+      absl::StatusCode::kInvalidArgument);
 }
 
 TEST(PropArtworkPipelineTest, AcceptedPaletteContainsEveryResolvedTerrainColour) {
@@ -164,7 +199,7 @@ TEST(PropArtworkPipelineTest, CoordinatorRetainsEveryPreviewAndProducesAValidate
   pipeline_config.isolation.minimum_subject_area = 16;
   pipeline_config.composition = PropCompositionConfig{
       .canvas_tiles_wide = 2, .canvas_tiles_high = 1, .padding_fraction = 0.05f};
-  pipeline_config.cleanup.grounded_tolerance = 2;
+  pipeline_config.cleanup.contact_tolerance = 2;
   ASSERT_OK_AND_ASSIGN(const PropArtworkPipelineResult result,
                        RunPropArtworkPipeline(source, style, pipeline_config));
 
@@ -177,6 +212,8 @@ TEST(PropArtworkPipelineTest, CoordinatorRetainsEveryPreviewAndProducesAValidate
   EXPECT_TRUE(result.edge_treated.IsValid());
   EXPECT_EQ(result.finished.image.width, 16);
   EXPECT_EQ(result.finished.image.height, 8);
+  EXPECT_EQ(result.finished.anchor_x, 8);
+  EXPECT_EQ(result.finished.anchor_y, 7);
   for (size_t index = 0; index < result.diagnostics.size(); ++index) {
     EXPECT_EQ(static_cast<size_t>(result.diagnostics[index].stage), index);
     EXPECT_GT(result.diagnostics[index].visible_pixels, 0);
@@ -221,6 +258,49 @@ TEST(PropArtworkPipelineTest, CoordinatorIsByteDeterministic) {
   EXPECT_EQ(first.finished.anchor_x, second.finished.anchor_x);
   EXPECT_EQ(first.finished.anchor_y, second.finished.anchor_y);
   EXPECT_EQ(first.finished.image.pixels, second.finished.image.pixels);
+}
+
+TEST(PropArtworkPipelineTest, FreeAttachmentPreservesExactFinalPixelAnchor) {
+  RgbaImage source = SolidImage(32, 24, RgbaColor{236, 232, 228, 255});
+  PaintRect(source, 7, 6, 18, 13, RgbaColor{74, 68, 64, 255});
+  const TerrainGenConfig terrain_config;
+  ASSERT_OK_AND_ASSIGN(const ResolvedTerrainPalette terrain, ResolveTerrainPalette(terrain_config));
+  const PropArtworkStyle style{.tile_size = 8, .pixel_block_size = 2, .palette = terrain};
+  PropArtworkPipelineConfig config;
+  config.isolation.minimum_subject_area = 16;
+  config.composition.canvas_tiles_wide = 2;
+  config.composition.canvas_tiles_high = 2;
+  config.composition.attachment = PropAttachmentConfig{
+      .mode = PropAttachmentMode::kFree,
+      .free_anchor = PropFreeAnchor{.x = 1, .y = 14},
+  };
+
+  ASSERT_OK_AND_ASSIGN(const PropArtworkPipelineResult result,
+                       RunPropArtworkPipeline(source, style, config));
+  EXPECT_EQ(result.finished.anchor_x, 1);
+  EXPECT_EQ(result.finished.anchor_y, 14);
+}
+
+TEST(PropArtworkPipelineTest, CeilingAttachmentUsesTheSubjectsTopContact) {
+  RgbaImage source = SolidImage(32, 24, RgbaColor{236, 232, 228, 255});
+  PaintRect(source, 7, 6, 18, 13, RgbaColor{74, 68, 64, 255});
+  const TerrainGenConfig terrain_config;
+  ASSERT_OK_AND_ASSIGN(const ResolvedTerrainPalette terrain, ResolveTerrainPalette(terrain_config));
+  const PropArtworkStyle style{.tile_size = 8, .palette = terrain};
+  PropArtworkPipelineConfig config;
+  config.isolation.minimum_subject_area = 16;
+  config.composition.canvas_tiles_wide = 2;
+  config.composition.canvas_tiles_high = 2;
+  config.composition.attachment.mode = PropAttachmentMode::kCeiling;
+
+  ASSERT_OK_AND_ASSIGN(const PropArtworkPipelineResult result,
+                       RunPropArtworkPipeline(source, style, config));
+  const size_t anchor =
+      (static_cast<size_t>(result.finished.anchor_y) * result.finished.image.width +
+       result.finished.anchor_x) *
+      4;
+  EXPECT_EQ(result.finished.image.pixels[anchor + 3], 255);
+  EXPECT_LT(result.finished.anchor_y, result.finished.image.height / 2);
 }
 
 TEST(PropArtworkPipelineTest, CoordinatorNamesTheFailingStage) {

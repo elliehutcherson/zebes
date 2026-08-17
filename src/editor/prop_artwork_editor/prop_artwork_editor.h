@@ -36,7 +36,7 @@ class PropArtworkEditor {
 
   static absl::StatusOr<std::unique_ptr<PropArtworkEditor>> Create(Api* api, GuiInterface* gui,
                                                                    PreviewTextureSink* preview);
-  ~PropArtworkEditor() = default;
+  ~PropArtworkEditor();
 
   absl::Status Render();
 
@@ -46,12 +46,15 @@ class PropArtworkEditor {
   absl::Status Init();
   void StartImport(std::string path);
   void SelectSource();
+  void DeleteSelectedSource();
   void OpenRecipe();
+  void ClearWorkspace();
   void StartPreparation();
   void CommitPrepared();
   void DeleteProp();
   void PollWork();
   bool HasPendingWork() const;
+  absl::Status DiscardSessionSource();
 
   absl::Status RenderControls();
   absl::Status RenderPreview();
@@ -90,6 +93,10 @@ class PropArtworkEditor {
   std::unique_ptr<PropArtworkControlsPanel> controls_panel_;
   std::unique_ptr<PropArtworkOutputPanel> output_panel_;
   std::variant<std::monostate, PendingImport, PendingCreation, PendingRegeneration> pending_work_;
+  // Import persists pixels so the manager remains the single authority during
+  // processing. Until a prop bundle references them, this editor session owns
+  // the record and removes it on replacement, Clear, or normal shutdown.
+  std::optional<std::string> session_source_id_;
 };
 
 }  // namespace zebes

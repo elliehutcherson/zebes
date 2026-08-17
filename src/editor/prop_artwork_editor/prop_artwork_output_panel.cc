@@ -62,10 +62,20 @@ PropArtworkOutputPanel::Action PropArtworkOutputPanel::Render(
   gui_->Text("Output");
   Action action = RenderRecipeSelector(model, recipes);
   if (model.active_recipe().has_value()) {
-    if (gui_->Button("New##PropArtworkOut")) action = Action::kNewRecipe;
-    gui_->SameLine();
     if (gui_->Button("Save As##PropArtworkOut")) action = Action::kCopyRecipe;
     if (RenderDeleteControl(model)) action = Action::kDelete;
+  }
+
+  const std::string clear_target =
+      model.active_recipe().has_value()
+          ? absl::StrCat("recipe:", model.active_recipe()->id)
+          : absl::StrCat("source:", model.source().has_value() ? model.source()->id : "none");
+  constexpr char kClearQuestion[] =
+      "Clear the Prop Artwork workspace? Unsaved settings and an uncommitted imported source "
+      "will be discarded. Saved prop bundles are not deleted.";
+  if (clear_prompt_.Render(*gui_, "Clear workspace", clear_target, kClearQuestion,
+                           "PropArtworkClear")) {
+    action = Action::kClearWorkspace;
   }
 
   gui_->SetNextItemWidth(kFieldWidth);

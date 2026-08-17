@@ -25,8 +25,17 @@ class PropArtworkEditorTestPeer {
   static void StartImport(PropArtworkEditor& editor, std::string path) {
     editor.StartImport(std::move(path));
   }
+  static void SelectSource(PropArtworkEditor& editor) { editor.SelectSource(); }
   static void CommitPrepared(PropArtworkEditor& editor) { editor.CommitPrepared(); }
   static void DeleteProp(PropArtworkEditor& editor) { editor.DeleteProp(); }
+  static void DeleteSelectedSource(PropArtworkEditor& editor) { editor.DeleteSelectedSource(); }
+  static void ClearWorkspace(PropArtworkEditor& editor) { editor.ClearWorkspace(); }
+  static void OwnSessionSource(PropArtworkEditor& editor, std::string id) {
+    editor.session_source_id_ = std::move(id);
+  }
+  static bool HasSessionSource(const PropArtworkEditor& editor) {
+    return editor.session_source_id_.has_value();
+  }
   static void PollWork(PropArtworkEditor& editor) { editor.PollWork(); }
   static bool HasPendingWork(const PropArtworkEditor& editor) { return editor.HasPendingWork(); }
   static absl::Status WaitForWork(PropArtworkEditor& editor) {
@@ -135,7 +144,9 @@ class PropArtworkEditorTest : public ::testing::Test {
 };
 
 TEST_F(PropArtworkEditorTest, WorkerPreparesWithoutPublishingAndEditorCommitsAfterReview) {
+  PropArtworkEditorTestPeer::OwnSessionSource(*editor_, source_.id);
   EXPECT_CALL(api_, CreateGeneratedProp(_)).Times(0);
+  EXPECT_CALL(api_, DeleteSourceArtwork(_)).Times(0);
 
   PropArtworkEditorTestPeer::StartPreparation(*editor_);
   ASSERT_TRUE(PropArtworkEditorTestPeer::HasPendingWork(*editor_));
@@ -151,6 +162,7 @@ TEST_F(PropArtworkEditorTest, WorkerPreparesWithoutPublishingAndEditorCommitsAft
   PropArtworkEditorTestPeer::CommitPrepared(*editor_);
 
   ASSERT_TRUE(model().active_recipe().has_value());
+  EXPECT_FALSE(PropArtworkEditorTestPeer::HasSessionSource(*editor_));
   EXPECT_EQ(model().active_recipe()->id, model().prepared_creation()->recipe.id);
   EXPECT_THAT(model().status(), HasSubstr("collider-free blueprint"));
 }
@@ -207,7 +219,60 @@ TEST_F(PropArtworkEditorTest, ImportDecodesOnAWorkerThenAcceptsSourceOnTheEditor
 
   ASSERT_TRUE(model().source().has_value());
   EXPECT_EQ(model().source()->id, "imported-source");
+  EXPECT_TRUE(PropArtworkEditorTestPeer::HasSessionSource(*editor_));
   EXPECT_THAT(model().status(), HasSubstr("Accepted source"));
+
+  EXPECT_CALL(api_, DeleteSourceArtwork(StrEq("imported-source")))
+      .WillOnce(Return(absl::OkStatus()));
+  PropArtworkEditorTestPeer::ClearWorkspace(*editor_);
+
+  EXPECT_FALSE(model().source().has_value());
+  EXPECT_FALSE(PropArtworkEditorTestPeer::HasSessionSource(*editor_));
+  EXPECT_THAT(model().status(), HasSubstr("workspace cleared"));
+}
+
+TEST_F(PropArtworkEditorTest, NormalShutdownDeletesAnUncommittedSessionSource) {
+  PropArtworkEditorTestPeer::OwnSessionSource(*editor_, "session-source");
+  EXPECT_CALL(api_, DeleteSourceArtwork(StrEq("session-source")))
+      .WillOnce(Return(absl::OkStatus()));
+
+  editor_.reset();
+}
+
+TEST_F(PropArtworkEditorTest, ClearWorkspaceDoesNotDeleteASelectedRetainedSource) {
+  EXPECT_CALL(api_, DeleteSourceArtwork(_)).Times(0);
+
+  PropArtworkEditorTestPeer::ClearWorkspace(*editor_);
+
+  EXPECT_FALSE(model().source().has_value());
+  EXPECT_THAT(model().status(), HasSubstr("Saved prop bundles were not changed"));
+}
+
+TEST_F(PropArtworkEditorTest, SelectingARetainedSourceDiscardsTheSessionOwnedImport) {
+  PropArtworkEditorTestPeer::OwnSessionSource(*editor_, source_.id);
+  SourceArtwork retained = source_;
+  retained.id = "retained-source";
+  retained.name = "Retained tree";
+  retained.source_path = "source_art/props/retained-source.png";
+  model().source_to_open() = retained.id;
+  EXPECT_CALL(api_, GetSourceArtwork(StrEq(retained.id))).WillOnce(Return(&retained));
+  EXPECT_CALL(api_, ReadSourceArtworkPixels(StrEq(retained.id))).WillOnce(Return(pixels_));
+  EXPECT_CALL(api_, DeleteSourceArtwork(StrEq(source_.id))).WillOnce(Return(absl::OkStatus()));
+
+  PropArtworkEditorTestPeer::SelectSource(*editor_);
+
+  ASSERT_TRUE(model().source().has_value());
+  EXPECT_EQ(model().source()->id, retained.id);
+  EXPECT_FALSE(PropArtworkEditorTestPeer::HasSessionSource(*editor_));
+}
+
+TEST_F(PropArtworkEditorTest, ExplicitSourceDeleteUsesTheReferenceCheckedApi) {
+  EXPECT_CALL(api_, DeleteSourceArtwork(StrEq(source_.id))).WillOnce(Return(absl::OkStatus()));
+
+  PropArtworkEditorTestPeer::DeleteSelectedSource(*editor_);
+
+  EXPECT_FALSE(model().source().has_value());
+  EXPECT_THAT(model().status(), HasSubstr("Deleted retained source"));
 }
 
 TEST_F(PropArtworkEditorTest, RegenerationPreparesBeforeCallingTheBundleApi) {

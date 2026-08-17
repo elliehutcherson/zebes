@@ -1,6 +1,6 @@
 # Generated prop artwork pipeline
 
-**Status: Milestones 0-4 implemented; imported-source authoring is available.**
+**Status: Milestones 0-4a implemented; imported-source authoring is available.**
 The boulder/`lucinda_cave` and tree/`Cozy Meadow` checks both support the visual
 approach. The production policy is the complete resolved terrain palette.
 Source hashing, input limits, a versioned coordinator, retained stage artifacts,
@@ -9,7 +9,9 @@ and typed stage diagnostics now form the Milestones 1-2 foundation. Strict
 scans, pure `PreparedPropAsset` construction, and compensated bundle creation
 are implemented. Bundle deletion and snapshot-guarded deterministic
 regeneration are also implemented. The Prop Artwork tab now completes the
-durable imported-source workflow. Provider integration remains.
+durable imported-source workflow with grounded, ceiling, and free/background
+attachment modes. Uncommitted imports are session-owned and are discarded on
+replacement, Clear, or normal shutdown. Provider integration remains.
 
 This design covers a static world prop such as a boulder, tree, sign, or ruin.
 The result is ordinary Zebes data: a texture, a one-frame sprite, and a blueprint
@@ -243,10 +245,14 @@ The editor build may copy this authoring data into its working asset tree.
 Runtime packaging must exclude `source_art` and editor-only source/recipe
 definitions; retaining an input does not make it a shipped texture.
 
-The accepted source is retained even though only the final texture ships. That
-is what makes reprocessing possible without paying for another remote request
-or hoping a changed model returns the same boulder. Intermediate stage images
-are a session cache and need not be persisted.
+The accepted source is retained once a prop bundle references it even though
+only the final texture ships. That is what makes reprocessing possible without
+paying for another remote request or hoping a changed model returns the same
+boulder. A newly imported source remains owned by the current editor draft until
+bundle creation succeeds. Replacing or clearing that draft, or normally closing
+the editor, removes the unreferenced definition and PNG. Selecting an existing
+retained source never transfers ownership to the session. Intermediate stage
+images are a session cache and need not be persisted.
 
 Source artwork participates in reference scans. Deletion is refused while a
 prop recipe references it. A future recipe may share one source across several
@@ -292,10 +298,12 @@ The canvas is a whole number of selected-style tiles and has transparent
 padding. Preserve aspect ratio; never center-crop the subject to force an
 aspect.
 
-The author chooses a world anchor, defaulting to bottom center for a grounded
-prop. The preview draws the tile grid, ground line, subject bounds, and anchor.
-Layout settings include canvas size, padding, subject scale, and anchor offset,
-so no crop or pivot decision is hidden in generated pixels.
+The author chooses a persisted attachment mode. Grounded props derive the
+bottom-center subject contact; ceiling props derive the top-center contact; a
+free/background prop stores an explicit anchor in final-texture pixel
+coordinates. Free subjects are centered in the canvas independently of their
+anchor, so moving the entity origin never silently moves its pixels. The
+preview draws the tile grid, subject, and anchor.
 
 ### 6.4 Rasterize to the pixel policy
 
@@ -339,8 +347,9 @@ Final validation requires:
 - a non-empty opaque subject with no partial alpha;
 - RGB colours drawn only from the selected prop palette;
 - whole-tile canvas dimensions;
-- anchor inside the canvas and a grounded opaque pixel within the configured
-  tolerance when the prop is marked grounded;
+- anchor inside the canvas and an opaque contact pixel within the configured
+  tolerance for grounded and ceiling props; free/background anchors require no
+  inferred contact pixel;
 - 1:1 sprite source-to-render dimensions.
 
 Validation is a stage so final-only mode still reports the exact failed
@@ -450,8 +459,11 @@ Follow terrain's prepare/commit shape but make the bundle boundary explicit:
 2. Implemented: `Api::CreateGeneratedProp` confirms that the accepted source
    snapshot is still current, preflights names, IDs, references, and exact
    output paths, then creates texture, sprite, blueprint, and recipe in
-   dependency order. Source acceptance is deliberately a preceding operation:
-   an accepted source remains useful if output creation is cancelled or fails.
+   dependency order. Source acceptance is deliberately a preceding operation so
+   processing and preview use the managed source boundary. The current editor
+   session owns that record until output creation succeeds; cancellation or
+   failure keeps it available only for the rest of the draft rather than
+   publishing unfinished work indefinitely.
 3. Implemented: a failure rolls back in reverse order. Errors report both the
    primary failure and any failed compensation; they never claim success with a
    partial bundle.
@@ -498,8 +510,10 @@ block deleting this prop.
 
 Implemented: the Prop Artwork tab uses the established three-column layout:
 
-- **Input:** import or reuse retained source art, select or refresh a terrain
-  recipe's resolved style, and tune isolation, canvas, raster, edge, and cleanup
+- **Input:** import, reuse, or explicitly delete retained source art; attach,
+  refresh, or detach a terrain recipe's resolved style; choose grounded,
+  ceiling, or free/background attachment; and tune isolation, canvas, raster,
+  edge, and cleanup
   settings. Generate, provider status, prompt, and candidate selection arrive
   with Milestone 5.
 - **Preview:** stage selector in review mode; checkerboard, tile grid, rulers,
@@ -510,7 +524,9 @@ Implemented: the Prop Artwork tab uses the established three-column layout:
   complete prop texture with one tile of margin; a tall prop is never clipped
   merely because the terrain preview has too little space above its ground.
 - **Output:** recipe selection, review/finished-only policy, Process, Create,
-  Open, Save As, Apply Regeneration, and confirmed bundle Delete.
+  Open, Save As, Apply Regeneration, confirmed bundle Delete, and confirmed
+  Clear workspace. Clear closes a saved recipe without deleting its bundle and
+  discards only session-owned, uncommitted source artwork.
 
 The model owns the draft, stage states, accepted source, configuration snapshots,
 revision, errors, and pending-work metadata. Panels render and report intents.
@@ -519,32 +535,33 @@ Neither model nor panels own native textures or provider SDK objects.
 
 Controls are disabled while bounded local work owns their snapshots. A result
 for a superseded revision is discarded. Every failure appears in dismissible
-status text. Remote cancellation is a Milestone 5 provider responsibility.
+status text. Normal shutdown discards a session-owned import; recovery of
+leftovers after a process crash remains Milestone 6. Remote cancellation is a
+Milestone 5 provider responsibility.
 
 After creation the blueprint appears in the existing Level Editor palette. To
 place a boulder behind ground or actors, put it in an earlier world layer. Its
 `sort_order` only orders it among entities in that same layer. This pipeline does
 not infer a world layer.
 
-### Remaining attachment semantics
+### Attachment semantics
 
-The initial recipe always derives a bottom-center grounded anchor. Real usage
-has already shown that this is insufficient: a stalactite or hanging ruin needs
-a ceiling contact, while a background silhouette may need an author-positioned
-free anchor. Before provider generation expands the number of candidates, add a
-strict persisted attachment mode with at least:
+Implemented attachment modes are:
 
-- **grounded:** bottom-center subject contact with the current ground-tolerance
+- **grounded:** bottom-center subject contact with contact-tolerance
   validation;
-- **ceiling:** top-center subject contact with corresponding ceiling-tolerance
+- **ceiling:** top-center subject contact with the same contact-tolerance
   validation and context placement;
-- **free/background:** an explicit author-controlled anchor inside the canvas,
-  with no inferred contact edge.
+- **free/background:** an explicit final-texture pixel anchor inside the canvas,
+  with no inferred contact edge or contact-pixel validation.
 
-Attachment mode belongs in `PropRecipe` and the deterministic composition and
-validation settings. It is not collider intent and must not infer a world
-layer. Changing it invalidates downstream previews and regeneration snapshots
-like every other recipe input.
+Attachment mode belongs to the deterministic composition settings persisted by
+`PropRecipe`; the free anchor is the tagged alternative's required payload.
+Recipe schema 2 and pipeline version 2 introduced the contract. The migration
+maps version-1 recipes to grounded, renames grounded tolerance to contact
+tolerance, and preserves their composition and frame geometry. Attachment is
+not collider intent and does not infer a world layer. Changing it invalidates
+downstream previews and regeneration snapshots like every other recipe input.
 
 ## 11. Verification boundaries
 
@@ -609,9 +626,24 @@ unfinished provider behavior.
    pipeline without a network dependency. Shared `Canvas` navigation gives
    previews rulers, pan, zoom, and Fit, and context bounds retain the complete
    texture.
-4a. **Attachment modes (next).** Persist and preview grounded, ceiling, and
-   free/background anchors before provider candidates depend on a
-   grounded-only recipe contract.
+4a. **Attachment modes (implemented).** Grounded and ceiling contacts, explicit
+   free/background anchors, strict persistence and migration, matching context
+   previews, sprite offsets, regeneration, and editor controls share one
+   deterministic contract.
+4b. **Developer feedback loop (next).** Shorten the local verification cycle
+   before provider work adds network and adapter test surfaces. The Milestone
+   4a session observed 5 minutes 44 seconds in
+   `scripts/test.sh --affected-target prop_artwork`, while the affected test
+   bodies themselves reported less than one second in aggregate; scoped
+   clang-tidy took another 1 minute 24 seconds. Treat those as observations,
+   then establish repeatable warm and source-touch baselines. Make
+   `--affected-target` configure once, build every selected executable in one
+   CMake invocation, and run each binary exactly once. Keep successful output
+   concise while retaining complete failure logs. Evaluate Ninja against Unix
+   Makefiles, add at most two workers for scoped clang-tidy, and measure compiler
+   caching separately rather than assuming it helps. Completion requires the
+   same affected-test selection and failure semantics, recorded before/after
+   timings, and focused tests for the orchestration scripts.
 5. **Generation service and first adapter.** Add cancellable provider requests,
    credential/configuration plumbing, candidate processing, provenance, limits,
    and opt-in integration tests. Imported and generated sources converge at the

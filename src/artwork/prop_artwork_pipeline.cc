@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <utility>
 
 #include "absl/status/status.h"
@@ -85,14 +86,31 @@ absl::StatusOr<PropArtworkPipelineResult> RunPropArtworkPipeline(
       .canvas_tiles_high = config.composition.canvas_tiles_high,
       .pixel_block_size = style.pixel_block_size,
   };
+  const int64_t output_width =
+      static_cast<int64_t>(style.tile_size) * config.composition.canvas_tiles_wide;
+  const int64_t output_height =
+      static_cast<int64_t>(style.tile_size) * config.composition.canvas_tiles_high;
+  if (output_width <= 0 || output_height <= 0 || output_width > std::numeric_limits<int>::max() ||
+      output_height > std::numeric_limits<int>::max()) {
+    return absl::InvalidArgumentError("prop output dimensions overflow integer storage");
+  }
+  RETURN_IF_ERROR(ValidatePropAttachment(config.composition.attachment,
+                                         static_cast<int>(output_width),
+                                         static_cast<int>(output_height)));
 
   ASSIGN_OR_RETURN(const std::string source_digest, RgbaImageDigest(source));
   ASSIGN_OR_RETURN(RgbaImage isolated,
                    AtStage(PropArtworkStage::kIsolation, IsolateSubject(source, config.isolation)));
-  ASSIGN_OR_RETURN(PropArtwork composed, AtStage(PropArtworkStage::kComposition,
-                                                 ComposeProp(isolated, config.composition)));
+  ASSIGN_OR_RETURN(PropArtwork composed,
+                   AtStage(PropArtworkStage::kComposition,
+                           ComposeProp(isolated, config.composition, static_cast<int>(output_width),
+                                       static_cast<int>(output_height))));
   ASSIGN_OR_RETURN(PropArtwork rasterized, AtStage(PropArtworkStage::kRasterization,
                                                    RasterizeProp(composed, raster_config)));
+  if (config.composition.attachment.mode == PropAttachmentMode::kFree) {
+    rasterized.anchor_x = config.composition.attachment.free_anchor->x;
+    rasterized.anchor_y = config.composition.attachment.free_anchor->y;
+  }
   ASSIGN_OR_RETURN(PropPalette palette,
                    AtStage(PropArtworkStage::kQuantization, BuildPropPalette(style.palette)));
   ASSIGN_OR_RETURN(PropArtwork quantized,
@@ -102,8 +120,9 @@ absl::StatusOr<PropArtworkPipelineResult> RunPropArtworkPipeline(
                            ApplyPropEdgeTreatment(quantized, palette.outline, config.edge)));
   ASSIGN_OR_RETURN(
       PropArtwork finished,
-      AtStage(PropArtworkStage::kCleanup, CleanupAndValidateProp(edge_treated, palette.colors,
-                                                                 style.tile_size, config.cleanup)));
+      AtStage(PropArtworkStage::kCleanup,
+              CleanupAndValidateProp(edge_treated, palette.colors, style.tile_size, config.cleanup,
+                                     config.composition.attachment.mode)));
 
   const std::array<PropStageDiagnostic, 6> diagnostics = {
       Diagnostic(PropArtworkStage::kIsolation, isolated),

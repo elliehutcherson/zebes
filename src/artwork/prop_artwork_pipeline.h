@@ -17,7 +17,7 @@
 
 namespace zebes {
 
-inline constexpr int kPropArtworkPipelineVersion = 1;
+inline constexpr int kPropArtworkPipelineVersion = 2;
 
 enum class PropArtworkStage : uint8_t {
   kIsolation = 0,

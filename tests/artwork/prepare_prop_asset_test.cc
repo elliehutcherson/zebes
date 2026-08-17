@@ -70,7 +70,7 @@ absl::StatusOr<PreparePropAssetRequest> TestRequest() {
       .canvas_tiles_high = 1,
       .padding_fraction = 0.05f,
   };
-  request.pipeline.cleanup.grounded_tolerance = 2;
+  request.pipeline.cleanup.contact_tolerance = 2;
   return request;
 }
 
@@ -108,6 +108,22 @@ TEST(PreparePropAssetTest, IsByteDeterministicForTheSameAcceptedSourceAndRequest
   EXPECT_EQ(first.recipe.final_pixel_digest, second.recipe.final_pixel_digest);
   EXPECT_EQ(first.sprite, second.sprite);
   EXPECT_EQ(first.blueprint, second.blueprint);
+}
+
+TEST(PreparePropAssetTest, FreeAnchorBecomesTheExactSpriteOffset) {
+  const RgbaImage pixels = TestSource();
+  ASSERT_OK_AND_ASSIGN(const SourceArtwork source, TestSourceDefinition(pixels));
+  ASSERT_OK_AND_ASSIGN(PreparePropAssetRequest request, TestRequest());
+  request.pipeline.composition.attachment = PropAttachmentConfig{
+      .mode = PropAttachmentMode::kFree,
+      .free_anchor = PropFreeAnchor{.x = 2, .y = 6},
+  };
+
+  ASSERT_OK_AND_ASSIGN(const PreparedPropAsset prepared, PreparePropAsset(source, pixels, request));
+  EXPECT_EQ(prepared.artwork.finished.anchor_x, 2);
+  EXPECT_EQ(prepared.artwork.finished.anchor_y, 6);
+  EXPECT_EQ(prepared.sprite.frames.front().offset_x, -2);
+  EXPECT_EQ(prepared.sprite.frames.front().offset_y, -6);
 }
 
 TEST(PreparePropAssetTest, RefusesPixelsThatDoNotMatchTheAcceptedSource) {

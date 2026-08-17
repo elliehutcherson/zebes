@@ -140,6 +140,8 @@ target_link_libraries(shipped_assets_test
   sprite_manager
   blueprint_manager
   collider_manager
+  prop_recipe_manager
+  source_artwork_manager
   terrain_brush
   terrain_mask
   macros

@@ -8,14 +8,44 @@
 
 namespace zebes {
 
+absl::Status ValidatePropAttachment(const PropAttachmentConfig& attachment, int output_width,
+                                    int output_height) {
+  if (output_width <= 0 || output_height <= 0) {
+    return absl::InvalidArgumentError("prop attachment requires positive output dimensions");
+  }
+  switch (attachment.mode) {
+    case PropAttachmentMode::kGrounded:
+    case PropAttachmentMode::kCeiling:
+      if (attachment.free_anchor.has_value()) {
+        return absl::InvalidArgumentError(
+            "grounded and ceiling attachments cannot contain a free anchor");
+      }
+      return absl::OkStatus();
+    case PropAttachmentMode::kFree:
+      if (!attachment.free_anchor.has_value()) {
+        return absl::InvalidArgumentError("free attachment requires an explicit anchor");
+      }
+      if (attachment.free_anchor->x < 0 || attachment.free_anchor->y < 0 ||
+          attachment.free_anchor->x >= output_width || attachment.free_anchor->y >= output_height) {
+        return absl::InvalidArgumentError("free attachment anchor must be inside the prop canvas");
+      }
+      return absl::OkStatus();
+  }
+  return absl::InvalidArgumentError("prop attachment mode is invalid");
+}
+
 absl::StatusOr<PropArtwork> ComposeProp(const RgbaImage& isolated,
-                                        const PropCompositionConfig& config) {
+                                        const PropCompositionConfig& config, int final_output_width,
+                                        int final_output_height) {
   if (!isolated.IsValid()) return absl::InvalidArgumentError("isolated image is invalid");
   if (config.canvas_tiles_wide <= 0 || config.canvas_tiles_high <= 0 ||
       !std::isfinite(config.padding_fraction) || config.padding_fraction < 0.0f ||
       config.padding_fraction >= 0.45f) {
     return absl::InvalidArgumentError("prop composition settings are invalid");
   }
+  const absl::Status attachment_status =
+      ValidatePropAttachment(config.attachment, final_output_width, final_output_height);
+  if (!attachment_status.ok()) return attachment_status;
 
   int left = isolated.width;
   int top = isolated.height;
@@ -54,9 +84,24 @@ absl::StatusOr<PropArtwork> ComposeProp(const RgbaImage& isolated,
   const double subject_center_x = (static_cast<double>(left) + right) * 0.5;
   const int source_left =
       static_cast<int>(std::floor(subject_center_x - static_cast<double>(output_width) * 0.5));
-  const int source_bottom =
-      static_cast<int>(std::ceil(bottom + config.padding_fraction * output_height));
-  const int source_top = source_bottom - output_height;
+  int source_top = 0;
+  switch (config.attachment.mode) {
+    case PropAttachmentMode::kGrounded: {
+      const int source_bottom =
+          static_cast<int>(std::ceil(bottom + config.padding_fraction * output_height));
+      source_top = source_bottom - output_height;
+      break;
+    }
+    case PropAttachmentMode::kCeiling:
+      source_top = static_cast<int>(std::floor(top - config.padding_fraction * output_height));
+      break;
+    case PropAttachmentMode::kFree: {
+      const double subject_center_y = (static_cast<double>(top) + bottom) * 0.5;
+      source_top =
+          static_cast<int>(std::floor(subject_center_y - static_cast<double>(output_height) * 0.5));
+      break;
+    }
+  }
 
   RgbaImage composed;
   composed.width = output_width;
@@ -75,10 +120,26 @@ absl::StatusOr<PropArtwork> ComposeProp(const RgbaImage& isolated,
     }
   }
 
+  int anchor_y = 0;
+  if (config.attachment.mode == PropAttachmentMode::kGrounded) {
+    anchor_y = bottom - 1 - source_top;
+  } else if (config.attachment.mode == PropAttachmentMode::kCeiling) {
+    anchor_y = top - source_top;
+  } else {
+    anchor_y = static_cast<int>(std::lround(static_cast<double>(config.attachment.free_anchor->y) *
+                                            composed.height / final_output_height));
+  }
+  const int anchor_x =
+      config.attachment.mode == PropAttachmentMode::kFree
+          ? static_cast<int>(std::lround(static_cast<double>(config.attachment.free_anchor->x) *
+                                         composed.width / final_output_width))
+          : static_cast<int>(std::lround(subject_center_x - source_left));
+  const int composed_width = composed.width;
+  const int composed_height = composed.height;
   PropArtwork result{
       .image = std::move(composed),
-      .anchor_x = static_cast<int>(std::lround(subject_center_x - source_left)),
-      .anchor_y = bottom - 1 - source_top,
+      .anchor_x = std::clamp(anchor_x, 0, composed_width - 1),
+      .anchor_y = std::clamp(anchor_y, 0, composed_height - 1),
   };
   if (!result.IsValid()) {
     return absl::InternalError("prop composition produced an invalid anchor");

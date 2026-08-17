@@ -67,11 +67,17 @@ bool PaletteContains(absl::Span<const RgbaColor> palette, const RgbaColor& candi
 
 absl::StatusOr<PropArtwork> CleanupAndValidateProp(const PropArtwork& artwork,
                                                    absl::Span<const RgbaColor> palette,
-                                                   int tile_size, const PropCleanupConfig& config) {
+                                                   int tile_size, const PropCleanupConfig& config,
+                                                   PropAttachmentMode attachment_mode) {
   if (!artwork.IsValid()) return absl::InvalidArgumentError("prop artwork is invalid");
   if (palette.empty() || config.alpha_threshold < 0 || config.alpha_threshold > 255 ||
-      config.minimum_component_area <= 0 || tile_size <= 0 || config.grounded_tolerance < 0) {
+      config.minimum_component_area <= 0 || tile_size <= 0 || config.contact_tolerance < 0) {
     return absl::InvalidArgumentError("prop cleanup settings are invalid");
+  }
+  if (attachment_mode != PropAttachmentMode::kGrounded &&
+      attachment_mode != PropAttachmentMode::kCeiling &&
+      attachment_mode != PropAttachmentMode::kFree) {
+    return absl::InvalidArgumentError("prop attachment mode is invalid");
   }
   if (artwork.image.width % tile_size != 0 || artwork.image.height % tile_size != 0) {
     return absl::FailedPreconditionError("prop canvas is not a whole number of tiles");
@@ -108,18 +114,23 @@ absl::StatusOr<PropArtwork> CleanupAndValidateProp(const PropArtwork& artwork,
     }
   }
 
-  bool grounded = false;
-  for (int dy = -config.grounded_tolerance; dy <= config.grounded_tolerance; ++dy) {
-    for (int dx = -config.grounded_tolerance; dx <= config.grounded_tolerance; ++dx) {
-      const int x = cleaned.anchor_x + dx;
-      const int y = cleaned.anchor_y + dy;
-      if (x < 0 || y < 0 || x >= cleaned.image.width || y >= cleaned.image.height) continue;
-      const size_t pixel = (static_cast<size_t>(y) * cleaned.image.width + x) * 4;
-      if (cleaned.image.pixels[pixel + 3] == 255) grounded = true;
+  if (attachment_mode != PropAttachmentMode::kFree) {
+    bool has_contact = false;
+    for (int dy = -config.contact_tolerance; dy <= config.contact_tolerance; ++dy) {
+      for (int dx = -config.contact_tolerance; dx <= config.contact_tolerance; ++dx) {
+        const int x = cleaned.anchor_x + dx;
+        const int y = cleaned.anchor_y + dy;
+        if (x < 0 || y < 0 || x >= cleaned.image.width || y >= cleaned.image.height) continue;
+        const size_t pixel = (static_cast<size_t>(y) * cleaned.image.width + x) * 4;
+        if (cleaned.image.pixels[pixel + 3] == 255) has_contact = true;
+      }
     }
-  }
-  if (!grounded) {
-    return absl::FailedPreconditionError("prop anchor is not grounded on an opaque pixel");
+    if (!has_contact) {
+      return absl::FailedPreconditionError(
+          attachment_mode == PropAttachmentMode::kGrounded
+              ? "grounded prop anchor does not contact an opaque pixel"
+              : "ceiling prop anchor does not contact an opaque pixel");
+    }
   }
 
   for (size_t pixel = 0; pixel < pixel_count; ++pixel) {

@@ -5,6 +5,7 @@
 
 #include "absl/status/statusor.h"
 #include "artwork/source_artwork.h"
+#include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor_model.h"
 #include "terrain/terrain_recipe.h"
@@ -17,6 +18,7 @@ class PropArtworkControlsPanel {
     kNone,
     kBrowseSource,
     kOpenSource,
+    kDeleteSource,
   };
 
   static absl::StatusOr<std::unique_ptr<PropArtworkControlsPanel>> Create(GuiInterface* gui);
@@ -34,6 +36,7 @@ class PropArtworkControlsPanel {
   bool RenderPipeline(PropArtworkEditorModel& model);
 
   GuiInterface* gui_;
+  ConfirmPrompt delete_source_prompt_;
 };
 
 }  // namespace zebes

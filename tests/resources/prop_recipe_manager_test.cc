@@ -44,7 +44,7 @@ PropRecipe CompleteRecipe() {
   recipe.pipeline.edge.alpha_threshold = 120;
   recipe.pipeline.cleanup.alpha_threshold = 130;
   recipe.pipeline.cleanup.minimum_component_area = 3;
-  recipe.pipeline.cleanup.grounded_tolerance = 2;
+  recipe.pipeline.cleanup.contact_tolerance = 2;
   recipe.texture_id = "texture-1";
   recipe.sprite_id = "sprite-1";
   recipe.blueprint_id = "blueprint-1";
@@ -106,6 +106,40 @@ TEST_F(PropRecipeManagerTest, DetachedStyleWritesAnExplicitNullReference) {
   EXPECT_TRUE(json.at("terrain_recipe_id").is_null());
 }
 
+TEST_F(PropRecipeManagerTest, GroundedAttachmentWritesAnExplicitNullFreeAnchor) {
+  PropRecipe recipe = CompleteRecipe();
+  ASSERT_OK_AND_ASSIGN(const std::string id, manager_->CreateRecipe(recipe));
+
+  std::ifstream stream(path_ / "definitions/prop_recipes" / (id + ".json"));
+  nlohmann::json json;
+  stream >> json;
+  const nlohmann::json& attachment = json.at("pipeline").at("composition").at("attachment");
+  EXPECT_EQ(attachment.at("mode"), "grounded");
+  EXPECT_TRUE(attachment.at("free_anchor").is_null());
+}
+
+TEST_F(PropRecipeManagerTest, RoundTripsAFreeAttachmentAndExactFrameOffset) {
+  PropRecipe recipe = CompleteRecipe();
+  recipe.pipeline.composition.attachment = PropAttachmentConfig{
+      .mode = PropAttachmentMode::kFree,
+      .free_anchor = PropFreeAnchor{.x = 7, .y = 11},
+  };
+  recipe.expected_frame.offset_x = -7;
+  recipe.expected_frame.offset_y = -11;
+
+  ASSERT_OK_AND_ASSIGN(const std::string id, manager_->CreateRecipe(recipe));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<PropRecipeManager> reloaded,
+                       PropRecipeManager::Create(path_.string()));
+  ASSERT_OK(reloaded->LoadAllRecipes());
+  ASSERT_OK_AND_ASSIGN(PropRecipe * loaded, reloaded->GetRecipe(id));
+  ASSERT_TRUE(loaded->pipeline.composition.attachment.free_anchor.has_value());
+  EXPECT_EQ(loaded->pipeline.composition.attachment.mode, PropAttachmentMode::kFree);
+  EXPECT_EQ(loaded->pipeline.composition.attachment.free_anchor->x, 7);
+  EXPECT_EQ(loaded->pipeline.composition.attachment.free_anchor->y, 11);
+  EXPECT_EQ(loaded->expected_frame.offset_x, -7);
+  EXPECT_EQ(loaded->expected_frame.offset_y, -11);
+}
+
 TEST_F(PropRecipeManagerTest, CreateRecipeWithIdKeepsThePreparedIdentity) {
   PropRecipe recipe = CompleteRecipe();
   recipe.id = "prepared-recipe-1";
@@ -120,13 +154,22 @@ TEST_F(PropRecipeManagerTest, RejectsMissingSettingsRatherThanUsingDefaults) {
   PropRecipe recipe = CompleteRecipe();
   recipe.id = "broken";
   nlohmann::json json = PropRecipeToJson(recipe);
-  json["pipeline"]["cleanup"].erase("grounded_tolerance");
+  json["pipeline"]["cleanup"].erase("contact_tolerance");
   const std::filesystem::path directory = path_ / "definitions/prop_recipes";
   std::ofstream(directory / "broken.json") << json.dump(2);
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<PropRecipeManager> reloaded,
                        PropRecipeManager::Create(path_.string()));
   EXPECT_EQ(reloaded->LoadAllRecipes().code(), absl::StatusCode::kDataLoss);
+}
+
+TEST_F(PropRecipeManagerTest, RejectsAttachmentDataThatDoesNotMatchItsMode) {
+  PropRecipe recipe = CompleteRecipe();
+  recipe.pipeline.composition.attachment.free_anchor = PropFreeAnchor{.x = 7, .y = 11};
+
+  const absl::Status status = manager_->CreateRecipe(recipe).status();
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("cannot contain a free anchor"));
 }
 
 TEST_F(PropRecipeManagerTest, RejectsUnknownSchemaAndNamesTheMigration) {

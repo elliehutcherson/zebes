@@ -19,6 +19,7 @@ class MigrateDefinitionsTest(unittest.TestCase):
         self._temp = tempfile.TemporaryDirectory()
         self.root = Path(self._temp.name)
         (self.root / "levels").mkdir()
+        (self.root / "prop_recipes").mkdir()
         (self.root / "sprites").mkdir()
         (self.root / "terrain_recipes").mkdir()
         (self.root / "tilesets").mkdir()
@@ -38,6 +39,31 @@ class MigrateDefinitionsTest(unittest.TestCase):
         path = self.root / "terrain_recipes" / name
         path.write_text(json.dumps(document), encoding="utf-8")
         return path
+
+    def write_prop_recipe(self, name, document):
+        path = self.root / "prop_recipes" / name
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
+    @staticmethod
+    def v1_prop_recipe():
+        return {
+            "schema_version": 1,
+            "pipeline_version": 1,
+            "id": "prop-1",
+            "pipeline": {
+                "composition": {
+                    "canvas_tiles_wide": 3,
+                    "canvas_tiles_high": 2,
+                    "padding_fraction": 0.06,
+                },
+                "cleanup": {
+                    "alpha_threshold": 128,
+                    "minimum_component_area": 2,
+                    "grounded_tolerance": 3,
+                },
+            },
+        }
 
     @staticmethod
     def v2_recipe():
@@ -192,6 +218,58 @@ class MigrateDefinitionsTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "only 2 is supported"):
             migrate_definitions.migrate_directory(self.root, "terrain_recipes", dry_run=False)
+
+    def test_v1_prop_recipe_becomes_explicitly_grounded_without_losing_settings(self):
+        path = self.write_prop_recipe("tree.json", self.v1_prop_recipe())
+
+        changed = migrate_definitions.migrate_directory(
+            self.root, "prop_recipes", dry_run=False
+        )
+
+        self.assertEqual(changed, [path])
+        document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(document["schema_version"], 2)
+        self.assertEqual(document["pipeline_version"], 2)
+        self.assertEqual(
+            document["pipeline"]["composition"]["attachment"],
+            {"mode": "grounded", "free_anchor": None},
+        )
+        cleanup = document["pipeline"]["cleanup"]
+        self.assertEqual(cleanup["contact_tolerance"], 3)
+        self.assertNotIn("grounded_tolerance", cleanup)
+        self.assertEqual(document["pipeline"]["composition"]["padding_fraction"], 0.06)
+
+    def test_current_prop_recipe_is_left_byte_untouched(self):
+        document = self.v1_prop_recipe()
+        document["schema_version"] = 2
+        document["pipeline_version"] = 2
+        document["pipeline"]["composition"]["attachment"] = {
+            "mode": "free",
+            "free_anchor": {"x": 12, "y": 7},
+        }
+        document["pipeline"]["cleanup"]["contact_tolerance"] = document["pipeline"][
+            "cleanup"
+        ].pop("grounded_tolerance")
+        path = self.write_prop_recipe("lamp.json", document)
+        before = path.read_bytes()
+
+        changed = migrate_definitions.migrate_directory(
+            self.root, "prop_recipes", dry_run=False
+        )
+
+        self.assertEqual(changed, [])
+        self.assertEqual(path.read_bytes(), before)
+
+    def test_ambiguous_v1_prop_attachment_is_refused(self):
+        document = self.v1_prop_recipe()
+        document["pipeline"]["composition"]["attachment"] = {
+            "mode": "ceiling",
+            "free_anchor": None,
+        }
+        self.write_prop_recipe("ambiguous.json", document)
+
+        with self.assertRaisesRegex(ValueError, "already contains attachment"):
+            migrate_definitions.migrate_directory(self.root, "prop_recipes", dry_run=False)
 
 
     # An absent list and an empty one always meant the same thing. Writing both

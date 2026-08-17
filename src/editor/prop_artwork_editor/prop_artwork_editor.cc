@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -35,10 +36,11 @@ std::string CurrentUtcTimestamp() {
 }
 
 absl::StatusOr<std::optional<PropArtworkContextPreview>> BuildContext(
-    const PropArtwork& artwork, const std::optional<TerrainGenConfig>& terrain) {
+    const PropArtwork& artwork, const std::optional<TerrainGenConfig>& terrain,
+    PropAttachmentMode attachment_mode) {
   if (!terrain.has_value()) return std::nullopt;
   ASSIGN_OR_RETURN(PropArtworkContextPreview preview,
-                   BuildPropArtworkContextPreview(artwork, *terrain));
+                   BuildPropArtworkContextPreview(artwork, *terrain, attachment_mode));
   return std::optional<PropArtworkContextPreview>(std::move(preview));
 }
 
@@ -47,7 +49,8 @@ absl::StatusOr<PreparedPropCreationPreview> PrepareCreationPreview(
     std::optional<TerrainGenConfig> terrain) {
   ASSIGN_OR_RETURN(PreparedPropAsset prepared, PreparePropAsset(source, source_pixels, request));
   ASSIGN_OR_RETURN(std::optional<PropArtworkContextPreview> context,
-                   BuildContext(prepared.artwork.finished, terrain));
+                   BuildContext(prepared.artwork.finished, terrain,
+                                request.pipeline.composition.attachment.mode));
   return PreparedPropCreationPreview{
       .asset = std::move(prepared),
       .context = std::move(context),
@@ -62,7 +65,8 @@ absl::StatusOr<PreparedPropRegenerationPreview> PrepareRegenerationPreview(
                    PreparePropRegeneration(source, source_pixels, recipe, texture, texture_pixels,
                                            sprite, settings));
   ASSIGN_OR_RETURN(std::optional<PropArtworkContextPreview> context,
-                   BuildContext(prepared.artwork.finished, terrain));
+                   BuildContext(prepared.artwork.finished, terrain,
+                                settings.pipeline.composition.attachment.mode));
   return PreparedPropRegenerationPreview{
       .asset = std::move(prepared),
       .context = std::move(context),
@@ -76,6 +80,13 @@ PropArtworkEditor::PropArtworkEditor(Api* api, GuiInterface* gui, PreviewTexture
       gui_(gui),
       preview_(preview),
       preview_canvas_(Canvas::Options{.gui = gui, .grid_size = 32.0f}) {}
+
+PropArtworkEditor::~PropArtworkEditor() {
+  const absl::Status discarded = DiscardSessionSource();
+  if (!discarded.ok()) {
+    LOG(ERROR) << "Could not discard uncommitted prop source during shutdown: " << discarded;
+  }
+}
 
 absl::StatusOr<std::unique_ptr<PropArtworkEditor>> PropArtworkEditor::Create(
     Api* api, GuiInterface* gui, PreviewTextureSink* preview) {
@@ -97,6 +108,13 @@ absl::Status PropArtworkEditor::Init() {
 
 bool PropArtworkEditor::HasPendingWork() const {
   return !std::holds_alternative<std::monostate>(pending_work_);
+}
+
+absl::Status PropArtworkEditor::DiscardSessionSource() {
+  if (!session_source_id_.has_value()) return absl::OkStatus();
+  RETURN_IF_ERROR(api_->DeleteSourceArtwork(*session_source_id_));
+  session_source_id_.reset();
+  return absl::OkStatus();
 }
 
 void PropArtworkEditor::StartImport(std::string path) {
@@ -138,12 +156,37 @@ void PropArtworkEditor::SelectSource() {
     model_.SetStatus(std::string(pixels.status().message()));
     return;
   }
-  const absl::Status selected = model_.SelectSource(**source, *std::move(pixels));
+  const SourceArtwork source_snapshot = **source;
+  if (session_source_id_.has_value() && *session_source_id_ != source_snapshot.id) {
+    const absl::Status discarded = DiscardSessionSource();
+    if (!discarded.ok()) {
+      model_.SetStatus(
+          absl::StrCat("Could not discard the current imported source: ", discarded.message()));
+      return;
+    }
+  }
+  const absl::Status selected = model_.SelectSource(source_snapshot, *std::move(pixels));
   if (!selected.ok()) {
     model_.SetStatus(std::string(selected.message()));
     return;
   }
-  model_.SetStatus(absl::StrCat("Selected retained source '", (*source)->name, "'."));
+  model_.SetStatus(absl::StrCat("Selected retained source '", source_snapshot.name, "'."));
+}
+
+void PropArtworkEditor::DeleteSelectedSource() {
+  if (!model_.source().has_value() || model_.active_recipe().has_value()) {
+    model_.SetStatus("Choose an uncommitted retained source before deleting it.");
+    return;
+  }
+  const SourceArtwork source = *model_.source();
+  const absl::Status deleted = api_->DeleteSourceArtwork(source.id);
+  if (!deleted.ok()) {
+    model_.SetStatus(std::string(deleted.message()));
+    return;
+  }
+  if (session_source_id_ == source.id) session_source_id_.reset();
+  model_.StartNewRecipe();
+  model_.SetStatus(absl::StrCat("Deleted retained source '", source.name, "'."));
 }
 
 void PropArtworkEditor::OpenRecipe() {
@@ -173,13 +216,33 @@ void PropArtworkEditor::OpenRecipe() {
     }
     terrain = **loaded;
   }
+  const SourceArtwork source_snapshot = **source;
+  if (session_source_id_.has_value() && *session_source_id_ != source_snapshot.id) {
+    const absl::Status discarded = DiscardSessionSource();
+    if (!discarded.ok()) {
+      model_.SetStatus(
+          absl::StrCat("Could not discard the current imported source: ", discarded.message()));
+      return;
+    }
+  }
   const absl::Status loaded =
-      model_.LoadRecipe(snapshot, **source, *std::move(pixels), std::move(terrain));
+      model_.LoadRecipe(snapshot, source_snapshot, *std::move(pixels), std::move(terrain));
   if (!loaded.ok()) {
     model_.SetStatus(std::string(loaded.message()));
     return;
   }
   model_.SetStatus(absl::StrCat("Opened '", snapshot.name, "'. Process to preview it."));
+}
+
+void PropArtworkEditor::ClearWorkspace() {
+  const absl::Status discarded = DiscardSessionSource();
+  if (!discarded.ok()) {
+    model_.SetStatus(
+        absl::StrCat("Could not discard the uncommitted imported source: ", discarded.message()));
+    return;
+  }
+  model_.StartNewRecipe();
+  model_.SetStatus("Prop Artwork workspace cleared. Saved prop bundles were not changed.");
 }
 
 void PropArtworkEditor::StartPreparation() {
@@ -273,6 +336,7 @@ void PropArtworkEditor::CommitPrepared() {
       model_.SetStatus(std::string(created.status().message()));
       return;
     }
+    if (session_source_id_ == prepared->source.id) session_source_id_.reset();
     model_.BindCommittedRecipe(prepared->recipe);
     model_.SetStatus(absl::StrCat("Created '", prepared->recipe.name,
                                   "'. Its collider-free blueprint is ready for placement."));
@@ -337,17 +401,35 @@ void PropArtworkEditor::PollWork() {
     }
     absl::StatusOr<SourceArtwork*> source = api_->GetSourceArtwork(*id);
     if (!source.ok()) {
-      model_.SetStatus(absl::StrCat("Retained source was created but could not be reloaded: ",
-                                    source.status().message()));
+      const absl::Status cleanup = api_->DeleteSourceArtwork(*id);
+      model_.SetStatus(absl::StrCat(
+          "Imported source could not be reloaded: ", source.status().message(),
+          cleanup.ok() ? "" : absl::StrCat("; cleanup also failed: ", cleanup.message())));
       return;
     }
-    const absl::Status selected = model_.SelectSource(**source, *std::move(pixels));
+    const SourceArtwork source_snapshot = **source;
+    const absl::Status discarded = DiscardSessionSource();
+    if (!discarded.ok()) {
+      const absl::Status cleanup = api_->DeleteSourceArtwork(*id);
+      model_.SetStatus(absl::StrCat(
+          "Could not replace the current imported source: ", discarded.message(),
+          cleanup.ok() ? ""
+                       : absl::StrCat("; new-source cleanup also failed: ", cleanup.message())));
+      return;
+    }
+    const absl::Status selected = model_.SelectSource(source_snapshot, *std::move(pixels));
     if (!selected.ok()) {
-      model_.SetStatus(std::string(selected.message()));
+      const absl::Status cleanup = api_->DeleteSourceArtwork(*id);
+      model_.StartNewRecipe();
+      model_.SetStatus(absl::StrCat(
+          selected.message(), cleanup.ok() ? ""
+                                           : absl::StrCat("; imported-source cleanup also failed: ",
+                                                          cleanup.message())));
       return;
     }
-    model_.SetStatus(
-        absl::StrCat("Accepted source '", (*source)->name, "'. Choose a terrain and process it."));
+    session_source_id_ = *id;
+    model_.SetStatus(absl::StrCat("Accepted source '", source_snapshot.name,
+                                  "'. Choose a terrain and process it."));
     return;
   }
 
@@ -418,6 +500,9 @@ absl::Status PropArtworkEditor::RenderControls() {
       break;
     case PropArtworkControlsPanel::Action::kOpenSource:
       SelectSource();
+      break;
+    case PropArtworkControlsPanel::Action::kDeleteSource:
+      DeleteSelectedSource();
       break;
   }
   return absl::OkStatus();
@@ -518,8 +603,8 @@ absl::Status PropArtworkEditor::RenderOutput() {
     case PropArtworkOutputPanel::Action::kOpenRecipe:
       OpenRecipe();
       break;
-    case PropArtworkOutputPanel::Action::kNewRecipe:
-      model_.StartNewRecipe();
+    case PropArtworkOutputPanel::Action::kClearWorkspace:
+      ClearWorkspace();
       break;
     case PropArtworkOutputPanel::Action::kCopyRecipe:
       model_.StartRecipeCopy();

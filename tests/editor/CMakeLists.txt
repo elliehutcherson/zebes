@@ -171,6 +171,29 @@ target_link_libraries(prop_artwork_context_test
 target_include_directories(prop_artwork_context_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(prop_artwork_context_test)
 
+add_executable(prop_artwork_controls_panel_test prop_artwork_controls_panel_test.cc)
+target_link_libraries(prop_artwork_controls_panel_test
+  gtest_main
+  gmock
+  macros
+  image_digest
+  prop_artwork_controls_panel
+  gui_mock
+)
+target_include_directories(prop_artwork_controls_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(prop_artwork_controls_panel_test)
+
+add_executable(prop_artwork_output_panel_test prop_artwork_output_panel_test.cc)
+target_link_libraries(prop_artwork_output_panel_test
+  gtest_main
+  gmock
+  macros
+  prop_artwork_output_panel
+  gui_mock
+)
+target_include_directories(prop_artwork_output_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(prop_artwork_output_panel_test)
+
 add_executable(prop_artwork_editor_test prop_artwork_editor_test.cc)
 target_link_libraries(prop_artwork_editor_test
   gtest_main

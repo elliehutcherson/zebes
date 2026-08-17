@@ -29,6 +29,7 @@ target_link_libraries(prop_artwork_editor_model
 add_library(prop_artwork_controls_panel prop_artwork_controls_panel.cc)
 target_link_libraries(prop_artwork_controls_panel
   PUBLIC
+  confirm_prompt
   gui_interface
   prop_artwork_editor_model
   source_artwork

@@ -16,7 +16,7 @@ class PropArtworkOutputPanel {
   enum class Action {
     kNone,
     kOpenRecipe,
-    kNewRecipe,
+    kClearWorkspace,
     kCopyRecipe,
     kPrepare,
     kCommit,
@@ -37,6 +37,7 @@ class PropArtworkOutputPanel {
   void RenderPreviewPolicy(PropArtworkEditorModel& model);
 
   GuiInterface* gui_;
+  ConfirmPrompt clear_prompt_;
   ConfirmPrompt delete_prompt_;
 };
 

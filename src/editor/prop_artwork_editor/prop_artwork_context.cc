@@ -69,10 +69,23 @@ RgbaImage Checkerboard(int width, int height) {
   return image;
 }
 
+RgbaImage FlipVertical(const RgbaImage& source) {
+  RgbaImage flipped{.width = source.width, .height = source.height};
+  flipped.pixels.resize(source.pixels.size());
+  for (int y = 0; y < source.height; ++y) {
+    const size_t source_offset = static_cast<size_t>(y) * source.width * 4;
+    const size_t target_offset = static_cast<size_t>(source.height - 1 - y) * source.width * 4;
+    std::copy_n(source.pixels.begin() + static_cast<ptrdiff_t>(source_offset), source.width * 4,
+                flipped.pixels.begin() + static_cast<ptrdiff_t>(target_offset));
+  }
+  return flipped;
+}
+
 }  // namespace
 
 absl::StatusOr<PropArtworkContextPreview> BuildPropArtworkContextPreview(
-    const PropArtwork& prop, const TerrainGenConfig& terrain_config) {
+    const PropArtwork& prop, const TerrainGenConfig& terrain_config,
+    PropAttachmentMode attachment_mode) {
   if (!prop.IsValid()) {
     return absl::InvalidArgumentError("context preview requires valid prop artwork");
   }
@@ -80,23 +93,37 @@ absl::StatusOr<PropArtworkContextPreview> BuildPropArtworkContextPreview(
   TerrainGenConfig preview_config = terrain_config;
   preview_config.supersample = 1;
   ASSIGN_OR_RETURN(const TerrainRenderer renderer, TerrainRenderer::Create(preview_config));
-  ASSIGN_OR_RETURN(const RgbaImage terrain, RenderTerrainPreviewScene(renderer));
+  ASSIGN_OR_RETURN(RgbaImage terrain, RenderTerrainPreviewScene(renderer));
 
   const int anchor_x = terrain.width / 2;
-  int ground_y = -1;
-  for (int y = 0; y < terrain.height; ++y) {
-    const size_t offset = (static_cast<size_t>(y) * terrain.width + anchor_x) * 4;
-    if (terrain.pixels[offset + 3] == 0) continue;
-    ground_y = y;
-    break;
+  int anchor_y = terrain.height / 2;
+  if (attachment_mode == PropAttachmentMode::kGrounded) {
+    anchor_y = -1;
+    for (int y = 0; y < terrain.height; ++y) {
+      const size_t offset = (static_cast<size_t>(y) * terrain.width + anchor_x) * 4;
+      if (terrain.pixels[offset + 3] == 0) continue;
+      anchor_y = y;
+      break;
+    }
+  } else if (attachment_mode == PropAttachmentMode::kCeiling) {
+    terrain = FlipVertical(terrain);
+    anchor_y = -1;
+    for (int y = terrain.height - 1; y >= 0; --y) {
+      const size_t offset = (static_cast<size_t>(y) * terrain.width + anchor_x) * 4;
+      if (terrain.pixels[offset + 3] == 0) continue;
+      anchor_y = y;
+      break;
+    }
+  } else if (attachment_mode != PropAttachmentMode::kFree) {
+    return absl::InvalidArgumentError("context preview attachment mode is invalid");
   }
-  if (ground_y < 0) {
+  if (anchor_y < 0) {
     return absl::FailedPreconditionError(
-        "selected terrain produced no ground under the context-preview anchor");
+        "selected terrain produced no attachment surface under the context-preview anchor");
   }
 
   const int prop_left = anchor_x - prop.anchor_x;
-  const int prop_top = ground_y - prop.anchor_y;
+  const int prop_top = anchor_y - prop.anchor_y;
   const int margin = preview_config.tile_size;
   const int content_left = AlignDown(std::min(0, prop_left), margin);
   const int content_top = AlignDown(std::min(0, prop_top), margin);
@@ -122,7 +149,7 @@ absl::StatusOr<PropArtworkContextPreview> BuildPropArtworkContextPreview(
   return PropArtworkContextPreview{
       .image = std::move(preview),
       .anchor_x = terrain_left + anchor_x,
-      .anchor_y = terrain_top + ground_y,
+      .anchor_y = terrain_top + anchor_y,
   };
 }
 

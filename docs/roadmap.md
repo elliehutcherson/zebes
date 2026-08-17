@@ -139,12 +139,17 @@ explicit active layer while keeping parallax theme layers specialized.
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved
-terrain colours are the production palette policy. Milestones 1-4 now provide
+terrain colours are the production palette policy. Milestones 1-4a now provide
 the deterministic pipeline, strict source and recipe resources, compensated
 bundle lifecycle, regeneration/deletion, and the imported-source Prop Artwork
 tab. Its preview reuses the editor `Canvas` for rulers, pan, zoom, and Fit, and
-context framing retains the complete prop texture. Attachment modes and provider
-integration remain.
+context framing retains the complete prop texture. Uncommitted imports are
+discarded on replacement, Clear, or normal shutdown; retained sources can be
+deleted explicitly through the same reference checks as other assets.
+Grounded, ceiling, and free/background attachment modes are persisted and feed
+composition, validation, context preview, sprite offsets, and regeneration.
+Provider integration remains, but the local feedback-loop milestone comes first
+so provider work does not multiply an already expensive verification cycle.
 Its §12 sequence:
 
 0. **Accepted.** Run the visual feasibility spike:
@@ -157,7 +162,14 @@ Its §12 sequence:
 3. **Implemented.** Add resources and compensated bundle lifecycle.
 4. **Implemented.** Prove the imported-source editor workflow, including shared
    Canvas navigation and unclipped context framing.
-4a. **Next.** Persist grounded, ceiling, and free/background attachment modes.
+4a. **Implemented.** Persist grounded, ceiling, and free/background attachment
+    modes, with a version-1 grounded migration.
+4b. **Next.** Optimize the developer feedback loop. Begin with controlled
+    baselines, then batch affected test targets into one build, preserve concise
+    success and complete failure output, evaluate Ninja, and allow at most two
+    scoped clang-tidy workers. The observed Milestone 4a session spent 5m44s in
+    the affected-target sweep and 1m24s in clang-tidy even though the test bodies
+    themselves took less than one second.
 5. Add the cancellable image-generation service and first provider adapter.
 6. Harden shutdown, retry, staging cleanup, and provider failure behavior.
 

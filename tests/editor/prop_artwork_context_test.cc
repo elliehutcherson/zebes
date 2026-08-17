@@ -28,8 +28,9 @@ TEST(PropArtworkContextTest, CompositesAPropBesideRealTerrainWithoutChangingTheP
   terrain.tile_size = 8;
   terrain.supersample = 1;
 
-  ASSERT_OK_AND_ASSIGN(const PropArtworkContextPreview preview,
-                       BuildPropArtworkContextPreview(prop, terrain));
+  ASSERT_OK_AND_ASSIGN(
+      const PropArtworkContextPreview preview,
+      BuildPropArtworkContextPreview(prop, terrain, PropAttachmentMode::kGrounded));
 
   EXPECT_EQ(preview.image.width, 96);
   EXPECT_EQ(preview.image.height, 72);
@@ -55,8 +56,9 @@ TEST(PropArtworkContextTest, ExpandsToKeepTheCompletePropTextureInFrame) {
   terrain.tile_size = 8;
   terrain.supersample = 1;
 
-  ASSERT_OK_AND_ASSIGN(const PropArtworkContextPreview preview,
-                       BuildPropArtworkContextPreview(prop, terrain));
+  ASSERT_OK_AND_ASSIGN(
+      const PropArtworkContextPreview preview,
+      BuildPropArtworkContextPreview(prop, terrain, PropAttachmentMode::kGrounded));
 
   const int prop_top = preview.anchor_y - prop.anchor_y;
   const int prop_left = preview.anchor_x - prop.anchor_x;
@@ -75,6 +77,35 @@ TEST(PropArtworkContextTest, ExpandsToKeepTheCompletePropTextureInFrame) {
     }
   }
   EXPECT_EQ(retained_prop_pixels, 8 * 80);
+}
+
+TEST(PropArtworkContextTest, PlacesEachAttachmentModeInItsMatchingScene) {
+  PropArtwork prop;
+  prop.image = RgbaImage{.width = 1, .height = 1, .pixels = {0, 0, 0, 0}};
+  TerrainGenConfig terrain;
+  terrain.tile_size = 8;
+  terrain.supersample = 1;
+
+  ASSERT_OK_AND_ASSIGN(
+      const PropArtworkContextPreview grounded,
+      BuildPropArtworkContextPreview(prop, terrain, PropAttachmentMode::kGrounded));
+  ASSERT_OK_AND_ASSIGN(const PropArtworkContextPreview ceiling,
+                       BuildPropArtworkContextPreview(prop, terrain, PropAttachmentMode::kCeiling));
+  ASSERT_OK_AND_ASSIGN(const PropArtworkContextPreview free,
+                       BuildPropArtworkContextPreview(prop, terrain, PropAttachmentMode::kFree));
+
+  const auto is_checker = [](const PropArtworkContextPreview& preview, int x, int y) {
+    const size_t offset = (static_cast<size_t>(y) * preview.image.width + x) * 4;
+    const uint8_t red = preview.image.pixels[offset + 0];
+    return (red == 42 || red == 52) && preview.image.pixels[offset + 1] == red &&
+           preview.image.pixels[offset + 2] == red;
+  };
+  EXPECT_FALSE(is_checker(grounded, grounded.anchor_x, grounded.anchor_y));
+  EXPECT_TRUE(is_checker(grounded, grounded.anchor_x, grounded.anchor_y - 1));
+  EXPECT_FALSE(is_checker(ceiling, ceiling.anchor_x, ceiling.anchor_y));
+  EXPECT_TRUE(is_checker(ceiling, ceiling.anchor_x, ceiling.anchor_y + 1));
+  EXPECT_EQ(free.anchor_x, free.image.width / 2);
+  EXPECT_EQ(free.anchor_y, free.image.height / 2);
 }
 
 }  // namespace

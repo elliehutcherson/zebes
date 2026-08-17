@@ -248,12 +248,44 @@ def migrate_terrain_recipe(document: dict) -> bool:
     return True
 
 
+PROP_RECIPE_SCHEMA_VERSION = 2
+PROP_PIPELINE_VERSION = 2
+
+
+def migrate_prop_recipe(document: dict) -> bool:
+    """Adds explicit grounded attachment semantics without changing output."""
+    version = document.get("schema_version")
+    if version == PROP_RECIPE_SCHEMA_VERSION:
+        return False
+    if version != 1:
+        raise ValueError(
+            f"Cannot migrate prop recipe schema version {version!r}; only 1 is supported"
+        )
+    if document.get("pipeline_version") != 1:
+        raise ValueError("Cannot migrate prop recipe with a non-v1 pipeline")
+
+    pipeline = document["pipeline"]
+    composition = pipeline["composition"]
+    cleanup = pipeline["cleanup"]
+    if "attachment" in composition:
+        raise ValueError("Cannot migrate v1 prop recipe that already contains attachment data")
+    if "grounded_tolerance" not in cleanup or "contact_tolerance" in cleanup:
+        raise ValueError("Cannot migrate ambiguous v1 prop cleanup tolerance")
+
+    composition["attachment"] = {"mode": "grounded", "free_anchor": None}
+    cleanup["contact_tolerance"] = cleanup.pop("grounded_tolerance")
+    document["pipeline_version"] = PROP_PIPELINE_VERSION
+    document["schema_version"] = PROP_RECIPE_SCHEMA_VERSION
+    return True
+
+
 # Each definition directory, the migration that brings its files current, and
 # the indent its manager writes with. Matching the indent matters: a migrated
 # file and one the editor re-saves must be byte-identical, or every later save
 # produces a whole-file diff that hides the real change.
 MIGRATIONS = {
     "levels": (migrate_level, 4),
+    "prop_recipes": (migrate_prop_recipe, 2),
     "sprites": (migrate_sprite, 4),
     "terrain_recipes": (migrate_terrain_recipe, 2),
     "tilesets": (migrate_tileset, 4),
