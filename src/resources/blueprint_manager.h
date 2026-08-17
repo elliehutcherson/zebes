@@ -38,6 +38,10 @@ class BlueprintManager {
    */
   virtual absl::StatusOr<std::string> CreateBlueprint(Blueprint blueprint);
 
+  // Persists a preflighted definition with its caller-assigned stable ID.
+  virtual absl::Status CreateBlueprintWithId(Blueprint blueprint);
+  virtual absl::Status PreflightBlueprintWithId(const Blueprint& blueprint);
+
   /**
    * @brief Updates an existing blueprint with new metadata and saves it.
    */

@@ -5,6 +5,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/resource_identity.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
@@ -160,6 +161,25 @@ absl::StatusOr<std::string> SpriteManager::CreateSprite(Sprite sprite) {
   return loaded_sprite->id;
 }
 
+absl::Status SpriteManager::CreateSpriteWithId(Sprite sprite) {
+  RETURN_IF_ERROR(PreflightSpriteWithId(sprite));
+  return SaveSprite(std::move(sprite));
+}
+
+absl::Status SpriteManager::PreflightSpriteWithId(const Sprite& sprite) {
+  if (!IsPathSafeResourceId(sprite.id) || !IsSafeResourceName(sprite.name)) {
+    return absl::InvalidArgumentError("prepared sprite needs a path-safe ID and name");
+  }
+  if (sprites_.contains(sprite.id)) {
+    return absl::AlreadyExistsError(absl::StrCat("Sprite with id ", sprite.id, " exists"));
+  }
+  const std::string filename = absl::StrCat(sprite.name, "-", sprite.id, ".json");
+  if (std::filesystem::exists(GetDefinitionsPath(filename))) {
+    return absl::AlreadyExistsError("prepared sprite definition already exists");
+  }
+  return absl::OkStatus();
+}
+
 absl::Status SpriteManager::SaveSprite(Sprite sprite) {
   if (sprite.id.empty()) {
     return absl::InvalidArgumentError("Sprite must have an ID to be saved.");
@@ -171,20 +191,17 @@ absl::Status SpriteManager::SaveSprite(Sprite sprite) {
 
   nlohmann::json json = ToJson(sprite);
 
-  // Handle Renaming: If the name has changed, delete the old file.
+  std::string filename = absl::StrCat(sprite.name, "-", sprite.id, ".json");
+  std::string definitions_path = GetDefinitionsPath(filename);
+
+  RETURN_IF_ERROR(WriteTextFileAtomically(definitions_path, json.dump(4)));
+
+  // Publish the new definition before removing the old name. A failed write
+  // must leave the previously loaded sprite durable.
   auto it = sprites_.find(sprite.id);
   if (it != sprites_.end()) {
     RemoveOldFileIfExists(sprite.id, it->second->name, sprite.name, definitions_path_);
   }
-
-  std::string filename = absl::StrCat(sprite.name, "-", sprite.id, ".json");
-  std::string definitions_path = GetDefinitionsPath(filename);
-
-  std::ofstream file(definitions_path);
-  if (!file.is_open()) {
-    return absl::InternalError(absl::StrCat("Failed to open file for writing: ", definitions_path));
-  }
-  file << json.dump(4);
 
   // Assigned through the existing allocation rather than replacing it: callers
   // hold Sprite* from GetSprite, and swapping the unique_ptr frees what they
@@ -211,10 +228,13 @@ absl::Status SpriteManager::DeleteSprite(const std::string& id) {
   auto it = sprites_.find(id);
   if (it == sprites_.end()) return absl::NotFoundError("Sprite not found");
 
-  // Remove JSON file
-  // Remove JSON file
   std::string filename = absl::StrCat(it->second->name, "-", id, ".json");
-  std::filesystem::remove(GetDefinitionsPath(filename));
+  std::error_code error;
+  std::filesystem::remove(GetDefinitionsPath(filename), error);
+  if (error) {
+    return absl::InternalError(
+        absl::StrCat("could not delete sprite definition: ", error.message()));
+  }
 
   sprites_.erase(it);
   return absl::OkStatus();

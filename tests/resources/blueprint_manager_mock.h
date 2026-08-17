@@ -17,6 +17,8 @@ class BlueprintManagerMock : public BlueprintManager {
               (override));
   MOCK_METHOD(absl::Status, LoadAllBlueprints, (), (override));
   MOCK_METHOD(absl::StatusOr<std::string>, CreateBlueprint, (Blueprint blueprint), (override));
+  MOCK_METHOD(absl::Status, CreateBlueprintWithId, (Blueprint blueprint), (override));
+  MOCK_METHOD(absl::Status, PreflightBlueprintWithId, (const Blueprint& blueprint), (override));
   MOCK_METHOD(absl::Status, SaveBlueprint, (Blueprint blueprint), (override));
   MOCK_METHOD(absl::StatusOr<Blueprint*>, GetBlueprint, (const std::string& id), (override));
   MOCK_METHOD(absl::Status, DeleteBlueprint, (const std::string& id), (override));

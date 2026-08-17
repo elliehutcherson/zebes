@@ -7,6 +7,7 @@
 #include "absl/strings/str_cat.h"
 #include "common/common.h"
 #include "common/image_io.h"
+#include "common/resource_identity.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
@@ -142,6 +143,57 @@ absl::StatusOr<std::string> TextureManager::CreateTextureFromPixels(
   return CreateTexture(Texture{.name = name, .path = image_path});
 }
 
+absl::Status TextureManager::CreateGeneratedTexture(const Texture& texture, int width, int height,
+                                                    absl::Span<const uint8_t> pixels) {
+  RETURN_IF_ERROR(PreflightGeneratedTexture(texture));
+
+  const std::string image_path = GetImagesPath(texture.path);
+  RETURN_IF_ERROR(WritePng(image_path, width, height, pixels));
+  absl::StatusOr<TextureHandle> handle = resources_->Load(image_path);
+  if (!handle.ok()) {
+    std::filesystem::remove(image_path);
+    return handle.status();
+  }
+
+  const absl::Status save_status = SaveTexture(texture);
+  if (!save_status.ok()) {
+    resources_->Unload(*handle).IgnoreError();
+    std::filesystem::remove(image_path);
+    return save_status;
+  }
+  handles_[texture.id] = *handle;
+  textures_[texture.id] = std::make_unique<Texture>(texture);
+  return absl::OkStatus();
+}
+
+absl::Status TextureManager::PreflightGeneratedTexture(const Texture& texture) {
+  if (!IsPathSafeResourceId(texture.id) || !IsSafeResourceName(texture.name)) {
+    return absl::InvalidArgumentError("prepared generated texture needs an ID and name");
+  }
+  if (texture.name.length() > kMaxTextureNameLength) {
+    return absl::InvalidArgumentError(absl::StrCat("Texture name too long: ", texture.name,
+                                                   ". Max length is ", kMaxTextureNameLength));
+  }
+  const std::string expected_path = absl::StrCat("textures/props/", texture.id, ".png");
+  if (texture.path != expected_path) {
+    return absl::InvalidArgumentError(
+        "prepared generated texture path must be ID-backed under textures/props");
+  }
+  if (textures_.contains(texture.id)) {
+    return absl::AlreadyExistsError(absl::StrCat("Texture with id ", texture.id, " exists"));
+  }
+
+  const std::string image_path = GetImagesPath(texture.path);
+  const std::string definition_path =
+      GetDefinitionsPath(absl::StrCat(texture.name, "-", texture.id, ".json"));
+  if (std::filesystem::exists(image_path) || std::filesystem::exists(definition_path)) {
+    return absl::AlreadyExistsError(
+        "prepared generated texture would replace an existing asset file");
+  }
+
+  return absl::OkStatus();
+}
+
 absl::Status TextureManager::ReplaceTexturePixels(const std::string& id, int width, int height,
                                                   absl::Span<const uint8_t> pixels) {
   auto texture = textures_.find(id);
@@ -272,12 +324,7 @@ absl::Status TextureManager::SaveTexture(const Texture& texture) {
   std::string filename = absl::StrCat(texture.name, "-", texture.id, ".json");
   std::string absolute_path = GetDefinitionsPath(filename);
 
-  std::ofstream file(absolute_path);
-  if (!file.is_open()) {
-    return absl::InternalError(absl::StrCat("Failed to open file for writing: ", absolute_path));
-  }
-  file << json.dump(4);
-  return absl::OkStatus();
+  return WriteTextFileAtomically(absolute_path, json.dump(4));
 }
 
 absl::Status TextureManager::UpdateTexture(const Texture& texture) {

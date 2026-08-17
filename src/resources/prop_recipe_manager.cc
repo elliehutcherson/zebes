@@ -10,6 +10,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/resource_identity.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
@@ -19,17 +20,6 @@ namespace zebes {
 namespace {
 
 constexpr char kDefinitionsPath[] = "definitions/prop_recipes";
-
-bool IsSafeId(std::string_view id) {
-  if (id.empty()) return false;
-  for (const char character : id) {
-    const bool safe = (character >= 'a' && character <= 'z') ||
-                      (character >= 'A' && character <= 'Z') ||
-                      (character >= '0' && character <= '9') || character == '-';
-    if (!safe) return false;
-  }
-  return true;
-}
 
 }  // namespace
 
@@ -78,7 +68,7 @@ absl::Status PropRecipeManager::LoadAllRecipes() {
       continue;
     }
     PropRecipe recipe = std::move(*parsed);
-    if (!IsSafeId(recipe.id)) {
+    if (!IsPathSafeResourceId(recipe.id)) {
       failures.Add(entry.path().string(),
                    absl::InvalidArgumentError("prop recipe ID is not path-safe"));
       continue;
@@ -107,9 +97,27 @@ absl::StatusOr<std::string> PropRecipeManager::CreateRecipe(PropRecipe recipe) {
   return recipe.id;
 }
 
+absl::Status PropRecipeManager::CreateRecipeWithId(PropRecipe recipe) {
+  RETURN_IF_ERROR(PreflightRecipeWithId(recipe));
+  return SaveRecipe(recipe);
+}
+
+absl::Status PropRecipeManager::PreflightRecipeWithId(const PropRecipe& recipe) const {
+  RETURN_IF_ERROR(ValidatePropRecipe(recipe));
+  if (!IsPathSafeResourceId(recipe.id)) {
+    return absl::InvalidArgumentError("prop recipe ID is not path-safe");
+  }
+  if (recipes_.contains(recipe.id) || std::filesystem::exists(RecipePath(recipe.id))) {
+    return absl::AlreadyExistsError(absl::StrCat("prop recipe ", recipe.id, " exists"));
+  }
+  return absl::OkStatus();
+}
+
 absl::Status PropRecipeManager::SaveRecipe(const PropRecipe& recipe) {
   RETURN_IF_ERROR(ValidatePropRecipe(recipe));
-  if (!IsSafeId(recipe.id)) return absl::InvalidArgumentError("prop recipe ID is not path-safe");
+  if (!IsPathSafeResourceId(recipe.id)) {
+    return absl::InvalidArgumentError("prop recipe ID is not path-safe");
+  }
 
   std::error_code error;
   std::filesystem::create_directories(definitions_path_, error);

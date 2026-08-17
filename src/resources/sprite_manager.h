@@ -40,6 +40,10 @@ class SpriteManager {
    */
   virtual absl::StatusOr<std::string> CreateSprite(Sprite sprite);
 
+  // Persists a preflighted definition with its caller-assigned stable ID.
+  virtual absl::Status CreateSpriteWithId(Sprite sprite);
+  virtual absl::Status PreflightSpriteWithId(const Sprite& sprite);
+
   /**
    * @brief Updates an existing sprite with new metadata and saves it.
    */

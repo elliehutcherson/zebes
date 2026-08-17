@@ -1,4 +1,5 @@
 #include "api/api.h"
+#include "common/image_digest.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
@@ -11,12 +12,15 @@
 #include "resources/terrain_recipe_manager_mock.h"
 #include "resources/texture_manager_mock.h"
 #include "resources/tileset_manager_mock.h"
+#include "terrain/terrain_palette.h"
+#include "terrain/terrain_style.h"
 
 namespace zebes {
 namespace {
 
 using ::testing::_;
 using ::testing::HasSubstr;
+using ::testing::InSequence;
 using ::testing::NiceMock;
 using ::testing::Return;
 
@@ -404,6 +408,202 @@ TEST_F(ApiValidationTest, CreatePropRecipeRefusesAMissingSourceBeforePublishingR
   EXPECT_CALL(prop_recipe_manager_, CreateRecipe(_)).Times(0);
 
   EXPECT_EQ(api_->CreatePropRecipe(std::move(recipe)).status().code(), absl::StatusCode::kNotFound);
+}
+
+class GeneratedPropCommitTest : public ApiValidationTest {
+ protected:
+  void SetUp() override {
+    ApiValidationTest::SetUp();
+    const TerrainGenConfig terrain;
+    ASSERT_OK_AND_ASSIGN(const ResolvedTerrainPalette palette, ResolveTerrainPalette(terrain));
+    const RgbaImage final_image{
+        .width = 1,
+        .height = 1,
+        .pixels = {palette.at(TerrainPaletteRole::kOutline).r,
+                   palette.at(TerrainPaletteRole::kOutline).g,
+                   palette.at(TerrainPaletteRole::kOutline).b, 255},
+    };
+    ASSERT_OK_AND_ASSIGN(const std::string final_digest, RgbaImageDigest(final_image));
+    const std::string source_digest(64, '1');
+    const SpriteFrame frame{
+        .index = 0,
+        .texture_x = 0,
+        .texture_y = 0,
+        .texture_w = 1,
+        .texture_h = 1,
+        .render_w = 1,
+        .render_h = 1,
+        .frames_per_cycle = 0,
+        .offset_x = 0,
+        .offset_y = 0,
+    };
+    prepared_ = PreparedPropAsset{
+        .source =
+            SourceArtwork{
+                .id = "source-1",
+                .name = "Boulder source",
+                .source_path = "source_art/props/source-1.png",
+                .provenance =
+                    ImportedArtworkProvenance{
+                        .original_filename = "boulder.png",
+                        .imported_at_utc = "2026-08-16T15:04:05Z",
+                    },
+                .width = 1,
+                .height = 1,
+                .content_digest = source_digest,
+            },
+        .artwork =
+            PropArtworkPipelineResult{
+                .pipeline_version = kPropArtworkPipelineVersion,
+                .source_digest = source_digest,
+                .finished = PropArtwork{.image = final_image, .anchor_x = 0, .anchor_y = 0},
+            },
+        .texture =
+            Texture{
+                .id = "texture-1",
+                .name = "Cave boulder",
+                .path = "textures/props/texture-1.png",
+            },
+        .sprite =
+            Sprite{
+                .id = "sprite-1",
+                .name = "Cave boulder",
+                .texture_id = "texture-1",
+                .frames = {frame},
+            },
+        .blueprint =
+            Blueprint{
+                .id = "blueprint-1",
+                .name = "Cave boulder",
+                .states = {Blueprint::State{
+                    .name = "Default",
+                    .collider_id = "",
+                    .sprite_id = "sprite-1",
+                }},
+            },
+        .recipe =
+            PropRecipe{
+                .id = "recipe-1",
+                .name = "Cave boulder",
+                .source_artwork_id = "source-1",
+                .style =
+                    PropArtworkStyle{.tile_size = 1, .pixel_block_size = 1, .palette = palette},
+                .pipeline =
+                    PropArtworkPipelineConfig{
+                        .composition =
+                            PropCompositionConfig{
+                                .canvas_tiles_wide = 1,
+                                .canvas_tiles_high = 1,
+                            },
+                    },
+                .texture_id = "texture-1",
+                .sprite_id = "sprite-1",
+                .blueprint_id = "blueprint-1",
+                .expected_frame = frame,
+                .final_pixel_digest = final_digest,
+            },
+    };
+    ASSERT_OK(ValidatePreparedPropAsset(prepared_));
+
+    ON_CALL(source_artwork_manager_, GetArtwork("source-1"))
+        .WillByDefault(Return(&prepared_.source));
+    ON_CALL(texture_manager_, GetTexture("texture-1"))
+        .WillByDefault(Return(absl::NotFoundError("missing texture")));
+    ON_CALL(sprite_manager_, GetSprite("sprite-1"))
+        .WillByDefault(Return(absl::NotFoundError("missing sprite")));
+    ON_CALL(blueprint_manager_, GetBlueprint("blueprint-1"))
+        .WillByDefault(Return(absl::NotFoundError("missing blueprint")));
+    ON_CALL(prop_recipe_manager_, GetRecipe("recipe-1"))
+        .WillByDefault(Return(absl::NotFoundError("missing recipe")));
+    ON_CALL(texture_manager_, PreflightGeneratedTexture(_)).WillByDefault(Return(absl::OkStatus()));
+    ON_CALL(sprite_manager_, PreflightSpriteWithId(_)).WillByDefault(Return(absl::OkStatus()));
+    ON_CALL(blueprint_manager_, PreflightBlueprintWithId(_))
+        .WillByDefault(Return(absl::OkStatus()));
+    ON_CALL(prop_recipe_manager_, PreflightRecipeWithId(_)).WillByDefault(Return(absl::OkStatus()));
+  }
+
+  PreparedPropAsset prepared_;
+};
+
+TEST_F(GeneratedPropCommitTest, PublishesTheRecipeOnlyAfterEveryDependencyExists) {
+  InSequence sequence;
+  EXPECT_CALL(texture_manager_, CreateGeneratedTexture(_, 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(sprite_manager_, CreateSpriteWithId(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(blueprint_manager_, CreateBlueprintWithId(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(prop_recipe_manager_, CreateRecipeWithId(_)).WillOnce(Return(absl::OkStatus()));
+
+  ASSERT_OK_AND_ASSIGN(const std::string id, api_->CreateGeneratedProp(prepared_));
+  EXPECT_EQ(id, "recipe-1");
+}
+
+TEST_F(GeneratedPropCommitTest, TextureFailureLeavesNoBundleMembers) {
+  EXPECT_CALL(texture_manager_, CreateGeneratedTexture(_, 1, 1, _))
+      .WillOnce(Return(absl::InternalError("texture write failed")));
+  EXPECT_CALL(sprite_manager_, CreateSpriteWithId(_)).Times(0);
+  EXPECT_CALL(texture_manager_, DeleteTexture(_)).Times(0);
+
+  EXPECT_FALSE(api_->CreateGeneratedProp(prepared_).ok());
+}
+
+TEST_F(GeneratedPropCommitTest, PreflightFailureOccursBeforeAnyBundleMemberIsWritten) {
+  EXPECT_CALL(blueprint_manager_, PreflightBlueprintWithId(_))
+      .WillOnce(Return(absl::AlreadyExistsError("definition path exists")));
+  EXPECT_CALL(texture_manager_, CreateGeneratedTexture(_, _, _, _)).Times(0);
+
+  EXPECT_EQ(api_->CreateGeneratedProp(prepared_).status().code(), absl::StatusCode::kAlreadyExists);
+}
+
+TEST_F(GeneratedPropCommitTest, SpriteFailureDeletesTheTexture) {
+  EXPECT_CALL(texture_manager_, CreateGeneratedTexture(_, 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(sprite_manager_, CreateSpriteWithId(_))
+      .WillOnce(Return(absl::InternalError("sprite write failed")));
+  EXPECT_CALL(texture_manager_, DeleteTexture("texture-1")).WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_FALSE(api_->CreateGeneratedProp(prepared_).ok());
+}
+
+TEST_F(GeneratedPropCommitTest, BlueprintFailureUnwindsSpriteThenTexture) {
+  InSequence sequence;
+  EXPECT_CALL(texture_manager_, CreateGeneratedTexture(_, 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(sprite_manager_, CreateSpriteWithId(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(blueprint_manager_, CreateBlueprintWithId(_))
+      .WillOnce(Return(absl::InternalError("blueprint write failed")));
+  EXPECT_CALL(sprite_manager_, DeleteSprite("sprite-1")).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, DeleteTexture("texture-1")).WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_FALSE(api_->CreateGeneratedProp(prepared_).ok());
+}
+
+TEST_F(GeneratedPropCommitTest, RecipeFailureUnwindsEveryRuntimeDependencyInReverseOrder) {
+  InSequence sequence;
+  EXPECT_CALL(texture_manager_, CreateGeneratedTexture(_, 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(sprite_manager_, CreateSpriteWithId(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(blueprint_manager_, CreateBlueprintWithId(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(prop_recipe_manager_, CreateRecipeWithId(_))
+      .WillOnce(Return(absl::InternalError("recipe write failed")));
+  EXPECT_CALL(blueprint_manager_, DeleteBlueprint("blueprint-1"))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(sprite_manager_, DeleteSprite("sprite-1")).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, DeleteTexture("texture-1")).WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_FALSE(api_->CreateGeneratedProp(prepared_).ok());
+}
+
+TEST_F(GeneratedPropCommitTest, ReportsPrimaryAndCompensationFailures) {
+  EXPECT_CALL(texture_manager_, CreateGeneratedTexture(_, 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(sprite_manager_, CreateSpriteWithId(_))
+      .WillOnce(Return(absl::InternalError("sprite write failed")));
+  EXPECT_CALL(texture_manager_, DeleteTexture("texture-1"))
+      .WillOnce(Return(absl::InternalError("texture cleanup failed")));
+
+  const absl::Status status = api_->CreateGeneratedProp(prepared_).status();
+  EXPECT_THAT(std::string(status.message()), HasSubstr("sprite write failed"));
+  EXPECT_THAT(std::string(status.message()), HasSubstr("texture cleanup failed"));
 }
 
 }  // namespace

@@ -106,6 +106,16 @@ TEST_F(PropRecipeManagerTest, DetachedStyleWritesAnExplicitNullReference) {
   EXPECT_TRUE(json.at("terrain_recipe_id").is_null());
 }
 
+TEST_F(PropRecipeManagerTest, CreateRecipeWithIdKeepsThePreparedIdentity) {
+  PropRecipe recipe = CompleteRecipe();
+  recipe.id = "prepared-recipe-1";
+
+  ASSERT_OK(manager_->CreateRecipeWithId(recipe));
+  ASSERT_OK_AND_ASSIGN(PropRecipe * loaded, manager_->GetRecipe(recipe.id));
+  EXPECT_EQ(PropRecipeToJson(*loaded), PropRecipeToJson(recipe));
+  EXPECT_EQ(manager_->CreateRecipeWithId(recipe).code(), absl::StatusCode::kAlreadyExists);
+}
+
 TEST_F(PropRecipeManagerTest, RejectsMissingSettingsRatherThanUsingDefaults) {
   PropRecipe recipe = CompleteRecipe();
   recipe.id = "broken";

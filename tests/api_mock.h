@@ -73,6 +73,9 @@ class MockApi : public Api {
   MOCK_METHOD(absl::StatusOr<std::optional<TerrainRecipe>>, FindTerrainRecipeForTileset,
               (const std::string&), (override));
 
+  MOCK_METHOD(absl::StatusOr<std::string>, CreateGeneratedProp, (const PreparedPropAsset&),
+              (override));
+
   // Routes every recipe call to a real manager, for tests that care whether a
   // recipe actually round-trips to disk rather than that a call was made.
   void DelegateTerrainRecipesTo(TerrainRecipeManager& recipes) {

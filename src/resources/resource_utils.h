@@ -2,6 +2,7 @@
 #define ZEBES_RESOURCES_RESOURCE_UTILS_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -41,6 +42,10 @@ class ResourceLoadFailures {
 //   directory_path: The absolute path to the directory containing the resource files.
 void RemoveOldFileIfExists(const std::string& id, const std::string& old_name,
                            const std::string& new_name, const std::string& directory_path);
+
+// Writes a complete file through a sibling temporary and publishes it with one
+// rename. A failed write never leaves a truncated definition at `path`.
+absl::Status WriteTextFileAtomically(const std::string& path, std::string_view contents);
 
 }  // namespace zebes
 

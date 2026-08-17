@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "absl/status/statusor.h"
+#include "artwork/prepare_prop_asset.h"
 #include "artwork/prop_recipe.h"
 #include "artwork/source_artwork.h"
 #include "common/config.h"
@@ -154,6 +155,11 @@ class Api {
   virtual absl::Status SavePropRecipe(const PropRecipe& recipe);
   virtual absl::StatusOr<PropRecipe*> GetPropRecipe(const std::string& recipe_id);
   virtual std::vector<PropRecipe> GetAllPropRecipes() const;
+
+  // Publishes a fully prepared prop in dependency order. The recipe is written
+  // last, so catalogue visibility means every runtime dependency exists.
+  // Failures compensate already-created members in reverse order.
+  virtual absl::StatusOr<std::string> CreateGeneratedProp(const PreparedPropAsset& prepared);
 
  protected:
   // Allow default construction for mocks

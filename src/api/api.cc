@@ -2,6 +2,7 @@
 
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "common/status_macros.h"
 
 namespace zebes {
@@ -30,6 +31,33 @@ bool AnyRecipeReferrer(const std::vector<AssetReference>& referrers) {
   }
   return false;
 }
+
+absl::Status RequireAbsent(const absl::Status& lookup, std::string_view kind, std::string_view id) {
+  if (absl::IsNotFound(lookup)) return absl::OkStatus();
+  if (lookup.ok()) {
+    return absl::AlreadyExistsError(absl::StrCat(kind, " '", id, "' already exists"));
+  }
+  return absl::Status(
+      lookup.code(), absl::StrCat("could not preflight ", kind, " '", id, "': ", lookup.message()));
+}
+
+class CompensationFailures {
+ public:
+  void Add(std::string_view action, const absl::Status& status) {
+    if (status.ok() || absl::IsNotFound(status)) return;
+    failures_.push_back(absl::StrCat(action, ": ", status.message()));
+  }
+
+  absl::Status Report(const absl::Status& primary) const {
+    if (failures_.empty()) return primary;
+    return absl::Status(primary.code(),
+                        absl::StrCat(primary.message(), "; compensation also failed: ",
+                                     absl::StrJoin(failures_, "; ")));
+  }
+
+ private:
+  std::vector<std::string> failures_;
+};
 
 }  // namespace
 
@@ -406,6 +434,67 @@ absl::StatusOr<PropRecipe*> Api::GetPropRecipe(const std::string& recipe_id) {
 
 std::vector<PropRecipe> Api::GetAllPropRecipes() const {
   return prop_recipe_manager_->GetAllRecipes();
+}
+
+absl::StatusOr<std::string> Api::CreateGeneratedProp(const PreparedPropAsset& prepared) {
+  RETURN_IF_ERROR(ValidatePreparedPropAsset(prepared));
+
+  ASSIGN_OR_RETURN(SourceArtwork * current_source,
+                   source_artwork_manager_->GetArtwork(prepared.source.id));
+  if (current_source->content_digest != prepared.source.content_digest ||
+      current_source->width != prepared.source.width ||
+      current_source->height != prepared.source.height) {
+    return absl::FailedPreconditionError(
+        "accepted source artwork changed after this prop was prepared");
+  }
+  if (prepared.recipe.terrain_recipe_id.has_value()) {
+    RETURN_IF_ERROR(
+        terrain_recipe_manager_->GetRecipe(*prepared.recipe.terrain_recipe_id).status());
+  }
+
+  RETURN_IF_ERROR(RequireAbsent(texture_manager_->GetTexture(prepared.texture.id).status(),
+                                "texture", prepared.texture.id));
+  RETURN_IF_ERROR(RequireAbsent(sprite_manager_->GetSprite(prepared.sprite.id).status(), "sprite",
+                                prepared.sprite.id));
+  RETURN_IF_ERROR(RequireAbsent(blueprint_manager_->GetBlueprint(prepared.blueprint.id).status(),
+                                "blueprint", prepared.blueprint.id));
+  RETURN_IF_ERROR(RequireAbsent(prop_recipe_manager_->GetRecipe(prepared.recipe.id).status(),
+                                "prop recipe", prepared.recipe.id));
+  RETURN_IF_ERROR(texture_manager_->PreflightGeneratedTexture(prepared.texture));
+  RETURN_IF_ERROR(sprite_manager_->PreflightSpriteWithId(prepared.sprite));
+  RETURN_IF_ERROR(blueprint_manager_->PreflightBlueprintWithId(prepared.blueprint));
+  RETURN_IF_ERROR(prop_recipe_manager_->PreflightRecipeWithId(prepared.recipe));
+
+  const RgbaImage& image = prepared.artwork.finished.image;
+  absl::Status status = texture_manager_->CreateGeneratedTexture(prepared.texture, image.width,
+                                                                 image.height, image.pixels);
+  if (!status.ok()) return status;
+
+  status = sprite_manager_->CreateSpriteWithId(prepared.sprite);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("delete texture", texture_manager_->DeleteTexture(prepared.texture.id));
+    return compensation.Report(status);
+  }
+
+  status = blueprint_manager_->CreateBlueprintWithId(prepared.blueprint);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("delete sprite", sprite_manager_->DeleteSprite(prepared.sprite.id));
+    compensation.Add("delete texture", texture_manager_->DeleteTexture(prepared.texture.id));
+    return compensation.Report(status);
+  }
+
+  status = prop_recipe_manager_->CreateRecipeWithId(prepared.recipe);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("delete blueprint",
+                     blueprint_manager_->DeleteBlueprint(prepared.blueprint.id));
+    compensation.Add("delete sprite", sprite_manager_->DeleteSprite(prepared.sprite.id));
+    compensation.Add("delete texture", texture_manager_->DeleteTexture(prepared.texture.id));
+    return compensation.Report(status);
+  }
+  return prepared.recipe.id;
 }
 
 }  // namespace zebes

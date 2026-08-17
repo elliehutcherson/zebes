@@ -19,6 +19,10 @@ class TextureManagerMock : public TextureManager {
   MOCK_METHOD(absl::StatusOr<std::string>, CreateTextureFromPixels,
               (const std::string& name, int width, int height, absl::Span<const uint8_t> pixels),
               (override));
+  MOCK_METHOD(absl::Status, CreateGeneratedTexture,
+              (const Texture& texture, int width, int height, absl::Span<const uint8_t> pixels),
+              (override));
+  MOCK_METHOD(absl::Status, PreflightGeneratedTexture, (const Texture& texture), (override));
   MOCK_METHOD(absl::Status, ReplaceTexturePixels,
               (const std::string& id, int width, int height, absl::Span<const uint8_t> pixels),
               (override));

@@ -60,6 +60,19 @@ TEST_F(BlueprintManagerTest, CreateAndGetBlueprint) {
                                       "-" + id + ".json"));
 }
 
+TEST_F(BlueprintManagerTest, CreateBlueprintWithIdKeepsThePreparedIdentity) {
+  Blueprint blueprint{
+      .id = "prepared-blueprint-1",
+      .name = "Cave boulder",
+      .states = {Blueprint::State{.name = "Default", .sprite_id = "prepared-sprite-1"}},
+  };
+
+  ASSERT_OK(manager_->CreateBlueprintWithId(blueprint));
+  ASSERT_OK_AND_ASSIGN(Blueprint * loaded, manager_->GetBlueprint(blueprint.id));
+  EXPECT_EQ(*loaded, blueprint);
+  EXPECT_EQ(manager_->CreateBlueprintWithId(blueprint).code(), absl::StatusCode::kAlreadyExists);
+}
+
 // Editors hold a Blueprint* for as long as they are editing it. Replacing the
 // cached unique_ptr on save freed what they held.
 TEST_F(BlueprintManagerTest, SavingKeepsPointersHandedOutBeforeIt) {

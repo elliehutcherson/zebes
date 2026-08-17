@@ -11,6 +11,7 @@
 #include "absl/strings/str_cat.h"
 #include "artwork/prop_artwork_pipeline.h"
 #include "common/image_digest.h"
+#include "common/resource_identity.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
@@ -21,17 +22,6 @@ namespace {
 
 constexpr char kDefinitionsPath[] = "definitions/source_artworks";
 constexpr char kImagesPath[] = "source_art/props";
-
-bool IsSafeId(std::string_view id) {
-  if (id.empty()) return false;
-  for (const char character : id) {
-    const bool safe = (character >= 'a' && character <= 'z') ||
-                      (character >= 'A' && character <= 'Z') ||
-                      (character >= '0' && character <= '9') || character == '-';
-    if (!safe) return false;
-  }
-  return true;
-}
 
 absl::StatusOr<SourceArtwork> LoadDefinition(const std::string& path) {
   std::ifstream stream(path);
@@ -115,7 +105,7 @@ std::string SourceArtworkManager::RelativeImagePath(const std::string& id) {
 
 absl::Status SourceArtworkManager::ValidateStoredArtwork(const SourceArtwork& artwork) const {
   RETURN_IF_ERROR(ValidateSourceArtwork(artwork));
-  if (!IsSafeId(artwork.id)) {
+  if (!IsPathSafeResourceId(artwork.id)) {
     return absl::InvalidArgumentError("source artwork ID is not path-safe");
   }
   if (artwork.source_path != RelativeImagePath(artwork.id)) {

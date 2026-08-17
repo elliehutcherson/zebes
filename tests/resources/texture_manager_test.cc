@@ -188,6 +188,39 @@ TEST_F(TextureManagerTest, CreateTextureFromPixelsWritesArtworkAndRegistersIt) {
   EXPECT_EQ(texture->path, "textures/generated.png");
 }
 
+TEST_F(TextureManagerTest, CreateGeneratedTextureKeepsItsPreparedIdBackedPath) {
+  const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
+  const Texture definition{
+      .id = "prepared-texture-1",
+      .name = "Cave boulder",
+      .path = "textures/props/prepared-texture-1.png",
+  };
+
+  ASSERT_OK(manager_->CreateGeneratedTexture(definition, 4, 4, pixels));
+
+  ASSERT_OK_AND_ASSIGN(Texture * loaded, manager_->GetTexture(definition.id));
+  EXPECT_EQ(loaded->id, definition.id);
+  EXPECT_EQ(loaded->name, definition.name);
+  EXPECT_EQ(loaded->path, definition.path);
+  EXPECT_TRUE(std::filesystem::exists(test_dir_ + "/textures/props/prepared-texture-1.png"));
+  EXPECT_TRUE(std::filesystem::exists(
+      test_dir_ + "/definitions/textures/Cave boulder-prepared-texture-1.json"));
+  EXPECT_EQ(manager_->CreateGeneratedTexture(definition, 4, 4, pixels).code(),
+            absl::StatusCode::kAlreadyExists);
+}
+
+TEST_F(TextureManagerTest, CreateGeneratedTextureRejectsANameBackedPath) {
+  const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
+  const Texture definition{
+      .id = "prepared-texture-1",
+      .name = "Cave boulder",
+      .path = "textures/Cave boulder.png",
+  };
+
+  EXPECT_EQ(manager_->CreateGeneratedTexture(definition, 4, 4, pixels).code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
 // Silently replacing artwork would repoint every tileset already using it at a
 // different picture, which is exactly the failure the source_art split exists
 // to prevent.

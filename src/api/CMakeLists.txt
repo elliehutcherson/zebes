@@ -5,6 +5,7 @@ add_library(api STATIC
 
 target_link_libraries(api
   asset_references
+  prepare_prop_asset
   absl::status
   absl::statusor
   absl::time

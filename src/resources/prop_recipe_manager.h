@@ -19,6 +19,8 @@ class PropRecipeManager {
 
   virtual absl::Status LoadAllRecipes();
   virtual absl::StatusOr<std::string> CreateRecipe(PropRecipe recipe);
+  virtual absl::Status CreateRecipeWithId(PropRecipe recipe);
+  virtual absl::Status PreflightRecipeWithId(const PropRecipe& recipe) const;
   virtual absl::Status SaveRecipe(const PropRecipe& recipe);
   virtual absl::StatusOr<PropRecipe*> GetRecipe(const std::string& id);
   virtual std::vector<PropRecipe> GetAllRecipes() const;

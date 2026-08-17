@@ -17,7 +17,7 @@ target_link_libraries(background_task
 add_library(vector INTERFACE vector.h)
 target_link_libraries(vector INTERFACE absl::strings)
 
-add_library(common INTERFACE common.h utils.h)
+add_library(common INTERFACE common.h resource_identity.h utils.h)
 target_link_libraries(common INTERFACE vector)
 target_link_libraries(common INTERFACE config)
 

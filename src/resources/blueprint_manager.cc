@@ -6,6 +6,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/resource_identity.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
@@ -123,6 +124,25 @@ absl::StatusOr<std::string> BlueprintManager::CreateBlueprint(Blueprint blueprin
   return loaded_blueprint->id;
 }
 
+absl::Status BlueprintManager::CreateBlueprintWithId(Blueprint blueprint) {
+  RETURN_IF_ERROR(PreflightBlueprintWithId(blueprint));
+  return SaveBlueprint(std::move(blueprint));
+}
+
+absl::Status BlueprintManager::PreflightBlueprintWithId(const Blueprint& blueprint) {
+  if (!IsPathSafeResourceId(blueprint.id) || !IsSafeResourceName(blueprint.name)) {
+    return absl::InvalidArgumentError("prepared blueprint needs a path-safe ID and name");
+  }
+  if (blueprints_.contains(blueprint.id)) {
+    return absl::AlreadyExistsError(absl::StrCat("Blueprint with id ", blueprint.id, " exists"));
+  }
+  const std::string filename = absl::StrCat(blueprint.name, "-", blueprint.id, ".json");
+  if (std::filesystem::exists(GetDefinitionsPath(filename))) {
+    return absl::AlreadyExistsError("prepared blueprint definition already exists");
+  }
+  return absl::OkStatus();
+}
+
 absl::Status BlueprintManager::SaveBlueprint(Blueprint blueprint) {
   if (blueprint.id.empty()) {
     return absl::InvalidArgumentError("Blueprint must have an ID to be saved.");
@@ -139,26 +159,20 @@ absl::Status BlueprintManager::SaveBlueprint(Blueprint blueprint) {
     }
   }
 
-  // Handle Renaming: If the name has changed, delete the old file.
-  auto it = blueprints_.find(blueprint.id);
-  if (it != blueprints_.end()) {
-    RemoveOldFileIfExists(blueprint.id, it->second->name, blueprint.name, definitions_path_);
-  }
-
   nlohmann::json json;
   ToJson(json, blueprint);
 
   std::string filename = absl::StrCat(blueprint.name, "-", blueprint.id, ".json");
   std::string definitions_path = GetDefinitionsPath(filename);
 
-  // Ensure directory exists
-  std::filesystem::create_directories(definitions_path_);
+  RETURN_IF_ERROR(WriteTextFileAtomically(definitions_path, json.dump(4)));
 
-  std::ofstream file(definitions_path);
-  if (!file.is_open()) {
-    return absl::InternalError(absl::StrCat("Failed to open file for writing: ", definitions_path));
+  // Publish the new definition before removing the old name. A failed write
+  // must leave the previously loaded blueprint durable.
+  auto it = blueprints_.find(blueprint.id);
+  if (it != blueprints_.end()) {
+    RemoveOldFileIfExists(blueprint.id, it->second->name, blueprint.name, definitions_path_);
   }
-  file << json.dump(4);
 
   // Assigned through the existing allocation rather than replacing it: callers
   // hold Blueprint* from GetBlueprint, and swapping the unique_ptr frees what
@@ -185,12 +199,14 @@ absl::Status BlueprintManager::DeleteBlueprint(const std::string& id) {
   auto it = blueprints_.find(id);
   if (it == blueprints_.end()) return absl::NotFoundError("Blueprint not found");
 
-  // Remove JSON file
-  // We need to know the name to reconstruct filename, or search for it.
-  // Since we have the blueprint in memory, we can use it.
   const auto& blueprint = it->second;
   std::string filename = absl::StrCat(blueprint->name, "-", id, ".json");
-  std::filesystem::remove(GetDefinitionsPath(filename));
+  std::error_code error;
+  std::filesystem::remove(GetDefinitionsPath(filename), error);
+  if (error) {
+    return absl::InternalError(
+        absl::StrCat("could not delete blueprint definition: ", error.message()));
+  }
 
   blueprints_.erase(it);
   return absl::OkStatus();

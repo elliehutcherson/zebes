@@ -74,6 +74,23 @@ TEST_F(SpriteManagerTest, CreateAndGetSprite) {
       std::filesystem::exists(test_dir_ + "/definitions/sprites/TestSprite-" + id + ".json"));
 }
 
+TEST_F(SpriteManagerTest, CreateSpriteWithIdKeepsThePreparedIdentity) {
+  std::string tex_path = test_dir_ + "/textures/prepared.png";
+  std::ofstream file(tex_path);
+  ASSERT_OK_AND_ASSIGN(const std::string texture_id,
+                       texture_manager_->CreateTexture({.path = tex_path}));
+  Sprite sprite{
+      .id = "prepared-sprite-1",
+      .name = "Cave boulder",
+      .texture_id = texture_id,
+  };
+
+  ASSERT_OK(manager_->CreateSpriteWithId(sprite));
+  ASSERT_OK_AND_ASSIGN(Sprite * loaded, manager_->GetSprite(sprite.id));
+  EXPECT_EQ(*loaded, sprite);
+  EXPECT_EQ(manager_->CreateSpriteWithId(sprite).code(), absl::StatusCode::kAlreadyExists);
+}
+
 TEST_F(SpriteManagerTest, LoadAllSprites) {
   // Create dummy texture
   std::string tex_path = test_dir_ + "/textures/tex.png";

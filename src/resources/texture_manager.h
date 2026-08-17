@@ -66,6 +66,13 @@ class TextureManager {
                                                               int height,
                                                               absl::Span<const uint8_t> pixels);
 
+  // Commits an already prepared generated texture without replacing its
+  // caller-assigned identity or ID-backed path. Used by multi-resource bundle
+  // commits after all definitions have passed preflight.
+  virtual absl::Status CreateGeneratedTexture(const Texture& texture, int width, int height,
+                                              absl::Span<const uint8_t> pixels);
+  virtual absl::Status PreflightGeneratedTexture(const Texture& texture);
+
   // Atomically replaces generated artwork without changing the texture's ID,
   // definition path, or references. The replacement is decoded before the
   // durable file is committed, so a bad image cannot evict the live texture.

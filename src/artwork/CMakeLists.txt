@@ -51,3 +51,21 @@ target_link_libraries(prop_recipe
   status_macros
   absl::strings
 )
+
+add_library(prepare_prop_asset prepare_prop_asset.cc)
+target_link_libraries(prepare_prop_asset
+  PUBLIC
+  prop_artwork
+  prop_recipe
+  source_artwork
+  blueprint
+  sprite
+  texture
+  absl::status
+  absl::statusor
+  PRIVATE
+  common
+  image_digest
+  status_macros
+  absl::strings
+)

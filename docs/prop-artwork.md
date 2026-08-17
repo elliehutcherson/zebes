@@ -1,13 +1,14 @@
 # Generated prop artwork pipeline
 
-**Status: Milestone 0 accepted; authoring-resource foundation implemented.**
+**Status: Milestone 0 accepted; deterministic preparation and bundle creation implemented.**
 The boulder/`lucinda_cave` and tree/`Cozy Meadow` checks both support the visual
 approach. The production policy is the complete resolved terrain palette.
 Source hashing, input limits, a versioned coordinator, retained stage artifacts,
 and typed stage diagnostics now form the Milestones 1-2 foundation. Strict
-`SourceArtwork` and `PropRecipe` schemas, managers, editor ownership, and
-reference scans are implemented. Prepared bundle commit/regeneration/deletion,
-the editor workflow, and provider integration remain.
+`SourceArtwork` and `PropRecipe` schemas, managers, editor ownership, reference
+scans, pure `PreparedPropAsset` construction, and compensated bundle creation
+are implemented. Regeneration/deletion, the editor workflow, and provider
+integration remain.
 
 This design covers a static world prop such as a boulder, tree, sign, or ruin.
 The result is ordinary Zebes data: a texture, a one-frame sprite, and a blueprint
@@ -47,9 +48,10 @@ The remaining gaps are equally concrete:
   canonical source digest, retains each preview artifact, and reports typed
   stage metrics. Stage-specific diagnostics and fixtures still need to expand
   as the imported-source editor workflow exercises them.
-- Source artwork and prop recipes now have strict, versioned managers and are
-  part of reference scans, but no prepared generated-prop bundle transaction
-  creates their texture, sprite, blueprint, and recipe together yet.
+- Source artwork and prop recipes have strict, versioned managers and are part
+  of reference scans. A prepared generated-prop bundle now preflights and
+  creates its texture, sprite, blueprint, and recipe together with explicit
+  compensation. Regeneration and bundle deletion remain.
 - There is no regeneration path or Prop Artwork editor tab.
 
 The feature should fill those gaps. It should not embed Python in the editor,
@@ -433,15 +435,23 @@ Blueprint Editor without the artwork pipeline guessing geometry.
 
 Follow terrain's prepare/commit shape but make the bundle boundary explicit:
 
-1. `PreparePropAsset` runs with copied source pixels, style snapshot, and recipe
-   settings. It returns validated final pixels and definitions with no `Api`,
-   filesystem, SDL, or manager access.
-2. `Api::CreateGeneratedProp` preflights names, references, paths, and all
-   definitions, then creates source artwork when needed, texture, sprite,
-   blueprint, and recipe in dependency order.
-3. A failure rolls back in reverse order. Errors report both the primary failure
-   and any failed compensation; they never claim success with a partial bundle.
-4. The recipe becomes visible only after every output exists.
+1. Implemented: `PreparePropAsset` runs with copied source pixels, style
+   snapshot, caller-allocated stable IDs, and recipe settings. It returns every
+   stage preview plus validated final pixels and complete definitions with no
+   `Api`, filesystem, SDL, or manager access.
+2. Implemented: `Api::CreateGeneratedProp` confirms that the accepted source
+   snapshot is still current, preflights names, IDs, references, and exact
+   output paths, then creates texture, sprite, blueprint, and recipe in
+   dependency order. Source acceptance is deliberately a preceding operation:
+   an accepted source remains useful if output creation is cancelled or fails.
+3. Implemented: a failure rolls back in reverse order. Errors report both the
+   primary failure and any failed compensation; they never claim success with a
+   partial bundle.
+4. Implemented: the recipe becomes visible only after every output exists.
+
+Generated texture pixels use `textures/props/<texture-id>.png`; display names
+remain in definitions. Texture, sprite, and blueprint definitions publish from
+sibling temporary files, so failed writes do not expose truncated JSON.
 
 The current managers do not provide a general cross-file transaction. Do not
 hide that behind a class named `Transaction`. Either add staging/commit support
@@ -549,9 +559,10 @@ unfinished provider behavior.
    editor or provider dependency.
 3. **Authoring resources and lifecycle (in progress).** `SourceArtwork`,
    `PropRecipe`, strict initial schemas, managers, asset references, editor
-   ownership, and ID-backed source paths are implemented. Add prepared output
-   plus bundle commit/regeneration/deletion next. No migration is needed until
-   an initial schema has shipped and later changes.
+   ownership, ID-backed source/output paths, deterministic prepared output, and
+   compensated bundle creation are implemented. Add regeneration and bundle
+   deletion next. No migration is needed until an initial schema has shipped
+   and later changes.
 4. **Editor workflow from imported sources.** Add the model, per-stage and
    final-only preview policies, in-context preview, background processing, and
    finished texture/sprite/blueprint creation. This proves the entire durable
