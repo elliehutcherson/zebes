@@ -6,6 +6,8 @@ add_library(api STATIC
 target_link_libraries(api
   asset_references
   prepare_prop_asset
+  regenerate_prop_asset
+  image_digest
   absl::status
   absl::statusor
   absl::time

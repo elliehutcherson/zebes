@@ -3,7 +3,9 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "common/image_digest.h"
 #include "common/status_macros.h"
+#include "nlohmann/json.hpp"
 
 namespace zebes {
 namespace {
@@ -495,6 +497,129 @@ absl::StatusOr<std::string> Api::CreateGeneratedProp(const PreparedPropAsset& pr
     return compensation.Report(status);
   }
   return prepared.recipe.id;
+}
+
+absl::Status Api::DeleteGeneratedProp(const std::string& recipe_id) {
+  ASSIGN_OR_RETURN(const PropRecipe* loaded, prop_recipe_manager_->GetRecipe(recipe_id));
+  const PropRecipe recipe = *loaded;
+
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  std::vector<AssetReference> outside;
+  for (const AssetReference& referrer :
+       FindBlueprintReferrers(catalog.View(), recipe.blueprint_id)) {
+    if (referrer.kind == AssetKind::kPropRecipe && referrer.id == recipe.id) continue;
+    outside.push_back(referrer);
+  }
+  for (const AssetReference& referrer : FindSpriteReferrers(catalog.View(), recipe.sprite_id)) {
+    if (referrer.kind == AssetKind::kPropRecipe && referrer.id == recipe.id) continue;
+    if (referrer.kind == AssetKind::kBlueprint && referrer.id == recipe.blueprint_id) continue;
+    outside.push_back(referrer);
+  }
+  for (const AssetReference& referrer : FindTextureReferrers(catalog.View(), recipe.texture_id)) {
+    if (referrer.kind == AssetKind::kPropRecipe && referrer.id == recipe.id) continue;
+    if (referrer.kind == AssetKind::kSprite && referrer.id == recipe.sprite_id) continue;
+    outside.push_back(referrer);
+  }
+  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("generated prop '", recipe.name, "'"), outside));
+
+  bool source_is_shared = false;
+  for (const AssetReference& referrer :
+       FindSourceArtworkReferrers(catalog.View(), recipe.source_artwork_id)) {
+    if (referrer.kind != AssetKind::kPropRecipe || referrer.id != recipe.id) {
+      source_is_shared = true;
+      break;
+    }
+  }
+
+  // Keep the recipe until every output is gone. It is the recovery record for
+  // a partially completed delete: if an I/O failure interrupts this sequence,
+  // retrying with the same recipe can finish removing members already absent.
+  // The external-reference scan above is what makes direct manager deletion
+  // safe here; ordinary one-off deletes still go through their Api guards.
+  const absl::Status blueprint_deleted = blueprint_manager_->DeleteBlueprint(recipe.blueprint_id);
+  if (!blueprint_deleted.ok() && !absl::IsNotFound(blueprint_deleted)) return blueprint_deleted;
+
+  const absl::Status sprite_deleted = sprite_manager_->DeleteSprite(recipe.sprite_id);
+  if (!sprite_deleted.ok() && !absl::IsNotFound(sprite_deleted)) return sprite_deleted;
+
+  const absl::Status texture_deleted = texture_manager_->DeleteTexture(recipe.texture_id);
+  if (!texture_deleted.ok() && !absl::IsNotFound(texture_deleted)) return texture_deleted;
+
+  RETURN_IF_ERROR(prop_recipe_manager_->DeleteRecipe(recipe.id));
+
+  if (!source_is_shared) {
+    const absl::Status source_deleted =
+        source_artwork_manager_->DeleteArtwork(recipe.source_artwork_id);
+    if (!source_deleted.ok() && !absl::IsNotFound(source_deleted)) return source_deleted;
+  }
+  return absl::OkStatus();
+}
+
+absl::Status Api::RegenerateGeneratedProp(const PreparedPropRegeneration& prepared) {
+  RETURN_IF_ERROR(ValidatePreparedPropRegeneration(prepared));
+
+  ASSIGN_OR_RETURN(SourceArtwork * current_source,
+                   source_artwork_manager_->GetArtwork(prepared.source_snapshot.id));
+  if (SourceArtworkToJson(*current_source) != SourceArtworkToJson(prepared.source_snapshot)) {
+    return absl::FailedPreconditionError(
+        "source artwork changed while this prop was regenerating; retry with current source");
+  }
+
+  ASSIGN_OR_RETURN(PropRecipe * current_recipe,
+                   prop_recipe_manager_->GetRecipe(prepared.recipe_snapshot.id));
+  if (PropRecipeToJson(*current_recipe) != PropRecipeToJson(prepared.recipe_snapshot)) {
+    return absl::FailedPreconditionError(
+        "prop recipe changed while artwork was regenerating; retry with current settings");
+  }
+
+  ASSIGN_OR_RETURN(Texture * current_texture,
+                   texture_manager_->GetTexture(prepared.texture_snapshot.id));
+  if (current_texture->id != prepared.texture_snapshot.id ||
+      current_texture->name != prepared.texture_snapshot.name ||
+      current_texture->path != prepared.texture_snapshot.path) {
+    return absl::FailedPreconditionError(
+        "generated texture definition changed while this prop was regenerating");
+  }
+  ASSIGN_OR_RETURN(const RgbaImage current_pixels,
+                   texture_manager_->ReadTexturePixels(current_texture->id));
+  ASSIGN_OR_RETURN(const std::string current_digest, RgbaImageDigest(current_pixels));
+  if (current_digest != prepared.texture_pixel_digest) {
+    return absl::FailedPreconditionError(
+        "generated texture pixels changed while this prop was regenerating");
+  }
+
+  ASSIGN_OR_RETURN(Sprite * current_sprite,
+                   sprite_manager_->GetSprite(prepared.sprite_snapshot.id));
+  if (*current_sprite != prepared.sprite_snapshot) {
+    return absl::FailedPreconditionError(
+        "generated sprite changed while this prop was regenerating; retry or use Save As");
+  }
+  RETURN_IF_ERROR(blueprint_manager_->GetBlueprint(prepared.updated_recipe.blueprint_id).status());
+  if (prepared.updated_recipe.terrain_recipe_id.has_value()) {
+    RETURN_IF_ERROR(
+        terrain_recipe_manager_->GetRecipe(*prepared.updated_recipe.terrain_recipe_id).status());
+  }
+
+  absl::Status status = sprite_manager_->SaveSprite(prepared.updated_sprite);
+  if (!status.ok()) return status;
+
+  status = prop_recipe_manager_->SaveRecipe(prepared.updated_recipe);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore sprite", sprite_manager_->SaveSprite(prepared.sprite_snapshot));
+    return compensation.Report(status);
+  }
+
+  const RgbaImage& image = prepared.artwork.finished.image;
+  status = texture_manager_->ReplaceTexturePixels(prepared.texture_snapshot.id, image.width,
+                                                  image.height, image.pixels);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore recipe", prop_recipe_manager_->SaveRecipe(prepared.recipe_snapshot));
+    compensation.Add("restore sprite", sprite_manager_->SaveSprite(prepared.sprite_snapshot));
+    return compensation.Report(status);
+  }
+  return absl::OkStatus();
 }
 
 }  // namespace zebes

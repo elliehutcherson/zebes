@@ -9,6 +9,10 @@ namespace zebes {
 
 class Canvas {
  public:
+  static constexpr CameraZoomRange NavigationZoomRange() {
+    return {.minimum = 0.1, .maximum = 10.0};
+  }
+
   struct Options {
     GuiInterface* gui = nullptr;
     bool snap_grid = false;

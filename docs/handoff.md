@@ -1,5 +1,9 @@
 # Handoff
 
+> Historical snapshot: this file is not the current feature backlog. Use
+> [`roadmap.md`](roadmap.md) for sequencing and the linked feature design—such
+> as [`prop-artwork.md`](prop-artwork.md)—for durable decisions and TODOs.
+
 ## Current: Track 3 complete; begin Track 4 with layers
 
 As of 2026-08-16, [`roadmap.md`](roadmap.md) remains the source of truth for
@@ -78,7 +82,7 @@ document:
 |---|---|---|
 | Derived terrain artwork | [`terrain-derived-artwork.md`](terrain-derived-artwork.md) | Implemented; doc trued up against the code |
 | Safe asset deletion | [`asset-deletion.md`](asset-deletion.md) | Implemented, checks and buttons both |
-| Prop artwork from generated images | [`prop-artwork.md`](prop-artwork.md) | Design only, nothing built |
+| Prop artwork from generated images | [`prop-artwork.md`](prop-artwork.md) | Milestones 0-4 implemented; attachment modes and provider work remain |
 
 ---
 

@@ -53,6 +53,7 @@ target_link_libraries(editor_animator
 add_library(editor_texture_preview texture_preview.cc)
 target_link_libraries(editor_texture_preview
   PUBLIC
+  camera
   gui_interface
   texture_handle
   absl::statusor
@@ -141,6 +142,7 @@ add_subdirectory(level_editor)
 # Tileset Editor
 add_subdirectory(tileset_editor)
 add_subdirectory(terrain_editor)
+add_subdirectory(prop_artwork_editor)
 
 
 # Editor UI
@@ -166,6 +168,7 @@ target_link_libraries(editor_ui
   level_editor
   tileset_editor
   terrain_editor
+  prop_artwork_editor
   api
   gui_interface
   imgui_scoped

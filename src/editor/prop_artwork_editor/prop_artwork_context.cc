@@ -1,0 +1,129 @@
+#include "editor/prop_artwork_editor/prop_artwork_context.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <utility>
+
+#include "absl/status/status.h"
+#include "common/status_macros.h"
+#include "terrain/terrain_generator.h"
+
+namespace zebes {
+namespace {
+
+constexpr int kCheckerSize = 8;
+constexpr int kMaximumPreviewDimension = 16384;
+
+int AlignDown(int value, int step) {
+  if (value >= 0) return (value / step) * step;
+  return -(((-value + step - 1) / step) * step);
+}
+
+int AlignUp(int value, int step) { return ((value + step - 1) / step) * step; }
+
+void BlendPixel(const uint8_t* source, uint8_t* target) {
+  const int source_alpha = source[3];
+  if (source_alpha == 0) return;
+  if (source_alpha == 255) {
+    std::copy_n(source, 4, target);
+    return;
+  }
+
+  const int inverse = 255 - source_alpha;
+  for (int channel = 0; channel < 3; ++channel) {
+    target[channel] = static_cast<uint8_t>(
+        (source[channel] * source_alpha + target[channel] * inverse + 127) / 255);
+  }
+  target[3] = 255;
+}
+
+void Composite(const RgbaImage& source, int target_x, int target_y, RgbaImage& target) {
+  for (int y = 0; y < source.height; ++y) {
+    const int output_y = target_y + y;
+    if (output_y < 0 || output_y >= target.height) continue;
+    for (int x = 0; x < source.width; ++x) {
+      const int output_x = target_x + x;
+      if (output_x < 0 || output_x >= target.width) continue;
+      const size_t source_offset = (static_cast<size_t>(y) * source.width + x) * 4;
+      const size_t target_offset = (static_cast<size_t>(output_y) * target.width + output_x) * 4;
+      BlendPixel(source.pixels.data() + source_offset, target.pixels.data() + target_offset);
+    }
+  }
+}
+
+RgbaImage Checkerboard(int width, int height) {
+  RgbaImage image{.width = width, .height = height};
+  image.pixels.resize(static_cast<size_t>(width) * height * 4);
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      const uint8_t shade = ((x / kCheckerSize) + (y / kCheckerSize)) % 2 == 0 ? 42 : 52;
+      const size_t offset = (static_cast<size_t>(y) * width + x) * 4;
+      image.pixels[offset + 0] = shade;
+      image.pixels[offset + 1] = shade;
+      image.pixels[offset + 2] = shade;
+      image.pixels[offset + 3] = 255;
+    }
+  }
+  return image;
+}
+
+}  // namespace
+
+absl::StatusOr<PropArtworkContextPreview> BuildPropArtworkContextPreview(
+    const PropArtwork& prop, const TerrainGenConfig& terrain_config) {
+  if (!prop.IsValid()) {
+    return absl::InvalidArgumentError("context preview requires valid prop artwork");
+  }
+
+  TerrainGenConfig preview_config = terrain_config;
+  preview_config.supersample = 1;
+  ASSIGN_OR_RETURN(const TerrainRenderer renderer, TerrainRenderer::Create(preview_config));
+  ASSIGN_OR_RETURN(const RgbaImage terrain, RenderTerrainPreviewScene(renderer));
+
+  const int anchor_x = terrain.width / 2;
+  int ground_y = -1;
+  for (int y = 0; y < terrain.height; ++y) {
+    const size_t offset = (static_cast<size_t>(y) * terrain.width + anchor_x) * 4;
+    if (terrain.pixels[offset + 3] == 0) continue;
+    ground_y = y;
+    break;
+  }
+  if (ground_y < 0) {
+    return absl::FailedPreconditionError(
+        "selected terrain produced no ground under the context-preview anchor");
+  }
+
+  const int prop_left = anchor_x - prop.anchor_x;
+  const int prop_top = ground_y - prop.anchor_y;
+  const int margin = preview_config.tile_size;
+  const int content_left = AlignDown(std::min(0, prop_left), margin);
+  const int content_top = AlignDown(std::min(0, prop_top), margin);
+  const int content_right = AlignUp(std::max(terrain.width, prop_left + prop.image.width), margin);
+  const int content_bottom =
+      AlignUp(std::max(terrain.height, prop_top + prop.image.height), margin);
+
+  const int64_t preview_width = static_cast<int64_t>(content_right) - content_left + 2LL * margin;
+  const int64_t preview_height = static_cast<int64_t>(content_bottom) - content_top + 2LL * margin;
+  if (preview_width <= 0 || preview_height <= 0 || preview_width > kMaximumPreviewDimension ||
+      preview_height > kMaximumPreviewDimension ||
+      preview_width > std::numeric_limits<int>::max() ||
+      preview_height > std::numeric_limits<int>::max()) {
+    return absl::ResourceExhaustedError("context preview dimensions exceed safe limits");
+  }
+
+  const int terrain_left = margin - content_left;
+  const int terrain_top = margin - content_top;
+  RgbaImage preview =
+      Checkerboard(static_cast<int>(preview_width), static_cast<int>(preview_height));
+  Composite(terrain, terrain_left, terrain_top, preview);
+  Composite(prop.image, terrain_left + prop_left, terrain_top + prop_top, preview);
+  return PropArtworkContextPreview{
+      .image = std::move(preview),
+      .anchor_x = terrain_left + anchor_x,
+      .anchor_y = terrain_top + ground_y,
+  };
+}
+
+}  // namespace zebes

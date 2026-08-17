@@ -73,8 +73,24 @@ class MockApi : public Api {
   MOCK_METHOD(absl::StatusOr<std::optional<TerrainRecipe>>, FindTerrainRecipeForTileset,
               (const std::string&), (override));
 
+  // Retained prop sources
+  MOCK_METHOD(absl::StatusOr<std::string>, CreateSourceArtwork,
+              (std::string, SourceArtworkProvenance, const RgbaImage&), (override));
+  MOCK_METHOD(absl::StatusOr<SourceArtwork*>, GetSourceArtwork, (const std::string&), (override));
+  MOCK_METHOD(std::vector<SourceArtwork>, GetAllSourceArtwork, (), (const, override));
+  MOCK_METHOD(absl::StatusOr<RgbaImage>, ReadSourceArtworkPixels, (const std::string&),
+              (const, override));
+  MOCK_METHOD(absl::Status, DeleteSourceArtwork, (const std::string&), (override));
+
+  // Generated prop recipes and bundles
+  MOCK_METHOD(absl::StatusOr<std::string>, CreatePropRecipe, (PropRecipe), (override));
+  MOCK_METHOD(absl::Status, SavePropRecipe, (const PropRecipe&), (override));
+  MOCK_METHOD(absl::StatusOr<PropRecipe*>, GetPropRecipe, (const std::string&), (override));
+  MOCK_METHOD(std::vector<PropRecipe>, GetAllPropRecipes, (), (const, override));
   MOCK_METHOD(absl::StatusOr<std::string>, CreateGeneratedProp, (const PreparedPropAsset&),
               (override));
+  MOCK_METHOD(absl::Status, DeleteGeneratedProp, (const std::string&), (override));
+  MOCK_METHOD(absl::Status, RegenerateGeneratedProp, (const PreparedPropRegeneration&), (override));
 
   // Routes every recipe call to a real manager, for tests that care whether a
   // recipe actually round-trips to disk rather than that a call was made.

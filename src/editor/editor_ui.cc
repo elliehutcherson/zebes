@@ -12,6 +12,7 @@
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
 #include "editor/level_editor/level_editor.h"
+#include "editor/prop_artwork_editor/prop_artwork_editor.h"
 #include "editor/sprite_editor/sprite_editor.h"
 #include "editor/texture_editor/texture_editor.h"
 #include "editor/tileset_editor/tileset_editor.h"
@@ -50,6 +51,9 @@ absl::Status EditorUi::Init() {
   ASSIGN_OR_RETURN(tileset_editor_, TilesetEditor::Create(api_, gui_));
   terrain_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
   ASSIGN_OR_RETURN(terrain_editor_, TerrainEditor::Create(api_, gui_, terrain_preview_.get()));
+  prop_artwork_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
+  ASSIGN_OR_RETURN(prop_artwork_editor_,
+                   PropArtworkEditor::Create(api_, gui_, prop_artwork_preview_.get()));
   return absl::OkStatus();
 }
 
@@ -77,6 +81,7 @@ void EditorUi::Render() {
     RenderTab("Level Editor", [this]() { return level_editor_->Render(); });
     RenderTab("Tileset Editor", [this]() { return tileset_editor_->Render(); });
     RenderTab("Terrain Editor", [this]() { return terrain_editor_->Render(); });
+    RenderTab("Prop Artwork", [this]() { return prop_artwork_editor_->Render(); });
     RenderTab("Config Editor", [this]() {
       config_editor_->Render();
       return absl::OkStatus();

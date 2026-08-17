@@ -5,6 +5,7 @@
 #include "absl/status/statusor.h"
 #include "artwork/prepare_prop_asset.h"
 #include "artwork/prop_recipe.h"
+#include "artwork/regenerate_prop_asset.h"
 #include "artwork/source_artwork.h"
 #include "common/config.h"
 #include "engine/texture_handle.h"
@@ -160,6 +161,16 @@ class Api {
   // last, so catalogue visibility means every runtime dependency exists.
   // Failures compensate already-created members in reverse order.
   virtual absl::StatusOr<std::string> CreateGeneratedProp(const PreparedPropAsset& prepared);
+
+  // Removes the recipe-owned runtime bundle after proving that no level or
+  // unrelated definition still references an output. Unshared retained source
+  // artwork is removed last; shared source artwork remains available.
+  virtual absl::Status DeleteGeneratedProp(const std::string& recipe_id);
+
+  // Commits a worker-prepared redraw after proving every recipe-owned input is
+  // still the exact snapshot that was processed. Blueprint content is only
+  // checked for existence and is never overwritten.
+  virtual absl::Status RegenerateGeneratedProp(const PreparedPropRegeneration& prepared);
 
  protected:
   // Allow default construction for mocks

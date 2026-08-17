@@ -67,7 +67,7 @@ class TerrainEditor {
   // Centres the camera on the preview at a zoom that shows all of it with room
   // to spare. Called on the first preview and on demand, never every frame:
   // re-framing while the user is panning would fight them.
-  void FrameScene(const ImVec2& viewport_size);
+  absl::Status FrameScene(const ImVec2& viewport_size);
 
   Api* api_;
   GuiInterface* gui_;

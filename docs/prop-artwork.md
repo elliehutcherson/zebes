@@ -1,14 +1,15 @@
 # Generated prop artwork pipeline
 
-**Status: Milestone 0 accepted; deterministic preparation and bundle creation implemented.**
+**Status: Milestones 0-4 implemented; imported-source authoring is available.**
 The boulder/`lucinda_cave` and tree/`Cozy Meadow` checks both support the visual
 approach. The production policy is the complete resolved terrain palette.
 Source hashing, input limits, a versioned coordinator, retained stage artifacts,
 and typed stage diagnostics now form the Milestones 1-2 foundation. Strict
 `SourceArtwork` and `PropRecipe` schemas, managers, editor ownership, reference
 scans, pure `PreparedPropAsset` construction, and compensated bundle creation
-are implemented. Regeneration/deletion, the editor workflow, and provider
-integration remain.
+are implemented. Bundle deletion and snapshot-guarded deterministic
+regeneration are also implemented. The Prop Artwork tab now completes the
+durable imported-source workflow. Provider integration remains.
 
 This design covers a static world prop such as a boulder, tree, sign, or ruin.
 The result is ordinary Zebes data: a texture, a one-frame sprite, and a blueprint
@@ -45,14 +46,18 @@ The remaining gaps are equally concrete:
   boundary, cancellation contract, or remote-request timeout policy.
 - The terrain palette and deterministic transforms are shared platform-neutral
   boundaries. The versioned coordinator enforces source limits, records a
-  canonical source digest, retains each preview artifact, and reports typed
-  stage metrics. Stage-specific diagnostics and fixtures still need to expand
-  as the imported-source editor workflow exercises them.
+  canonical source digest, retains each preview artifact in review mode, and
+  reports typed stage metrics. Stage-specific diagnostics can continue to
+  expand without changing the editor boundary.
 - Source artwork and prop recipes have strict, versioned managers and are part
   of reference scans. A prepared generated-prop bundle now preflights and
   creates its texture, sprite, blueprint, and recipe together with explicit
-  compensation. Regeneration and bundle deletion remain.
-- There is no regeneration path or Prop Artwork editor tab.
+  compensation. Regeneration uses exact source, recipe, texture, pixel, and
+  sprite snapshots; bundle deletion preflights external references and retains
+  a recovery record until the runtime outputs are gone.
+- The Prop Artwork tab imports or reuses retained sources, resolves a full
+  terrain palette, processes on a bounded worker, previews every stage or only
+  the finished result, and creates, regenerates, or deletes complete bundles.
 
 The feature should fill those gaps. It should not embed Python in the editor,
 shell out to a provider CLI, put provider JSON into domain objects, or add AI to
@@ -343,15 +348,18 @@ invariant instead of emitting a malformed asset.
 
 ## 7. Preview and execution semantics
 
-Preview policy changes what the editor stops on and retains, not how pixels are
+Preview policy changes what the editor presents and retains, not how pixels are
 produced:
 
-- **Review each step** runs one stage, shows its output and diagnostics, and
-  waits for Continue. Editing a stage invalidates that stage and every output
-  after it, while earlier accepted outputs remain valid.
+- **Review each step** runs the deterministic coordinator once on a bounded
+  worker, retains every stage image, and opens at isolation. Previous/Next
+  navigates source, isolation, composition, rasterization, quantization, edge
+  treatment, cleanup, and the in-context result. Editing an input invalidates
+  the prepared result and requires an explicit reprocess.
 - **Finished only** runs the same stage list in one bounded worker operation and
-  retains only the accepted source and final artifact. On failure it opens the
-  failing stage with its input, attempted output when available, and diagnostic.
+  retains only the accepted source, final artifact, diagnostics, and compact
+  in-context preview. On failure it reports the stage's typed error without
+  publishing any output.
 
 If generation returns several candidates, finished-only mode processes each
 candidate and shows the finished variants; it does not silently choose a raw
@@ -384,8 +392,8 @@ That in-context composition is preview-only and is never baked into the prop.
 5. The existing Level Editor places that blueprint in a world layer behind the
    ground layer. No AI or prop-pipeline object is needed to render the level.
 
-In review-each-step mode the same run pauses after each transform in step 2.
-The final pixels and committed bundle are otherwise identical.
+In review-each-step mode the same run retains and exposes every transform from
+step 2. The final pixels and committed bundle are otherwise identical.
 
 ## 8. Recipe and output bundle
 
@@ -460,11 +468,14 @@ terrain does and test every failure point. The same helper should be suitable
 for generated terrain once proven, rather than becoming prop-only transaction
 machinery.
 
-Regeneration starts from the stored `SourceArtwork`, never from a new provider
-call. It preserves texture, sprite, blueprint, and recipe IDs. It may replace
-texture pixels and update the recipe-owned sprite frame after comparing the live
-recipe, sprite, source digest, and prior pixel digest with the exact snapshots
-used by the worker. A mismatch refuses the commit as stale.
+Implemented regeneration starts from the stored `SourceArtwork`, never from a
+new provider call. `PreparePropRegeneration` is a pure worker boundary that
+retains every preview and preserves texture, sprite, blueprint, and recipe IDs.
+`Api::RegenerateGeneratedProp` may replace texture pixels and update the
+recipe-owned sprite frame only after comparing the live source metadata,
+recipe, texture definition and pixels, and sprite with the exact snapshots used
+by the worker. A mismatch refuses every write as stale. A commit failure uses
+explicit compensation to restore the prior recipe and sprite definitions.
 
 The blueprint is an output binding but is not overwritten during regeneration:
 the author may have added collider states in the Blueprint Editor. Regeneration
@@ -476,36 +487,64 @@ fresh IDs.
 `Api::DeleteGeneratedProp` deletes the bundle as one operation. It first scans
 the output members for external referrers: placed entities naming the blueprint,
 other blueprints reusing the sprite, and other sprites reusing the texture. Any
-such use blocks deletion and names the referrer. On success it removes recipe,
-blueprint, sprite, and texture in dependency order. It removes the source only
-when no other recipe references it; a shared source remains and does not block
-deleting this prop.
+such use blocks deletion and names the referrer. On success it removes blueprint,
+sprite, and texture in dependency order, then removes the recipe. Keeping the
+recipe until the outputs are gone preserves the IDs needed to retry after an I/O
+failure; already-missing outputs are tolerated. It removes the source last and
+only when no other recipe references it; a shared source remains and does not
+block deleting this prop.
 
 ## 10. Editor shape
 
-Add a Prop Artwork tab with the established three-column layout:
+Implemented: the Prop Artwork tab uses the established three-column layout:
 
-- **Input:** import or generate, provider status, prompt, candidate selection,
-  selected terrain recipe, and refresh/detach style actions.
-- **Preview:** stage selector in review mode; checkerboard, tile grid, ground
-  line, anchor, fit control, and final in-context view.
-- **Output:** canvas and cleanup settings, review/finished-only policy, Create,
-  Open, Save As, Regenerate, and bundle Delete.
+- **Input:** import or reuse retained source art, select or refresh a terrain
+  recipe's resolved style, and tune isolation, canvas, raster, edge, and cleanup
+  settings. Generate, provider status, prompt, and candidate selection arrive
+  with Milestone 5.
+- **Preview:** stage selector in review mode; checkerboard, tile grid, rulers,
+  anchor, automatic fit, diagnostics, and final in-context view. It uses the
+  shared editor `Canvas`, so wheel zoom, keyboard/middle-drag panning, ruler
+  behavior, zoom limits, and Fit framing stay consistent with the Terrain,
+  Tileset, Blueprint, and Level editors. Context composition expands around the
+  complete prop texture with one tile of margin; a tall prop is never clipped
+  merely because the terrain preview has too little space above its ground.
+- **Output:** recipe selection, review/finished-only policy, Process, Create,
+  Open, Save As, Apply Regeneration, and confirmed bundle Delete.
 
 The model owns the draft, stage states, accepted source, configuration snapshots,
 revision, errors, and pending-work metadata. Panels render and report intents.
 The containing editor starts provider/local work and commits through `Api`.
 Neither model nor panels own native textures or provider SDK objects.
 
-Controls are disabled only where mutation would invalidate pending ownership.
-Remote generation can be cancelled. Bounded local work may finish and be
-discarded by revision. Every failure appears in the dismissible status banner;
-low-confidence isolation is a review state, not a log warning.
+Controls are disabled while bounded local work owns their snapshots. A result
+for a superseded revision is discarded. Every failure appears in dismissible
+status text. Remote cancellation is a Milestone 5 provider responsibility.
 
 After creation the blueprint appears in the existing Level Editor palette. To
 place a boulder behind ground or actors, put it in an earlier world layer. Its
 `sort_order` only orders it among entities in that same layer. This pipeline does
 not infer a world layer.
+
+### Remaining attachment semantics
+
+The initial recipe always derives a bottom-center grounded anchor. Real usage
+has already shown that this is insufficient: a stalactite or hanging ruin needs
+a ceiling contact, while a background silhouette may need an author-positioned
+free anchor. Before provider generation expands the number of candidates, add a
+strict persisted attachment mode with at least:
+
+- **grounded:** bottom-center subject contact with the current ground-tolerance
+  validation;
+- **ceiling:** top-center subject contact with corresponding ceiling-tolerance
+  validation and context placement;
+- **free/background:** an explicit author-controlled anchor inside the canvas,
+  with no inferred contact edge.
+
+Attachment mode belongs in `PropRecipe` and the deterministic composition and
+validation settings. It is not collider intent and must not infer a world
+layer. Changing it invalidates downstream previews and regeneration snapshots
+like every other recipe input.
 
 ## 11. Verification boundaries
 
@@ -557,16 +596,22 @@ unfinished provider behavior.
 2. **Deterministic artwork library (foundation implemented; diagnostics still expand).** Implement typed stages, diagnostics,
    final validation, and focused fixtures beyond the spike's minimum path. No
    editor or provider dependency.
-3. **Authoring resources and lifecycle (in progress).** `SourceArtwork`,
+3. **Authoring resources and lifecycle (implemented).** `SourceArtwork`,
    `PropRecipe`, strict initial schemas, managers, asset references, editor
    ownership, ID-backed source/output paths, deterministic prepared output, and
-   compensated bundle creation are implemented. Add regeneration and bundle
-   deletion next. No migration is needed until an initial schema has shipped
-   and later changes.
-4. **Editor workflow from imported sources.** Add the model, per-stage and
-   final-only preview policies, in-context preview, background processing, and
-   finished texture/sprite/blueprint creation. This proves the entire durable
-   pipeline without a network dependency.
+   compensated bundle creation, regeneration, and bundle deletion are
+   implemented. No migration is needed until an initial schema has shipped and
+   later changes.
+4. **Editor workflow from imported sources (implemented).** The platform-neutral
+   model, per-stage and final-only preview policies, real-terrain in-context
+   preview, background import/processing, finished bundle creation,
+   regeneration, Save As, and reference-safe deletion prove the entire durable
+   pipeline without a network dependency. Shared `Canvas` navigation gives
+   previews rulers, pan, zoom, and Fit, and context bounds retain the complete
+   texture.
+4a. **Attachment modes (next).** Persist and preview grounded, ceiling, and
+   free/background anchors before provider candidates depend on a
+   grounded-only recipe contract.
 5. **Generation service and first adapter.** Add cancellable provider requests,
    credential/configuration plumbing, candidate processing, provenance, limits,
    and opt-in integration tests. Imported and generated sources converge at the

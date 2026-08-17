@@ -1,8 +1,10 @@
 #pragma once
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "editor/gui_interface.h"
 #include "engine/texture_handle.h"
+#include "objects/camera.h"
 
 namespace zebes {
 
@@ -23,6 +25,12 @@ absl::StatusOr<TexturePreviewLayout> CalculateTexturePreviewLayout(int source_wi
                                                                    int source_height,
                                                                    float max_width,
                                                                    float max_height);
+
+// Centers an image in a Camera whose viewport dimensions have already been
+// installed by Canvas, fitting it with a caller-selected fraction of margin.
+// Shared by picture-first editor tabs so framing behavior does not drift.
+absl::Status FrameImagePreviewCamera(Camera& camera, int source_width, int source_height,
+                                     float fill_fraction, CameraZoomRange zoom_range);
 
 // A managed atlas resolved for draw-list rendering: the ImGui texture ID plus
 // the native dimensions callers need to normalize sub-rectangle UVs.

@@ -31,5 +31,38 @@ TEST(TexturePreviewLayoutTest, RejectsInvalidDimensionsAndBounds) {
             absl::StatusCode::kInvalidArgument);
 }
 
+TEST(TexturePreviewCameraTest, CentersAndFitsTheImageInsideTheCanvasViewport) {
+  Camera camera{.viewport_width = 800, .viewport_height = 600};
+
+  ASSERT_OK(FrameImagePreviewCamera(camera, 400, 400, 0.9f,
+                                    CameraZoomRange{.minimum = 0.1, .maximum = 10.0}));
+
+  EXPECT_EQ(camera.position, (Vec{200, 200}));
+  EXPECT_NEAR(camera.zoom, 1.35, 1e-6);
+}
+
+TEST(TexturePreviewCameraTest, RejectsInvalidViewportAndFillFraction) {
+  Camera missing_viewport;
+  EXPECT_EQ(FrameImagePreviewCamera(missing_viewport, 100, 100, 0.9f,
+                                    CameraZoomRange{.minimum = 0.1, .maximum = 10.0})
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+
+  Camera camera{.viewport_width = 800, .viewport_height = 600};
+  EXPECT_EQ(FrameImagePreviewCamera(camera, 100, 100, 0.0f,
+                                    CameraZoomRange{.minimum = 0.1, .maximum = 10.0})
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(TexturePreviewCameraTest, RespectsTheOwningCanvasZoomRange) {
+  Camera camera{.viewport_width = 800, .viewport_height = 600};
+
+  ASSERT_OK(FrameImagePreviewCamera(camera, 4, 4, 0.9f,
+                                    CameraZoomRange{.minimum = 0.1, .maximum = 10.0}));
+
+  EXPECT_DOUBLE_EQ(camera.zoom, 10.0);
+}
+
 }  // namespace
 }  // namespace zebes

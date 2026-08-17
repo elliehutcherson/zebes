@@ -13,7 +13,6 @@ namespace {
 // Editor navigation deliberately permits a wider range than gameplay camera
 // control. These limits apply both before rendering and immediately after a
 // wheel event.
-constexpr CameraZoomRange kEditorNavigationZoomRange{.minimum = 0.1, .maximum = 10.0};
 constexpr double kEditorPanSpeed = 500.0;
 constexpr double kEditorWheelZoomStep = 0.1;
 constexpr float kRulerWidth = 56.0f;
@@ -67,8 +66,7 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
     ImU32 bg_color = IM_COL32(50, 50, 50, 255);
     draw_list_->AddRectFilled(
         canvas_origin_,
-        ImVec2(canvas_origin_.x + canvas_size_.x, canvas_origin_.y + canvas_size_.y),
-        bg_color);
+        ImVec2(canvas_origin_.x + canvas_size_.x, canvas_origin_.y + canvas_size_.y), bg_color);
   }
 }
 
@@ -99,7 +97,7 @@ void Canvas::HandleInput() {
   if (is_hovered && gui_->GetIO().MouseWheel != 0.0f) {
     camera_->zoom += gui_->GetIO().MouseWheel * kEditorWheelZoomStep;
     // Clamp immediately so DrawGrid never sees zoom <= 0, regardless of call order.
-    camera_->zoom = kEditorNavigationZoomRange.Clamp(camera_->zoom);
+    camera_->zoom = NavigationZoomRange().Clamp(camera_->zoom);
   }
 
   // 2. Handle Panning (Keyboard: WASD / Arrows)
@@ -211,12 +209,10 @@ void Canvas::DrawGrid() {
   ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
   // Top Ruler (X)
   draw_list_->AddRectFilled(
-      canvas_origin_, ImVec2(canvas_origin_.x + canvas_size_.x, content_origin_.y),
-      ruler_bg_color);
+      canvas_origin_, ImVec2(canvas_origin_.x + canvas_size_.x, content_origin_.y), ruler_bg_color);
   // Left Ruler (Y)
   draw_list_->AddRectFilled(
-      canvas_origin_, ImVec2(content_origin_.x, canvas_origin_.y + canvas_size_.y),
-      ruler_bg_color);
+      canvas_origin_, ImVec2(content_origin_.x, canvas_origin_.y + canvas_size_.y), ruler_bg_color);
 
   // 5. Draw Ticks & Grid Lines using Member Helper
   DrawRulerAndGrid(start_x, world_step, content_size_.x, true);
@@ -228,14 +224,12 @@ void Canvas::DrawGrid() {
     ImU32 indicator_color = IM_COL32(255, 50, 50, 255);
 
     // Indicator on X Ruler
-    if (mouse_pos.x >= content_origin_.x &&
-        mouse_pos.x <= content_origin_.x + content_size_.x) {
+    if (mouse_pos.x >= content_origin_.x && mouse_pos.x <= content_origin_.x + content_size_.x) {
       draw_list_->AddLine(ImVec2(mouse_pos.x, canvas_origin_.y),
                           ImVec2(mouse_pos.x, content_origin_.y), indicator_color, 2.0f);
     }
     // Indicator on Y Ruler
-    if (mouse_pos.y >= content_origin_.y &&
-        mouse_pos.y <= content_origin_.y + content_size_.y) {
+    if (mouse_pos.y >= content_origin_.y && mouse_pos.y <= content_origin_.y + content_size_.y) {
       draw_list_->AddLine(ImVec2(canvas_origin_.x, mouse_pos.y),
                           ImVec2(content_origin_.x, mouse_pos.y), indicator_color, 2.0f);
     }
@@ -300,7 +294,7 @@ void Canvas::ClampCamera() {
 
   // 1. Apply Hard Limits (Sanity Check)
   // We always want reasonable limits regardless of world size
-  camera_->zoom = kEditorNavigationZoomRange.Clamp(camera_->zoom);
+  camera_->zoom = NavigationZoomRange().Clamp(camera_->zoom);
 
   if (!world_min_.has_value() || !world_max_.has_value()) return;
 

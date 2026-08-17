@@ -62,6 +62,7 @@ target_link_libraries(terrain_editor
   background_task
   camera
   editor_canvas
+  editor_texture_preview
   gui_interface
   terrain_controls_panel
   terrain_creation

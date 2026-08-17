@@ -19,3 +19,15 @@ target_link_libraries(prepare_prop_asset_test
 )
 target_include_directories(prepare_prop_asset_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(prepare_prop_asset_test)
+
+add_executable(regenerate_prop_asset_test regenerate_prop_asset_test.cc)
+target_link_libraries(regenerate_prop_asset_test
+  gtest_main
+  macros
+  regenerate_prop_asset
+  prepare_prop_asset
+  terrain_palette
+  image_digest
+)
+target_include_directories(regenerate_prop_asset_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(regenerate_prop_asset_test)

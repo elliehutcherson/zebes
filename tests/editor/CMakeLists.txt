@@ -151,6 +151,37 @@ target_link_libraries(terrain_editor_test
 target_include_directories(terrain_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(terrain_editor_test)
 
+add_executable(prop_artwork_editor_model_test prop_artwork_editor_model_test.cc)
+target_link_libraries(prop_artwork_editor_model_test
+  gtest_main
+  macros
+  prop_artwork_editor_model
+  prepare_prop_asset
+  terrain_palette
+)
+target_include_directories(prop_artwork_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(prop_artwork_editor_model_test)
+
+add_executable(prop_artwork_context_test prop_artwork_context_test.cc)
+target_link_libraries(prop_artwork_context_test
+  gtest_main
+  macros
+  prop_artwork_context
+)
+target_include_directories(prop_artwork_context_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(prop_artwork_context_test)
+
+add_executable(prop_artwork_editor_test prop_artwork_editor_test.cc)
+target_link_libraries(prop_artwork_editor_test
+  gtest_main
+  gmock
+  macros
+  prop_artwork_editor
+  gui_mock
+)
+target_include_directories(prop_artwork_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(prop_artwork_editor_test)
+
 # --- Tileset Panel Test ---
 add_executable(tileset_panel_test tileset_panel_test.cc)
 target_link_libraries(tileset_panel_test

@@ -139,11 +139,12 @@ explicit active layer while keeping parallax theme layers specialized.
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved
-terrain colours are the production palette policy. The first Milestones 1-2
-hardening pass adds canonical source hashing, input limits, a versioned pipeline
-coordinator, and retained preview artifacts. Strict source-artwork and prop-recipe
-resources, managers, editor ownership, and reference scans are now implemented;
-prepared bundle lifecycle, editor workflow, and provider integration remain.
+terrain colours are the production palette policy. Milestones 1-4 now provide
+the deterministic pipeline, strict source and recipe resources, compensated
+bundle lifecycle, regeneration/deletion, and the imported-source Prop Artwork
+tab. Its preview reuses the editor `Canvas` for rulers, pan, zoom, and Fit, and
+context framing retains the complete prop texture. Attachment modes and provider
+integration remain.
 Its §12 sequence:
 
 0. **Accepted.** Run the visual feasibility spike:
@@ -151,15 +152,14 @@ Its §12 sequence:
    and three palette policies. Do not build persistence, UI, or provider
    infrastructure unless an in-context result looks like production-quality
    Zebes art.
-1. Keep the accepted shared palette, image primitives, and deterministic C++
-   stages without changing terrain output.
-2. **In progress.** Managed source art, strict prop recipes, ID-backed source
-   storage, and reference scanning are implemented. Add generated-prop bundle
-   commit, regeneration, and deletion.
-3. Prove the full editor workflow with imported sources, per-stage preview, and
-   finished-only preview before adding a network dependency.
-4. Add the cancellable image-generation service and first provider adapter.
-5. Harden shutdown, retry, staging cleanup, and provider failure behavior.
+1. **Implemented.** Keep the accepted shared palette and image primitives.
+2. **Implemented.** Harden the deterministic stage coordinator and diagnostics.
+3. **Implemented.** Add resources and compensated bundle lifecycle.
+4. **Implemented.** Prove the imported-source editor workflow, including shared
+   Canvas navigation and unclipped context framing.
+4a. **Next.** Persist grounded, ceiling, and free/background attachment modes.
+5. Add the cancellable image-generation service and first provider adapter.
+6. Harden shutdown, retry, staging cleanup, and provider failure behavior.
 
 **`ParallaxZone::fade_length`** — authored, serialized, validated, and ignored.
 `ResolveActiveParallaxZone` returns one zone by a half-open bounds test, so every

@@ -69,3 +69,22 @@ target_link_libraries(prepare_prop_asset
   status_macros
   absl::strings
 )
+
+add_library(regenerate_prop_asset regenerate_prop_asset.cc)
+target_link_libraries(regenerate_prop_asset
+  PUBLIC
+  prop_artwork
+  prop_artwork_style
+  prop_recipe
+  source_artwork
+  sprite
+  texture
+  image_io
+  absl::status
+  absl::statusor
+  PRIVATE
+  prepare_prop_asset
+  image_digest
+  status_macros
+  absl::strings
+)

@@ -1,6 +1,5 @@
 #include "editor/terrain_editor/terrain_editor.h"
 
-#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <utility>
@@ -12,6 +11,7 @@
 #include "common/status_macros.h"
 #include "editor/imgui_scoped.h"
 #include "editor/terrain_editor/terrain_creation.h"
+#include "editor/texture_preview.h"
 
 namespace zebes {
 namespace {
@@ -75,16 +75,15 @@ absl::Status TerrainEditor::RenderControls() {
   return absl::OkStatus();
 }
 
-void TerrainEditor::FrameScene(const ImVec2& viewport_size) {
-  if (!model_.preview().has_value()) return;
+absl::Status TerrainEditor::FrameScene(const ImVec2& viewport_size) {
+  if (!model_.preview().has_value()) {
+    return absl::FailedPreconditionError("cannot frame a missing terrain preview");
+  }
   const RgbaImage& image = *model_.preview();
-  if (image.width <= 0 || image.height <= 0) return;
-  if (viewport_size.x <= 0.0f || viewport_size.y <= 0.0f) return;
-
-  const double fit_x = viewport_size.x / static_cast<double>(image.width);
-  const double fit_y = viewport_size.y / static_cast<double>(image.height);
-  camera_.zoom = std::clamp(std::min(fit_x, fit_y) * kFrameFill, 0.1, 10.0);
-  camera_.position = Vec{image.width / 2.0, image.height / 2.0};
+  camera_.viewport_width = static_cast<int>(viewport_size.x);
+  camera_.viewport_height = static_cast<int>(viewport_size.y);
+  return FrameImagePreviewCamera(camera_, image.width, image.height, kFrameFill,
+                                 Canvas::NavigationZoomRange());
 }
 
 absl::Status TerrainEditor::RenderViewport() {
@@ -103,11 +102,6 @@ absl::Status TerrainEditor::RenderViewport() {
   canvas_size.y -= kStatusBarHeight;
   if (canvas_size.x <= 0.0f || canvas_size.y <= 0.0f) return absl::OkStatus();
 
-  if (frame_pending_) {
-    FrameScene(canvas_size);
-    frame_pending_ = false;
-  }
-
   const RgbaImage& image = *model_.preview();
   ASSIGN_OR_RETURN(const ImTextureID texture, preview_->Upload(image));
 
@@ -117,6 +111,12 @@ absl::Status TerrainEditor::RenderViewport() {
   canvas_.SetGridSize(static_cast<float>(model_.config().tile_size));
   canvas_.Begin("TerrainCanvas", canvas_size, camera_);
   auto canvas_end = absl::MakeCleanup([this] { canvas_.End(); });
+
+  if (frame_pending_) {
+    RETURN_IF_ERROR(FrameScene(ImVec2(static_cast<float>(camera_.viewport_width),
+                                      static_cast<float>(camera_.viewport_height))));
+    frame_pending_ = false;
+  }
 
   if (ImDrawList* draw_list = canvas_.GetDrawList(); draw_list != nullptr) {
     const ImVec2 min = canvas_.WorldToScreen({0, 0});

@@ -606,5 +606,303 @@ TEST_F(GeneratedPropCommitTest, ReportsPrimaryAndCompensationFailures) {
   EXPECT_THAT(std::string(status.message()), HasSubstr("texture cleanup failed"));
 }
 
+class GeneratedPropDeleteTest : public ApiValidationTest {
+ protected:
+  void SetUp() override {
+    ApiValidationTest::SetUp();
+    recipe_ = PropRecipe{
+        .id = "recipe-1",
+        .name = "Cave boulder",
+        .source_artwork_id = "source-1",
+        .texture_id = "texture-1",
+        .sprite_id = "sprite-1",
+        .blueprint_id = "blueprint-1",
+    };
+    recipes_ = {recipe_};
+    sprites_ = {Sprite{
+        .id = "sprite-1",
+        .name = "Cave boulder",
+        .texture_id = "texture-1",
+    }};
+    blueprints_ = {Blueprint{
+        .id = "blueprint-1",
+        .name = "Cave boulder",
+        .states = {Blueprint::State{.name = "Default", .sprite_id = "sprite-1"}},
+    }};
+
+    ON_CALL(prop_recipe_manager_, GetRecipe("recipe-1")).WillByDefault(Return(&recipe_));
+    ON_CALL(prop_recipe_manager_, GetAllRecipes()).WillByDefault([this] { return recipes_; });
+    ON_CALL(sprite_manager_, GetAllSprites()).WillByDefault([this] { return sprites_; });
+    ON_CALL(blueprint_manager_, GetAllBlueprints()).WillByDefault([this] { return blueprints_; });
+    ON_CALL(blueprint_manager_, DeleteBlueprint("blueprint-1"))
+        .WillByDefault([this](const std::string&) {
+          blueprints_.clear();
+          return absl::OkStatus();
+        });
+    ON_CALL(sprite_manager_, DeleteSprite("sprite-1")).WillByDefault([this](const std::string&) {
+      sprites_.clear();
+      return absl::OkStatus();
+    });
+    ON_CALL(prop_recipe_manager_, DeleteRecipe("recipe-1"))
+        .WillByDefault([this](const std::string&) {
+          recipes_.clear();
+          return absl::OkStatus();
+        });
+    ON_CALL(texture_manager_, DeleteTexture("texture-1")).WillByDefault(Return(absl::OkStatus()));
+    ON_CALL(source_artwork_manager_, DeleteArtwork("source-1"))
+        .WillByDefault(Return(absl::OkStatus()));
+  }
+
+  PropRecipe recipe_;
+  std::vector<PropRecipe> recipes_;
+  std::vector<Sprite> sprites_;
+  std::vector<Blueprint> blueprints_;
+};
+
+TEST_F(GeneratedPropDeleteTest, DeletesOutputsThenRecipeThenUnsharedSource) {
+  InSequence sequence;
+  EXPECT_CALL(blueprint_manager_, DeleteBlueprint("blueprint-1")).Times(1);
+  EXPECT_CALL(sprite_manager_, DeleteSprite("sprite-1")).Times(1);
+  EXPECT_CALL(texture_manager_, DeleteTexture("texture-1")).Times(1);
+  EXPECT_CALL(prop_recipe_manager_, DeleteRecipe("recipe-1")).Times(1);
+  EXPECT_CALL(source_artwork_manager_, DeleteArtwork("source-1")).Times(1);
+
+  EXPECT_OK(api_->DeleteGeneratedProp("recipe-1"));
+}
+
+TEST_F(GeneratedPropDeleteTest, OwnReferencesDoNotBlockDeletion) {
+  EXPECT_CALL(blueprint_manager_, DeleteBlueprint("blueprint-1")).Times(1);
+  EXPECT_OK(api_->DeleteGeneratedProp("recipe-1"));
+}
+
+TEST_F(GeneratedPropDeleteTest, LevelPlacementBlocksEverythingBeforeDeletion) {
+  Level level = LevelUsingTileset("");
+  Entity entity;
+  entity.id = 4;
+  entity.blueprint_id = "blueprint-1";
+  level.layers.front().entities.emplace(entity.id, entity);
+  ON_CALL(level_manager_, GetAllLevels())
+      .WillByDefault(Return(std::vector<Level>{std::move(level)}));
+
+  EXPECT_CALL(blueprint_manager_, DeleteBlueprint(_)).Times(0);
+  EXPECT_CALL(prop_recipe_manager_, DeleteRecipe(_)).Times(0);
+
+  const absl::Status status = api_->DeleteGeneratedProp("recipe-1");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Cave Level"));
+}
+
+TEST_F(GeneratedPropDeleteTest, ReuseOfSpriteOrTextureBlocksTheBundle) {
+  blueprints_.push_back(Blueprint{
+      .id = "other-blueprint",
+      .name = "Other blueprint",
+      .states = {Blueprint::State{.name = "Default", .sprite_id = "sprite-1"}},
+  });
+  sprites_.push_back(Sprite{
+      .id = "other-sprite",
+      .name = "Other sprite",
+      .texture_id = "texture-1",
+  });
+
+  EXPECT_CALL(blueprint_manager_, DeleteBlueprint(_)).Times(0);
+  const absl::Status status = api_->DeleteGeneratedProp("recipe-1");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Other blueprint"));
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Other sprite"));
+}
+
+TEST_F(GeneratedPropDeleteTest, SharedSourceArtworkSurvives) {
+  recipes_.push_back(PropRecipe{
+      .id = "recipe-2",
+      .name = "Meadow boulder",
+      .source_artwork_id = "source-1",
+  });
+  EXPECT_CALL(source_artwork_manager_, DeleteArtwork(_)).Times(0);
+
+  EXPECT_OK(api_->DeleteGeneratedProp("recipe-1"));
+}
+
+TEST_F(GeneratedPropDeleteTest, MissingOutputMembersStillAllowDeletionToFinish) {
+  EXPECT_CALL(blueprint_manager_, DeleteBlueprint("blueprint-1"))
+      .WillOnce(Return(absl::NotFoundError("already absent")));
+  EXPECT_CALL(sprite_manager_, DeleteSprite("sprite-1"))
+      .WillOnce(Return(absl::NotFoundError("already absent")));
+  EXPECT_CALL(texture_manager_, DeleteTexture("texture-1"))
+      .WillOnce(Return(absl::NotFoundError("already absent")));
+  EXPECT_CALL(prop_recipe_manager_, DeleteRecipe("recipe-1")).Times(1);
+
+  EXPECT_OK(api_->DeleteGeneratedProp("recipe-1"));
+}
+
+TEST_F(GeneratedPropDeleteTest, FailedOutputDeleteKeepsRecipeForRetry) {
+  EXPECT_CALL(blueprint_manager_, DeleteBlueprint("blueprint-1"))
+      .WillOnce(Return(absl::InternalError("definition is locked")));
+  EXPECT_CALL(prop_recipe_manager_, DeleteRecipe(_)).Times(0);
+
+  const absl::Status status = api_->DeleteGeneratedProp("recipe-1");
+  EXPECT_EQ(status.code(), absl::StatusCode::kInternal);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("locked"));
+}
+
+class GeneratedPropRegenerationTest : public GeneratedPropCommitTest {
+ protected:
+  void SetUp() override {
+    GeneratedPropCommitTest::SetUp();
+    regeneration_ = PreparedPropRegeneration{
+        .source_snapshot = prepared_.source,
+        .recipe_snapshot = prepared_.recipe,
+        .texture_snapshot = prepared_.texture,
+        .texture_pixel_digest = prepared_.recipe.final_pixel_digest,
+        .sprite_snapshot = prepared_.sprite,
+        .artwork = prepared_.artwork,
+        .updated_sprite = prepared_.sprite,
+        .updated_recipe = prepared_.recipe,
+    };
+    ASSERT_OK(ValidatePreparedPropRegeneration(regeneration_));
+
+    ON_CALL(prop_recipe_manager_, GetRecipe("recipe-1"))
+        .WillByDefault(Return(&regeneration_.recipe_snapshot));
+    ON_CALL(texture_manager_, GetTexture("texture-1"))
+        .WillByDefault(Return(&regeneration_.texture_snapshot));
+    ON_CALL(texture_manager_, ReadTexturePixels("texture-1"))
+        .WillByDefault(Return(regeneration_.artwork.finished.image));
+    ON_CALL(sprite_manager_, GetSprite("sprite-1"))
+        .WillByDefault(Return(&regeneration_.sprite_snapshot));
+    ON_CALL(blueprint_manager_, GetBlueprint("blueprint-1"))
+        .WillByDefault(Return(&prepared_.blueprint));
+  }
+
+  PreparedPropRegeneration regeneration_;
+};
+
+TEST_F(GeneratedPropRegenerationTest, CommitsSpriteAndRecipeBeforeReplacingPixels) {
+  InSequence sequence;
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(prop_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels("texture-1", 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(blueprint_manager_, SaveBlueprint(_)).Times(0);
+
+  EXPECT_OK(api_->RegenerateGeneratedProp(regeneration_));
+}
+
+TEST_F(GeneratedPropRegenerationTest, BlueprintColliderEditsAreNeverOverwritten) {
+  prepared_.blueprint.states.front().collider_id = "hand-authored-collider";
+  prepared_.blueprint.states.push_back(
+      Blueprint::State{.name = "Broken", .collider_id = "another-collider"});
+  EXPECT_CALL(blueprint_manager_, SaveBlueprint(_)).Times(0);
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(prop_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _))
+      .WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_OK(api_->RegenerateGeneratedProp(regeneration_));
+  EXPECT_EQ(prepared_.blueprint.states.front().collider_id, "hand-authored-collider");
+  EXPECT_EQ(prepared_.blueprint.states.size(), 2u);
+}
+
+TEST_F(GeneratedPropRegenerationTest, StaleRecipeRefusesEveryWrite) {
+  PropRecipe changed = regeneration_.recipe_snapshot;
+  changed.name = "Renamed while worker ran";
+  ON_CALL(prop_recipe_manager_, GetRecipe("recipe-1")).WillByDefault(Return(&changed));
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).Times(0);
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  EXPECT_EQ(api_->RegenerateGeneratedProp(regeneration_).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST_F(GeneratedPropRegenerationTest, StaleSourceRefusesEveryWrite) {
+  SourceArtwork changed = regeneration_.source_snapshot;
+  changed.name = "Renamed source while worker ran";
+  ON_CALL(source_artwork_manager_, GetArtwork("source-1")).WillByDefault(Return(&changed));
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).Times(0);
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  EXPECT_EQ(api_->RegenerateGeneratedProp(regeneration_).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST_F(GeneratedPropRegenerationTest, StaleTextureDefinitionRefusesEveryWrite) {
+  Texture changed = regeneration_.texture_snapshot;
+  changed.name = "Renamed texture while worker ran";
+  ON_CALL(texture_manager_, GetTexture("texture-1")).WillByDefault(Return(&changed));
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).Times(0);
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  EXPECT_EQ(api_->RegenerateGeneratedProp(regeneration_).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST_F(GeneratedPropRegenerationTest, StaleTexturePixelsRefuseEveryWrite) {
+  RgbaImage changed = regeneration_.artwork.finished.image;
+  changed.pixels[0] ^= 0xff;
+  ON_CALL(texture_manager_, ReadTexturePixels("texture-1")).WillByDefault(Return(changed));
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).Times(0);
+
+  EXPECT_EQ(api_->RegenerateGeneratedProp(regeneration_).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST_F(GeneratedPropRegenerationTest, StaleSpriteRefusesEveryWrite) {
+  Sprite changed = regeneration_.sprite_snapshot;
+  ++changed.frames.front().offset_x;
+  ON_CALL(sprite_manager_, GetSprite("sprite-1")).WillByDefault(Return(&changed));
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).Times(0);
+
+  EXPECT_EQ(api_->RegenerateGeneratedProp(regeneration_).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST_F(GeneratedPropRegenerationTest, MissingBlueprintRefusesEveryWrite) {
+  ON_CALL(blueprint_manager_, GetBlueprint("blueprint-1"))
+      .WillByDefault(Return(absl::NotFoundError("blueprint is gone")));
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).Times(0);
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  EXPECT_EQ(api_->RegenerateGeneratedProp(regeneration_).code(), absl::StatusCode::kNotFound);
+}
+
+TEST_F(GeneratedPropRegenerationTest, RecipeFailureRestoresTheSpriteSnapshot) {
+  InSequence sequence;
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(prop_recipe_manager_, SaveRecipe(_))
+      .WillOnce(Return(absl::InternalError("recipe write failed")));
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  const absl::Status status = api_->RegenerateGeneratedProp(regeneration_);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("recipe write failed"));
+}
+
+TEST_F(GeneratedPropRegenerationTest, PixelFailureRestoresRecipeThenSprite) {
+  InSequence sequence;
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(prop_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _))
+      .WillOnce(Return(absl::InternalError("pixel replacement failed")));
+  EXPECT_CALL(prop_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(sprite_manager_, SaveSprite(_)).WillOnce(Return(absl::OkStatus()));
+
+  const absl::Status status = api_->RegenerateGeneratedProp(regeneration_);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("pixel replacement failed"));
+}
+
+TEST_F(GeneratedPropRegenerationTest, ReportsFailedRollbackAlongsidePixelFailure) {
+  EXPECT_CALL(sprite_manager_, SaveSprite(_))
+      .WillOnce(Return(absl::OkStatus()))
+      .WillOnce(Return(absl::InternalError("sprite restore failed")));
+  EXPECT_CALL(prop_recipe_manager_, SaveRecipe(_))
+      .WillOnce(Return(absl::OkStatus()))
+      .WillOnce(Return(absl::InternalError("recipe restore failed")));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _))
+      .WillOnce(Return(absl::InternalError("pixel replacement failed")));
+
+  const absl::Status status = api_->RegenerateGeneratedProp(regeneration_);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("pixel replacement failed"));
+  EXPECT_THAT(std::string(status.message()), HasSubstr("recipe restore failed"));
+  EXPECT_THAT(std::string(status.message()), HasSubstr("sprite restore failed"));
+}
+
 }  // namespace
 }  // namespace zebes
