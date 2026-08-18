@@ -5,6 +5,7 @@
 #include <cstddef>
 
 #include "absl/status/status.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 
@@ -43,9 +44,8 @@ absl::StatusOr<PropArtwork> ComposeProp(const RgbaImage& isolated,
       config.padding_fraction >= 0.45f) {
     return absl::InvalidArgumentError("prop composition settings are invalid");
   }
-  const absl::Status attachment_status =
-      ValidatePropAttachment(config.attachment, final_output_width, final_output_height);
-  if (!attachment_status.ok()) return attachment_status;
+  RETURN_IF_ERROR(
+      ValidatePropAttachment(config.attachment, final_output_width, final_output_height));
 
   int left = isolated.width;
   int top = isolated.height;

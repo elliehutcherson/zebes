@@ -8,6 +8,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/status_macros.h"
 #include "editor/level_editor/parallax_layout.h"
 
 namespace zebes {
@@ -96,9 +97,7 @@ absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id, con
   };
 
   const Sprite* sprite = resolved.sprite;
-  absl::StatusOr<WorldRect> bounds = CalculateEntityBounds(entity, sprite);
-  if (!bounds.ok()) return bounds.status();
-  item.bounds = *bounds;
+  ASSIGN_OR_RETURN(item.bounds, CalculateEntityBounds(entity, sprite));
 
   if (sprite == nullptr || sprite->frames.empty() || !resolved.texture) {
     return item;
@@ -136,10 +135,10 @@ absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
   items.reserve(entities.size());
   for (const auto& [id, entity] : entities) {
     if (!entity.active) continue;
-    absl::StatusOr<EntityRenderItem> item = ComposeEntityRenderItem(
-        id, entity, FindSprite(sprites, entity.sprite_id), EntityRenderMode::kLevel, options);
-    if (!item.ok()) return item.status();
-    items.push_back(std::move(*item));
+    ASSIGN_OR_RETURN(EntityRenderItem item,
+                     ComposeEntityRenderItem(id, entity, FindSprite(sprites, entity.sprite_id),
+                                             EntityRenderMode::kLevel, options));
+    items.push_back(std::move(item));
   }
 
   // Back to front, so the caller draws in order and the last item drawn is the
@@ -175,8 +174,7 @@ absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
 absl::StatusOr<std::vector<ZoneGizmoItem>> ComposeZoneGizmoItems(
     const std::vector<ParallaxZone>& zones, const Camera& camera,
     std::optional<int> selected_zone_id, std::optional<int> active_zone_id) {
-  absl::Status camera_status = ValidateCamera(camera);
-  if (!camera_status.ok()) return camera_status;
+  RETURN_IF_ERROR(ValidateCamera(camera));
 
   const VisibleWorldBounds visible = CalculateVisibleWorldBounds(camera);
   std::vector<ZoneGizmoItem> items;
@@ -203,18 +201,15 @@ absl::StatusOr<std::vector<ZoneGizmoItem>> ComposeZoneGizmoItems(
 absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
     const Level& level, const WorldLayer& layer, const Tileset& tileset,
     TextureHandle atlas_texture, const Camera& camera, const TileRenderOptions& options) {
-  absl::Status input_status = ValidateTileRenderInputs(
-      tileset, level.tile_render_width, level.tile_render_height, options.overlay_opacity);
-  if (!input_status.ok()) return input_status;
-  absl::Status camera_status = ValidateCamera(camera);
-  if (!camera_status.ok()) return camera_status;
+  RETURN_IF_ERROR(ValidateTileRenderInputs(tileset, level.tile_render_width,
+                                           level.tile_render_height, options.overlay_opacity));
+  RETURN_IF_ERROR(ValidateCamera(camera));
   if (!std::isfinite(level.width) || !std::isfinite(level.height) || level.width < 0.0 ||
       level.height < 0.0) {
     return absl::InvalidArgumentError("level world dimensions must be finite and non-negative");
   }
 
-  absl::StatusOr<absl::flat_hash_map<int, const Tile*>> tile_lookup = BuildTileLookup(tileset);
-  if (!tile_lookup.ok()) return tile_lookup.status();
+  ASSIGN_OR_RETURN(const auto tile_lookup, BuildTileLookup(tileset));
 
   const VisibleWorldBounds visible = CalculateVisibleWorldBounds(camera);
   std::map<TileChunkCoordinate, const TileChunk*> visible_chunks;
@@ -250,8 +245,8 @@ absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
       const int tile_id = chunk->tiles[index];
       if (tile_id == 0) continue;
 
-      const auto tile = tile_lookup->find(tile_id);
-      if (tile == tile_lookup->end()) {
+      const auto tile = tile_lookup.find(tile_id);
+      if (tile == tile_lookup.end()) {
         return absl::InvalidArgumentError(
             absl::StrCat("level references unknown tile ID: ", tile_id));
       }
@@ -276,17 +271,13 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(const Tile& tile, cons
                                                           TextureHandle atlas_texture,
                                                           Vec mouse_world, int tile_render_width,
                                                           int tile_render_height) {
-  absl::Status input_status =
-      ValidateTileRenderInputs(tileset, tile_render_width, tile_render_height, 0.0f);
-  if (!input_status.ok()) return input_status;
-  absl::StatusOr<TileCoordinate> coordinate =
-      WorldToTileCoordinate(mouse_world, tile_render_width, tile_render_height);
-  if (!coordinate.ok()) return coordinate.status();
+  RETURN_IF_ERROR(ValidateTileRenderInputs(tileset, tile_render_width, tile_render_height, 0.0f));
+  ASSIGN_OR_RETURN(const TileCoordinate coordinate,
+                   WorldToTileCoordinate(mouse_world, tile_render_width, tile_render_height));
 
-  absl::StatusOr<absl::flat_hash_map<int, const Tile*>> tile_lookup = BuildTileLookup(tileset);
-  if (!tile_lookup.ok()) return tile_lookup.status();
-  const auto selected_tile = tile_lookup->find(tile.id);
-  if (selected_tile == tile_lookup->end()) {
+  ASSIGN_OR_RETURN(const auto tile_lookup, BuildTileLookup(tileset));
+  const auto selected_tile = tile_lookup.find(tile.id);
+  if (selected_tile == tile_lookup.end()) {
     return absl::InvalidArgumentError("placement tile does not belong to the tileset");
   }
   if (selected_tile->second->source_x != tile.source_x ||
@@ -298,16 +289,15 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(const Tile& tile, cons
       .atlas_texture = atlas_texture,
       .mode = TileRenderMode::kPlacementGhost,
   };
-  batch.items.push_back(MakeTileRenderItem(*selected_tile->second, tileset, coordinate->x,
-                                           coordinate->y, tile_render_width, tile_render_height));
+  batch.items.push_back(MakeTileRenderItem(*selected_tile->second, tileset, coordinate.x,
+                                           coordinate.y, tile_render_width, tile_render_height));
   return batch;
 }
 
 absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
     const ParallaxTheme& theme, const Camera& camera,
     const std::map<std::string, TextureHandle>& textures, const ParallaxRenderOptions& options) {
-  absl::Status camera_status = ValidateCamera(camera);
-  if (!camera_status.ok()) return camera_status;
+  RETURN_IF_ERROR(ValidateCamera(camera));
   if (options.layer_index.has_value() &&
       (*options.layer_index < 0 || *options.layer_index >= static_cast<int>(theme.layers.size()))) {
     return absl::InvalidArgumentError("parallax preview layer index is out of range");

@@ -4,6 +4,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
 
 # Bring in the GoogleTest CMake module (required for discovery)
 include(GoogleTest)
+find_package(Threads REQUIRED)
 
 # Override output directory specifically for tests (as you had before)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
@@ -28,6 +29,29 @@ gtest_discover_tests(image_digest_test)
 add_executable(background_task_test common/background_task_test.cc)
 target_link_libraries(background_task_test background_task macros gtest_main)
 gtest_discover_tests(background_task_test)
+
+add_executable(mpsc_queue_test common/mpsc_queue_test.cc)
+target_link_libraries(mpsc_queue_test mpsc_queue gtest_main Threads::Threads)
+gtest_discover_tests(mpsc_queue_test)
+
+add_executable(engine_runner_test common/engine_runner_test.cc)
+target_link_libraries(engine_runner_test
+  blocking_callback_thread
+  engine_runner
+  macros
+  mpsc_queue
+  gtest_main
+)
+gtest_discover_tests(engine_runner_test)
+
+add_executable(notification_set_test common/notification_set_test.cc)
+target_link_libraries(notification_set_test
+  blocking_callback_thread
+  notification_set
+  macros
+  gtest_main
+)
+gtest_discover_tests(notification_set_test)
 
 # --- Texture Manager ---
 add_executable(texture_manager_test resources/texture_manager_test.cc)

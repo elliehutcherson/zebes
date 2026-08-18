@@ -6,6 +6,7 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
+#include "common/status_macros.h"
 
 #if __APPLE__
 #include <mach-o/dyld.h>
@@ -37,9 +38,8 @@ EngineConfig::EngineConfig() : paths(GetExecPath()) {}
 
 absl::Status EngineConfig::Validate() const {
   if (!game_view.IsValid()) {
-    return absl::InvalidArgumentError(
-        absl::StrFormat("Game view dimensions must be positive; got %dx%d", game_view.width,
-                        game_view.height));
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Game view dimensions must be positive; got %dx%d", game_view.width, game_view.height));
   }
   return absl::OkStatus();
 }
@@ -62,8 +62,7 @@ absl::StatusOr<EngineConfig> EngineConfig::Load(const std::string& path) {
 
   EngineConfig config;
   nlohmann::from_json(j, config);
-  absl::Status validation = config.Validate();
-  if (!validation.ok()) return validation;
+  RETURN_IF_ERROR(config.Validate());
 
   LOG(INFO) << __func__ << ": "
             << "Successfully imported: " << j.dump(2);
@@ -72,8 +71,7 @@ absl::StatusOr<EngineConfig> EngineConfig::Load(const std::string& path) {
 }
 
 absl::Status EngineConfig::Save(const EngineConfig& config) {
-  absl::Status validation = config.Validate();
-  if (!validation.ok()) return validation;
+  RETURN_IF_ERROR(config.Validate());
 
   nlohmann::json j;
   to_json(j, config);

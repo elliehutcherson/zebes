@@ -4,6 +4,65 @@ target_link_libraries(status_macros INTERFACE absl::statusor)
 
 find_package(Threads REQUIRED)
 
+add_library(blocking_callback_thread blocking_callback_thread.cc)
+target_link_libraries(blocking_callback_thread
+  PUBLIC
+  absl::any_invocable
+  absl::status
+  absl::statusor
+  PRIVATE
+  absl::strings
+  Threads::Threads
+)
+
+add_library(notification notification.cc)
+target_link_libraries(notification
+  PUBLIC
+  absl::any_invocable
+  absl::status
+  absl::statusor
+  PRIVATE
+  absl::check
+  status_macros
+)
+
+add_library(notification_set notification_set.cc)
+target_link_libraries(notification_set
+  PUBLIC
+  notification
+  absl::status
+  absl::statusor
+  absl::span
+  PRIVATE
+  absl::strings
+  absl::flat_hash_set
+  status_macros
+)
+
+add_library(engine_contract INTERFACE engine.h)
+target_link_libraries(engine_contract
+  INTERFACE
+  absl::statusor
+  absl::span
+  notification
+)
+
+add_library(engine_runner engine_runner.cc)
+target_link_libraries(engine_runner
+  PUBLIC
+  engine_contract
+  notification_set
+  absl::status
+  absl::statusor
+  PRIVATE
+  absl::cleanup
+  absl::check
+  status_macros
+)
+
+add_library(mpsc_queue INTERFACE mpsc_queue.h)
+target_link_libraries(mpsc_queue INTERFACE notification)
+
 add_library(background_task INTERFACE background_task.h)
 target_link_libraries(background_task
   INTERFACE
@@ -30,6 +89,7 @@ target_link_libraries(config absl::strings)
 target_link_libraries(config absl::str_format)
 target_link_libraries(config game_view)
 target_link_libraries(config nlohmann_json::nlohmann_json)
+target_link_libraries(config status_macros)
 
 add_library(logging logging.cc)
 target_link_libraries(logging absl::log)

@@ -2,6 +2,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 
@@ -12,11 +13,10 @@ SdlTextureStore::~SdlTextureStore() {
 }
 
 absl::StatusOr<TextureHandle> SdlTextureStore::Load(const std::string& path) {
-  absl::StatusOr<SDL_Texture*> texture = sdl_.CreateTexture(path);
-  if (!texture.ok()) return texture.status();
+  ASSIGN_OR_RETURN(SDL_Texture * texture, sdl_.CreateTexture(path));
 
   const uint64_t id = next_id_++;
-  textures_.emplace(id, *texture);
+  textures_.emplace(id, texture);
   return MakeHandle(id);
 }
 
@@ -29,11 +29,11 @@ absl::StatusOr<TextureHandle> SdlTextureStore::LoadFromPixels(int width, int hei
                                                    pixels.size()));
   }
 
-  absl::StatusOr<SDL_Texture*> texture = sdl_.CreateTextureFromPixels(width, height, pixels.data());
-  if (!texture.ok()) return texture.status();
+  ASSIGN_OR_RETURN(SDL_Texture * texture,
+                   sdl_.CreateTextureFromPixels(width, height, pixels.data()));
 
   const uint64_t id = next_id_++;
-  textures_.emplace(id, *texture);
+  textures_.emplace(id, texture);
   return MakeHandle(id);
 }
 

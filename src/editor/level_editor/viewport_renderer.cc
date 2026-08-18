@@ -9,6 +9,7 @@
 #include "SDL_render.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/status_macros.h"
 #include "editor/canvas/tile_draw.h"
 #include "editor/level_editor/parallax_layout.h"
 #include "imgui.h"
@@ -69,14 +70,11 @@ absl::Status ViewportRenderer::RenderEntities(std::span<const EntityRenderItem> 
 
       auto [texture_it, inserted] = texture_info.try_emplace(native_texture);
       if (inserted) {
-        absl::StatusOr<NativeTextureInfo> queried = QueryTextureInfo(native_texture);
-        if (!queried.ok()) return queried.status();
-        texture_it->second = *queried;
+        ASSIGN_OR_RETURN(texture_it->second, QueryTextureInfo(native_texture));
       }
 
       const NativeTextureInfo& texture = texture_it->second;
-      absl::Status source_status = ValidateSourceRect(item.sprite->source, texture);
-      if (!source_status.ok()) return source_status;
+      RETURN_IF_ERROR(ValidateSourceRect(item.sprite->source, texture));
 
       const PixelRect& source = item.sprite->source;
       const ImVec2 uv_min(static_cast<float>(source.x) / texture.width,
@@ -158,9 +156,7 @@ absl::Status ViewportRenderer::RenderTiles(const TileRenderBatch& batch) const {
   NativeTextureInfo texture_info;
   if (batch.atlas_texture) {
     native_texture = SdlTextureHandleAdapter::ToNative(batch.atlas_texture);
-    absl::StatusOr<NativeTextureInfo> queried = QueryTextureInfo(native_texture);
-    if (!queried.ok()) return queried.status();
-    texture_info = *queried;
+    ASSIGN_OR_RETURN(texture_info, QueryTextureInfo(native_texture));
   }
 
   for (const TileRenderItem& item : batch.items) {
@@ -171,8 +167,7 @@ absl::Status ViewportRenderer::RenderTiles(const TileRenderBatch& batch) const {
     const ImVec2 screen_min = canvas_.WorldToScreen(item.bounds.min);
     const ImVec2 screen_max = canvas_.WorldToScreen(item.bounds.max);
     if (native_texture != nullptr) {
-      absl::Status source_status = ValidateSourceRect(item.source, texture_info);
-      if (!source_status.ok()) return source_status;
+      RETURN_IF_ERROR(ValidateSourceRect(item.source, texture_info));
 
       const ImVec2 uv_min(static_cast<float>(item.source.x) / texture_info.width,
                           static_cast<float>(item.source.y) / texture_info.height);
@@ -222,9 +217,7 @@ absl::Status ViewportRenderer::RenderParallax(const ParallaxRenderBatch& batch) 
 
     auto [texture_it, inserted] = texture_info.try_emplace(native_texture);
     if (inserted) {
-      absl::StatusOr<NativeTextureInfo> queried = QueryTextureInfo(native_texture);
-      if (!queried.ok()) return queried.status();
-      texture_it->second = *queried;
+      ASSIGN_OR_RETURN(texture_it->second, QueryTextureInfo(native_texture));
     }
     const NativeTextureInfo& texture = texture_it->second;
 

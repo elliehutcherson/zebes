@@ -148,9 +148,11 @@ discarded on replacement, Clear, or normal shutdown; retained sources can be
 deleted explicitly through the same reference checks as other assets.
 Grounded, ceiling, and free/background attachment modes are persisted and feed
 composition, validation, context preview, sprite offsets, and regeneration.
-Provider integration remains. The local feedback-loop milestone is complete,
-so provider work can proceed without multiplying an expensive verification
-cycle. Its §12 sequence:
+The provider-neutral generation, credential, and bounded HTTP contracts and the
+poll-driven libcurl transport are now implemented; the first adapter and
+generated-source editor flow remain. The local feedback-loop milestone is
+complete, so provider work can proceed without multiplying an expensive
+verification cycle. Its §12 sequence:
 
 0. **Accepted.** Run the visual feasibility spike:
    one imported boulder, one real terrain recipe, the deterministic C++ stages,
@@ -177,7 +179,10 @@ cycle. Its §12 sequence:
     source-touch cycle. Ccache made a 2.30s compile a 0.03s hit, but linking
     limits that to about 10% of the full loop, so caching remains in CI without
     becoming a required local dependency.
-5. Add the cancellable image-generation service and first provider adapter.
+5. **In progress.** The cancellable image-generation service, move-only
+   environment credential source, bounded HTTPS seam, and poll-driven libcurl
+   transport are implemented. Add the first provider adapter, candidate
+   acceptance, and opt-in live integration test.
 6. Harden shutdown, retry, staging cleanup, and provider failure behavior.
 
 **`ParallaxZone::fade_length`** — authored, serialized, validated, and ignored.

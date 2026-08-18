@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "absl/status/status.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 
@@ -34,9 +35,8 @@ void Animator::Update(const std::vector<SpriteFrame>& frames) {
 
 absl::StatusOr<SpriteFrame> Animator::GetCurrentFrame(
     const std::vector<SpriteFrame>& frames) const {
-  absl::StatusOr<int> current_index = GetCurrentFrameIndex(frames);
-  if (!current_index.ok()) return current_index.status();
-  return frames[*current_index];
+  ASSIGN_OR_RETURN(const int current_index, GetCurrentFrameIndex(frames));
+  return frames[current_index];
 }
 
 absl::StatusOr<int> Animator::GetCurrentFrameIndex(const std::vector<SpriteFrame>& frames) const {

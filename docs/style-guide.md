@@ -57,7 +57,12 @@ over their STL equivalents.
 ### Errors
 
 - `absl::Status` and `absl::StatusOr` for recoverable failures.
-- `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` to propagate.
+- Use `RETURN_IF_ERROR` whenever an `absl::Status` failure is returned
+  unchanged, and `ASSIGN_OR_RETURN` whenever a `StatusOr` failure is returned
+  unchanged and its value is consumed. This includes a status already stored in
+  a local variable. Write an explicit `.ok()` branch only when it translates,
+  logs, aggregates, or compensates for the error, or intentionally converts the
+  failure into non-error control flow.
 - Do not use `try`/`catch` in domain, engine, or editor logic. When an external
   or standard-library API can only report failure by throwing, translate that
   exception to `absl::Status` inside the narrow common/resource adapter that
@@ -247,11 +252,16 @@ GitHub Actions runs the comprehensive suite for every pull request and push to
 rules above. `scripts/lint.sh` locates LLVM, supplies the macOS SDK when needed,
 and refuses an unscoped invocation. A scoped file list runs at most two
 translation units concurrently, reports one concise success line per file, and
-prints the complete diagnostic output for failures. `scripts/lint.sh --all` is
-reserved for CI and explicit cleanup milestones; it uses two workers by default
-because a full analysis is CPU-intensive. Set `LINT_JOBS` deliberately to
-override the full-scan limit. Findings it reports are real; this guide still
-decides what a rule means when the two disagree.
+prints the complete diagnostic output for failures. Pass all edited translation
+units in one invocation so setup is shared and the analyses overlap. Successful
+scoped results are cached under `build/dev/.lint-cache`; the key includes the
+translation unit's compiler-discovered dependencies, compile command, lint
+configuration, tool binary, and platform arguments. Use `--no-cache` to force a
+fresh analysis. Failures are never cached. `scripts/lint.sh --all` is reserved
+for CI and explicit cleanup milestones; it uses two workers by default because
+a full analysis is CPU-intensive. Set `LINT_JOBS` deliberately to override the
+full-scan limit. Findings it reports are real; this guide still decides what a
+rule means when the two disagree.
 
 ## Related documents
 

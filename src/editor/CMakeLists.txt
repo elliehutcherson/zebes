@@ -47,6 +47,7 @@ target_link_libraries(editor_animator
   absl::status
   absl::statusor
   sprite
+  status_macros
 )
 
 # Shared managed-texture preview adapter
@@ -61,6 +62,7 @@ target_link_libraries(editor_texture_preview
   SDL2-static
   absl::status
   absl::strings
+  status_macros
 )
 
 # Canvas Elements
@@ -107,6 +109,7 @@ target_link_libraries(editor_texture
 
 # Blueprint Components
 add_subdirectory(blueprint_editor)
+add_subdirectory(image_generation)
 
 # Sprite Editor
 add_library(sprite_editor_model sprite_editor/sprite_editor_model.cc)

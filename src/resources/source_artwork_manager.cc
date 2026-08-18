@@ -7,6 +7,7 @@
 #include <system_error>
 #include <utility>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "artwork/prop_artwork_pipeline.h"
@@ -38,6 +39,10 @@ absl::StatusOr<SourceArtwork> LoadDefinition(const std::string& path) {
 
 absl::Status WriteDefinition(const std::string& path, const SourceArtwork& artwork) {
   const std::string temporary = absl::StrCat(path, ".tmp");
+  absl::Cleanup remove_temporary = [&temporary] {
+    std::error_code ignored;
+    std::filesystem::remove(temporary, ignored);
+  };
   std::ofstream stream(temporary, std::ios::trunc);
   if (!stream.is_open()) {
     return absl::InternalError(absl::StrCat("could not write source artwork: ", temporary));
@@ -45,17 +50,15 @@ absl::Status WriteDefinition(const std::string& path, const SourceArtwork& artwo
   stream << SourceArtworkToJson(artwork).dump(2);
   stream.flush();
   if (!stream.good()) {
-    std::error_code ignored;
-    std::filesystem::remove(temporary, ignored);
     return absl::InternalError(absl::StrCat("failed while writing source artwork: ", temporary));
   }
   stream.close();
   std::error_code error;
   std::filesystem::rename(temporary, path, error);
   if (error) {
-    std::filesystem::remove(temporary, error);
     return absl::InternalError(absl::StrCat("could not commit source artwork: ", error.message()));
   }
+  std::move(remove_temporary).Cancel();
   return absl::OkStatus();
 }
 
@@ -187,20 +190,25 @@ absl::StatusOr<std::string> SourceArtworkManager::CreateArtwork(std::string name
 
   const std::string temporary_image = absl::StrCat(image_path, ".tmp");
   RETURN_IF_ERROR(WritePng(temporary_image, image.width, image.height, image.pixels));
+  absl::Cleanup remove_temporary = [&temporary_image] {
+    std::error_code ignored;
+    std::filesystem::remove(temporary_image, ignored);
+  };
   std::error_code error;
   std::filesystem::rename(temporary_image, image_path, error);
   if (error) {
-    std::filesystem::remove(temporary_image, error);
     return absl::InternalError(
         absl::StrCat("could not commit source artwork image: ", error.message()));
   }
+  std::move(remove_temporary).Cancel();
+  absl::Cleanup remove_image = [&image_path] {
+    std::error_code ignored;
+    std::filesystem::remove(image_path, ignored);
+  };
 
-  absl::Status definition_status = WriteDefinition(definition_path, artwork);
-  if (!definition_status.ok()) {
-    std::filesystem::remove(image_path, error);
-    return definition_status;
-  }
+  RETURN_IF_ERROR(WriteDefinition(definition_path, artwork));
   artwork_[id] = std::make_unique<SourceArtwork>(std::move(artwork));
+  std::move(remove_image).Cancel();
   return id;
 }
 

@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 
@@ -98,8 +99,7 @@ absl::Status BlueprintPanelModel::AddState() {
 }
 
 absl::Status BlueprintPanelModel::DeleteState(int state_index) {
-  absl::Status status = ValidateStateIndex(state_index);
-  if (!status.ok()) return status;
+  RETURN_IF_ERROR(ValidateStateIndex(state_index));
   active_blueprint_->states.erase(active_blueprint_->states.begin() + state_index);
   return absl::OkStatus();
 }

@@ -6,6 +6,7 @@
 #include <system_error>
 #include <utility>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
@@ -103,6 +104,10 @@ absl::Status TerrainRecipeManager::SaveRecipe(const TerrainRecipe& recipe) {
 
   const std::string target = RecipePath(recipe.id);
   const std::string temporary = absl::StrCat(target, ".tmp");
+  absl::Cleanup remove_temporary = [&temporary] {
+    std::error_code ignored;
+    std::filesystem::remove(temporary, ignored);
+  };
   {
     std::ofstream stream(temporary, std::ios::trunc);
     if (!stream.is_open()) {
@@ -111,7 +116,6 @@ absl::Status TerrainRecipeManager::SaveRecipe(const TerrainRecipe& recipe) {
     stream << TerrainRecipeToJson(recipe).dump(2);
     stream.flush();
     if (!stream.good()) {
-      std::filesystem::remove(temporary, error);
       return absl::InternalError(absl::StrCat("failed while writing terrain recipe: ", temporary));
     }
   }
@@ -121,9 +125,9 @@ absl::Status TerrainRecipeManager::SaveRecipe(const TerrainRecipe& recipe) {
     // Windows does not replace an existing destination. Keep the common path
     // atomic, but report platforms that cannot provide that guarantee instead
     // of deleting the old file first and risking data loss.
-    std::filesystem::remove(temporary);
     return absl::InternalError(absl::StrCat("could not commit terrain recipe: ", error.message()));
   }
+  std::move(remove_temporary).Cancel();
 
   // Assigned through the existing allocation rather than replacing it: callers
   // hold TerrainRecipe* from GetRecipe, and swapping the unique_ptr frees what

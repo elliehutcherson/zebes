@@ -69,6 +69,7 @@ target_link_libraries(viewport_model
   tileset
   absl::status
   absl::statusor
+  status_macros
 )
 
 add_library(derived_terrain_session
@@ -158,6 +159,7 @@ target_link_libraries(viewport_scene
   absl::status
   absl::statusor
   absl::strings
+  status_macros
 )
 
 add_library(viewport_renderer
@@ -172,6 +174,7 @@ target_link_libraries(viewport_renderer
   ${IMGUI_LIBRARIES}
   absl::status
   absl::strings
+  status_macros
 )
 
 

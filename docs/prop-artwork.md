@@ -44,8 +44,11 @@ be reused rather than rebuilt:
 
 The remaining gaps are equally concrete:
 
-- There is no network client, image-generation provider abstraction, credential
-  boundary, cancellation contract, or remote-request timeout policy.
+- Provider-neutral image-generation, credential, and HTTP contracts now exist,
+  including fail-fast capability checks and non-blocking RAII cancellation. A
+  libcurl multi transport provides bounded verified HTTPS and prompt
+  cancellation. There is not yet a provider adapter, editor flow, or opt-in
+  live integration test.
 - The terrain palette and deterministic transforms are shared platform-neutral
   boundaries. The versioned coordinator enforces source limits, records a
   canonical source digest, retains each preview artifact in review mode, and
@@ -184,12 +187,13 @@ stable subset is copied into source provenance after a candidate is accepted.
 Provider-specific tuning is represented by a versioned adapter configuration,
 not an untyped JSON bag in `PropRecipe`.
 
-Credentials are supplied to the adapter by editor configuration or the process
-environment. They are never serialized, logged, copied into pipeline or local
-background-work inputs, shown in status text, or included in source provenance.
-The transport owns the credential for the minimum request lifetime. Logs may
-contain a local request correlation ID, provider status code, and sanitized
-error message.
+Raw credentials are supplied by a `CredentialSource`; the first implementation
+reads a named process-environment variable. Project/editor configuration may
+store a non-secret credential reference, but never the value. Credentials are
+never serialized, logged, copied into pipeline or local background-work inputs,
+shown in status text, or included in source provenance. The transport owns the
+move-only credential for the minimum request lifetime. Logs may contain a local
+request correlation ID, provider status code, and sanitized error message.
 
 A remote request must have connect and total timeouts, response byte and image
 dimension limits, cancellation, and shutdown behavior. `BackgroundTask` alone
@@ -674,10 +678,21 @@ unfinished provider behavior.
    because linking remains dominant. CI retains its existing compiler cache,
    while local presets explicitly disable SDL's implicit ccache discovery so a
    machine with ccache installed does not silently get a partial cache policy.
-5. **Generation service and first adapter.** Add cancellable provider requests,
-   credential/configuration plumbing, candidate processing, provenance, limits,
-   and opt-in integration tests. Imported and generated sources converge at the
-   same acceptance boundary.
+5. **Generation service and first adapter (in progress).** The first slice adds
+   provider-neutral generation specifications, capabilities, candidates, and
+   stable provenance; an environment-backed move-only credential boundary; and
+   bounded HTTPS request/response types. Generation and transport handles poll
+   without blocking, cancel unfinished operations on destruction, validate
+   input before invoking an adapter, and reject malformed completion values.
+   Focused fakes cover capability refusal, pending/completed/cancelled lifetime,
+   missing credentials, HTTPS/time limits, and malformed provider results.
+
+   The libcurl transport is implemented with asynchronous DNS, verified HTTPS,
+   redirects disabled, bounded response headers and body, and immediate
+   cancellation without a worker join. Next, implement the first provider
+   adapter, then add editor candidate selection, retained-source acceptance,
+   and credential-gated opt-in integration tests. Imported and generated
+   sources converge at the same acceptance boundary.
 6. **Operational hardening.** Exercise shutdown, retries that are safe to
    retry, provider error UX, crash leftovers in staging, and the complete editor
    walk before considering another provider or atlas packing.

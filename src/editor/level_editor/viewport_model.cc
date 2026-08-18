@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "absl/status/status.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 
@@ -51,11 +52,10 @@ absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, 
   for (const auto& [id, entity] : entities) {
     if (!entity.active) continue;
 
-    absl::StatusOr<WorldRect> bounds =
-        CalculateEntityBounds(entity, FindSprite(sprites, entity.sprite_id).sprite);
-    if (!bounds.ok()) return bounds.status();
-    if (world_pos.x < bounds->min.x || world_pos.x > bounds->max.x || world_pos.y < bounds->min.y ||
-        world_pos.y > bounds->max.y) {
+    ASSIGN_OR_RETURN(const WorldRect bounds,
+                     CalculateEntityBounds(entity, FindSprite(sprites, entity.sprite_id).sprite));
+    if (world_pos.x < bounds.min.x || world_pos.x > bounds.max.x || world_pos.y < bounds.min.y ||
+        world_pos.y > bounds.max.y) {
       continue;
     }
     // Ascending ID iteration means >= also settles ties in favour of the later
@@ -162,12 +162,11 @@ PaletteBinding ResolvePaletteBinding(const Level& level, const PaletteSelection&
 
 absl::StatusOr<Vec> SnapEntityToGrid(Vec mouse_world, int tile_render_w, int tile_render_h,
                                      const Collider* collider, const Sprite* sprite) {
-  absl::StatusOr<TileCoordinate> tile =
-      WorldToTileCoordinate(mouse_world, tile_render_w, tile_render_h);
-  if (!tile.ok()) return tile.status();
+  ASSIGN_OR_RETURN(const TileCoordinate tile,
+                   WorldToTileCoordinate(mouse_world, tile_render_w, tile_render_h));
 
-  const double cell_center_x = static_cast<double>(tile->x) * tile_render_w + tile_render_w / 2.0;
-  const double cell_bottom_y = (static_cast<double>(tile->y) + 1.0) * tile_render_h;
+  const double cell_center_x = static_cast<double>(tile.x) * tile_render_w + tile_render_w / 2.0;
+  const double cell_bottom_y = (static_cast<double>(tile.y) + 1.0) * tile_render_h;
 
   if (collider != nullptr && !collider->polygons.empty()) {
     double min_x = std::numeric_limits<double>::max();

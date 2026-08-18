@@ -39,6 +39,20 @@ class LintScriptTest(unittest.TestCase):
             printf 'success detail for %s\n' "${name}"
             """,
         )
+        self.fake_cache_helper = self.root / "fake-lint-cache.py"
+        self.write_executable(
+            self.fake_cache_helper,
+            """
+            #!/usr/bin/env python3
+            import hashlib
+            import sys
+            from pathlib import Path
+
+            for argument in sys.argv[1:]:
+                if argument.endswith(".cc"):
+                    print(hashlib.sha256(Path(argument).read_bytes()).hexdigest())
+            """,
+        )
         for name in ("one.cc", "two.cc", "three.cc"):
             (self.root / "src" / name).touch()
 
@@ -94,6 +108,48 @@ class LintScriptTest(unittest.TestCase):
         self.assertEqual(events.count("start one.cc"), 1)
         self.assertEqual(events.count("start two.cc"), 1)
         self.assertEqual(events.count("start three.cc"), 1)
+
+    def test_scoped_lint_caches_successes_and_invalidates_changed_sources(self):
+        cache_env = {
+            "LINT_CACHE_HELPER": str(self.fake_cache_helper),
+            "LINT_CACHE_DIR": str(self.root / "lint-cache"),
+        }
+        first = self.run_script(["one.cc", "two.cc", "three.cc"], cache_env)
+        self.assertEqual(first.returncode, 0, first.stderr)
+
+        self.event_log.write_text("", encoding="utf-8")
+        second = self.run_script(["one.cc", "two.cc", "three.cc"], cache_env)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(self.event_log.read_text(encoding="utf-8"), "")
+        self.assertEqual(second.stdout.count("(cached)"), 3)
+
+        (self.root / "src" / "two.cc").write_text("changed", encoding="utf-8")
+        self.event_log.write_text("", encoding="utf-8")
+        third = self.run_script(["one.cc", "two.cc", "three.cc"], cache_env)
+        self.assertEqual(third.returncode, 0, third.stderr)
+        self.assertEqual(
+            self.event_log.read_text(encoding="utf-8").splitlines(),
+            ["start two.cc", "finish two.cc"],
+        )
+        self.assertEqual(third.stdout.count("(cached)"), 2)
+
+    def test_scoped_lint_does_not_cache_failures(self):
+        cache_env = {
+            "FAIL_FILE": "two.cc",
+            "LINT_CACHE_HELPER": str(self.fake_cache_helper),
+            "LINT_CACHE_DIR": str(self.root / "lint-cache"),
+        }
+        first = self.run_script(["two.cc"], cache_env)
+        self.assertEqual(first.returncode, 7)
+
+        self.event_log.write_text("", encoding="utf-8")
+        second = self.run_script(["two.cc"], cache_env)
+        self.assertEqual(second.returncode, 7)
+        self.assertEqual(
+            self.event_log.read_text(encoding="utf-8").splitlines(),
+            ["start two.cc", "finish two.cc"],
+        )
+        self.assertNotIn("(cached)", second.stdout)
 
 
 if __name__ == "__main__":

@@ -205,6 +205,17 @@ target_link_libraries(prop_artwork_editor_test
 target_include_directories(prop_artwork_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(prop_artwork_editor_test)
 
+add_executable(image_generation_test image_generation_test.cc)
+target_link_libraries(image_generation_test
+  gtest_main
+  macros
+  curl_http_transport
+  http_transport
+  image_generation
+)
+target_include_directories(image_generation_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(image_generation_test)
+
 # --- Tileset Panel Test ---
 add_executable(tileset_panel_test tileset_panel_test.cc)
 target_link_libraries(tileset_panel_test

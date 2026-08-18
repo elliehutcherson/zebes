@@ -46,7 +46,12 @@ over their STL equivalents.
 ## Errors
 
 - `absl::Status` and `absl::StatusOr` for recoverable failures.
-- `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` to propagate.
+- Use `RETURN_IF_ERROR` whenever an `absl::Status` failure is returned
+  unchanged, and `ASSIGN_OR_RETURN` whenever a `StatusOr` failure is returned
+  unchanged and its value is consumed. This includes a status already stored in
+  a local variable. Write an explicit `.ok()` branch only when it translates,
+  logs, aggregates, or compensates for the error, or intentionally converts the
+  failure into non-error control flow.
 - Do not use `try`/`catch` in domain, engine, or editor logic. When an external
   or standard-library API can only report failure by throwing, translate that
   exception to `absl::Status` inside the narrow common/resource adapter that

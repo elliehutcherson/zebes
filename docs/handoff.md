@@ -4,42 +4,61 @@
 > [`roadmap.md`](roadmap.md) for sequencing and the linked feature design—such
 > as [`prop-artwork.md`](prop-artwork.md)—for durable decisions and TODOs.
 
-## Current: Prop artwork Milestones 4/4a and developer feedback loop complete
+## Current: Generation and polling infrastructure complete
 
 As of 2026-08-17, [`roadmap.md`](roadmap.md) remains the source of truth for
-sequencing. Tracks 0-3 are complete. Track 4 layers and the imported-source prop
-artwork workflow are implemented on `main`.
+sequencing. Tracks 0-3 are complete. Track 4 layers, imported-source prop
+artwork, attachment modes, and the developer feedback loop are implemented.
 
-The prop workflow now covers deterministic processing, strict source and recipe
-resources, compensated bundle creation, snapshot-guarded regeneration,
-reference-safe deletion, and the three-column editor. Imported sources belong to
-the current draft until bundle creation succeeds: replacing or clearing the
-draft, or normally closing the editor, removes an uncommitted source. Existing
-retained sources are never taken over by a session merely because the author
-selects them.
+Milestone 5 now has its provider-neutral foundation. Image-generation requests
+validate capabilities before reaching an adapter and return move-only,
+cancellable polling handles with stable candidate provenance. Credentials cross
+the boundary as move-only `SecretString` values. The HTTP seam enforces HTTPS,
+timeouts, bounded responses, and prompt cancellation; its libcurl implementation
+uses the multi interface and requires asynchronous DNS so `Poll` never performs
+a blocking name lookup. The first provider adapter, candidate acceptance in the
+Prop Artwork editor, and credential-gated integration test remain.
 
-Attachment modes are also complete. Grounded and ceiling modes derive and
-validate their respective subject contacts; free/background stores an explicit
-final-texture pixel anchor. Recipe schema and pipeline version 2 persist the
-tagged contract, and the migration maps version-1 recipes to grounded without
-changing their prior settings or frame geometry.
+Common now also contains the reusable long-lived polling-job infrastructure.
+`BlockingCallbackThread` owns a non-templated `absl::AnyInvocable<void()>`
+worker. An `Engine` exposes independent notifications and performs bounded
+non-blocking `Run` passes; `EngineRunner` arms every source, rechecks work to
+close the hardware-interrupt race, then blocks in `NotificationSet` until work
+or `Stop`. The set uses `epoll`/`eventfd` on Linux, `kqueue`/`EVFILT_USER` on
+macOS, and waitable events on Windows, and accepts borrowed native handles for
+NIC-style interrupt sources. `MpscQueue` is fixed-capacity, preallocated, and
+lock-free with explicit backpressure; `MpscNotifyQueue` signals only after a
+successful publication. The macOS native path and the platform-neutral race
+contracts have focused coverage; Linux and Windows need execution on their
+native CI runners when those are available.
+
+The error-handling cleanup made unchanged `Status` and `StatusOr` propagation
+use the common macros consistently, while resource write/update paths now use
+RAII compensation for temporary files, textures, and handles. Scoped
+clang-tidy now caches successful analyses by translation unit, transitive
+include contents, compile command, lint configuration, tool binary, and
+platform arguments. The measured three-file check is 8.87 seconds cold and
+0.31 seconds warm; failures are never cached and `--no-cache` forces analysis.
 
 ### Pick up here next
 
-Begin Milestone 5, the provider-neutral generation service and first adapter
-recorded in [`prop-artwork.md`](prop-artwork.md) §12. Milestone 4b is complete:
-affected tests configure and build once with concise success/full failure
-output, scoped clang-tidy uses two workers, and Ninja reduced the real warm and
-source-touch cycles to 6.32s and 22.23s. Apple ld debug-speed flags regressed
-slightly. Ccache reduced the measured compile from 2.30s to 0.03s, but linking
-limits the full-loop benefit to roughly 10%, so it remains a CI optimization
-rather than a required local dependency.
+Implement the first provider adapter recorded in
+[`prop-artwork.md`](prop-artwork.md) §12. Keep provider request/response types
+inside the adapter, decode accepted bytes through common image I/O, and feed the
+existing provider-neutral candidate result. Then add prompt/candidate controls
+to the Prop Artwork editor and converge generated candidates with the retained
+source acceptance path. The live integration test stays opt-in and
+credential-gated.
 
 ### What remains
 
-- **Track 4:** the provider-neutral generation service and first adapter are
-  next. Parallax zone seaming remains the smallest independent
-  feature. See [`roadmap.md`](roadmap.md) and [`prop-artwork.md`](prop-artwork.md).
+- **Track 4:** the first image provider adapter, generated-candidate editor
+  flow, and Milestone 6 operational hardening remain. Parallax zone seaming is
+  still the smallest independent feature. See [`roadmap.md`](roadmap.md) and
+  [`prop-artwork.md`](prop-artwork.md).
+- **Polling adoption:** the common engine runner is infrastructure only; wire
+  the first production polling or interrupt-driven owner when one is introduced
+  rather than inventing a synthetic consumer now.
 - **Deferred terrain tool:** atlas compaction remains unjustified until real
   atlas growth becomes uncomfortable. It must be explicit because compaction
   renumbers tile IDs that levels store.

@@ -56,8 +56,10 @@ focused `test.sh --ui` form for SDL or ImGui work and the comprehensive
 comprehensive merge gate.
 
 Run `clang-format -i` on edited C++ source and header files before linting.
-Run clang-tidy on edited translation units with `scripts/lint.sh <file.cc>`.
-For a header, lint representative `.cc` files that include it. Reserve
+Pass all edited translation units to one
+`scripts/lint.sh <file.cc> [file.cc ...]` invocation so setup is shared and the
+analyses run concurrently. For a header, lint representative `.cc` files that
+include it. Reserve
 `scripts/lint.sh --all` for CI and explicit cleanup milestones; the command
 deliberately uses only two workers by default to limit heat and contention.
 

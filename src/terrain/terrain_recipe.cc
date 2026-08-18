@@ -180,8 +180,7 @@ absl::StatusOr<TerrainGenConfig> ConfigFromJson(const nlohmann::json& json) {
 
   // This also rejects non-finite values and inconsistent ranges, so a recipe
   // cannot enter the editor in a state the renderer could never consume.
-  const absl::Status resolved = ResolveTerrainStyle(config).status();
-  if (!resolved.ok()) return resolved;
+  RETURN_IF_ERROR(ResolveTerrainStyle(config).status());
   return config;
 }
 

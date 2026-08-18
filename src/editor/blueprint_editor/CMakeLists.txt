@@ -8,6 +8,7 @@ target_link_libraries(sprite_panel_model
 add_library(blueprint_panel_model blueprint_panel_model.cc)
 target_link_libraries(blueprint_panel_model
   PUBLIC blueprint absl::status absl::statusor
+  PRIVATE status_macros
 )
 
 add_library(blueprint_panel blueprint_panel.cc)

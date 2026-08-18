@@ -130,11 +130,10 @@ absl::Status TilesetEditor::Render() {
 }
 
 absl::Status TilesetEditor::RenderNavigator() {
-  absl::StatusOr<TilesetPanel::Action> action = model_.has_active_tileset()
+  ASSIGN_OR_RETURN(TilesetPanel::Action action, model_.has_active_tileset()
                                                     ? tileset_panel_->RenderDetails(model_)
-                                                    : tileset_panel_->RenderList(model_);
-  if (!action.ok()) return action.status();
-  return HandlePanelAction(*action);
+                                                    : tileset_panel_->RenderList(model_));
+  return HandlePanelAction(action);
 }
 
 absl::Status TilesetEditor::RenderInspector() {

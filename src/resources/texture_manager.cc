@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/common.h"
@@ -137,10 +138,16 @@ absl::StatusOr<std::string> TextureManager::CreateTextureFromPixels(
   }
 
   RETURN_IF_ERROR(WritePng(image_path, width, height, pixels));
+  absl::Cleanup remove_image = [&image_path] {
+    std::error_code ignored;
+    std::filesystem::remove(image_path, ignored);
+  };
 
   // CreateTexture copies from a source path into the images directory; the file
   // is already there, which it detects and leaves alone.
-  return CreateTexture(Texture{.name = name, .path = image_path});
+  ASSIGN_OR_RETURN(std::string id, CreateTexture(Texture{.name = name, .path = image_path}));
+  std::move(remove_image).Cancel();
+  return id;
 }
 
 absl::Status TextureManager::CreateGeneratedTexture(const Texture& texture, int width, int height,
@@ -149,20 +156,18 @@ absl::Status TextureManager::CreateGeneratedTexture(const Texture& texture, int 
 
   const std::string image_path = GetImagesPath(texture.path);
   RETURN_IF_ERROR(WritePng(image_path, width, height, pixels));
-  absl::StatusOr<TextureHandle> handle = resources_->Load(image_path);
-  if (!handle.ok()) {
-    std::filesystem::remove(image_path);
-    return handle.status();
-  }
+  absl::Cleanup remove_image = [&image_path] {
+    std::error_code ignored;
+    std::filesystem::remove(image_path, ignored);
+  };
+  ASSIGN_OR_RETURN(const TextureHandle handle, resources_->Load(image_path));
+  absl::Cleanup unload_handle = [this, handle] { resources_->Unload(handle).IgnoreError(); };
 
-  const absl::Status save_status = SaveTexture(texture);
-  if (!save_status.ok()) {
-    resources_->Unload(*handle).IgnoreError();
-    std::filesystem::remove(image_path);
-    return save_status;
-  }
-  handles_[texture.id] = *handle;
+  RETURN_IF_ERROR(SaveTexture(texture));
+  handles_[texture.id] = handle;
   textures_[texture.id] = std::make_unique<Texture>(texture);
+  std::move(unload_handle).Cancel();
+  std::move(remove_image).Cancel();
   return absl::OkStatus();
 }
 
@@ -204,26 +209,29 @@ absl::Status TextureManager::ReplaceTexturePixels(const std::string& id, int wid
   const std::string target = GetImagesPath(texture->second->path);
   const std::string temporary = absl::StrCat(target, ".replacement.png");
   RETURN_IF_ERROR(WritePng(temporary, width, height, pixels));
+  absl::Cleanup remove_temporary = [&temporary] {
+    std::error_code ignored;
+    std::filesystem::remove(temporary, ignored);
+  };
 
-  absl::StatusOr<TextureHandle> replacement = resources_->Load(temporary);
-  if (!replacement.ok()) {
-    std::filesystem::remove(temporary);
-    return replacement.status();
-  }
+  ASSIGN_OR_RETURN(const TextureHandle replacement, resources_->Load(temporary));
+  absl::Cleanup unload_replacement = [this, replacement] {
+    resources_->Unload(replacement).IgnoreError();
+  };
 
   std::error_code error;
   std::filesystem::rename(temporary, target, error);
   if (error) {
-    resources_->Unload(*replacement).IgnoreError();
-    std::filesystem::remove(temporary);
     return absl::InternalError(
         absl::StrCat("failed to replace generated texture artwork: ", error.message()));
   }
+  std::move(remove_temporary).Cancel();
 
   if (auto old = handles_.find(id); old != handles_.end() && old->second) {
     resources_->Unload(old->second).IgnoreError();
   }
-  handles_[id] = *replacement;
+  handles_[id] = replacement;
+  std::move(unload_replacement).Cancel();
   return absl::OkStatus();
 }
 
@@ -297,17 +305,17 @@ absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
   }
 
   ASSIGN_OR_RETURN(TextureHandle texture_handle, resources_->Load(destination_path));
+  absl::Cleanup unload_handle = [this, texture_handle] {
+    resources_->Unload(texture_handle).IgnoreError();
+  };
 
   // Save metadata to JSON
-  absl::Status save_status = SaveTexture(texture);
-  if (!save_status.ok()) {
-    resources_->Unload(texture_handle).IgnoreError();
-    return save_status;
-  }
+  RETURN_IF_ERROR(SaveTexture(texture));
 
   // Store in map
   handles_[id] = texture_handle;
   textures_[id] = std::make_unique<Texture>(texture);
+  std::move(unload_handle).Cancel();
 
   return id;
 }

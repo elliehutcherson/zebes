@@ -484,6 +484,32 @@ commit compares that snapshot with the live definition before replacing pixels.
 This refuses a stale result if a level saved newly derived tiles while the
 worker was running.
 
+Long-lived polling jobs use the common engine-runner infrastructure instead.
+An `Engine` performs one bounded, non-blocking `Run` pass and reports whether it
+did work. `EngineRunner` repeats those passes and waits on a coalescing wakeup
+only after the engine reports idle. `EngineRunner::Create` captures and validates
+the engine's stable notification sources and constructs the native wait set
+before a worker can start. `BlockingCallbackThread` owns the worker,
+join, callback status, and standard-library exception boundary.
+`EngineRunner::Stop` transitions the runner's single atomic lifecycle state and
+wakes an active worker. Incoming work uses a fixed-capacity, lock-free
+`MpscQueue`; `MpscNotifyQueue` couples successful queue publication to its
+`Notification`, while a full queue reports backpressure without consuming the
+rejected value. The engine exposes all independent notification sources as a
+span. `NotificationSet` multiplexes those sources with the runner's stop source
+using one native blocking facility: `epoll` plus `eventfd` on Linux, `kqueue`
+plus `EVFILT_USER` on macOS, and waitable events on Windows. Software sources
+share the set's coalescing native wake primitive; external sources contribute
+borrowed file descriptors or handles and optional interrupt arm/disarm
+callbacks. After an idle pass, `EngineRunner` arms every source and performs a
+second `Run` pass before blocking. That recheck closes the race where a NIC
+queue receives work immediately before its interrupt is armed. Sources do not
+need to share a notification, and producer notification remains lock-free.
+Owners stop producers before destroying a queue, stop and join the runner
+thread, then destroy the engine and source notifications.
+A stop request ends the runner without draining queued work; an owner that needs
+draining must wait for its own completion acknowledgement before requesting it.
+
 Generated prop authoring follows the same thread and ownership boundary.
 `SourceArtworkManager` owns editor-only retained PNG inputs and their strict
 definitions; it never creates renderer resources. `PropRecipeManager` owns the
@@ -495,6 +521,20 @@ an attached terrain recipe cannot be deleted until the prop style is detached
 or the prop bundle is removed. Runtime texture, sprite, and blueprint
 definitions remain ordinary engine assets; neither authoring resource enters
 runtime rendering.
+
+Remote image generation uses editor-owned, platform-neutral request contracts.
+`ImageGenerationClient` validates requested capabilities before an adapter can
+start work and returns an RAII request that is polled without blocking and
+cancels unfinished work on destruction. Provider adapters receive credentials
+through `CredentialSource` and move them into bounded `HttpTransport` requests;
+raw secrets and external HTTP/provider types do not cross into editor models,
+project configuration, deterministic artwork stages, or provenance. Concrete
+transports must make cancellation prompt rather than joining remote work on the
+editor thread, which is why remote operations do not use `BackgroundTask`.
+`CurlHttpTransport` implements that contract with a poll-driven libcurl multi
+handle per request, verified HTTPS without redirects, receive-time byte limits,
+and immediate handle removal on cancellation. It requires libcurl's
+asynchronous DNS feature so a first poll cannot block on name resolution.
 
 `terrain_detect` turns an atlas into a `Terrain`. Both sources converge on
 `BuildTerrainCandidate`, which is the only place tile naming, rule ordering and

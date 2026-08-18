@@ -9,6 +9,7 @@ target_link_libraries(texture_manager common)
 target_link_libraries(texture_manager absl::status)
 target_link_libraries(texture_manager absl::statusor)
 target_link_libraries(texture_manager absl::flat_hash_map)
+target_link_libraries(texture_manager absl::cleanup)
 target_link_libraries(texture_manager texture_resource_store)
 target_link_libraries(texture_manager texture)
 target_link_libraries(texture_manager resource_utils)
@@ -68,6 +69,7 @@ target_link_libraries(terrain_recipe_manager
   common
   status_macros
   absl::flat_hash_map
+  absl::cleanup
   absl::strings
   nlohmann_json::nlohmann_json
 )
@@ -86,6 +88,7 @@ target_link_libraries(source_artwork_manager
   resource_utils
   status_macros
   absl::flat_hash_map
+  absl::cleanup
   absl::strings
   nlohmann_json::nlohmann_json
 )

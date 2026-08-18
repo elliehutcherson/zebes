@@ -19,6 +19,7 @@ target_link_libraries(prop_artwork
   PRIVATE
   absl::status
   absl::strings
+  status_macros
 )
 
 add_library(prop_artwork_style prop_artwork_style.cc)

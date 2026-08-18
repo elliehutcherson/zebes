@@ -114,8 +114,7 @@ Api::Api(const Options& options)
 
 absl::Status Api::SaveConfig(const EngineConfig& config) {
   LOG(INFO) << "SaveConfig in the api....";
-  absl::Status status = EngineConfig::Save(config);
-  if (!status.ok()) return status;
+  RETURN_IF_ERROR(EngineConfig::Save(config));
 
   // Publish the saved settings to long-lived editor consumers. The Api holds
   // the EditorEngine-owned config by reference, so this does not introduce a
@@ -468,11 +467,10 @@ absl::StatusOr<std::string> Api::CreateGeneratedProp(const PreparedPropAsset& pr
   RETURN_IF_ERROR(prop_recipe_manager_->PreflightRecipeWithId(prepared.recipe));
 
   const RgbaImage& image = prepared.artwork.finished.image;
-  absl::Status status = texture_manager_->CreateGeneratedTexture(prepared.texture, image.width,
-                                                                 image.height, image.pixels);
-  if (!status.ok()) return status;
+  RETURN_IF_ERROR(texture_manager_->CreateGeneratedTexture(prepared.texture, image.width,
+                                                           image.height, image.pixels));
 
-  status = sprite_manager_->CreateSpriteWithId(prepared.sprite);
+  absl::Status status = sprite_manager_->CreateSpriteWithId(prepared.sprite);
   if (!status.ok()) {
     CompensationFailures compensation;
     compensation.Add("delete texture", texture_manager_->DeleteTexture(prepared.texture.id));
@@ -600,10 +598,9 @@ absl::Status Api::RegenerateGeneratedProp(const PreparedPropRegeneration& prepar
         terrain_recipe_manager_->GetRecipe(*prepared.updated_recipe.terrain_recipe_id).status());
   }
 
-  absl::Status status = sprite_manager_->SaveSprite(prepared.updated_sprite);
-  if (!status.ok()) return status;
+  RETURN_IF_ERROR(sprite_manager_->SaveSprite(prepared.updated_sprite));
 
-  status = prop_recipe_manager_->SaveRecipe(prepared.updated_recipe);
+  absl::Status status = prop_recipe_manager_->SaveRecipe(prepared.updated_recipe);
   if (!status.ok()) {
     CompensationFailures compensation;
     compensation.Add("restore sprite", sprite_manager_->SaveSprite(prepared.sprite_snapshot));

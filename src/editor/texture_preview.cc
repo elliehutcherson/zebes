@@ -7,6 +7,7 @@
 #include "SDL_render.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/status_macros.h"
 #include "platform/sdl/sdl_texture_handle.h"
 
 namespace zebes {
@@ -44,12 +45,13 @@ absl::Status FrameImagePreviewCamera(Camera& camera, int source_width, int sourc
   if (!zoom_range.IsValid()) {
     return absl::InvalidArgumentError("image preview camera requires a valid zoom range");
   }
-  absl::StatusOr<TexturePreviewLayout> layout = CalculateTexturePreviewLayout(
-      source_width, source_height, static_cast<float>(camera.viewport_width) * fill_fraction,
-      static_cast<float>(camera.viewport_height) * fill_fraction);
-  if (!layout.ok()) return layout.status();
+  ASSIGN_OR_RETURN(
+      const TexturePreviewLayout layout,
+      CalculateTexturePreviewLayout(source_width, source_height,
+                                    static_cast<float>(camera.viewport_width) * fill_fraction,
+                                    static_cast<float>(camera.viewport_height) * fill_fraction));
   camera.position = Vec{source_width / 2.0, source_height / 2.0};
-  camera.zoom = zoom_range.Clamp(layout->display_width / source_width);
+  camera.zoom = zoom_range.Clamp(layout.display_width / source_width);
   return absl::OkStatus();
 }
 
@@ -90,12 +92,11 @@ absl::StatusOr<TexturePreviewLayout> TexturePreviewRenderer::Render(TextureHandl
     return absl::InternalError(absl::StrCat("failed to query preview texture: ", SDL_GetError()));
   }
 
-  absl::StatusOr<TexturePreviewLayout> layout =
-      CalculateTexturePreviewLayout(width, height, max_width, max_height);
-  if (!layout.ok()) return layout.status();
+  ASSIGN_OR_RETURN(const TexturePreviewLayout layout,
+                   CalculateTexturePreviewLayout(width, height, max_width, max_height));
   gui_.Image(reinterpret_cast<ImTextureID>(native_texture),
-             ImVec2(layout->display_width, layout->display_height));
-  return *layout;
+             ImVec2(layout.display_width, layout.display_height));
+  return layout;
 }
 
 }  // namespace zebes

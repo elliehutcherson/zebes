@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.21)
 project(zebes VERSION 0.1.0)
 
 include(CTest)
+find_package(CURL 7.85 REQUIRED)
 
 option(BUILD_UI_TESTING "Build display-dependent SDL/ImGui integration tests" OFF)
 if(BUILD_UI_TESTING AND NOT BUILD_TESTING)
