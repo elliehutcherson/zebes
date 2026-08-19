@@ -14,11 +14,10 @@ namespace zebes {
 struct Entity {
   static constexpr uint64_t kInvalidId = 0;
 
-  uint64_t id = kInvalidId;  // Unique Runtime ID (for safe lookups)
-  bool active = true;        // For "soft" deletion
+  uint64_t id = kInvalidId;
+  // Inactive entities are kept and saved, but skipped when rendering.
+  bool active = true;
 
-  // AUTHORED STATE (Owned by Entity)
-  // Every entity needs a distinct position, so this is stored by Value.
   Transform transform;
   // Authored physical properties only. Velocity and acceleration are runtime
   // simulation state and live in Motion.
@@ -37,14 +36,11 @@ struct Entity {
   // move relative to each other.
   int sort_order = 0;
 
-  // BLUEPRINT REFERENCE (for serialization and editor display)
-  // Identifies which blueprint and state this entity was spawned from.
   std::string blueprint_id;
   int blueprint_state_index = 0;
 
-  // ASSET REFERENCES (Owned by Managers)
-  // Stored by ID rather than by pointer. Rendering and picking resolve these
-  // once per frame and pass the result explicitly.
+  // Assets are named, never pointed at; the managers own them. Rendering and
+  // picking resolve these once per frame and pass the result explicitly.
   std::string sprite_id;
   std::string collider_id;
 

@@ -192,7 +192,7 @@ struct TerrainMaterial {
 };
 
 struct TerrainGenConfig {
-  // --- Geometry ---
+  // Geometry.
   int tile_size = 32;
   // Pixels are rendered this many times over on each axis and averaged down.
   // A value of 1 is the inexpensive interactive-preview policy.
@@ -202,10 +202,10 @@ struct TerrainGenConfig {
   int variant_period = 1;
   TerrainPixelProfile pixel_profile = TerrainPixelProfile::kBalanced32;
 
-  // --- Facing-aware surface and wall treatment ---
+  // Facing-aware surface and wall treatment.
   TerrainSurfaceConfig surface;
 
-  // --- Interior base, substrate pattern, and semantic details ---
+  // Interior base, substrate pattern, and semantic details.
   TerrainInteriorConfig interior;
 
   uint64_t seed = 1234;

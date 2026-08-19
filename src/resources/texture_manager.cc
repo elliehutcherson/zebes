@@ -107,9 +107,8 @@ absl::StatusOr<Texture*> TextureManager::LoadTexture(const std::string& path_jso
         absl::StrCat("Texture name too long: ", name, ". Max length is ", kMaxTextureNameLength));
   }
 
-  // Check for duplicate ID
+  // Returns the live object rather than decoding again; callers hold Texture*.
   if (textures_.find(id) != textures_.end()) {
-    // If already loaded, just return it.
     return textures_[id].get();
   }
 
@@ -262,7 +261,6 @@ absl::StatusOr<RgbaImage> TextureManager::ReadTexturePixels(const std::string& i
 }
 
 absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
-  // Generate GUID
   std::string id = GenerateGuid();
   std::string source_path = texture.path;
 
@@ -293,7 +291,8 @@ absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
   }
 
   texture.id = id;
-  // Update path to be relative for storage
+  // Stored relative to the assets root, so a definition stays valid when the
+  // project moves.
   texture.path = absl::StrCat("textures/", filename);
 
   if (texture.name.empty()) {
@@ -309,10 +308,10 @@ absl::StatusOr<std::string> TextureManager::CreateTexture(Texture texture) {
     resources_->Unload(texture_handle).IgnoreError();
   };
 
-  // Save metadata to JSON
+  // The cleanup above releases the handle unless the rest of this succeeds, so
+  // a failed write cannot leave a GPU texture that nothing on disk names.
   RETURN_IF_ERROR(SaveTexture(texture));
 
-  // Store in map
   handles_[id] = texture_handle;
   textures_[id] = std::make_unique<Texture>(texture);
   std::move(unload_handle).Cancel();
@@ -360,7 +359,6 @@ absl::Status TextureManager::UpdateTexture(const Texture& texture) {
     std::filesystem::rename(GetDefinitionsPath(old_filename), GetDefinitionsPath(new_filename));
   }
 
-  // Save to disk
   return SaveTexture(*it->second);
 }
 

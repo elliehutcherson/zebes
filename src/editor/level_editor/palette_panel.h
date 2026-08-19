@@ -40,18 +40,15 @@ class PalettePanel {
   // palette so thumbnails reflect the tile's rendered shape in the world.
   absl::Status Render(int tile_render_width, int tile_render_height);
 
-  // --- Blueprint-mode getters ---
   // Returns the selected blueprint, or nullptr when not in blueprint mode.
   const Blueprint* GetSelectedBlueprint() const;
   bool GetSnapToGrid() const;
   bool GetShowEntityBorders() const;
 
-  // --- Tile-mode getters ---
   // Returns the selected tile, or nullptr when not in tile mode.
   const Tile* GetSelectedTile() const;
   // Returns the tileset owning the selected tile, or nullptr when not in tile mode.
   const Tileset* GetSelectedTileset() const;
-  // --- Terrain-mode getters ---
   // Returns the selected terrain's ID, or empty when not in terrain mode.
   std::optional<int> GetSelectedTerrainId() const;
   // The collision geometry the terrain brush lays down. Always kFullBlock

@@ -113,7 +113,7 @@ absl::StatusOr<Sprite*> SpriteManager::LoadSprite(const std::string& path_json) 
 
   ASSIGN_OR_RETURN(Sprite sprite, GetSpriteFromJson(json));
 
-  // Check for duplicate ID
+  // Returns the live object rather than reloading; callers hold Sprite*.
   if (sprites_.find(sprite.id) != sprites_.end()) {
     return sprites_[sprite.id].get();
   }
@@ -122,7 +122,6 @@ absl::StatusOr<Sprite*> SpriteManager::LoadSprite(const std::string& path_json) 
   // the texture manager; Sprite names its texture by ID only.
   RETURN_IF_ERROR(tm_->GetTexture(sprite.texture_id).status());
 
-  // Create Sprite object.
   std::string id = sprite.id;
   sprites_[id] = std::make_unique<Sprite>(std::move(sprite));
   return sprites_[id].get();
@@ -148,13 +147,12 @@ absl::Status SpriteManager::LoadAllSprites() {
 }
 
 absl::StatusOr<std::string> SpriteManager::CreateSprite(Sprite sprite) {
-  // The id should always be generated. Never allow an id to be passed in.
+  // IDs are the manager's to assign; a caller-supplied one is discarded.
   sprite.id = GenerateGuid();
 
   RETURN_IF_ERROR(SaveSprite(sprite));
 
-  // Load it (creates the Sprite object)
-  // Load it (creates the Sprite object)
+  // Reloaded from disk, so the cached sprite is what a fresh start loads.
   std::string filename = absl::StrCat(sprite.name, "-", sprite.id, ".json");
   ASSIGN_OR_RETURN(Sprite * loaded_sprite, LoadSprite(filename));
 

@@ -25,41 +25,48 @@
 
 namespace zebes {
 
+// The editor's composition root. Owns every subsystem and wires them together
+// here, which is why nothing below needs a global or a service locator: each
+// manager is handed its dependencies as raw pointers, and this object outlives
+// all of them.
+//
+// Create() runs Init(), so a returned engine is fully initialized or the call
+// failed. Init() builds subsystems in dependency order and loads every asset
+// definition, failing on the first error rather than starting the editor with
+// assets missing.
+//
+// Shutdown() releases ImGui and SDL and must run before the engine is
+// destroyed. Member declaration order is destruction order, and the UI and API
+// are declared after the managers they point into.
 class EditorEngine {
  public:
   static absl::StatusOr<std::unique_ptr<EditorEngine>> Create();
 
   ~EditorEngine() = default;
-  // DELETE Copy Constructor (keep this deleted to prevent expensive copies)
   EditorEngine(const EditorEngine&) = delete;
   EditorEngine& operator=(const EditorEngine&) = delete;
 
-  // ADD Move Constructor
   EditorEngine(EditorEngine&& other) = default;
   EditorEngine& operator=(EditorEngine&& other) = default;
 
-  // Initialize SDL, ImGui, and Zebes components
   absl::Status Init();
 
-  // Run the main editor loop
+  // Pumps input and renders until the window is closed.
   absl::Status Run();
 
-  // Shutdown and cleanup
   void Shutdown();
 
  private:
   explicit EditorEngine(EngineConfig config);
 
-  // Process SDL events
   void HandleEvents(bool* done);
 
-  // Render one frame
   void RenderFrame();
 
-  // SDL state
+  // Declaration order is destruction order. Everything below borrows from
+  // something above it, so this sequence is load-bearing, not stylistic.
   std::unique_ptr<SdlWrapper> sdl_;
 
-  // Zebes state
   EngineConfig config_;
   std::unique_ptr<SdlTextureStore> texture_resources_;
   std::unique_ptr<TextureManager> texture_manager_;
@@ -76,7 +83,6 @@ class EditorEngine {
   std::unique_ptr<InputManager> input_manager_;
   std::unique_ptr<Api> api_;
 
-  // Editor UI
   std::unique_ptr<Gui> gui_;
   std::unique_ptr<EditorUi> ui_;
 };

@@ -71,9 +71,34 @@ over their STL equivalents.
 - Include what the file uses. Do not rely on transitive includes.
 - Include type declarations directly by default. Forward declare only when it
   materially cuts coupling or build time.
-- Document ownership, nullability, lifetime, and error behavior when the type
-  does not make them obvious.
-- Comment intent, invariants, and tradeoffs. Never restate the code.
+
+### Comments
+
+A comment earns its place by saying something the code cannot. Restating the
+next statement in English costs the reader attention and returns nothing, and a
+file full of such comments trains the reader to skip all of them, including the
+one that mattered. Delete instead of trimming when there is nothing to say.
+
+Explanation belongs above the declaration, in the header. A class whose use has
+a contract — an ordering rule, a protocol, a threading or lifetime constraint,
+what happens on timeout or failure — gets a paragraph above the class, written
+in plain prose for someone who has not read the implementation. That is the one
+place a long comment pays for itself, because it is where a caller looks.
+
+Inside a function body, comment only the surprising: a non-obvious ordering
+constraint, a workaround and the bug it dodges, a tradeoff, the reason the
+cheaper approach fails. A body that needs narration to be followed wants
+helpers with names, not comments.
+
+- Document ownership, nullability, lifetime, and error behavior whenever the
+  type does not make them obvious.
+- Do not label blocks with what they do (`// Create the manager`,
+  `// 1. Handle zoom`). Extract a named helper.
+- No banner separators or numbered outlines (`// --- 2. Query API ---`). A
+  plain grouping label in a long interface is fine when the grouping is not
+  already obvious from the names under it.
+- Plain sentences. Explain the why; the declaration already states the what.
+- Delete commented-out code and stale TODOs rather than carrying them.
 
 ### Layering
 

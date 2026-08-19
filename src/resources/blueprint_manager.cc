@@ -19,7 +19,6 @@ constexpr char kDefinitionsPath[] = "definitions/blueprints";
 
 }  // namespace
 
-// JSON Serialization helpers locally
 void ToJson(nlohmann::json& j, const Blueprint& blueprint) {
   j = nlohmann::json{
       {"id", blueprint.id},
@@ -79,12 +78,11 @@ absl::StatusOr<Blueprint*> BlueprintManager::LoadBlueprint(const std::string& pa
 
   ASSIGN_OR_RETURN(Blueprint blueprint, GetBlueprintFromJson(json));
 
-  // Check for duplicate ID
+  // Returns the live object rather than reloading; callers hold Blueprint*.
   if (blueprints_.find(blueprint.id) != blueprints_.end()) {
     return blueprints_[blueprint.id].get();
   }
 
-  // Create Blueprint object.
   std::string id = blueprint.id;
   blueprints_[id] = std::make_unique<Blueprint>(std::move(blueprint));
   return blueprints_[id].get();
@@ -92,8 +90,8 @@ absl::StatusOr<Blueprint*> BlueprintManager::LoadBlueprint(const std::string& pa
 
 absl::Status BlueprintManager::LoadAllBlueprints() {
   if (!std::filesystem::exists(definitions_path_)) {
-    // If the directory doesn't exist, we can treat it as no blueprints or return error.
-    // Other managers return Not Found.
+    // An error, not an empty catalog: a misconfigured assets path must not look
+    // like a project with no blueprints.
     return absl::NotFoundError(
         absl::StrCat("Blueprint root directory not found: ", definitions_path_));
   }
@@ -117,7 +115,7 @@ absl::StatusOr<std::string> BlueprintManager::CreateBlueprint(Blueprint blueprin
 
   RETURN_IF_ERROR(SaveBlueprint(blueprint));
 
-  // Load it
+  // Reloaded from disk, so the cached blueprint is what a fresh start loads.
   std::string filename = absl::StrCat(blueprint.name, "-", blueprint.id, ".json");
   ASSIGN_OR_RETURN(Blueprint * loaded_blueprint, LoadBlueprint(filename));
 

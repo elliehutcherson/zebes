@@ -39,7 +39,6 @@ absl::Status BlueprintEditor::Init() {
   mode_ = Mode::kBlueprint;
   animator_ = std::make_unique<Animator>();
 
-  // Initialize panels
   ASSIGN_OR_RETURN(blueprint_panel_, BlueprintPanel::Create(gui_));
   ASSIGN_OR_RETURN(blueprint_state_panel_, BlueprintStatePanel::Create(gui_));
   ASSIGN_OR_RETURN(collider_panel_, ColliderPanel::Create(gui_));
@@ -89,19 +88,15 @@ absl::Status BlueprintEditor::Render() {
 
   gui_->TableNextRow();
 
-  // 1. Controls Column
   gui_->TableNextColumn();
   RETURN_IF_ERROR(RenderLeftPanel());
 
-  // 2. Editor Column (The Canvas)
   gui_->TableNextColumn();
   RETURN_IF_ERROR(RenderCanvas());
 
-  // 3. Details Column
   gui_->TableNextColumn();
   RETURN_IF_ERROR(RenderRightPanel());
 
-  // ImGui::EndTable() handled by ScopedTable
   return absl::OkStatus();
 }
 
@@ -123,14 +118,14 @@ absl::Status BlueprintEditor::EnterBlueprintStateMode(Blueprint& bp, int state_i
 
   blueprint_state_panel_->SetState(bp, state_index);
 
-  // Set Collider
+  // A state need not have either, so both are optional and left unattached when
+  // absent rather than treated as an error.
   std::optional<std::string> collider_id = bp.collider_id(state_index);
   if (collider_id.has_value()) {
     RefreshColliderCatalog();
     RETURN_IF_ERROR(collider_model_.BeginEditingCollider(*collider_id));
   }
 
-  // Set Sprite
   std::optional<std::string> sprite_id = bp.sprite_id(state_index);
   if (sprite_id.has_value()) {
     RETURN_IF_ERROR(sprite_panel_->Attach(*sprite_id));
@@ -183,16 +178,12 @@ absl::Status BlueprintEditor::RenderCanvas() {
   canvas_.Begin("StateCanvas", size, camera_);
   auto canvas_end = absl::MakeCleanup([&] { canvas_.End(); });
 
-  // Rulers & Grid
   canvas_.DrawGrid();
-
-  // Handles pan (MMB) and Zoom (Wheel) automatically
   canvas_.HandleInput();
 
-  // Sync Sprite Logic
+  // Sprite first, so the collider outline draws over the artwork it bounds.
   RETURN_IF_ERROR(sprite_panel_->RenderCanvas(canvas_, /*input_allowed=*/true).status());
 
-  // Draw objects
   RETURN_IF_ERROR(
       collider_panel_->RenderCanvas(collider_model_, canvas_, /*input_allowed=*/true).status());
 
@@ -262,8 +253,7 @@ absl::StatusOr<ColliderResult> BlueprintEditor::HandleColliderPanelAction(
       if (collider == nullptr) {
         return absl::FailedPreconditionError("No collider is available to attach");
       }
-      return ColliderResult{.type = ColliderResult::Type::kAttach,
-                            .collider_id = collider->id};
+      return ColliderResult{.type = ColliderResult::Type::kAttach, .collider_id = collider->id};
     }
     case ColliderPanel::Action::kSave: {
       ASSIGN_OR_RETURN(Collider collider, collider_model_.BuildSaveRequest());

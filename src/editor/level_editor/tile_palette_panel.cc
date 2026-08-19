@@ -20,11 +20,9 @@ constexpr float kThumbnailSize = 40.0f;
 // Padding between thumbnail buttons.
 constexpr float kThumbnailPad = 4.0f;
 
-// Draws the thumbnail image and selection/hover borders for a single tile.
-// thumb_w/thumb_h are the display dimensions of the button (may differ from source size when
-// the level's tile render dimensions have a non-square aspect ratio).
-// tile_w/tile_h are the source atlas dimensions used for UV sampling.
-// Isolated here to keep the per-tile loop body flat.
+// Draws one tile's thumbnail and its selection or hover border. thumb_w/thumb_h
+// are display dimensions and tile_w/tile_h are the source atlas dimensions for
+// UV sampling; the two differ when the level's tile render size is not square.
 void DrawTileThumbnail(ImDrawList* dl, ImVec2 cursor, const Tile& tile, const AtlasBinding& atlas,
                        float tile_w, float tile_h, float thumb_w, float thumb_h, bool is_selected,
                        bool is_hovered, float overlay_opacity) {
@@ -69,7 +67,7 @@ absl::Status TilePalettePanel::HandleTileClick(int tile_id, bool is_selected) {
     selected_tile_ = nullptr;
     return absl::OkStatus();
   }
-  ASSIGN_OR_RETURN(Tileset* ts, api_.GetTileset(selected_tileset_->id));
+  ASSIGN_OR_RETURN(Tileset * ts, api_.GetTileset(selected_tileset_->id));
   selected_tileset_ = ts;
   for (Tile& t : ts->tiles) {
     if (t.id != tile_id) continue;
@@ -127,16 +125,14 @@ absl::Status TilePalettePanel::RenderTileGrid(const AtlasBinding& atlas, int til
 }
 
 absl::Status TilePalettePanel::Render(int tile_render_width, int tile_render_height) {
-  // --- Tileset selector ---
   std::vector<Tileset> tilesets = api_.GetAllTilesets();
-  const char* preview =
-      (selected_tileset_ != nullptr) ? selected_tileset_->name.c_str() : "(none)";
+  const char* preview = (selected_tileset_ != nullptr) ? selected_tileset_->name.c_str() : "(none)";
 
   if (ScopedCombo combo = gui_->CreateScopedCombo("Tileset##tile_palette", preview); combo) {
     for (const Tileset& ts : tilesets) {
       bool is_selected = (selected_tileset_ != nullptr && selected_tileset_->id == ts.id);
-      const std::string label = absl::StrCat(
-          ts.name.empty() ? "(unnamed tileset)" : ts.name, "##tileset_", ts.id);
+      const std::string label =
+          absl::StrCat(ts.name.empty() ? "(unnamed tileset)" : ts.name, "##tileset_", ts.id);
       if (!gui_->Selectable(label.c_str(), is_selected)) continue;
 
       absl::StatusOr<Tileset*> ts_ptr = api_.GetTileset(ts.id);
@@ -160,13 +156,11 @@ absl::Status TilePalettePanel::Render(int tile_render_width, int tile_render_hei
     return absl::OkStatus();
   }
 
-  // --- Resolve the atlas at the editor boundary ---
   // An unset or unloaded texture is a valid authoring state; the grid falls back
   // to placeholder swatches rather than failing the frame.
   AtlasBinding atlas;
   if (!selected_tileset_->texture_id.empty()) {
-    ASSIGN_OR_RETURN(TextureHandle handle,
-                     api_.GetTextureHandle(selected_tileset_->texture_id));
+    ASSIGN_OR_RETURN(TextureHandle handle, api_.GetTextureHandle(selected_tileset_->texture_id));
     ASSIGN_OR_RETURN(atlas, texture_preview_.BindAtlas(handle));
   }
 

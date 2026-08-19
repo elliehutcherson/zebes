@@ -178,7 +178,6 @@ absl::Status LevelEditor::Render() {
                                                 ImVec2(0.0f, layout.workspace_height));
     if (!table) return absl::OkStatus();
 
-    // Setup columns with relative sizing
     gui_->TableSetupColumn("Navigator", ImGuiTableColumnFlags_WidthStretch, 0.2f);
     gui_->TableSetupColumn("Viewport", ImGuiTableColumnFlags_WidthStretch, 0.6f);
     gui_->TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthStretch, 0.2f);
@@ -268,12 +267,10 @@ absl::Status LevelEditor::RenderNavigator() {
   }
 
   if (root_open) {
-    // 1. World content
     if (gui_->CollapsingHeader("World Layers", ImGuiTreeNodeFlags_DefaultOpen)) {
       RETURN_IF_ERROR(world_layer_panel_->RenderNavigator(level, world_layer_model_, selection_));
     }
 
-    // 2. Parallax
     if (gui_->CollapsingHeader("Parallax", ImGuiTreeNodeFlags_DefaultOpen)) {
       RETURN_IF_ERROR(parallax_theme_panel_->RenderNavigator(level, selection_));
 

@@ -54,12 +54,10 @@ absl::Status ParallaxZonePanel::RenderNavigator(Level& level, SelectionState& se
   for (const ParallaxZone& zone : level.zones) {
     std::string label = zone.name.empty() ? "(unnamed zone)" : zone.name;
 
-    // Add theme name to label if it exists
     auto theme_it = level.themes.find(zone.theme_id);
     if (theme_it != level.themes.end()) {
       absl::StrAppend(&label, " (",
-                      theme_it->second.name.empty() ? "unnamed theme" : theme_it->second.name,
-                      ")");
+                      theme_it->second.name.empty() ? "unnamed theme" : theme_it->second.name, ")");
     }
     absl::StrAppend(&label, "##zone_", zone.id);
 
@@ -74,9 +72,9 @@ absl::Status ParallaxZonePanel::RenderNavigator(Level& level, SelectionState& se
 }
 
 absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& selection) {
-  auto zone_it = std::find_if(level.zones.begin(), level.zones.end(), [&](const ParallaxZone& zone) {
-    return zone.id == selection.zone_id;
-  });
+  auto zone_it =
+      std::find_if(level.zones.begin(), level.zones.end(),
+                   [&](const ParallaxZone& zone) { return zone.id == selection.zone_id; });
   if (zone_it == level.zones.end()) {
     selection.Clear();
     return absl::InvalidArgumentError("Selected zone does not exist.");
@@ -93,7 +91,8 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
 
   gui_->InputText("Name", &zone.name);
 
-  // Theme Selector
+  // Blank preview when the zone names a theme the level no longer has, rather
+  // than showing a stale name.
   const char* theme_preview = "";
   auto preview_it = level.themes.find(zone.theme_id);
   if (preview_it != level.themes.end()) {
@@ -102,8 +101,8 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
   if (auto combo = gui_->CreateScopedCombo("Theme", theme_preview); combo) {
     for (const auto& [id, theme] : level.themes) {
       bool is_selected = (zone.theme_id == id);
-      const std::string label = absl::StrCat(
-          theme.name.empty() ? "(unnamed theme)" : theme.name, "##theme_", id);
+      const std::string label =
+          absl::StrCat(theme.name.empty() ? "(unnamed theme)" : theme.name, "##theme_", id);
       if (gui_->Selectable(label.c_str(), is_selected)) {
         zone.theme_id = id;
       }
@@ -118,7 +117,8 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
   gui_->InputDouble("Max X", &zone.max_point.x);
   gui_->InputDouble("Max Y", &zone.max_point.y);
 
-  // Clamp zone boundaries to level bounds.
+  // Clamped every frame rather than validated on save, so a typed-in value is
+  // corrected as it is entered.
   zone.min_point.x = std::clamp(zone.min_point.x, 0.0, level.width);
   zone.min_point.y = std::clamp(zone.min_point.y, 0.0, level.height);
   zone.max_point.x = std::clamp(zone.max_point.x, 0.0, level.width);

@@ -26,7 +26,6 @@ class GuiInterface {
  public:
   virtual ~GuiInterface() = default;
 
-  // ImGui Wrappers
   bool Begin(const char* name) { return Begin(name, nullptr, 0); }
   bool Begin(const char* name, bool* p_open) { return Begin(name, p_open, 0); }
   virtual bool Begin(const char* name, bool* p_open, ImGuiWindowFlags flags) = 0;
@@ -116,7 +115,6 @@ class GuiInterface {
   virtual void AlignTextToFramePadding() = 0;
   virtual void Render() = 0;
 
-  // Widgets
   bool Button(const char* label) { return Button(label, ImVec2(0, 0)); }
   virtual bool Button(const char* label, const ImVec2& size) = 0;
   bool InvisibleButton(const char* str_id, const ImVec2& size) {
@@ -250,7 +248,6 @@ class GuiInterface {
   virtual void Dummy(const ImVec2& size) = 0;
   virtual void Spacing() = 0;
 
-  // Tables
   void TableSetupColumn(const char* label) { TableSetupColumn(label, 0, 0.0f, 0); }
   void TableSetupColumn(const char* label, ImGuiTableColumnFlags flags) {
     TableSetupColumn(label, flags, 0.0f, 0);
@@ -267,7 +264,6 @@ class GuiInterface {
   virtual void TableNextRow(ImGuiTableRowFlags row_flags, float min_row_height) = 0;
   virtual bool TableNextColumn() = 0;
 
-  // Layout
   virtual void SetCursorPos(const ImVec2& local_pos) = 0;
   virtual void SetCursorPosX(float local_x) = 0;
   virtual void SetCursorScreenPos(const ImVec2& pos) = 0;
@@ -344,7 +340,6 @@ class GuiInterface {
   bool TreeNodeEx(const char* label) { return TreeNodeEx(label, 0); }
   virtual bool TreeNodeEx(const char* label, ImGuiTreeNodeFlags flags) = 0;
 
-  // Scoped Object Creation
   virtual ImGuiViewport* GetMainViewport() = 0;
   virtual bool IsKeyDown(ImGuiKey key) = 0;
   bool IsKeyPressed(ImGuiKey key) { return IsKeyPressed(key, true); }

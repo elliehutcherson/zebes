@@ -65,7 +65,8 @@ absl::Status EditorUi::Init() {
 }
 
 void EditorUi::Render() {
-  // Set up fullscreen window
+  // The editor is one immovable window filling the viewport; the tabs inside it
+  // are the only navigation.
   ImGuiViewport* viewport = gui_->GetMainViewport();
   gui_->SetNextWindowPos(viewport->Pos);
   gui_->SetNextWindowSize(viewport->Size);
@@ -95,12 +96,11 @@ void EditorUi::Render() {
     });
   }
 
-  // Show debug state.
   if (gui_->IsKeyPressed(ImGuiKey_F1)) {
-    show_debug_metrics_ = !show_debug_metrics_;  // Toggle on F1 press
+    show_debug_metrics_ = !show_debug_metrics_;
   }
-  // This ensures the metrics window floats *over* the editor,
-  // regardless of which tab is open.
+  // Drawn after the tabs and outside them, so the metrics window floats over
+  // the editor whichever tab is open.
   if (show_debug_metrics_) {
     gui_->ShowMetricsWindow(&show_debug_metrics_);
   }

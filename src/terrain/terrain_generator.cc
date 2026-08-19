@@ -150,9 +150,6 @@ uint8_t MotifPixelIndex(TerrainMotifPixel pixel, bool lit, float gradient_t,
   return kIndexEmpty;
 }
 
-// --------------------------------------------------------------------------
-// polygon rasterisation
-
 // Scanline-fills a unit-square polygon into a boolean canvas. (cell_x, cell_y)
 // places it on the 3x3 grid of tiles; resolution is supersampled pixels per
 // tile.

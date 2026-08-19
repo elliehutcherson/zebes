@@ -19,7 +19,6 @@ constexpr char kDefinitionsPath[] = "definitions/colliders";
 
 }  // namespace
 
-// JSON Serialization helpers locally
 void ToJson(nlohmann::json& j, const Vec& vec) { j = nlohmann::json{{"x", vec.x}, {"y", vec.y}}; }
 
 void FromJson(const nlohmann::json& j, Vec& vec) {
@@ -90,12 +89,11 @@ absl::StatusOr<Collider*> ColliderManager::LoadCollider(const std::string& path_
 
   ASSIGN_OR_RETURN(Collider collider, GetColliderFromJson(json));
 
-  // Check for duplicate ID
+  // Returns the live object rather than reloading; callers hold Collider*.
   if (colliders_.find(collider.id) != colliders_.end()) {
     return colliders_[collider.id].get();
   }
 
-  // Create Collider object.
   std::string id = collider.id;
   colliders_[id] = std::make_unique<Collider>(std::move(collider));
   return colliders_[id].get();
@@ -121,11 +119,11 @@ absl::Status ColliderManager::LoadAllColliders() {
 }
 
 absl::StatusOr<std::string> ColliderManager::CreateCollider(Collider collider) {
-  // Generate ID
+  // IDs are the manager's to assign; a caller-supplied one is discarded.
   collider.id = GenerateGuid();
   RETURN_IF_ERROR(SaveCollider(collider));
 
-  // Load it
+  // Reloaded from disk, so the cached collider is what a fresh start loads.
   std::string filename = absl::StrCat(collider.name, "-", collider.id, ".json");
   ASSIGN_OR_RETURN(Collider * loaded_collider, LoadCollider(filename));
 
@@ -149,7 +147,6 @@ absl::Status ColliderManager::SaveCollider(Collider collider) {
   std::string filename = absl::StrCat(collider.name, "-", collider.id, ".json");
   std::string definitions_path = GetDefinitionsPath(filename);
 
-  // Ensure directory exists
   std::filesystem::create_directories(definitions_path_);
 
   std::ofstream file(definitions_path);
@@ -183,8 +180,6 @@ absl::Status ColliderManager::DeleteCollider(const std::string& id) {
   auto it = colliders_.find(id);
   if (it == colliders_.end()) return absl::NotFoundError("Collider not found");
 
-  // Remove JSON file
-  // Remove JSON file
   std::string filename = absl::StrCat(it->second->name, "-", id, ".json");
   std::filesystem::remove(GetDefinitionsPath(filename));
 

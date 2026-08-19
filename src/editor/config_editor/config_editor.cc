@@ -30,7 +30,8 @@ ConfigEditor::ConfigEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui)
       gui_(gui),
       current_config_(*api->GetConfig()),
       local_config_(current_config_) {
-  // Ensure buffer has extra capacity for editing
+  // ImGui writes into this buffer in place, so it needs room to grow beyond the
+  // current title.
   window_title_buffer_.resize(256, '\0');
 }
 
@@ -45,7 +46,8 @@ void ConfigEditor::Render() {
   }
 
   if (gui_->Button("Save Config")) {
-    // Update title from buffer before saving
+    // c_str() rather than the string itself: the buffer is padded with nulls
+    // and assigning it whole would carry them into the config.
     local_config_.window.title = window_title_buffer_.c_str();
     absl::Status status = api_->SaveConfig(local_config_);
     if (status.ok()) {

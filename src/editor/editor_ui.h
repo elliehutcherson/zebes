@@ -21,13 +21,22 @@
 
 namespace zebes {
 
+// Owns every editor tab and draws them into one window each frame.
+//
+// A tab whose render fails is logged and shown as an inline error; the other
+// tabs draw as normal, so one broken panel does not take the editor down with
+// it.
+//
+// Member declaration order is destruction order. Several preview textures and
+// the generation service are declared before the editors holding pointers to
+// them, each marked with a note; reordering them leaves a panel pointing at
+// freed memory.
 class EditorUi {
  public:
   static absl::StatusOr<std::unique_ptr<EditorUi>> Create(SdlWrapper* sdl, Api* api,
                                                           GuiInterface* gui);
   ~EditorUi() = default;
 
-  // Render all editor UI windows
   void Render();
 
  private:
@@ -35,7 +44,6 @@ class EditorUi {
   void RenderTab(const char* name, const std::function<absl::Status()>& render_fn);
   explicit EditorUi(SdlWrapper* sdl, Api* api, GuiInterface* gui);
 
-  // Initialize owned objects.
   absl::Status Init();
 
   // Dependencies are non-owning and must outlive EditorUi.
@@ -65,7 +73,6 @@ class EditorUi {
   std::unique_ptr<ImageGenerationService> image_generation_;
   std::unique_ptr<PropArtworkEditor> prop_artwork_editor_;
 
-  // Debug state
   bool show_debug_metrics_ = false;
 };
 

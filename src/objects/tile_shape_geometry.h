@@ -48,7 +48,7 @@ inline absl::Span<const TilePoint> TileShapePolygon(TileShape shape) {
       return kPoly;
     }
 
-    // --- Half blocks ---
+    // Half blocks.
     case TileShape::kHalfBlockBottom: {
       static constexpr TilePoint kPoly[] = {{0, .5f}, {1, .5f}, {1, 1}, {0, 1}};
       return kPoly;
@@ -66,7 +66,7 @@ inline absl::Span<const TilePoint> TileShapePolygon(TileShape shape) {
       return kPoly;
     }
 
-    // --- 45-degree slopes (1:1) ---
+    // 45-degree slopes (1:1).
     case TileShape::kSlope45FloorTallRight: {
       static constexpr TilePoint kPoly[] = {{0, 1}, {1, 0}, {1, 1}};
       return kPoly;
@@ -84,7 +84,7 @@ inline absl::Span<const TilePoint> TileShapePolygon(TileShape shape) {
       return kPoly;
     }
 
-    // --- Gentle slopes (2:1). Lower spans heights 0 to 1/2, Upper 1/2 to 1. ---
+    // Gentle slopes (2:1). Lower spans heights 0 to 1/2, Upper 1/2 to 1.
     case TileShape::kGentleSlopeFloorTallRightLower: {
       static constexpr TilePoint kPoly[] = {{0, 1}, {1, .5f}, {1, 1}};
       return kPoly;
@@ -118,7 +118,7 @@ inline absl::Span<const TilePoint> TileShapePolygon(TileShape shape) {
       return kPoly;
     }
 
-    // --- Steep slopes (1:2). Bottom rests on the ground, Top stacks above. ---
+    // Steep slopes (1:2). Bottom rests on the ground, Top stacks above.
     case TileShape::kSteepSlopeFloorTallRightBottom: {
       static constexpr TilePoint kPoly[] = {{0, 1}, {.5f, 0}, {1, 0}, {1, 1}};
       return kPoly;

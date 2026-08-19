@@ -83,7 +83,6 @@ void SpriteEditor::SelectSprite(const std::string& sprite_id) {
   animation_timer_ = 0.0;
 }
 
-// Below the methods for upserting, updating and deleting sprites are defined.
 void SpriteEditor::CreateSprite() {
   absl::StatusOr<Sprite> request = model_.BuildCreateRequest();
   if (!request.ok()) {
@@ -155,7 +154,6 @@ void SpriteEditor::Render() {
 }
 
 void SpriteEditor::RenderSpriteSelection() {
-  // Use tables for list and inspector
   auto table_flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
   ScopedTable table = gui_->CreateScopedTable("SpriteListSplit", 2, table_flags);
   gui_->TableSetupColumn("Sprite List", ImGuiTableColumnFlags_WidthFixed, 250.0f);
@@ -164,12 +162,10 @@ void SpriteEditor::RenderSpriteSelection() {
   gui_->TableNextRow();
   gui_->TableNextColumn();
 
-  // Column 1: Sprite List
   RenderSpriteList();
 
   gui_->TableNextColumn();
 
-  // Column 2: Inspector (Meta + Animation)
   RenderSpriteMeta();
   gui_->Separator();
   RenderSpriteAnimation();
@@ -190,7 +186,6 @@ void SpriteEditor::RenderSpriteList() {
     animation_timer_ = 0.0;
   }
 
-  // Create list with fixed height
   ScopedChild child = gui_->CreateScopedChild("##Sprites", ImVec2(0, kSpriteListHeight), false);
   for (const auto& catalog_entry : model_.sprites()) {
     const Sprite& sprite = catalog_entry.second;
@@ -212,26 +207,24 @@ void SpriteEditor::RenderSpriteMeta() {
     return;
   }
 
-  // Title
   Sprite& sprite = model_.sprite();
   std::string title = model_.is_new_sprite() ? "NewSprite" : absl::StrCat("Sprite: ", sprite.id);
   gui_->Text("%s", title.c_str());
   gui_->Separator();
 
-  // ID is auto-assigned
+  // Shown but never editable: the ID is assigned on save.
   {
     ScopedDisabled disabled = gui_->CreateScopedDisabled(true);
     if (model_.is_new_sprite()) {
       gui_->Text("ID: <Auto>");
     } else {
-      // Read-only ID
       gui_->InputText("ID", const_cast<char*>(sprite.id.c_str()), sprite.id.size(),
                       ImGuiInputTextFlags_ReadOnly);
     }
   }
 
-  // Texture Dropdown
-  // Find current texture path from ID for display
+  // The sprite stores a texture ID; the combo shows a path. The fallback also
+  // covers a texture the catalog no longer holds.
   std::string current_tex_path = "Select Texture";
   if (!sprite.texture_id.empty()) {
     for (const auto& catalog_entry : model_.textures()) {
@@ -258,10 +251,10 @@ void SpriteEditor::RenderSpriteMeta() {
     }
   }
 
-  // Sprite Name
+  // InputText writes straight into the model's buffer, so an edit needs no
+  // handling here.
   std::string& edit_name = model_.edit_name_buffer();
   if (gui_->InputText("Name", edit_name.data(), edit_name.size())) {
-    // Handled by buffer
   }
 
   gui_->Spacing();
@@ -287,14 +280,14 @@ void SpriteEditor::RenderSpriteAnimation() {
   gui_->Text("Animation Preview");
   const std::vector<SpriteFrame>& frames = model_.sprite().frames;
 
-  // Play/Pause Control
   if (gui_->Button(is_playing_animation_ ? "Pause" : "Play")) {
     is_playing_animation_ = !is_playing_animation_;
   }
 
-  // Animation Logic
+  // Driven off an accumulator, not one Update per rendered frame: frame timings
+  // are in ticks, so ticking per rendered frame would play the animation at
+  // whatever rate the editor happens to render at.
   if (is_playing_animation_) {
-    // Assuming target FPS from config or default 60
     int target_fps = 60;
     double tick_duration = 1.0 / target_fps;
 
@@ -305,13 +298,11 @@ void SpriteEditor::RenderSpriteAnimation() {
     }
   }
 
-  // Handle empty frames gracefully
   if (frames.empty()) {
     gui_->TextDisabled("No frames to animate.");
     return;
   }
 
-  // Render Animated Frame
   absl::StatusOr<SpriteFrame> frame = animator_->GetCurrentFrame(frames);
   absl::StatusOr<int> current_frame_index = animator_->GetCurrentFrameIndex(frames);
   if (!frame.ok()) {
@@ -324,7 +315,7 @@ void SpriteEditor::RenderSpriteAnimation() {
   }
   if (!current_frame_index.ok()) return;
 
-  // Calculate UVs
+  // Frames are pixel rects; ImGui wants normalized UVs.
   int tex_w = 0, tex_h = 0;
   if (model_.texture()) {
     SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
@@ -388,7 +379,6 @@ void SpriteEditor::RenderSpriteFrameList() {
                                 : absl::StrCat("Sprite Frames for ID: ", sprite.id);
   gui_->Text("%s", header_text.c_str());
 
-  // Controls
   if (gui_->Button("Add Frame")) {
     model_.AddFrame().IgnoreError();
   }
@@ -404,7 +394,6 @@ void SpriteEditor::RenderSpriteFrameList() {
     }
   }
 
-  // Horizontal scroll area
   float min_height = sprite.frames.empty() ? 0.0f : 550.0f;
   ScopedChild child = gui_->CreateScopedChild("SpriteFramesList", ImVec2(0, min_height));
 
@@ -427,7 +416,6 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   ScopedGroup group = gui_->CreateScopedGroup();
   ScopedId id = gui_->CreateScopedId(index);
 
-  // Header / Active Toggle
   bool is_active = (model_.active_frame_index() == index);
   if (is_active) {
     ScopedStyleColor style =
@@ -441,11 +429,11 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
 
   gui_->SameLine();
   if (gui_->Button("X")) {
+    // `frame` refers into the vector this mutates, so nothing below may use it.
     model_.DeleteFrame(index).IgnoreError();
-    return;  // Stop rendering this item (ScopedId/Group destructors called)
+    return;
   }
 
-  // Ordering buttons
   if (index > 0) {
     gui_->SameLine();
     if (gui_->ArrowButton("##up", ImGuiDir_Left)) {
@@ -463,20 +451,22 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
 
   gui_->Text("Frame %d", index);
 
-  // Preview Image
   int tex_w = 0, tex_h = 0;
   if (model_.texture()) {
     SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
+    // A frame authored against a larger texture would otherwise sample outside
+    // the one now loaded.
     model_.ClampFrameToTexture(index, tex_w, tex_h).IgnoreError();
 
-    // Calculate UVs
-    ImVec2 uv0(static_cast<float>(frame.texture_x) / tex_w, static_cast<float>(frame.texture_y) / tex_h);
+    ImVec2 uv0(static_cast<float>(frame.texture_x) / tex_w,
+               static_cast<float>(frame.texture_y) / tex_h);
     ImVec2 uv1(static_cast<float>(frame.texture_x + frame.texture_w) / tex_w,
                static_cast<float>(frame.texture_y + frame.texture_h) / tex_h);
 
-    // Fixed display size height, maintain aspect ratio
+    // Fixed height, width from the aspect ratio, so a row of frames lines up.
     float display_h = 100.0f;
-    float aspect = (frame.texture_h > 0) ? static_cast<float>(frame.texture_w) / frame.texture_h : 1.0f;
+    float aspect =
+        (frame.texture_h > 0) ? static_cast<float>(frame.texture_w) / frame.texture_h : 1.0f;
     float display_w = display_h * aspect;
 
     gui_->Image(ImTextureId(), ImVec2(display_w, display_h), uv0, uv1, ImVec4(1, 1, 1, 1),
@@ -485,26 +475,24 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
     gui_->Button("No Texture", ImVec2(100, 100));
   }
 
-  // Editable fields with validation
   gui_->PushItemWidth(80);
 
-  // Helper lambda for integer fields to reduce duplication
+  // Clamps on entry rather than validating on save, so a frame never holds a
+  // rect outside the texture. "##label" is the ImGui widget ID; the ScopedId
+  // above scopes it to this frame, so field names may repeat across frames.
   auto render_int_field = [&](const char* label, int* value, int min = 0, int max = 10000) {
     gui_->AlignTextToFramePadding();
     gui_->Text("%s", label);
     gui_->SameLine();
-    // Offset for alignment
     gui_->SetCursorPosX(start_x + 80.0f);
-    // Use label for unique ID if needed, but here we just need unique ID for InputInt
-    // Using ## + label might conflict if same label used twice (e.g. W/H), so we rely on
-    // pushID(index) Actually we need unique IDs per field.
     if (gui_->InputInt(absl::StrCat("##", label).c_str(), value)) {
       if (*value < min) *value = min;
       if (*value > max) *value = max;
     }
   };
 
-  // Note: We use unique labels/ids here
+  // Each bound is set against the opposite edge, so widening a frame cannot
+  // push it past the texture.
   render_int_field("X:", &frame.texture_x, 0, tex_w > 0 ? tex_w - frame.texture_w : 0);
   render_int_field("Y:", &frame.texture_y, 0, tex_h > 0 ? tex_h - frame.texture_h : 0);
   render_int_field("W:", &frame.texture_w, 0, tex_w > 0 ? tex_w - frame.texture_x : 0);
@@ -521,10 +509,11 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   gui_->Text("Anim:");
   render_int_field("Duration:", &frame.frames_per_cycle, 1, 1000);
 
-  // Scale Tool
   gui_->Separator();
   gui_->AlignTextToFramePadding();
   gui_->Text("Scale:");
+  // Static so one factor is shared by every frame item, which is how it is
+  // normally used: apply the same scale down a row of frames.
   static int render_scale_input = 2;
   gui_->SameLine();
   gui_->SetCursorPosX(start_x + 80.0f);
@@ -547,7 +536,6 @@ void SpriteEditor::RenderFullTextureView() {
   gui_->Separator();
   gui_->Text("Full Texture (Interact to Edit)");
 
-  // Zoom controls
   if (gui_->Button("-")) model_.ZoomTextureOut();
   gui_->SameLine();
   if (gui_->Button("+")) model_.ZoomTextureIn();
@@ -558,7 +546,8 @@ void SpriteEditor::RenderFullTextureView() {
   SDL_QueryTexture(SdlTexture(), nullptr, nullptr, &tex_w, &tex_h);
 
   const float texture_zoom = model_.texture_zoom();
-  ImVec2 canvas_size = ImVec2(static_cast<float>(tex_w) * texture_zoom, static_cast<float>(tex_h) * texture_zoom);
+  ImVec2 canvas_size =
+      ImVec2(static_cast<float>(tex_w) * texture_zoom, static_cast<float>(tex_h) * texture_zoom);
 
   ScopedChild child =
       gui_->CreateScopedChild("FullTextureRegion", ImVec2(0, 400), true,
@@ -567,7 +556,7 @@ void SpriteEditor::RenderFullTextureView() {
   ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
   gui_->Image(ImTextureId(), canvas_size);
 
-  // Early return if no active frame allows us to skip interaction logic
+  // Without an active frame the texture is shown but not editable.
   const int active_frame_index = model_.active_frame_index();
   if (active_frame_index < 0 ||
       active_frame_index >= static_cast<int>(model_.sprite().frames.size())) {
@@ -577,7 +566,6 @@ void SpriteEditor::RenderFullTextureView() {
   SpriteFrame& active_frame = model_.sprite().frames[active_frame_index];
   ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-  // Draw current rect
   ImVec2 rect_min = ImVec2(canvas_pos.x + active_frame.texture_x * texture_zoom,
                            canvas_pos.y + active_frame.texture_y * texture_zoom);
   ImVec2 rect_max = ImVec2(rect_min.x + active_frame.texture_w * texture_zoom,
@@ -585,22 +573,21 @@ void SpriteEditor::RenderFullTextureView() {
 
   draw_list->AddRect(rect_min, rect_max, IM_COL32(255, 0, 0, 255), 0.0f, 0, 2.0f);
 
-  // Interaction
+  // An invisible button is what claims the mouse for this image; without an
+  // item there the parent window takes it.
   ImGui::SetCursorScreenPos(canvas_pos);
   ImGui::InvisibleButton("TextureOverlay", canvas_size);
 
-  // Early return if not interacting
   if (!ImGui::IsItemActive() || !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
     is_dragging_rect_ = false;
     return;
   }
 
-  // Handle Dragging
+  // Into texture pixels, which is what a frame rect is measured in.
   ImVec2 mouse_pos = ImGui::GetMousePos();
   float rel_x = (mouse_pos.x - canvas_pos.x) / texture_zoom;
   float rel_y = (mouse_pos.y - canvas_pos.y) / texture_zoom;
 
-  // Clamp to texture bounds
   rel_x = std::max(0.0f, std::min(rel_x, static_cast<float>(tex_w)));
   rel_y = std::max(0.0f, std::min(rel_y, static_cast<float>(tex_h)));
 
@@ -612,13 +599,13 @@ void SpriteEditor::RenderFullTextureView() {
     active_frame.texture_w = 0;
     active_frame.texture_h = 0;
   } else {
-    // Update WH based on drag
     int start_x = static_cast<int>(drag_start_.x);
     int start_y = static_cast<int>(drag_start_.y);
     int curr_x = static_cast<int>(rel_x);
     int curr_y = static_cast<int>(rel_y);
 
-    // Allow dragging in any direction
+    // Normalized against the anchor so dragging up or left gives the same rect
+    // as down or right, rather than a negative width.
     active_frame.texture_x = std::min(start_x, curr_x);
     active_frame.texture_y = std::min(start_y, curr_y);
     active_frame.texture_w = std::abs(curr_x - start_x);

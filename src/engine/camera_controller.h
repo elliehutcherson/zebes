@@ -8,6 +8,14 @@
 
 namespace zebes {
 
+// Drives a Camera from keyboard input: WASD pans, Q and E zoom. Bindings are
+// registered on the input manager at construction, so two controllers sharing
+// one input manager bind the same actions twice and both cameras move.
+//
+// Borrows the camera and the input manager; both must outlive it. Update()
+// expects the input manager to have been polled already, and clamps zoom to
+// zoom_range every time, so the camera stays in range even if something else
+// wrote a zoom outside it.
 class CameraController {
  public:
   struct Options {
@@ -18,6 +26,7 @@ class CameraController {
     CameraZoomRange zoom_range{.minimum = 0.1, .maximum = 5.0};
   };
 
+  // Fails if the camera or input manager is null, or the zoom range is invalid.
   static absl::StatusOr<std::unique_ptr<CameraController>> Create(Options options);
 
   void Update(double delta_time);

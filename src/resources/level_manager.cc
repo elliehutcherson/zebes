@@ -17,7 +17,6 @@ namespace {
 
 constexpr char kDefinitionsPath[] = "definitions/levels";
 
-// Helper for TileChunk
 void ToJson(nlohmann::json& j, const TileChunk& chunk) { j["tiles"] = chunk.tiles; }
 
 void FromJson(const nlohmann::json& j, TileChunk& chunk) { j.at("tiles").get_to(chunk.tiles); }
@@ -46,7 +45,6 @@ void ToJson(nlohmann::json& j, const WorldLayer& layer) {
   j["entities"] = std::move(entities_json);
 }
 
-// Helper for ParallaxLayer
 void ToJson(nlohmann::json& j, const ParallaxLayer& layer) {
   j = nlohmann::json{
       {"name", layer.name},
@@ -73,7 +71,6 @@ void FromJson(const nlohmann::json& j, ParallaxLayer& layer) {
   j.at("base_scale").get_to(layer.base_scale);
 }
 
-// Helper for ParallaxTheme
 void ToJson(nlohmann::json& j, const ParallaxTheme& theme) {
   j["id"] = theme.id;
   j["name"] = theme.name;
@@ -96,7 +93,6 @@ void FromJson(const nlohmann::json& j, ParallaxTheme& theme) {
   }
 }
 
-// Helper for ParallaxZone
 void ToJson(nlohmann::json& j, const ParallaxZone& zone) {
   j = nlohmann::json{
       {"id", zone.id},
@@ -219,7 +215,8 @@ nlohmann::json ToJson(const Level& level) {
   j["tile_render_height"] = level.tile_render_height;
   j["spawn_point"] = {{"x", level.spawn_point.x}, {"y", level.spawn_point.y}};
 
-  // Themes
+  // Themes, zones, and layers are all written even when empty; see the note on
+  // sprite_id above for why an absent key is not an option.
   std::vector<nlohmann::json> themes_json;
   for (const auto& [id, theme] : level.themes) {
     nlohmann::json theme_j;
@@ -228,7 +225,6 @@ nlohmann::json ToJson(const Level& level) {
   }
   j["themes"] = themes_json;
 
-  // Zones
   std::vector<nlohmann::json> zones_json;
   for (const auto& zone : level.zones) {
     nlohmann::json zone_j;
@@ -339,8 +335,8 @@ absl::StatusOr<Level*> LevelManager::LoadLevel(const std::string& path_json) {
 
 absl::Status LevelManager::LoadAllLevels() {
   if (!std::filesystem::exists(definitions_path_)) {
-    // If directory doesn't exist, maybe just return OK or create it?
-    // SpriteManager returns NotFound.
+    // An error, not an empty catalog: a misconfigured assets path must not look
+    // like a project with no levels.
     return absl::NotFoundError(absl::StrCat("Level root directory not found: ", definitions_path_));
   }
 
@@ -362,7 +358,8 @@ absl::StatusOr<std::string> LevelManager::CreateLevel(Level level) {
     return absl::InvalidArgumentError("Levels must have a non-empty name.");
   }
 
-  // Check for uniqueness across ALL levels
+  // Names appear in filenames, so duplicates are rejected rather than
+  // silently disambiguated.
   for (const auto& [id, existing_level] : levels_) {
     if (existing_level->name == level.name) {
       return absl::InvalidArgumentError(
@@ -370,12 +367,12 @@ absl::StatusOr<std::string> LevelManager::CreateLevel(Level level) {
     }
   }
 
-  // FORCE ID GENERATION
+  // IDs are the manager's to assign; a caller-supplied one is discarded.
   level.id = GenerateGuid();
 
   RETURN_IF_ERROR(SaveLevel(level));
 
-  // Reload to ensure it's in memory properly
+  // Reloaded from disk, so the cached level is what a fresh start loads.
   std::string filename = absl::StrCat(level.name, "-", level.id, ".json");
   ASSIGN_OR_RETURN(Level * loaded_level, LoadLevel(filename));
 
@@ -396,7 +393,8 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
 
   nlohmann::json json = ToJson(level);
 
-  // Handle renaming
+  // A rename changes the filename, so the old file has to go or the catalog
+  // loads the level twice under two names.
   auto it = levels_.find(level.id);
   if (it != levels_.end()) {
     RemoveOldFileIfExists(level.id, it->second->name, level.name, definitions_path_);
@@ -405,7 +403,6 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
   std::string filename = absl::StrCat(level.name, "-", level.id, ".json");
   std::string full_path = GetDefinitionsPath(filename);
 
-  // Ensure directory exists
   std::filesystem::create_directories(definitions_path_);
 
   std::ofstream file(full_path);

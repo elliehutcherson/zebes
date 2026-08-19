@@ -29,45 +29,40 @@ absl::StatusOr<std::unique_ptr<EditorEngine>> EditorEngine::Create() {
 EditorEngine::EditorEngine(EngineConfig config) : config_(std::move(config)) {}
 
 absl::Status EditorEngine::Init() {
-  // Initialize SDL
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
     return absl::InternalError(absl::StrCat("SDL initialization failed: ", SDL_GetError()));
   }
 
-  // Create SDL Wrapper (Window & Renderer)
   ASSIGN_OR_RETURN(sdl_, SdlWrapper::Create(config_.window));
 
-  // Compose platform texture ownership with metadata persistence.
+  // The store owns the GPU textures, the manager owns the metadata naming
+  // them; the split keeps SDL out of the manager's interface.
   texture_resources_ = std::make_unique<SdlTextureStore>(*sdl_);
   ASSIGN_OR_RETURN(texture_manager_,
                    TextureManager::Create(texture_resources_.get(), config_.paths.assets()));
   RETURN_IF_ERROR(texture_manager_->LoadAllTextures());
 
-  // Create Sprite Manager
   ASSIGN_OR_RETURN(sprite_manager_,
                    SpriteManager::Create(texture_manager_.get(), config_.paths.assets()));
   RETURN_IF_ERROR(sprite_manager_->LoadAllSprites());
 
-  // Create Collider Manager
   ASSIGN_OR_RETURN(collider_manager_, ColliderManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(collider_manager_->LoadAllColliders());
 
-  // Create Blueprint Manager
   ASSIGN_OR_RETURN(blueprint_manager_, BlueprintManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(blueprint_manager_->LoadAllBlueprints());
 
-  // Create Level Manager. Levels reference sprites and colliders by ID, so it
-  // needs no asset managers.
+  // Levels reference sprites and colliders by ID, so the level manager needs no
+  // asset managers of its own.
   ASSIGN_OR_RETURN(level_manager_, LevelManager::Create(config_.paths.assets()));
 
   RETURN_IF_ERROR(level_manager_->LoadAllLevels());
 
-  // Create Tileset Manager
   ASSIGN_OR_RETURN(tileset_manager_, TilesetManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(tileset_manager_->LoadAllTilesets());
 
-  // Create Terrain Recipe Manager. Generated terrain renders artwork the level
-  // asks for, so the Level tab needs recipes as much as the Terrain tab does.
+  // Generated terrain renders artwork the level asks for, so the Level tab
+  // needs recipes as much as the Terrain tab does.
   ASSIGN_OR_RETURN(terrain_recipe_manager_, TerrainRecipeManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(terrain_recipe_manager_->LoadAllRecipes());
 
@@ -77,14 +72,12 @@ absl::Status EditorEngine::Init() {
   ASSIGN_OR_RETURN(prop_recipe_manager_, PropRecipeManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(prop_recipe_manager_->LoadAllRecipes());
 
-  // Create ImGui Wrapper
   imgui_wrapper_ = ImGuiWrapper::Create();
 
-  // Translate platform input before it reaches engine logic.
+  // Translates SDL events into Zebes input types; nothing above sees SDL.
   sdl_input_source_ = std::make_unique<SdlInputSource>(*sdl_, *imgui_wrapper_);
   ASSIGN_OR_RETURN(input_manager_, InputManager::Create({.input_source = sdl_input_source_.get()}));
 
-  // Create API
   Api::Options api_options = {
       .config = &config_,
       .texture_manager = texture_manager_.get(),
@@ -99,11 +92,9 @@ absl::Status EditorEngine::Init() {
   };
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
-  // Create UI
   gui_ = std::make_unique<Gui>();
   ASSIGN_OR_RETURN(ui_, EditorUi::Create(sdl_.get(), api_.get(), gui_.get()));
 
-  // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
@@ -111,10 +102,8 @@ absl::Status EditorEngine::Init() {
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
-  // Setup Dear ImGui style
   ImGui::StyleColorsDark();
 
-  // Setup Platform/Renderer backends
   ImGui_ImplSDL2_InitForSDLRenderer(sdl_->GetWindow(), sdl_->GetRenderer());
   ImGui_ImplSDLRenderer2_Init(sdl_->GetRenderer());
 
@@ -139,15 +128,12 @@ void EditorEngine::HandleEvents(bool* done) {
 }
 
 void EditorEngine::RenderFrame() {
-  // Start the Dear ImGui frame
   ImGui_ImplSDLRenderer2_NewFrame();
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
 
-  // Render UI
   ui_->Render();
 
-  // Rendering
   ImGui::Render();
   ImGuiIO& io = ImGui::GetIO();
   SDL_RenderSetScale(sdl_->GetRenderer(), io.DisplayFramebufferScale.x,
@@ -159,7 +145,7 @@ void EditorEngine::RenderFrame() {
 }
 
 void EditorEngine::Shutdown() {
-  // Cleanup
+  // ImGui's backends hold the SDL renderer; they go before anything releases it.
   ImGui_ImplSDLRenderer2_Shutdown();
   ImGui_ImplSDL2_Shutdown();
   ImGui::DestroyContext();

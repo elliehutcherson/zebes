@@ -25,8 +25,6 @@ CameraController::CameraController(Options options)
       move_speed_(options.move_speed),
       zoom_speed_(options.zoom_speed),
       zoom_range_(options.zoom_range) {
-  // Register Inputs (Separation of Mapping vs Logic)
-  // You can load these from a file in a real engine
   input_manager_.BindAction("PanUp", Key::kW);
   input_manager_.BindAction("PanDown", Key::kS);
   input_manager_.BindAction("PanLeft", Key::kA);
@@ -38,21 +36,19 @@ CameraController::CameraController(Options options)
 void CameraController::Update(double delta_time) {
   Vec movement = {0, 0};
 
-  // 1. Handle Panning
   if (input_manager_.IsActionActive("PanUp")) movement.y -= 1;
   if (input_manager_.IsActionActive("PanDown")) movement.y += 1;
   if (input_manager_.IsActionActive("PanLeft")) movement.x -= 1;
   if (input_manager_.IsActionActive("PanRight")) movement.x += 1;
 
-  // Normalize vector if needed (omitted for brevity) and apply speed
+  // Not normalized: a diagonal pan travels root two faster than a straight one.
   if (movement.x != 0 || movement.y != 0) {
-    // Divide speed by zoom so we move consistent speed relative to screen
+    // Dividing by zoom holds the pan speed constant in screen pixels.
     double speed = move_speed_ / camera_.zoom;
     camera_.position.x += movement.x * speed * delta_time;
     camera_.position.y += movement.y * speed * delta_time;
   }
 
-  // 2. Handle Zooming
   if (input_manager_.IsActionActive("ZoomIn")) camera_.zoom += zoom_speed_ * delta_time;
   if (input_manager_.IsActionActive("ZoomOut")) camera_.zoom -= zoom_speed_ * delta_time;
 

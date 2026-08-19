@@ -27,7 +27,6 @@ using Path = std::filesystem::path;
 
 absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& db_path,
                                               const std::string& migration_dir) {
-  // 1. Check if SchemaMigrations table exists
   bool schema_migrations_exists = false;
   {
     ASSIGN_OR_RETURN(
@@ -47,16 +46,15 @@ absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& db
   if (!schema_migrations_exists) {
     LOG(INFO) << "New database detected. Starting at version -1.";
   } else {
-    // Table exists, get version
     ASSIGN_OR_RETURN(sqlite3_stmt * stmt,
                      SqliteWrapper::Prepare(db, "SELECT MAX(version) FROM SchemaMigrations"));
 
-    // Check if we have a row
     absl::Cleanup stmt_finalizer =
         absl::MakeCleanup([stmt] { LOG_IF_ERROR(SqliteWrapper::Finalize(stmt)); });
     ASSIGN_OR_RETURN(bool step_result, SqliteWrapper::Step(stmt));
 
-    // If we have a row, get the version
+    // MAX over an empty table returns a row holding NULL, not no row, so both
+    // checks are needed to leave the version at -1.
     if (step_result && SqliteWrapper::ColumnType(stmt, 0) != SQLITE_NULL) {
       current_version = SqliteWrapper::ColumnInt(stmt, 0);
     }
@@ -64,7 +62,6 @@ absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& db
 
   LOG(INFO) << "Current database schema version: " << current_version;
 
-  // 3. Find migration files
   if (!std::filesystem::exists(migration_dir)) {
     return absl::NotFoundError(absl::StrFormat("Migration directory not found: %s", migration_dir));
   }
@@ -116,11 +113,10 @@ absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& db
   }
   LOG(INFO) << "Found " << migrations.size() << " migrations to apply.";
 
-  // Sort by version
+  // Applied in version order; a migration assumes every earlier one has run.
   std::sort(migrations.begin(), migrations.end(),
             [](const MigrationFile& a, const MigrationFile& b) { return a.version < b.version; });
 
-  // 4. Apply migrations
   int count = 0;
   for (const MigrationFile& m : migrations) {
     LOG(INFO) << "Applying migration " << m.version << ": " << m.path.filename();

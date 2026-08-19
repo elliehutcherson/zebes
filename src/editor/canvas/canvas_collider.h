@@ -6,7 +6,9 @@
 
 namespace zebes {
 
-// Handles rendering and interacting with a sprite on the editor canvas.
+// Draws a collider's polygons on the editor canvas and lets their vertices be
+// dragged. Holds the collider by reference and edits it in place, so a drag is
+// visible to whoever owns it immediately; Render reports whether it moved.
 class CanvasCollider {
  public:
   explicit CanvasCollider(Collider& collider) : collider_(collider) {}
@@ -26,19 +28,20 @@ class CanvasCollider {
   }
 
  private:
-  // Helper for smooth dragging
+  // Moves val by delta, keeping the remainder in accumulator. With snap on, the
+  // value only ever lands on integers, and the leftover is carried to the next
+  // frame instead of discarded -- otherwise a slow drag would never reach the
+  // next grid line, since each frame's delta rounds away to nothing on its own.
   static void ApplyDrag(double& val, double& accumulator, double delta, bool snap);
 
   Collider& collider_;
 
-  // Dragging state
   bool is_dragging_ = false;
   double drag_acc_x_ = 0.0;
   double drag_acc_y_ = 0.0;
   int drag_polygon_index_ = -1;
   int drag_vertex_index_ = -1;
 
-  // Animation state
   double animation_timer_ = 0.0;
   bool is_animating_ = false;
 };

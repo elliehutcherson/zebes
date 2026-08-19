@@ -11,7 +11,6 @@ absl::StatusOr<bool> CanvasCollider::Render(Canvas& canvas, bool input_allowed) 
 
     std::vector<ImVec2> points;
     for (const Vec& v : poly) {
-      // --- COORD CONVERSION VIA CANVAS ---
       points.push_back(canvas.WorldToScreen(v));
     }
 
@@ -26,7 +25,8 @@ absl::StatusOr<bool> CanvasCollider::Render(Canvas& canvas, bool input_allowed) 
       ImVec2 p = points[j];
       draw_list->AddCircleFilled(p, 4.0f, color);
 
-      // Vertex Interaction
+      // Grab radius is in screen pixels, not world units, so a vertex stays as
+      // easy to pick up however far the view is zoomed out.
       ImVec2 mouse_pos = ImGui::GetMousePos();
       float dist_sq =
           (mouse_pos.x - p.x) * (mouse_pos.x - p.x) + (mouse_pos.y - p.y) * (mouse_pos.y - p.y);
@@ -46,7 +46,6 @@ absl::StatusOr<bool> CanvasCollider::Render(Canvas& canvas, bool input_allowed) 
     Polygon& poly = collider_.polygons[drag_polygon_index_];
     Vec& v = poly[drag_vertex_index_];
 
-    // --- ZOOM COMPENSATION VIA CANVAS ---
     double dx = ImGui::GetIO().MouseDelta.x / canvas.GetZoom();
     double dy = ImGui::GetIO().MouseDelta.y / canvas.GetZoom();
 
@@ -66,16 +65,15 @@ void CanvasCollider::ApplyDrag(double& val, double& accumulator, double delta, b
 
   accumulator += delta;
   if (!snap) {
-    // Free movement
     val += accumulator;
     accumulator = 0;
     return;
   }
 
-  // Snap to nearest integer
   double target = std::round(val + accumulator);
   double diff = target - val;
-  // Apply if there is significant change
+  // Below the threshold the vertex has not reached the next integer yet, so the
+  // motion stays in the accumulator rather than being dropped.
   if (std::abs(diff) > kDragThreshold) {
     val += diff;
     accumulator -= diff;

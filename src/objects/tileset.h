@@ -18,15 +18,13 @@ enum TileShape : uint8_t {
   kNone = 0,
   kFullBlock = 1,
 
-  // --- HALF BLOCKS ---
-  // Useful for pass-through platforms or thin walls.
+  // Half blocks, for pass-through platforms and thin walls.
   kHalfBlockBottom = 2,
   kHalfBlockTop = 3,
   kHalfBlockLeft = 4,
   kHalfBlockRight = 5,
 
-  // --- SLOPES ---
-  // Every slope name says two things. "Floor"/"Ceiling" is the edge the solid
+  // Slopes. Every slope name says two things. "Floor"/"Ceiling" is the edge the solid
   // mass hugs. "TallLeft"/"TallRight" is the side of the tile where the solid
   // reaches full height -- the wedge tapers away toward the other side.
   //
@@ -40,16 +38,15 @@ enum TileShape : uint8_t {
   // The exact polygons live in objects/tile_shape_geometry.h and are the
   // authority; the sketches below are a reading aid.
 
-  // --- 45-DEGREE SLOPES (1x1 Ratio) ---
+  // 45-degree slopes, one tile square.
   kSlope45FloorTallRight = 6,    // /| walk up to the right
   kSlope45FloorTallLeft = 7,     // |\ walk up to the left
   kSlope45CeilingTallRight = 8,  // \| ceiling, mirror of FloorTallRight
   kSlope45CeilingTallLeft = 9,   // |/ ceiling, mirror of FloorTallLeft
 
-  // --- GENTLE SLOPES (2x1 Ratio, ~26.5 degrees) ---
-  // It takes two adjacent tiles to make one smooth gentle slope.
-  // "Lower" means the wedge that starts from 0 height.
-  // "Upper" means the wedge that connects to the top of the tile.
+  // Gentle slopes, 2x1 and about 26.5 degrees. Two adjacent tiles make one
+  // slope: "Lower" is the wedge starting from zero height, "Upper" the wedge
+  // reaching the top of the tile.
   kGentleSlopeFloorTallRightLower = 10,
   kGentleSlopeFloorTallRightUpper = 11,
   kGentleSlopeFloorTallLeftLower = 12,
@@ -61,10 +58,8 @@ enum TileShape : uint8_t {
   kGentleSlopeCeilingTallLeftLower = 16,
   kGentleSlopeCeilingTallLeftUpper = 17,
 
-  // --- STEEP SLOPES (1x2 Ratio, ~63.4 degrees) ---
-  // It takes two vertically stacked tiles to make one steep slope.
-  // "Bottom" is the tile resting on the ground.
-  // "Top" is the tile above it.
+  // Steep slopes, 1x2 and about 63.4 degrees. Two stacked tiles make one slope:
+  // "Bottom" rests on the ground, "Top" sits above it.
   kSteepSlopeFloorTallRightBottom = 18,
   kSteepSlopeFloorTallRightTop = 19,
   kSteepSlopeFloorTallLeftBottom = 20,

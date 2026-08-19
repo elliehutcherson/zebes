@@ -13,8 +13,6 @@ absl::StatusOr<std::unique_ptr<InputManager>> InputManager::Create(Options optio
   if (options.input_source == nullptr) {
     return absl::InvalidArgumentError("input_source cannot be null");
   }
-  // We use 'new' and wrap it because std::make_unique cannot access
-  // the private constructor.
   return std::unique_ptr<InputManager>(new InputManager(*options.input_source));
 }
 

@@ -17,13 +17,12 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
     return absl::InternalError("SDL_Texture must not be null!");
   }
 
-  // 1. Determine which frame data to visualize
   SpriteFrame local_frame_copy;
   SpriteFrame* frame_ptr = nullptr;
 
   if (is_animating_) {
-    // Input is strictly disabled during animation to prevent modifying
-    // transient interpolated frames.
+    // Editing is off while playing: the frame shown is a copy owned by the
+    // animator, so a drag would write to something discarded next tick.
     input_allowed = false;
     ASSIGN_OR_RETURN(local_frame_copy, animator_.GetCurrentFrame(sprite_.frames));
     frame_ptr = &local_frame_copy;
@@ -31,31 +30,29 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
     frame_ptr = &sprite_.frames[frame_index];
   }
 
-  // 2. Coordinate Conversion (World -> Screen)
-  ImVec2 p1 = canvas.WorldToScreen({static_cast<double>(frame_ptr->offset_x), static_cast<double>(frame_ptr->offset_y)});
-  ImVec2 p2 = canvas.WorldToScreen({static_cast<double>(frame_ptr->offset_x) + frame_ptr->render_w,
-                                    static_cast<double>(frame_ptr->offset_y) + frame_ptr->render_h});
+  ImVec2 p1 = canvas.WorldToScreen(
+      {static_cast<double>(frame_ptr->offset_x), static_cast<double>(frame_ptr->offset_y)});
+  ImVec2 p2 =
+      canvas.WorldToScreen({static_cast<double>(frame_ptr->offset_x) + frame_ptr->render_w,
+                            static_cast<double>(frame_ptr->offset_y) + frame_ptr->render_h});
 
   ImDrawList* draw_list = canvas.GetDrawList();
 
-  // 3. Render Texture
   int tex_w = 0, tex_h = 0;
   SDL_Texture* texture = SdlTextureHandleAdapter::ToNative(texture_);
   SDL_QueryTexture(texture, nullptr, nullptr, &tex_w, &tex_h);
 
   if (tex_w > 0 && tex_h > 0) {
-    ImVec2 uv0(static_cast<float>(frame_ptr->texture_x) / tex_w, static_cast<float>(frame_ptr->texture_y) / tex_h);
+    ImVec2 uv0(static_cast<float>(frame_ptr->texture_x) / tex_w,
+               static_cast<float>(frame_ptr->texture_y) / tex_h);
     ImVec2 uv1(static_cast<float>(frame_ptr->texture_x + frame_ptr->texture_w) / tex_w,
                static_cast<float>(frame_ptr->texture_y + frame_ptr->texture_h) / tex_h);
 
     draw_list->AddImage(reinterpret_cast<ImTextureID>(texture), p1, p2, uv0, uv1);
   }
 
-  // 4. Draw Selection Box
-  // (Green if selected/editing, maybe gray if just viewing)
   draw_list->AddRect(p1, p2, IM_COL32(100, 200, 100, 255));
 
-  // If input is not allowed (e.g., hovering another window or animating), we skip interaction
   if (!input_allowed) {
     is_dragging_ = false;
     return false;
@@ -65,16 +62,15 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
   bool is_hovered =
       mouse_pos.x >= p1.x && mouse_pos.x <= p2.x && mouse_pos.y >= p1.y && mouse_pos.y <= p2.y;
 
-  // Start Drag
   if (is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
     is_dragging_ = true;
     drag_acc_x_ = 0;
     drag_acc_y_ = 0;
   }
 
-  // Check if value actually changed to return 'modified'
+  // Writes the new offsets and reports whether they differ, so the caller only
+  // marks the sprite dirty when a drag actually moved it.
   auto is_modified = [this](SpriteFrame& frame, int x, int y) {
-    // Apply changes if we aren't animating (modifying the source frame)
     if (is_animating_) {
       return false;
     }
@@ -91,13 +87,12 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
   };
 
   bool modified = false;
-  // During Drag
   if (is_dragging_ && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-    // Convert mouse delta to world space delta
     double dx = ImGui::GetIO().MouseDelta.x / canvas.GetZoom();
     double dy = ImGui::GetIO().MouseDelta.y / canvas.GetZoom();
 
-    // Use a temp copy to calculate new positions using double precision
+    // Accumulated in double and only then rounded, so a slow drag at high zoom
+    // does not lose sub-pixel motion to the integer offsets.
     double x = static_cast<double>(frame_ptr->offset_x);
     double y = static_cast<double>(frame_ptr->offset_y);
 
@@ -107,12 +102,10 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
     modified = is_modified(*frame_ptr, static_cast<int>(x), static_cast<int>(y));
   }
 
-  // End Drag
   if (is_dragging_ && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
     is_dragging_ = false;
   }
 
-  // Finally update the animation ticks
   UpdateAnimation();
 
   return modified;

@@ -43,10 +43,8 @@ class Api {
   explicit Api(const Options& options);
   virtual ~Api() = default;
 
-  // Get reading access to the config
   const EngineConfig* GetConfig() const { return &config_; }
 
-  // Save the config to disk
   virtual absl::Status SaveConfig(const EngineConfig& config);
 
   virtual absl::StatusOr<std::string> CreateTexture(Texture texture);

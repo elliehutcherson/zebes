@@ -20,14 +20,14 @@ namespace zebes {
 // The whole generator rests on two ideas, and both are worth stating because
 // they are why slopes and inner corners cost nothing extra here:
 //
-// 1. THE SURFACE IS A DISTANCE BAND, NOT AN EDGE. Every tile is rendered inside
+// 1. The surface is a distance band, not an edge. Every tile is rendered inside
 //    a 3x3 block of its own neighbours. For each solid pixel we measure the
 //    distance to the nearest empty one and call everything within some band of
 //    that "surface". A distance field has no preferred axis, so a flat top, a
 //    45-degree hypotenuse and a concave notch all get a correct band from
 //    identical code.
 //
-// 2. THE BAND WIDTH IS A PERIODIC 2D FIELD, NOT A 1D EDGE PROFILE. Two adjacent
+// 2. The band width is a periodic 2D field, not a 1D edge profile. Two adjacent
 //    tiles sample that field at the same phase and therefore agree along their
 //    shared border for free. See RuffleField in terrain_field.h.
 //
@@ -196,8 +196,8 @@ struct ShapeScene {
 // neighbourhood, so there is nothing left to compare against.
 //
 // Variants follow the brush: phase (y mod P, x mod P) of a periodic terrain.
-absl::StatusOr<RgbaImage> RenderSceneCell(const TerrainRenderer& renderer,
-                                          const ShapeScene& scene, int x, int y);
+absl::StatusOr<RgbaImage> RenderSceneCell(const TerrainRenderer& renderer, const ShapeScene& scene,
+                                          int x, int y);
 
 // Renders every solid cell of a scene into one image, air left transparent.
 absl::StatusOr<RgbaImage> RenderShapeScene(const TerrainRenderer& renderer,

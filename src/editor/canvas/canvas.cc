@@ -10,9 +10,8 @@ namespace zebes {
 
 namespace {
 
-// Editor navigation deliberately permits a wider range than gameplay camera
-// control. These limits apply both before rendering and immediately after a
-// wheel event.
+// World units per second at zoom 1, deliberately looser than the gameplay
+// camera.
 constexpr double kEditorPanSpeed = 500.0;
 constexpr double kEditorWheelZoomStep = 0.1;
 constexpr float kRulerWidth = 56.0f;
@@ -38,16 +37,16 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
       std::max(0.0f, canvas_size_.y - kRulerHeight),
   };
 
-  // Prevent zero zoom
+  // Reset rather than clamped: every transform divides by zoom, and there is no
+  // meaningful view here to preserve.
   if (camera_->zoom <= 0.001f) camera_->zoom = 1.0f;
 
-  // Camera clamping depends on the visible world dimensions, so install the
-  // current viewport before clamping. On the first frame these values are
-  // otherwise zero and the camera can be positioned outside the actual view.
+  // Before ClampCamera, which needs to know how much world is visible. On the
+  // first frame these are still zero, and the camera would settle outside the
+  // view it is about to draw.
   camera_->viewport_width = content_size_.x;
   camera_->viewport_height = content_size_.y;
 
-  // Enforce bounds immediately before rendering anything.
   ClampCamera();
 
   gui_->PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -61,7 +60,6 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   };
   draw_list_ = gui_->GetWindowDrawList();
 
-  // Draw Background
   if (draw_list_ != nullptr) {
     ImU32 bg_color = IM_COL32(50, 50, 50, 255);
     draw_list_->AddRectFilled(
@@ -79,7 +77,8 @@ void Canvas::HandleInput() {
   if (!camera_) return;
   if (content_size_.x <= 0.0f || content_size_.y <= 0.0f) return;
 
-  // Invisible button covers the canvas to capture mouse interaction
+  // An invisible button is what claims the mouse for the canvas; without an
+  // item there the parent window takes it.
   gui_->SetCursorPos(ImVec2(kRulerWidth, kRulerHeight));
   gui_->InvisibleButton("##CanvasInput", content_size_,
                         ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight |
@@ -93,18 +92,15 @@ void Canvas::HandleInput() {
     gui_->SetItemKeyOwner(ImGuiKey_MouseWheelY);
   }
 
-  // 1. Handle Zoom (Mouse Wheel)
   if (is_hovered && gui_->GetIO().MouseWheel != 0.0f) {
     camera_->zoom += gui_->GetIO().MouseWheel * kEditorWheelZoomStep;
-    // Clamp immediately so DrawGrid never sees zoom <= 0, regardless of call order.
     camera_->zoom = NavigationZoomRange().Clamp(camera_->zoom);
   }
 
-  // 2. Handle Panning (Keyboard: WASD / Arrows)
   if (gui_->IsWindowFocused()) {
     float dt = gui_->GetIO().DeltaTime;
 
-    // Scale speed by zoom so visual speed remains constant
+    // Dividing by zoom holds the pan speed constant on screen.
     float move_step = (kEditorPanSpeed * dt) / camera_->zoom;
 
     if (gui_->IsKeyDown(ImGuiKey_UpArrow) || gui_->IsKeyDown(ImGuiKey_W)) {
@@ -121,11 +117,10 @@ void Canvas::HandleInput() {
     }
   }
 
-  // 3. Handle Panning (Middle mouse drag)
   HandleMousePan(is_hovered);
 
-  // Input changes apply to this frame's rendering. Keep the updated camera
-  // within the same bounds enforced at Begin().
+  // This frame's input is drawn this frame, so re-clamp before anything reads
+  // the camera back.
   ClampCamera();
 }
 
@@ -176,28 +171,23 @@ Vec Canvas::SnapToGrid(Vec world_pos) const {
 void Canvas::DrawGrid() {
   if (!draw_list_ || !camera_ || content_size_.x <= 0.0f || content_size_.y <= 0.0f) return;
 
-  // 1. Calculate grid spacing using the configurable world-space grid size.
   double world_step = grid_size_;
 
-  // 2. Determine visible world range (top-left)
+  // Snapped to the last grid line before the top-left corner, so lines stay on
+  // world multiples as the view scrolls instead of sliding with it.
   Vec tl_world = ScreenToWorld(content_origin_);
-
-  // Snap start positions to the nearest grid step
   double start_x = floor(tl_world.x / world_step) * world_step;
   double start_y = floor(tl_world.y / world_step) * world_step;
 
-  // 3. Draw Axis/Origin Crosshair (Thicker lines at 0,0)
   ImVec2 origin_screen = WorldToScreen({0, 0});
   ImU32 axis_color = IM_COL32(100, 100, 100, 255);
 
-  // X Axis (Horizontal line where Y=0)
   if (origin_screen.y > content_origin_.y &&
       origin_screen.y < content_origin_.y + content_size_.y) {
     draw_list_->AddLine(ImVec2(content_origin_.x, origin_screen.y),
                         ImVec2(content_origin_.x + content_size_.x, origin_screen.y), axis_color,
                         2.0f);
   }
-  // Y Axis (Vertical line where X=0)
   if (origin_screen.x > content_origin_.x &&
       origin_screen.x < content_origin_.x + content_size_.x) {
     draw_list_->AddLine(ImVec2(origin_screen.x, content_origin_.y),
@@ -205,30 +195,24 @@ void Canvas::DrawGrid() {
                         2.0f);
   }
 
-  // 4. Draw Ruler Backgrounds
   ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
-  // Top Ruler (X)
   draw_list_->AddRectFilled(
       canvas_origin_, ImVec2(canvas_origin_.x + canvas_size_.x, content_origin_.y), ruler_bg_color);
-  // Left Ruler (Y)
   draw_list_->AddRectFilled(
       canvas_origin_, ImVec2(content_origin_.x, canvas_origin_.y + canvas_size_.y), ruler_bg_color);
 
-  // 5. Draw Ticks & Grid Lines using Member Helper
   DrawRulerAndGrid(start_x, world_step, content_size_.x, true);
   DrawRulerAndGrid(start_y, world_step, content_size_.y, false);
 
-  // 6. Mouse Indicators
+  // Marks the cursor on both rulers, so a coordinate can be read off directly.
   if (gui_->IsWindowHovered()) {
     ImVec2 mouse_pos = gui_->GetMousePos();
     ImU32 indicator_color = IM_COL32(255, 50, 50, 255);
 
-    // Indicator on X Ruler
     if (mouse_pos.x >= content_origin_.x && mouse_pos.x <= content_origin_.x + content_size_.x) {
       draw_list_->AddLine(ImVec2(mouse_pos.x, canvas_origin_.y),
                           ImVec2(mouse_pos.x, content_origin_.y), indicator_color, 2.0f);
     }
-    // Indicator on Y Ruler
     if (mouse_pos.y >= content_origin_.y && mouse_pos.y <= content_origin_.y + content_size_.y) {
       draw_list_->AddLine(ImVec2(canvas_origin_.x, mouse_pos.y),
                           ImVec2(content_origin_.x, mouse_pos.y), indicator_color, 2.0f);
@@ -248,18 +232,17 @@ void Canvas::DrawRulerAndGrid(double start_val, double step, double max_dim, boo
   const float ruler_cross = is_x_axis ? canvas_origin_.y : canvas_origin_.x;
 
   for (double val = start_val;; val += step) {
-    // We only need the screen coordinate for the current axis.
-    // Construct a temporary world vec to pass to the transform.
+    // Only one axis of the result is used; the other coordinate is filler.
     Vec world_pt = is_x_axis ? Vec{val, 0} : Vec{0, val};
     ImVec2 screen_pos = WorldToScreen(world_pt);
 
     float pos_main = is_x_axis ? screen_pos.x : screen_pos.y;
 
-    // Check bounds
+    // Lines are generated in increasing world order, so the first one past the
+    // far edge ends the loop.
     if (pos_main > content_main + max_dim) break;
     if (pos_main < content_main) continue;
 
-    // 1. Draw Ruler Tick
     ImVec2 tick_start, tick_end;
     if (is_x_axis) {
       tick_start = ImVec2(pos_main, ruler_cross);
@@ -270,7 +253,6 @@ void Canvas::DrawRulerAndGrid(double start_val, double step, double max_dim, boo
     }
     draw_list_->AddLine(tick_start, tick_end, ruler_tick_color);
 
-    // 2. Draw Grid Line
     ImVec2 grid_start;
     ImVec2 grid_end;
     if (is_x_axis) {
@@ -282,7 +264,6 @@ void Canvas::DrawRulerAndGrid(double start_val, double step, double max_dim, boo
     }
     draw_list_->AddLine(grid_start, grid_end, grid_color);
 
-    // 3. Draw Label
     char buf[32];
     snprintf(buf, sizeof(buf), "%.0f", val);
     draw_list_->AddText(ImVec2(tick_start.x + 3, tick_start.y + 2), ruler_tick_color, buf);
@@ -292,44 +273,41 @@ void Canvas::DrawRulerAndGrid(double start_val, double step, double max_dim, boo
 void Canvas::ClampCamera() {
   if (!camera_) return;
 
-  // 1. Apply Hard Limits (Sanity Check)
-  // We always want reasonable limits regardless of world size
+  // Applied before the early return, so an unbounded canvas still cannot reach
+  // a degenerate zoom.
   camera_->zoom = NavigationZoomRange().Clamp(camera_->zoom);
 
   if (!world_min_.has_value() || !world_max_.has_value()) return;
 
-  // 2. Apply World Boundary Constraints
   double world_w = world_max_->x - world_min_->x;
   double world_h = world_max_->y - world_min_->y;
 
-  // A. CLAMP ZOOM
-  // Ensure the viewport is never larger than the world.
+  // Zoom out only until the world fills the viewport. Past that the position
+  // clamp below has no valid box, since the view is wider than the world. A
+  // world too small to measure is skipped rather than forced to an absurd zoom.
   if (world_w > 1.0 && world_h > 1.0) {
-    // Calculate the minimum zoom required to fill the screen
     float min_zoom_x = static_cast<float>(camera_->viewport_width / world_w);
     float min_zoom_y = static_cast<float>(camera_->viewport_height / world_h);
-
-    // We must satisfy the stricter of the two constraints
     float min_required_zoom = std::max(min_zoom_x, min_zoom_y);
 
-    // If current zoom is too far out, snap it back in
     if (camera_->zoom < min_required_zoom) {
       camera_->zoom = min_required_zoom;
     }
   }
 
-  // B. CLAMP POSITION
-  // Now that zoom is valid/finalized, calculate the view radius
+  // The box where a half-viewport in each direction still lands inside the
+  // world. Depends on zoom, which is why it is computed after the clamp above.
   double view_half_w = (camera_->viewport_width / 2.0) / camera_->zoom;
   double view_half_h = (camera_->viewport_height / 2.0) / camera_->zoom;
 
-  // Define the safe box for the center point
   double min_x = world_min_->x + view_half_w;
   double max_x = world_max_->x - view_half_w;
   double min_y = world_min_->y + view_half_h;
   double max_y = world_max_->y - view_half_h;
 
-  // Apply clamps (handling the case where min > max slightly gracefully)
+  // Ordered so max wins if the box has inverted, which a world smaller than the
+  // guard above allows. The view then rests against one edge rather than
+  // jittering between two impossible limits.
   if (camera_->position.x < min_x) camera_->position.x = min_x;
   if (camera_->position.x > max_x) camera_->position.x = max_x;
 

@@ -19,22 +19,18 @@ class InputManager : public IInputManager {
     InputSource* input_source = nullptr;
   };
 
-  // Factory function
+  // Fails if options.input_source is null.
   static absl::StatusOr<std::unique_ptr<InputManager>> Create(Options options);
 
-  // Delete copy and move constructors/operators
   InputManager(const InputManager&) = delete;
   InputManager& operator=(const InputManager&) = delete;
 
   ~InputManager() override = default;
 
-  // --- 1. Registration API ---
   void BindAction(absl::string_view action_name, Key key) override;
 
-  // --- 2. Interception Loop ---
   void Update() override;
 
-  // --- 3. Query API ---
   bool IsActionActive(absl::string_view action_name) const override;
 
   bool IsActionJustPressed(absl::string_view action_name) const override;
@@ -42,7 +38,6 @@ class InputManager : public IInputManager {
   bool QuitRequested() const override;
 
  private:
-  // Private constructor
   explicit InputManager(InputSource& input_source);
 
   InputSource& input_source_;

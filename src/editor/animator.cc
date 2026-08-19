@@ -18,15 +18,14 @@ void Animator::Update(const std::vector<SpriteFrame>& frames) {
 
   const SpriteFrame& current_frame = frames[current_frame_index_];
 
-  // Increment tick counter
   tick_counter_++;
 
-  // Check if we need to advance to the next frame
+  // A frame declaring zero ticks would never advance and the animation would
+  // freeze on it, so treat it as one.
   if (tick_counter_ >= std::max(1, current_frame.frames_per_cycle)) {
     tick_counter_ = 0;
     current_frame_index_++;
 
-    // Loop back to start if we reached the end
     if (current_frame_index_ >= static_cast<int>(frames.size())) {
       current_frame_index_ = 0;
     }

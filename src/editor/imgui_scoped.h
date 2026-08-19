@@ -5,6 +5,27 @@
 
 namespace zebes {
 
+// RAII pairs for ImGui's Begin/End calls, so a panel cannot leak a scope by
+// returning early. Movable, so a panel can build one and hand it back; never
+// copyable, since two objects ending one scope unbalances the stack.
+//
+// ImGui does not pair uniformly, and each wrapper follows the rule its own call
+// needs. Getting it wrong corrupts the ID stack and misplaces widgets elsewhere
+// in the frame rather than failing outright, so the three rules matter when
+// adding a wrapper:
+//
+//   - End only if Begin returned true; a false return never opened the scope,
+//     and ending it pops someone else's. ScopedListBox, ScopedTabBar,
+//     ScopedTabItem, ScopedTable, ScopedCombo, ScopedPopup.
+//   - End unconditionally, because a false return means clipped contents, not a
+//     closed scope. ScopedChild, ScopedWindow.
+//   - Push/Pop pairs with no return value, which always pop. ScopedDisabled,
+//     ScopedGroup, ScopedId, ScopedStyleColor, ScopedStyleVar.
+//
+// The first group reports whether it opened through operator bool, so
+// `if (ScopedTable t = ...)` guards the contents. The third has nothing to
+// report and tracks only moved_from_, so a moved object does not pop twice.
+
 // RAII wrapper for GuiInterface::BeginListBox/EndListBox
 class ScopedListBox {
  public:
@@ -17,7 +38,6 @@ class ScopedListBox {
   ScopedListBox(const ScopedListBox&) = delete;
   ScopedListBox& operator=(const ScopedListBox&) = delete;
 
-  // Move constructor/assignment for returning from function
   ScopedListBox(ScopedListBox&& other) noexcept;
   ScopedListBox& operator=(ScopedListBox&& other) noexcept;
 

@@ -4,7 +4,6 @@
 
 namespace zebes {
 
-// ScopedListBox
 ScopedListBox::ScopedListBox(GuiInterface* gui, const char* label, ImVec2 size)
     : gui_(gui), active_(gui->BeginListBox(label, size)) {}
 
@@ -31,7 +30,6 @@ ScopedListBox& ScopedListBox::operator=(ScopedListBox&& other) noexcept {
   return *this;
 }
 
-// ScopedChild
 ScopedChild::ScopedChild(GuiInterface* gui, const char* str_id, ImVec2 size, bool border,
                          ImGuiWindowFlags flags)
     : gui_(gui), active_(gui->BeginChild(str_id, size, border, flags)) {}
@@ -58,7 +56,6 @@ ScopedChild& ScopedChild::operator=(ScopedChild&& other) noexcept {
   return *this;
 }
 
-// ScopedTabBar
 ScopedTabBar::ScopedTabBar(GuiInterface* gui, const char* str_id, ImGuiTabBarFlags flags)
     : gui_(gui), active_(gui->BeginTabBar(str_id, flags)) {}
 
@@ -85,7 +82,6 @@ ScopedTabBar& ScopedTabBar::operator=(ScopedTabBar&& other) noexcept {
   return *this;
 }
 
-// ScopedTabItem
 ScopedTabItem::ScopedTabItem(GuiInterface* gui, const char* label, bool* p_open,
                              ImGuiTabItemFlags flags)
     : gui_(gui), active_(gui->BeginTabItem(label, p_open, flags)) {}
@@ -113,7 +109,6 @@ ScopedTabItem& ScopedTabItem::operator=(ScopedTabItem&& other) noexcept {
   return *this;
 }
 
-// ScopedTable
 ScopedTable::ScopedTable(GuiInterface* gui, const char* str_id, int column, ImGuiTableFlags flags,
                          const ImVec2& outer_size, float inner_width)
     : gui_(gui), active_(gui->BeginTable(str_id, column, flags, outer_size, inner_width)) {}
@@ -140,7 +135,6 @@ ScopedTable& ScopedTable::operator=(ScopedTable&& other) noexcept {
   return *this;
 }
 
-// ScopedDisabled
 ScopedDisabled::ScopedDisabled(GuiInterface* gui, bool disabled) : gui_(gui), moved_from_(false) {
   gui_->BeginDisabled(disabled);
 }
@@ -166,7 +160,6 @@ ScopedDisabled& ScopedDisabled::operator=(ScopedDisabled&& other) noexcept {
   return *this;
 }
 
-// ScopedWindow
 ScopedWindow::ScopedWindow(GuiInterface* gui, const char* name, bool* p_open,
                            ImGuiWindowFlags flags)
     : gui_(gui), active_(gui->Begin(name, p_open, flags)) {}
@@ -194,7 +187,6 @@ ScopedWindow& ScopedWindow::operator=(ScopedWindow&& other) noexcept {
   return *this;
 }
 
-// ScopedCombo
 ScopedCombo::ScopedCombo(GuiInterface* gui, const char* label, const char* preview_value,
                          ImGuiComboFlags flags)
     : gui_(gui), active_(gui->BeginCombo(label, preview_value, flags)) {}
@@ -221,7 +213,6 @@ ScopedCombo& ScopedCombo::operator=(ScopedCombo&& other) noexcept {
   return *this;
 }
 
-// ScopedGroup
 ScopedGroup::ScopedGroup(GuiInterface* gui) : gui_(gui), moved_from_(false) { gui_->BeginGroup(); }
 
 ScopedGroup::~ScopedGroup() {
@@ -244,7 +235,6 @@ ScopedGroup& ScopedGroup::operator=(ScopedGroup&& other) noexcept {
   return *this;
 }
 
-// ScopedId
 ScopedId::ScopedId(GuiInterface* gui, const char* str_id) : gui_(gui), moved_from_(false) {
   gui_->PushID(str_id);
 }
@@ -279,7 +269,6 @@ ScopedId& ScopedId::operator=(ScopedId&& other) noexcept {
   return *this;
 }
 
-// ScopedPopup
 ScopedPopup::ScopedPopup(GuiInterface* gui, const char* str_id, ImGuiPopupFlags flags)
     : gui_(gui), active_(gui->BeginPopupContextItem(str_id, flags)) {}
 
@@ -305,7 +294,6 @@ ScopedPopup& ScopedPopup::operator=(ScopedPopup&& other) noexcept {
   return *this;
 }
 
-// ScopedStyleColor
 ScopedStyleColor::ScopedStyleColor(GuiInterface* gui, ImGuiCol idx, ImU32 col)
     : gui_(gui), moved_from_(false) {
   gui_->PushStyleColor(idx, col);
@@ -336,7 +324,6 @@ ScopedStyleColor& ScopedStyleColor::operator=(ScopedStyleColor&& other) noexcept
   return *this;
 }
 
-// ScopedStyleVar
 ScopedStyleVar::ScopedStyleVar(GuiInterface* gui, ImGuiStyleVar idx, float val)
     : gui_(gui), moved_from_(false) {
   gui_->PushStyleVar(idx, val);
