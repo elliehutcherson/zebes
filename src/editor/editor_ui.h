@@ -10,6 +10,7 @@
 #include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
 #include "editor/gui_interface.h"
+#include "editor/image_generation/image_generation_service.h"
 #include "editor/level_editor/level_editor.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor.h"
 #include "editor/sdl_preview_texture.h"
@@ -58,6 +59,10 @@ class EditorUi {
   std::unique_ptr<SdlPreviewTexture> prop_artwork_preview_;
   std::unique_ptr<TilesetEditor> tileset_editor_;
   std::unique_ptr<TerrainEditor> terrain_editor_;
+  // Declared before the editor that submits to it, so the editor cancels its
+  // in-flight request while the engine is still running. Destroying the
+  // service first would join its thread with a request nobody has abandoned.
+  std::unique_ptr<ImageGenerationService> image_generation_;
   std::unique_ptr<PropArtworkEditor> prop_artwork_editor_;
 
   // Debug state

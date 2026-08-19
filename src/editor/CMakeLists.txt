@@ -168,6 +168,7 @@ target_link_libraries(editor_ui
   editor_config
   editor_sprite
   editor_texture
+  image_generation_service
   level_editor
   tileset_editor
   terrain_editor

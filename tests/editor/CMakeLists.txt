@@ -199,6 +199,8 @@ target_link_libraries(prop_artwork_editor_test
   gtest_main
   gmock
   macros
+  image_generation
+  image_generation_engine
   prop_artwork_editor
   gui_mock
 )
@@ -231,6 +233,23 @@ target_link_libraries(image_generation_engine_test
 )
 target_include_directories(image_generation_engine_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(image_generation_engine_test)
+
+add_executable(image_generation_service_test image_generation_service_test.cc)
+target_link_libraries(image_generation_service_test
+  PRIVATE
+  image_generation
+  image_generation_engine
+  image_generation_service
+  macros
+  status_macros
+  absl::status
+  absl::statusor
+  absl::strings
+  absl::time
+  gtest_main
+)
+target_include_directories(image_generation_service_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(image_generation_service_test)
 
 add_executable(image_generation_test image_generation_test.cc)
 target_link_libraries(image_generation_test

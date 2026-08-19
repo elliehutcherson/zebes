@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -11,6 +12,7 @@
 #include "common/background_task.h"
 #include "editor/canvas/canvas.h"
 #include "editor/gui_interface.h"
+#include "editor/image_generation/image_generation_engine.h"
 #include "editor/preview_texture_sink.h"
 #include "editor/prop_artwork_editor/prop_artwork_context.h"
 #include "editor/prop_artwork_editor/prop_artwork_controls_panel.h"
@@ -30,22 +32,40 @@ struct PreparedPropRegenerationPreview {
   std::optional<PropArtworkContextPreview> context;
 };
 
+// Every dependency is borrowed and must outlive the editor. `generation` is
+// the session-lifetime engine owned by the composition root; the editor
+// submits to it and drains its events, and never starts or stops it.
+struct PropArtworkEditorOptions {
+  Api* api = nullptr;
+  GuiInterface* gui = nullptr;
+  PreviewTextureSink* preview = nullptr;
+  ImageGenerationEngine* generation = nullptr;
+};
+
 class PropArtworkEditor {
  public:
   friend class PropArtworkEditorTestPeer;
 
-  static absl::StatusOr<std::unique_ptr<PropArtworkEditor>> Create(Api* api, GuiInterface* gui,
-                                                                   PreviewTextureSink* preview);
+  static absl::StatusOr<std::unique_ptr<PropArtworkEditor>> Create(
+      const PropArtworkEditorOptions& options);
   ~PropArtworkEditor();
 
   absl::Status Render();
 
  private:
-  PropArtworkEditor(Api* api, GuiInterface* gui, PreviewTextureSink* preview);
+  explicit PropArtworkEditor(const PropArtworkEditorOptions& options);
 
   absl::Status Init();
   void StartImport(std::string path);
   void SelectSource();
+  void StartGeneration();
+  void CancelGeneration();
+  void AcceptCandidate();
+  // Drains the generation engine. Separate from PollWork's pending_work_
+  // states because a remote generation runs beside local processing rather
+  // than instead of it.
+  void PollGeneration();
+  absl::Status RetainCandidateAsSource();
   void DeleteSelectedSource();
   void OpenRecipe();
   void ClearWorkspace();
@@ -81,6 +101,7 @@ class PropArtworkEditor {
   Api* api_;
   GuiInterface* gui_;
   PreviewTextureSink* preview_;
+  ImageGenerationEngine* generation_;
   Canvas preview_canvas_;
   Camera preview_camera_;
   bool frame_pending_ = true;
@@ -93,6 +114,10 @@ class PropArtworkEditor {
   std::unique_ptr<PropArtworkControlsPanel> controls_panel_;
   std::unique_ptr<PropArtworkOutputPanel> output_panel_;
   std::variant<std::monostate, PendingImport, PendingCreation, PendingRegeneration> pending_work_;
+  // The id of the one generation this editor is waiting for. At most one is in
+  // flight: a second prompt would produce two candidate sets with no way to
+  // say which the preview is showing.
+  std::optional<uint64_t> pending_generation_id_;
   // Import persists pixels so the manager remains the single authority during
   // processing. Until a prop bundle references them, this editor session owns
   // the record and removes it on replacement, Clear, or normal shutdown.

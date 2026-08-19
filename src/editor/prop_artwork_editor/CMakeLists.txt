@@ -14,6 +14,7 @@ target_link_libraries(prop_artwork_context
 add_library(prop_artwork_editor_model prop_artwork_editor_model.cc)
 target_link_libraries(prop_artwork_editor_model
   PUBLIC
+  image_generation
   prepare_prop_asset
   prop_artwork_context
   regenerate_prop_asset
@@ -31,6 +32,7 @@ target_link_libraries(prop_artwork_controls_panel
   PUBLIC
   confirm_prompt
   gui_interface
+  image_generation
   prop_artwork_editor_model
   source_artwork
   terrain_recipe
@@ -67,6 +69,8 @@ target_link_libraries(prop_artwork_editor
   camera
   editor_canvas
   gui_interface
+  image_generation
+  image_generation_engine
   prop_artwork_controls_panel
   prop_artwork_context
   prop_artwork_editor_model

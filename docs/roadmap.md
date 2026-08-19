@@ -149,10 +149,14 @@ deleted explicitly through the same reference checks as other assets.
 Grounded, ceiling, and free/background attachment modes are persisted and feed
 composition, validation, context preview, sprite offsets, and regeneration.
 The provider-neutral generation, credential, and bounded HTTP contracts, the
-poll-driven libcurl transport, the session-lifetime generation engine, and the
-first provider adapter are now implemented; the generated-source editor flow
-remains. The local feedback-loop milestone is complete, so provider work can
-proceed without multiplying an expensive verification cycle. Its §12 sequence:
+poll-driven libcurl transport, the session-lifetime generation engine, the
+first provider adapter, and the generated-source editor flow are all
+implemented. `ImageGenerationService` assembles and owns that stack for the
+process; a generated candidate reaches `SelectSource` through the same
+retention the imported path uses. What remains is the credential-gated opt-in
+integration test and Milestone 6 hardening. The local feedback-loop milestone
+is complete, so provider work can proceed without multiplying an expensive
+verification cycle. Its §12 sequence:
 
 0. **Accepted.** Run the visual feasibility spike:
    one imported boulder, one real terrain recipe, the deterministic C++ stages,
@@ -179,12 +183,15 @@ proceed without multiplying an expensive verification cycle. Its §12 sequence:
     source-touch cycle. Ccache made a 2.30s compile a 0.03s hit, but linking
     limits that to about 10% of the full loop, so caching remains in CI without
     becoming a required local dependency.
-5. **In progress.** The cancellable image-generation service, move-only
+5. **Implemented.** The cancellable image-generation service, move-only
    environment credential source, bounded HTTPS seam, poll-driven libcurl
-   transport, session-lifetime `ImageGenerationEngine`, and the first provider
-   adapter (OpenAI `gpt-image-2`) are implemented. Remaining: editor prompt and
-   candidate controls, candidate acceptance converged with the retained-source
-   path, and an opt-in live integration test.
+   transport, session-lifetime `ImageGenerationEngine`, the first provider
+   adapter (OpenAI `gpt-image-2`), `ImageGenerationService` as the composition
+   root's owner of the whole stack, and the editor's prompt, candidate review,
+   and acceptance controls are all in. A generated candidate is retained
+   exactly as an imported PNG is, so both reach `SelectSource` the same way.
+   Remaining: an opt-in live integration test, which is the only thing that
+   will exercise the curl negative-timeout branch.
 6. Harden shutdown, retry, staging cleanup, and provider failure behavior.
 
 **`ParallaxZone::fade_length`** — authored, serialized, validated, and ignored.

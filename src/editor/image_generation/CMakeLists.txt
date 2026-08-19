@@ -76,3 +76,22 @@ target_link_libraries(curl_http_transport
   absl::strings
   status_macros
 )
+
+add_library(image_generation_service image_generation_service.cc)
+target_link_libraries(image_generation_service
+  PUBLIC
+  blocking_callback_thread
+  credential_source
+  engine_runner
+  http_transport
+  image_generation
+  image_generation_engine
+  openai_image_client
+  absl::statusor
+  PRIVATE
+  curl_http_transport
+  absl::log
+  absl::memory
+  absl::status
+  status_macros
+)

@@ -10,6 +10,8 @@
 #include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
 #include "editor/gui_interface.h"
+#include "editor/image_generation/image_generation_service.h"
+#include "editor/image_generation/openai_image_client.h"
 #include "editor/imgui_scoped.h"
 #include "editor/level_editor/level_editor.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor.h"
@@ -52,8 +54,13 @@ absl::Status EditorUi::Init() {
   terrain_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
   ASSIGN_OR_RETURN(terrain_editor_, TerrainEditor::Create(api_, gui_, terrain_preview_.get()));
   prop_artwork_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
-  ASSIGN_OR_RETURN(prop_artwork_editor_,
-                   PropArtworkEditor::Create(api_, gui_, prop_artwork_preview_.get()));
+  ASSIGN_OR_RETURN(image_generation_, ImageGenerationService::CreateOpenAi(OpenAiImageConfig{}));
+  ASSIGN_OR_RETURN(prop_artwork_editor_, PropArtworkEditor::Create({
+                                             .api = api_,
+                                             .gui = gui_,
+                                             .preview = prop_artwork_preview_.get(),
+                                             .generation = &image_generation_->engine(),
+                                         }));
   return absl::OkStatus();
 }
 

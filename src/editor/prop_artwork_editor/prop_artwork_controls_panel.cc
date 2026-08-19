@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <string>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -206,10 +209,87 @@ bool PropArtworkControlsPanel::RenderPipeline(PropArtworkEditorModel& model) {
   return changed;
 }
 
+PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderCandidates(
+    PropArtworkEditorModel& model) {
+  const PropGenerationReview& review = *model.generation_review();
+  const size_t count = review.candidates.size();
+  gui_->Text("Candidate %zu of %zu", review.selected + 1, count);
+  if (count > 1) {
+    if (gui_->Button("Previous##PropArtworkCandidate")) {
+      model.SelectCandidate(review.selected == 0 ? count - 1 : review.selected - 1);
+    }
+    gui_->SameLine();
+    if (gui_->Button("Next##PropArtworkCandidate")) {
+      model.SelectCandidate(review.selected + 1 == count ? 0 : review.selected + 1);
+    }
+  }
+
+  const ImageGenerationCandidate& candidate = review.candidates[review.selected];
+  if (candidate.revised_prompt.has_value()) {
+    gui_->TextWrapped("Provider rewrote the prompt: %s", candidate.revised_prompt->c_str());
+  }
+  gui_->TextDisabled("%s / %s", review.provider.c_str(), review.model.c_str());
+
+  Action action = Action::kNone;
+  // Accepting retains the candidate as source artwork, which is the same
+  // boundary an imported PNG crosses; an existing prop keeps the source it
+  // committed to, so neither button is offered then.
+  gui_->BeginDisabled(model.active_recipe().has_value());
+  if (gui_->Button("Accept candidate##PropArtwork")) action = Action::kAcceptCandidate;
+  gui_->EndDisabled();
+  gui_->SameLine();
+  if (gui_->Button("Discard##PropArtworkCandidate")) action = Action::kDiscardCandidates;
+  if (model.active_recipe().has_value()) {
+    gui_->TextWrapped("An open prop keeps its retained source. Use Save As before accepting.");
+  }
+  return action;
+}
+
+PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderGeneration(
+    PropArtworkEditorModel& model, const PropGenerationStatus& generation) {
+  gui_->Separator();
+  gui_->Text("Generate source");
+
+  if (generation.in_flight) {
+    gui_->TextWrapped("Generating. This can take a minute.");
+    return gui_->Button("Cancel generation##PropArtwork") ? Action::kCancelGeneration
+                                                          : Action::kNone;
+  }
+  if (model.generation_review().has_value()) return RenderCandidates(model);
+
+  gui_->SetNextItemWidth(kControlWidth);
+  gui_->InputText("Prompt##PropArtwork", &model.prompt());
+
+  const int maximum = std::max(1, generation.capabilities.maximum_candidates);
+  int requested = model.requested_candidates();
+  if (maximum > 1) {
+    gui_->SetNextItemWidth(kControlWidth);
+    if (gui_->SliderInt("Candidates##PropArtwork", &requested, 1, maximum)) {
+      model.SetRequestedCandidates(requested, maximum);
+    }
+  }
+  // Re-clamped every frame rather than only on edit: the adapter's ceiling is
+  // whatever the running provider reports, not what it reported when the
+  // number was chosen.
+  model.SetRequestedCandidates(model.requested_candidates(), maximum);
+
+  gui_->BeginDisabled(model.prompt().empty() || model.active_recipe().has_value());
+  const bool generate = gui_->Button("Generate##PropArtwork");
+  gui_->EndDisabled();
+  if (model.prompt().empty()) {
+    gui_->TextWrapped("Describe the prop to generate a source for it.");
+  }
+  return generate ? Action::kGenerate : Action::kNone;
+}
+
 absl::StatusOr<PropArtworkControlsPanel::Action> PropArtworkControlsPanel::Render(
     PropArtworkEditorModel& model, const std::vector<SourceArtwork>& sources,
-    const std::vector<TerrainRecipe>& terrain_recipes) {
-  const Action action = RenderSource(model, sources);
+    const std::vector<TerrainRecipe>& terrain_recipes, const PropGenerationStatus& generation) {
+  Action action = RenderSource(model, sources);
+  // One click reaches one widget, so at most one section reports an action.
+  if (const Action generated = RenderGeneration(model, generation); generated != Action::kNone) {
+    action = generated;
+  }
   RETURN_IF_ERROR(RenderTerrain(model, terrain_recipes));
   gui_->Separator();
   if (RenderPipeline(model)) model.MarkInputsChanged();

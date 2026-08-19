@@ -603,6 +603,25 @@ handle per request, verified HTTPS without redirects, receive-time byte limits,
 and immediate handle removal on cancellation. It requires libcurl's
 asynchronous DNS feature so a first poll cannot block on name resolution.
 
+`ImageGenerationService` is where that stack is assembled and the only thing
+that starts or stops it. It owns the transport, the credential source, the
+adapter, the engine, its `EngineRunner`, and the `BlockingCallbackThread` the
+runner blocks on, in that order, so each outlives what borrows it; destruction
+stops the runner before joining. `EditorUi` owns one for the process and hands
+`PropArtworkEditor` nothing but the engine reference, declared before the
+editor so the editor abandons its in-flight request while the engine still
+runs. Editors submit and drain; they never see the transport or the credential.
+
+Generated and imported prop sources converge at one boundary. A finished
+generation is held as a review — provider, model, submitted prompt, request id,
+and the candidates — and is not recipe state; accepting a candidate retains it
+through `Api::CreateSourceArtwork` with `GeneratedArtworkProvenance` and only
+then points the model at it, exactly as an imported PNG does. A retention that
+fails anywhere removes the source it created, so a refusal leaves no orphan.
+Neither the model nor the panels hold a provider response or a native texture:
+the candidate under review is shown through the same single preview sink every
+pipeline stage uses.
+
 `terrain_detect` turns an atlas into a `Terrain`. Both sources converge on
 `BuildTerrainCandidate`, which is the only place tile naming, rule ordering and
 slope membership are decided; manifest import parses a described atlas back into

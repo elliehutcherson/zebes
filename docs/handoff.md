@@ -4,13 +4,13 @@
 > [`roadmap.md`](roadmap.md) for sequencing and the linked feature design—such
 > as [`prop-artwork.md`](prop-artwork.md)—for durable decisions and TODOs.
 
-## Current: Generation engine and first provider adapter complete
+## Current: The generated-source editor flow is wired end to end
 
-As of 2026-08-18, [`roadmap.md`](roadmap.md) remains the source of truth for
+As of 2026-08-19, [`roadmap.md`](roadmap.md) remains the source of truth for
 sequencing. Tracks 0-3 are complete. Track 4 layers, imported-source prop
 artwork, attachment modes, and the developer feedback loop are implemented.
 
-Milestone 5 is implemented except for its editor surface. Image-generation
+Milestone 5 is implemented, editor surface included. Image-generation
 requests validate capabilities before reaching an adapter and return move-only,
 cancellable polling handles with stable candidate provenance. Credentials cross
 the boundary as move-only `SecretString` values, loaded per request so no secret
@@ -80,30 +80,44 @@ Where the generation code lives:
 | `src/editor/image_generation/http_transport.{h,cc}` | Bounded HTTPS seam and `SuggestedPollDelay` |
 | `src/editor/image_generation/curl_http_transport.cc` | libcurl multi implementation; derives the poll delay |
 | `src/editor/image_generation/credential_source.{h,cc}` | `SecretString` and the environment-backed source |
+| `src/editor/image_generation/image_generation_service.{h,cc}` | Assembles and owns the whole stack; starts and stops the thread |
+
+`ImageGenerationService` is the composition-root piece. It owns the transport,
+credential source, adapter, engine, runner, and thread in the one declaration
+order that keeps each alive for its borrower, and its destructor stops the
+runner before joining. `EditorUi` owns one for the process and hands
+`PropArtworkEditor` only the engine reference, declared before the editor so
+the editor abandons its in-flight request while the engine still runs. That
+ordering also settles the startup hazard: `Stop` can only be reached from the
+service destructor, long after `Run` has entered, and a stop that landed first
+would leave the runner stopped and `Run` returning `FailedPrecondition`.
+
+The editor flow converges with the imported one. A finished generation becomes
+a `PropGenerationReview` the model holds beside — not inside — recipe state,
+and the candidate under review owns the preview until it is accepted or
+discarded. Accepting retains the pixels through `Api::CreateSourceArtwork` with
+`GeneratedArtworkProvenance`, then points the model at them; a failure anywhere
+removes the source it created. The `ImageGenerationResult` to
+`GeneratedArtworkProvenance` mapping is field-for-field, so there was no schema
+change and no migration. Cancelling does not retire the request: the engine
+still owes exactly one event, and dropping the id early would let that event be
+mistaken for a later request's.
 
 ### Pick up here next
 
-Wire the generated-source flow into the Prop Artwork editor. Nothing constructs
-`ImageGenerationEngine` yet, so the composition root comes first: create the
-engine, its `EngineRunner`, and its `BlockingCallbackThread` at editor startup
-and own them for the process. The thread must be running before anything can
-call `Stop` — a stop that lands first leaves the runner stopped and `Run`
-returns `FailedPrecondition`.
+The credential-gated opt-in integration test against the real endpoint. It is
+the only thing that will exercise the curl negative-timeout branch, and the
+only remaining check that the adapter's request shape matches what
+`gpt-image-2` actually accepts — every test so far stops at a fake.
 
-Then add prompt and candidate controls to the editor model and panels, drain
-`NextEvent` from the existing `PollWork` alongside the `BackgroundTask`
-members, and converge an accepted candidate with the retained-source path so
-generated and imported sources reach `SelectSource` the same way. The
-`ImageGenerationResult` to `GeneratedArtworkProvenance` mapping is
-field-for-field; no schema change and no migration. The live integration test
-stays opt-in and credential-gated, and is the only thing that will exercise the
-curl negative-timeout branch.
+After that, Milestone 6 operational hardening: shutdown under a live request,
+retries that are safe to retry, provider error UX, and crash leftovers in
+staging.
 
 ### What remains
 
-- **Track 4:** the generated-candidate editor flow and Milestone 6 operational
-  hardening remain. Parallax zone seaming is still the smallest independent
-  feature. See [`roadmap.md`](roadmap.md) and
+- **Track 4:** Milestone 6 operational hardening remains. Parallax zone seaming
+  is still the smallest independent feature. See [`roadmap.md`](roadmap.md) and
   [`prop-artwork.md`](prop-artwork.md).
 - **Polling adoption:** `ImageGenerationEngine` is the first production owner
   and the shape later pollers should follow. The game loop is the expected

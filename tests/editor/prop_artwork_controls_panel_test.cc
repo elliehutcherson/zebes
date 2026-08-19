@@ -49,16 +49,35 @@ class PropArtworkControlsPanelTest : public ::testing::Test {
     return recipe;
   }
 
+  // Builds the review the editor holds after a finished generation, so the
+  // panel can be asked what it offers for one without an engine.
+  static PropGenerationReview Review(size_t candidates) {
+    PropGenerationReview review{
+        .provider = "openai",
+        .model = "gpt-image-2",
+        .submitted_prompt = "a mossy boulder",
+        .provider_request_id = "req-1",
+        .generated_at_utc = "2026-08-19T12:00:00Z",
+    };
+    for (size_t index = 0; index < candidates; ++index) {
+      review.candidates.push_back(ImageGenerationCandidate{
+          .image = RgbaImage{.width = 1, .height = 1, .pixels = {10, 20, 30, 255}},
+      });
+    }
+    return review;
+  }
+
   NiceMock<MockGui> gui_;
   std::unique_ptr<PropArtworkControlsPanel> panel_;
   PropArtworkEditorModel model_;
+  PropGenerationStatus generation_{.capabilities = {.maximum_candidates = 4}};
 };
 
 TEST_F(PropArtworkControlsPanelTest, RefreshUsesTheCurrentTerrainRecipeSnapshot) {
   ASSERT_OK(model_.AttachTerrain(Terrain(8)));
   ClickOnly("Refresh style##PropArtwork");
 
-  ASSERT_OK(panel_->Render(model_, {}, {Terrain(16)}));
+  ASSERT_OK(panel_->Render(model_, {}, {Terrain(16)}, generation_));
 
   EXPECT_EQ(model_.settings().style.tile_size, 16);
 }
@@ -68,7 +87,7 @@ TEST_F(PropArtworkControlsPanelTest, DetachKeepsTheResolvedStyleSnapshot) {
   const PropArtworkStyle style = model_.settings().style;
   ClickOnly("Detach style##PropArtwork");
 
-  ASSERT_OK(panel_->Render(model_, {}, {Terrain(8)}));
+  ASSERT_OK(panel_->Render(model_, {}, {Terrain(8)}, generation_));
 
   EXPECT_FALSE(model_.terrain_recipe().has_value());
   EXPECT_FALSE(model_.settings().terrain_recipe_id.has_value());
@@ -93,11 +112,11 @@ TEST_F(PropArtworkControlsPanelTest, DeletingARetainedSourceRequiresConfirmation
 
   ClickOnly("Delete source##PropArtworkSource");
   ASSERT_OK_AND_ASSIGN(PropArtworkControlsPanel::Action action,
-                       panel_->Render(model_, {source}, {}));
+                       panel_->Render(model_, {source}, {}, generation_));
   EXPECT_EQ(action, PropArtworkControlsPanel::Action::kNone);
 
   ClickOnly("Confirm##PropArtworkSource");
-  ASSERT_OK_AND_ASSIGN(action, panel_->Render(model_, {source}, {}));
+  ASSERT_OK_AND_ASSIGN(action, panel_->Render(model_, {source}, {}, generation_));
   EXPECT_EQ(action, PropArtworkControlsPanel::Action::kDeleteSource);
 }
 
@@ -113,7 +132,7 @@ TEST_F(PropArtworkControlsPanelTest, FreeAttachmentStartsAtTheCanvasCenter) {
         return std::string(label) == "Free / background";
       }));
 
-  ASSERT_OK(panel_->Render(model_, {}, {Terrain(8)}));
+  ASSERT_OK(panel_->Render(model_, {}, {Terrain(8)}, generation_));
 
   const PropAttachmentConfig& attachment = model_.settings().pipeline.composition.attachment;
   EXPECT_EQ(attachment.mode, PropAttachmentMode::kFree);
@@ -138,11 +157,70 @@ TEST_F(PropArtworkControlsPanelTest, ReselectingFreeAttachmentKeepsTheAuthoredAn
         return std::string(label) == "Free / background";
       }));
 
-  ASSERT_OK(panel_->Render(model_, {}, {Terrain(8)}));
+  ASSERT_OK(panel_->Render(model_, {}, {Terrain(8)}, generation_));
 
   ASSERT_TRUE(model_.settings().pipeline.composition.attachment.free_anchor.has_value());
   EXPECT_EQ(model_.settings().pipeline.composition.attachment.free_anchor->x, 2);
   EXPECT_EQ(model_.settings().pipeline.composition.attachment.free_anchor->y, 3);
+}
+
+TEST_F(PropArtworkControlsPanelTest, GenerateReportsTheIntentOnceAPromptExists) {
+  model_.prompt() = "a mossy boulder";
+  ClickOnly("Generate##PropArtwork");
+
+  ASSERT_OK_AND_ASSIGN(const PropArtworkControlsPanel::Action action,
+                       panel_->Render(model_, {}, {}, generation_));
+
+  EXPECT_EQ(action, PropArtworkControlsPanel::Action::kGenerate);
+}
+
+// A running request replaces the whole section, so the only thing a second
+// click can reach is the cancel it is meant to reach.
+TEST_F(PropArtworkControlsPanelTest, AnInFlightRequestOffersOnlyCancel) {
+  model_.prompt() = "a mossy boulder";
+  generation_.in_flight = true;
+  ClickOnly("Generate##PropArtwork");
+
+  ASSERT_OK_AND_ASSIGN(PropArtworkControlsPanel::Action action,
+                       panel_->Render(model_, {}, {}, generation_));
+  EXPECT_EQ(action, PropArtworkControlsPanel::Action::kNone);
+
+  ClickOnly("Cancel generation##PropArtwork");
+  ASSERT_OK_AND_ASSIGN(action, panel_->Render(model_, {}, {}, generation_));
+  EXPECT_EQ(action, PropArtworkControlsPanel::Action::kCancelGeneration);
+}
+
+TEST_F(PropArtworkControlsPanelTest, CandidateNavigationWrapsAcrossTheGeneratedSet) {
+  ASSERT_OK(model_.AcceptGeneration(Review(3)));
+  ClickOnly("Previous##PropArtworkCandidate");
+
+  ASSERT_OK(panel_->Render(model_, {}, {}, generation_));
+
+  EXPECT_EQ(model_.generation_review()->selected, 2);
+}
+
+TEST_F(PropArtworkControlsPanelTest, ReviewOffersAcceptAndDiscard) {
+  ASSERT_OK(model_.AcceptGeneration(Review(1)));
+
+  ClickOnly("Accept candidate##PropArtwork");
+  ASSERT_OK_AND_ASSIGN(PropArtworkControlsPanel::Action action,
+                       panel_->Render(model_, {}, {}, generation_));
+  EXPECT_EQ(action, PropArtworkControlsPanel::Action::kAcceptCandidate);
+
+  ClickOnly("Discard##PropArtworkCandidate");
+  ASSERT_OK_AND_ASSIGN(action, panel_->Render(model_, {}, {}, generation_));
+  EXPECT_EQ(action, PropArtworkControlsPanel::Action::kDiscardCandidates);
+}
+
+// The provider's ceiling is whatever the running adapter reports, not what it
+// reported when the number was chosen.
+TEST_F(PropArtworkControlsPanelTest, RequestedCandidatesAreClampedToTheProviderCeiling) {
+  model_.SetRequestedCandidates(4, 4);
+  generation_.capabilities.maximum_candidates = 2;
+
+  ASSERT_OK(panel_->Render(model_, {}, {}, generation_));
+
+  EXPECT_EQ(model_.requested_candidates(), 2);
 }
 
 }  // namespace

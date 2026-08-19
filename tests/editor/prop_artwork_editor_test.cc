@@ -1,15 +1,23 @@
 #include "editor/prop_artwork_editor/prop_artwork_editor.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
+#include <variant>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "common/image_digest.h"
 #include "common/image_io.h"
+#include "common/status_macros.h"
 #include "common/utils.h"
+#include "editor/image_generation/image_generation.h"
+#include "editor/image_generation/image_generation_engine.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "tests/api_mock.h"
@@ -37,6 +45,13 @@ class PropArtworkEditorTestPeer {
     return editor.session_source_id_.has_value();
   }
   static void PollWork(PropArtworkEditor& editor) { editor.PollWork(); }
+  static void StartGeneration(PropArtworkEditor& editor) { editor.StartGeneration(); }
+  static void CancelGeneration(PropArtworkEditor& editor) { editor.CancelGeneration(); }
+  static void PollGeneration(PropArtworkEditor& editor) { editor.PollGeneration(); }
+  static void AcceptCandidate(PropArtworkEditor& editor) { editor.AcceptCandidate(); }
+  static bool HasPendingGeneration(const PropArtworkEditor& editor) {
+    return editor.pending_generation_id_.has_value();
+  }
   static bool HasPendingWork(const PropArtworkEditor& editor) { return editor.HasPendingWork(); }
   static absl::Status WaitForWork(PropArtworkEditor& editor) {
     if (auto* pending = std::get_if<PropArtworkEditor::PendingCreation>(&editor.pending_work_);
@@ -68,6 +83,69 @@ class StubPreviewSink : public PreviewTextureSink {
   absl::StatusOr<ImTextureID> Upload(const RgbaImage&) override { return ImTextureID{0}; }
 };
 
+RgbaImage CandidatePixels(uint8_t tint);
+
+// Completes on its first poll, so a test drives the whole request with one Run
+// pass and never depends on timing. It returns exactly as many candidates as
+// were asked for, because the request handle rejects a result that returns
+// more than the spec requested.
+class StubGenerationOperation final : public ImageGenerationOperation {
+ public:
+  StubGenerationOperation(std::string prompt, int candidates)
+      : prompt_(std::move(prompt)), candidates_(candidates) {}
+
+  absl::StatusOr<std::optional<ImageGenerationResult>> Poll() override {
+    ImageGenerationResult result{
+        .provider = "openai",
+        .model = "gpt-image-2",
+        .submitted_prompt = prompt_,
+        .provider_request_id = "req-1",
+    };
+    for (int index = 0; index < candidates_; ++index) {
+      // Only the first carries a rewrite, so a test can tell the two
+      // provenance spellings apart.
+      result.candidates.push_back(ImageGenerationCandidate{
+          .image = CandidatePixels(static_cast<uint8_t>(200 - 40 * index)),
+          .revised_prompt =
+              index == 0 ? std::optional<std::string>("a mossy cave boulder") : std::nullopt,
+      });
+    }
+    return std::optional<ImageGenerationResult>(std::move(result));
+  }
+
+  void Cancel() noexcept override {}
+
+ private:
+  std::string prompt_;
+  int candidates_;
+};
+
+class StubGenerationClient final : public ImageGenerationClient {
+ public:
+  ImageGenerationCapabilities Capabilities() const override {
+    return ImageGenerationCapabilities{.maximum_candidates = 4};
+  }
+
+ protected:
+  absl::StatusOr<ImageGenerationRequest> StartValidated(ImageGenerationSpec spec) override {
+    return ImageGenerationRequest::Create(std::make_unique<StubGenerationOperation>(
+        std::move(spec.prompt), spec.requested_candidates));
+  }
+};
+
+// A flat, opaque square: isolation is not what these generation tests are
+// about, only that the pixels survive the retention path unchanged.
+RgbaImage CandidatePixels(uint8_t tint) {
+  RgbaImage image{.width = 16, .height = 16};
+  image.pixels.assign(static_cast<size_t>(image.width) * image.height * 4, 255);
+  for (size_t pixel = 0; pixel < static_cast<size_t>(image.width) * image.height; ++pixel) {
+    image.pixels[pixel * 4 + 0] = tint;
+    image.pixels[pixel * 4 + 1] = tint;
+    image.pixels[pixel * 4 + 2] = tint;
+  }
+  return image;
+}
+
 RgbaImage SourcePixels() {
   RgbaImage image{.width = 32, .height = 24};
   image.pixels.assign(static_cast<size_t>(image.width) * image.height * 4, 255);
@@ -90,7 +168,14 @@ RgbaImage SourcePixels() {
 class PropArtworkEditorTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    ASSERT_OK_AND_ASSIGN(editor_, PropArtworkEditor::Create(&api_, &gui_, &preview_));
+    ASSERT_OK_AND_ASSIGN(generation_,
+                         ImageGenerationEngine::Create(std::make_unique<StubGenerationClient>()));
+    ASSERT_OK_AND_ASSIGN(editor_, PropArtworkEditor::Create({
+                                      .api = &api_,
+                                      .gui = &gui_,
+                                      .preview = &preview_,
+                                      .generation = generation_.get(),
+                                  }));
     pixels_ = SourcePixels();
     ASSERT_OK_AND_ASSIGN(const std::string digest, RgbaImageDigest(pixels_));
     source_ = SourceArtwork{
@@ -133,9 +218,23 @@ class PropArtworkEditorTest : public ::testing::Test {
 
   PropArtworkEditorModel& model() { return PropArtworkEditorTestPeer::Model(*editor_); }
 
+  // Drives the engine directly rather than through a runner and a thread, so
+  // the test owns every pass and a failure is a wrong result, never a timeout.
+  absl::Status RunGenerationUntilEvent() {
+    for (int pass = 0; pass < 4; ++pass) {
+      RETURN_IF_ERROR(generation_->Run().status());
+      PropArtworkEditorTestPeer::PollGeneration(*editor_);
+      if (!PropArtworkEditorTestPeer::HasPendingGeneration(*editor_)) return absl::OkStatus();
+    }
+    return absl::DeadlineExceededError("no generation event reached the editor");
+  }
+
   NiceMock<MockApi> api_;
   NiceMock<MockGui> gui_;
   StubPreviewSink preview_;
+  // Declared before the editor so it outlives the editor that submits to it,
+  // matching the composition root's ordering.
+  std::unique_ptr<ImageGenerationEngine> generation_;
   std::unique_ptr<PropArtworkEditor> editor_;
   RgbaImage pixels_;
   SourceArtwork source_;
@@ -328,6 +427,111 @@ TEST_F(PropArtworkEditorTest, RefusedDeleteKeepsTheRecipeOpen) {
 
   ASSERT_TRUE(model().active_recipe().has_value());
   EXPECT_THAT(model().status(), HasSubstr("Level 'Cave'"));
+}
+
+// A generated candidate crosses the same boundary an imported PNG does: the
+// manager retains the pixels, and only then does the model point at them.
+TEST_F(PropArtworkEditorTest, AcceptedCandidateIsRetainedWithGeneratedProvenance) {
+  model().prompt() = "a mossy boulder";
+  model().SetRequestedCandidates(2, 4);
+
+  PropArtworkEditorTestPeer::StartGeneration(*editor_);
+  ASSERT_TRUE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
+  ASSERT_OK(RunGenerationUntilEvent());
+
+  ASSERT_FALSE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
+  ASSERT_TRUE(model().generation_review().has_value());
+  EXPECT_EQ(model().generation_review()->candidates.size(), 2);
+  EXPECT_EQ(model().generation_review()->submitted_prompt, "a mossy boulder");
+  ASSERT_NE(model().SelectedCandidate(), nullptr);
+  EXPECT_EQ(model().PreviewImage(), &model().SelectedCandidate()->image);
+
+  model().SelectCandidate(1);
+  SourceArtwork generated;
+  EXPECT_CALL(api_, CreateSourceArtwork(_, _, _))
+      .WillOnce([&](std::string name, SourceArtworkProvenance provenance, const RgbaImage& image) {
+        absl::StatusOr<std::string> digest = RgbaImageDigest(image);
+        EXPECT_TRUE(digest.ok());
+        generated = SourceArtwork{
+            .id = "generated-source",
+            .name = std::move(name),
+            .source_path = "source_art/props/generated-source.png",
+            .provenance = std::move(provenance),
+            .width = image.width,
+            .height = image.height,
+            .content_digest = digest.ok() ? *digest : std::string(64, '0'),
+        };
+        return absl::StatusOr<std::string>(generated.id);
+      });
+  EXPECT_CALL(api_, GetSourceArtwork(StrEq("generated-source"))).WillOnce(Return(&generated));
+
+  PropArtworkEditorTestPeer::AcceptCandidate(*editor_);
+
+  ASSERT_TRUE(model().source().has_value());
+  EXPECT_EQ(model().source()->id, "generated-source");
+  EXPECT_TRUE(PropArtworkEditorTestPeer::HasSessionSource(*editor_));
+  EXPECT_FALSE(model().generation_review().has_value());
+  ASSERT_TRUE(std::holds_alternative<GeneratedArtworkProvenance>(generated.provenance));
+  const auto& provenance = std::get<GeneratedArtworkProvenance>(generated.provenance);
+  EXPECT_EQ(provenance.provider, "openai");
+  EXPECT_EQ(provenance.model, "gpt-image-2");
+  EXPECT_EQ(provenance.submitted_prompt, "a mossy boulder");
+  EXPECT_EQ(provenance.provider_request_id, "req-1");
+  // The second candidate carried no rewrite, so neither may its provenance.
+  EXPECT_FALSE(provenance.revised_prompt.has_value());
+  EXPECT_FALSE(provenance.generated_at_utc.empty());
+}
+
+// The retention path is compensated: a source the model refuses must not be
+// left behind as an orphan the user never asked to keep.
+TEST_F(PropArtworkEditorTest, CandidateThatCannotBeRetainedIsRemovedAgain) {
+  model().prompt() = "a mossy boulder";
+  PropArtworkEditorTestPeer::StartGeneration(*editor_);
+  ASSERT_OK(RunGenerationUntilEvent());
+  ASSERT_TRUE(model().generation_review().has_value());
+
+  EXPECT_CALL(api_, CreateSourceArtwork(_, _, _))
+      .WillOnce(Return(absl::StatusOr<std::string>("generated-source")));
+  EXPECT_CALL(api_, GetSourceArtwork(StrEq("generated-source")))
+      .WillOnce(Return(absl::NotFoundError("no such retained source")));
+  EXPECT_CALL(api_, DeleteSourceArtwork(StrEq("generated-source")))
+      .WillOnce(Return(absl::OkStatus()));
+
+  PropArtworkEditorTestPeer::AcceptCandidate(*editor_);
+
+  // The source the editor already had is untouched: nothing replaced it, and
+  // the generated one no longer exists.
+  ASSERT_TRUE(model().source().has_value());
+  EXPECT_EQ(model().source()->id, source_.id);
+  EXPECT_FALSE(PropArtworkEditorTestPeer::HasSessionSource(*editor_));
+  // The review survives so the user can accept another candidate rather than
+  // regenerating after a failure that had nothing to do with the artwork.
+  EXPECT_TRUE(model().generation_review().has_value());
+  EXPECT_THAT(model().status(), HasSubstr("no such retained source"));
+}
+
+TEST_F(PropArtworkEditorTest, RefusedGenerationReportsTheProviderStatus) {
+  model().prompt().clear();
+
+  PropArtworkEditorTestPeer::StartGeneration(*editor_);
+
+  EXPECT_FALSE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
+  EXPECT_FALSE(model().generation_review().has_value());
+  EXPECT_THAT(model().status(), HasSubstr("Describe the prop"));
+}
+
+// Cancelling does not retire the request: the engine still owes exactly one
+// event, and the editor must stay ready to collect it.
+TEST_F(PropArtworkEditorTest, CancelledGenerationStaysPendingUntilItsEventArrives) {
+  model().prompt() = "a mossy boulder";
+  PropArtworkEditorTestPeer::StartGeneration(*editor_);
+
+  PropArtworkEditorTestPeer::CancelGeneration(*editor_);
+
+  EXPECT_TRUE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
+  ASSERT_OK(RunGenerationUntilEvent());
+  EXPECT_FALSE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
+  EXPECT_FALSE(model().generation_review().has_value());
 }
 
 }  // namespace

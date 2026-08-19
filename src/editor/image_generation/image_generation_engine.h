@@ -53,6 +53,10 @@ class ImageGenerationEngine final : public Engine {
 
   NotificationSet& notification_set() override { return *notification_set_; }
 
+  // Constant for the client's life, so any thread may ask. Callers bound their
+  // own controls with it rather than discovering a refusal at Submit.
+  ImageGenerationCapabilities Capabilities() const { return client_->Capabilities(); }
+
   absl::StatusOr<RunResult> Run() override;
 
   // Queues a request and returns the id its event will carry. Rejects with

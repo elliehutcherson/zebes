@@ -1,6 +1,7 @@
 # Generated prop artwork pipeline
 
-**Status: Milestones 0-4a implemented; imported-source authoring is available.**
+**Status: Milestones 0-5 implemented; imported and generated source authoring
+are both available.**
 The boulder/`lucinda_cave` and tree/`Cozy Meadow` checks both support the visual
 approach. The production policy is the complete resolved terrain palette.
 Source hashing, input limits, a versioned coordinator, retained stage artifacts,
@@ -12,9 +13,10 @@ regeneration are also implemented. The Prop Artwork tab now completes the
 durable imported-source workflow with grounded, ceiling, and free/background
 attachment modes. Uncommitted imports are session-owned and are discarded on
 replacement, Clear, or normal shutdown. Milestone 5's generation service,
-session-lifetime polling engine, and first provider adapter (OpenAI
-`gpt-image-2`) are implemented; the editor's prompt and candidate controls and
-the opt-in live test remain.
+session-lifetime polling engine, first provider adapter (OpenAI `gpt-image-2`),
+composition-root owner, and editor prompt/candidate controls are implemented; a
+generated candidate is retained exactly as an imported PNG is. Only the opt-in
+live test remains.
 
 This design covers a static world prop such as a boulder, tree, sign, or ruin.
 The result is ordinary Zebes data: a texture, a one-frame sprite, and a blueprint
@@ -550,10 +552,15 @@ Implemented: the Prop Artwork tab uses the established three-column layout:
   refresh, or detach a terrain recipe's resolved style; choose grounded,
   ceiling, or free/background attachment; and tune isolation, canvas, raster,
   edge, and cleanup
-  settings. Generate, provider status, prompt, and candidate selection arrive
-  with Milestone 5.
+  settings; and describe, generate, cancel, review, and accept a generated
+  source. The generation section is one control at a time: a running request
+  shows only Cancel, and a finished one replaces the prompt with candidate
+  navigation, Accept, and Discard.
 - **Preview:** stage selector in review mode; checkerboard, tile grid, rulers,
-  anchor, automatic fit, diagnostics, and final in-context view. It uses the
+  anchor, automatic fit, diagnostics, and final in-context view. A candidate
+  under review takes the preview over every stage until it is accepted or
+  discarded, and stage stepping waits, because the buttons deciding its fate
+  are in the input column beside it. It uses the
   shared editor `Canvas`, so wheel zoom, keyboard/middle-drag panning, ruler
   behavior, zoom limits, and Fit framing stay consistent with the Terrain,
   Tileset, Blueprint, and Level editors. Context composition expands around the
@@ -621,6 +628,8 @@ Tests should pin behavior where it is platform-neutral:
 - regeneration preserves IDs, refuses stale sprite/style/source snapshots, and
   does not overwrite blueprint collider edits;
 - reference scans block source, style, and bundle deletion with useful names;
+- an accepted candidate is retained with field-for-field generated provenance,
+  and one the model refuses is removed again rather than left as an orphan;
 - focused UI tests cover stage navigation, final-only behavior, pending-state
   controls, candidate choice, and errors without an SDL window.
 
@@ -750,10 +759,25 @@ unfinished provider behavior.
    header before decoding so an oversized image is refused without allocating
    its surface; milestone 1 had recorded this as implemented when it was not.
 
-   Next: editor prompt and candidate controls, converging generated candidates
-   with the retained-source acceptance path, and a credential-gated opt-in
-   integration test. Imported and generated sources converge at the same
-   acceptance boundary.
+   The editor flow is implemented too. `ImageGenerationService` assembles the
+   transport, credential source, adapter, engine, runner, and thread in the one
+   order that keeps each alive for its borrower, and `EditorUi` owns one for
+   the process; `PropArtworkEditor` receives only the engine. The input column
+   gained a prompt, a candidate count bounded by the adapter's reported
+   ceiling, Generate, Cancel, candidate navigation, Accept, and Discard. At
+   most one generation is in flight, because a second would produce two
+   candidate sets with no way to say which the preview is showing.
+
+   Accepting a candidate retains it through `Api::CreateSourceArtwork` with
+   `GeneratedArtworkProvenance` and only then points the model at it, which is
+   the same order an imported PNG takes; a retention that fails anywhere
+   removes the source it created. Cancelling does not retire the request: the
+   engine still owes exactly one event, so the id stays pending until it
+   arrives, and dropping it early would let that event be mistaken for a later
+   request's.
+
+   Next: a credential-gated opt-in integration test, which is the only thing
+   that will exercise the curl negative-timeout branch.
 6. **Operational hardening.** Exercise shutdown, retries that are safe to
    retry, provider error UX, crash leftovers in staging, and the complete editor
    walk before considering another provider or atlas packing.
