@@ -20,22 +20,20 @@ target_link_libraries(notification
   PUBLIC
   absl::any_invocable
   absl::status
-  absl::statusor
   PRIVATE
   absl::check
-  status_macros
 )
 
 add_library(notification_set notification_set.cc)
 target_link_libraries(notification_set
   PUBLIC
   notification
+  absl::flat_hash_set
   absl::status
   absl::statusor
-  absl::span
+  absl::time
   PRIVATE
   absl::strings
-  absl::flat_hash_set
   status_macros
 )
 
@@ -43,8 +41,8 @@ add_library(engine_contract INTERFACE engine.h)
 target_link_libraries(engine_contract
   INTERFACE
   absl::statusor
-  absl::span
-  notification
+  absl::time
+  notification_set
 )
 
 add_library(engine_runner engine_runner.cc)
@@ -102,6 +100,7 @@ target_link_libraries(image_io absl::status)
 target_link_libraries(image_io absl::statusor)
 target_link_libraries(image_io absl::span)
 target_link_libraries(image_io absl::strings)
+target_link_libraries(image_io absl::cleanup)
 target_include_directories(image_io PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../include/stb)
 
 add_library(image_digest image_digest.cc)

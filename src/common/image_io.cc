@@ -1,7 +1,9 @@
 #include "common/image_io.h"
 
 #include <filesystem>
+#include <limits>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/strings/str_cat.h"
 
 // stb is header-only, and this is the one translation unit that owns PNG
@@ -64,6 +66,53 @@ absl::StatusOr<RgbaImage> ReadPng(const std::string& path) {
   if (!image.IsValid()) {
     return absl::DataLossError(
         absl::StrCat("decoded ", path, " to an unusable ", width, "x", height, " image"));
+  }
+  return image;
+}
+
+absl::StatusOr<RgbaImage> DecodeImage(absl::Span<const uint8_t> bytes, int64_t maximum_pixels) {
+  if (maximum_pixels <= 0) {
+    return absl::InvalidArgumentError("image decode pixel limit must be positive");
+  }
+  if (bytes.empty()) return absl::DataLossError("image bytes are empty");
+  if (bytes.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    return absl::OutOfRangeError("image bytes exceed the decoder's supported size");
+  }
+
+  // Header first: measuring by decoding would allocate what the limit exists
+  // to prevent.
+  int width = 0;
+  int height = 0;
+  int channels_in_file = 0;
+  if (stbi_info_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width, &height,
+                            &channels_in_file) == 0) {
+    return absl::DataLossError(
+        absl::StrCat("image bytes are not a supported image: ", stbi_failure_reason()));
+  }
+  if (width <= 0 || height <= 0) {
+    return absl::DataLossError(
+        absl::StrCat("image bytes describe an unusable ", width, "x", height, " image"));
+  }
+  if (static_cast<int64_t>(width) * height > maximum_pixels) {
+    return absl::ResourceExhaustedError(absl::StrCat(
+        "image is ", width, "x", height, ", which exceeds the ", maximum_pixels, " pixel limit"));
+  }
+
+  uint8_t* data = stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width,
+                                        &height, &channels_in_file, 4);
+  if (data == nullptr) {
+    return absl::DataLossError(
+        absl::StrCat("failed to decode image bytes: ", stbi_failure_reason()));
+  }
+  absl::Cleanup free_data = [data] { stbi_image_free(data); };
+
+  RgbaImage image;
+  image.width = width;
+  image.height = height;
+  image.pixels.assign(data, data + static_cast<size_t>(width) * height * 4);
+
+  if (!image.IsValid()) {
+    return absl::DataLossError(absl::StrCat("decoded an unusable ", width, "x", height, " image"));
   }
   return image;
 }

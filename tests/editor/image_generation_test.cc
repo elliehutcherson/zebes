@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "absl/time/time.h"
 #include "editor/image_generation/credential_source.h"
 #include "editor/image_generation/curl_http_transport.h"
 #include "editor/image_generation/http_transport.h"
@@ -402,6 +403,59 @@ TEST(CurlHttpTransportTest, ConfiguresAndCancelsARequestWithoutStartingNetworkIO
   EXPECT_TRUE(request.active());
   request.Cancel();
   EXPECT_FALSE(request.active());
+}
+
+// The bound a caller sleeping between polls depends on. curl's own answer is
+// never handed through unclamped: a negative timeout means "wait on the
+// sockets", which this transport does not expose, so sleeping on it literally
+// would stall the transfer until its total timeout.
+//
+// A newly added handle reports zero, because curl wants the first
+// curl_multi_perform immediately and has no timer until it runs. Sleeping
+// before starting the transfer would be the wrong answer, so zero is right
+// here and the caller polls straight through to Poll.
+//
+// The negative-timeout branch needs an established socket and so has no
+// headless coverage; the opt-in live integration test is what reaches it.
+TEST(CurlHttpTransportTest, BoundsThePollDelayOfALiveRequest) {
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<CurlHttpTransport> transport, CurlHttpTransport::Create());
+  ASSERT_OK_AND_ASSIGN(HttpRequestHandle request, transport->Start(HttpRequest{
+                                                      .url = "https://api.example.test/v1/images",
+                                                      .body = {'{', '}'},
+                                                  }));
+
+  const absl::Duration delay = request.SuggestedPollDelay();
+  EXPECT_GE(delay, absl::ZeroDuration());
+  EXPECT_LE(delay, absl::Milliseconds(200));
+
+  // A finished request must not be slept on: the caller has to poll to find out
+  // it is no longer active.
+  request.Cancel();
+  EXPECT_EQ(request.SuggestedPollDelay(), absl::ZeroDuration());
+}
+
+TEST(HttpTransportContractTest, HandleReportsNoPollDelayOnceTheRequestCompletes) {
+  const std::shared_ptr<OperationState> state = std::make_shared<OperationState>();
+  ASSERT_OK_AND_ASSIGN(HttpRequestHandle request,
+                       HttpRequestHandle::Create(std::make_unique<FakeHttpOperation>(
+                           state, HttpResponse{.status_code = 200})));
+
+  EXPECT_GT(request.SuggestedPollDelay(), absl::ZeroDuration());
+  ASSERT_OK(request.Poll().status());
+  EXPECT_EQ(request.SuggestedPollDelay(), absl::ZeroDuration());
+}
+
+TEST(ImageGenerationContractTest, RequestReportsNoPollDelayOnceItCompletes) {
+  const std::shared_ptr<OperationState> state = std::make_shared<OperationState>();
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request,
+                       ImageGenerationRequest::Create(
+                           std::make_unique<FakeImageOperation>(state, ValidGenerationResult())));
+
+  EXPECT_GT(request.SuggestedPollDelay(), absl::ZeroDuration());
+  ASSERT_OK(request.Poll().status());
+  ASSERT_OK(request.Poll().status());
+  EXPECT_FALSE(request.active());
+  EXPECT_EQ(request.SuggestedPollDelay(), absl::ZeroDuration());
 }
 
 }  // namespace

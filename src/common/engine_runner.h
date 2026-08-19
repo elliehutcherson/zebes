@@ -12,8 +12,9 @@
 namespace zebes {
 
 // Repeatedly polls an Engine and blocks only after the engine reports idle.
-// The Engine supplies its independent notification sources. Stop is thread-safe
-// and wakes a blocked Run. A runner is single-use.
+// The engine owns the notification set and every wake source in it; the runner
+// borrows both and adds its own stop source. Stop is thread-safe and wakes a
+// blocked Run. A runner is single-use, and an engine accepts only one runner.
 class EngineRunner {
  public:
   ~EngineRunner();
@@ -21,6 +22,8 @@ class EngineRunner {
   EngineRunner(const EngineRunner&) = delete;
   EngineRunner& operator=(const EngineRunner&) = delete;
 
+  // Seals the engine's notification set, so a second runner for the same
+  // engine fails.
   static absl::StatusOr<std::unique_ptr<EngineRunner>> Create(Engine& engine);
 
   absl::Status Run();
@@ -34,14 +37,13 @@ class EngineRunner {
     kStopped,
   };
 
-  EngineRunner(Engine& engine, std::unique_ptr<Notification> stop_notification,
-               NotificationSet notification_set);
+  EngineRunner(Engine& engine, NotificationSet& notification_set, Notification& stop_notification);
 
   absl::Status RunLoop();
 
   Engine& engine_;
-  std::unique_ptr<Notification> stop_notification_;
-  NotificationSet notification_set_;
+  NotificationSet& notification_set_;
+  Notification& stop_notification_;
   std::atomic<State> state_ = State::kReady;
 };
 

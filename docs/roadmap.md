@@ -148,11 +148,11 @@ discarded on replacement, Clear, or normal shutdown; retained sources can be
 deleted explicitly through the same reference checks as other assets.
 Grounded, ceiling, and free/background attachment modes are persisted and feed
 composition, validation, context preview, sprite offsets, and regeneration.
-The provider-neutral generation, credential, and bounded HTTP contracts and the
-poll-driven libcurl transport are now implemented; the first adapter and
-generated-source editor flow remain. The local feedback-loop milestone is
-complete, so provider work can proceed without multiplying an expensive
-verification cycle. Its §12 sequence:
+The provider-neutral generation, credential, and bounded HTTP contracts, the
+poll-driven libcurl transport, the session-lifetime generation engine, and the
+first provider adapter are now implemented; the generated-source editor flow
+remains. The local feedback-loop milestone is complete, so provider work can
+proceed without multiplying an expensive verification cycle. Its §12 sequence:
 
 0. **Accepted.** Run the visual feasibility spike:
    one imported boulder, one real terrain recipe, the deterministic C++ stages,
@@ -180,9 +180,11 @@ verification cycle. Its §12 sequence:
     limits that to about 10% of the full loop, so caching remains in CI without
     becoming a required local dependency.
 5. **In progress.** The cancellable image-generation service, move-only
-   environment credential source, bounded HTTPS seam, and poll-driven libcurl
-   transport are implemented. Add the first provider adapter, candidate
-   acceptance, and opt-in live integration test.
+   environment credential source, bounded HTTPS seam, poll-driven libcurl
+   transport, session-lifetime `ImageGenerationEngine`, and the first provider
+   adapter (OpenAI `gpt-image-2`) are implemented. Remaining: editor prompt and
+   candidate controls, candidate acceptance converged with the retained-source
+   path, and an opt-in live integration test.
 6. Harden shutdown, retry, staging cleanup, and provider failure behavior.
 
 **`ParallaxZone::fade_length`** — authored, serialized, validated, and ignored.
@@ -208,6 +210,21 @@ self-contained, and the most visible unimplemented authored field.
 
 Decided, with reasons, and not to be reopened without a new one:
 
+- **Remote polling is bounded, not socket-driven.** Waking exactly when a
+  response arrives means `curl_multi_socket_action` and registering transport
+  sockets as they appear, which requires mutating a notification set while a
+  thread is armed on it — the one thing sealing exists to prevent. The engine
+  sleeps until curl's own timer instead, capped so a transfer is never stalled
+  behind its total timeout. It costs a fraction of a second on requests that
+  take tens.
+- **A wake deadline bounds sleeping; it is not a wake source.** Every source
+  that can notify still needs a `Notification` in the set. The deadline exists
+  only for sources that cannot have one, such as a transfer with no registered
+  descriptor or a timestep that is due whether or not anything notifies.
+- **Generated sources arrive opaque.** `gpt-image-2` rejects transparent
+  backgrounds, and rather than pick a weaker model for real alpha, isolation
+  removes the background — the same path every imported source already takes.
+  This makes generated and imported sources converge more completely, not less.
 - **Deduplication is by exact pixel content**, not by a rule about which keys
   collide. An approximate comparison needs a threshold, and a threshold is a
   claim about how much difference the eye forgives.

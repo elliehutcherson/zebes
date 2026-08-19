@@ -487,28 +487,71 @@ worker was running.
 Long-lived polling jobs use the common engine-runner infrastructure instead.
 An `Engine` performs one bounded, non-blocking `Run` pass and reports whether it
 did work. `EngineRunner` repeats those passes and waits on a coalescing wakeup
-only after the engine reports idle. `EngineRunner::Create` captures and validates
-the engine's stable notification sources and constructs the native wait set
-before a worker can start. `BlockingCallbackThread` owns the worker,
+only after the engine reports idle. `BlockingCallbackThread` owns the worker,
 join, callback status, and standard-library exception boundary.
 `EngineRunner::Stop` transitions the runner's single atomic lifecycle state and
 wakes an active worker. Incoming work uses a fixed-capacity, lock-free
 `MpscQueue`; `MpscNotifyQueue` couples successful queue publication to its
 `Notification`, while a full queue reports backpressure without consuming the
-rejected value. The engine exposes all independent notification sources as a
-span. `NotificationSet` multiplexes those sources with the runner's stop source
-using one native blocking facility: `epoll` plus `eventfd` on Linux, `kqueue`
-plus `EVFILT_USER` on macOS, and waitable events on Windows. Software sources
-share the set's coalescing native wake primitive; external sources contribute
-borrowed file descriptors or handles and optional interrupt arm/disarm
-callbacks. After an idle pass, `EngineRunner` arms every source and performs a
-second `Run` pass before blocking. That recheck closes the race where a NIC
-queue receives work immediately before its interrupt is armed. Sources do not
-need to share a notification, and producer notification remains lock-free.
+rejected value. Its slots and its producer and consumer cursors are each
+cache-line aligned, and each producer probes from a thread-local cursor rather
+than a shared counter, so concurrent pushes contend only when they land on the
+same slot. Alignment makes a slot cost a full cache line, which is the reason
+`Capacity` is a deliberate bound rather than a generous one.
+
+The engine owns everything and exposes it to the runner. During construction an
+engine creates a `NotificationSet`, adds one source per wake reason, and builds
+its queues and wait handles around the returned notifications;
+`Engine::notification_set` exposes the set. `NotificationSet` owns one native
+blocking facility — `epoll` plus `eventfd` on Linux, `kqueue` plus `EVFILT_USER`
+on macOS, waitable events on Windows — and every `Notification` that feeds it. A
+`Notification` binds its sink at construction and never rebinds, so `Notify` is
+correct from any thread at any point in the set's lifetime. Software sources
+share the set's coalescing wake primitive and cost no native handle; external
+sources contribute a borrowed file descriptor or handle that the engine owns and
+keeps open, plus interrupt arm/disarm callbacks. `EngineRunner::Create` adds its
+own stop source and seals the set, which fixes the source list before a worker
+can start and rejects a second runner for the same engine.
+
+`Notify` wakes the native primitive only while a thread is parked on it. `Arm`
+publishes an arm flag with a sequentially consistent fence and `Notify` reads it
+behind the matching fence, so the two form a store-then-load handshake: a
+producer that reads the set unarmed sends nothing, and the runner's recheck pass
+is what delivers its work. That makes both halves of the idle path mandatory —
+after an idle pass `EngineRunner` arms every source, runs a second `Run` pass,
+and rechecks its stop state before blocking. The same recheck closes the race
+where a NIC queue receives work immediately before its interrupt is armed, and
+`EngineRunner::Stop` relies on it too, publishing the stopping state before it
+reads the arm flag. The ordering requirement this places on producers is that
+work must be published before `Notify` is called; `MpscNotifyQueue` does that by
+construction. Sources do not need to share a notification, and producer
+notification remains lock-free and, while the runner is busy, syscall-free.
+
+An idle pass reports how long the runner may sleep. No deadline means sleep
+until a notification fires, which is the zero-cost state a process-lifetime
+engine spends nearly all its time in: one parked thread, no wakeups. A deadline
+means sleep until a notification fires or that time passes, and it is how an
+engine stays honest about a source it can only discover by polling — a remote
+transfer with no registered descriptor, or a fixed timestep that is due whether
+or not anything notifies. Without it such an engine has to claim `kDidWork` to
+be rescheduled, which returns the runner to another pass with no sleep at all
+and spins a core. `NotificationSet::WaitUntil` carries the deadline down to the
+native facility's own timeout, recomputing the remainder across an interrupted
+wait so a stream of signals cannot extend a bounded sleep. A timeout and a wake
+both return `OkStatus`: the caller cannot act on the difference, because a wake
+still has to poll its sources to learn which one fired.
+
+A deadline is a bound on sleeping and not a wake source, so it never removes the
+requirement that every notifiable source have a notification in the set. It is
+the answer for the sources that cannot have one.
+
 Owners stop producers before destroying a queue, stop and join the runner
-thread, then destroy the engine and source notifications.
+thread, then destroy the engine, which destroys its notification set and every
+notification in it.
 A stop request ends the runner without draining queued work; an owner that needs
 draining must wait for its own completion acknowledgement before requesting it.
+Stop latency is bounded by the stop notification rather than by any engine
+deadline, so a long poll interval never makes shutdown slower.
 
 Generated prop authoring follows the same thread and ownership boundary.
 `SourceArtworkManager` owns editor-only retained PNG inputs and their strict
@@ -528,9 +571,33 @@ start work and returns an RAII request that is polled without blocking and
 cancels unfinished work on destruction. Provider adapters receive credentials
 through `CredentialSource` and move them into bounded `HttpTransport` requests;
 raw secrets and external HTTP/provider types do not cross into editor models,
-project configuration, deterministic artwork stages, or provenance. Concrete
-transports must make cancellation prompt rather than joining remote work on the
-editor thread, which is why remote operations do not use `BackgroundTask`.
+project configuration, deterministic artwork stages, or provenance. A credential
+is loaded per request rather than held by the adapter, so no secret outlives the
+request that used it and a missing key fails one request instead of startup.
+Concrete transports must make cancellation prompt rather than joining remote
+work on the editor thread, which is why remote operations do not use
+`BackgroundTask`.
+
+`ImageGenerationEngine` is the first production owner of the engine-runner
+infrastructure, and the shape later long-lived pollers should follow. It is
+created once at editor startup and destroyed at shutdown, owns every in-flight
+request, and exposes only `Submit`, `Cancel`, and `NextEvent` — producers never
+touch its queues. Submissions arrive over an `MpscNotifyQueue`; results leave
+over a plain `MpscQueue` with no notification, because the editor drains it on
+its own frame schedule and never sleeps on the engine. Bounding outstanding
+requests is what makes event delivery infallible: `Submit` reserves a slot
+before queueing and `NextEvent` releases it, so a request always has somewhere
+to put its one event, and the queue cannot overflow. A rejected specification or
+a failed provider start is reported as that request's event, never as a `Run`
+failure, because a failing `Run` ends the runner and discards every other
+request with it.
+
+A remote transfer has no descriptor the runner can wait on, so the engine
+reports an idle pass with a deadline derived from the soonest
+`SuggestedPollDelay` across its requests, and no deadline at all once none are
+in flight. That is bounded polling rather than socket-driven wakeup, chosen
+because registering transport sockets dynamically would require mutating a
+sealed notification set while a thread is armed.
 `CurlHttpTransport` implements that contract with a poll-driven libcurl multi
 handle per request, verified HTTPS without redirects, receive-time byte limits,
 and immediate handle removal on cancellation. It requires libcurl's

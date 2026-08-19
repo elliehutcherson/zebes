@@ -12,6 +12,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/time/time.h"
 #include "editor/image_generation/credential_source.h"
 
 namespace zebes {
@@ -58,6 +59,16 @@ class HttpOperation {
   // respond; implementations must not join remote work from either call.
   virtual absl::StatusOr<std::optional<HttpResponse>> Poll() = 0;
   virtual void Cancel() noexcept = 0;
+
+  // The longest a caller may wait before calling Poll again. A caller that
+  // sleeps between polls owes the operation this much attention; one that polls
+  // on its own schedule, such as an editor frame loop, may ignore it.
+  //
+  // Poll is the only way to advance an operation that has no descriptor its
+  // caller can wait on, so an answer that is too large stalls a transfer and
+  // one of zero busy-polls it. The default suits an operation with no timer of
+  // its own; a transport with a real one should say so.
+  virtual absl::Duration SuggestedPollDelay() const { return absl::Milliseconds(50); }
 };
 
 class HttpRequestHandle {
@@ -74,6 +85,10 @@ class HttpRequestHandle {
   absl::StatusOr<std::optional<HttpResponse>> Poll();
   void Cancel() noexcept;
   bool active() const { return operation_ != nullptr; }
+
+  // Zero once the request has finished, so a caller sleeping on this value
+  // polls immediately and learns the request is no longer active.
+  absl::Duration SuggestedPollDelay() const;
 
  private:
   friend class HttpTransport;

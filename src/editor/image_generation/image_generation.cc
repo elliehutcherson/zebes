@@ -126,6 +126,11 @@ void ImageGenerationRequest::Cancel() noexcept {
   operation_.reset();
 }
 
+absl::Duration ImageGenerationRequest::SuggestedPollDelay() const {
+  if (operation_ == nullptr) return absl::ZeroDuration();
+  return operation_->SuggestedPollDelay();
+}
+
 absl::StatusOr<ImageGenerationRequest> ImageGenerationClient::Start(ImageGenerationSpec spec) {
   const ImageGenerationCapabilities capabilities = Capabilities();
   RETURN_IF_ERROR(ValidateImageGenerationSpec(spec, capabilities));

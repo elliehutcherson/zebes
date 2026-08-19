@@ -1,5 +1,6 @@
 #include "editor/image_generation/curl_http_transport.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <memory>
@@ -10,6 +11,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/time/time.h"
 #include "common/status_macros.h"
 #include "curl/curl.h"
 
@@ -114,7 +116,32 @@ class CurlHttpOperation final : public HttpOperation {
 
   void Cancel() noexcept override { Detach(); }
 
+  // curl_multi_timeout answers how long the caller may wait before calling
+  // curl_multi_perform again, which is exactly this question. Two of its
+  // answers need translating.
+  //
+  // A negative timeout means curl has no timer pending and expects the caller
+  // to wait on the transfer's sockets instead. This transport registers no
+  // sockets with its caller, so honouring that literally would sleep until the
+  // total timeout. It becomes the poll cap: the ceiling on how long a response
+  // can sit unnoticed, and the reason this is bounded polling rather than
+  // socket-driven wakeups. Requests here run for seconds, so the cap costs a
+  // few wakeups per second and at most kPollCap of added latency.
+  //
+  // Zero means curl wants attention immediately and must not be slept on.
+  absl::Duration SuggestedPollDelay() const override {
+    if (!active_) return absl::ZeroDuration();
+    long timeout_milliseconds = 0;
+    if (curl_multi_timeout(multi_, &timeout_milliseconds) != CURLM_OK) {
+      return absl::ZeroDuration();
+    }
+    if (timeout_milliseconds < 0) return kPollCap;
+    return std::min(absl::Milliseconds(timeout_milliseconds), kPollCap);
+  }
+
  private:
+  static constexpr absl::Duration kPollCap = absl::Milliseconds(200);
+
   explicit CurlHttpOperation(HttpRequest request) : request_(std::move(request)) {}
 
   absl::Status Initialize() {

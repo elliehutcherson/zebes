@@ -1,18 +1,19 @@
 #include "common/notification_set.h"
 
 #include <cerrno>
+#include <climits>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <utility>
-#include <vector>
 
-#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "absl/types/span.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "common/status_macros.h"
 
 #if defined(__linux__)
@@ -44,6 +45,57 @@ absl::Status PlatformError(const char* operation) {
 #endif
 }
 
+// Time left until `deadline`, floored at zero so a deadline that has already
+// passed polls once instead of waiting.
+absl::Duration RemainingUntil(absl::Time deadline) {
+  const absl::Duration remaining = deadline - absl::Now();
+  return remaining > absl::ZeroDuration() ? remaining : absl::ZeroDuration();
+}
+
+#if defined(__linux__)
+// epoll_wait's timeout is milliseconds, and -1 means no timeout. A sub-
+// millisecond remainder rounds up so a deadline is never woken early.
+int RemainingMilliseconds(std::optional<absl::Time> deadline) {
+  if (!deadline.has_value()) return -1;
+  const int64_t milliseconds = absl::ToInt64Milliseconds(
+      RemainingUntil(*deadline) + absl::Milliseconds(1) - absl::Nanoseconds(1));
+  if (milliseconds > INT_MAX) return INT_MAX;
+  return static_cast<int>(milliseconds);
+}
+#elif defined(__APPLE__)
+// Fills `timeout` and reports whether kevent should use it at all. A null
+// timespec is kevent's spelling of "wait indefinitely"; a zeroed one polls.
+bool FillTimeout(std::optional<absl::Time> deadline, struct timespec* timeout) {
+  if (!deadline.has_value()) return false;
+  *timeout = absl::ToTimespec(RemainingUntil(*deadline));
+  return true;
+}
+#elif defined(_WIN32)
+DWORD RemainingWindowsMilliseconds(std::optional<absl::Time> deadline) {
+  if (!deadline.has_value()) return INFINITE;
+  const int64_t milliseconds = absl::ToInt64Milliseconds(
+      RemainingUntil(*deadline) + absl::Milliseconds(1) - absl::Nanoseconds(1));
+  // INFINITE is the largest DWORD, so it must not be reachable by rounding.
+  if (milliseconds >= INFINITE) return INFINITE - 1;
+  return static_cast<DWORD>(milliseconds);
+}
+#endif
+
+absl::Status ValidateNativeWaitHandle(const NativeWaitHandle& handle) {
+#if defined(_WIN32)
+  if (handle.type != NativeWaitHandleType::kWindowsHandle || handle.value == 0 ||
+      handle.value == -1) {
+    return absl::InvalidArgumentError("External notification Windows handle is invalid");
+  }
+#else
+  if (handle.type != NativeWaitHandleType::kFileDescriptor || handle.value < 0 ||
+      handle.value > INT_MAX) {
+    return absl::InvalidArgumentError("External notification file descriptor is invalid");
+  }
+#endif
+  return absl::OkStatus();
+}
+
 }  // namespace
 
 class NotificationSet::Impl final : public NotificationSink {
@@ -70,8 +122,10 @@ class NotificationSet::Impl final : public NotificationSink {
   Impl(const Impl&) = delete;
   Impl& operator=(const Impl&) = delete;
 
-  static absl::StatusOr<std::unique_ptr<Impl>> Create(
-      absl::Span<Notification* const> notifications) {
+  // Creates the wake primitive and the multiplexer. External wait handles join
+  // later through Register, which is what lets an engine construct its own
+  // notifications against this sink before any of its handles exist.
+  static absl::StatusOr<std::unique_ptr<Impl>> Create() {
     auto impl = std::unique_ptr<Impl>(new Impl());
 #if defined(__linux__)
     impl->poll_fd_ = epoll_create1(EPOLL_CLOEXEC);
@@ -90,19 +144,6 @@ class NotificationSet::Impl final : public NotificationSink {
     if (epoll_ctl(impl->poll_fd_, EPOLL_CTL_ADD, impl->software_fd_, &event) < 0) {
       return PlatformError("epoll_ctl for the software notification");
     }
-
-    for (Notification* notification : notifications) {
-      if (!notification->IsExternal()) {
-        continue;
-      }
-      const NativeWaitHandle& handle = *notification->native_wait_handle();
-      event = {};
-      event.events = EPOLLIN;
-      event.data.fd = static_cast<int>(handle.value);
-      if (epoll_ctl(impl->poll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
-        return PlatformError("epoll_ctl for an external notification");
-      }
-    }
 #elif defined(__APPLE__)
     impl->poll_fd_ = kqueue();
     if (impl->poll_fd_ < 0) {
@@ -114,36 +155,37 @@ class NotificationSet::Impl final : public NotificationSink {
     if (kevent(impl->poll_fd_, &change, 1, nullptr, 0, nullptr) < 0) {
       return PlatformError("kevent for the software notification");
     }
-
-    for (Notification* notification : notifications) {
-      if (!notification->IsExternal()) {
-        continue;
-      }
-      const NativeWaitHandle& handle = *notification->native_wait_handle();
-      EV_SET(&change, static_cast<uintptr_t>(handle.value), EVFILT_READ, EV_ADD, 0, 0, nullptr);
-      if (kevent(impl->poll_fd_, &change, 1, nullptr, 0, nullptr) < 0) {
-        return PlatformError("kevent for an external notification");
-      }
-    }
 #elif defined(_WIN32)
     impl->software_event_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (impl->software_event_ == nullptr) {
       return PlatformError("CreateEvent");
     }
     impl->handles_.push_back(impl->software_event_);
-
-    for (Notification* notification : notifications) {
-      if (!notification->IsExternal()) {
-        continue;
-      }
-      const NativeWaitHandle& handle = *notification->native_wait_handle();
-      impl->handles_.push_back(reinterpret_cast<HANDLE>(handle.value));
-    }
-    if (impl->handles_.size() > MAXIMUM_WAIT_OBJECTS) {
-      return absl::ResourceExhaustedError("NotificationSet exceeds the Windows wait-object limit");
-    }
 #endif
     return impl;
+  }
+
+  absl::Status Register(const NativeWaitHandle& handle) {
+#if defined(__linux__)
+    epoll_event event = {};
+    event.events = EPOLLIN;
+    event.data.fd = static_cast<int>(handle.value);
+    if (epoll_ctl(poll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
+      return PlatformError("epoll_ctl for an external notification");
+    }
+#elif defined(__APPLE__)
+    struct kevent change = {};
+    EV_SET(&change, static_cast<uintptr_t>(handle.value), EVFILT_READ, EV_ADD, 0, 0, nullptr);
+    if (kevent(poll_fd_, &change, 1, nullptr, 0, nullptr) < 0) {
+      return PlatformError("kevent for an external notification");
+    }
+#elif defined(_WIN32)
+    if (handles_.size() >= MAXIMUM_WAIT_OBJECTS) {
+      return absl::ResourceExhaustedError("NotificationSet exceeds the Windows wait-object limit");
+    }
+    handles_.push_back(reinterpret_cast<HANDLE>(handle.value));
+#endif
+    return absl::OkStatus();
   }
 
   void Signal() noexcept override {
@@ -174,33 +216,49 @@ class NotificationSet::Impl final : public NotificationSink {
 #endif
   }
 
-  absl::Status Wait() {
+  // A timeout and a wake are the same outcome here: both return OK and leave it
+  // to the caller's next poll to find out whether anything is ready.
+  //
+  // Every interruption recomputes the remaining time from `deadline` rather
+  // than reusing the original span. Resuming with the full span would let a
+  // stream of signals extend the wait without bound, which is exactly the
+  // unbounded sleep a deadline exists to prevent.
+  absl::Status Wait(std::optional<absl::Time> deadline) {
 #if defined(__linux__)
     epoll_event event = {};
     int result;
     do {
-      result = epoll_wait(poll_fd_, &event, 1, -1);
+      result = epoll_wait(poll_fd_, &event, 1, RemainingMilliseconds(deadline));
     } while (result < 0 && errno == EINTR);
     if (result < 0) {
       return PlatformError("epoll_wait");
     }
-    if (event.data.fd == software_fd_) {
-      DrainSoftwareNotification();
-    }
+    // Drain unconditionally. An external descriptor can win every epoll_wait,
+    // and a stale software count would then wake the next wait immediately. A
+    // timeout drains too: the read is non-blocking and clears a stale count.
+    DrainSoftwareNotification();
 #elif defined(__APPLE__)
     struct kevent event = {};
     int result;
     do {
-      result = kevent(poll_fd_, nullptr, 0, &event, 1, nullptr);
+      struct timespec timeout = {};
+      const bool bounded = FillTimeout(deadline, &timeout);
+      result = kevent(poll_fd_, nullptr, 0, &event, 1, bounded ? &timeout : nullptr);
     } while (result < 0 && errno == EINTR);
     if (result < 0) {
       return PlatformError("kevent wait");
     }
 #elif defined(_WIN32)
     const DWORD handle_count = static_cast<DWORD>(handles_.size());
-    const DWORD result = WaitForMultipleObjects(handle_count, handles_.data(), FALSE, INFINITE);
+    const DWORD result = WaitForMultipleObjects(handle_count, handles_.data(), FALSE,
+                                                RemainingWindowsMilliseconds(deadline));
     if (result == WAIT_FAILED) {
       return PlatformError("WaitForMultipleObjects");
+    }
+    // WAIT_TIMEOUT is neither a failure nor a signalled index, so it has to be
+    // taken before the range check rejects it as an unexpected result.
+    if (result == WAIT_TIMEOUT) {
+      return absl::OkStatus();
     }
     if (result < WAIT_OBJECT_0 || result >= WAIT_OBJECT_0 + handle_count) {
       return absl::InternalError("WaitForMultipleObjects returned an unexpected result");
@@ -237,68 +295,53 @@ class NotificationSet::Impl final : public NotificationSink {
 #endif
 };
 
-NotificationSet::~NotificationSet() {
-  if (impl_ == nullptr) {
-    return;
-  }
-  Disarm();
-  for (Notification* notification : notifications_) {
-    notification->Detach(*impl_);
-  }
+NotificationSet::~NotificationSet() { Disarm(); }
+
+absl::StatusOr<std::unique_ptr<NotificationSet>> NotificationSet::Create() {
+  ASSIGN_OR_RETURN(std::unique_ptr<Impl> impl, Impl::Create());
+  return std::unique_ptr<NotificationSet>(new NotificationSet(std::move(impl)));
 }
 
-NotificationSet::NotificationSet(NotificationSet&& other) noexcept
-    : notifications_(std::move(other.notifications_)),
-      impl_(std::move(other.impl_)),
-      armed_count_(other.armed_count_) {
-  other.armed_count_ = 0;
+absl::StatusOr<Notification*> NotificationSet::AddSoftware() {
+  RETURN_IF_ERROR(CheckMutable());
+  notifications_.push_back(std::unique_ptr<Notification>(new Notification(*impl_)));
+  return notifications_.back().get();
 }
 
-absl::StatusOr<NotificationSet> NotificationSet::Create(
-    absl::Span<Notification* const> notifications) {
-  if (notifications.empty()) {
-    return absl::InvalidArgumentError("NotificationSet requires at least one notification");
-  }
+absl::StatusOr<Notification*> NotificationSet::AddSoftware(NotificationCallbacks callbacks) {
+  RETURN_IF_ERROR(CheckMutable());
+  notifications_.push_back(
+      std::unique_ptr<Notification>(new Notification(*impl_, std::move(callbacks))));
+  return notifications_.back().get();
+}
 
-  std::vector<Notification*> owned_notifications;
-  owned_notifications.reserve(notifications.size());
-  absl::flat_hash_set<Notification*> seen_notifications;
-  absl::flat_hash_set<intptr_t> seen_native_wait_handles;
-  for (Notification* notification : notifications) {
-    if (notification == nullptr) {
-      return absl::InvalidArgumentError("NotificationSet received a null notification");
-    }
-    if (!seen_notifications.insert(notification).second) {
-      return absl::InvalidArgumentError("NotificationSet received a duplicate notification");
-    }
-    if (notification->IsExternal() &&
-        !seen_native_wait_handles.insert(notification->native_wait_handle()->value).second) {
-      return absl::InvalidArgumentError("NotificationSet received a duplicate native wait handle");
-    }
-    owned_notifications.push_back(notification);
+absl::StatusOr<Notification*> NotificationSet::AddExternal(NativeWaitHandle native_wait_handle,
+                                                           NotificationCallbacks callbacks) {
+  RETURN_IF_ERROR(CheckMutable());
+  RETURN_IF_ERROR(ValidateNativeWaitHandle(native_wait_handle));
+  if (!registered_wait_handles_.insert(native_wait_handle.value).second) {
+    return absl::InvalidArgumentError("NotificationSet received a duplicate native wait handle");
   }
+  RETURN_IF_ERROR(impl_->Register(native_wait_handle));
+  notifications_.push_back(std::unique_ptr<Notification>(
+      new Notification(*impl_, native_wait_handle, std::move(callbacks))));
+  return notifications_.back().get();
+}
 
-  ASSIGN_OR_RETURN(std::unique_ptr<Impl> impl, Impl::Create(owned_notifications));
-
-  size_t attached_count = 0;
-  for (Notification* notification : owned_notifications) {
-    absl::Status status = notification->Attach(*impl);
-    if (!status.ok()) {
-      for (size_t i = 0; i < attached_count; ++i) {
-        owned_notifications[i]->Detach(*impl);
-      }
-      return status;
-    }
-    ++attached_count;
+absl::Status NotificationSet::Seal() {
+  RETURN_IF_ERROR(CheckMutable());
+  if (notifications_.empty()) {
+    return absl::FailedPreconditionError("NotificationSet requires at least one notification");
   }
-  return NotificationSet(std::move(owned_notifications), std::move(impl));
+  sealed_ = true;
+  return absl::OkStatus();
 }
 
 absl::Status NotificationSet::Arm() {
   if (armed_count_ != 0) {
     return absl::FailedPreconditionError("NotificationSet is already armed");
   }
-  for (Notification* notification : notifications_) {
+  for (const std::unique_ptr<Notification>& notification : notifications_) {
     absl::Status status = notification->Arm();
     if (!status.ok()) {
       Disarm();
@@ -306,25 +349,41 @@ absl::Status NotificationSet::Arm() {
     }
     ++armed_count_;
   }
+  // Published last, so a producer never sees the set armed while a source it
+  // owns is not. The fence inside makes the caller's recheck pass visible to
+  // any producer that reads the flag as false.
+  impl_->SetArmed(true);
   return absl::OkStatus();
 }
 
 void NotificationSet::Disarm() noexcept {
+  // Cleared first: a producer that reads the flag after this point pays no
+  // syscall, and the runner is awake and about to poll for its work anyway.
+  impl_->SetArmed(false);
   while (armed_count_ > 0) {
     --armed_count_;
     notifications_[armed_count_]->Disarm();
   }
 }
 
-absl::Status NotificationSet::Wait() {
-  if (armed_count_ != notifications_.size()) {
+absl::Status NotificationSet::Wait() { return WaitInternal(std::nullopt); }
+
+absl::Status NotificationSet::WaitUntil(absl::Time deadline) { return WaitInternal(deadline); }
+
+absl::Status NotificationSet::WaitInternal(std::optional<absl::Time> deadline) {
+  if (notifications_.empty() || armed_count_ != notifications_.size()) {
     return absl::FailedPreconditionError("NotificationSet must be armed before waiting");
   }
-  return impl_->Wait();
+  return impl_->Wait(deadline);
 }
 
-NotificationSet::NotificationSet(std::vector<Notification*> notifications,
-                                 std::unique_ptr<Impl> impl)
-    : notifications_(std::move(notifications)), impl_(std::move(impl)) {}
+absl::Status NotificationSet::CheckMutable() const {
+  if (sealed_) {
+    return absl::FailedPreconditionError("NotificationSet is sealed");
+  }
+  return absl::OkStatus();
+}
+
+NotificationSet::NotificationSet(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
 
 }  // namespace zebes

@@ -11,6 +11,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/time/time.h"
 #include "common/image_io.h"
 
 namespace zebes {
@@ -68,6 +69,11 @@ class ImageGenerationOperation {
 
   virtual absl::StatusOr<std::optional<ImageGenerationResult>> Poll() = 0;
   virtual void Cancel() noexcept = 0;
+
+  // The longest a caller may wait before calling Poll again. An adapter built
+  // on HttpRequestHandle should forward the handle's answer rather than invent
+  // one, so the transport's own timer decides the cadence.
+  virtual absl::Duration SuggestedPollDelay() const { return absl::Milliseconds(50); }
 };
 
 // RAII owner for one request. An unfinished request is cancelled on destruction
@@ -87,6 +93,10 @@ class ImageGenerationRequest {
   absl::StatusOr<std::optional<ImageGenerationResult>> Poll();
   void Cancel() noexcept;
   bool active() const { return operation_ != nullptr; }
+
+  // Zero once the request has finished, so a caller sleeping on this value
+  // polls immediately and learns the request is no longer active.
+  absl::Duration SuggestedPollDelay() const;
 
  private:
   friend class ImageGenerationClient;

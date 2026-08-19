@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -21,8 +22,7 @@ struct RgbaImage {
   std::vector<uint8_t> pixels;
 
   bool IsValid() const {
-    return width > 0 && height > 0 &&
-           pixels.size() == static_cast<size_t>(width) * height * 4;
+    return width > 0 && height > 0 && pixels.size() == static_cast<size_t>(width) * height * 4;
   }
 };
 
@@ -44,5 +44,12 @@ absl::Status WritePng(const std::string& path, int width, int height,
 // the editor learns which pictures it already has. Decoding sits here beside
 // the encoder, and off the SDL boundary, for the same reason writing does.
 absl::StatusOr<RgbaImage> ReadPng(const std::string& path);
+
+// Decodes encoded image bytes into tightly packed RGBA8, for pixels that
+// arrive over a network rather than from a file.
+//
+// `maximum_pixels` bounds the decoded allocation: compressed size says little
+// about decoded size. Undecodable bytes are DataLoss, not NotFound.
+absl::StatusOr<RgbaImage> DecodeImage(absl::Span<const uint8_t> bytes, int64_t maximum_pixels);
 
 }  // namespace zebes

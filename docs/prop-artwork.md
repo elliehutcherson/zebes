@@ -11,7 +11,10 @@ are implemented. Bundle deletion and snapshot-guarded deterministic
 regeneration are also implemented. The Prop Artwork tab now completes the
 durable imported-source workflow with grounded, ceiling, and free/background
 attachment modes. Uncommitted imports are session-owned and are discarded on
-replacement, Clear, or normal shutdown. Provider integration remains.
+replacement, Clear, or normal shutdown. Milestone 5's generation service,
+session-lifetime polling engine, and first provider adapter (OpenAI
+`gpt-image-2`) are implemented; the editor's prompt and candidate controls and
+the opt-in live test remain.
 
 This design covers a static world prop such as a boulder, tree, sign, or ruin.
 The result is ordinary Zebes data: a texture, a one-frame sprite, and a blueprint
@@ -203,6 +206,26 @@ local transforms. The provider adapter needs a cancellable transport request,
 or a transport operation with a strict timeout plus a non-blocking request
 owner.
 
+**Who polls.** `ImageGenerationEngine` owns every in-flight request and runs on
+its own thread under `EngineRunner`, created once at editor startup and
+destroyed at shutdown. The editor submits a spec, receives an id, and drains
+finished requests from its existing frame poll; it never blocks on the engine.
+Results must reach the editor thread regardless, because accepting a candidate
+commits resource-manager and GPU state, so the engine is a place to put
+retries and rate limiting rather than a way to avoid that handoff.
+
+The engine polls rather than waking on a socket, because the transport exposes
+no descriptor its caller can wait on. `HttpOperation::SuggestedPollDelay`
+carries libcurl's own timer up to the engine, which sleeps until the soonest
+deadline across its requests and indefinitely when none are in flight. The
+alternative — `curl_multi_socket_action` with dynamically registered sockets —
+was rejected: `NotificationSet` seals its source list before a worker starts
+precisely so the list is never mutated while a thread is armed, and breaking
+that invariant buys a fraction of a second on requests that take tens.
+
+Shutdown does not drain. Stopping the runner abandons an unfinished request,
+and destroying the engine cancels it without joining remote work.
+
 Invalid response bytes, unsupported formats, oversized images, empty candidate
 sets, authentication failures, rate limits, and cancellation are distinct
 errors. The adapter decodes accepted bytes to `RgbaImage` through common image
@@ -212,6 +235,15 @@ Generation should ask for a single isolated subject, a simple or transparent
 background, the selected view and light direction, and the target style. Those
 instructions improve the input, but deterministic processing and validation
 remain authoritative. A good prompt is not an invariant.
+
+**The first adapter targets OpenAI `gpt-image-2`.** Its generations endpoint is
+one synchronous POST returning base64 PNG candidates, so an operation wraps a
+single transport request with no second state machine. `n` bounds candidates at
+ten. It rejects transparent backgrounds, unlike `gpt-image-1`, so the adapter
+reports `supports_transparency = false` and the capability check refuses such a
+spec before any request is sent; isolation removes the background instead,
+which is the path imported sources already take. Reverting to `gpt-image-1` for
+real alpha is a change to `OpenAiImageConfig`, not to the adapter.
 
 ## 5. Managed source artwork
 
@@ -611,9 +643,11 @@ unfinished provider behavior.
    invariants is necessary to inspect the result but is not the success
    criterion. If the answer is no, iterate on transforms and palette policy
    without building resources, lifecycle, UI, or provider integration.
-1. **Shared palette and image primitives (foundation implemented).** Keep the accepted spike code: extract
-   the terrain palette without changing terrain output; add safe in-memory
-   decode and content digests.
+1. **Shared palette and image primitives (implemented).** Keep the accepted
+   spike code: extract the terrain palette without changing terrain output; add
+   safe in-memory decode and content digests. The palette and digests landed
+   here; in-memory decode was recorded as done but was not, and arrived with
+   Milestone 5 as `DecodeImage` when the adapter needed it.
 2. **Deterministic artwork library (foundation implemented; diagnostics still expand).** Implement typed stages, diagnostics,
    final validation, and focused fixtures beyond the spike's minimum path. No
    editor or provider dependency.
@@ -678,7 +712,8 @@ unfinished provider behavior.
    because linking remains dominant. CI retains its existing compiler cache,
    while local presets explicitly disable SDL's implicit ccache discovery so a
    machine with ccache installed does not silently get a partial cache policy.
-5. **Generation service and first adapter (in progress).** The first slice adds
+5. **Generation service and first adapter (implemented; editor flow remains).**
+   The first slice adds
    provider-neutral generation specifications, capabilities, candidates, and
    stable provenance; an environment-backed move-only credential boundary; and
    bounded HTTPS request/response types. Generation and transport handles poll
@@ -689,10 +724,36 @@ unfinished provider behavior.
 
    The libcurl transport is implemented with asynchronous DNS, verified HTTPS,
    redirects disabled, bounded response headers and body, and immediate
-   cancellation without a worker join. Next, implement the first provider
-   adapter, then add editor candidate selection, retained-source acceptance,
-   and credential-gated opt-in integration tests. Imported and generated
-   sources converge at the same acceptance boundary.
+   cancellation without a worker join.
+
+   The polling owner and the first adapter are now implemented too.
+   `ImageGenerationEngine` is a session-lifetime `Engine` that owns in-flight
+   requests, takes specs and cancellations over a notifying MPSC queue, and
+   returns one event per submitted request over a second queue the editor
+   drains without blocking. Delivery is infallible by construction: `Submit`
+   reserves one of eight outstanding slots before queueing and `NextEvent`
+   releases it, so the event queue cannot overflow and the engine needs no
+   retry-delivery path. Over the bound, `Submit` refuses with
+   `ResourceExhausted` rather than queueing behind it. A rejected spec or a
+   failed `Start` becomes that request's event rather than a `Run` failure,
+   because returning it from `Run` would end the runner and take every other
+   in-flight request with it.
+
+   `OpenAiImageClient` targets `gpt-image-2` through a typed
+   `OpenAiImageConfig`. It loads its credential per request, so a missing key
+   is one request's `Unauthenticated` rather than a startup failure, and sends
+   it only as a sensitive header. Provider status codes map to distinct
+   statuses — 400 invalid, 401 unauthenticated, 403 permission denied, 404 not
+   found, 429 resource exhausted, 5xx unavailable — and malformed bodies,
+   undecodable base64, and empty candidate sets are `DataLoss` and `NotFound`.
+   Common image I/O gained `DecodeImage`, which reads dimensions from the
+   header before decoding so an oversized image is refused without allocating
+   its surface; milestone 1 had recorded this as implemented when it was not.
+
+   Next: editor prompt and candidate controls, converging generated candidates
+   with the retained-source acceptance path, and a credential-gated opt-in
+   integration test. Imported and generated sources converge at the same
+   acceptance boundary.
 6. **Operational hardening.** Exercise shutdown, retries that are safe to
    retry, provider error UX, crash leftovers in staging, and the complete editor
    walk before considering another provider or atlas packing.

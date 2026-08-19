@@ -2,8 +2,10 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "gtest/gtest.h"
 #include "macros.h"
 
@@ -76,6 +78,54 @@ TEST(ImageIoTest, RejectsMismatchedPixelCounts) {
   EXPECT_FALSE(WritePng(path, 4, 4, Checkerboard(2, 2)).ok());
   EXPECT_FALSE(WritePng(path, 0, 4, {}).ok());
   EXPECT_FALSE(std::filesystem::exists(path));
+}
+
+std::vector<uint8_t> EncodedPng(int width, int height) {
+  const std::string path = TempPath("image_io_decode_fixture.png");
+  std::filesystem::remove(path);
+  const absl::Status written = WritePng(path, width, height, Checkerboard(width, height));
+  EXPECT_TRUE(written.ok()) << written;
+  std::ifstream file(path, std::ios::binary);
+  const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(file)),
+                                   std::istreambuf_iterator<char>());
+  std::filesystem::remove(path);
+  return bytes;
+}
+
+TEST(ImageIoTest, DecodesEncodedBytesToTheSamePixels) {
+  const std::vector<uint8_t> encoded = EncodedPng(8, 6);
+  ASSERT_FALSE(encoded.empty());
+
+  ASSERT_OK_AND_ASSIGN(const RgbaImage image, DecodeImage(encoded, 1 << 20));
+
+  EXPECT_EQ(image.width, 8);
+  EXPECT_EQ(image.height, 6);
+  EXPECT_EQ(image.pixels, Checkerboard(8, 6));
+}
+
+TEST(ImageIoTest, ReportsUndecodableBytesAsDataLoss) {
+  const std::string text = "this is not a PNG";
+  const std::vector<uint8_t> bytes(text.begin(), text.end());
+
+  EXPECT_EQ(DecodeImage(bytes, 1 << 20).status().code(), absl::StatusCode::kDataLoss);
+  EXPECT_EQ(DecodeImage({}, 1 << 20).status().code(), absl::StatusCode::kDataLoss);
+}
+
+TEST(ImageIoTest, RefusesAnImageBeyondThePixelLimit) {
+  const std::vector<uint8_t> encoded = EncodedPng(8, 6);
+  ASSERT_FALSE(encoded.empty());
+
+  const absl::Status status = DecodeImage(encoded, 47).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kResourceExhausted);
+  EXPECT_TRUE(DecodeImage(encoded, 48).ok()) << "48 pixels is exactly an 8x6 image";
+}
+
+TEST(ImageIoTest, RejectsAnInvalidPixelLimit) {
+  const std::vector<uint8_t> encoded = EncodedPng(2, 2);
+
+  EXPECT_EQ(DecodeImage(encoded, 0).status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(DecodeImage(encoded, -1).status().code(), absl::StatusCode::kInvalidArgument);
 }
 
 }  // namespace

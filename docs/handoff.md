@@ -4,33 +4,59 @@
 > [`roadmap.md`](roadmap.md) for sequencing and the linked feature design—such
 > as [`prop-artwork.md`](prop-artwork.md)—for durable decisions and TODOs.
 
-## Current: Generation and polling infrastructure complete
+## Current: Generation engine and first provider adapter complete
 
-As of 2026-08-17, [`roadmap.md`](roadmap.md) remains the source of truth for
+As of 2026-08-18, [`roadmap.md`](roadmap.md) remains the source of truth for
 sequencing. Tracks 0-3 are complete. Track 4 layers, imported-source prop
 artwork, attachment modes, and the developer feedback loop are implemented.
 
-Milestone 5 now has its provider-neutral foundation. Image-generation requests
-validate capabilities before reaching an adapter and return move-only,
+Milestone 5 is implemented except for its editor surface. Image-generation
+requests validate capabilities before reaching an adapter and return move-only,
 cancellable polling handles with stable candidate provenance. Credentials cross
-the boundary as move-only `SecretString` values. The HTTP seam enforces HTTPS,
-timeouts, bounded responses, and prompt cancellation; its libcurl implementation
-uses the multi interface and requires asynchronous DNS so `Poll` never performs
-a blocking name lookup. The first provider adapter, candidate acceptance in the
-Prop Artwork editor, and credential-gated integration test remain.
+the boundary as move-only `SecretString` values, loaded per request so no secret
+outlives its request. The HTTP seam enforces HTTPS, timeouts, bounded responses,
+and prompt cancellation; its libcurl implementation uses the multi interface and
+requires asynchronous DNS so `Poll` never performs a blocking name lookup.
+
+`ImageGenerationEngine` is the first production owner of the engine-runner
+infrastructure: created at editor startup, destroyed at shutdown, owning every
+in-flight request. Bounding outstanding requests to eight is what makes event
+delivery infallible — a slot is reserved at `Submit` and released at
+`NextEvent`, so a request always has room for its one event. A rejected spec or
+failed provider start is that request's event, never a `Run` failure, because a
+failing `Run` would take every other in-flight request down with it.
+
+`OpenAiImageClient` targets `gpt-image-2`: one synchronous POST returning base64
+PNG candidates, so an operation wraps a single transport request. That model
+rejects transparent backgrounds, so the adapter reports no transparency support
+and isolation removes the background as it already does for imported sources.
+Reverting to `gpt-image-1` for real alpha is an `OpenAiImageConfig` change.
+
+Two gaps in `common` surfaced and were closed. `Engine` reported only
+`kDidWork`/`kIdle`, which forced any engine with a source it can only poll to
+claim `kDidWork` and spin a core; passes now carry an optional `wake_deadline`
+and `NotificationSet::WaitUntil` sleeps until a notification or that time. And
+`image_io` had no in-memory decode despite Milestone 1 recording one, so
+`DecodeImage` was added — it reads dimensions from the header before decoding,
+refusing an oversized image without allocating its surface.
 
 Common now also contains the reusable long-lived polling-job infrastructure.
 `BlockingCallbackThread` owns a non-templated `absl::AnyInvocable<void()>`
-worker. An `Engine` exposes independent notifications and performs bounded
-non-blocking `Run` passes; `EngineRunner` arms every source, rechecks work to
-close the hardware-interrupt race, then blocks in `NotificationSet` until work
-or `Stop`. The set uses `epoll`/`eventfd` on Linux, `kqueue`/`EVFILT_USER` on
-macOS, and waitable events on Windows, and accepts borrowed native handles for
-NIC-style interrupt sources. `MpscQueue` is fixed-capacity, preallocated, and
+worker. An `Engine` owns a `NotificationSet` holding every wake source it
+exposes, and performs bounded non-blocking `Run` passes; `EngineRunner` borrows
+the set, adds its stop source, seals it, then arms every source, rechecks work
+to close the hardware-interrupt race, and blocks until work or `Stop`. `Notify`
+costs a syscall only while a thread is parked: the arm flag and the recheck pass
+form a store-then-load handshake, so producers must publish before they notify.
+The set uses `epoll`/`eventfd` on Linux, `kqueue`/`EVFILT_USER` on macOS, and
+waitable events on Windows, and accepts borrowed native handles for NIC-style
+interrupt sources. `MpscQueue` is fixed-capacity, preallocated, and
 lock-free with explicit backpressure; `MpscNotifyQueue` signals only after a
 successful publication. The macOS native path and the platform-neutral race
 contracts have focused coverage; Linux and Windows need execution on their
-native CI runners when those are available.
+native CI runners when those are available — including the `WaitUntil`
+remainder-recompute on interrupted waits and the Windows `WAIT_TIMEOUT` arm,
+which only macOS exercises today.
 
 The error-handling cleanup made unchanged `Status` and `StatusOr` propagation
 use the common macros consistently, while resource write/update paths now use
@@ -40,25 +66,49 @@ include contents, compile command, lint configuration, tool binary, and
 platform arguments. The measured three-file check is 8.87 seconds cold and
 0.31 seconds warm; failures are never cached and `--no-cache` forces analysis.
 
+Where the generation code lives:
+
+| Path | What |
+|---|---|
+| `src/common/engine.h` | `Engine`, `RunFeedback`, and `RunResult` with its `wake_deadline` |
+| `src/common/engine_runner.{h,cc}` | Arm, recheck, then sleep — with or without a deadline |
+| `src/common/notification_set.{h,cc}` | The native wait set; `Wait` and `WaitUntil` |
+| `src/common/image_io.{h,cc}` | `WritePng`, `ReadPng`, and in-memory `DecodeImage` |
+| `src/editor/image_generation/image_generation.{h,cc}` | Provider-neutral spec, capabilities, candidates, RAII request |
+| `src/editor/image_generation/image_generation_engine.{h,cc}` | The session-lifetime owner of in-flight requests |
+| `src/editor/image_generation/openai_image_client.{h,cc}` | The `gpt-image-2` adapter and its typed config |
+| `src/editor/image_generation/http_transport.{h,cc}` | Bounded HTTPS seam and `SuggestedPollDelay` |
+| `src/editor/image_generation/curl_http_transport.cc` | libcurl multi implementation; derives the poll delay |
+| `src/editor/image_generation/credential_source.{h,cc}` | `SecretString` and the environment-backed source |
+
 ### Pick up here next
 
-Implement the first provider adapter recorded in
-[`prop-artwork.md`](prop-artwork.md) §12. Keep provider request/response types
-inside the adapter, decode accepted bytes through common image I/O, and feed the
-existing provider-neutral candidate result. Then add prompt/candidate controls
-to the Prop Artwork editor and converge generated candidates with the retained
-source acceptance path. The live integration test stays opt-in and
-credential-gated.
+Wire the generated-source flow into the Prop Artwork editor. Nothing constructs
+`ImageGenerationEngine` yet, so the composition root comes first: create the
+engine, its `EngineRunner`, and its `BlockingCallbackThread` at editor startup
+and own them for the process. The thread must be running before anything can
+call `Stop` — a stop that lands first leaves the runner stopped and `Run`
+returns `FailedPrecondition`.
+
+Then add prompt and candidate controls to the editor model and panels, drain
+`NextEvent` from the existing `PollWork` alongside the `BackgroundTask`
+members, and converge an accepted candidate with the retained-source path so
+generated and imported sources reach `SelectSource` the same way. The
+`ImageGenerationResult` to `GeneratedArtworkProvenance` mapping is
+field-for-field; no schema change and no migration. The live integration test
+stays opt-in and credential-gated, and is the only thing that will exercise the
+curl negative-timeout branch.
 
 ### What remains
 
-- **Track 4:** the first image provider adapter, generated-candidate editor
-  flow, and Milestone 6 operational hardening remain. Parallax zone seaming is
-  still the smallest independent feature. See [`roadmap.md`](roadmap.md) and
+- **Track 4:** the generated-candidate editor flow and Milestone 6 operational
+  hardening remain. Parallax zone seaming is still the smallest independent
+  feature. See [`roadmap.md`](roadmap.md) and
   [`prop-artwork.md`](prop-artwork.md).
-- **Polling adoption:** the common engine runner is infrastructure only; wire
-  the first production polling or interrupt-driven owner when one is introduced
-  rather than inventing a synthetic consumer now.
+- **Polling adoption:** `ImageGenerationEngine` is the first production owner
+  and the shape later pollers should follow. The game loop is the expected
+  second: a fixed timestep is the same "idle, but due at T" the deadline was
+  added for.
 - **Deferred terrain tool:** atlas compaction remains unjustified until real
   atlas growth becomes uncomfortable. It must be explicit because compaction
   renumbers tile IDs that levels store.

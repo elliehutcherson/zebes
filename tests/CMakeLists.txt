@@ -40,6 +40,7 @@ target_link_libraries(engine_runner_test
   engine_runner
   macros
   mpsc_queue
+  status_macros
   gtest_main
 )
 gtest_discover_tests(engine_runner_test)

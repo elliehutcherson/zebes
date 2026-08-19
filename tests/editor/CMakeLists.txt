@@ -205,6 +205,33 @@ target_link_libraries(prop_artwork_editor_test
 target_include_directories(prop_artwork_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(prop_artwork_editor_test)
 
+add_executable(openai_image_client_test openai_image_client_test.cc)
+target_link_libraries(openai_image_client_test
+  PRIVATE
+  image_io
+  macros
+  openai_image_client
+  status_macros
+  nlohmann_json::nlohmann_json
+  gtest_main
+)
+target_include_directories(openai_image_client_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(openai_image_client_test)
+
+add_executable(image_generation_engine_test image_generation_engine_test.cc)
+target_link_libraries(image_generation_engine_test
+  PRIVATE
+  blocking_callback_thread
+  engine_runner
+  image_generation
+  image_generation_engine
+  macros
+  status_macros
+  gtest_main
+)
+target_include_directories(image_generation_engine_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(image_generation_engine_test)
+
 add_executable(image_generation_test image_generation_test.cc)
 target_link_libraries(image_generation_test
   gtest_main

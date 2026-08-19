@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <new>
 #include <optional>
 #include <type_traits>
 #include <utility>
@@ -39,10 +40,15 @@ class MpscQueue {
   MpscQueue(const MpscQueue&) = delete;
   MpscQueue& operator=(const MpscQueue&) = delete;
 
-  // Publishes value if a preallocated slot is available. On failure, value is
+  // Publishes value if this producer can claim a slot. On failure, value is
   // unchanged so the producer can retry or apply its own backpressure policy.
+  // False means a full pass over the ring won no slot, which under contention
+  // can happen while slots are free; it is backpressure, not proof of a full
+  // queue.
   bool TryPush(T&& value) noexcept {
-    size_t index = next_slot_.fetch_add(1, std::memory_order_relaxed) % Capacity;
+    size_t& cursor = ProbeCursor();
+    size_t index = cursor % Capacity;
+    ++cursor;
     for (size_t visited = 0; visited < Capacity; ++visited) {
       uint8_t expected = kFree;
       if (slots_[index].state.compare_exchange_strong(
@@ -82,12 +88,26 @@ class MpscQueue {
   static constexpr uint8_t kFree = 0;
   static constexpr uint8_t kReserved = 1;
   static constexpr size_t kEmpty = Capacity;
+  static constexpr size_t kCacheLine = std::hardware_destructive_interference_size;
 
-  struct Slot {
+  // Cache-line aligned: producers claim different slots concurrently, and
+  // packing several slots into one line turns those independent claims into
+  // contention on the same line. Costs Capacity * (kCacheLine - sizeof(Slot))
+  // bytes, which is why Capacity is a deliberate, bounded choice.
+  struct alignas(kCacheLine) Slot {
     std::atomic<uint8_t> state = kFree;
     size_t next = kEmpty;
     std::optional<T> value;
   };
+
+  // Where this thread starts probing for a free slot. A shared counter would
+  // put a second contended read-modify-write on every push for nothing but
+  // slot distribution. Seeding from the thread-local's own address starts
+  // threads on different slots without any shared state.
+  static size_t& ProbeCursor() noexcept {
+    static thread_local size_t cursor = reinterpret_cast<uintptr_t>(&cursor) / kCacheLine;
+    return cursor;
+  }
 
   void Publish(size_t index, T&& value) noexcept {
     Slot& slot = slots_[index];
@@ -113,9 +133,12 @@ class MpscQueue {
   }
 
   std::array<Slot, Capacity> slots_;
-  std::atomic<size_t> next_slot_ = 0;
-  std::atomic<size_t> producer_head_ = kEmpty;
-  size_t consumer_head_ = kEmpty;
+
+  // Separate cache lines. producer_head_ is contended by every producer and
+  // consumer_head_ is written on every pop; packed together, one pop would
+  // invalidate the line the producers are spinning on.
+  alignas(kCacheLine) std::atomic<size_t> producer_head_ = kEmpty;
+  alignas(kCacheLine) size_t consumer_head_ = kEmpty;
 };
 
 // An MPSC queue that notifies a waiter after each successful publication.

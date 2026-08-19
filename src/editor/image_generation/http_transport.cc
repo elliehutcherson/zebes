@@ -120,6 +120,11 @@ void HttpRequestHandle::Cancel() noexcept {
   operation_.reset();
 }
 
+absl::Duration HttpRequestHandle::SuggestedPollDelay() const {
+  if (operation_ == nullptr) return absl::ZeroDuration();
+  return operation_->SuggestedPollDelay();
+}
+
 absl::StatusOr<HttpRequestHandle> HttpTransport::Start(HttpRequest request) {
   RETURN_IF_ERROR(ValidateHttpRequest(request));
   const size_t maximum_response_bytes = request.maximum_response_bytes;
