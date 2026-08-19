@@ -15,9 +15,12 @@
 # drops Apple clang's implicit /usr/local/include, and SDL_image's libavif and
 # libwebp backends are found only there.
 #
-# Scope: the Google style checks, plus the two readability checks that back
-# rules written down in .claude/rules/cpp-style.md. bugprone-* and modernize-*
-# were dropped deliberately; re-add either as one line if that changes.
+# Scope: the Google style checks, plus the two readability checks listed under
+# "Tool-enforced conventions" in docs/style-guide.md. Those conventions are
+# deliberately absent from .claude/rules/, because these checks catch every
+# violation and restating them would only spend Claude's context. Dropping a
+# check here therefore silently drops the rule. bugprone-* and modernize-* were
+# dropped deliberately; re-add either as one line if that changes.
 Checks: >
   -*,
   google-*,

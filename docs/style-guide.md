@@ -18,22 +18,15 @@ regeneration overwrites it.
 
 ---
 
-<!-- rule:cpp-style paths="**/*.cc,**/*.h,**/CMakeLists.txt,**/*.cmake" -->
+<!-- rule:cpp-style -->
 
 ## C++
 
 The [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html),
-plus the rules below. `.clang-format` is the formatting authority; a hook runs it
-on files Claude edits, and your own edits should go through your editor's
-clang-format integration or `clang-format -i`.
-
-### Naming
-
-- Types and functions: `PascalCase`
-- Locals and parameters: `snake_case`
-- Data members: `snake_case_`
-- Constants: `kPascalCase`
-- CMake targets and source file names: `snake_case`
+plus the rules below. Formatting and identifier naming are absent on purpose:
+`.clang-format` and `.clang-tidy` enforce them and `scripts/lint.sh` reports
+violations, so restating them here would only cost context. The one naming rule
+no tool checks is that CMake targets and source file names are `snake_case`.
 
 ### Types and initialization
 
@@ -43,9 +36,6 @@ clang-format integration or `clang-format -i`.
 - References for required dependencies. Pointers only for nullable or
   reseatable ones. Never null-check a reference.
 - Express ownership with RAII types such as `std::unique_ptr`.
-- Mark a member function `static` when it does not read or modify instance
-  state. clang-tidy enforces this with
-  `readability-convert-member-functions-to-static`.
 - Prefer Zebes-owned domain types at library boundaries. Do not expose SDL or
   ImGui types from engine or resource interfaces.
 
@@ -96,7 +86,7 @@ over their STL equivalents.
 
 <!-- /rule -->
 
-<!-- rule:definitions paths="src/resources/**,src/objects/**,scripts/migrate_definitions.py,tests/resources/**,tests/assets/**" -->
+<!-- rule:definitions -->
 
 ## Serialized definitions
 
@@ -140,7 +130,7 @@ Strict parsing is a trap without both of these:
 
 <!-- /rule -->
 
-<!-- rule:testing paths="tests/**" -->
+<!-- rule:testing -->
 
 ## Testing
 
@@ -165,14 +155,10 @@ Add tests for the failure paths, not only the success path. Every
 ### Headless by default
 
 Engine and resource tests run headless. A test that needs an SDL window or
-ImGui interaction belongs in the UI test preset, run with:
+ImGui interaction belongs in the UI test preset, under the `ui` label.
 
-```bash
-./scripts/build_and_test.sh --ui-tests
-```
-
-If a test needs a window, that usually means the code under test reaches too
-far down the stack. Check whether the dependency can be an interface first.
+Needing a window usually means the code under test reaches too far down the
+stack. Check whether the dependency can be an interface first.
 
 ### Definitions
 
@@ -182,6 +168,25 @@ adding it to that test.
 <!-- /rule -->
 
 ---
+
+## Tool-enforced conventions
+
+These are real rules; they are written here rather than in the extracted
+sections because a tool already catches every violation, so spending session
+context on them buys nothing. `scripts/lint.sh` is where you find out.
+
+| Convention | Enforced by |
+| --- | --- |
+| Types, functions: `PascalCase` | `readability-identifier-naming` |
+| Locals, parameters: `snake_case` | `readability-identifier-naming` |
+| Data members: `snake_case_` | `readability-identifier-naming` |
+| Constants: `kPascalCase` | `readability-identifier-naming` |
+| Macros: `UPPER_CASE` | `readability-identifier-naming` |
+| `static` on member functions that touch no instance state | `readability-convert-member-functions-to-static` |
+| Formatting, include order, header guards | `.clang-format`, `google-*` |
+
+CMake target and source file naming (`snake_case`) has no check, which is why
+it stays in the extracted C++ section.
 
 ## Why these rules
 
@@ -241,11 +246,17 @@ build or toolchain logic, and broad refactors. A header or CMake edit with a
 small known consumer set is not inherently cross-cutting:
 
 ```bash
-./scripts/build_and_test.sh
-./scripts/build_and_test.sh --ui-tests   # behavior requiring SDL or ImGui
+./scripts/build_and_test.sh              # every non-UI test
+./scripts/build_and_test.sh --ui-tests   # only the tests labeled `ui`
+./scripts/build_and_test.sh --all-tests-with-ui  # both; what CI runs
 ```
 
-GitHub Actions runs the comprehensive suite for every pull request and push to
+`--ui-tests` is a filter, not an addition: it runs the `ui` label alone and
+skips everything the unflagged command covers. Reach for it when SDL or ImGui
+behavior is the thing under test, and for `--all-tests-with-ui` when you want
+the merge gate locally.
+
+GitHub Actions runs `--all-tests-with-ui` for every pull request and push to
 `main`. A new session alone is not a reason to rerun it.
 
 `.clang-tidy` runs the Google checks plus the two readability checks that back

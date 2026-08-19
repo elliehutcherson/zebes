@@ -25,8 +25,9 @@ syntax hoping for a fix or weaken an assertion to make a test pass.
   and `cmake/`.
 - `include/` contains vendored submodules. Do not search or edit it unless the
   task explicitly concerns a dependency; use `rg --no-ignore` for that case.
-- `build/` is generated output, and `notes/` contains non-normative research.
-  Neither is a source of project requirements.
+- `build/` is generated output, `notes/` contains non-normative research, and
+  `old/` is archival. None is a source of project requirements. `.ignore`
+  keeps all three, and `include/`, out of default `rg` results.
 
 ## Editing and verification
 
@@ -51,9 +52,10 @@ locally only when the affected set cannot be bounded confidently, such as
 serialization changes, broadly consumed headers, central build/toolchain logic,
 or broad refactors, or when the user explicitly requests it. A header or CMake
 edit with a small known consumer set is not inherently cross-cutting. Use the
-focused `test.sh --ui` form for SDL or ImGui work and the comprehensive
-`build_and_test.sh --ui-tests` when warranted. GitHub Actions is the
-comprehensive merge gate.
+focused `test.sh --ui` form for SDL or ImGui work. `build_and_test.sh
+--ui-tests` narrows the suite to the UI-labeled tests and skips everything
+else; `build_and_test.sh --all-tests-with-ui` is the only local command that
+matches the GitHub Actions merge gate.
 
 Run `clang-format -i` on edited C++ source and header files before linting.
 Pass all edited translation units to one
