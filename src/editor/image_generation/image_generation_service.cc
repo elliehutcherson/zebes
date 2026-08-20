@@ -11,6 +11,7 @@
 #include "common/blocking_callback_thread.h"
 #include "common/engine_runner.h"
 #include "common/status_macros.h"
+#include "editor/image_generation/codex_image_client.h"
 #include "editor/image_generation/credential_source.h"
 #include "editor/image_generation/curl_http_transport.h"
 #include "editor/image_generation/http_transport.h"
@@ -19,6 +20,13 @@
 #include "editor/image_generation/openai_image_client.h"
 
 namespace zebes {
+
+absl::StatusOr<std::unique_ptr<ImageGenerationService>> ImageGenerationService::CreateCodex(
+    CodexImageConfig config) {
+  ASSIGN_OR_RETURN(std::unique_ptr<CodexImageClient> client,
+                   CodexImageClient::Create(std::move(config)));
+  return Create(std::move(client));
+}
 
 absl::StatusOr<std::unique_ptr<ImageGenerationService>> ImageGenerationService::CreateOpenAi(
     OpenAiImageConfig config) {

@@ -9,6 +9,8 @@ A C++ Game Engine project using SDL2, ImGui, and SQLite.
 * [Style Guide](docs/style-guide.md): project conventions layered on the Google
   C++ Style Guide.
 * [Roadmap](docs/roadmap.md): current work, sequencing, and settled decisions.
+* [Codex Image Generation](docs/codex-image-generation.md): subscription-backed
+  App Server design, implementation status, and remaining integration work.
 
 ## Project Structure
 
@@ -121,3 +123,38 @@ Configure, build, and launch the development editor with:
 
 Use `--no-build` to launch an existing build or `--release` to build and run
 the optimized editor.
+
+## Credentials
+
+Prop artwork generation calls a remote image provider and needs an API key. The
+editor runs without one; only the Generate control fails, as `Unauthenticated`.
+
+Copy the template, fill it in, and source it into the shell that launches the
+editor:
+
+```bash
+cp secrets.env.example secrets.env
+set -a; source secrets.env; set +a
+./scripts/run_editor.sh
+```
+
+`secrets.env` is gitignored. Nothing loads it automatically — credentials reach
+the adapter through environment variables only, so a key that is not sourced is
+a missing key, never a default.
+
+### The opt-in live provider test
+
+One binary talks to the real provider. It is deliberately unregistered with
+CTest and lands outside `bin/tests`, so no automated run can select it, and it
+spends real money each time:
+
+```bash
+set -a; source secrets.env; set +a
+cmake --build --preset dev --target openai_image_client_live_test
+build/dev/bin/tools/openai_image_client_live_test
+```
+
+Filter to `ComposesTheRealStackWithoutARequest` to check the key and the build
+without issuing a generation. Everything deterministic — cancellation, error
+mapping, malformed responses — is covered by the fake-driven tests under
+`tests/editor/` and has no business here.

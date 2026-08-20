@@ -612,6 +612,31 @@ stops the runner before joining. `EditorUi` owns one for the process and hands
 editor so the editor abandons its in-flight request while the engine still
 runs. Editors submit and drain; they never see the transport or the credential.
 
+The subscription-backed Codex adapter preserves the same boundary without an
+HTTP credential. It owns one lazily started `codex app-server` child, speaks
+the default JSONL protocol over private non-blocking pipes, and refuses any
+account that is not authenticated through ChatGPT. Operations share the child
+through raw borrows of the session uniquely owned by `CodexImageClient`;
+`ImageGenerationEngine` destroys its requests before that client. Cancellation
+sends a turn interrupt and never waits for the process. A dedicated protocol
+translator owns request correlation and is the only production layer that sees
+JSON or catches JSON exceptions; it emits mutually exclusive success and
+failure models rather than partially populated response bags. The adapter
+consumes those events with exhaustive variant dispatch. Session readiness and
+failure, and each operation's lifecycle phase, are also variants whose active
+alternative owns the data required in that state. Cancellation removes the
+operation immediately, so a retained operation is never simultaneously marked
+cancelled. Any failed protocol write permanently fails the shared session;
+Zebes never continues after it can no longer know which requests reached the
+child. The process transport likewise has mutually exclusive created, running,
+and stopped states. Only the running state owns the child identity and its
+move-only pipe descriptors, so stopped and never-started transports cannot
+retain live process resources.
+The child receives no API key, approval requests are rejected, and every
+ephemeral thread is confined to a private temporary directory. Generated files
+are bounded, decoded into `RgbaImage`, and removed before provider data crosses
+into editor state.
+
 Generated and imported prop sources converge at one boundary. A finished
 generation is held as a review — provider, model, submitted prompt, request id,
 and the candidates — and is not recipe state; accepting a candidate retains it

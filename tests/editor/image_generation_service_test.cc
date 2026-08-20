@@ -12,6 +12,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "editor/image_generation/codex_image_client.h"
 #include "editor/image_generation/image_generation.h"
 #include "editor/image_generation/image_generation_engine.h"
 #include "gtest/gtest.h"
@@ -106,6 +107,15 @@ TEST(ImageGenerationServiceTest, RejectsAMissingClient) {
 
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
   EXPECT_EQ(status.message(), "Image generation service requires a client");
+}
+
+TEST(ImageGenerationServiceTest, RejectsAnInvalidCodexConfigurationBeforeStartingARunner) {
+  CodexImageConfig config;
+  config.process.executable.clear();
+
+  const absl::Status status = ImageGenerationService::CreateCodex(config).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
 }
 
 // The wiring this class exists for: a caller that only ever touches engine()

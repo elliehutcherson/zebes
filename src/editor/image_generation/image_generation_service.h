@@ -6,6 +6,7 @@
 #include "absl/status/statusor.h"
 #include "common/blocking_callback_thread.h"
 #include "common/engine_runner.h"
+#include "editor/image_generation/codex_image_client.h"
 #include "editor/image_generation/credential_source.h"
 #include "editor/image_generation/http_transport.h"
 #include "editor/image_generation/image_generation.h"
@@ -34,6 +35,12 @@ class ImageGenerationService {
   // request's Unauthenticated rather than a startup failure.
   static absl::StatusOr<std::unique_ptr<ImageGenerationService>> CreateOpenAi(
       OpenAiImageConfig config);
+
+  // Builds the subscription-backed Codex stack. The App Server process starts
+  // lazily with the first request, uses the active ChatGPT login, and is owned
+  // transitively by the engine's client.
+  static absl::StatusOr<std::unique_ptr<ImageGenerationService>> CreateCodex(
+      CodexImageConfig config);
 
   // Runs `client` with no transport or credentials of its own. This is the
   // seam for a fake provider; the OpenAI path goes through CreateOpenAi.

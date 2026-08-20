@@ -4,7 +4,39 @@
 > [`roadmap.md`](roadmap.md) for sequencing and the linked feature design—such
 > as [`prop-artwork.md`](prop-artwork.md)—for durable decisions and TODOs.
 
-## Current: The generated-source editor flow is wired end to end
+## Current: The subscription-backed Codex adapter is implemented
+
+As of 2026-08-19, the headless Codex App Server scheme is implemented through
+the production service boundary. The durable plan, settled constraints,
+completed milestones, and remaining editor-wiring work are in
+[`codex-image-generation.md`](codex-image-generation.md).
+
+The implementation owns one lazily started `codex app-server --stdio` child,
+requires the active `chatgpt` account and enabled `imagegen` skill, strips
+`OPENAI_API_KEY`, rejects approval requests, confines ephemeral threads and
+their output to a private directory, and multiplexes requests through the
+existing `ImageGenerationEngine`. JSON and its exceptions exist only in the
+typed protocol translator. Session, operation, protocol-outcome, and transport
+lifecycle variants make contradictory ownership and state combinations
+unrepresentable; ambiguous writes fail the whole shared session.
+
+Focused verification is green: 6 protocol tests, 2 real process-transport
+tests, 11 client tests, the affected service tests, the 4 deterministic Python
+probe tests, clang-tidy across the edited translation units, and the
+`editor_ui` target. No live generation was used for the final verification
+passes.
+
+### Pick up here next
+
+`EditorUi` still calls `ImageGenerationService::CreateOpenAi`, so the new
+adapter is available through `ImageGenerationService::CreateCodex` but is not
+yet selected by the production composition root. Add explicit startup provider
+selection, make Codex the normal local-editor path, retain OpenAI as an opt-in
+alternative, and perform one manual end-to-end editor smoke test. After that,
+exercise shutdown during a live turn and add the Windows process transport if
+the provider must be supported there.
+
+## Previous: The generated-source editor flow is wired end to end
 
 As of 2026-08-19, [`roadmap.md`](roadmap.md) remains the source of truth for
 sequencing. Tracks 0-3 are complete. Track 4 layers, imported-source prop

@@ -24,3 +24,7 @@ test_data/
 # Claude Code's per-machine permission allowlist. The rest of .claude/ is
 # checked in; this file accumulates absolute paths from whoever ran the tool.
 .claude/settings.local.json
+
+# Real API keys. secrets.env.example is the committed template; this is the
+# filled-in copy and must never be tracked.
+secrets.env

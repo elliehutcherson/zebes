@@ -426,7 +426,7 @@ TEST(CurlHttpTransportTest, BoundsThePollDelayOfALiveRequest) {
 
   const absl::Duration delay = request.SuggestedPollDelay();
   EXPECT_GE(delay, absl::ZeroDuration());
-  EXPECT_LE(delay, absl::Milliseconds(200));
+  EXPECT_LE(delay, CurlHttpTransport::kPollCap);
 
   // A finished request must not be slept on: the caller has to poll to find out
   // it is no longer active.

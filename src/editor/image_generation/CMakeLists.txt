@@ -49,6 +49,46 @@ target_link_libraries(openai_image_client
   status_macros
 )
 
+add_library(codex_app_server_transport codex_app_server_transport.cc)
+target_link_libraries(codex_app_server_transport
+  PUBLIC
+  absl::status
+  absl::statusor
+  PRIVATE
+  absl::cleanup
+  absl::strings
+  status_macros
+)
+
+add_library(codex_app_server_protocol codex_app_server_protocol.cc)
+target_link_libraries(codex_app_server_protocol
+  PUBLIC
+  absl::flat_hash_map
+  absl::statusor
+  PRIVATE
+  absl::status
+  absl::strings
+  nlohmann_json::nlohmann_json
+  status_macros
+)
+
+add_library(codex_image_client codex_image_client.cc)
+target_link_libraries(codex_image_client
+  PUBLIC
+  codex_app_server_transport
+  image_generation
+  absl::statusor
+  absl::time
+  PRIVATE
+  codex_app_server_protocol
+  image_io
+  absl::cleanup
+  absl::flat_hash_map
+  absl::status
+  absl::strings
+  status_macros
+)
+
 add_library(image_generation_engine image_generation_engine.cc)
 target_link_libraries(image_generation_engine
   PUBLIC
@@ -81,6 +121,7 @@ add_library(image_generation_service image_generation_service.cc)
 target_link_libraries(image_generation_service
   PUBLIC
   blocking_callback_thread
+  codex_image_client
   credential_source
   engine_runner
   http_transport

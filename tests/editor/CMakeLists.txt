@@ -220,6 +220,48 @@ target_link_libraries(openai_image_client_test
 target_include_directories(openai_image_client_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(openai_image_client_test)
 
+add_executable(codex_app_server_transport_test codex_app_server_transport_test.cc)
+target_link_libraries(codex_app_server_transport_test
+  PRIVATE
+  codex_app_server_transport
+  macros
+  absl::cleanup
+  absl::status
+  absl::time
+  gtest_main
+)
+target_include_directories(codex_app_server_transport_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(codex_app_server_transport_test)
+
+add_executable(codex_app_server_protocol_test codex_app_server_protocol_test.cc)
+target_link_libraries(codex_app_server_protocol_test
+  PRIVATE
+  codex_app_server_protocol
+  macros
+  absl::status
+  nlohmann_json::nlohmann_json
+  gtest_main
+)
+target_include_directories(codex_app_server_protocol_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(codex_app_server_protocol_test)
+
+add_executable(codex_image_client_test codex_image_client_test.cc)
+target_link_libraries(codex_image_client_test
+  PRIVATE
+  codex_app_server_transport
+  codex_image_client
+  image_generation
+  image_io
+  macros
+  status_macros
+  absl::status
+  absl::statusor
+  nlohmann_json::nlohmann_json
+  gtest_main
+)
+target_include_directories(codex_image_client_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(codex_image_client_test)
+
 add_executable(image_generation_engine_test image_generation_engine_test.cc)
 target_link_libraries(image_generation_engine_test
   PRIVATE

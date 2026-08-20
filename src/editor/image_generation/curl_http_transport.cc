@@ -123,10 +123,8 @@ class CurlHttpOperation final : public HttpOperation {
   // A negative timeout means curl has no timer pending and expects the caller
   // to wait on the transfer's sockets instead. This transport registers no
   // sockets with its caller, so honouring that literally would sleep until the
-  // total timeout. It becomes the poll cap: the ceiling on how long a response
-  // can sit unnoticed, and the reason this is bounded polling rather than
-  // socket-driven wakeups. Requests here run for seconds, so the cap costs a
-  // few wakeups per second and at most kPollCap of added latency.
+  // total timeout. It becomes kPollCap instead. Requests here run for seconds,
+  // so that costs a few wakeups per second and at most kPollCap of latency.
   //
   // Zero means curl wants attention immediately and must not be slept on.
   absl::Duration SuggestedPollDelay() const override {
@@ -135,13 +133,11 @@ class CurlHttpOperation final : public HttpOperation {
     if (curl_multi_timeout(multi_, &timeout_milliseconds) != CURLM_OK) {
       return absl::ZeroDuration();
     }
-    if (timeout_milliseconds < 0) return kPollCap;
-    return std::min(absl::Milliseconds(timeout_milliseconds), kPollCap);
+    if (timeout_milliseconds < 0) return CurlHttpTransport::kPollCap;
+    return std::min(absl::Milliseconds(timeout_milliseconds), CurlHttpTransport::kPollCap);
   }
 
  private:
-  static constexpr absl::Duration kPollCap = absl::Milliseconds(200);
-
   explicit CurlHttpOperation(HttpRequest request) : request_(std::move(request)) {}
 
   absl::Status Initialize() {
