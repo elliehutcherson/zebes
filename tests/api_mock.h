@@ -55,6 +55,13 @@ class MockApi : public Api {
   MOCK_METHOD(std::vector<Level>, GetAllLevels, (), (override));
   MOCK_METHOD(absl::StatusOr<Level*>, GetLevel, (const std::string&), (override));
 
+  // Parallax themes
+  MOCK_METHOD(absl::StatusOr<std::string>, CreateParallaxTheme, (ParallaxTheme), (override));
+  MOCK_METHOD(absl::Status, UpdateParallaxTheme, (ParallaxTheme), (override));
+  MOCK_METHOD(absl::Status, DeleteParallaxTheme, (const std::string&), (override));
+  MOCK_METHOD(std::vector<ParallaxTheme>, GetAllParallaxThemes, (), (override));
+  MOCK_METHOD(absl::StatusOr<ParallaxTheme*>, GetParallaxTheme, (const std::string&), (override));
+
   // Tilesets
   MOCK_METHOD(absl::StatusOr<std::string>, CreateTileset, (Tileset), (override));
   MOCK_METHOD(absl::Status, UpdateTileset, (Tileset), (override));

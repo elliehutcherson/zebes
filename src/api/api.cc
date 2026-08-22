@@ -34,6 +34,31 @@ bool AnyRecipeReferrer(const std::vector<AssetReference>& referrers) {
   return false;
 }
 
+absl::Status ValidateThemeTextures(Api& api, const ParallaxTheme& theme) {
+  RETURN_IF_ERROR(ValidateParallaxTheme(theme));
+  for (const ParallaxLayer& layer : theme.layers) {
+    absl::StatusOr<Texture*> texture = api.GetTexture(layer.texture_id);
+    if (!texture.ok() || *texture == nullptr) {
+      return absl::FailedPreconditionError(absl::StrCat("Parallax layer '", layer.name,
+                                                        "' references missing texture '",
+                                                        layer.texture_id, "'."));
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateLevelThemes(Api& api, const Level& level) {
+  RETURN_IF_ERROR(ValidateLevel(level));
+  for (const ParallaxZone& zone : level.zones) {
+    absl::StatusOr<ParallaxTheme*> theme = api.GetParallaxTheme(zone.theme_id);
+    if (!theme.ok() || *theme == nullptr) {
+      return absl::FailedPreconditionError(absl::StrCat(
+          "Parallax zone '", zone.name, "' references missing theme '", zone.theme_id, "'."));
+    }
+  }
+  return absl::OkStatus();
+}
+
 absl::Status RequireAbsent(const absl::Status& lookup, std::string_view kind, std::string_view id) {
   if (absl::IsNotFound(lookup)) return absl::OkStatus();
   if (lookup.ok()) {
@@ -79,6 +104,9 @@ absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
   if (options.level_manager == nullptr) {
     return absl::InvalidArgumentError("LevelManager is null.");
   }
+  if (options.parallax_theme_manager == nullptr) {
+    return absl::InvalidArgumentError("ParallaxThemeManager is null.");
+  }
   if (options.tileset_manager == nullptr) {
     return absl::InvalidArgumentError("TilesetManager is null.");
   }
@@ -107,6 +135,7 @@ Api::Api(const Options& options)
       collider_manager_(options.collider_manager),
       blueprint_manager_(options.blueprint_manager),
       level_manager_(options.level_manager),
+      parallax_theme_manager_(options.parallax_theme_manager),
       tileset_manager_(options.tileset_manager),
       terrain_recipe_manager_(options.terrain_recipe_manager),
       source_artwork_manager_(options.source_artwork_manager),
@@ -183,13 +212,15 @@ Api::CatalogSnapshot Api::SnapshotCatalog() {
       .sprites = sprite_manager_->GetAllSprites(),
       .blueprints = blueprint_manager_->GetAllBlueprints(),
       .levels = level_manager_->GetAllLevels(),
+      .parallax_themes = parallax_theme_manager_->GetAllThemes(),
       .recipes = terrain_recipe_manager_->GetAllRecipes(),
       .prop_recipes = prop_recipe_manager_->GetAllRecipes(),
   };
 }
 
 AssetCatalog Api::CatalogSnapshot::View() const {
-  return AssetCatalog{tilesets, sprites, blueprints, levels, recipes, prop_recipes};
+  return AssetCatalog{tilesets,        sprites, blueprints,  levels,
+                      parallax_themes, recipes, prop_recipes};
 }
 
 absl::Status Api::DeleteSprite(const std::string& sprite_id) {
@@ -248,10 +279,16 @@ absl::StatusOr<Blueprint*> Api::GetBlueprint(const std::string& blueprint_id) {
 }
 
 absl::StatusOr<std::string> Api::CreateLevel(Level level) {
+  Level validation_level = level;
+  validation_level.id = "new-level";
+  RETURN_IF_ERROR(ValidateLevelThemes(*this, validation_level));
   return level_manager_->CreateLevel(std::move(level));
 }
 
-absl::Status Api::UpdateLevel(Level level) { return level_manager_->SaveLevel(std::move(level)); }
+absl::Status Api::UpdateLevel(Level level) {
+  RETURN_IF_ERROR(ValidateLevelThemes(*this, level));
+  return level_manager_->SaveLevel(std::move(level));
+}
 
 absl::Status Api::DeleteLevel(const std::string& level_id) {
   return level_manager_->DeleteLevel(level_id);
@@ -261,6 +298,36 @@ std::vector<Level> Api::GetAllLevels() { return level_manager_->GetAllLevels(); 
 
 absl::StatusOr<Level*> Api::GetLevel(const std::string& level_id) {
   return level_manager_->GetLevel(level_id);
+}
+
+absl::StatusOr<std::string> Api::CreateParallaxTheme(ParallaxTheme theme) {
+  // The manager assigns identity, but the rest of the definition can be
+  // validated before any file is written.
+  ParallaxTheme validation_theme = theme;
+  validation_theme.id = "new-theme";
+  RETURN_IF_ERROR(ValidateThemeTextures(*this, validation_theme));
+  return parallax_theme_manager_->CreateTheme(std::move(theme));
+}
+
+absl::Status Api::UpdateParallaxTheme(ParallaxTheme theme) {
+  RETURN_IF_ERROR(ValidateThemeTextures(*this, theme));
+  RETURN_IF_ERROR(parallax_theme_manager_->GetTheme(theme.id).status());
+  return parallax_theme_manager_->SaveTheme(theme);
+}
+
+absl::Status Api::DeleteParallaxTheme(const std::string& theme_id) {
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("parallax theme '", theme_id, "'"),
+                                     FindParallaxThemeReferrers(catalog.View(), theme_id)));
+  return parallax_theme_manager_->DeleteTheme(theme_id);
+}
+
+std::vector<ParallaxTheme> Api::GetAllParallaxThemes() {
+  return parallax_theme_manager_->GetAllThemes();
+}
+
+absl::StatusOr<ParallaxTheme*> Api::GetParallaxTheme(const std::string& theme_id) {
+  return parallax_theme_manager_->GetTheme(theme_id);
 }
 
 absl::StatusOr<std::string> Api::CreateTileset(Tileset tileset) {

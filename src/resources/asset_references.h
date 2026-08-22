@@ -7,6 +7,7 @@
 #include "artwork/prop_recipe.h"
 #include "objects/blueprint.h"
 #include "objects/level.h"
+#include "objects/parallax_theme.h"
 #include "objects/sprite.h"
 #include "objects/tileset.h"
 #include "terrain/terrain_recipe.h"
@@ -21,6 +22,7 @@ enum class AssetKind {
   kCollider,
   kBlueprint,
   kLevel,
+  kParallaxTheme,
   kTerrainRecipe,
   kSourceArtwork,
   kPropRecipe,
@@ -55,15 +57,18 @@ struct AssetCatalog {
   const std::vector<Sprite>& sprites;
   const std::vector<Blueprint>& blueprints;
   const std::vector<Level>& levels;
+  const std::vector<ParallaxTheme>& parallax_themes;
   const std::vector<TerrainRecipe>& recipes;
   const std::vector<PropRecipe>& prop_recipes;
 };
 
-// Everything naming this texture: tilesets, sprites, and the parallax layers
-// inside a level's themes. Empty IDs are not references -- an unset texture on a
-// layer is a valid unfinished layer, not a pointer at nothing.
+// Everything naming this texture, including reusable parallax themes.
 std::vector<AssetReference> FindTextureReferrers(const AssetCatalog& catalog,
                                                  std::string_view texture_id);
+
+// Levels whose zones reference this reusable theme.
+std::vector<AssetReference> FindParallaxThemeReferrers(const AssetCatalog& catalog,
+                                                       std::string_view theme_id);
 
 // Everything naming this tileset: levels that resolve their tiles through it,
 // and the recipe that generated it.

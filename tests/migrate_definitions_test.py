@@ -56,6 +56,74 @@ class MigrateDefinitionsTest(unittest.TestCase):
         document = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(document["states"][0]["placement_mode"], "grounded")
 
+    def test_embedded_parallax_themes_are_extracted_deterministically(self):
+        path = self.write_level(
+            "cave.json",
+            {
+                "id": "level-1",
+                "name": "Cave",
+                "themes": [
+                    {
+                        "id": 7,
+                        "name": "Blue",
+                        "layers": [{"name": "Far", "texture_id": "texture-1"}],
+                    }
+                ],
+                "zones": [{"id": 2, "name": "Entry", "theme_id": 7}],
+                "layers": [],
+            },
+        )
+
+        changed = migrate_definitions.migrate_parallax_themes(self.root, dry_run=False)
+
+        expected_id = migrate_definitions.parallax_theme_id("level-1", 7)
+        theme_path = self.root / "parallax_themes" / f"{expected_id}.json"
+        self.assertEqual(changed, [path, theme_path])
+        level = json.loads(path.read_text(encoding="utf-8"))
+        self.assertNotIn("themes", level)
+        self.assertEqual(level["zones"][0]["theme_id"], expected_id)
+        theme = json.loads(theme_path.read_text(encoding="utf-8"))
+        self.assertEqual(theme["name"], "Cave — Blue")
+        self.assertEqual(theme["layers"][0]["texture_id"], "texture-1")
+        self.assertEqual(
+            migrate_definitions.migrate_parallax_themes(self.root, dry_run=False), []
+        )
+
+    def test_conflicting_extracted_theme_is_refused_before_level_changes(self):
+        path = self.write_level(
+            "cave.json",
+            {
+                "id": "level-1",
+                "name": "Cave",
+                "themes": [{"id": 7, "name": "Blue", "layers": []}],
+                "zones": [{"id": 2, "name": "Entry", "theme_id": 7}],
+            },
+        )
+        before = path.read_bytes()
+        theme_id = migrate_definitions.parallax_theme_id("level-1", 7)
+        directory = self.root / "parallax_themes"
+        directory.mkdir()
+        (directory / f"{theme_id}.json").write_text(
+            json.dumps({"id": theme_id, "name": "Independent", "layers": []}),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "conflicts"):
+            migrate_definitions.migrate_parallax_themes(self.root, dry_run=False)
+        self.assertEqual(path.read_bytes(), before)
+
+    def test_half_migrated_level_is_refused(self):
+        self.write_level(
+            "cave.json",
+            {
+                "id": "level-1",
+                "name": "Cave",
+                "zones": [{"id": 2, "name": "Entry", "theme_id": 7}],
+            },
+        )
+        with self.assertRaisesRegex(ValueError, "Half-migrated"):
+            migrate_definitions.migrate_parallax_themes(self.root, dry_run=False)
+
     def test_authored_blueprint_placement_is_not_reinterpreted(self):
         path = self.write_blueprint(
             "lamp.json",

@@ -15,7 +15,6 @@
 #include "editor/level_editor/parallax_layout.h"
 #include "editor/level_editor/viewport_model.h"
 #include "imgui.h"
-#include "parallax_theme_panel.h"
 
 namespace zebes {
 namespace {
@@ -73,16 +72,10 @@ absl::Status LevelEditor::Init(Options options) {
   }
   RefreshLevelCatalog();
 
-  if (options.parallax_theme_panel) {
-    parallax_theme_panel_ = std::move(options.parallax_theme_panel);
-  } else {
-    ASSIGN_OR_RETURN(parallax_theme_panel_, ParallaxThemePanel::Create({.api = api_, .gui = gui_}));
-  }
-
   if (options.parallax_zone_panel) {
     parallax_zone_panel_ = std::move(options.parallax_zone_panel);
   } else {
-    ASSIGN_OR_RETURN(parallax_zone_panel_, ParallaxZonePanel::Create({.gui = gui_}));
+    ASSIGN_OR_RETURN(parallax_zone_panel_, ParallaxZonePanel::Create({.api = api_, .gui = gui_}));
   }
 
   if (options.palette_panel) {
@@ -273,8 +266,6 @@ absl::Status LevelEditor::RenderNavigator() {
     }
 
     if (gui_->CollapsingHeader("Parallax", ImGuiTreeNodeFlags_DefaultOpen)) {
-      RETURN_IF_ERROR(parallax_theme_panel_->RenderNavigator(level, selection_));
-
       std::optional<int> previous_zone_id;
       if (selection_.type == SelectionState::Type::kZone) {
         previous_zone_id = selection_.zone_id;
@@ -313,16 +304,6 @@ absl::Status LevelEditor::RenderInspector() {
       RETURN_IF_ERROR(HandleLevelPanelEvent(event));
     } break;
 
-    case SelectionState::Type::kTheme:
-      RETURN_IF_ERROR(
-          parallax_theme_panel_->RenderThemeDetails(*level_model_.active_level(), selection_));
-      break;
-
-    case SelectionState::Type::kParallaxLayer:
-      RETURN_IF_ERROR(
-          parallax_theme_panel_->RenderLayerDetails(*level_model_.active_level(), selection_));
-      break;
-
     case SelectionState::Type::kWorldLayer:
       RETURN_IF_ERROR(world_layer_panel_->RenderDetails(*level_model_.active_level(),
                                                         world_layer_model_, selection_));
@@ -338,6 +319,7 @@ absl::Status LevelEditor::RenderInspector() {
       }
       RETURN_IF_ERROR(
           parallax_zone_panel_->RenderDetails(*level_model_.active_level(), selection_));
+      theme_request_ = parallax_zone_panel_->TakeThemeRequest();
       break;
 
     case SelectionState::Type::kEntity: {
@@ -418,6 +400,28 @@ absl::Status LevelEditor::RenderInspector() {
       break;
     }
   }
+  return absl::OkStatus();
+}
+
+std::optional<ParallaxZonePanel::ThemeRequest> LevelEditor::TakeThemeRequest() {
+  std::optional<ParallaxZonePanel::ThemeRequest> request = std::move(theme_request_);
+  theme_request_.reset();
+  return request;
+}
+
+absl::Status LevelEditor::AssignThemeToZone(int zone_id, const std::string& theme_id) {
+  Level* level = level_model_.active_level();
+  if (level == nullptr) return absl::FailedPreconditionError("No level is open.");
+  ParallaxZone* zone = nullptr;
+  for (ParallaxZone& candidate : level->zones) {
+    if (candidate.id == zone_id) {
+      zone = &candidate;
+      break;
+    }
+  }
+  if (zone == nullptr) return absl::NotFoundError("The requested parallax zone is no longer open.");
+  RETURN_IF_ERROR(api_->GetParallaxTheme(theme_id).status());
+  zone->theme_id = theme_id;
   return absl::OkStatus();
 }
 
@@ -517,6 +521,7 @@ absl::Status LevelEditor::RenderViewport() {
     terrain_provider = &*authored_provider;
   }
 
+  const std::vector<ParallaxTheme> parallax_themes = api_->GetAllParallaxThemes();
   const absl::Status rendered = viewport_tab_->Render({
       .level = level,
       .active_world_layer_id = active_world_layer->id,
@@ -541,13 +546,7 @@ absl::Status LevelEditor::RenderViewport() {
       .selected_zone_id = (selection_.type == SelectionState::Type::kZone)
                               ? std::optional<int>(selection_.zone_id)
                               : std::nullopt,
-      .selected_parallax_theme_id = (selection_.type == SelectionState::Type::kTheme ||
-                                     selection_.type == SelectionState::Type::kParallaxLayer)
-                                        ? std::optional<int>(selection_.theme_id)
-                                        : std::nullopt,
-      .selected_parallax_layer_index = (selection_.type == SelectionState::Type::kParallaxLayer)
-                                           ? std::optional<int>(selection_.layer_index)
-                                           : std::nullopt,
+      .parallax_themes = &parallax_themes,
   });
 
   // Painting may have rendered artwork the atlas did not hold. Upload it before

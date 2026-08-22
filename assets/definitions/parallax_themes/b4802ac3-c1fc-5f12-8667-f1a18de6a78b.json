@@ -1,0 +1,17 @@
+{
+  "id": "b4802ac3-c1fc-5f12-8667-f1a18de6a78b",
+  "layers": [
+    {
+      "base_scale": 6.0,
+      "name": "Sunset Layer",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_x": true,
+      "repeat_y": false,
+      "scroll_factor_x": 0.1,
+      "scroll_factor_y": 0.01,
+      "texture_id": "4221710a-04e7-419e-a36d-14b2c61446ca"
+    }
+  ],
+  "name": "level_0 \u2014 Sunset Theme"
+}

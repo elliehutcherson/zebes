@@ -1,0 +1,28 @@
+{
+  "id": "9f991118-70d2-5c22-baf4-cad64f9f2ed2",
+  "layers": [
+    {
+      "base_scale": 7.0,
+      "name": "Forest Layer",
+      "offset_x": 0.0,
+      "offset_y": -128.0,
+      "repeat_x": true,
+      "repeat_y": false,
+      "scroll_factor_x": 0.5,
+      "scroll_factor_y": 0.5,
+      "texture_id": "d61cd2f7-924a-4619-975a-d355fe8de974"
+    },
+    {
+      "base_scale": 1.0,
+      "name": "Forest Floor Layer",
+      "offset_x": 0.0,
+      "offset_y": 1280.0,
+      "repeat_x": true,
+      "repeat_y": false,
+      "scroll_factor_x": 1.0,
+      "scroll_factor_y": 1.0,
+      "texture_id": "b8e8d3ee-d4d1-46f8-988a-77be06b2bafd"
+    }
+  ],
+  "name": "level_0 \u2014 Forest Theme"
+}

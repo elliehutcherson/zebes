@@ -23,31 +23,10 @@ struct TileChunk {
   bool operator==(const TileChunk& other) const = default;
 };
 
-// Definition of Parallax Layer (Visuals)
-struct ParallaxLayer {
-  std::string name;
-  std::string texture_id;
-  Vec scroll_factor;
-  Vec offset;
-  float base_scale = 1.0f;
-  bool repeat_x = false;
-  bool repeat_y = false;
-
-  bool operator==(const ParallaxLayer& other) const = default;
-};
-
-struct ParallaxTheme {
-  int id = 0;
-  std::string name;
-  std::vector<ParallaxLayer> layers;
-
-  bool operator==(const ParallaxTheme& other) const = default;
-};
-
 struct ParallaxZone {
   int id = 0;
   std::string name;
-  int theme_id = -1;
+  std::string theme_id;
   // 2D Boundaries (World Coordinates)
   Vec min_point;
   Vec max_point;
@@ -115,10 +94,8 @@ struct Level {
   std::vector<WorldLayer> layers = {WorldLayer{.id = 0, .name = "Base"}};
 
   // ENVIRONMENT
-  // A theme is an ordered stack of parallax layers; a zone binds one theme to a
-  // region of the world. Layers therefore belong to a theme and never to the
-  // level directly.
-  std::map<int, ParallaxTheme> themes;
+  // Zones own placement and transition geometry. Their artwork is a reusable
+  // ParallaxTheme resource resolved through `theme_id` by the API/renderer.
   std::vector<ParallaxZone> zones;
 
   // Value equality over every authored field, tile chunks included. The editor

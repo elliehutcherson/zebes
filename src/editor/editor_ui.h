@@ -12,6 +12,7 @@
 #include "editor/gui_interface.h"
 #include "editor/image_generation/image_generation_service.h"
 #include "editor/level_editor/level_editor.h"
+#include "editor/parallax_theme_editor/parallax_theme_editor.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor.h"
 #include "editor/sdl_preview_texture.h"
 #include "editor/sprite_editor/sprite_editor.h"
@@ -42,6 +43,8 @@ class EditorUi {
  private:
   // Renders a tab and reports failures without discarding editor state.
   void RenderTab(const char* name, const std::function<absl::Status()>& render_fn);
+  void RenderTab(const char* name, const std::function<absl::Status()>& render_fn, bool select);
+  absl::Status HandleLevelThemeRequest();
   explicit EditorUi(SdlWrapper* sdl, Api* api, GuiInterface* gui);
 
   absl::Status Init();
@@ -59,6 +62,7 @@ class EditorUi {
   // tabs writing one streaming texture would each see the other's artwork.
   std::unique_ptr<SdlPreviewTexture> terrain_ghost_;
   std::unique_ptr<LevelEditor> level_editor_;
+  std::unique_ptr<ParallaxThemeEditor> parallax_theme_editor_;
   // Declared before the editor that uses it so it outlives the panel holding
   // the pointer.
   std::unique_ptr<SdlPreviewTexture> terrain_preview_;
@@ -76,6 +80,7 @@ class EditorUi {
   std::unique_ptr<PropArtworkEditor> prop_artwork_editor_;
 
   bool show_debug_metrics_ = false;
+  bool select_parallax_theme_tab_ = false;
 };
 
 }  // namespace zebes

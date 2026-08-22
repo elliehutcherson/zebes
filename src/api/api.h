@@ -14,6 +14,7 @@
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
 #include "resources/level_manager.h"
+#include "resources/parallax_theme_manager.h"
 #include "resources/prop_recipe_manager.h"
 #include "resources/source_artwork_manager.h"
 #include "resources/sprite_manager.h"
@@ -32,6 +33,7 @@ class Api {
     ColliderManager* collider_manager;
     BlueprintManager* blueprint_manager;
     LevelManager* level_manager;
+    ParallaxThemeManager* parallax_theme_manager;
     TilesetManager* tileset_manager;
     TerrainRecipeManager* terrain_recipe_manager;
     SourceArtworkManager* source_artwork_manager;
@@ -94,6 +96,12 @@ class Api {
   virtual absl::Status DeleteLevel(const std::string& level_id);
   virtual std::vector<Level> GetAllLevels();
   virtual absl::StatusOr<Level*> GetLevel(const std::string& level_id);
+
+  virtual absl::StatusOr<std::string> CreateParallaxTheme(ParallaxTheme theme);
+  virtual absl::Status UpdateParallaxTheme(ParallaxTheme theme);
+  virtual absl::Status DeleteParallaxTheme(const std::string& theme_id);
+  virtual std::vector<ParallaxTheme> GetAllParallaxThemes();
+  virtual absl::StatusOr<ParallaxTheme*> GetParallaxTheme(const std::string& theme_id);
 
   virtual absl::StatusOr<std::string> CreateTileset(Tileset tileset);
   virtual absl::Status UpdateTileset(Tileset tileset);
@@ -179,6 +187,7 @@ class Api {
         collider_manager_(nullptr),
         blueprint_manager_(nullptr),
         level_manager_(nullptr),
+        parallax_theme_manager_(nullptr),
         tileset_manager_(nullptr),
         terrain_recipe_manager_(nullptr),
         source_artwork_manager_(nullptr),
@@ -195,6 +204,7 @@ class Api {
     std::vector<Sprite> sprites;
     std::vector<Blueprint> blueprints;
     std::vector<Level> levels;
+    std::vector<ParallaxTheme> parallax_themes;
     std::vector<TerrainRecipe> recipes;
     std::vector<PropRecipe> prop_recipes;
 
@@ -212,6 +222,7 @@ class Api {
   ColliderManager* collider_manager_;
   BlueprintManager* blueprint_manager_;
   LevelManager* level_manager_;
+  ParallaxThemeManager* parallax_theme_manager_;
   TilesetManager* tileset_manager_;
   TerrainRecipeManager* terrain_recipe_manager_;
   SourceArtworkManager* source_artwork_manager_;

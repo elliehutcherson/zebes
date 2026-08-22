@@ -58,6 +58,9 @@ absl::Status EditorEngine::Init() {
 
   RETURN_IF_ERROR(level_manager_->LoadAllLevels());
 
+  ASSIGN_OR_RETURN(parallax_theme_manager_, ParallaxThemeManager::Create(config_.paths.assets()));
+  RETURN_IF_ERROR(parallax_theme_manager_->LoadAllThemes());
+
   ASSIGN_OR_RETURN(tileset_manager_, TilesetManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(tileset_manager_->LoadAllTilesets());
 
@@ -85,6 +88,7 @@ absl::Status EditorEngine::Init() {
       .collider_manager = collider_manager_.get(),
       .blueprint_manager = blueprint_manager_.get(),
       .level_manager = level_manager_.get(),
+      .parallax_theme_manager = parallax_theme_manager_.get(),
       .tileset_manager = tileset_manager_.get(),
       .terrain_recipe_manager = terrain_recipe_manager_.get(),
       .source_artwork_manager = source_artwork_manager_.get(),
@@ -161,6 +165,7 @@ void EditorEngine::Shutdown() {
   texture_resources_.reset();
   collider_manager_.reset();
   level_manager_.reset();
+  parallax_theme_manager_.reset();
   input_manager_.reset();
   sdl_input_source_.reset();
   imgui_wrapper_.reset();

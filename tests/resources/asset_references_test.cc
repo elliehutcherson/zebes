@@ -22,25 +22,22 @@ struct Catalogs {
   std::vector<Sprite> sprites;
   std::vector<Blueprint> blueprints;
   std::vector<Level> levels;
+  std::vector<ParallaxTheme> parallax_themes;
   std::vector<TerrainRecipe> recipes;
   std::vector<PropRecipe> prop_recipes;
 
   AssetCatalog View() const {
-    return {tilesets, sprites, blueprints, levels, recipes, prop_recipes};
+    return {tilesets, sprites, blueprints, levels, parallax_themes, recipes, prop_recipes};
   }
 };
 
-Level LevelWithParallax(std::string id, std::string name, std::string theme_name,
-                        std::string layer_name, std::string texture_id) {
-  Level level;
-  level.id = std::move(id);
-  level.name = std::move(name);
-  level.themes[1] = ParallaxTheme{
-      .id = 1,
-      .name = std::move(theme_name),
+ParallaxTheme ThemeWithParallax(std::string id, std::string name, std::string layer_name,
+                                std::string texture_id) {
+  return ParallaxTheme{
+      .id = std::move(id),
+      .name = std::move(name),
       .layers = {ParallaxLayer{.name = std::move(layer_name), .texture_id = std::move(texture_id)}},
   };
-  return level;
 }
 
 Level LevelWithTiles(std::string id, std::string name, std::string tileset_id,
@@ -61,7 +58,7 @@ TEST(AssetReferencesTest, FindsATextureAcrossEveryKindThatCanNameOne) {
   Catalogs c;
   c.tilesets.push_back(Tileset{.id = "ts", .name = "Cave", .texture_id = "tex"});
   c.sprites.push_back(Sprite{.id = "sp", .name = "Crystal", .texture_id = "tex"});
-  c.levels.push_back(LevelWithParallax("lv", "Donut Plains", "Sky", "Clouds", "tex"));
+  c.parallax_themes.push_back(ThemeWithParallax("theme", "Sky", "Clouds", "tex"));
   c.recipes.push_back(TerrainRecipe{.id = "rc", .name = "Cave", .texture_id = "tex"});
   c.prop_recipes.push_back(PropRecipe{.id = "prop", .name = "Tree", .texture_id = "tex"});
 
@@ -69,7 +66,7 @@ TEST(AssetReferencesTest, FindsATextureAcrossEveryKindThatCanNameOne) {
 
   EXPECT_THAT(referrers, ElementsAre(Field(&AssetReference::kind, AssetKind::kTileset),
                                      Field(&AssetReference::kind, AssetKind::kSprite),
-                                     Field(&AssetReference::kind, AssetKind::kLevel),
+                                     Field(&AssetReference::kind, AssetKind::kParallaxTheme),
                                      Field(&AssetReference::kind, AssetKind::kTerrainRecipe),
                                      Field(&AssetReference::kind, AssetKind::kPropRecipe)));
 }
@@ -95,18 +92,31 @@ TEST(AssetReferencesTest, FindsPropAuthoringAndOutputReferences) {
               ElementsAre(Field(&AssetReference::field, "blueprint_id")));
 }
 
-// A level may hold many themes, so "Level references this" would leave the user
-// hunting for which layer to change.
 TEST(AssetReferencesTest, AParallaxReferenceNamesItsThemeAndLayer) {
   Catalogs c;
-  c.levels.push_back(LevelWithParallax("lv", "Donut Plains", "Sky", "Clouds", "tex"));
+  c.parallax_themes.push_back(ThemeWithParallax("theme", "Sky", "Clouds", "tex"));
 
   const std::vector<AssetReference> referrers = FindTextureReferrers(c.View(), "tex");
 
   ASSERT_EQ(referrers.size(), 1u);
-  EXPECT_EQ(referrers[0].display_name, "Donut Plains");
-  EXPECT_THAT(referrers[0].field, HasSubstr("Sky"));
+  EXPECT_EQ(referrers[0].display_name, "Sky");
+  EXPECT_EQ(referrers[0].kind, AssetKind::kParallaxTheme);
   EXPECT_THAT(referrers[0].field, HasSubstr("Clouds"));
+}
+
+TEST(AssetReferencesTest, FindsLevelsAndZonesNamingATheme) {
+  Catalogs c;
+  Level level;
+  level.id = "level";
+  level.name = "Cave";
+  level.zones.push_back({.id = 3, .name = "Entry", .theme_id = "theme"});
+  c.levels.push_back(std::move(level));
+
+  const std::vector<AssetReference> referrers = FindParallaxThemeReferrers(c.View(), "theme");
+  ASSERT_EQ(referrers.size(), 1u);
+  EXPECT_EQ(referrers[0].kind, AssetKind::kLevel);
+  EXPECT_EQ(referrers[0].display_name, "Cave");
+  EXPECT_THAT(referrers[0].field, HasSubstr("Entry"));
 }
 
 // An unset texture on a layer is a valid unfinished layer, not a pointer at
@@ -115,7 +125,7 @@ TEST(AssetReferencesTest, AnEmptyIdIsNotAReference) {
   Catalogs c;
   c.tilesets.push_back(Tileset{.id = "ts", .name = "Cave", .texture_id = ""});
   c.sprites.push_back(Sprite{.id = "sp", .name = "Crystal", .texture_id = ""});
-  c.levels.push_back(LevelWithParallax("lv", "Level", "Sky", "Empty Layer", ""));
+  c.parallax_themes.push_back(ThemeWithParallax("theme", "Sky", "Empty Layer", ""));
 
   EXPECT_THAT(FindTextureReferrers(c.View(), ""), IsEmpty());
   EXPECT_THAT(FindTextureReferrers(c.View(), "tex"), IsEmpty());

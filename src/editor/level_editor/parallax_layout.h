@@ -5,6 +5,7 @@
 
 #include "objects/camera.h"
 #include "objects/level.h"
+#include "objects/parallax_theme.h"
 
 namespace zebes {
 
@@ -31,7 +32,7 @@ struct ParallaxLayout {
 // draw order.
 struct ActiveParallaxZone {
   int zone_id = -1;
-  int theme_id = -1;
+  std::string theme_id;
 };
 
 // Camera state that centers and fits a world-space rectangle.
@@ -46,27 +47,26 @@ const ParallaxZone* FindParallaxZoneById(const std::vector<ParallaxZone>& zones,
 
 // Resolves one active zone using half-open bounds: min is inclusive and max is
 // exclusive. Viewport size and zoom do not affect the result.
-std::optional<ActiveParallaxZone> ResolveActiveParallaxZone(
-    const std::vector<ParallaxZone>& zones, Vec reference_point);
+std::optional<ActiveParallaxZone> ResolveActiveParallaxZone(const std::vector<ParallaxZone>& zones,
+                                                            Vec reference_point);
 
 // Calculates a camera view that fits bounds with proportional screen padding.
 std::optional<CameraFrame> CalculateCameraFrame(VisibleWorldBounds bounds, int viewport_width,
-                                                int viewport_height,
-                                                double padding_fraction = 0.1);
+                                                int viewport_height, double padding_fraction = 0.1);
 
 // Centers the camera on target bounds and fits them when possible. If fitting
 // the complete target would make that center invalid within world bounds, the
 // zoom is increased just enough to preserve the center. This behaves
 // symmetrically for long horizontal and tall vertical targets.
-std::optional<CameraFrame> CalculateConstrainedCameraFrame(
-    VisibleWorldBounds target_bounds, VisibleWorldBounds world_bounds, int viewport_width,
-    int viewport_height, double padding_fraction = 0.1);
+std::optional<CameraFrame> CalculateConstrainedCameraFrame(VisibleWorldBounds target_bounds,
+                                                           VisibleWorldBounds world_bounds,
+                                                           int viewport_width, int viewport_height,
+                                                           double padding_fraction = 0.1);
 
 // Returns no layout when the camera, texture, or layer scale cannot produce
 // valid geometry.
 std::optional<ParallaxLayout> CalculateParallaxLayout(const Camera& camera,
-                                                      const ParallaxLayer& layer,
-                                                      int texture_width,
+                                                      const ParallaxLayer& layer, int texture_width,
                                                       int texture_height);
 
 }  // namespace zebes

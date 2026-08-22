@@ -12,6 +12,7 @@
 #include "objects/camera.h"
 #include "objects/entity.h"
 #include "objects/level.h"
+#include "objects/parallax_theme.h"
 #include "objects/sprite.h"
 #include "objects/tileset.h"
 #include "objects/vec.h"

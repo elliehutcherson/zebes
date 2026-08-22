@@ -49,6 +49,21 @@ target_link_libraries(level_manager sprite_manager)
 target_link_libraries(level_manager collider_manager)
 target_link_libraries(level_manager resource_utils)
 
+add_library(parallax_theme_manager parallax_theme_manager.cc)
+target_link_libraries(parallax_theme_manager
+  PUBLIC
+  parallax_theme
+  absl::status
+  absl::statusor
+  PRIVATE
+  common
+  resource_utils
+  status_macros
+  absl::flat_hash_map
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
 add_library(tileset_manager tileset_manager.cc)
 target_link_libraries(tileset_manager common)
 target_link_libraries(tileset_manager absl::status)
@@ -113,6 +128,7 @@ target_link_libraries(asset_references
   PUBLIC
   blueprint
   level
+  parallax_theme
   sprite
   tileset
   terrain_recipe

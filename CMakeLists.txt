@@ -1,5 +1,14 @@
 cmake_minimum_required(VERSION 3.21)
 
+# Full local builds expose eight workers, but linking a test executable also
+# runs GoogleTest discovery. Letting many of those memory- and process-heavy
+# edges overlap caused discovery timeouts on otherwise healthy builds. Compile
+# edges may use the full build parallelism while link/discovery stays bounded.
+if(CMAKE_GENERATOR MATCHES "Ninja" AND BUILD_TESTING)
+  set_property(GLOBAL PROPERTY JOB_POOLS zebes_link_pool=2)
+  set(CMAKE_JOB_POOL_LINK zebes_link_pool)
+endif()
+
 project(zebes VERSION 0.1.0)
 
 include(CTest)

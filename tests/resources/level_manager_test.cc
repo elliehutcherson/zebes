@@ -55,18 +55,6 @@ TEST_F(LevelManagerTest, SerializationTest) {
       .spawn_point = {100, 200},
   };
 
-  // Add Parallax
-  level.themes[1] = ParallaxTheme{
-      .id = 1,
-      .name = "My Theme",
-      .layers = {ParallaxLayer{
-          .name = "My Layer",
-          .texture_id = "tex1",
-          .scroll_factor = {0.5, 0.5},
-          .repeat_x = true,
-      }},
-  };
-
   // Add Tile Chunk
   TileChunk chunk;
   chunk.tiles[0] = 1;
@@ -94,12 +82,6 @@ TEST_F(LevelManagerTest, SerializationTest) {
   EXPECT_EQ(loaded->height, 320);
   EXPECT_EQ(loaded->spawn_point.x, 100);
   EXPECT_EQ(loaded->spawn_point.y, 200);
-
-  ASSERT_TRUE(loaded->themes.contains(1));
-  ASSERT_EQ(loaded->themes[1].layers.size(), 1);
-  EXPECT_EQ(loaded->themes[1].layers[0].name, "My Layer");
-  EXPECT_EQ(loaded->themes[1].layers[0].texture_id, "tex1");
-  EXPECT_TRUE(loaded->themes[1].layers[0].repeat_x);
 
   ASSERT_EQ(loaded->layers.size(), 1);
   EXPECT_EQ(loaded->layers.front().name, "Base");
@@ -238,92 +220,17 @@ TEST_F(LevelManagerTest, SaveLevelDuplicateNameFails) {
   EXPECT_THAT(status.message(), HasSubstr("already taken"));
 }
 
-// Every authored field of a layer, round-tripped through disk. Layers belong to
-// a theme, which is the only place they have ever been drawn from.
-TEST_F(LevelManagerTest, ParallaxLayerPersistence) {
-  Level level{
-      .name = "Parallax Persistence Level",
-  };
-
-  ParallaxLayer layer1{
-      .name = "Layer 1",
-      .texture_id = "sky_tex",
-      .scroll_factor = {0.1, 0.1},
-      .offset = {100.0, 200.0},
-      .base_scale = 2.5f,
-      .repeat_x = true,
-      .repeat_y = true,
-  };
-
-  ParallaxLayer layer2{
-      .name = "Layer 2",
-      .texture_id = "mountains_tex",
-      .scroll_factor = {0.5, 0.2},
-      .offset = {-50.0, 75.0},
-      .base_scale = 0.75f,
-      .repeat_x = false,
-      .repeat_y = false,
-  };
-
-  level.themes[1] = ParallaxTheme{.id = 1, .name = "Sky", .layers = {layer1, layer2}};
-
-  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
-
-  // Force reload from disk
-  manager_ = nullptr;
-  ASSERT_OK_AND_ASSIGN(auto new_manager, LevelManager::Create("test_data/level_manager_test"));
-  manager_ = std::move(new_manager);
-  ASSERT_OK(manager_->LoadAllLevels());
-
-  ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
-
-  ASSERT_TRUE(loaded->themes.contains(1));
-  ASSERT_EQ(loaded->themes[1].layers.size(), 2);
-
-  const ParallaxLayer& l1 = loaded->themes[1].layers[0];
-  EXPECT_EQ(l1.name, "Layer 1");
-  EXPECT_EQ(l1.texture_id, "sky_tex");
-  EXPECT_EQ(l1.scroll_factor.x, 0.1);
-  EXPECT_EQ(l1.scroll_factor.y, 0.1);
-  EXPECT_EQ(l1.offset.x, 100.0);
-  EXPECT_EQ(l1.offset.y, 200.0);
-  EXPECT_TRUE(l1.repeat_x);
-  EXPECT_TRUE(l1.repeat_y);
-  EXPECT_FLOAT_EQ(l1.base_scale, 2.5f);
-
-  const ParallaxLayer& l2 = loaded->themes[1].layers[1];
-  EXPECT_EQ(l2.name, "Layer 2");
-  EXPECT_EQ(l2.texture_id, "mountains_tex");
-  EXPECT_EQ(l2.scroll_factor.x, 0.5);
-  EXPECT_EQ(l2.scroll_factor.y, 0.2);
-  EXPECT_EQ(l2.offset.x, -50.0);
-  EXPECT_EQ(l2.offset.y, 75.0);
-  EXPECT_FALSE(l2.repeat_x);
-  EXPECT_FALSE(l2.repeat_y);
-  EXPECT_FLOAT_EQ(l2.base_scale, 0.75f);
-}
-
-TEST_F(LevelManagerTest, ZonesAndThemesPersistence) {
+TEST_F(LevelManagerTest, ZoneThemeReferencePersistence) {
   Level level{
       .name = "Theme Level",
       .width = 320,
       .height = 320,
   };
 
-  ParallaxTheme theme;
-  theme.id = 1;
-  theme.name = "Forest";
-  ParallaxLayer layer;
-  layer.name = "Trees";
-  layer.texture_id = "tex_trees";
-  layer.base_scale = 1.5f;
-  theme.layers.push_back(layer);
-  level.themes[1] = theme;
-
   ParallaxZone zone;
   zone.id = 0;
   zone.name = "Forest Zone";
-  zone.theme_id = 1;
+  zone.theme_id = "forest-theme";
   zone.min_point = {0, 0};
   zone.max_point = {100, 100};
   zone.fade_length = {10, 10};
@@ -339,116 +246,20 @@ TEST_F(LevelManagerTest, ZonesAndThemesPersistence) {
 
   ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
 
-  ASSERT_EQ(loaded->themes.size(), 1);
-  ASSERT_TRUE(loaded->themes.contains(1));
-  EXPECT_EQ(loaded->themes[1].layers.size(), 1);
-  EXPECT_EQ(loaded->themes[1].layers[0].name, "Trees");
-  EXPECT_FLOAT_EQ(loaded->themes[1].layers[0].base_scale, 1.5f);
-
   ASSERT_EQ(loaded->zones.size(), 1);
   EXPECT_EQ(loaded->zones[0].id, 0);
   EXPECT_EQ(loaded->zones[0].name, "Forest Zone");
-  EXPECT_EQ(loaded->zones[0].theme_id, 1);
+  EXPECT_EQ(loaded->zones[0].theme_id, "forest-theme");
   EXPECT_EQ(loaded->zones[0].min_point.x, 0);
   EXPECT_EQ(loaded->zones[0].max_point.x, 100);
 }
 
-TEST_F(LevelManagerTest, ThemeLayerOffsetPersistence) {
-  Level level{
-      .name = "Theme Layer Offset Level",
-      .width = 320,
-      .height = 320,
-  };
-
-  ParallaxLayer layer{
-      .name = "Trees",
-      .texture_id = "tex_trees",
-      .offset = {250.0, -100.0},
-  };
-  ParallaxTheme theme{
-      .id = 1,
-      .name = "Forest",
-      .layers = {layer},
-  };
-  level.themes[1] = theme;
-
-  ParallaxZone zone{
-      .id = 0,
-      .name = "Forest Zone",
-      .theme_id = 1,
-      .min_point = {0, 0},
-      .max_point = {100, 100},
-      .fade_length = {10, 10},
-  };
-  level.zones.push_back(zone);
-
-  ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateLevel(std::move(level)));
-
-  // Force reload from disk
-  manager_ = nullptr;
-  ASSERT_OK_AND_ASSIGN(auto new_manager, LevelManager::Create("test_data/level_manager_test"));
-  manager_ = std::move(new_manager);
-  ASSERT_OK(manager_->LoadAllLevels());
-
-  ASSERT_OK_AND_ASSIGN(Level * loaded, manager_->GetLevel(id));
-
-  ASSERT_TRUE(loaded->themes.contains(1));
-  ASSERT_EQ(loaded->themes[1].layers.size(), 1);
-  EXPECT_EQ(loaded->themes[1].layers[0].offset.x, 250.0);
-  EXPECT_EQ(loaded->themes[1].layers[0].offset.y, -100.0);
-}
-
-TEST_F(LevelManagerTest, SaveLevelEmptyThemeNameFails) {
-  Level level{.name = "Bad Theme"};
-  ParallaxTheme theme;
-  theme.id = 1;
-  theme.name = "";
-  level.themes[1] = theme;
-
-  EXPECT_FALSE(manager_->CreateLevel(std::move(level)).ok());
-}
-
-TEST_F(LevelManagerTest, SaveLevelInvalidThemeIdFails) {
-  Level level{.name = "Invalid Theme ID"};
-  ParallaxTheme theme;
-  theme.id = -1;
-  theme.name = "Valid Name";
-  level.themes[-1] = theme;
-
-  absl::StatusOr<std::string> id = manager_->CreateLevel(std::move(level));
-  EXPECT_FALSE(id.ok());
-  EXPECT_THAT(id.status().message(), HasSubstr("valid non-negative integer ID"));
-}
-
-TEST_F(LevelManagerTest, LoadLevelMissingThemeIdFails) {
-  std::string file_path = "test_data/level_manager_test/definitions/levels/bad_theme.json";
-  std::ofstream out(file_path);
-  out << R"({
-    "id": "123",
-    "name": "Bad Theme Level",
-    "width": 320,
-    "height": 320,
-    "themes": [
-      {
-        "name": "Missing ID Theme"
-      }
-    ]
-  })";
-  out.close();
-
-  EXPECT_FALSE(manager_->LoadLevel("bad_theme.json").ok());
-}
-
-TEST_F(LevelManagerTest, SaveLevelZoneInvalidThemeIdFails) {
+TEST_F(LevelManagerTest, SaveLevelEmptyZoneThemeIdFails) {
   Level level{.name = "Bad Zone"};
-  ParallaxTheme theme;
-  theme.id = 1;
-  theme.name = "Valid Theme";
-  level.themes[1] = theme;
   ParallaxZone zone;
   zone.id = 0;
   zone.name = "Zone 0";
-  zone.theme_id = 99;
+  zone.theme_id = "";
   level.zones.push_back(zone);
 
   EXPECT_FALSE(manager_->CreateLevel(std::move(level)).ok());
@@ -456,14 +267,10 @@ TEST_F(LevelManagerTest, SaveLevelZoneInvalidThemeIdFails) {
 
 TEST_F(LevelManagerTest, SaveLevelEmptyZoneNameFails) {
   Level level{.name = "Empty Zone Name"};
-  ParallaxTheme theme;
-  theme.id = 1;
-  theme.name = "Valid Theme";
-  level.themes[1] = theme;
   ParallaxZone zone;
   zone.id = 0;
   zone.name = "";  // Invalid
-  zone.theme_id = 1;
+  zone.theme_id = "theme";
   level.zones.push_back(zone);
 
   absl::StatusOr<std::string> id = manager_->CreateLevel(std::move(level));
@@ -473,20 +280,16 @@ TEST_F(LevelManagerTest, SaveLevelEmptyZoneNameFails) {
 
 TEST_F(LevelManagerTest, SaveLevelDuplicateZoneIdFails) {
   Level level{.name = "Duplicate Zone ID", .width = 320, .height = 320};
-  ParallaxTheme theme;
-  theme.id = 1;
-  theme.name = "Valid Theme";
-  level.themes[1] = theme;
   ParallaxZone zone1;
   zone1.id = 0;
   zone1.name = "Zone A";
-  zone1.theme_id = 1;
+  zone1.theme_id = "theme";
   zone1.min_point = {0, 0};
   zone1.max_point = {100, 100};
   ParallaxZone zone2;
   zone2.id = 0;  // Duplicate
   zone2.name = "Zone B";
-  zone2.theme_id = 1;
+  zone2.theme_id = "theme";
   zone2.min_point = {100, 0};
   zone2.max_point = {200, 100};
   level.zones = {zone1, zone2};
@@ -521,17 +324,37 @@ TEST_F(LevelManagerTest, LoadLevelMissingZoneNameAndIdFails) {
   EXPECT_FALSE(manager_->LoadLevel("bad_zone.json").ok());
 }
 
+TEST_F(LevelManagerTest, LoadLevelRefusesEmbeddedParallaxThemes) {
+  const std::string file_path =
+      "test_data/level_manager_test/definitions/levels/Embedded-embedded.json";
+  std::ofstream out(file_path);
+  out << R"({
+    "id": "embedded",
+    "name": "Embedded",
+    "tileset_id": "",
+    "width": 320,
+    "height": 320,
+    "tile_render_width": 16,
+    "tile_render_height": 16,
+    "spawn_point": {"x": 0, "y": 0},
+    "themes": [],
+    "zones": [],
+    "layers": [{"id": 0, "name": "Base", "tile_chunks": [], "entities": []}]
+  })";
+  out.close();
+
+  const absl::Status status = manager_->LoadLevel("Embedded-embedded.json").status();
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(status.message(), HasSubstr("migrate_definitions.py"));
+}
+
 TEST_F(LevelManagerTest, SaveLevelZoneOutsideBoundsFails) {
   Level level{.name = "Zone Out Of Bounds", .width = 320, .height = 320};
-  ParallaxTheme theme;
-  theme.id = 1;
-  theme.name = "Valid Theme";
-  level.themes[1] = theme;
 
   ParallaxZone zone;
   zone.id = 0;
   zone.name = "Zone 0";
-  zone.theme_id = 1;
+  zone.theme_id = "theme";
   zone.min_point = {0, 0};
   zone.max_point = {500, 320};  // max_x exceeds level width
   level.zones.push_back(zone);
@@ -543,15 +366,11 @@ TEST_F(LevelManagerTest, SaveLevelZoneOutsideBoundsFails) {
 
 TEST_F(LevelManagerTest, SaveLevelZoneNegativeCoordsFails) {
   Level level{.name = "Negative Zone", .width = 320, .height = 320};
-  ParallaxTheme theme;
-  theme.id = 1;
-  theme.name = "Valid Theme";
-  level.themes[1] = theme;
 
   ParallaxZone zone;
   zone.id = 0;
   zone.name = "Zone 0";
-  zone.theme_id = 1;
+  zone.theme_id = "theme";
   zone.min_point = {-10, 0};
   zone.max_point = {100, 100};
   level.zones.push_back(zone);
@@ -563,15 +382,11 @@ TEST_F(LevelManagerTest, SaveLevelZoneNegativeCoordsFails) {
 
 TEST_F(LevelManagerTest, SaveLevelZoneInvalidDimensionsFails) {
   Level level{.name = "Inverted Zone", .width = 320, .height = 320};
-  ParallaxTheme theme;
-  theme.id = 1;
-  theme.name = "Valid Theme";
-  level.themes[1] = theme;
 
   ParallaxZone zone;
   zone.id = 0;
   zone.name = "Zone 0";
-  zone.theme_id = 1;
+  zone.theme_id = "theme";
   zone.min_point = {100, 0};
   zone.max_point = {50, 100};  // min_x > max_x
   level.zones.push_back(zone);
@@ -757,7 +572,7 @@ TEST_F(LevelManagerTest, SimulationStateInADocumentIsIgnored) {
       }],
       "tile_chunks": []
     }],
-    "themes": [], "zones": []
+    "zones": []
   })";
   out.close();
 
@@ -784,7 +599,7 @@ TEST_F(LevelManagerTest, ALevelMissingARequiredFieldIsRefused) {
     "tile_render_width": 16,
     "tile_render_height": 16,
     "spawn_point": {"x": 0.0, "y": 0.0},
-    "entities": [], "themes": [], "zones": [], "tile_chunks": []
+    "entities": [], "zones": [], "tile_chunks": []
   })";
   out.close();
 

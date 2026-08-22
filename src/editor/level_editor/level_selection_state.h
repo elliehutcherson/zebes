@@ -10,8 +10,6 @@ struct SelectionState {
     kNone = 0,
     kLevel = 1,
     kZone = 2,
-    kTheme = 3,
-    kParallaxLayer = 8,
     kEntity = 9,
     kWorldLayer = 10,
   };
@@ -20,8 +18,6 @@ struct SelectionState {
 
   // Context Data
   int zone_id = -1;
-  int theme_id = -1;
-  int layer_index = -1;
   int world_layer_id = -1;
   uint64_t entity_id = 0;  // Entity::kInvalidId
 
@@ -29,15 +25,12 @@ struct SelectionState {
   void Clear() {
     type = Type::kNone;
     zone_id = -1;
-    theme_id = -1;
-    layer_index = -1;
     world_layer_id = -1;
     entity_id = 0;
   }
 
   // Applies an entity pick from the viewport. Clicking empty space clears an
-  // entity selection, but preserves unrelated level, zone, theme, or layer
-  // authoring context.
+  // entity selection, but preserves unrelated level or zone authoring context.
   void ApplyEntityPick(uint64_t picked_entity_id) {
     if (picked_entity_id == 0) {
       if (type == Type::kEntity) Clear();

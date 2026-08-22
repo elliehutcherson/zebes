@@ -19,6 +19,7 @@ target_link_libraries(api
   collider_manager
   blueprint_manager
   level_manager
+  parallax_theme_manager
   tileset_manager
   terrain_recipe_manager
   source_artwork_manager

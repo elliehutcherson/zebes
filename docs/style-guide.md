@@ -281,6 +281,15 @@ skips everything the unflagged command covers. Reach for it when SDL or ImGui
 behavior is the thing under test, and for `--all-tests-with-ui` when you want
 the merge gate locally.
 
+The comprehensive wrapper uses the `dev-full` or `ui-full` build preset: eight
+build workers with link and GoogleTest discovery bounded to a two-worker Ninja
+pool. It then derives an authoritative manifest from CTest and runs each test
+executable once, serially. This avoids paying process startup for every
+discovered GoogleTest case while preserving fixed-directory and display
+resource safety. An explicit `--test-filter` still uses CTest so its case-level
+selection semantics do not change. Focused `scripts/test.sh` invocations retain
+the two-worker `dev` and `ui` presets.
+
 GitHub Actions runs `--all-tests-with-ui` for every pull request and push to
 `main`. A new session alone is not a reason to rerun it.
 

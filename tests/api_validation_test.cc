@@ -6,6 +6,7 @@
 #include "resources/blueprint_manager_mock.h"
 #include "resources/collider_manager_mock.h"
 #include "resources/level_manager_mock.h"
+#include "resources/parallax_theme_manager_mock.h"
 #include "resources/prop_recipe_manager_mock.h"
 #include "resources/source_artwork_manager_mock.h"
 #include "resources/sprite_manager_mock.h"
@@ -34,6 +35,7 @@ class ApiValidationTest : public ::testing::Test {
         .collider_manager = &collider_manager_,
         .blueprint_manager = &blueprint_manager_,
         .level_manager = &level_manager_,
+        .parallax_theme_manager = &parallax_theme_manager_,
         .tileset_manager = &tileset_manager_,
         .terrain_recipe_manager = &terrain_recipe_manager_,
         .source_artwork_manager = &source_artwork_manager_,
@@ -52,6 +54,7 @@ class ApiValidationTest : public ::testing::Test {
   NiceMock<ColliderManagerMock> collider_manager_;
   NiceMock<BlueprintManagerMock> blueprint_manager_;
   NiceMock<LevelManagerMock> level_manager_;
+  NiceMock<ParallaxThemeManagerMock> parallax_theme_manager_;
   NiceMock<TilesetManagerMock> tileset_manager_;
   NiceMock<TerrainRecipeManagerMock> terrain_recipe_manager_;
   NiceMock<SourceArtworkManagerMock> source_artwork_manager_;
@@ -102,6 +105,69 @@ TEST_F(ApiValidationTest, DeleteTextureInUseByARecipeReturnsError) {
   EXPECT_CALL(texture_manager_, DeleteTexture(_)).Times(0);
 
   EXPECT_EQ(api_->DeleteTexture(texture_id).code(), absl::StatusCode::kFailedPrecondition);
+}
+
+TEST_F(ApiValidationTest, DeleteTextureInUseByAParallaxThemeReturnsError) {
+  EXPECT_CALL(parallax_theme_manager_, GetAllThemes())
+      .WillOnce(Return(std::vector<ParallaxTheme>{{
+          .id = "theme",
+          .name = "Crystal Cave",
+          .layers = {{.name = "Far", .texture_id = "texture"}},
+      }}));
+  EXPECT_CALL(texture_manager_, DeleteTexture(_)).Times(0);
+
+  const absl::Status status = api_->DeleteTexture("texture");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Crystal Cave"));
+}
+
+TEST_F(ApiValidationTest, DeleteReferencedParallaxThemeReturnsError) {
+  Level first;
+  first.id = "first";
+  first.name = "Cave Entrance";
+  first.zones.push_back({.id = 0, .name = "Entry", .theme_id = "shared"});
+  Level second;
+  second.id = "second";
+  second.name = "Cave Depths";
+  second.zones.push_back({.id = 0, .name = "Depths", .theme_id = "shared"});
+  EXPECT_CALL(level_manager_, GetAllLevels()).WillOnce(Return(std::vector<Level>{first, second}));
+  EXPECT_CALL(parallax_theme_manager_, DeleteTheme(_)).Times(0);
+
+  const absl::Status status = api_->DeleteParallaxTheme("shared");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Cave Entrance"));
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Cave Depths"));
+}
+
+TEST_F(ApiValidationTest, CreateParallaxThemeRefusesMissingTextureBeforePublishing) {
+  EXPECT_CALL(texture_manager_, GetTexture("missing"))
+      .WillOnce(Return(absl::NotFoundError("missing")));
+  EXPECT_CALL(parallax_theme_manager_, CreateTheme(_)).Times(0);
+  ParallaxTheme theme{
+      .name = "Cave",
+      .layers = {{.name = "Far", .texture_id = "missing"}},
+  };
+
+  EXPECT_EQ(api_->CreateParallaxTheme(theme).status().code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST_F(ApiValidationTest, CreateLevelRefusesMissingThemeBeforePublishing) {
+  Level level{.name = "Cave", .width = 320, .height = 320};
+  level.zones.push_back({
+      .id = 0,
+      .name = "Main",
+      .theme_id = "missing",
+      .min_point = {0, 0},
+      .max_point = {320, 320},
+  });
+  EXPECT_CALL(parallax_theme_manager_, GetTheme("missing"))
+      .WillOnce(Return(absl::NotFoundError("missing")));
+  EXPECT_CALL(level_manager_, CreateLevel(_)).Times(0);
+
+  const absl::Status status = api_->CreateLevel(std::move(level)).status();
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("missing theme"));
 }
 
 TEST_F(ApiValidationTest, DeleteTextureNotInUseCallsDelete) {

@@ -1,15 +1,15 @@
 # Handoff
 
 > Historical snapshot: this file is not the current feature backlog. Use
-> [`roadmap.md`](roadmap.md) for sequencing and the linked feature design—such
-> as [`prop-artwork.md`](prop-artwork.md)—for durable decisions and TODOs.
+> [`roadmap.md`](../roadmap.md) for sequencing and the linked feature design—such
+> as [`prop-artwork.md`](../prop-artwork.md)—for durable decisions and TODOs.
 
 ## Current: Codex is selectable in the editor; live smoke remains
 
 As of 2026-08-20, the headless Codex App Server scheme is implemented through
 the production editor UI. The durable plan, settled constraints, completed
 milestones, and remaining live verification are in
-[`codex-image-generation.md`](codex-image-generation.md).
+[`codex-image-generation.md`](../codex-image-generation.md).
 
 The implementation owns one lazily started `codex app-server --stdio` child,
 requires the active `chatgpt` account and enabled `imagegen` skill, strips
@@ -65,7 +65,7 @@ the provider must be supported there.
 
 ## Previous: The generated-source editor flow is wired end to end
 
-As of 2026-08-19, [`roadmap.md`](roadmap.md) remains the source of truth for
+As of 2026-08-19, [`roadmap.md`](../roadmap.md) remains the source of truth for
 sequencing. Tracks 0-3 are complete. Track 4 layers, imported-source prop
 artwork, attachment modes, and the developer feedback loop are implemented.
 
@@ -176,8 +176,8 @@ staging.
 ### What remains
 
 - **Track 4:** Milestone 6 operational hardening remains. Parallax zone seaming
-  is still the smallest independent feature. See [`roadmap.md`](roadmap.md) and
-  [`prop-artwork.md`](prop-artwork.md).
+  is still the smallest independent feature. See [`roadmap.md`](../roadmap.md) and
+  [`prop-artwork.md`](../prop-artwork.md).
 - **Polling adoption:** `ImageGenerationEngine` is the first production owner
   and the shape later pollers should follow. The game loop is the expected
   second: a fixed timestep is the same "idle, but due at T" the deadline was
@@ -197,7 +197,7 @@ document:
 |---|---|---|
 | Derived terrain artwork | [`terrain-derived-artwork.md`](terrain-derived-artwork.md) | Implemented; doc trued up against the code |
 | Safe asset deletion | [`asset-deletion.md`](asset-deletion.md) | Implemented, checks and buttons both |
-| Prop artwork from generated images | [`prop-artwork.md`](prop-artwork.md) | Milestones 0-4a implemented; provider work remains |
+| Prop artwork from generated images | [`prop-artwork.md`](../prop-artwork.md) | Milestones 0-4a implemented; provider work remains |
 
 ---
 
@@ -300,7 +300,7 @@ tiles generation produced and would leave everything a level asked for stale.
 **This is a tagged union, not an optional field.** `TerrainScheme` says which
 variant a terrain is: `kBlob47` has `rules` and `shape_tile_ids`, `kDerived` has
 `derived_tiles`. A reader knows which set to demand before it reads them. The
-rule is now written down in [`style-guide.md`](style-guide.md).
+rule is now written down in [`style-guide.md`](../style-guide.md).
 
 **Visible and durable are separate.** `ShowTexturePixels` uploads to the GPU
 without touching disk, because a tile the GPU has not seen renders as a hole,
@@ -398,7 +398,7 @@ a reference.
 
 ## What is left
 
-In [`roadmap.md`](roadmap.md), which carries what this section used to: the
+In [`roadmap.md`](../roadmap.md), which carries what this section used to: the
 terrain carry-overs, the layers phase, and the limitations this phase accepted
 on purpose. One of them is closed — the `kSlope45*` names now describe the tall
 side rather than the taper end.

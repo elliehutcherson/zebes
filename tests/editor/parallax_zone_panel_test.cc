@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 #include "macros.h"
 #include "objects/level.h"
+#include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
 
 namespace zebes {
@@ -40,12 +41,10 @@ class ParallaxZonePanelTest : public ::testing::Test {
  protected:
   void SetUp() override {
     level_.zones.clear();
-    level_.themes.clear();
+    themes_ = {{.id = "theme-1", .name = "Theme1", .layers = {}}};
+    ON_CALL(api_, GetAllParallaxThemes()).WillByDefault(Return(themes_));
 
-    // Add dummy themes
-    level_.themes[1] = ParallaxTheme{.name = "Theme1"};
-
-    auto panel_or = ParallaxZonePanel::Create({.gui = &gui_});
+    auto panel_or = ParallaxZonePanel::Create({.api = &api_, .gui = &gui_});
     ASSERT_OK(panel_or);
     panel_ = *std::move(panel_or);
 
@@ -91,7 +90,9 @@ class ParallaxZonePanelTest : public ::testing::Test {
   }
 
   NiceMock<MockGui> gui_;
+  NiceMock<MockApi> api_;
   std::unique_ptr<ParallaxZonePanel> panel_;
+  std::vector<ParallaxTheme> themes_;
   Level level_;
   SelectionState selection_;
 };
@@ -193,8 +194,16 @@ TEST_F(ParallaxZonePanelTest, DetailsReturnsErrorOnInvalidId) {
 
 TEST_F(ParallaxZonePanelTest, SelectionUsesStableIdAfterZoneOrderChanges) {
   level_.zones = {
-      {.id = 10, .name = "First", .theme_id = 1, .min_point = {0, 0}, .max_point = {50, 50}},
-      {.id = 20, .name = "Second", .theme_id = 1, .min_point = {50, 0}, .max_point = {100, 50}},
+      {.id = 10,
+       .name = "First",
+       .theme_id = "theme-1",
+       .min_point = {0, 0},
+       .max_point = {50, 50}},
+      {.id = 20,
+       .name = "Second",
+       .theme_id = "theme-1",
+       .min_point = {50, 0},
+       .max_point = {100, 50}},
   };
   selection_.type = SelectionState::Type::kZone;
   selection_.zone_id = 20;
@@ -209,7 +218,7 @@ TEST_F(ParallaxZonePanelTest, NavigatorShowsThemeNameInLabel) {
   ParallaxZone zone;
   zone.id = 0;
   zone.name = "My Zone";
-  zone.theme_id = 1;  // Matches the theme added in SetUp
+  zone.theme_id = "theme-1";
   level_.zones.push_back(zone);
 
   EXPECT_CALL(gui_, Selectable(StrEq("My Zone (Theme1)##zone_0"), false, _, _))
@@ -219,8 +228,9 @@ TEST_F(ParallaxZonePanelTest, NavigatorShowsThemeNameInLabel) {
 }
 
 TEST_F(ParallaxZonePanelTest, NavigatorUsesSafeLabelsForEmptyNames) {
-  level_.themes[1].name.clear();
-  level_.zones.push_back(ParallaxZone{.id = 4, .name = "", .theme_id = 1});
+  themes_[0].name.clear();
+  ON_CALL(api_, GetAllParallaxThemes()).WillByDefault(Return(themes_));
+  level_.zones.push_back(ParallaxZone{.id = 4, .name = "", .theme_id = "theme-1"});
 
   EXPECT_CALL(gui_, Selectable(StrEq("(unnamed zone) (unnamed theme)##zone_4"), false, _, _))
       .WillOnce(Return(false));
@@ -232,7 +242,7 @@ TEST_F(ParallaxZonePanelTest, ComboPreviewShowsSelectedTheme) {
   ParallaxZone zone;
   zone.id = 0;
   zone.name = "My Zone";
-  zone.theme_id = 1;
+  zone.theme_id = "theme-1";
   level_.zones.push_back(zone);
   selection_.type = SelectionState::Type::kZone;
   selection_.zone_id = 0;
@@ -245,23 +255,11 @@ TEST_F(ParallaxZonePanelTest, ComboPreviewShowsSelectedTheme) {
   ASSERT_OK(RenderDetails());
 }
 
-TEST_F(ParallaxZonePanelTest, RenderDetailsShowsLayerOffsets) {
-  ParallaxLayer layer{
-      .name = "Trees",
-      .texture_id = "tex_trees",
-      .offset = {250.0, -100.0},
-  };
-  ParallaxTheme theme{
-      .id = 2,
-      .name = "Forest",
-      .layers = {layer},
-  };
-  level_.themes[2] = theme;
-
+TEST_F(ParallaxZonePanelTest, EditThemeEmitsStableIdRequest) {
   ParallaxZone zone{
       .id = 0,
       .name = "Zone 0",
-      .theme_id = 2,
+      .theme_id = "theme-1",
       .min_point = {0, 0},
       .max_point = {100, 100},
   };
@@ -269,9 +267,14 @@ TEST_F(ParallaxZonePanelTest, RenderDetailsShowsLayerOffsets) {
   selection_.type = SelectionState::Type::kZone;
   selection_.zone_id = 0;
 
-  EXPECT_CALL(gui_, InputDouble).WillRepeatedly(Return(false));
+  EXPECT_CALL(gui_, Button(StrEq("Edit Theme"), _)).WillOnce(Return(true));
 
   ASSERT_OK(RenderDetails());
+  std::optional<ParallaxZonePanel::ThemeRequest> request = panel_->TakeThemeRequest();
+  ASSERT_TRUE(request.has_value());
+  EXPECT_EQ(request->action, ParallaxZonePanel::ThemeAction::kEdit);
+  EXPECT_EQ(request->zone_id, 0);
+  EXPECT_EQ(request->theme_id, "theme-1");
 }
 
 }  // namespace

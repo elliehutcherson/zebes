@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import uuid
 from pathlib import Path
 
 
@@ -104,6 +105,91 @@ def migrate_level(document: dict) -> bool:
     if "parallax_layers" in document:
         del document["parallax_layers"]
         changed = True
+    return changed
+
+
+PARALLAX_THEME_NAMESPACE = uuid.UUID("8db10f18-b15d-4c0c-9208-c687af105d5a")
+
+
+def parallax_theme_id(level_id: str, local_theme_id: int) -> str:
+    """Stable identity for one formerly level-owned theme."""
+    return str(uuid.uuid5(PARALLAX_THEME_NAMESPACE, f"{level_id}:{local_theme_id}"))
+
+
+def migrate_parallax_themes(definitions_root: Path, dry_run: bool) -> list[Path]:
+    """Extracts embedded level themes as one preflighted multi-file migration.
+
+    Every output is calculated and checked before any write. Existing theme
+    files are accepted only when their complete JSON content is identical to
+    the deterministic output, which makes retrying safe without permitting a
+    half-migrated level to overwrite independently authored work.
+    """
+    levels_directory = definitions_root / "levels"
+    if not levels_directory.is_dir():
+        raise ValueError(f"Definition directory does not exist: {levels_directory}")
+    themes_directory = definitions_root / "parallax_themes"
+
+    level_updates: list[tuple[Path, dict]] = []
+    theme_outputs: dict[Path, dict] = {}
+    for level_path in sorted(levels_directory.glob("*.json")):
+        level = load_document(level_path)
+        if "themes" not in level:
+            for zone in level.get("zones", []):
+                if not isinstance(zone.get("theme_id"), str):
+                    raise ValueError(
+                        f"Half-migrated level has no themes but a non-string theme_id: {level_path}"
+                    )
+            continue
+
+        old_themes = level["themes"]
+        if not isinstance(old_themes, list):
+            raise ValueError(f"Level themes are not a list: {level_path}")
+        by_local_id: dict[int, str] = {}
+        for old_theme in old_themes:
+            local_id = old_theme.get("id")
+            if not isinstance(local_id, int) or local_id in by_local_id:
+                raise ValueError(f"Level has an invalid or duplicate theme ID: {level_path}")
+            theme_id = parallax_theme_id(level["id"], local_id)
+            by_local_id[local_id] = theme_id
+            extracted = {
+                "id": theme_id,
+                "name": f'{level["name"]} — {old_theme["name"]}',
+                "layers": old_theme["layers"],
+            }
+            output_path = themes_directory / f"{theme_id}.json"
+            existing_planned = theme_outputs.get(output_path)
+            if existing_planned is not None and existing_planned != extracted:
+                raise ValueError(f"Conflicting deterministic theme output: {output_path}")
+            theme_outputs[output_path] = extracted
+
+        migrated = dict(level)
+        migrated.pop("themes")
+        migrated["zones"] = [dict(zone) for zone in level.get("zones", [])]
+        for zone in migrated["zones"]:
+            local_id = zone.get("theme_id")
+            if local_id not in by_local_id:
+                raise ValueError(
+                    f"Level zone references missing embedded theme {local_id!r}: {level_path}"
+                )
+            zone["theme_id"] = by_local_id[local_id]
+        level_updates.append((level_path, migrated))
+
+    # The complete preflight happens before mkdir or any write.
+    for output_path, expected in theme_outputs.items():
+        if output_path.exists() and load_document(output_path) != expected:
+            raise ValueError(f"Existing parallax theme conflicts with migration: {output_path}")
+
+    changed = [path for path, _ in level_updates]
+    changed.extend(path for path in sorted(theme_outputs) if not path.exists())
+    if dry_run or not changed:
+        return changed
+
+    themes_directory.mkdir(parents=True, exist_ok=True)
+    for output_path, document in sorted(theme_outputs.items()):
+        if not output_path.exists():
+            write_document(output_path, document, 2)
+    for level_path, document in level_updates:
+        write_document(level_path, document, 4)
     return changed
 
 
@@ -354,6 +440,11 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     total = 0
+    if (args.definitions / "levels").is_dir():
+        changed = migrate_parallax_themes(args.definitions, args.dry_run)
+        total += len(changed)
+        for path in changed:
+            print(f"{'would migrate' if args.dry_run else 'migrated'}: {path}")
     for kind in sorted(MIGRATIONS):
         # Some definition directories are created by the editor on first save
         # rather than shipped, so a whole-tree run must tolerate their absence.

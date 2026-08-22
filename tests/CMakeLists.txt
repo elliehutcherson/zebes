@@ -114,6 +114,11 @@ add_executable(level_manager_test resources/level_manager_test.cc)
 target_link_libraries(level_manager_test level_manager macros gtest_main gmock)
 gtest_discover_tests(level_manager_test PROPERTIES RESOURCE_LOCK level_manager_test_data)
 
+add_executable(parallax_theme_manager_test resources/parallax_theme_manager_test.cc)
+target_link_libraries(parallax_theme_manager_test
+  parallax_theme_manager macros gtest_main nlohmann_json::nlohmann_json)
+gtest_discover_tests(parallax_theme_manager_test)
+
 # --- Asset references ---
 add_executable(asset_references_test resources/asset_references_test.cc)
 target_link_libraries(asset_references_test asset_references macros gtest_main gmock)
@@ -162,6 +167,7 @@ target_link_libraries(shipped_assets_test
   tileset_manager
   texture_manager
   level_manager
+  parallax_theme_manager
   sprite_manager
   blueprint_manager
   collider_manager

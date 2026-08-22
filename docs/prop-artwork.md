@@ -717,10 +717,25 @@ unfinished provider behavior.
    of 91% and 77% from the batched Makefile results. Unbounded Ninja parallelism
    caused several five-second GoogleTest discovery timeouts during link-heavy
    builds, while two workers completed reliably and were only about one second
-   slower than four in the isolated source-touch comparison. The project
-   therefore uses Ninja with two jobs for the `dev` and `ui` build presets;
-   release builds retain native parallelism because they have no test discovery
+   slower than four in the isolated source-touch comparison. Focused work
+   therefore retains two jobs in the `dev` and `ui` build presets.
+
+   The comprehensive wrapper now uses separate `dev-full` and `ui-full` build
+   presets with eight workers. A global two-worker Ninja link pool also bounds
+   each test binary's post-link GoogleTest discovery, preserving the constraint
+   established above without throttling independent compilation. A clean
+   UI-enabled build completed all 1,081 actions in 5m49.7s on the reference
+   16-core macOS machine, averaging 699% CPU, without a discovery timeout.
+   Release builds retain native parallelism because they have no test discovery
    hooks.
+
+   The full gate also derives its test manifest from CTest and invokes each
+   registered executable once. On the same checkout, the 96 headless
+   executables ran in about 12s, and a warm complete UI-enabled wrapper run took
+   about 37s including configure, build checks, 99 C++ executables, and 79
+   Python tests. The prior case-by-case CTest C++ path alone took 62–75s to
+   launch 1,003 test processes. Case filters and focused work retain CTest's
+   case-level behavior.
 
    The remaining optimizations were measured separately and rejected for the
    local default. Apple ld's debug-speed flags (`-O0`, `-no_deduplicate`, and

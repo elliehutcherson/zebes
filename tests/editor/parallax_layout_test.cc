@@ -120,7 +120,7 @@ TEST(ParallaxLayoutTest, RejectsInvalidGeometry) {
 TEST(ParallaxLayoutTest, ActiveZoneUsesReferencePointInsteadOfViewportOverlap) {
   std::vector<ParallaxZone> zones{{
       .id = 7,
-      .theme_id = 3,
+      .theme_id = "theme-3",
       .min_point = {0, 1024},
       .max_point = {8192, 2048},
   }};
@@ -130,13 +130,13 @@ TEST(ParallaxLayoutTest, ActiveZoneUsesReferencePointInsteadOfViewportOverlap) {
   std::optional<ActiveParallaxZone> active = ResolveActiveParallaxZone(zones, {400, 1200});
   ASSERT_TRUE(active.has_value());
   EXPECT_EQ(active->zone_id, 7);
-  EXPECT_EQ(active->theme_id, 3);
+  EXPECT_EQ(active->theme_id, "theme-3");
 }
 
 TEST(ParallaxLayoutTest, ActiveZoneUsesHalfOpenBounds) {
   std::vector<ParallaxZone> zones{
-      {.id = 1, .theme_id = 10, .min_point = {0, 0}, .max_point = {100, 100}},
-      {.id = 2, .theme_id = 20, .min_point = {100, 0}, .max_point = {200, 100}},
+      {.id = 1, .theme_id = "theme-10", .min_point = {0, 0}, .max_point = {100, 100}},
+      {.id = 2, .theme_id = "theme-20", .min_point = {100, 0}, .max_point = {200, 100}},
   };
 
   std::optional<ActiveParallaxZone> active = ResolveActiveParallaxZone(zones, {100, 50});
@@ -147,20 +147,20 @@ TEST(ParallaxLayoutTest, ActiveZoneUsesHalfOpenBounds) {
 
 TEST(ParallaxLayoutTest, LaterOverlappingZoneHasPriority) {
   std::vector<ParallaxZone> zones{
-      {.id = 1, .theme_id = 10, .min_point = {0, 0}, .max_point = {200, 200}},
-      {.id = 2, .theme_id = 20, .min_point = {50, 50}, .max_point = {150, 150}},
+      {.id = 1, .theme_id = "theme-10", .min_point = {0, 0}, .max_point = {200, 200}},
+      {.id = 2, .theme_id = "theme-20", .min_point = {50, 50}, .max_point = {150, 150}},
   };
 
   std::optional<ActiveParallaxZone> active = ResolveActiveParallaxZone(zones, {100, 100});
 
   ASSERT_TRUE(active.has_value());
   EXPECT_EQ(active->zone_id, 2);
-  EXPECT_EQ(active->theme_id, 20);
+  EXPECT_EQ(active->theme_id, "theme-20");
 }
 
 TEST(ParallaxLayoutTest, CameraFrameCentersAndFitsBoundsWithPadding) {
-  std::optional<CameraFrame> frame = CalculateCameraFrame(
-      {.min = {100, 200}, .max = {500, 400}}, 1000, 800, 0.1);
+  std::optional<CameraFrame> frame =
+      CalculateCameraFrame({.min = {100, 200}, .max = {500, 400}}, 1000, 800, 0.1);
 
   ASSERT_TRUE(frame.has_value());
   EXPECT_DOUBLE_EQ(frame->position.x, 300);
@@ -169,8 +169,7 @@ TEST(ParallaxLayoutTest, CameraFrameCentersAndFitsBoundsWithPadding) {
 }
 
 TEST(ParallaxLayoutTest, CameraFrameRejectsInvalidBoundsAndViewport) {
-  EXPECT_FALSE(
-      CalculateCameraFrame({.min = {100, 0}, .max = {100, 200}}, 800, 600).has_value());
+  EXPECT_FALSE(CalculateCameraFrame({.min = {100, 0}, .max = {100, 200}}, 800, 600).has_value());
   EXPECT_FALSE(CalculateCameraFrame({.min = {0, 0}, .max = {100, 200}}, 0, 600).has_value());
 }
 
@@ -178,8 +177,7 @@ TEST(ParallaxLayoutTest, ConstrainedFrameKeepsLongHorizontalZoneCenterInsideWorl
   const VisibleWorldBounds zone{.min = {0, 1024}, .max = {8192, 2048}};
   const VisibleWorldBounds world{.min = {0, 0}, .max = {1048576, 4096}};
 
-  std::optional<CameraFrame> frame =
-      CalculateConstrainedCameraFrame(zone, world, 1031, 926);
+  std::optional<CameraFrame> frame = CalculateConstrainedCameraFrame(zone, world, 1031, 926);
 
   ASSERT_TRUE(frame.has_value());
   EXPECT_DOUBLE_EQ(frame->position.x, 4096);
@@ -204,8 +202,7 @@ TEST(ParallaxLayoutTest, ConstrainedFrameKeepsTallVerticalZoneCenterInsideWorld)
   const VisibleWorldBounds zone{.min = {1024, 0}, .max = {2048, 65536}};
   const VisibleWorldBounds world{.min = {0, 0}, .max = {4096, 1048576}};
 
-  std::optional<CameraFrame> frame =
-      CalculateConstrainedCameraFrame(zone, world, 926, 1031);
+  std::optional<CameraFrame> frame = CalculateConstrainedCameraFrame(zone, world, 926, 1031);
 
   ASSERT_TRUE(frame.has_value());
   EXPECT_DOUBLE_EQ(frame->position.x, 1536);
@@ -227,9 +224,8 @@ TEST(ParallaxLayoutTest, ConstrainedFrameKeepsTallVerticalZoneCenterInsideWorld)
 }
 
 TEST(ParallaxLayoutTest, ConstrainedFrameRejectsInvalidWorldBounds) {
-  EXPECT_FALSE(CalculateConstrainedCameraFrame(
-                   {.min = {0, 0}, .max = {100, 100}},
-                   {.min = {0, 0}, .max = {0, 100}}, 800, 600)
+  EXPECT_FALSE(CalculateConstrainedCameraFrame({.min = {0, 0}, .max = {100, 100}},
+                                               {.min = {0, 0}, .max = {0, 100}}, 800, 600)
                    .has_value());
 }
 

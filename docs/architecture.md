@@ -257,6 +257,22 @@ the serialized definition. Parallax layers remain specialized, reusable theme
 content: the viewport composes the resolved parallax theme first, then visible
 world layers, then editor-only overlays.
 
+`ParallaxThemeManager` owns string-identified theme resources under
+`definitions/parallax_themes/`. A `ParallaxZone` stores only a theme resource
+ID, and `Level` owns no mutable theme definitions. Theme edits use an explicit
+asset draft and Save, while Level edits only assign zone references. This keeps
+shared mutation visible and prevents saving a level from publishing an
+unrelated theme draft. The level loader refuses the retired embedded `themes`
+field and directs authors to the deterministic migration instead of maintaining
+two ownership paths.
+
+Theme Editor and Level Editor communicate through stable-ID navigation requests
+routed by `EditorUi`, which owns both. Neither editor borrows the other's model
+or draft. A duplicate-and-assign operation creates the new catalog resource
+before changing the zone ID in the level draft; failure to create leaves the
+draft unchanged. Viewport composition receives copied immutable theme snapshots
+resolved for the current frame rather than retaining manager-owned pointers.
+
 Viewport scene composition is separate from presentation. `ViewportScene`
 builds platform-neutral entity and zone render items with validated world-space
 bounds, selection state, and opaque `TextureHandle` values. `ViewportRenderer`
@@ -295,25 +311,29 @@ terrain neighbourhood queries receive one layer explicitly and never connect
 cells across depth slices.
 
 Parallax-zone activation is also a pure editor/runtime rule: resolve one zone
-from a world-space reference point, currently the camera center, and then render
-that zone's theme. Viewport intersection and zoom must not change the active
-environment. Zone outlines are editor gizmos and are rendered independently.
-Zone selections use stable zone IDs; selecting or explicitly framing a zone may
-move the editor camera without changing activation semantics.
+from a world-space reference point, currently the camera center, resolve its
+theme resource ID through the catalog, and then render that immutable theme
+snapshot. Viewport intersection and zoom must not change the active environment.
+Zone outlines are editor gizmos and are rendered independently. Zone selections
+use stable zone IDs; selecting or explicitly framing a zone may move the editor
+camera without changing activation semantics.
 
-For the active parallax theme, `ViewportTab` resolves authored texture IDs into
-opaque handles once per frame and `ViewportScene` binds them to a
-`ParallaxRenderBatch`. `ViewportRenderer` alone converts those handles, queries
-native texture dimensions, calculates the already headlessly tested parallax
-layout, and emits draw commands. Missing referenced themes, textures, or runtime
-resources fail the render pass; an empty texture ID remains a valid incomplete
-authoring layer and is omitted.
+For the active parallax theme, the composition boundary resolves the zone's
+theme resource and its authored texture IDs once per frame, then
+`ViewportScene` binds them to a `ParallaxRenderBatch`. `ViewportRenderer` alone
+converts those handles, queries native texture dimensions, calculates the
+already headlessly tested parallax layout, and emits draw commands. A missing
+theme resource, texture definition, or runtime handle fails the render pass.
+Incomplete layer drafts live only in Theme Editor and are never published to
+the resource catalog.
 
-The level viewport may explicitly preview the active zone, the selected theme,
-or the selected layer. These modes only choose the parallax batch shown behind
-the level; they do not change zone activation, selection, or persistent level
-data. A layer preview is represented by an optional layer index in the
-platform-neutral batch request, while native rendering remains unchanged.
+The Level viewport may preview the active or selected zone's resolved theme.
+Theme Editor currently previews the selected layer's source texture; complete
+theme composition, isolated-layer composition, and optional read-only
+level/zone context are Milestone 1 authoring work. Preview choices never change
+zone activation, theme drafts, or persistent level data. A future isolated
+layer preview remains representable by the existing optional layer index in the
+platform-neutral batch request, without changing native rendering.
 
 Managed texture thumbnails use `TexturePreviewRenderer` at the editor boundary.
 Panels supply an opaque `TextureHandle`; the renderer resolves SDL state,

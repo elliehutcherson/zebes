@@ -2,9 +2,10 @@
 
 What is left, in the order the dependencies allow. Updated as each track closes.
 
-This outlives any one phase. [`handoff.md`](handoff.md) is the record of the
-derived terrain phase and stays that; the design documents state what a phase
-decided and why. This document only says what has not happened yet.
+This outlives any one phase. [`history/handoff.md`](history/handoff.md) records
+the earlier implementation handoffs; completed design records live under
+[`history/`](history/README.md). Active design documents state what a current
+phase has decided and why. This document only says what has not happened yet.
 
 | Track | What | State |
 |---|---|---|
@@ -12,7 +13,7 @@ decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
-| 4 | Features: layers, prop artwork, zone seaming | **In progress** — layers done |
+| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — imported parallax authoring next |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -130,12 +131,24 @@ The phase is merged and the editor walk is done, so nothing here blocks layers.
 
 ## Track 4 — Features
 
-**Layers — done.** [`level-layers.md`](level-layers.md) records the implemented
+**Layers — done.**
+[`history/level-layers.md`](history/level-layers.md) records the implemented
 contract. `Level` owns ordered `WorldLayer` depth slices, each with one sparse
 tile grid and entity map; `Entity::sort_order` remains within-layer ordering.
 The strict format and migration wrap old root collections as `Base`, editor
 visibility/locking stay transient, and the viewport renders and edits one
 explicit active layer while keeping parallax theme layers specialized.
+
+**Standalone parallax themes — implemented.** `ParallaxThemeManager` now owns
+string-identified resources outside levels. Zones retain only stable theme IDs;
+the dedicated Theme Editor owns theme/layer drafts, while Level Editor owns zone
+assignment, contextual preview, Edit Theme, and Duplicate and Assign. The
+deterministic migration extracted all shipped embedded themes without
+deduplication, and catalog validation blocks missing references and referenced
+deletion. Milestone 1 of
+[`environment-artwork-plan.md`](environment-artwork-plan.md) is next: harden the
+imported authoring experience and run the three-plane cave content gate before
+designing the background-processing defaults.
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved
@@ -196,12 +209,18 @@ without multiplying an expensive verification cycle. Its §12 sequence:
     97.06s because compile/link work dominates. Two-worker scoped clang-tidy cut
     the same 18-file check from 84s to 51.36s. Focused orchestration tests cover
     the success and failure contracts. Ninja reduced the real full warm cycle
-    to 6.32s and the source-touch cycle to 22.23s. `dev` and `ui` now use Ninja
-    with two workers; unbounded parallelism was rejected because it caused
-    test-discovery timeouts. Apple ld debug-speed flags slightly regressed the
-    source-touch cycle. Ccache made a 2.30s compile a 0.03s hit, but linking
-    limits that to about 10% of the full loop, so caching remains in CI without
-    becoming a required local dependency.
+    to 6.32s and the source-touch cycle to 22.23s. Focused `dev` and `ui` builds
+    retain two workers. Comprehensive `dev-full` and `ui-full` builds expose
+    eight workers while a two-worker Ninja link pool protects post-link
+    GoogleTest discovery; a clean 1,081-action UI build completed in 5m49.7s
+    without a discovery timeout. The comprehensive test runner now launches
+    each CTest-registered executable once: 96 headless executables take about
+    12s, while a warm complete UI-enabled wrapper run takes about 37s including
+    configure, build checks, 99 C++ executables, and 79 Python tests. The former
+    CTest C++ path alone launched 1,003 cases over 62–75s. Apple ld debug-speed
+    flags slightly regressed the source-touch cycle. Ccache made a 2.30s compile
+    a 0.03s hit, but linking limits that to about 10% of the focused loop, so
+    caching remains in CI without becoming a required local dependency.
 5. **Implemented.** The cancellable image-generation service, move-only
    environment credential source, bounded HTTPS seam, poll-driven libcurl
    transport, session-lifetime `ImageGenerationEngine`, the first provider
@@ -213,11 +232,24 @@ without multiplying an expensive verification cycle. Its §12 sequence:
    will exercise the curl negative-timeout branch.
 6. Harden shutdown, retry, staging cleanup, and provider failure behavior.
 
-**`ParallaxZone::fade_length`** — authored, serialized, validated, and ignored.
-`ResolveActiveParallaxZone` returns one zone by a half-open bounds test, so every
-transition is a hard cut. Making it real means returning two zones with a blend
-weight and giving the parallax draw a tint parameter it does not have. Small,
-self-contained, and the most visible unimplemented authored field.
+**Environment artwork and parallax** —
+[`environment-artwork-plan.md`](environment-artwork-plan.md). The accepted plan
+keeps camera-relative parallax layers distinct from world-relative background,
+gameplay, and foreground prop layers. It reuses the existing generation,
+retained-source, palette, texture, API-compensation, and reference-scan
+boundaries while adding a background-specific recipe and deterministic output
+builder. Theme extraction and separate editor ownership are implemented. Next
+it validates one imported layered cave composition, then adds retained
+background recipes, exposes generated candidates, and finally implements zone
+fades. The document is also the source of truth for migration, validation, and
+the human authoring workflow.
+
+**`ParallaxZone::fade_length`** — authored, serialized, exposed in the editor,
+and ignored. It is not currently checked by `ValidateLevel`, despite an earlier
+version of this roadmap calling it validated. `ResolveActiveParallaxZone`
+returns one zone by a half-open bounds test, so every transition is a hard cut.
+The supported two-theme fade contract, validation, and implementation sequence
+now live in [`environment-artwork-plan.md`](environment-artwork-plan.md).
 
 **Smaller, already recorded:**
 

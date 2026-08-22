@@ -19,6 +19,7 @@
 #include "editor/image_generation/openai_image_client.h"
 #include "editor/imgui_scoped.h"
 #include "editor/level_editor/level_editor.h"
+#include "editor/parallax_theme_editor/parallax_theme_editor.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor.h"
 #include "editor/sprite_editor/sprite_editor.h"
 #include "editor/texture_editor/texture_editor.h"
@@ -66,6 +67,7 @@ absl::Status EditorUi::Init() {
   ASSIGN_OR_RETURN(
       level_editor_,
       LevelEditor::Create({.api = api_, .gui = gui_, .terrain_ghost = terrain_ghost_.get()}));
+  ASSIGN_OR_RETURN(parallax_theme_editor_, ParallaxThemeEditor::Create(api_, gui_));
   ASSIGN_OR_RETURN(tileset_editor_, TilesetEditor::Create(api_, gui_));
   terrain_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
   ASSIGN_OR_RETURN(terrain_editor_, TerrainEditor::Create(api_, gui_, terrain_preview_.get()));
@@ -138,7 +140,14 @@ void EditorUi::Render() {
       return absl::OkStatus();
     });
     RenderTab("Blueprint Editor", [this]() { return blueprint_editor_->Render(); });
-    RenderTab("Level Editor", [this]() { return level_editor_->Render(); });
+    RenderTab("Level Editor", [this]() {
+      RETURN_IF_ERROR(level_editor_->Render());
+      return HandleLevelThemeRequest();
+    });
+    RenderTab(
+        "Parallax Theme", [this]() { return parallax_theme_editor_->Render(); },
+        select_parallax_theme_tab_);
+    select_parallax_theme_tab_ = false;
     RenderTab("Tileset Editor", [this]() { return tileset_editor_->Render(); });
     RenderTab("Terrain Editor", [this]() { return terrain_editor_->Render(); });
     RenderTab("Prop Artwork", [this]() { return prop_artwork_editor_->Render(); });
@@ -159,7 +168,13 @@ void EditorUi::Render() {
 }
 
 void EditorUi::RenderTab(const char* name, const std::function<absl::Status()>& render_fn) {
-  ScopedTabItem tab = gui_->CreateScopedTabItem(name);
+  RenderTab(name, render_fn, false);
+}
+
+void EditorUi::RenderTab(const char* name, const std::function<absl::Status()>& render_fn,
+                         bool select) {
+  ScopedTabItem tab = gui_->CreateScopedTabItem(
+      name, nullptr, select ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None);
   if (!tab) return;
 
   absl::Status status = render_fn();
@@ -168,6 +183,28 @@ void EditorUi::RenderTab(const char* name, const std::function<absl::Status()>& 
   LOG(ERROR) << name << " Render error: " << status;
   gui_->TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "%s failed: %s", name,
                     status.ToString().c_str());
+}
+
+absl::Status EditorUi::HandleLevelThemeRequest() {
+  std::optional<ParallaxZonePanel::ThemeRequest> request = level_editor_->TakeThemeRequest();
+  if (!request) return absl::OkStatus();
+
+  if (request->action == ParallaxZonePanel::ThemeAction::kEdit) {
+    RETURN_IF_ERROR(parallax_theme_editor_->OpenTheme(request->theme_id));
+    select_parallax_theme_tab_ = true;
+    return absl::OkStatus();
+  }
+
+  ASSIGN_OR_RETURN(ParallaxTheme * source, api_->GetParallaxTheme(request->theme_id));
+  if (source == nullptr) return absl::FailedPreconditionError("Theme lookup returned null.");
+  ParallaxTheme duplicate = *source;
+  duplicate.id.clear();
+  duplicate.name = absl::StrCat(duplicate.name, " Copy");
+  ASSIGN_OR_RETURN(const std::string id, api_->CreateParallaxTheme(std::move(duplicate)));
+  RETURN_IF_ERROR(level_editor_->AssignThemeToZone(request->zone_id, id));
+  RETURN_IF_ERROR(parallax_theme_editor_->OpenTheme(id));
+  select_parallax_theme_tab_ = true;
+  return absl::OkStatus();
 }
 
 }  // namespace zebes

@@ -27,6 +27,7 @@
 #include "resources/collider_manager.h"
 #include "resources/fake_texture_resource_store.h"
 #include "resources/level_manager.h"
+#include "resources/parallax_theme_manager.h"
 #include "resources/prop_recipe_manager.h"
 #include "resources/source_artwork_manager.h"
 #include "resources/sprite_manager.h"
@@ -170,6 +171,41 @@ TEST(ShippedAssetsTest, EveryShippedLevelLoads) {
   const absl::Status loaded = (*manager)->LoadAllLevels();
   EXPECT_OK(loaded);
   EXPECT_EQ((*manager)->GetAllLevels().size(), DefinitionFileCount("levels"));
+}
+
+TEST(ShippedAssetsTest, EveryShippedParallaxThemeLoadsAndReferencesArtwork) {
+  absl::StatusOr<std::unique_ptr<ParallaxThemeManager>> manager =
+      ParallaxThemeManager::Create(kAssetsRoot);
+  ASSERT_OK(manager);
+  ASSERT_OK((*manager)->LoadAllThemes());
+  const std::vector<ParallaxTheme> themes = (*manager)->GetAllThemes();
+  EXPECT_EQ(themes.size(), DefinitionFileCount("parallax_themes"));
+
+  const absl::flat_hash_map<std::string, std::string> textures = TexturePathsById();
+  for (const ParallaxTheme& theme : themes) {
+    EXPECT_OK(ValidateParallaxTheme(theme)) << theme.name;
+    for (const ParallaxLayer& layer : theme.layers) {
+      EXPECT_TRUE(textures.contains(layer.texture_id))
+          << "theme '" << theme.name << "' layer '" << layer.name << "' references missing texture "
+          << layer.texture_id;
+    }
+  }
+}
+
+TEST(ShippedAssetsTest, EveryLevelZoneReferencesAShippedParallaxTheme) {
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<LevelManager> levels, LevelManager::Create(kAssetsRoot));
+  ASSERT_OK(levels->LoadAllLevels());
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ParallaxThemeManager> themes,
+                       ParallaxThemeManager::Create(kAssetsRoot));
+  ASSERT_OK(themes->LoadAllThemes());
+
+  for (const Level& level : levels->GetAllLevels()) {
+    for (const ParallaxZone& zone : level.zones) {
+      EXPECT_OK(themes->GetTheme(zone.theme_id).status())
+          << "level '" << level.name << "' zone '" << zone.name << "' references missing theme "
+          << zone.theme_id;
+    }
+  }
 }
 
 TEST(ShippedAssetsTest, EveryShippedSpriteLoads) {

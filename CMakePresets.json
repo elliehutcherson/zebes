@@ -56,6 +56,18 @@
       "name": "ui",
       "configurePreset": "ui",
       "jobs": 2
+    },
+    {
+      "name": "dev-full",
+      "displayName": "Full Development Build",
+      "configurePreset": "dev",
+      "jobs": 8
+    },
+    {
+      "name": "ui-full",
+      "displayName": "Full UI Build",
+      "configurePreset": "ui",
+      "jobs": 8
     }
   ],
   "testPresets": [

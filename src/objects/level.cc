@@ -39,17 +39,6 @@ absl::Status ValidateWorldGeometry(const Level& level) {
 }
 
 absl::Status ValidateThemesAndZones(const Level& level) {
-  for (const auto& [id, theme] : level.themes) {
-    if (theme.id < 0) {
-      return absl::InvalidArgumentError("Theme must have a valid non-negative integer ID.");
-    }
-    if (theme.name.empty()) return absl::InvalidArgumentError("Theme name cannot be empty.");
-    if (theme.id != id) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Theme map key '", id, "' does not match theme id '", theme.id, "'"));
-    }
-  }
-
   absl::flat_hash_set<int> zone_ids;
   for (const ParallaxZone& zone : level.zones) {
     if (zone.name.empty()) return absl::InvalidArgumentError("Zone name cannot be empty.");
@@ -59,9 +48,9 @@ absl::Status ValidateThemesAndZones(const Level& level) {
     if (!zone_ids.insert(zone.id).second) {
       return absl::InvalidArgumentError(absl::StrCat("Duplicate zone ID found: '", zone.id, "'"));
     }
-    if (!level.themes.contains(zone.theme_id)) {
+    if (zone.theme_id.empty()) {
       return absl::InvalidArgumentError(
-          absl::StrCat("Zone references non-existent theme: '", zone.theme_id, "'"));
+          absl::StrCat("Zone '", zone.name, "' must reference a parallax theme."));
     }
     if (!Finite(zone.min_point) || !Finite(zone.max_point) || zone.min_point.x < 0 ||
         zone.min_point.y < 0 || zone.max_point.x > level.width || zone.max_point.y > level.height) {

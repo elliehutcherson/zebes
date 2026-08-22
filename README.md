@@ -9,8 +9,13 @@ A C++ Game Engine project using SDL2, ImGui, and SQLite.
 * [Style Guide](docs/style-guide.md): project conventions layered on the Google
   C++ Style Guide.
 * [Roadmap](docs/roadmap.md): current work, sequencing, and settled decisions.
+* [Environment Artwork and Parallax Plan](docs/environment-artwork-plan.md):
+  implementation sequence, validation, and the human workflow for layered
+  level art.
 * [Codex Image Generation](docs/codex-image-generation.md): subscription-backed
   App Server design, implementation status, and remaining integration work.
+* [Historical Design Records](docs/history/README.md): completed phases and
+  prior handoffs retained for reference.
 
 ## Project Structure
 
@@ -75,14 +80,23 @@ locally when a change is cross-cutting or when diagnosing CI:
 ./scripts/build_and_test.sh
 ```
 
-The helper uses the `dev` CMake preset and runs the headless C++ and Python
-tests. You can also run each stage directly:
+The helper configures the `dev` CMake preset, builds through the eight-worker
+`dev-full` build preset, and runs the headless C++ and Python tests. Compile
+edges may use all eight workers; link and GoogleTest-discovery edges share a
+two-worker pool because higher link concurrency caused discovery timeouts. You
+can also run each stage directly:
 
 ```bash
 cmake --preset dev
-cmake --build --preset dev
-ctest --preset dev
+cmake --build --preset dev-full
+python3 scripts/run_test_executables.py --build-dir build/dev
 ```
+
+The full runner gets its manifest from CTest, then launches each registered
+test executable once instead of launching a process for every discovered
+GoogleTest case. `ctest --preset dev` remains available when case-level CTest
+reporting is useful. Focused `scripts/test.sh` work continues to use the
+two-worker `dev` build preset.
 
 The SDL/ImGui integration tests require a working display and are kept in a
 separate preset:
@@ -92,7 +106,8 @@ separate preset:
 ```
 
 Or run the stages directly with `cmake --preset ui`,
-`cmake --build --preset ui`, and `ctest --preset ui`.
+`cmake --build --preset ui-full`, and
+`python3 scripts/run_test_executables.py --build-dir build/ui --label ui`.
 
 CI uses the same UI-enabled build tree for every C++ test so it compiles the
 project only once, then runs the Python suite once. GitHub Actions persists a
@@ -104,7 +119,12 @@ runs reuse unchanged third-party and project objects:
 ```
 
 This comprehensive form is intended for CI; normal local work should continue
-to use the focused commands above.
+to use the focused commands above. A clean UI-enabled build on the reference
+16-core macOS machine completed 1,081 actions in 5m49.7s with the eight-worker
+build and two-worker link pool. The 96 headless C++ executables take about 12s;
+a warm complete UI-enabled wrapper run takes about 37s, including configure,
+build checks, 99 C++ executables, and 79 Python tests. The prior case-by-case
+CTest C++ run alone took 62–75s for 1,003 processes.
 
 For an optimized editor build without tests:
 

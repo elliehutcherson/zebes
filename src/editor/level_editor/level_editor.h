@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
@@ -10,7 +11,6 @@
 #include "editor/level_editor/level_panel_model.h"
 #include "editor/level_editor/level_selection_state.h"
 #include "editor/level_editor/palette_panel.h"
-#include "editor/level_editor/parallax_theme_panel.h"
 #include "editor/level_editor/parallax_zone_panel.h"
 #include "editor/level_editor/viewport_tab.h"
 #include "editor/level_editor/world_layer_model.h"
@@ -37,7 +37,6 @@ class LevelEditor {
     // previews such a cell as nothing, which is what a headless test wants.
     PreviewTextureSink* terrain_ghost = nullptr;
     std::unique_ptr<LevelPanelInterface> level_panel;
-    std::unique_ptr<ParallaxThemePanel> parallax_theme_panel;
     std::unique_ptr<ParallaxZonePanel> parallax_zone_panel;
     std::unique_ptr<PalettePanel> palette_panel;
     std::unique_ptr<WorldLayerPanel> world_layer_panel;
@@ -51,6 +50,11 @@ class LevelEditor {
 
   // Renders the main Level Editor UI.
   absl::Status Render();
+
+  // Stable-ID navigation request consumed by EditorUi after this frame.
+  std::optional<ParallaxZonePanel::ThemeRequest> TakeThemeRequest();
+  // Applies a successfully created duplicate to the still-open level draft.
+  absl::Status AssignThemeToZone(int zone_id, const std::string& theme_id);
 
  private:
   friend class LevelEditorTestPeer;
@@ -87,7 +91,6 @@ class LevelEditor {
 
   // Sub-Panels
   std::unique_ptr<LevelPanelInterface> level_panel_;
-  std::unique_ptr<ParallaxThemePanel> parallax_theme_panel_;
   std::unique_ptr<ParallaxZonePanel> parallax_zone_panel_;
   std::unique_ptr<PalettePanel> palette_panel_;
   std::unique_ptr<WorldLayerPanel> world_layer_panel_;
@@ -100,6 +103,7 @@ class LevelEditor {
   WorldLayerModel world_layer_model_;
   SelectionState selection_;
   std::optional<std::string> save_error_;
+  std::optional<ParallaxZonePanel::ThemeRequest> theme_request_;
   // Long-lived on purpose: it carries a content index rebuilt from the atlas
   // and a memo of everything rendered this session, both of which rebuilding
   // per frame would throw away.

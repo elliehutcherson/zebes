@@ -21,16 +21,14 @@ void Add(std::vector<AssetReference>& out, AssetKind kind, std::string_view id,
   });
 }
 
-// Walks a level's themes for parallax layers naming `texture_id`, recording the
-// theme and layer so the user can find the one that matters.
-void AddParallaxReferences(std::vector<AssetReference>& out, const Level& level,
+// Walks a reusable theme for parallax layers naming `texture_id`, recording the
+// layer so the user can find the one that matters.
+void AddParallaxReferences(std::vector<AssetReference>& out, const ParallaxTheme& theme,
                            std::string_view texture_id) {
-  for (const auto& [theme_id, theme] : level.themes) {
-    for (const ParallaxLayer& layer : theme.layers) {
-      if (!Names(layer.texture_id, texture_id)) continue;
-      Add(out, AssetKind::kLevel, level.id, level.name,
-          absl::StrCat("theme '", theme.name, "', layer '", layer.name, "'"));
-    }
+  for (const ParallaxLayer& layer : theme.layers) {
+    if (!Names(layer.texture_id, texture_id)) continue;
+    Add(out, AssetKind::kParallaxTheme, theme.id, theme.name,
+        absl::StrCat("layer '", layer.name, "'"));
   }
 }
 
@@ -50,6 +48,8 @@ std::string_view AssetKindName(AssetKind kind) {
       return "Blueprint";
     case AssetKind::kLevel:
       return "Level";
+    case AssetKind::kParallaxTheme:
+      return "Parallax theme";
     case AssetKind::kTerrainRecipe:
       return "Terrain recipe";
     case AssetKind::kSourceArtwork:
@@ -75,8 +75,8 @@ std::vector<AssetReference> FindTextureReferrers(const AssetCatalog& catalog,
       Add(referrers, AssetKind::kSprite, sprite.id, sprite.name, "texture_id");
     }
   }
-  for (const Level& level : catalog.levels) {
-    AddParallaxReferences(referrers, level, texture_id);
+  for (const ParallaxTheme& theme : catalog.parallax_themes) {
+    AddParallaxReferences(referrers, theme, texture_id);
   }
   for (const TerrainRecipe& recipe : catalog.recipes) {
     if (Names(recipe.texture_id, texture_id)) {
@@ -86,6 +86,20 @@ std::vector<AssetReference> FindTextureReferrers(const AssetCatalog& catalog,
   for (const PropRecipe& recipe : catalog.prop_recipes) {
     if (Names(recipe.texture_id, texture_id)) {
       Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "texture_id");
+    }
+  }
+  return referrers;
+}
+
+std::vector<AssetReference> FindParallaxThemeReferrers(const AssetCatalog& catalog,
+                                                       std::string_view theme_id) {
+  std::vector<AssetReference> referrers;
+  if (theme_id.empty()) return referrers;
+  for (const Level& level : catalog.levels) {
+    for (const ParallaxZone& zone : level.zones) {
+      if (!Names(zone.theme_id, theme_id)) continue;
+      Add(referrers, AssetKind::kLevel, level.id, level.name,
+          absl::StrCat("zone '", zone.name, "'"));
     }
   }
   return referrers;

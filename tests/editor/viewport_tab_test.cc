@@ -319,20 +319,15 @@ TEST(ViewportTabTest, RenderRejectsTerrainPaintingWithoutATerrainIndex) {
             absl::StatusCode::kInvalidArgument);
 }
 
-TEST(ViewportTabTest, SelectedParallaxPreviewRequiresCompatibleSelection) {
+TEST(ViewportTabTest, SelectedZonePreviewRequiresAZoneSelection) {
   NiceMock<MockApi> api;
   NiceMock<MockGui> gui;
   ViewportTab tab(api, &gui);
 
-  ViewportTabTestPeer::SetParallaxPreviewMode(tab, ParallaxPreviewMode::kSelectedLayer);
-  ViewportTabTestPeer::ReconcileParallaxPreviewMode(
-      tab, {.selected_parallax_theme_id = 3, .selected_parallax_layer_index = 1});
-  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab), ParallaxPreviewMode::kSelectedLayer);
+  ViewportTabTestPeer::SetParallaxPreviewMode(tab, ParallaxPreviewMode::kSelectedZone);
+  ViewportTabTestPeer::ReconcileParallaxPreviewMode(tab, {.selected_zone_id = 3});
+  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab), ParallaxPreviewMode::kSelectedZone);
 
-  ViewportTabTestPeer::ReconcileParallaxPreviewMode(tab, {.selected_parallax_theme_id = 3});
-  EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab), ParallaxPreviewMode::kActiveZone);
-
-  ViewportTabTestPeer::SetParallaxPreviewMode(tab, ParallaxPreviewMode::kSelectedTheme);
   ViewportTabTestPeer::ReconcileParallaxPreviewMode(tab, {});
   EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab), ParallaxPreviewMode::kActiveZone);
 }
@@ -344,7 +339,7 @@ TEST(ViewportTabTest, ActiveZoneWithoutAssignedThemeDoesNotFailPreview) {
   Level level;
   level.zones.push_back({
       .id = 4,
-      .theme_id = -1,
+      .theme_id = "",
       .min_point = {-10, -10},
       .max_point = {10, 10},
   });

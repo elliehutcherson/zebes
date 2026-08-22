@@ -5,6 +5,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_TESTS=true
 TEST_FILTER=""
 PRESET="dev"
+BUILD_PRESET="dev-full"
 TEST_PRESET="dev"
 VENV_PYTHON="${PROJECT_ROOT}/build/tileset-venv/bin/python"
 
@@ -16,11 +17,13 @@ while [[ $# -gt 0 ]]; do
       ;;
     --ui-tests|--ui_tests)
       PRESET="ui"
+      BUILD_PRESET="ui-full"
       TEST_PRESET="ui"
       shift
       ;;
     --all-tests-with-ui|--all_tests_with_ui)
       PRESET="ui"
+      BUILD_PRESET="ui-full"
       TEST_PRESET="ui-all"
       shift
       ;;
@@ -53,7 +56,7 @@ echo "[2/4] Configuring CMake..."
 cmake --preset "${PRESET}" -S "${PROJECT_ROOT}"
 
 echo "[3/4] Building..."
-cmake --build --preset "${PRESET}"
+cmake --build --preset "${BUILD_PRESET}"
 
 # 3. Test
 if [ "$RUN_TESTS" = true ]; then
@@ -61,7 +64,12 @@ if [ "$RUN_TESTS" = true ]; then
     if [ -n "$TEST_FILTER" ]; then
         ctest --preset "${TEST_PRESET}" -R "${TEST_FILTER}"
     else
-        ctest --preset "${TEST_PRESET}"
+        TEST_RUNNER_ARGS=(--build-dir "${PROJECT_ROOT}/build/${PRESET}")
+        if [ "${TEST_PRESET}" = "ui" ]; then
+            TEST_RUNNER_ARGS+=(--label ui)
+        fi
+        python3 "${PROJECT_ROOT}/scripts/run_test_executables.py" \
+            "${TEST_RUNNER_ARGS[@]}"
     fi
     # The asset-tool tests need numpy/Pillow, which live in an isolated venv
     # under build/. That directory is gitignored and is routinely deleted, so

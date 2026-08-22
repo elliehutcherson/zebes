@@ -1,5 +1,6 @@
 #include "editor/level_editor/viewport_tab.h"
 
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <optional>
@@ -28,10 +29,8 @@ const char* ParallaxPreviewModeLabel(ParallaxPreviewMode mode) {
   switch (mode) {
     case ParallaxPreviewMode::kActiveZone:
       return "Active Zone";
-    case ParallaxPreviewMode::kSelectedTheme:
-      return "Selected Theme";
-    case ParallaxPreviewMode::kSelectedLayer:
-      return "Selected Layer";
+    case ParallaxPreviewMode::kSelectedZone:
+      return "Selected Zone";
   }
   return "Unknown";
 }
@@ -505,32 +504,32 @@ absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBac
   std::optional<ActiveParallaxZone> active =
       ResolveActiveParallaxZone(level.zones, camera_.position);
 
-  std::optional<int> theme_id;
-  std::optional<int> layer_index;
+  std::optional<std::string> theme_id;
   switch (parallax_preview_mode_) {
     case ParallaxPreviewMode::kActiveZone:
       if (active.has_value()) theme_id = active->theme_id;
       break;
-    case ParallaxPreviewMode::kSelectedTheme:
-      theme_id = options.selected_parallax_theme_id;
-      break;
-    case ParallaxPreviewMode::kSelectedLayer:
-      theme_id = options.selected_parallax_theme_id;
-      layer_index = options.selected_parallax_layer_index;
+    case ParallaxPreviewMode::kSelectedZone:
+      if (options.selected_zone_id.has_value()) {
+        const ParallaxZone* selected = FindParallaxZoneById(level.zones, *options.selected_zone_id);
+        if (selected != nullptr) theme_id = selected->theme_id;
+      }
       break;
   }
   if (!theme_id.has_value()) return active;
-  if (*theme_id == -1) return active;
+  if (theme_id->empty()) return active;
 
-  auto theme_it = level.themes.find(*theme_id);
-  if (theme_it == level.themes.end()) {
+  if (options.parallax_themes == nullptr) {
+    return absl::FailedPreconditionError("parallax theme catalog is unavailable");
+  }
+  auto theme_it = std::find_if(options.parallax_themes->begin(), options.parallax_themes->end(),
+                               [&](const ParallaxTheme& theme) { return theme.id == *theme_id; });
+  if (theme_it == options.parallax_themes->end()) {
     return absl::FailedPreconditionError("parallax preview references a missing theme");
   }
 
   std::map<std::string, TextureHandle> textures;
-  for (int index = 0; index < static_cast<int>(theme_it->second.layers.size()); ++index) {
-    if (layer_index.has_value() && index != *layer_index) continue;
-    const ParallaxLayer& layer = theme_it->second.layers[index];
+  for (const ParallaxLayer& layer : theme_it->layers) {
     if (layer.texture_id.empty()) continue;
     if (textures.contains(layer.texture_id)) continue;
 
@@ -542,20 +541,14 @@ absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBac
   }
 
   ASSIGN_OR_RETURN(ParallaxRenderBatch batch,
-                   ComposeParallaxRenderBatch(theme_it->second, camera_, textures,
-                                              {.layer_index = layer_index}));
+                   ComposeParallaxRenderBatch(*theme_it, camera_, textures));
   RETURN_IF_ERROR(renderer_.RenderParallax(batch));
   return active;
 }
 
 void ViewportTab::ReconcileParallaxPreviewMode(const ViewportRenderOptions& options) {
-  if (parallax_preview_mode_ == ParallaxPreviewMode::kSelectedTheme &&
-      !options.selected_parallax_theme_id.has_value()) {
-    parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
-  }
-  if (parallax_preview_mode_ == ParallaxPreviewMode::kSelectedLayer &&
-      (!options.selected_parallax_theme_id.has_value() ||
-       !options.selected_parallax_layer_index.has_value())) {
+  if (parallax_preview_mode_ == ParallaxPreviewMode::kSelectedZone &&
+      !options.selected_zone_id.has_value()) {
     parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
   }
 }
@@ -569,15 +562,10 @@ void ViewportTab::RenderParallaxPreviewControls(const ViewportRenderOptions& opt
   if (gui_->Selectable("Active Zone", parallax_preview_mode_ == ParallaxPreviewMode::kActiveZone)) {
     parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
   }
-  if (options.selected_parallax_theme_id.has_value() &&
-      gui_->Selectable("Selected Theme",
-                       parallax_preview_mode_ == ParallaxPreviewMode::kSelectedTheme)) {
-    parallax_preview_mode_ = ParallaxPreviewMode::kSelectedTheme;
-  }
-  if (options.selected_parallax_layer_index.has_value() &&
-      gui_->Selectable("Selected Layer",
-                       parallax_preview_mode_ == ParallaxPreviewMode::kSelectedLayer)) {
-    parallax_preview_mode_ = ParallaxPreviewMode::kSelectedLayer;
+  if (options.selected_zone_id.has_value() &&
+      gui_->Selectable("Selected Zone",
+                       parallax_preview_mode_ == ParallaxPreviewMode::kSelectedZone)) {
+    parallax_preview_mode_ = ParallaxPreviewMode::kSelectedZone;
   }
 }
 

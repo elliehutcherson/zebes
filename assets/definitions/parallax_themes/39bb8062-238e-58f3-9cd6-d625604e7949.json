@@ -1,0 +1,17 @@
+{
+  "id": "39bb8062-238e-58f3-9cd6-d625604e7949",
+  "layers": [
+    {
+      "base_scale": 7.0,
+      "name": "Space Layer",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_x": true,
+      "repeat_y": false,
+      "scroll_factor_x": 0.1,
+      "scroll_factor_y": 0.1,
+      "texture_id": "132b63e6-cec0-46cc-9232-9573733129aa"
+    }
+  ],
+  "name": "level_0 \u2014 Space Theme"
+}

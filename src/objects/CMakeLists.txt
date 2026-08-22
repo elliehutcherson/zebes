@@ -76,3 +76,16 @@ target_link_libraries(level
   absl::flat_hash_set
   status_macros
 )
+
+add_library(parallax_theme parallax_theme.cc)
+target_include_directories(parallax_theme PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(parallax_theme
+  PUBLIC
+  vec
+  absl::status
+  absl::statusor
+  nlohmann_json::nlohmann_json
+  PRIVATE
+  status_macros
+  absl::strings
+)

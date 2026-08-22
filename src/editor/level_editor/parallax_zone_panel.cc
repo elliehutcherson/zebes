@@ -16,13 +16,17 @@ absl::StatusOr<std::unique_ptr<ParallaxZonePanel>> ParallaxZonePanel::Create(Opt
   if (options.gui == nullptr) {
     return absl::InvalidArgumentError("Gui can not be null.");
   }
+  if (options.api == nullptr) {
+    return absl::InvalidArgumentError("Api can not be null.");
+  }
 
   return absl::WrapUnique(new ParallaxZonePanel(std::move(options)));
 }
 
-ParallaxZonePanel::ParallaxZonePanel(Options options) : gui_(options.gui) {}
+ParallaxZonePanel::ParallaxZonePanel(Options options) : api_(options.api), gui_(options.gui) {}
 
 absl::Status ParallaxZonePanel::RenderNavigator(Level& level, SelectionState& selection) {
+  const std::vector<ParallaxTheme> themes = api_->GetAllParallaxThemes();
   const bool can_add_zone = std::isfinite(level.width) && std::isfinite(level.height) &&
                             level.width > 0.0 && level.height > 0.0;
   gui_->BeginDisabled(!can_add_zone);
@@ -54,10 +58,11 @@ absl::Status ParallaxZonePanel::RenderNavigator(Level& level, SelectionState& se
   for (const ParallaxZone& zone : level.zones) {
     std::string label = zone.name.empty() ? "(unnamed zone)" : zone.name;
 
-    auto theme_it = level.themes.find(zone.theme_id);
-    if (theme_it != level.themes.end()) {
-      absl::StrAppend(&label, " (",
-                      theme_it->second.name.empty() ? "unnamed theme" : theme_it->second.name, ")");
+    auto theme_it = std::find_if(themes.begin(), themes.end(), [&](const ParallaxTheme& theme) {
+      return theme.id == zone.theme_id;
+    });
+    if (theme_it != themes.end()) {
+      absl::StrAppend(&label, " (", theme_it->name.empty() ? "unnamed theme" : theme_it->name, ")");
     }
     absl::StrAppend(&label, "##zone_", zone.id);
 
@@ -91,22 +96,37 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
 
   gui_->InputText("Name", &zone.name);
 
-  // Blank preview when the zone names a theme the level no longer has, rather
-  // than showing a stale name.
+  const std::vector<ParallaxTheme> themes = api_->GetAllParallaxThemes();
+  // Blank preview when the zone names a theme the catalog no longer has,
+  // rather than showing a stale name.
   const char* theme_preview = "";
-  auto preview_it = level.themes.find(zone.theme_id);
-  if (preview_it != level.themes.end()) {
-    theme_preview = preview_it->second.name.c_str();
+  auto preview_it = std::find_if(themes.begin(), themes.end(), [&](const ParallaxTheme& theme) {
+    return theme.id == zone.theme_id;
+  });
+  if (preview_it != themes.end()) {
+    theme_preview = preview_it->name.c_str();
   }
   if (auto combo = gui_->CreateScopedCombo("Theme", theme_preview); combo) {
-    for (const auto& [id, theme] : level.themes) {
-      bool is_selected = (zone.theme_id == id);
+    for (const ParallaxTheme& theme : themes) {
+      bool is_selected = (zone.theme_id == theme.id);
       const std::string label =
-          absl::StrCat(theme.name.empty() ? "(unnamed theme)" : theme.name, "##theme_", id);
+          absl::StrCat(theme.name.empty() ? "(unnamed theme)" : theme.name, "##theme_", theme.id);
       if (gui_->Selectable(label.c_str(), is_selected)) {
-        zone.theme_id = id;
+        zone.theme_id = theme.id;
       }
       if (is_selected) gui_->SetItemDefaultFocus();
+    }
+  }
+
+  const bool has_theme = preview_it != themes.end();
+  {
+    ScopedDisabled no_theme = gui_->CreateScopedDisabled(!has_theme);
+    if (gui_->Button("Edit Theme")) {
+      theme_request_ = ThemeRequest{ThemeAction::kEdit, zone.id, zone.theme_id};
+    }
+    gui_->SameLine();
+    if (gui_->Button("Duplicate and Assign")) {
+      theme_request_ = ThemeRequest{ThemeAction::kDuplicateAndAssign, zone.id, zone.theme_id};
     }
   }
 
@@ -129,19 +149,6 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
   gui_->InputDouble("Fade X", &zone.fade_length.x);
   gui_->InputDouble("Fade Y", &zone.fade_length.y);
 
-  auto theme_it = level.themes.find(zone.theme_id);
-  if (theme_it != level.themes.end()) {
-    ParallaxTheme& theme = theme_it->second;
-    gui_->Separator();
-    gui_->Text("Layers");
-    for (int i = 0; i < static_cast<int>(theme.layers.size()); ++i) {
-      ParallaxLayer& layer = theme.layers[i];
-      gui_->Text("%s", layer.name.c_str());
-      gui_->InputDouble(absl::StrCat("Offset X##layer_", i).c_str(), &layer.offset.x);
-      gui_->InputDouble(absl::StrCat("Offset Y##layer_", i).c_str(), &layer.offset.y);
-    }
-  }
-
   gui_->Spacing();
   {
     ScopedStyleColor color =
@@ -153,6 +160,12 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
   }
 
   return absl::OkStatus();
+}
+
+std::optional<ParallaxZonePanel::ThemeRequest> ParallaxZonePanel::TakeThemeRequest() {
+  std::optional<ThemeRequest> request = std::move(theme_request_);
+  theme_request_.reset();
+  return request;
 }
 
 }  // namespace zebes

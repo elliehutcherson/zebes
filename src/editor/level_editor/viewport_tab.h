@@ -18,6 +18,7 @@
 #include "objects/camera.h"
 #include "objects/entity.h"
 #include "objects/level.h"
+#include "objects/parallax_theme.h"
 #include "objects/sprite.h"
 #include "objects/tileset.h"
 #include "objects/vec.h"
@@ -26,8 +27,7 @@ namespace zebes {
 
 enum class ParallaxPreviewMode {
   kActiveZone,
-  kSelectedTheme,
-  kSelectedLayer,
+  kSelectedZone,
 };
 
 // Per-frame inputs to ViewportTab::Render(). All fields are transient — they
@@ -82,10 +82,9 @@ struct ViewportRenderOptions {
   // Zone selected in the editor navigator. Used only for gizmo highlighting
   // and frame-selected behavior; it does not override runtime activation.
   std::optional<int> selected_zone_id;
-  // Theme selected in the navigator and available for explicit preview.
-  std::optional<int> selected_parallax_theme_id;
-  // Layer selected within selected_parallax_theme_id and available for isolation.
-  std::optional<int> selected_parallax_layer_index;
+  // Immutable theme catalog snapshot for this frame. Required when the level
+  // has zones; the viewport does not retain it.
+  const std::vector<ParallaxTheme>* parallax_themes = nullptr;
 };
 
 class ViewportTab {

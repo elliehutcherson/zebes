@@ -16,6 +16,7 @@
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
 #include "resources/level_manager.h"
+#include "resources/parallax_theme_manager.h"
 #include "resources/prop_recipe_manager.h"
 #include "resources/source_artwork_manager.h"
 #include "resources/sprite_manager.h"
@@ -74,6 +75,7 @@ class EditorEngine {
   std::unique_ptr<ColliderManager> collider_manager_;
   std::unique_ptr<BlueprintManager> blueprint_manager_;
   std::unique_ptr<LevelManager> level_manager_;
+  std::unique_ptr<ParallaxThemeManager> parallax_theme_manager_;
   std::unique_ptr<TilesetManager> tileset_manager_;
   std::unique_ptr<TerrainRecipeManager> terrain_recipe_manager_;
   std::unique_ptr<SourceArtworkManager> source_artwork_manager_;

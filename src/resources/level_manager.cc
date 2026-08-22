@@ -45,54 +45,6 @@ void ToJson(nlohmann::json& j, const WorldLayer& layer) {
   j["entities"] = std::move(entities_json);
 }
 
-void ToJson(nlohmann::json& j, const ParallaxLayer& layer) {
-  j = nlohmann::json{
-      {"name", layer.name},
-      {"texture_id", layer.texture_id},
-      {"scroll_factor_x", layer.scroll_factor.x},
-      {"scroll_factor_y", layer.scroll_factor.y},
-      {"offset_x", layer.offset.x},
-      {"offset_y", layer.offset.y},
-      {"repeat_x", layer.repeat_x},
-      {"repeat_y", layer.repeat_y},
-      {"base_scale", layer.base_scale},
-  };
-}
-
-void FromJson(const nlohmann::json& j, ParallaxLayer& layer) {
-  j.at("name").get_to(layer.name);
-  j.at("texture_id").get_to(layer.texture_id);
-  j.at("scroll_factor_x").get_to(layer.scroll_factor.x);
-  j.at("scroll_factor_y").get_to(layer.scroll_factor.y);
-  j.at("offset_x").get_to(layer.offset.x);
-  j.at("offset_y").get_to(layer.offset.y);
-  j.at("repeat_x").get_to(layer.repeat_x);
-  j.at("repeat_y").get_to(layer.repeat_y);
-  j.at("base_scale").get_to(layer.base_scale);
-}
-
-void ToJson(nlohmann::json& j, const ParallaxTheme& theme) {
-  j["id"] = theme.id;
-  j["name"] = theme.name;
-  std::vector<nlohmann::json> layers_json;
-  for (const auto& layer : theme.layers) {
-    nlohmann::json layer_j;
-    ToJson(layer_j, layer);
-    layers_json.push_back(layer_j);
-  }
-  j["layers"] = layers_json;
-}
-
-void FromJson(const nlohmann::json& j, ParallaxTheme& theme) {
-  j.at("id").get_to(theme.id);
-  j.at("name").get_to(theme.name);
-  for (const auto& item : j.at("layers")) {
-    ParallaxLayer layer;
-    FromJson(item, layer);
-    theme.layers.push_back(layer);
-  }
-}
-
 void ToJson(nlohmann::json& j, const ParallaxZone& zone) {
   j = nlohmann::json{
       {"id", zone.id},
@@ -215,16 +167,8 @@ nlohmann::json ToJson(const Level& level) {
   j["tile_render_height"] = level.tile_render_height;
   j["spawn_point"] = {{"x", level.spawn_point.x}, {"y", level.spawn_point.y}};
 
-  // Themes, zones, and layers are all written even when empty; see the note on
+  // Zones and layers are written even when empty; see the note on
   // sprite_id above for why an absent key is not an option.
-  std::vector<nlohmann::json> themes_json;
-  for (const auto& [id, theme] : level.themes) {
-    nlohmann::json theme_j;
-    ToJson(theme_j, theme);
-    themes_json.push_back(theme_j);
-  }
-  j["themes"] = themes_json;
-
   std::vector<nlohmann::json> zones_json;
   for (const auto& zone : level.zones) {
     nlohmann::json zone_j;
@@ -250,6 +194,10 @@ nlohmann::json ToJson(const Level& level) {
 // into a Status so a stale definition names the missing field instead of
 // terminating the editor.
 absl::StatusOr<Level> ParseLevel(const nlohmann::json& j) {
+  if (j.contains("themes")) {
+    return absl::FailedPreconditionError(
+        "Level still contains embedded parallax themes; run scripts/migrate_definitions.py.");
+  }
   Level level;
   j.at("id").get_to(level.id);
   j.at("name").get_to(level.name);
@@ -260,18 +208,6 @@ absl::StatusOr<Level> ParseLevel(const nlohmann::json& j) {
   j.at("tileset_id").get_to(level.tileset_id);
   j.at("spawn_point").at("x").get_to(level.spawn_point.x);
   j.at("spawn_point").at("y").get_to(level.spawn_point.y);
-
-  {
-    for (const auto& item : j.at("themes")) {
-      ParallaxTheme theme;
-      FromJson(item, theme);
-      const int theme_id = theme.id;
-      if (!level.themes.emplace(theme_id, std::move(theme)).second) {
-        return absl::InvalidArgumentError(
-            absl::StrCat("Duplicate theme ID found: '", theme_id, "'"));
-      }
-    }
-  }
 
   {
     for (const auto& item : j.at("zones")) {

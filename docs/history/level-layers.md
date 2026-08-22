@@ -3,7 +3,7 @@
 **Status: implemented on 2026-08-16.**
 
 This document designs ordered world layers for a level. It follows the Track
-4 direction in [`roadmap.md`](roadmap.md): the one level-wide tile grid and
+4 direction in [`roadmap.md`](../roadmap.md): the one level-wide tile grid and
 entity map move into ordered depth slices, while `Entity::sort_order` remains
 the ordering rule among entities in one slice.
 
@@ -22,7 +22,7 @@ parallax -> the level-wide tile grid -> the level-wide entity map
 
 `Entity::sort_order` can put one entity in front of another, but it cannot put
 an entity behind terrain. This is the blocker identified by
-[`prop-artwork.md`](prop-artwork.md) §7: a canopy or foreground prop needs to be
+[`prop-artwork.md`](../prop-artwork.md) §7: a canopy or foreground prop needs to be
 in a depth slice in front of the player while other props can sit behind the
 terrain.
 

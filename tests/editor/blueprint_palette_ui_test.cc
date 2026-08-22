@@ -1,3 +1,4 @@
+#include <cstring>
 #include <memory>
 #include <vector>
 
@@ -48,14 +49,37 @@ void RegisterTests(ImGuiTestEngine* engine) {
       vars.initialized = true;
     }
 
+    ImGui::SetNextWindowSize({1100.0F, 600.0F}, ImGuiCond_Always);
     ImGui::Begin("Blueprint Palette Test", nullptr, ImGuiWindowFlags_NoSavedSettings);
     if (vars.panel != nullptr) vars.render_status = vars.panel->Render();
     ImGui::End();
   };
   test->TestFunc = [](ImGuiTestContext* context) {
     BlueprintPaletteUiVars& vars = context->GetVars<BlueprintPaletteUiVars>();
-    context->SetRef("Blueprint Palette Test");
-    context->ItemClick("**/##blueprint");
+    context->Yield();
+    ImGuiWindow* grid_window = nullptr;
+    for (ImGuiWindow* window : context->UiContext->Windows) {
+      if (std::strstr(window->Name, "/BlueprintGrid_") != nullptr) {
+        grid_window = window;
+        break;
+      }
+    }
+    IM_CHECK(grid_window != nullptr);
+    if (grid_window == nullptr) return;
+
+    ImGuiTestItemList items;
+    context->GatherItems(&items, grid_window->ID);
+    ImGuiID card_id = 0;
+    for (int index = 0; index < items.GetSize(); ++index) {
+      const ImGuiTestItemInfo* item = items.GetByIndex(index);
+      if (std::strcmp(item->DebugLabel, "##blueprint") != 0) continue;
+      IM_CHECK(card_id == 0);
+      card_id = item->ID;
+    }
+    IM_CHECK(card_id != 0);
+    if (card_id == 0) return;
+
+    context->ItemClick(card_id);
 
     IM_CHECK(vars.render_status.ok());
     const Blueprint* selected = vars.panel->GetSelectedBlueprint();

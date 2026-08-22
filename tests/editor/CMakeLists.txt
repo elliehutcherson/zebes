@@ -345,20 +345,6 @@ target_link_libraries(tileset_panel_test
 target_include_directories(tileset_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(tileset_panel_test)
 
-# --- Parallax Theme Panel Test ---
-add_executable(parallax_theme_panel_test parallax_theme_panel_test.cc)
-target_link_libraries(parallax_theme_panel_test
-  gtest_main
-  gmock
-  api
-  parallax_theme_panel
-  gui_mock
-  absl::flags
-  absl::flags_parse
-)
-target_include_directories(parallax_theme_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
-add_test(NAME parallax_theme_panel_test COMMAND parallax_theme_panel_test)
-
 # --- Parallax Zone Panel Test ---
 add_executable(parallax_zone_panel_test parallax_zone_panel_test.cc)
 target_link_libraries(parallax_zone_panel_test
@@ -644,3 +630,8 @@ target_link_libraries(canvas_test
 )
 target_include_directories(canvas_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME canvas_test COMMAND canvas_test)
+add_executable(parallax_theme_editor_model_test parallax_theme_editor_model_test.cc)
+target_link_libraries(parallax_theme_editor_model_test
+  parallax_theme_editor_model macros gtest_main)
+target_include_directories(parallax_theme_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME parallax_theme_editor_model_test COMMAND parallax_theme_editor_model_test)

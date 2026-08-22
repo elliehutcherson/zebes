@@ -43,7 +43,7 @@ add_library(parallax_layout
   parallax_layout.cc
 )
 target_link_libraries(parallax_layout
-  PUBLIC level
+  PUBLIC level parallax_theme
 )
 
 add_library(camera_guide
@@ -134,6 +134,7 @@ target_link_libraries(viewport_interaction
   blueprint
   entity
   level
+  parallax_theme
   sprite
   terrain_brush
   viewport_model
@@ -183,7 +184,9 @@ add_library(parallax_zone_panel
 )
 
 target_link_libraries(parallax_zone_panel
+  api
   level
+  parallax_theme
   imgui_scoped
   status_macros
   ${IMGUI_LIBRARIES}
@@ -195,7 +198,6 @@ target_link_libraries(parallax_zone_panel
 target_link_libraries(level_editor
   level_panel
   level_panel_model
-  parallax_theme_panel
   parallax_zone_panel
   palette_panel
   parallax_layout
@@ -243,24 +245,6 @@ target_link_libraries(level_panel
   gui_interface
 )
 
-
-add_library(parallax_theme_panel
-  parallax_theme_panel.cc
-)
-
-target_link_libraries(parallax_theme_panel
-  level
-  api
-  editor_texture_preview
-  imgui_scoped
-  status_macros
-  ${IMGUI_LIBRARIES}
-  absl::status
-  absl::memory
-  absl::strings
-  gui_interface
-  level_selection_state
-)
 
 add_library(blueprint_palette_model
   blueprint_palette_model.cc
@@ -372,6 +356,7 @@ target_link_libraries(viewport_tab
   editor_canvas
   imgui_scoped
   level
+  parallax_theme
   blob47_compose
   parallax_layout
   tileset
