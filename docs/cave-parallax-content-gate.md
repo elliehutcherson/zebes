@@ -1,10 +1,10 @@
 # Cave parallax content gate
 
-**Status: pending human artwork and visual review.** The Milestone 1 authoring
-and diagnostic controls are implemented, but this gate cannot be accepted from
-automated tests alone. Complete it with three intentionally authored cave PNGs;
-do not substitute unrelated shipped backgrounds merely to make the checklist
-green.
+**Status: generated input PNGs prepared; human import and visual review
+pending.** The Milestone 1 authoring and diagnostic controls are implemented,
+but this gate cannot be accepted from automated tests alone. The prepared
+inputs live under
+[`notes/cave-parallax-gate-inputs/`](../notes/cave-parallax-gate-inputs/).
 
 This is the repeatable acceptance record for Milestone 1 of
 [`environment-artwork-plan.md`](environment-artwork-plan.md). It proves the
@@ -35,9 +35,9 @@ scores.
 
 | Plane | Source PNG | Texture ID | Native size | Repeat X/Y | Scale | Offset | Edge observations | Worst coverage margins |
 |---|---|---|---|---|---:|---|---|---|
-| Far Fill | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
-| Far Formations | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
-| Near Background | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
+| Far Fill | [`cave-far-fill.png`](../notes/cave-parallax-gate-inputs/cave-far-fill.png) | _pending_ | 960×540 | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
+| Far Formations | [`cave-far-formations.png`](../notes/cave-parallax-gate-inputs/cave-far-formations.png) | _pending_ | 960×540 | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
+| Near Background | [`cave-near-background.png`](../notes/cave-parallax-gate-inputs/cave-near-background.png) | _pending_ | 960×540 | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
 
 Also record:
 
@@ -108,4 +108,3 @@ The gate passes only when all statements are true:
 - the three background planes create useful depth without foreground parallax;
 - observations above are complete enough to justify, or reject, Milestone 2
   processing defaults.
-
