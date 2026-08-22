@@ -146,9 +146,13 @@ assignment, contextual preview, Edit Theme, and Duplicate and Assign. The
 deterministic migration extracted all shipped embedded themes without
 deduplication, and catalog validation blocks missing references and referenced
 deletion. Milestone 1 of
-[`environment-artwork-plan.md`](environment-artwork-plan.md) is next: harden the
-imported authoring experience and run the three-plane cave content gate before
-designing the background-processing defaults.
+[`environment-artwork-plan.md`](environment-artwork-plan.md) now has its
+imported-authoring tooling: depth presets, live searchable texture thumbnails,
+complete/selected previews, context travel scrubbing, measured repetition and
+coverage diagnostics, strict fade geometry, and honest unsupported-fade UI.
+The human three-plane review remains pending in
+[`cave-parallax-content-gate.md`](cave-parallax-content-gate.md); its evidence
+must precede background-processing defaults.
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved

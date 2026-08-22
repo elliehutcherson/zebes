@@ -63,6 +63,27 @@ absl::Status ParallaxThemeEditorModel::MoveSelectedLayer(int delta) {
   return absl::OkStatus();
 }
 
+absl::Status ParallaxThemeEditorModel::ApplyDepthPreset(ParallaxDepthPreset preset) {
+  if (!draft_ || !selected_layer_) {
+    return absl::FailedPreconditionError("No parallax layer is selected.");
+  }
+
+  Vec scroll_factor;
+  switch (preset) {
+    case ParallaxDepthPreset::kFar:
+      scroll_factor = {0.05, 0.05};
+      break;
+    case ParallaxDepthPreset::kMiddle:
+      scroll_factor = {0.20, 0.10};
+      break;
+    case ParallaxDepthPreset::kNearBackground:
+      scroll_factor = {0.50, 0.25};
+      break;
+  }
+  draft_->layers[*selected_layer_].scroll_factor = scroll_factor;
+  return absl::OkStatus();
+}
+
 absl::StatusOr<ParallaxTheme> ParallaxThemeEditorModel::BuildSaveRequest() const {
   if (!draft_) return absl::FailedPreconditionError("No parallax theme draft is open.");
   ParallaxTheme request = *draft_;

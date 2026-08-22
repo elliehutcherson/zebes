@@ -117,6 +117,7 @@ TEST_F(ParallaxZonePanelTest, CreateZoneAddsToLevel) {
   EXPECT_EQ(level_.zones[0].id, 0);
   EXPECT_DOUBLE_EQ(level_.zones[0].max_point.x, 256.0);
   EXPECT_DOUBLE_EQ(level_.zones[0].max_point.y, 256.0);
+  EXPECT_EQ(level_.zones[0].fade_length, Vec());
 }
 
 TEST_F(ParallaxZonePanelTest, CreateZoneIsDisabledForLevelWithoutPositiveDimensions) {
@@ -275,6 +276,24 @@ TEST_F(ParallaxZonePanelTest, EditThemeEmitsStableIdRequest) {
   EXPECT_EQ(request->action, ParallaxZonePanel::ThemeAction::kEdit);
   EXPECT_EQ(request->zone_id, 0);
   EXPECT_EQ(request->theme_id, "theme-1");
+}
+
+TEST_F(ParallaxZonePanelTest, UnsupportedFadeCanBeResetWithoutImplyingItRenders) {
+  level_.zones.push_back({
+      .id = 0,
+      .name = "Zone 0",
+      .theme_id = "theme-1",
+      .min_point = {0, 0},
+      .max_point = {100, 100},
+      .fade_length = {10, 15},
+  });
+  selection_.type = SelectionState::Type::kZone;
+  selection_.zone_id = 0;
+  EXPECT_CALL(gui_, Button(StrEq("Reset Fades to Zero"), _)).WillOnce(Return(true));
+
+  ASSERT_OK(RenderDetails());
+
+  EXPECT_EQ(level_.zones[0].fade_length, Vec());
 }
 
 }  // namespace

@@ -1,5 +1,7 @@
 #include "objects/level.h"
 
+#include <limits>
+
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
 #include "macros.h"
@@ -67,6 +69,42 @@ TEST(LevelTest, ValidationRejectsInvalidChunkCoordinatesAndTilesOutsideBounds) {
   level.layers.front().tile_chunks[ChunkKey(0, 0)].tiles[20] = 1;
   level.width = 16;
   level.height = 16;
+  EXPECT_EQ(ValidateLevel(level).code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST(LevelTest, ValidationRejectsMalformedZoneThemeIds) {
+  Level level = ValidLevel();
+  level.zones.push_back({
+      .id = 1,
+      .name = "Cave",
+      .theme_id = "../outside",
+      .min_point = {0, 0},
+      .max_point = {320, 320},
+  });
+
+  EXPECT_EQ(ValidateLevel(level).code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST(LevelTest, ValidationRejectsInvalidZoneFades) {
+  Level level = ValidLevel();
+  level.zones.push_back({
+      .id = 1,
+      .name = "Cave",
+      .theme_id = "theme-1",
+      .min_point = {0, 0},
+      .max_point = {100, 80},
+  });
+
+  level.zones[0].fade_length = {-1, 0};
+  EXPECT_EQ(ValidateLevel(level).code(), absl::StatusCode::kInvalidArgument);
+
+  level.zones[0].fade_length = {51, 0};
+  EXPECT_EQ(ValidateLevel(level).code(), absl::StatusCode::kInvalidArgument);
+
+  level.zones[0].fade_length = {50, 40};
+  EXPECT_OK(ValidateLevel(level));
+
+  level.zones[0].fade_length.x = std::numeric_limits<double>::infinity();
   EXPECT_EQ(ValidateLevel(level).code(), absl::StatusCode::kInvalidArgument);
 }
 

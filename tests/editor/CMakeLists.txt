@@ -635,3 +635,8 @@ target_link_libraries(parallax_theme_editor_model_test
   parallax_theme_editor_model macros gtest_main)
 target_include_directories(parallax_theme_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_theme_editor_model_test COMMAND parallax_theme_editor_model_test)
+
+add_executable(parallax_diagnostics_test parallax_diagnostics_test.cc)
+target_link_libraries(parallax_diagnostics_test parallax_diagnostics macros gtest_main)
+target_include_directories(parallax_diagnostics_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME parallax_diagnostics_test COMMAND parallax_diagnostics_test)

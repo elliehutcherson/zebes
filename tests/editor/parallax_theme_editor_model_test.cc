@@ -38,5 +38,35 @@ TEST(ParallaxThemeEditorModelTest, IncompleteDraftCannotBecomeASaveRequest) {
   EXPECT_EQ(model.BuildSaveRequest().status().code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST(ParallaxThemeEditorModelTest, DepthPresetsChangeOnlySelectedLayerScrollFactors) {
+  ParallaxThemeEditorModel model;
+  model.Open({
+      .id = "theme",
+      .name = "Cave",
+      .layers = {{.name = "Far",
+                  .texture_id = "far",
+                  .scroll_factor = {0.9, 0.8},
+                  .offset = {12, 34},
+                  .base_scale = 2.0f}},
+  });
+
+  ASSERT_OK(model.ApplyDepthPreset(ParallaxDepthPreset::kFar));
+  EXPECT_EQ(model.draft()->layers[0].scroll_factor, Vec(0.05, 0.05));
+  EXPECT_EQ(model.draft()->layers[0].offset, Vec(12, 34));
+  EXPECT_FLOAT_EQ(model.draft()->layers[0].base_scale, 2.0f);
+
+  ASSERT_OK(model.ApplyDepthPreset(ParallaxDepthPreset::kMiddle));
+  EXPECT_EQ(model.draft()->layers[0].scroll_factor, Vec(0.20, 0.10));
+
+  ASSERT_OK(model.ApplyDepthPreset(ParallaxDepthPreset::kNearBackground));
+  EXPECT_EQ(model.draft()->layers[0].scroll_factor, Vec(0.50, 0.25));
+}
+
+TEST(ParallaxThemeEditorModelTest, DepthPresetRequiresASelectedLayer) {
+  ParallaxThemeEditorModel model;
+  EXPECT_EQ(model.ApplyDepthPreset(ParallaxDepthPreset::kFar).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
 }  // namespace
 }  // namespace zebes

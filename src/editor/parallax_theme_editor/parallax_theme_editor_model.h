@@ -9,6 +9,12 @@
 
 namespace zebes {
 
+enum class ParallaxDepthPreset {
+  kFar,
+  kMiddle,
+  kNearBackground,
+};
+
 // Platform-neutral draft state for the standalone theme editor.
 class ParallaxThemeEditorModel {
  public:
@@ -29,6 +35,7 @@ class ParallaxThemeEditorModel {
   absl::Status AddLayer();
   absl::Status DeleteSelectedLayer();
   absl::Status MoveSelectedLayer(int delta);
+  absl::Status ApplyDepthPreset(ParallaxDepthPreset preset);
   absl::StatusOr<ParallaxTheme> BuildSaveRequest() const;
   void FinishSave(const std::string& id);
 

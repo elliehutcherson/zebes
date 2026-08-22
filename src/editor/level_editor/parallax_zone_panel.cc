@@ -47,7 +47,7 @@ absl::Status ParallaxZonePanel::RenderNavigator(Level& level, SelectionState& se
         .name = absl::StrCat("Zone ", level.zones.size()),
         .min_point = {.x = 0, .y = 0},
         .max_point = {.x = std::min(256.0, level.width), .y = std::min(256.0, level.height)},
-        .fade_length = {.x = 10, .y = 10},
+        .fade_length = {.x = 0, .y = 0},
     };
     level.zones.push_back(new_zone);
 
@@ -146,8 +146,17 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
 
   gui_->Separator();
   gui_->Text("Transition");
-  gui_->InputDouble("Fade X", &zone.fade_length.x);
-  gui_->InputDouble("Fade Y", &zone.fade_length.y);
+  gui_->TextWrapped(
+      "Zone fades are not rendered yet. Values are preserved but cannot be edited "
+      "until the two-theme compositor is implemented.");
+  gui_->BeginDisabled();
+  gui_->InputDouble("Fade X (unsupported)", &zone.fade_length.x);
+  gui_->InputDouble("Fade Y (unsupported)", &zone.fade_length.y);
+  gui_->EndDisabled();
+  if ((zone.fade_length.x != 0.0 || zone.fade_length.y != 0.0) &&
+      gui_->Button("Reset Fades to Zero")) {
+    zone.fade_length = {};
+  }
 
   gui_->Spacing();
   {

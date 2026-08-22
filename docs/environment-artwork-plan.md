@@ -1,6 +1,7 @@
 # Environment artwork and parallax plan
 
-**Status: Milestone 0 implemented; Milestone 1 next.** Written 2026-08-22 for
+**Status: Milestone 0 implemented; Milestone 1 tooling implemented, human cave
+content gate pending.** Written 2026-08-22 for
 the first cave vertical slice and revised the same day to make standalone
 parallax-theme ownership the highest-priority implementation milestone. Update
 milestone states here as work lands; use [`roadmap.md`](roadmap.md) only for the
@@ -570,17 +571,21 @@ or one of its textures is refused without partial mutation.
 
 ### Milestone 1 — harden imported parallax authoring and run the content gate
 
-- Add remaining intrinsic geometry/fade validation and catalog
+- **Implemented.** Add remaining intrinsic geometry/fade validation and catalog
   texture-reference checks.
-- Add layer reorder, selection reconciliation, presets, live texture discovery,
+- **Implemented.** Add layer reorder, selection reconciliation, presets, live texture discovery,
   thumbnails, correct offset ownership, repetition diagnostics, and camera
   coverage diagnostics in Theme Editor.
-- Mark fades unsupported in Level Editor until Milestone 5.
-- Assemble one temporary three-plane cave background through the existing
+- **Implemented.** Mark fades unsupported in Level Editor until Milestone 5.
+- **Pending human content gate.** Assemble one temporary three-plane cave background through the existing
   Texture, Theme, and Level editors.
-- Preview it behind existing cave terrain and the Cave Crystal prop.
-- Record target viewport, zoom range, texture sizes, desired repetition, and
+- **Pending human content gate.** Preview it behind existing cave terrain and the Cave Crystal prop.
+- **Pending human content gate.** Record target viewport, zoom range, texture sizes, desired repetition, and
   observed seam/coverage problems before choosing processing defaults.
+
+Run and record that review in
+[`cave-parallax-content-gate.md`](cave-parallax-content-gate.md). Automated
+tests cannot establish that the depth split is visually useful.
 
 Acceptance: a human can import three hand-authored PNGs, assemble and reorder a
 standalone theme, assign it to a zone, save, reopen, and get the identical

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <string_view>
 #include <utility>
 
 #include "absl/container/flat_hash_set.h"
@@ -16,6 +17,14 @@ namespace zebes {
 namespace {
 
 bool Finite(Vec value) { return std::isfinite(value.x) && std::isfinite(value.y); }
+
+bool ValidResourceId(std::string_view id) {
+  if (id.empty()) return false;
+  return std::all_of(id.begin(), id.end(), [](char value) {
+    return (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z') ||
+           (value >= '0' && value <= '9') || value == '-' || value == '_';
+  });
+}
 
 absl::Status ValidateWorldGeometry(const Level& level) {
   if (!std::isfinite(level.width) || !std::isfinite(level.height) || level.width < 0.0 ||
@@ -48,9 +57,9 @@ absl::Status ValidateThemesAndZones(const Level& level) {
     if (!zone_ids.insert(zone.id).second) {
       return absl::InvalidArgumentError(absl::StrCat("Duplicate zone ID found: '", zone.id, "'"));
     }
-    if (zone.theme_id.empty()) {
+    if (!ValidResourceId(zone.theme_id)) {
       return absl::InvalidArgumentError(
-          absl::StrCat("Zone '", zone.name, "' must reference a parallax theme."));
+          absl::StrCat("Zone '", zone.name, "' must reference a valid parallax theme ID."));
     }
     if (!Finite(zone.min_point) || !Finite(zone.max_point) || zone.min_point.x < 0 ||
         zone.min_point.y < 0 || zone.max_point.x > level.width || zone.max_point.y > level.height) {
@@ -60,6 +69,16 @@ absl::Status ValidateThemesAndZones(const Level& level) {
     if (zone.min_point.x >= zone.max_point.x || zone.min_point.y >= zone.max_point.y) {
       return absl::InvalidArgumentError(
           absl::StrCat("Zone '", zone.name, "' has invalid dimensions (min >= max)."));
+    }
+    if (!Finite(zone.fade_length) || zone.fade_length.x < 0.0 || zone.fade_length.y < 0.0) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Zone '", zone.name, "' fade lengths must be finite and non-negative."));
+    }
+    const double width = zone.max_point.x - zone.min_point.x;
+    const double height = zone.max_point.y - zone.min_point.y;
+    if (2.0 * zone.fade_length.x > width || 2.0 * zone.fade_length.y > height) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Zone '", zone.name, "' fade lengths cannot exceed half its width or height."));
     }
   }
   return absl::OkStatus();
