@@ -26,6 +26,7 @@
 namespace zebes {
 
 enum class ParallaxPreviewMode {
+  kOff,
   kActiveZone,
   kSelectedZone,
 };
@@ -103,6 +104,9 @@ class ViewportTab {
 
   // Requests that the next viewport frame center and fit this zone.
   void FrameZone(const ParallaxZone& zone);
+  // Requests that the next viewport frame center and fit the complete level.
+  void FrameLevel(const Level& level);
+  void SetParallaxPreviewMode(ParallaxPreviewMode mode) { parallax_preview_mode_ = mode; }
 
   // Returns the entity placed this frame (if any), then clears it.
   // The returned entity has its sprite pointer resolved via the Api.
@@ -249,6 +253,7 @@ class ViewportTab {
   bool show_camera_guide_ = true;
   ParallaxPreviewMode parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
   std::optional<VisibleWorldBounds> pending_camera_frame_;
+  bool constrain_pending_camera_frame_ = true;
 
   std::optional<Entity> pending_entity_;
   std::optional<uint64_t> click_selected_entity_id_;

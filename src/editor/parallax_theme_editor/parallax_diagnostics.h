@@ -1,7 +1,10 @@
 #pragma once
 
+#include <optional>
+
 #include "absl/status/statusor.h"
 #include "common/image_io.h"
+#include "editor/parallax_theme_editor/parallax_preview_model.h"
 #include "objects/camera.h"
 #include "objects/game_view.h"
 #include "objects/parallax_theme.h"
@@ -44,6 +47,7 @@ absl::StatusOr<RepetitionDiagnostics> AnalyzeRepetition(const RgbaImage& image);
 // uncovered world units. Repeating axes are always considered covered.
 absl::StatusOr<CameraCoverageDiagnostics> AnalyzeCameraCoverage(
     const ParallaxLayer& layer, int texture_width, int texture_height, Vec route_min, Vec route_max,
-    const GameViewSize& game_view, CameraZoomRange zoom_range);
+    const GameViewSize& game_view, CameraZoomRange zoom_range,
+    std::optional<CameraWorldBounds> world = std::nullopt);
 
 }  // namespace zebes

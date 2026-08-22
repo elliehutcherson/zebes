@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "absl/status/status.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 namespace {
@@ -39,9 +40,22 @@ OpposingEdgeDifference CompareEdges(const RgbaImage& image, bool horizontal) {
   return result;
 }
 
-CoverageAxisDiagnostics AnalyzeAxis(bool repeated, double texture_size, double route_start,
-                                    double route_end, int viewport_size, CameraZoomRange zoom_range,
-                                    double scroll_factor, double offset) {
+void AnalyzeAxisAtZoom(CoverageAxisDiagnostics& result, double texture_size, double route_start,
+                       double route_end, int viewport_size, double zoom, double scroll_factor,
+                       double offset) {
+  const std::array<double, 2> positions = {route_start, route_end};
+  for (double position : positions) {
+    const double visible_start = position - viewport_size / (2.0 * zoom);
+    const double visible_end = position + viewport_size / (2.0 * zoom);
+    const double layer_origin = offset + (visible_start - offset) * (1.0 - scroll_factor);
+    result.minimum_start_margin =
+        std::min(result.minimum_start_margin, visible_start - layer_origin);
+    result.minimum_end_margin =
+        std::min(result.minimum_end_margin, layer_origin + texture_size - visible_end);
+  }
+}
+
+CoverageAxisDiagnostics InitialAxisDiagnostics(bool repeated) {
   CoverageAxisDiagnostics result{
       .repeated = repeated,
       .minimum_start_margin = std::numeric_limits<double>::infinity(),
@@ -50,21 +64,6 @@ CoverageAxisDiagnostics AnalyzeAxis(bool repeated, double texture_size, double r
   if (repeated) {
     result.minimum_start_margin = 0.0;
     result.minimum_end_margin = 0.0;
-    return result;
-  }
-
-  const std::array<double, 2> positions = {route_start, route_end};
-  const std::array<double, 2> zooms = {zoom_range.minimum, zoom_range.maximum};
-  for (double position : positions) {
-    for (double zoom : zooms) {
-      const double visible_start = position - viewport_size / (2.0 * zoom);
-      const double visible_end = position + viewport_size / (2.0 * zoom);
-      const double layer_origin = offset + (visible_start - offset) * (1.0 - scroll_factor);
-      result.minimum_start_margin =
-          std::min(result.minimum_start_margin, visible_start - layer_origin);
-      result.minimum_end_margin =
-          std::min(result.minimum_end_margin, layer_origin + texture_size - visible_end);
-    }
   }
   return result;
 }
@@ -83,7 +82,8 @@ absl::StatusOr<RepetitionDiagnostics> AnalyzeRepetition(const RgbaImage& image) 
 
 absl::StatusOr<CameraCoverageDiagnostics> AnalyzeCameraCoverage(
     const ParallaxLayer& layer, int texture_width, int texture_height, Vec route_min, Vec route_max,
-    const GameViewSize& game_view, CameraZoomRange zoom_range) {
+    const GameViewSize& game_view, CameraZoomRange zoom_range,
+    std::optional<CameraWorldBounds> world) {
   if (texture_width <= 0 || texture_height <= 0 || !game_view.IsValid() || !zoom_range.IsValid() ||
       !std::isfinite(route_min.x) || !std::isfinite(route_min.y) || !std::isfinite(route_max.x) ||
       !std::isfinite(route_max.y) || route_min.x > route_max.x || route_min.y > route_max.y ||
@@ -93,14 +93,24 @@ absl::StatusOr<CameraCoverageDiagnostics> AnalyzeCameraCoverage(
     return absl::InvalidArgumentError("camera coverage diagnostics require valid geometry");
   }
 
-  return CameraCoverageDiagnostics{
-      .horizontal =
-          AnalyzeAxis(layer.repeat_x, texture_width * layer.base_scale, route_min.x, route_max.x,
-                      game_view.width, zoom_range, layer.scroll_factor.x, layer.offset.x),
-      .vertical =
-          AnalyzeAxis(layer.repeat_y, texture_height * layer.base_scale, route_min.y, route_max.y,
-                      game_view.height, zoom_range, layer.scroll_factor.y, layer.offset.y),
+  CameraCoverageDiagnostics result{
+      .horizontal = InitialAxisDiagnostics(layer.repeat_x),
+      .vertical = InitialAxisDiagnostics(layer.repeat_y),
   };
+  for (const double zoom : {zoom_range.minimum, zoom_range.maximum}) {
+    ASSIGN_OR_RETURN(
+        const CameraCenterRoute route,
+        ResolveCameraCenterRoute({.min = route_min, .max = route_max}, game_view, zoom, world));
+    if (!layer.repeat_x) {
+      AnalyzeAxisAtZoom(result.horizontal, texture_width * layer.base_scale, route.min.x,
+                        route.max.x, game_view.width, zoom, layer.scroll_factor.x, layer.offset.x);
+    }
+    if (!layer.repeat_y) {
+      AnalyzeAxisAtZoom(result.vertical, texture_height * layer.base_scale, route.min.y,
+                        route.max.y, game_view.height, zoom, layer.scroll_factor.y, layer.offset.y);
+    }
+  }
+  return result;
 }
 
 }  // namespace zebes

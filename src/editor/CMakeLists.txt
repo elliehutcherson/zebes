@@ -15,6 +15,15 @@ target_link_libraries(imgui_scoped
   ${IMGUI_LIBRARIES}
 )
 
+# Shared labeled property-grid presentation for contextual inspectors.
+add_library(inspector_ui inspector_ui.cc)
+target_link_libraries(inspector_ui
+  PUBLIC
+  gui_interface
+  imgui_scoped
+  ${IMGUI_LIBRARIES}
+)
+
 
 # Inline confirmation for destructive buttons, shared by every panel that has
 # one so the interaction cannot drift between tabs.
@@ -115,6 +124,7 @@ add_library(editor_canvas canvas/canvas.cc)
 target_link_libraries(editor_canvas
   canvas_elements
   ${IMGUI_LIBRARIES}
+  game_view
   gui_interface
   tile_shape_geometry
 )

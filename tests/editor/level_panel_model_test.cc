@@ -58,12 +58,24 @@ TEST(LevelPanelModelTest, CreateFinishesAsExistingLevel) {
   model.BeginNewLevel();
 
   ASSERT_TRUE(model.is_new_level());
-  EXPECT_EQ(model.active_level()->name, "name");
+  EXPECT_EQ(model.active_level()->name, "New Level");
   ASSERT_OK(model.FinishCreate("generated"));
   EXPECT_FALSE(model.is_new_level());
   EXPECT_EQ(model.active_level()->id, "generated");
   EXPECT_EQ(model.selected_level_id(), "generated");
   EXPECT_EQ(model.FinishCreate("duplicate").code(), absl::StatusCode::kFailedPrecondition);
+}
+
+TEST(LevelPanelModelTest, NewLevelIsAnUnsavedDraftAndZeroAreaCannotBePublished) {
+  LevelPanelModel model;
+  model.BeginNewLevel();
+
+  EXPECT_TRUE(model.has_unsaved_changes());
+  EXPECT_EQ(model.BuildSaveRequest().status().code(), absl::StatusCode::kFailedPrecondition);
+
+  model.active_level()->width = 1920;
+  model.active_level()->height = 1088;
+  EXPECT_TRUE(model.BuildSaveRequest().ok());
 }
 
 TEST(LevelPanelModelTest, InvalidSelectionDoesNotOpenLevel) {

@@ -1,7 +1,8 @@
 # Environment artwork and parallax plan
 
-**Status: Milestone 0 implemented; Milestone 1 tooling implemented, human cave
-content gate pending.** Written 2026-08-22 for
+**Status: Milestones 0, 1, and 1.5 are accepted. Milestone 1.6, composed
+parallax layers, is the next implementation priority before Milestone 2.**
+Written 2026-08-22 for
 the first cave vertical slice and revised the same day to make standalone
 parallax-theme ownership the highest-priority implementation milestone. Update
 milestone states here as work lands; use [`roadmap.md`](roadmap.md) only for the
@@ -37,7 +38,7 @@ This work extends existing boundaries; it does not replace them.
 |---|---|---|
 | Ownership | A standalone `ParallaxTheme` resource | The level |
 | Coordinates | Camera-relative | World-relative |
-| Content | One repeated or non-repeated texture | Sparse tiles and placed entities |
+| Content | Ordered texture elements, finite or repeated as one composition | Sparse tiles and placed entities |
 | Collision | Never | Defined by each tile or entity |
 | Selection | Theme chosen through a zone | Always present; one active for editing |
 | Intended use | Distant environmental planes | Back decor, gameplay, and front decor |
@@ -71,7 +72,8 @@ in world space does not justify another composition band.
   textures independently of any level.
 
 A background does not become a Sprite or Blueprint merely to enter a level.
-Its output is a whole managed Texture selected by a `ParallaxLayer`.
+Each processed output remains a whole managed Texture referenced by a
+`ParallaxElement` inside a layer.
 
 ### 2.3 Infrastructure is shared, coordinators are not
 
@@ -111,12 +113,12 @@ shows that three manual operations are a real burden.
 
 ### 3.2 Recommended parallax theme
 
-One cave theme should begin with three textures stored far to near:
+One cave theme should begin with three depth roles stored far to near:
 
 1. `Far Fill`: opaque, very slow, covering the complete camera view.
 2. `Far Formations`: distant silhouettes, usually transparent over the fill.
-3. `Near Background`: closer arches, columns, roots, or crystals, still behind
-   every world layer.
+3. `Near Background`: several composed arches, columns, roots, or crystal
+   elements, still behind every world layer.
 
 Suggested scroll factors are authoring presets, not domain constraints:
 
@@ -250,11 +252,13 @@ output authority
   final pixel digest
 ```
 
-Scroll factor, scale, offset, repeat flags, and layer order do **not** belong in
-the recipe. They are placement/composition decisions owned by
-`ParallaxLayer` inside the standalone theme. The artwork editor may suggest
-theme-layer defaults after creation, but there is only one serialized authority
-for each value.
+Scroll factor, element scale and position, layer offset and repeat period, and
+layer/element order do **not** belong in the recipe. They are
+placement/composition decisions owned by `ParallaxLayer` inside the standalone
+theme. One recipe continues to produce one reusable Texture; Milestone 1.6
+lets one layer compose several such outputs without baking them into an
+oversized image. The artwork editor may suggest composition defaults after
+creation, but there is only one serialized authority for each value.
 
 ### 4.3 Bundle lifecycle
 
@@ -476,6 +480,87 @@ Until fade rendering is implemented, the zone inspector must label fade values
 as unsupported or disable them. Editable controls must not imply a visible
 effect that does not exist.
 
+### 7.4 Level Editor authoring interaction model
+
+The first Milestone 1 content-gate attempt exposed a discoverability failure,
+not an ownership failure. At the time, a new level could be saved at zero width
+and height; that disabled zone creation, while the theme picker existed only in
+the inspector of a selected zone. The UI therefore hid the required sequence
+across three selections and communicated it mainly through a disabled button.
+Theme assignment remains zone-owned; Milestone 1.5 makes the workflow explicit.
+
+The target Level Editor layout is:
+
+```text
+level toolbar: identity, save/close, dirty state, actionable errors
+  -> level contents: level settings, world layers, and parallax zones
+  -> dominant world viewport
+  -> contextual inspector with a selection breadcrumb
+  -> collapsible/resizable placement palette
+```
+
+This is a focused interaction refactor, not a generic docking framework. Keep
+the existing `LevelPanelModel`, `WorldLayerModel`, `ViewportTab`, palette
+panels, zone-owned theme references, and cross-editor stable-ID requests. Do
+not add `Level::theme_id`, edit theme layers through a `Level&`, or duplicate
+Theme Editor state.
+
+The interaction contracts are:
+
+- **New-level setup is an explicit draft step.** Choosing New starts an
+  unsaved level draft rather than immediately publishing a zero-sized level.
+  A setup surface names the level and labels world width, world height, tile
+  render size, tileset, and spawn clearly. Applying setup mutates only the
+  draft; Save/Create is the persistence boundary.
+- **Invalid prerequisites are actionable.** When world bounds are not positive
+  and tile-aligned, the viewport and Parallax section both link to Level Setup
+  instead of presenting an unexplained disabled operation. The editor must not
+  persist a new zero-area level. Loading any historical zero-area level remains
+  possible so it can be repaired, but its inspector must show the exact save
+  blocker.
+- **The hierarchy describes ownership.** Use `World Layers` and `Parallax
+  Zones` as sibling collections below one Level Settings item. A level is one
+  authored world, not a collapsible collection of scenes, so these sections
+  remain visible rather than hiding their controls behind disclosure arrows.
+  Rename the action to `Add Parallax Zone…` and show every row as `zone name —
+  assigned theme`; missing or unresolved themes use an explicit error label
+  rather than a blank value.
+- **Zone creation is transactional.** `Add Parallax Zone…` opens a transient
+  creation draft initialized to the complete level bounds. Name, theme, and
+  valid bounds are required before Commit appends it to `Level::zones`.
+  Cancel leaves the level draft untouched. A successful commit selects and
+  frames the new zone.
+- **Theme assignment is present at the point of use.** The zone-creation and
+  zone-detail inspectors use one searchable, stable-ID theme catalog picker.
+  The saved theme name is visible in the hierarchy. `Edit Theme` and
+  `Duplicate and Assign` remain cross-editor requests and never save the level
+  implicitly.
+- **Inspector context is unmistakable.** The right rail begins with a
+  breadcrumb such as `Level > Parallax Zone > Cave Entrance`, followed by the
+  relevant properties. Level persistence has one Save action in the global
+  toolbar; contextual inspectors do not duplicate it. All inspectors use the
+  shared two-column property grid: permanent labels and units occupy the left
+  column, full-width editable controls occupy the right, and hidden widget IDs
+  prevent ImGui labels from being clipped after an input field.
+- **Readiness has one presentation path.** Save/Create is disabled when the
+  shared readiness result has blockers, and `Review N issues` selects Level
+  Settings where the complete actionable list is shown. The viewport and
+  hierarchy may provide a compact route to Level Settings, but they do not
+  duplicate the detailed blocker list.
+- **Preview mode is explicit.** Near the viewport, label parallax preview as
+  `Active Zone`, `Selected Zone`, or `Off`; selecting or creating a zone makes
+  `Selected Zone` the temporary authoring view. The viewport continues to
+  resolve immutable theme snapshots and does not retain catalog pointers.
+- **The palette follows readiness and mode.** Hide or clearly disable placement
+  content until a tileset and active world layer make it usable. Preserve the
+  shared blueprint/tile/terrain palette implementations rather than rebuilding
+  their asset presentation.
+
+The shortest intended human workflow becomes: New Level → complete Level
+Setup → Create Level → Add Parallax Zone → choose Cave Theme and bounds →
+Create Zone → preview Selected Zone → Save. No documentation should be required
+to discover the theme picker.
+
 ## 8. Generated-source editor flow
 
 Add a `Parallax Artwork` editor surface rather than expanding Prop Artwork with
@@ -576,11 +661,16 @@ or one of its textures is refused without partial mutation.
 - **Implemented.** Add layer reorder, selection reconciliation, presets, live texture discovery,
   thumbnails, correct offset ownership, repetition diagnostics, and camera
   coverage diagnostics in Theme Editor.
+- **Implemented.** Give Theme Editor a persistent far-to-near hierarchy,
+  dominant aspect-correct logical game viewport, independently scrolling
+  inspector, and collapsible diagnostics drawer. Level/zone preview routes are
+  resolved as reachable camera centers at each zoom rather than raw world
+  corners.
 - **Implemented.** Mark fades unsupported in Level Editor until Milestone 5.
-- **Pending human content gate.** Assemble one temporary three-plane cave background through the existing
+- **Accepted human content gate.** Assemble one temporary three-plane cave background through the existing
   Texture, Theme, and Level editors.
-- **Pending human content gate.** Preview it behind existing cave terrain and the Cave Crystal prop.
-- **Pending human content gate.** Record target viewport, zoom range, texture sizes, desired repetition, and
+- **Accepted human content gate.** Preview it behind existing cave terrain and the Cave Crystal prop.
+- **Accepted human content gate.** Record target viewport, zoom range, texture sizes, desired repetition, and
   observed seam/coverage problems before choosing processing defaults.
 
 Run and record that review in
@@ -591,6 +681,188 @@ Acceptance: a human can import three hand-authored PNGs, assemble and reorder a
 standalone theme, assign it to a zone, save, reopen, and get the identical
 composition. One camera view also establishes that the proposed
 far/middle/near division produces useful depth without foreground parallax.
+
+### Milestone 1.5 — make Level Editor environment authoring discoverable (implemented)
+
+This milestone implements the interaction model in §7.4 before the cave gate
+continues. It deliberately preserves the ownership boundaries established in
+Milestone 0.
+
+1. **Implemented — separate New from Create.** Change the level catalog action
+   to open an unsaved draft. Add tested draft lifecycle events for setup,
+   create/save, cancel/close, and failed persistence without partial catalog
+   mutation.
+2. **Implemented — add a platform-neutral readiness model.** Derive
+   categorized facts rather than one overloaded ready flag: save readiness
+   covers identity, bounds, tile alignment, spawn, and zone references;
+   placement readiness adds tileset and active-layer requirements;
+   parallax-zone readiness adds valid world bounds and theme-catalog
+   availability. UI code renders these facts but does not invent a second
+   validation policy.
+3. **Implemented — rebuild the Level Editor shell.** Add a full-width toolbar,
+   fixed scene hierarchy rail, dominant viewport, contextual inspector with
+   breadcrumb, and collapsible/resizable palette. Preserve independent
+   scrolling and make dirty/error state visible without consuming the
+   hierarchy.
+4. **Implemented — explicit Level Setup.** Label world dimensions and tile size,
+   provide the required tileset/spawn inputs, frame the configured world, and
+   route blocked hierarchy actions back to setup. Prevent new zero-area levels
+   from being published; allow existing invalid drafts to be repaired.
+5. **Implemented — transactional zone creation.** Add a small platform-neutral
+   zone creation model with full-level default bounds, required theme
+   selection, validation, cancel, commit, unique stable IDs, automatic
+   selection, and viewport framing.
+6. **Implemented — make parallax use visible.** Present `Parallax Zones`
+   alongside world layers, show assigned theme names in rows, add the searchable
+   theme picker to create/detail flows, and expose explicit Active/Selected/Off
+   preview modes. Keep Edit Theme and Duplicate and Assign routed through
+   `EditorUi`.
+7. **Implemented — gate the palette by authoring readiness.** Retain existing
+   palette panels while preventing placement controls from appearing usable
+   before setup, tileset selection, and active-layer selection are complete.
+8. **Implemented — validate at stable boundaries.** Prefer headless tests for
+   readiness, draft lifecycle, zone-creation transactions, stable-ID catalog
+   filtering, and preview-mode reconciliation. Keep ImGui tests to event wiring
+   and one focused smoke path; do not add screenshot-coordinate tests.
+9. **Implemented — finish the inspector and hierarchy usability pass.** Add a
+   reusable two-column property grid with permanent labels, units, concise
+   field help, and full-width controls; migrate level, layer, zone, zone-create,
+   and entity properties to it. Replace the false collapsible scene root with
+   always-visible Level Settings, World Layers, and Parallax Zones. Consolidate
+   save blockers behind `Review N issues`, hide the placement palette until it
+   is usable, expose Frame World beside world dimensions, and label valid or
+   fractional tile-grid dimensions directly.
+10. **Accepted human gate — run the workflow.** Create a disposable cave level
+   without written instructions, assign the existing Cave Theme, save/reopen,
+   and verify the same zone, theme, bounds, hierarchy selection, and
+   selected-zone preview. Then resume the remaining Milestone 1 content gate.
+
+Focused verification includes `level_panel_model_test`, the new readiness and
+zone-creation model tests, `parallax_zone_panel_test`, `level_editor_test`,
+`viewport_tab_test`, `level_test`, API catalog validation, and loading every
+shipped level definition. Use `scripts/test.sh --affected-target` for changed
+Level Editor targets; run the complete UI merge-gate command only if the shell
+or shared serialized validation boundary makes the affected set genuinely
+broad.
+
+Acceptance: starting from the level catalog, an author can discover and
+complete setup, add a valid parallax zone, assign an existing theme, see that
+assignment in both hierarchy and viewport, save, close, and reopen without
+consulting documentation. No failed or canceled step publishes a partial
+level or zone, and the Level Editor still cannot mutate theme layers.
+
+### Milestone 1.6 — compose multiple elements inside one parallax layer (next)
+
+The cave gate established the missing abstraction: repetition is appropriate
+for low-salience Far Fill and Far Formations, while repeating one distinctive
+Near Formation plate exposes its landmarks. A second zone is not the solution.
+Zones continue selecting complete environment themes for world regions;
+stitching several pieces at one depth belongs inside one theme layer.
+
+Implement this milestone before the artwork pipeline. Otherwise Milestone 2
+would generate assets against the known one-texture layer limitation and force
+immediate changes to its editor integration, diagnostics, reference scans, and
+first production content.
+
+#### Target data contract
+
+Replace the single `texture_id` and `base_scale` on `ParallaxLayer` with an
+ordered element collection:
+
+```text
+ParallaxLayer
+  name
+  scroll_factor
+  offset                         # camera-relative layer anchor
+  repeat_period                  # zero on an axis means finite on that axis
+  elements[]                     # authored back-to-front within this depth
+
+ParallaxElement
+  stable integer id              # unique within the layer
+  name
+  texture_id
+  position                       # layer-local world units
+  scale                          # positive, finite
+```
+
+Repetition copies the complete element composition by `repeat_period`; it does
+not independently tile each element. A one-element repeating layer preserves
+the current Far workflow. A finite element strip supports unique Near scenery.
+A longer `A → B → C → D` composition may also repeat as one deliberately
+authored super-cell. Flip, tint, opacity, random choice, and animation remain
+deferred until real content requires them.
+
+The theme owns this composition. A zone continues to own only its world bounds,
+theme reference, and future transition data. Do not add element placement to
+`Level`, duplicate theme state per zone, or use adjacent zones to concatenate
+pieces. Terrain-aligned scenery remains a Back Decor world prop rather than a
+parallax element.
+
+#### Implementation sequence
+
+1. **Schema and intrinsic validation.** Add `ParallaxElement`, explicit repeat
+   periods, stable element IDs, strict finite/positive geometry checks, at
+   least one element per saved layer, and catalog validation of every element
+   texture reference.
+2. **Deterministic migration.** Preflight every theme and referenced texture.
+   Convert each old layer to one element at `(0, 0)` with its old scale. For an
+   enabled repeat axis, derive the period from the resolved native texture size
+   times scale; use zero for a disabled axis. Refuse missing metadata,
+   conflicting output, partially migrated documents, or a second run whose
+   expected output differs. Load every shipped definition after migration and
+   prove the rendered geometry is unchanged.
+3. **Pure composition layout.** Replace the single-texture layout result with
+   visible element instances identified by stable element ID and repeat-cell
+   coordinates. Calculate the layer transform once, enumerate only repeat
+   cells intersecting the camera, cull elements outside the view, and fail on
+   invalid geometry or an excessive instance count.
+4. **Resource and rendering boundary.** Resolve each unique element texture
+   once per frame into copied immutable render input. Keep native handles in
+   the renderer, emit elements in authored order, and preserve theme
+   far-to-near ordering before all world layers.
+5. **Theme Editor composition workflow.** Keep the far-to-near layer rail and
+   add an element list for the selected layer. Support Add, Duplicate, Delete,
+   reorder, searchable texture selection, numeric position/scale editing,
+   `Append Right`, edge snapping, and no-jump viewport dragging. Make Complete
+   Theme, Selected Layer, and Selected Element preview states explicit.
+6. **Repeat and coverage authoring.** Expose Finite, Repeat X, Repeat Y, and
+   Repeat X/Y through explicit period fields and a `Fit Period to Content`
+   action. Draw the repeat-cell boundary and neighbouring cells in the preview;
+   do not silently infer a new period after an author edits the composition.
+7. **Diagnostics.** Retain per-texture edge facts, add adjacent-element seam
+   review, first/last wrap-seam review for repeated compositions, overlap/gap
+   warnings, and complete route coverage at supported zooms. Measurements aid
+   review and do not claim artistic seamlessness.
+8. **Lifecycle and cross-editor reconciliation.** Update texture deletion
+   preflight and recipe deletion scans to visit every element. Save, duplicate,
+   catalog refresh, reorder, deletion, and cross-editor navigation reconcile
+   by stable IDs without retaining manager-owned pointers.
+9. **Focused validation.** Add platform-neutral serializer/migration/layout,
+   culling, repeat-cell, ordering, coverage, reference-scan, and editor-model
+   tests. Keep ImGui tests to event wiring; do not add coordinate or screenshot
+   tests. Run shipped-asset loading and the affected Level/Theme viewport
+   targets before handoff.
+
+#### Human workflow and gate
+
+1. Preserve Far Fill as a one-element repeating composition and verify that
+   migration produces the same output at zoom 0.5, 1.0, and 2.0.
+2. Preserve Far Formations as a repeating composition, then add a second
+   formation element and verify the complete group—not each texture—repeats.
+3. Import or generate at least three transparent Near Formation variants.
+   Append and overlap them into one finite strip, use numeric and direct
+   manipulation controls, and inspect every adjacent seam.
+4. Preview the saved Cave level route with the Near strip finite. If the route
+   is longer than its coverage, either add deliberate elements or author a
+   longer repeated super-cell; do not add zones merely to hide repetition.
+5. Save, close, reopen, reorder elements, and confirm stable selection,
+   identical composition, coverage results, and Level viewport output.
+
+Acceptance: all old themes migrate without visual change; a theme layer can
+compose and cull multiple texture elements; repetition copies an authored
+composition with an explicit period; the cave Near layer can traverse its
+reviewed route without an obvious one-screen motif repeat; and no level, zone,
+recipe, or native-resource ownership boundary is weakened.
 
 ### Milestone 2 — import-first background artwork pipeline
 
@@ -619,7 +891,8 @@ failure leaves no partial assets.
 
 ### Milestone 4 — theme workflow and first cave kit
 
-- Produce the accepted Far Fill, Far Formations, and Near Background textures.
+- Produce the accepted Far Fill and Far Formations plus a small Near Formation
+  element set.
 - Create Back Decor, Gameplay, and Front Decor world layers in the cave level.
 - Produce the minimum prop/decal kit and place each item according to its
   collision and visual-depth intent.
@@ -665,7 +938,8 @@ This is the expected end-to-end workflow once Milestones 1-4 are complete.
 
 ### B. Build parallax textures
 
-For each Far Fill, Far Formations, and Near Background layer:
+For each required output—one Far Fill, one or more Far Formations, and at least
+three Near Formation variants:
 
 1. Open Parallax Artwork and select the existing cave terrain recipe as the
    style source.
@@ -683,13 +957,18 @@ For each Far Fill, Far Formations, and Near Background layer:
 ### C. Assemble the standalone parallax theme
 
 1. In Theme Editor, create and save one Cave theme resource.
-2. Add layers in far-to-near order and select the three processed textures.
-3. Apply Far, Middle, and Near-background presets, then tune scale and offset
-   in the layer inspector.
-4. Enable repetition only on axes reviewed in Parallax Artwork.
-5. Preview each selected layer alone, then the complete selected theme.
-6. Scrub the camera through the complete route at supported zoom extremes and
-   resolve coverage warnings.
+2. Add layers in far-to-near order. Add the Far outputs as one-element layers
+   and add the Near variants as ordered elements of the Near layer.
+3. Apply Far, Middle, and Near-background presets, then tune the layer anchor,
+   element position, and element scale in their owning inspectors.
+4. Enable repetition only on axes reviewed in Parallax Artwork. For a
+   multi-element layer, author and inspect the complete repeat period.
+5. Preview each selected element and layer alone, then the complete theme.
+6. Select a level/zone camera context in the center logical game viewport.
+   Scrub the camera through the complete route at supported zoom extremes and
+   resolve coverage warnings in the bottom Diagnostics drawer. Use the manual
+   route only when the theme is not yet assigned; its endpoints are camera
+   centers, not world-content corners.
 7. Save the theme explicitly.
 8. In Level Editor, add a zone covering the intended route and assign the Cave
    theme from the resource catalog. Keep fade at zero until fade rendering is
@@ -730,17 +1009,19 @@ Focused coverage should be added at platform-neutral boundaries:
 
 | Boundary | Required coverage |
 |---|---|
-| `ValidateParallaxTheme` | required identity/content, finite layer geometry, positive scale |
+| `ValidateParallaxTheme` | required identity/content, stable element IDs, finite layer/element geometry, positive scale, and nonnegative repeat periods |
 | `ValidateLevel` | theme-ID syntax, fade bounds, existing zone and world-layer invariants |
+| level authoring readiness | categorized save, placement, and parallax prerequisites with actionable reasons |
+| zone creation model | defaults, theme/bounds validation, cancel-without-mutation, commit, stable unique IDs |
 | theme serializer/manager | strict fields, deterministic migration IDs, conflicts, load order, references |
-| `ParallaxThemeEditorModel` | drafts, save, duplicate, add/reorder/delete, presets, selection reconciliation |
+| `ParallaxThemeEditorModel` | drafts, save, duplicate, layer/element add/reorder/delete, presets, stable-ID selection reconciliation |
 | editor navigation | open-by-ID, duplicate-and-assign ordering, failure leaves level draft unchanged |
 | background pipeline | framing, nearest-neighbor raster, palette mapping, alpha roles, wrapped preview, digests |
 | recipe serializer/manager | strict required fields, unknown versions, duplicate IDs/names, round trip |
 | source migration | exact rewrite/move, idempotence, conflict and half-migration refusal |
 | API bundle lifecycle | preflight-before-write, compensation, regeneration snapshots, deletion references |
 | generation controller | provider choice, cancellation, stale events, accept/discard ownership |
-| viewport composition | authored parallax order, texture resolution, coverage warnings |
+| viewport composition | authored layer/element order, group repetition, culling, texture resolution, coverage warnings |
 | zone blend resolver | both directions, unequal widths, boundaries, overlaps, unsupported corners |
 | shipped assets | every definition and referenced PNG loads after migration |
 
@@ -758,8 +1039,7 @@ final handoff.
 - Runtime level loading, game-loop, physics, player controller, and enemy
   behavior are separate prerequisites for a *playable* first level, not part
   of this artwork plan.
-- Foreground parallax, per-layer blend modes, tint, opacity, autoscroll, and
-  independent repeat periods.
+- Foreground parallax, per-layer blend modes, tint, opacity, and autoscroll.
 - Automatic colliders or automatic background/foreground layer assignment.
 - Wall-specific prop attachment; free placement remains the initial workflow.
 - Generated animation sets and multi-part prop bundles.

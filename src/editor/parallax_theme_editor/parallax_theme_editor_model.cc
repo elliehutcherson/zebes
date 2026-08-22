@@ -35,7 +35,7 @@ absl::Status ParallaxThemeEditorModel::AddLayer() {
   if (!draft_) return absl::FailedPreconditionError("No parallax theme draft is open.");
   draft_->layers.push_back({
       .name = absl::StrCat("Layer ", draft_->layers.size() + 1),
-      .scroll_factor = {1.0, 1.0},
+      .scroll_factor = {0.20, 0.10},
   });
   selected_layer_ = static_cast<int>(draft_->layers.size()) - 1;
   return absl::OkStatus();

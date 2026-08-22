@@ -20,7 +20,11 @@ constexpr float kRulerHeight = 20.0f;
 }  // namespace
 
 Canvas::Canvas(Options options)
-    : gui_(options.gui), snap_grid_(options.snap_grid), grid_size_(options.grid_size) {}
+    : gui_(options.gui),
+      snap_grid_(options.snap_grid),
+      grid_size_(options.grid_size),
+      logical_viewport_(options.logical_viewport),
+      show_rulers_(options.show_rulers) {}
 
 void Canvas::SetWorldBounds(Vec min, Vec max) {
   world_min_ = min;
@@ -32,10 +36,27 @@ float Canvas::GetZoom() const { return camera_ ? camera_->zoom : 1.0f; }
 void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   camera_ = &camera;
   canvas_size_ = {std::max(0.0f, size.x), std::max(0.0f, size.y)};
-  content_size_ = {
-      std::max(0.0f, canvas_size_.x - kRulerWidth),
-      std::max(0.0f, canvas_size_.y - kRulerHeight),
+  const float ruler_width = show_rulers_ ? kRulerWidth : 0.0f;
+  const float ruler_height = show_rulers_ ? kRulerHeight : 0.0f;
+  const ImVec2 available_content{
+      std::max(0.0f, canvas_size_.x - ruler_width),
+      std::max(0.0f, canvas_size_.y - ruler_height),
   };
+
+  display_scale_ = 1.0;
+  content_size_ = available_content;
+  content_local_origin_ = {ruler_width, ruler_height};
+  if (logical_viewport_.has_value() && logical_viewport_->IsValid() && available_content.x > 0.0f &&
+      available_content.y > 0.0f) {
+    display_scale_ = std::min(available_content.x / logical_viewport_->width,
+                              available_content.y / logical_viewport_->height);
+    content_size_ = {
+        static_cast<float>(logical_viewport_->width * display_scale_),
+        static_cast<float>(logical_viewport_->height * display_scale_),
+    };
+    content_local_origin_.x += (available_content.x - content_size_.x) / 2.0f;
+    content_local_origin_.y += (available_content.y - content_size_.y) / 2.0f;
+  }
 
   // Reset rather than clamped: every transform divides by zoom, and there is no
   // meaningful view here to preserve.
@@ -44,8 +65,13 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
   // Before ClampCamera, which needs to know how much world is visible. On the
   // first frame these are still zero, and the camera would settle outside the
   // view it is about to draw.
-  camera_->viewport_width = content_size_.x;
-  camera_->viewport_height = content_size_.y;
+  if (logical_viewport_.has_value() && logical_viewport_->IsValid()) {
+    camera_->viewport_width = logical_viewport_->width;
+    camera_->viewport_height = logical_viewport_->height;
+  } else {
+    camera_->viewport_width = content_size_.x;
+    camera_->viewport_height = content_size_.y;
+  }
 
   ClampCamera();
 
@@ -55,8 +81,8 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
 
   canvas_origin_ = gui_->GetCursorScreenPos();
   content_origin_ = {
-      canvas_origin_.x + kRulerWidth,
-      canvas_origin_.y + kRulerHeight,
+      canvas_origin_.x + content_local_origin_.x,
+      canvas_origin_.y + content_local_origin_.y,
   };
   draw_list_ = gui_->GetWindowDrawList();
 
@@ -65,6 +91,16 @@ void Canvas::Begin(const char* id, const ImVec2& size, Camera& camera) {
     draw_list_->AddRectFilled(
         canvas_origin_,
         ImVec2(canvas_origin_.x + canvas_size_.x, canvas_origin_.y + canvas_size_.y), bg_color);
+    if (logical_viewport_.has_value() && logical_viewport_->IsValid()) {
+      draw_list_->AddRectFilled(
+          content_origin_,
+          ImVec2(content_origin_.x + content_size_.x, content_origin_.y + content_size_.y),
+          IM_COL32(20, 20, 24, 255));
+      draw_list_->AddRect(
+          content_origin_,
+          ImVec2(content_origin_.x + content_size_.x, content_origin_.y + content_size_.y),
+          IM_COL32(100, 100, 110, 255));
+    }
   }
 }
 
@@ -79,7 +115,7 @@ void Canvas::HandleInput() {
 
   // An invisible button is what claims the mouse for the canvas; without an
   // item there the parent window takes it.
-  gui_->SetCursorPos(ImVec2(kRulerWidth, kRulerHeight));
+  gui_->SetCursorPos(content_local_origin_);
   gui_->InvisibleButton("##CanvasInput", content_size_,
                         ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight |
                             ImGuiButtonFlags_MouseButtonMiddle);
@@ -101,7 +137,7 @@ void Canvas::HandleInput() {
     float dt = gui_->GetIO().DeltaTime;
 
     // Dividing by zoom holds the pan speed constant on screen.
-    float move_step = (kEditorPanSpeed * dt) / camera_->zoom;
+    float move_step = (kEditorPanSpeed * dt) / (camera_->zoom * display_scale_);
 
     if (gui_->IsKeyDown(ImGuiKey_UpArrow) || gui_->IsKeyDown(ImGuiKey_W)) {
       camera_->position.y -= move_step;
@@ -142,23 +178,23 @@ void Canvas::HandleMousePan(bool is_hovered) {
 
   // Dividing by zoom converts a screen-space delta into world units, which is
   // what keeps the grabbed point pinned to the cursor as the view scales.
-  camera_->position.x -= (cursor.x - pan_cursor_->x) / camera_->zoom;
-  camera_->position.y -= (cursor.y - pan_cursor_->y) / camera_->zoom;
+  camera_->position.x -= (cursor.x - pan_cursor_->x) / (camera_->zoom * display_scale_);
+  camera_->position.y -= (cursor.y - pan_cursor_->y) / (camera_->zoom * display_scale_);
   pan_cursor_ = cursor;
 }
 
 ImVec2 Canvas::WorldToScreen(const Vec& v) const {
   if (!camera_) return {0, 0};
   Vec local = camera_->WorldToScreen(v);
-  return ImVec2(content_origin_.x + static_cast<float>(local.x),
-                content_origin_.y + static_cast<float>(local.y));
+  return ImVec2(content_origin_.x + static_cast<float>(local.x * display_scale_),
+                content_origin_.y + static_cast<float>(local.y * display_scale_));
 }
 
 Vec Canvas::ScreenToWorld(const ImVec2& p) const {
   if (!camera_) return {0, 0};
   Vec local_screen;
-  local_screen.x = p.x - content_origin_.x;
-  local_screen.y = p.y - content_origin_.y;
+  local_screen.x = (p.x - content_origin_.x) / display_scale_;
+  local_screen.y = (p.y - content_origin_.y) / display_scale_;
   return camera_->ScreenToWorld(local_screen);
 }
 
@@ -194,6 +230,8 @@ void Canvas::DrawGrid() {
                         ImVec2(origin_screen.x, content_origin_.y + content_size_.y), axis_color,
                         2.0f);
   }
+
+  if (!show_rulers_) return;
 
   ImU32 ruler_bg_color = IM_COL32(40, 40, 40, 255);
   draw_list_->AddRectFilled(

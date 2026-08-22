@@ -27,6 +27,8 @@ namespace {
 
 const char* ParallaxPreviewModeLabel(ParallaxPreviewMode mode) {
   switch (mode) {
+    case ParallaxPreviewMode::kOff:
+      return "Off";
     case ParallaxPreviewMode::kActiveZone:
       return "Active Zone";
     case ParallaxPreviewMode::kSelectedZone:
@@ -80,6 +82,7 @@ ViewportTab::ViewportTab(Api& api, GuiInterface* gui, PreviewTextureSink* terrai
 void ViewportTab::Reset() {
   camera_ = {};
   pending_camera_frame_.reset();
+  constrain_pending_camera_frame_ = true;
   interaction_.Reset();
   pending_entity_.reset();
   click_selected_entity_id_.reset();
@@ -91,16 +94,32 @@ void ViewportTab::FrameZone(const ParallaxZone& zone) {
       .min = zone.min_point,
       .max = zone.max_point,
   };
+  constrain_pending_camera_frame_ = true;
+}
+
+void ViewportTab::FrameLevel(const Level& level) {
+  pending_camera_frame_ = VisibleWorldBounds{
+      .min = {0.0, 0.0},
+      .max = {level.width, level.height},
+  };
+  constrain_pending_camera_frame_ = false;
 }
 
 void ViewportTab::ApplyPendingCameraFrame(const ImVec2& viewport_size,
                                           VisibleWorldBounds world_bounds) {
   if (!pending_camera_frame_.has_value()) return;
 
-  std::optional<CameraFrame> frame = CalculateConstrainedCameraFrame(
-      *pending_camera_frame_, world_bounds, static_cast<int>(viewport_size.x),
-      static_cast<int>(viewport_size.y));
+  std::optional<CameraFrame> frame;
+  if (constrain_pending_camera_frame_) {
+    frame = CalculateConstrainedCameraFrame(*pending_camera_frame_, world_bounds,
+                                            static_cast<int>(viewport_size.x),
+                                            static_cast<int>(viewport_size.y));
+  } else {
+    frame = CalculateCameraFrame(*pending_camera_frame_, static_cast<int>(viewport_size.x),
+                                 static_cast<int>(viewport_size.y));
+  }
   pending_camera_frame_.reset();
+  constrain_pending_camera_frame_ = true;
   if (!frame.has_value()) return;
 
   camera_.position = frame->position;
@@ -506,6 +525,8 @@ absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBac
 
   std::optional<std::string> theme_id;
   switch (parallax_preview_mode_) {
+    case ParallaxPreviewMode::kOff:
+      break;
     case ParallaxPreviewMode::kActiveZone:
       if (active.has_value()) theme_id = active->theme_id;
       break;
@@ -559,6 +580,9 @@ void ViewportTab::RenderParallaxPreviewControls(const ViewportRenderOptions& opt
       gui_->CreateScopedCombo("Parallax View", ParallaxPreviewModeLabel(parallax_preview_mode_));
   if (!combo) return;
 
+  if (gui_->Selectable("Off", parallax_preview_mode_ == ParallaxPreviewMode::kOff)) {
+    parallax_preview_mode_ = ParallaxPreviewMode::kOff;
+  }
   if (gui_->Selectable("Active Zone", parallax_preview_mode_ == ParallaxPreviewMode::kActiveZone)) {
     parallax_preview_mode_ = ParallaxPreviewMode::kActiveZone;
   }

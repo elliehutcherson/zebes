@@ -116,6 +116,37 @@ TEST(CanvasTest, RulerGuttersDoNotOverlapWorldContent) {
   canvas.End();
 }
 
+TEST(CanvasTest, FixedLogicalViewportPreservesGameCoordinatesWhileFittingTheWidget) {
+  NiceMock<MockGui> mock_gui;
+  ON_CALL(mock_gui, GetCursorScreenPos()).WillByDefault(Return(ImVec2(100, 50)));
+
+  Canvas canvas({
+      .gui = &mock_gui,
+      .logical_viewport = GameViewSize{.width = 960, .height = 540},
+      .show_rulers = false,
+  });
+  Camera camera{.position = {480, 270}};
+  canvas.Begin("TestCanvas", ImVec2(800, 600), camera);
+
+  EXPECT_EQ(camera.viewport_width, 960);
+  EXPECT_EQ(camera.viewport_height, 540);
+  const ImVec2 center = canvas.WorldToScreen({480, 270});
+  const ImVec2 top_left = canvas.WorldToScreen({0, 0});
+  const ImVec2 bottom_right = canvas.WorldToScreen({960, 540});
+  EXPECT_FLOAT_EQ(center.x, 500);
+  EXPECT_FLOAT_EQ(center.y, 350);
+  EXPECT_FLOAT_EQ(top_left.x, 100);
+  EXPECT_FLOAT_EQ(top_left.y, 125);
+  EXPECT_FLOAT_EQ(bottom_right.x, 900);
+  EXPECT_FLOAT_EQ(bottom_right.y, 575);
+  EXPECT_EQ(canvas.ScreenToWorld({100, 125}), Vec(0, 0));
+  const Vec round_trip = canvas.ScreenToWorld({900, 575});
+  EXPECT_NEAR(round_trip.x, 960, 0.001);
+  EXPECT_NEAR(round_trip.y, 540, 0.001);
+
+  canvas.End();
+}
+
 TEST(CanvasTest, HoveredCanvasClaimsMouseWheelWhileZooming) {
   NiceMock<MockGui> mock_gui;
   ImGuiIO io;

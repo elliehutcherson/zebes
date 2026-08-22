@@ -9,6 +9,7 @@
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "editor/imgui_scoped.h"
+#include "editor/inspector_ui.h"
 #include "imgui.h"
 #include "objects/entity.h"
 #include "objects/level.h"
@@ -42,22 +43,22 @@ absl::Status WorldLayerPanel::RenderNavigator(Level& level, WorldLayerModel& mod
     selection.type = SelectionState::Type::kWorldLayer;
     selection.world_layer_id = id;
   }
+  gui_->TextDisabled("Top layers draw in front. Click a layer to make it active.");
 
   for (auto layer_it = level.layers.rbegin(); layer_it != level.layers.rend(); ++layer_it) {
     WorldLayer& layer = *layer_it;
     ScopedId scoped_id = gui_->CreateScopedId(layer.id);
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth;
-    if (model.active_layer_id() == layer.id) flags |= ImGuiTreeNodeFlags_Selected;
-
-    const std::string label = absl::StrCat(layer.name, "##world_layer");
-    const bool open = gui_->CollapsingHeader(label.c_str(), flags);
-    if (gui_->IsItemClicked()) {
+    const bool selected =
+        selection.type == SelectionState::Type::kWorldLayer && selection.world_layer_id == layer.id;
+    const std::string label =
+        absl::StrCat(layer.name, model.active_layer_id() == layer.id ? " [active]##world_layer"
+                                                                     : "##world_layer");
+    if (gui_->Selectable(label.c_str(), selected)) {
       RETURN_IF_ERROR(model.Activate(level, layer.id));
       selection.Clear();
       selection.type = SelectionState::Type::kWorldLayer;
       selection.world_layer_id = layer.id;
     }
-    if (!open) continue;
 
     gui_->Indent(10.0f);
     bool visible = model.IsVisible(layer.id);
@@ -96,11 +97,19 @@ absl::Status WorldLayerPanel::RenderDetails(Level& level, WorldLayerModel& model
     return absl::OkStatus();
   }
 
-  gui_->TextDisabled("World Layer Properties");
-  gui_->Separator();
-  gui_->InputText("Name", &layer->name);
-  gui_->Text("%d painted tile(s), %zu entity(s)", CountTiles(*layer), layer->entities.size());
+  RenderInspectorSection(*gui_, "IDENTITY",
+                         "A world layer is one back-to-front depth slice of this level.");
+  {
+    InspectorPropertyGrid grid(*gui_, "WorldLayerIdentity");
+    if (grid.BeginRow("Name", "Display name shown in the Level Contents hierarchy.")) {
+      gui_->InputText("##world_layer_name", &layer->name);
+    }
+  }
+  gui_->TextDisabled("Content: %d painted tile(s), %zu entity(s)", CountTiles(*layer),
+                     layer->entities.size());
 
+  RenderInspectorSection(*gui_, "DEPTH ORDER",
+                         "Layers farther forward draw over layers behind them.");
   {
     ScopedDisabled disabled = gui_->CreateScopedDisabled(!model.CanMoveForward(level, layer->id));
     if (gui_->Button("Move Forward")) RETURN_IF_ERROR(model.MoveForward(level, layer->id));
@@ -111,6 +120,8 @@ absl::Status WorldLayerPanel::RenderDetails(Level& level, WorldLayerModel& model
     if (gui_->Button("Move Backward")) RETURN_IF_ERROR(model.MoveBackward(level, layer->id));
   }
 
+  RenderInspectorSection(*gui_, "DANGER ZONE",
+                         "Deleting a layer also removes every tile and entity it owns.");
   const int layer_id = layer->id;
   const std::string target = absl::StrCat(layer_id);
   const std::string question =

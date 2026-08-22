@@ -1,6 +1,8 @@
 #include "editor/level_editor/level_panel.h"
 
+#include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <memory>
 
 #include "absl/memory/memory.h"
@@ -35,10 +37,10 @@ absl::StatusOr<std::unique_ptr<LevelPanel>> LevelPanel::Create(GuiInterface* gui
 LevelPanel::LevelPanel(GuiInterface* gui) : gui_(gui) {}
 
 absl::StatusOr<LevelPanelEvent> LevelPanel::RenderList(LevelPanelModel& model) {
-  if (gui_->Button("Create")) {
+  if (gui_->Button("New Level")) {
     delete_level_prompt_.Disarm();
     model.BeginNewLevel();
-    return LevelPanelEvent{.action = LevelPanelAction::kCreate};
+    return LevelPanelEvent{.action = LevelPanelAction::kNew};
   }
   gui_->SameLine();
 
@@ -71,8 +73,8 @@ absl::StatusOr<LevelPanelEvent> LevelPanel::RenderList(LevelPanelModel& model) {
     for (const auto& catalog_entry : model.levels()) {
       const Level& level = catalog_entry.second;
       const bool is_selected = model.selected_level_id() == level.id;
-      const std::string label = absl::StrCat(
-          level.name.empty() ? "(unnamed level)" : level.name, "##level_", level.id);
+      const std::string label =
+          absl::StrCat(level.name.empty() ? "(unnamed level)" : level.name, "##level_", level.id);
       if (gui_->Selectable(label.c_str(), is_selected)) {
         RETURN_IF_ERROR(model.SelectLevel(level.id));
       }
@@ -83,12 +85,16 @@ absl::StatusOr<LevelPanelEvent> LevelPanel::RenderList(LevelPanelModel& model) {
   return LevelPanelEvent{};
 }
 
-absl::Status LevelPanel::RenderTilesetField(LevelPanelModel& model, const Level& level) {
+absl::Status LevelPanel::RenderTilesetField(LevelPanelModel& model, const Level& level,
+                                            InspectorPropertyGrid& grid) {
   // A level's tiles are bare IDs into this tileset, so it is the one setting
   // here that can invalidate everything already painted.
   const std::string current = model.ActiveTilesetName();
+  if (!grid.BeginRow("Tileset", "Artwork catalog used by every painted tile in this level.")) {
+    return absl::OkStatus();
+  }
   if (ScopedCombo combo = gui_->CreateScopedCombo(
-          "Tileset", current.empty() ? "(none)" : current.c_str());
+          "##level_tileset", current.empty() ? "(none selected)" : current.c_str());
       combo) {
     for (const TilesetChoice& choice : model.tileset_choices()) {
       const bool is_selected = choice.id == level.tileset_id;
@@ -124,19 +130,18 @@ absl::Status LevelPanel::RenderTilesetChangeConfirmation(LevelPanelModel& model)
   return absl::OkStatus();
 }
 
-absl::StatusOr<LevelPanelEvent> LevelPanel::RenderDetails(LevelPanelModel& model) {
-  Level* level = model.active_level();
-  if (level == nullptr) return absl::FailedPreconditionError("No level is being edited");
+absl::StatusOr<LevelPanelEvent> LevelPanel::RenderToolbar(
+    LevelPanelModel& model, const LevelAuthoringReadiness& readiness) {
+  if (!model.has_active_level()) return LevelPanelEvent{};
 
-  // Leaving is only destructive when there is something to lose, so a level
-  // with no edits closes on the first click as it always did.
+  // Leaving is only destructive when there is something to lose.
   if (discard_edits_prompt_.armed()) {
-    if (discard_edits_prompt_.Render(*gui_, "Back", model.selected_level_id(),
-                                     "Discard unsaved changes to this level?", "Back")) {
+    if (discard_edits_prompt_.Render(*gui_, "Discard and Close", model.selected_level_id(),
+                                     "Discard unsaved changes to this level?", "CloseLevel")) {
       model.CloseActiveLevel();
       return LevelPanelEvent{.action = LevelPanelAction::kClose};
     }
-  } else if (gui_->Button("Back")) {
+  } else if (gui_->Button("Close Level")) {
     if (!model.has_unsaved_changes()) {
       model.CloseActiveLevel();
       return LevelPanelEvent{.action = LevelPanelAction::kClose};
@@ -145,26 +150,108 @@ absl::StatusOr<LevelPanelEvent> LevelPanel::RenderDetails(LevelPanelModel& model
   }
 
   gui_->SameLine();
-  if (gui_->Button("Save")) {
-    discard_edits_prompt_.Disarm();
-    return LevelPanelEvent{.action = LevelPanelAction::kSave};
+  {
+    ScopedDisabled blocked = gui_->CreateScopedDisabled(!readiness.can_save());
+    if (gui_->Button(model.is_new_level() ? "Create Level" : "Save Level")) {
+      discard_edits_prompt_.Disarm();
+      return LevelPanelEvent{.action = model.is_new_level() ? LevelPanelAction::kCreate
+                                                            : LevelPanelAction::kSave};
+    }
+  }
+  if (!readiness.can_save()) {
+    gui_->SameLine();
+    const std::string label =
+        absl::StrCat("Review ", readiness.save_blockers.size(),
+                     readiness.save_blockers.size() == 1 ? " issue" : " issues");
+    if (gui_->Button(label.c_str())) {
+      return LevelPanelEvent{.action = LevelPanelAction::kReviewIssues};
+    }
+  }
+  return LevelPanelEvent{};
+}
+
+absl::StatusOr<LevelPanelEvent> LevelPanel::RenderDetails(LevelPanelModel& model) {
+  Level* level = model.active_level();
+  if (level == nullptr) return absl::FailedPreconditionError("No level is being edited");
+
+  RenderInspectorSection(*gui_, "IDENTITY", "The display name used in the level catalog.");
+  {
+    InspectorPropertyGrid grid(*gui_, "LevelIdentity");
+    if (grid.BeginRow("Name", "Editable display name; this does not change the resource ID.")) {
+      gui_->InputText("##level_name", &level->name);
+    }
   }
 
-  gui_->Separator();
-  gui_->Text("Details");
+  RenderInspectorSection(
+      *gui_, "WORLD SIZE",
+      "The complete editable world rectangle, measured in world pixels. Dimensions must align "
+      "to the world tile size.");
+  {
+    InspectorPropertyGrid grid(*gui_, "LevelWorldSize");
+    const double width_step = std::max(1, level->tile_render_width);
+    const double height_step = std::max(1, level->tile_render_height);
+    if (grid.BeginRow("Width (px)", "Horizontal world extent.")) {
+      gui_->InputDouble("##world_width", &level->width, width_step, width_step * 10.0, "%.0f");
+    }
+    if (grid.BeginRow("Height (px)", "Vertical world extent.")) {
+      gui_->InputDouble("##world_height", &level->height, height_step, height_step * 10.0, "%.0f");
+    }
+  }
+  if (level->width > 0.0 && level->height > 0.0 && level->tile_render_width > 0 &&
+      level->tile_render_height > 0) {
+    const double columns = level->width / level->tile_render_width;
+    const double rows = level->height / level->tile_render_height;
+    const bool aligned = std::fmod(level->width, level->tile_render_width) == 0.0 &&
+                         std::fmod(level->height, level->tile_render_height) == 0.0;
+    if (aligned) {
+      gui_->TextDisabled("Tile grid: %.0f columns x %.0f rows", columns, rows);
+    } else {
+      gui_->TextColored({1.0f, 0.65f, 0.2f, 1.0f},
+                        "Tile grid: %.2f columns x %.2f rows (must be whole)", columns, rows);
+    }
+  }
+  const bool can_frame_world = std::isfinite(level->width) && std::isfinite(level->height) &&
+                               level->width > 0.0 && level->height > 0.0;
+  {
+    ScopedDisabled disabled = gui_->CreateScopedDisabled(!can_frame_world);
+    if (gui_->Button("Frame World")) {
+      return LevelPanelEvent{.action = LevelPanelAction::kFrameWorld};
+    }
+  }
 
-  gui_->InputText("ID", &level->id, ImGuiInputTextFlags_ReadOnly);
-  gui_->InputText("Name", &level->name);
-  RETURN_IF_ERROR(RenderTilesetField(model, *level));
-  gui_->InputDouble("Width", &level->width);
-  gui_->InputDouble("Height", &level->height);
-  gui_->InputInt("Tile Render Width", &level->tile_render_width);
-  gui_->InputInt("Tile Render Height", &level->tile_render_height);
+  RenderInspectorSection(
+      *gui_, "RENDERING",
+      "The tileset supplies artwork. World tile size controls grid spacing and rendered cell "
+      "size independently of the source atlas.");
+  {
+    InspectorPropertyGrid grid(*gui_, "LevelRendering");
+    RETURN_IF_ERROR(RenderTilesetField(model, *level, grid));
+    if (grid.BeginRow("Tile width (px)", "Width of one tile cell in the level world.")) {
+      gui_->InputInt("##tile_width", &level->tile_render_width, 1, 16);
+    }
+    if (grid.BeginRow("Tile height (px)", "Height of one tile cell in the level world.")) {
+      gui_->InputInt("##tile_height", &level->tile_render_height, 1, 16);
+    }
+  }
 
-  gui_->Text("Spawn Point");
-  gui_->InputDouble("X", &level->spawn_point.x);
-  gui_->SameLine();
-  gui_->InputDouble("Y", &level->spawn_point.y);
+  RenderInspectorSection(*gui_, "PLAYER START",
+                         "Initial player position in world pixels, measured from the top-left.");
+  {
+    InspectorPropertyGrid grid(*gui_, "LevelSpawn");
+    if (grid.BeginRow("X (px)", "Horizontal player start position.")) {
+      gui_->InputDouble("##spawn_x", &level->spawn_point.x, 1.0, 16.0, "%.0f");
+    }
+    if (grid.BeginRow("Y (px)", "Vertical player start position.")) {
+      gui_->InputDouble("##spawn_y", &level->spawn_point.y, 1.0, 16.0, "%.0f");
+    }
+  }
+
+  if (gui_->CollapsingHeader("Advanced##LevelSetup")) {
+    InspectorPropertyGrid grid(*gui_, "LevelAdvanced");
+    if (grid.BeginRow("Resource ID", "Stable identity used by references and persistence.")) {
+      gui_->InputText("##level_id", &level->id, ImGuiInputTextFlags_ReadOnly);
+    }
+  }
 
   return LevelPanelEvent{};
 }

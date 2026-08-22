@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "editor/level_editor/level_authoring_readiness.h"
 #include "editor/level_editor/level_tiles.h"
 
 namespace zebes {
@@ -79,7 +80,11 @@ absl::Status LevelPanelModel::SelectLevel(const std::string& id) {
 
 void LevelPanelModel::ClearLevelSelection() { selected_level_id_.clear(); }
 
-void LevelPanelModel::BeginNewLevel() { BeginEditingLevel(Level{.name = "name"}); }
+void LevelPanelModel::BeginNewLevel() {
+  active_level_ = Level{.name = "New Level"};
+  baseline_level_.reset();
+  pending_tileset_id_.reset();
+}
 
 absl::Status LevelPanelModel::BeginEditingSelectedLevel() {
   const Level* selected = FindLevel(selected_level_id_);
@@ -124,6 +129,11 @@ const Level* LevelPanelModel::active_level() const {
 absl::StatusOr<Level> LevelPanelModel::BuildSaveRequest() const {
   if (!active_level_.has_value()) {
     return absl::FailedPreconditionError("No level is being edited");
+  }
+  const LevelAuthoringReadiness readiness =
+      EvaluateLevelAuthoringReadiness(*active_level_, true, true, true, true);
+  if (!readiness.can_save()) {
+    return absl::FailedPreconditionError(readiness.save_blockers.front());
   }
   return *active_level_;
 }

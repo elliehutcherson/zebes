@@ -1,0 +1,39 @@
+{
+  "id": "93fc14e1-265b-420d-afe6-81706f0f08c5",
+  "layers": [
+    {
+      "base_scale": 1.0,
+      "name": "Cave Far Fill",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_x": true,
+      "repeat_y": true,
+      "scroll_factor_x": 0.05,
+      "scroll_factor_y": 0.05,
+      "texture_id": "2fd319f2-f8ac-487f-9a28-a8c987c148a8"
+    },
+    {
+      "base_scale": 1.0,
+      "name": "Cave Far Formations",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_x": true,
+      "repeat_y": true,
+      "scroll_factor_x": 0.2,
+      "scroll_factor_y": 0.1,
+      "texture_id": "88f60ea9-c1aa-4688-9943-687bb0b45879"
+    },
+    {
+      "base_scale": 1.0,
+      "name": "Cave Near Formations",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_x": true,
+      "repeat_y": false,
+      "scroll_factor_x": 0.5,
+      "scroll_factor_y": 0.25,
+      "texture_id": "d034ba7c-4951-456c-98d9-6aefc3e00578"
+    }
+  ],
+  "name": "Cave Theme"
+}

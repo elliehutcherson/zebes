@@ -10,6 +10,7 @@ struct SelectionState {
     kNone = 0,
     kLevel = 1,
     kZone = 2,
+    kZoneCreation = 3,
     kEntity = 9,
     kWorldLayer = 10,
   };

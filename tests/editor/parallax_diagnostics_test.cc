@@ -85,5 +85,24 @@ TEST(ParallaxDiagnosticsTest, RepeatedAxesAreCoveredWithoutMeaninglessMargins) {
   EXPECT_DOUBLE_EQ(diagnostics.vertical.minimum_end_margin, 0.0);
 }
 
+TEST(ParallaxDiagnosticsTest, LevelContextClampsWorldCornersToReachableCameraCenters) {
+  const ParallaxLayer layer{
+      .repeat_x = false,
+      .repeat_y = false,
+      .scroll_factor = {1.0, 1.0},
+      .base_scale = 1.0f,
+  };
+
+  ASSERT_OK_AND_ASSIGN(
+      const CameraCoverageDiagnostics diagnostics,
+      AnalyzeCameraCoverage(layer, 960, 540, {0, 0}, {960, 540}, {960, 540}, {1.0, 1.0},
+                            CameraWorldBounds{.min = {0, 0}, .max = {960, 540}}));
+
+  EXPECT_DOUBLE_EQ(diagnostics.horizontal.minimum_start_margin, 0.0);
+  EXPECT_DOUBLE_EQ(diagnostics.horizontal.minimum_end_margin, 0.0);
+  EXPECT_DOUBLE_EQ(diagnostics.vertical.minimum_start_margin, 0.0);
+  EXPECT_DOUBLE_EQ(diagnostics.vertical.minimum_end_margin, 0.0);
+}
+
 }  // namespace
 }  // namespace zebes

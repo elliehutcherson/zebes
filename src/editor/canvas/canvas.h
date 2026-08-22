@@ -1,8 +1,11 @@
 #pragma once
 
+#include <optional>
+
 #include "editor/gui_interface.h"
 #include "imgui.h"
 #include "objects/camera.h"
+#include "objects/game_view.h"
 #include "objects/vec.h"
 
 namespace zebes {
@@ -36,6 +39,13 @@ class Canvas {
     float grid_size = 50.0f;
     std::optional<Vec> world_min;
     std::optional<Vec> world_max;
+    // When present, Camera keeps these logical screen dimensions while Canvas
+    // scales them uniformly into the physical ImGui child. This is for a game
+    // preview whose simulation viewport must not change with panel resizing.
+    std::optional<GameViewSize> logical_viewport;
+    // Spatial editors use coordinate rulers. Presentation previews can omit
+    // them and devote the complete child to the aspect-fitted game view.
+    bool show_rulers = true;
   };
 
   explicit Canvas(Options options);
@@ -78,12 +88,16 @@ class Canvas {
   GuiInterface* gui_;
   bool snap_grid_ = false;
   float grid_size_ = 50.0f;
+  std::optional<GameViewSize> logical_viewport_;
+  bool show_rulers_ = true;
 
   Camera* camera_ = nullptr;
   ImVec2 canvas_origin_;
   ImVec2 canvas_size_;
   ImVec2 content_origin_;
+  ImVec2 content_local_origin_;
   ImVec2 content_size_;
+  double display_scale_ = 1.0;
   ImDrawList* draw_list_ = nullptr;
 
   // Unset means unbounded panning; see the class comment.

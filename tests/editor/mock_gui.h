@@ -23,6 +23,14 @@ class MockGui : public GuiInterface {
     ON_CALL(*this, CreateScopedDisabled(::testing::_)).WillByDefault([this](bool disabled) {
       return ScopedDisabled(this, disabled);
     });
+    ON_CALL(*this,
+            CreateScopedTable(::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_))
+        .WillByDefault([this](const char* id, int columns, ImGuiTableFlags flags, ImVec2 size,
+                              float inner_width) {
+          return ScopedTable(this, id, columns, flags, size, inner_width);
+        });
+    ON_CALL(*this, BeginTable(::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_))
+        .WillByDefault(::testing::Return(true));
   }
 
   // ImGui Wrappers

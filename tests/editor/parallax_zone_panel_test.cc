@@ -25,6 +25,15 @@ class ParallaxZonePanelTestPeer {
                                     SelectionState& selection) {
     return panel.RenderDetails(level, selection);
   }
+
+  static std::optional<int> RenderCreation(ParallaxZonePanel& panel, Level& level,
+                                           SelectionState& selection) {
+    return panel.RenderCreation(level, selection);
+  }
+
+  static ParallaxZone* CreationDraft(ParallaxZonePanel& panel) {
+    return panel.creation_model_.draft();
+  }
 };
 
 namespace {
@@ -89,6 +98,10 @@ class ParallaxZonePanelTest : public ::testing::Test {
     return ParallaxZonePanelTestPeer::RenderDetails(*panel_, level_, selection_);
   }
 
+  std::optional<int> RenderCreation() {
+    return ParallaxZonePanelTestPeer::RenderCreation(*panel_, level_, selection_);
+  }
+
   NiceMock<MockGui> gui_;
   NiceMock<MockApi> api_;
   std::unique_ptr<ParallaxZonePanel> panel_;
@@ -97,27 +110,20 @@ class ParallaxZonePanelTest : public ::testing::Test {
   SelectionState selection_;
 };
 
-TEST_F(ParallaxZonePanelTest, CreateZoneAddsToLevel) {
+TEST_F(ParallaxZonePanelTest, AddZoneStartsTransientDraftWithoutMutatingLevel) {
+  level_.name = "Cave";
   level_.width = 1024.0;
   level_.height = 512.0;
 
-  // Initial state
   EXPECT_TRUE(level_.zones.empty());
-
-  EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _)).WillOnce(Return(true));
-
-  // Create zone
+  EXPECT_CALL(gui_, Button(StrEq("Add Parallax Zone..."), _)).WillOnce(Return(true));
   ASSERT_OK(RenderNavigator());
 
-  // Verify zone added and selected
-  ASSERT_EQ(level_.zones.size(), 1);
-  EXPECT_EQ(selection_.type, SelectionState::Type::kZone);
-  EXPECT_EQ(selection_.zone_id, 0);
-  EXPECT_EQ(level_.zones[0].name, "Zone 0");
-  EXPECT_EQ(level_.zones[0].id, 0);
-  EXPECT_DOUBLE_EQ(level_.zones[0].max_point.x, 256.0);
-  EXPECT_DOUBLE_EQ(level_.zones[0].max_point.y, 256.0);
-  EXPECT_EQ(level_.zones[0].fade_length, Vec());
+  EXPECT_TRUE(level_.zones.empty());
+  EXPECT_EQ(selection_.type, SelectionState::Type::kZoneCreation);
+  ASSERT_NE(ParallaxZonePanelTestPeer::CreationDraft(*panel_), nullptr);
+  EXPECT_DOUBLE_EQ(ParallaxZonePanelTestPeer::CreationDraft(*panel_)->max_point.x, 1024.0);
+  EXPECT_DOUBLE_EQ(ParallaxZonePanelTestPeer::CreationDraft(*panel_)->max_point.y, 512.0);
 }
 
 TEST_F(ParallaxZonePanelTest, CreateZoneIsDisabledForLevelWithoutPositiveDimensions) {
@@ -126,7 +132,7 @@ TEST_F(ParallaxZonePanelTest, CreateZoneIsDisabledForLevelWithoutPositiveDimensi
 
   // A disabled ImGui button cannot return true in production. Returning true
   // here also verifies that the model-side guard preserves the invariant.
-  EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _)).WillOnce(Return(true));
+  EXPECT_CALL(gui_, Button(StrEq("Add Parallax Zone..."), _)).WillOnce(Return(true));
 
   ASSERT_OK(RenderNavigator());
 
@@ -151,9 +157,11 @@ TEST_F(ParallaxZonePanelTest, SelectionStateUpdatedOnSelect) {
   ParallaxZone zone;
   zone.id = 0;
   zone.name = "My Zone";
+  zone.theme_id = "theme-1";
   level_.zones.push_back(zone);
 
-  EXPECT_CALL(gui_, Selectable(StrEq("My Zone##zone_0"), false, _, _)).WillOnce(Return(true));
+  EXPECT_CALL(gui_, Selectable(StrEq("My Zone - Theme1##zone_0"), false, _, _))
+      .WillOnce(Return(true));
 
   ASSERT_OK(RenderNavigator());
 
@@ -161,25 +169,28 @@ TEST_F(ParallaxZonePanelTest, SelectionStateUpdatedOnSelect) {
   EXPECT_EQ(selection_.zone_id, 0);
 }
 
-TEST_F(ParallaxZonePanelTest, CreateZoneAssignsUniqueIds) {
+TEST_F(ParallaxZonePanelTest, CreateZoneCommitsDraftAndSelectsStableId) {
+  level_.name = "Cave";
   level_.width = 1024.0;
   level_.height = 512.0;
 
-  // Add two zones via the Add Zone button
-  EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _))
-      .WillOnce(Return(true))
-      .WillRepeatedly(Return(false));
+  EXPECT_CALL(gui_, Button(StrEq("Add Parallax Zone..."), _)).WillOnce(Return(true));
   ASSERT_OK(RenderNavigator());
+  ParallaxZone* draft = ParallaxZonePanelTestPeer::CreationDraft(*panel_);
+  ASSERT_NE(draft, nullptr);
+  draft->name = "Cave";
+  draft->theme_id = "theme-1";
 
-  EXPECT_CALL(gui_, Button(StrEq("Add Zone"), _))
-      .WillOnce(Return(true))
-      .WillRepeatedly(Return(false));
-  ASSERT_OK(RenderNavigator());
+  EXPECT_CALL(gui_, Button(StrEq("Create Zone"), _)).WillOnce(Return(true));
+  const std::optional<int> committed_id = RenderCreation();
 
-  ASSERT_EQ(level_.zones.size(), 2);
-  EXPECT_NE(level_.zones[0].id, level_.zones[1].id);
-  EXPECT_FALSE(level_.zones[0].name.empty());
-  EXPECT_FALSE(level_.zones[1].name.empty());
+  ASSERT_TRUE(committed_id.has_value());
+  ASSERT_EQ(level_.zones.size(), 1);
+  EXPECT_EQ(level_.zones[0].id, *committed_id);
+  EXPECT_EQ(level_.zones[0].name, "Cave");
+  EXPECT_EQ(level_.zones[0].theme_id, "theme-1");
+  EXPECT_EQ(selection_.type, SelectionState::Type::kZone);
+  EXPECT_EQ(selection_.zone_id, *committed_id);
 }
 
 TEST_F(ParallaxZonePanelTest, DetailsReturnsErrorOnInvalidId) {
@@ -222,7 +233,7 @@ TEST_F(ParallaxZonePanelTest, NavigatorShowsThemeNameInLabel) {
   zone.theme_id = "theme-1";
   level_.zones.push_back(zone);
 
-  EXPECT_CALL(gui_, Selectable(StrEq("My Zone (Theme1)##zone_0"), false, _, _))
+  EXPECT_CALL(gui_, Selectable(StrEq("My Zone - Theme1##zone_0"), false, _, _))
       .WillOnce(Return(false));
 
   ASSERT_OK(RenderNavigator());
@@ -233,7 +244,7 @@ TEST_F(ParallaxZonePanelTest, NavigatorUsesSafeLabelsForEmptyNames) {
   ON_CALL(api_, GetAllParallaxThemes()).WillByDefault(Return(themes_));
   level_.zones.push_back(ParallaxZone{.id = 4, .name = "", .theme_id = "theme-1"});
 
-  EXPECT_CALL(gui_, Selectable(StrEq("(unnamed zone) (unnamed theme)##zone_4"), false, _, _))
+  EXPECT_CALL(gui_, Selectable(StrEq("(unnamed zone) - unnamed theme##zone_4"), false, _, _))
       .WillOnce(Return(false));
 
   EXPECT_OK(RenderNavigator());
@@ -248,7 +259,7 @@ TEST_F(ParallaxZonePanelTest, ComboPreviewShowsSelectedTheme) {
   selection_.type = SelectionState::Type::kZone;
   selection_.zone_id = 0;
 
-  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Theme"), StrEq("Theme1"), _))
+  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("##parallax_theme"), StrEq("Theme1"), _))
       .WillOnce(Invoke([this](const char* label, const char* preview, ImGuiComboFlags flags) {
         return ScopedCombo(&gui_, label, preview, flags);
       }));

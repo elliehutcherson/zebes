@@ -273,6 +273,26 @@ before changing the zone ID in the level draft; failure to create leaves the
 draft unchanged. Viewport composition receives copied immutable theme snapshots
 resolved for the current frame rather than retaining manager-owned pointers.
 
+Level creation and parallax-zone creation are separate editor transactions. A
+new level remains an unpublished `LevelPanelModel` draft until Create passes
+intrinsic validation and persistence succeeds. A new zone remains a transient
+`ParallaxZoneCreationModel` draft until its name, stable theme reference, and
+in-world bounds validate; cancel and failed commit do not append to
+`Level::zones`. One platform-neutral readiness result categorizes save,
+placement, and zone-creation blockers. The toolbar, scene hierarchy, viewport,
+inspector, and placement palette render those facts rather than defining their
+own prerequisite policies.
+
+The Level Editor presents one authored world as `Level Contents`; it does not
+model or imply multiple scenes per `Level`. Level Settings, ordered World
+Layers, and Parallax Zones are always-visible siblings in that hierarchy.
+Selecting a world layer also makes it the active placement target. Inspector
+surfaces share `InspectorPropertyGrid`, which owns the two-column ImGui table
+contract: permanent human-readable labels and units are separate from hidden
+widget IDs and full-width controls. This presentation helper owns no domain
+validation; panels continue to mutate their explicit draft/model and render the
+shared readiness result.
+
 Viewport scene composition is separate from presentation. `ViewportScene`
 builds platform-neutral entity and zone render items with validated world-space
 bounds, selection state, and opaque `TextureHandle` values. `ViewportRenderer`
@@ -328,12 +348,15 @@ Incomplete layer drafts live only in Theme Editor and are never published to
 the resource catalog.
 
 The Level viewport may preview the active or selected zone's resolved theme.
-Theme Editor currently previews the selected layer's source texture; complete
-theme composition, isolated-layer composition, and optional read-only
-level/zone context are Milestone 1 authoring work. Preview choices never change
-zone activation, theme drafts, or persistent level data. A future isolated
-layer preview remains representable by the existing optional layer index in the
-platform-neutral batch request, without changing native rendering.
+Theme Editor renders complete-theme or isolated-layer composition into the
+configured logical game view, aspect-fitted into the physical ImGui region.
+Resizing the editor therefore never changes simulated camera coverage. Its
+optional level/zone context supplies world bounds and an authored route; the
+preview intersects that route with camera centers actually reachable inside
+the level at the selected zoom. Manual route endpoints are explicitly camera
+centers. These preview choices never change zone activation, theme drafts, or
+persistent level data, and both modes use the same platform-neutral batch
+request and renderer as the Level viewport.
 
 Managed texture thumbnails use `TexturePreviewRenderer` at the editor boundary.
 Panels supply an opaque `TextureHandle`; the renderer resolves SDL state,

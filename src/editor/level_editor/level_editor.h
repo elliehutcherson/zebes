@@ -7,6 +7,7 @@
 #include "api/api.h"
 #include "editor/gui_interface.h"
 #include "editor/level_editor/derived_terrain_session.h"
+#include "editor/level_editor/level_authoring_readiness.h"
 #include "editor/level_editor/level_panel_interface.h"
 #include "editor/level_editor/level_panel_model.h"
 #include "editor/level_editor/level_selection_state.h"
@@ -26,7 +27,9 @@ struct LevelEditorPanelLayout {
 };
 
 // Divides the available editor height while keeping both panels reachable.
-LevelEditorPanelLayout CalculateLevelEditorPanelLayout(float available_height);
+LevelEditorPanelLayout CalculateLevelEditorPanelLayout(float available_height,
+                                                       bool show_palette = true,
+                                                       float preferred_palette_height = 0.0f);
 
 class LevelEditor {
  public:
@@ -65,6 +68,8 @@ class LevelEditor {
   void RefreshLevelCatalog();
   absl::Status SaveActiveLevel();
   absl::Status HandleLevelPanelEvent(LevelPanelEvent event);
+  absl::Status RenderToolbar();
+  LevelAuthoringReadiness CurrentReadiness() const;
 
   // Renders the level list and management controls.
   absl::Status RenderNavigator();  // Left
@@ -104,6 +109,8 @@ class LevelEditor {
   SelectionState selection_;
   std::optional<std::string> save_error_;
   std::optional<ParallaxZonePanel::ThemeRequest> theme_request_;
+  bool show_palette_ = true;
+  float palette_height_ = 220.0f;
   // Long-lived on purpose: it carries a content index rebuilt from the atlas
   // and a memo of everything rendered this session, both of which rebuilding
   // per frame would throw away.

@@ -13,7 +13,7 @@ phase has decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
-| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — imported parallax authoring next |
+| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — resume the cave content gate |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -148,11 +148,26 @@ deduplication, and catalog validation blocks missing references and referenced
 deletion. Milestone 1 of
 [`environment-artwork-plan.md`](environment-artwork-plan.md) now has its
 imported-authoring tooling: depth presets, live searchable texture thumbnails,
-complete/selected previews, context travel scrubbing, measured repetition and
-coverage diagnostics, strict fade geometry, and honest unsupported-fade UI.
-The human three-plane review remains pending in
-[`cave-parallax-content-gate.md`](cave-parallax-content-gate.md); its evidence
-must precede background-processing defaults.
+complete/selected previews in a fixed logical game viewport, context travel
+scrubbing over reachable camera centers, a far-to-near hierarchy, independently
+scrolling inspector, collapsible measured repetition/coverage diagnostics,
+strict fade geometry, and honest unsupported-fade UI.
+The accepted human three-plane review proved repeat rendering and scrubbing and
+exposed that Level Editor hid zone-owned theme assignment behind zero-area
+level setup and selection state. Milestone 1.5 implements explicit unsaved
+setup, an ownership-readable hierarchy, transactional zone creation with
+searchable theme selection, a contextual inspector, resizable placement
+palette, world/zone framing, and explicit parallax preview modes. Its usability
+follow-up removes the false collapsible scene root, keeps Level Settings and
+both owned collections visible, standardizes editable inspectors on a shared
+labeled property grid, and consolidates readiness blockers behind the toolbar's
+review action. The same gate established the next priority before background
+processing: Far Fill and Far Formations may repeat, but distinctive Near
+Formations need multiple positioned elements within one layer. Milestone 1.6
+adds finite or group-repeating compositions, deterministic migration, culling,
+Theme Editor arrangement, and adjacent/wrap seam diagnostics without moving
+composition into levels or misusing zones. The accepted evidence is recorded in
+[`cave-parallax-content-gate.md`](cave-parallax-content-gate.md).
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved

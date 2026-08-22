@@ -8,7 +8,10 @@ namespace zebes {
 class MockLevelPanel : public LevelPanelInterface {
  public:
   MOCK_METHOD(absl::StatusOr<LevelPanelEvent>, RenderList, (LevelPanelModel & model), (override));
-  MOCK_METHOD(absl::StatusOr<LevelPanelEvent>, RenderDetails, (LevelPanelModel & model), (override));
+  MOCK_METHOD(absl::StatusOr<LevelPanelEvent>, RenderToolbar,
+              (LevelPanelModel & model, const LevelAuthoringReadiness& readiness), (override));
+  MOCK_METHOD(absl::StatusOr<LevelPanelEvent>, RenderDetails, (LevelPanelModel & model),
+              (override));
 };
 
 }  // namespace zebes

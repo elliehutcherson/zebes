@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <cmath>
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -10,6 +11,7 @@
 #include "common/status_macros.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
+#include "editor/inspector_ui.h"
 #include "editor/level_editor/level_panel.h"
 #include "editor/level_editor/level_panel_interface.h"
 #include "editor/level_editor/parallax_layout.h"
@@ -28,11 +30,16 @@ constexpr float kPaletteHeightFraction = 0.25f;
 constexpr float kMinimumWorkspaceHeight = 180.0f;
 constexpr float kMinimumPaletteHeight = 120.0f;
 constexpr float kMaximumPaletteHeight = 260.0f;
+constexpr float kMaximumUserPaletteHeight = 420.0f;
 constexpr float kConstrainedWorkspaceFraction = 0.6f;
 
 }  // namespace
 
-LevelEditorPanelLayout CalculateLevelEditorPanelLayout(float available_height) {
+LevelEditorPanelLayout CalculateLevelEditorPanelLayout(float available_height, bool show_palette,
+                                                       float preferred_palette_height) {
+  if (!show_palette) {
+    return {.workspace_height = std::max(0.0f, available_height), .palette_height = 0.0f};
+  }
   const float usable_height = std::max(0.0f, available_height - kPanelGap);
   if (usable_height < kMinimumWorkspaceHeight + kMinimumPaletteHeight) {
     const float workspace_height = usable_height * kConstrainedWorkspaceFraction;
@@ -42,8 +49,14 @@ LevelEditorPanelLayout CalculateLevelEditorPanelLayout(float available_height) {
     };
   }
 
-  const float palette_height = std::clamp(available_height * kPaletteHeightFraction,
-                                          kMinimumPaletteHeight, kMaximumPaletteHeight);
+  const float automatic_height = std::clamp(available_height * kPaletteHeightFraction,
+                                            kMinimumPaletteHeight, kMaximumPaletteHeight);
+  const float requested_height =
+      preferred_palette_height > 0.0f
+          ? std::clamp(preferred_palette_height, kMinimumPaletteHeight, kMaximumUserPaletteHeight)
+          : automatic_height;
+  const float maximum_height = usable_height - kMinimumWorkspaceHeight;
+  const float palette_height = std::min(requested_height, maximum_height);
   return {
       .workspace_height = usable_height - palette_height,
       .palette_height = palette_height,
@@ -129,6 +142,12 @@ absl::Status LevelEditor::HandleLevelPanelEvent(LevelPanelEvent event) {
   switch (event.action) {
     case LevelPanelAction::kNone:
       return absl::OkStatus();
+    case LevelPanelAction::kNew:
+      world_layer_model_.Open(*level_model_.active_level());
+      selection_.Clear();
+      selection_.type = SelectionState::Type::kLevel;
+      viewport_tab_->Reset();
+      return absl::OkStatus();
     case LevelPanelAction::kCreate:
       RETURN_IF_ERROR(SaveActiveLevel());
       world_layer_model_.Open(*level_model_.active_level());
@@ -155,26 +174,98 @@ absl::Status LevelEditor::HandleLevelPanelEvent(LevelPanelEvent event) {
       RefreshLevelCatalog();
       return absl::OkStatus();
     case LevelPanelAction::kClose:
+      level_model_.CloseActiveLevel();
       viewport_tab_->Reset();
       world_layer_model_.Close();
       selection_.Clear();
       save_error_.reset();
       return absl::OkStatus();
+    case LevelPanelAction::kReviewIssues:
+      selection_.Clear();
+      selection_.type = SelectionState::Type::kLevel;
+      return absl::OkStatus();
+    case LevelPanelAction::kFrameWorld:
+      if (level_model_.active_level() == nullptr) {
+        return absl::FailedPreconditionError("No level is open to frame.");
+      }
+      viewport_tab_->FrameLevel(*level_model_.active_level());
+      return absl::OkStatus();
   }
   return absl::InternalError("Unknown level panel action");
 }
 
+LevelAuthoringReadiness LevelEditor::CurrentReadiness() const {
+  const Level* level = level_model_.active_level();
+  if (level == nullptr) return {};
+
+  const std::vector<Tileset> tilesets = api_->GetAllTilesets();
+  const bool tileset_resolves =
+      !level->tileset_id.empty() &&
+      std::any_of(tilesets.begin(), tilesets.end(),
+                  [&](const Tileset& tileset) { return tileset.id == level->tileset_id; });
+  const bool active_layer_available = world_layer_model_.active_layer(*level) != nullptr;
+  const std::vector<ParallaxTheme> themes = api_->GetAllParallaxThemes();
+  const bool parallax_theme_available = !themes.empty();
+  const bool zone_theme_references_resolve =
+      std::all_of(level->zones.begin(), level->zones.end(), [&](const ParallaxZone& zone) {
+        return std::any_of(themes.begin(), themes.end(),
+                           [&](const ParallaxTheme& theme) { return theme.id == zone.theme_id; });
+      });
+  return EvaluateLevelAuthoringReadiness(*level, tileset_resolves, active_layer_available,
+                                         parallax_theme_available, zone_theme_references_resolve);
+}
+
+absl::Status LevelEditor::RenderToolbar() {
+  const LevelAuthoringReadiness readiness = CurrentReadiness();
+  ASSIGN_OR_RETURN(const LevelPanelEvent event,
+                   level_panel_->RenderToolbar(level_model_, readiness));
+  const absl::Status event_status = HandleLevelPanelEvent(event);
+  if (!event_status.ok()) {
+    save_error_ = event_status.message();
+  } else if (event.action == LevelPanelAction::kCreate || event.action == LevelPanelAction::kSave) {
+    save_error_.reset();
+  }
+
+  const Level* level = level_model_.active_level();
+  if (level == nullptr) return absl::OkStatus();
+  gui_->SameLine();
+  const char* level_name = level->name.empty() ? "(unnamed level)" : level->name.c_str();
+  if (level_model_.has_unsaved_changes()) {
+    gui_->TextColored({1.0f, 0.75f, 0.2f, 1.0f}, "%s *", level_name);
+    if (gui_->IsItemHovered()) gui_->SetTooltip("Unsaved level changes");
+  } else {
+    gui_->Text("%s", level_name);
+  }
+  if (readiness.can_place()) {
+    gui_->SameLine();
+    if (gui_->Button(show_palette_ ? "Hide Palette" : "Show Palette")) {
+      show_palette_ = !show_palette_;
+    }
+  }
+  if (save_error_) {
+    gui_->SameLine();
+    gui_->TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Save failed: %s", save_error_->c_str());
+  }
+  return absl::OkStatus();
+}
+
 absl::Status LevelEditor::Render() {
-  const LevelEditorPanelLayout layout =
-      CalculateLevelEditorPanelLayout(gui_->GetContentRegionAvail().y);
+  if (level_model_.has_active_level()) {
+    RETURN_IF_ERROR(RenderToolbar());
+    if (!level_model_.has_active_level()) return absl::OkStatus();
+    gui_->Separator();
+  }
+  const bool render_palette = show_palette_ && CurrentReadiness().can_place();
+  const LevelEditorPanelLayout layout = CalculateLevelEditorPanelLayout(
+      gui_->GetContentRegionAvail().y, render_palette, palette_height_);
   {
     ScopedTable table = gui_->CreateScopedTable("LevelEditorLayout", 3, kTableFlags,
                                                 ImVec2(0.0f, layout.workspace_height));
     if (!table) return absl::OkStatus();
 
-    gui_->TableSetupColumn("Navigator", ImGuiTableColumnFlags_WidthStretch, 0.2f);
-    gui_->TableSetupColumn("Viewport", ImGuiTableColumnFlags_WidthStretch, 0.6f);
-    gui_->TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+    gui_->TableSetupColumn("Level Contents", ImGuiTableColumnFlags_WidthFixed, 300.0f);
+    gui_->TableSetupColumn("Viewport", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    gui_->TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthFixed, 400.0f);
 
     gui_->TableNextRow();
 
@@ -194,7 +285,13 @@ absl::Status LevelEditor::Render() {
     }
   }
 
-  gui_->Separator();
+  if (!render_palette) return absl::OkStatus();
+  gui_->InvisibleButton("##PlacementPaletteResize",
+                        ImVec2(gui_->GetContentRegionAvail().x, kPanelGap));
+  if (gui_->IsItemActive()) {
+    palette_height_ = std::clamp(palette_height_ - gui_->GetIO().MouseDelta.y,
+                                 kMinimumPaletteHeight, kMaximumUserPaletteHeight);
+  }
   ScopedChild palette =
       gui_->CreateScopedChild("LevelEditorPalette", ImVec2(0.0f, layout.palette_height), true);
   if (!palette) return absl::OkStatus();
@@ -204,6 +301,15 @@ absl::Status LevelEditor::Render() {
 }
 
 absl::Status LevelEditor::RenderPalette() {
+  const LevelAuthoringReadiness readiness = CurrentReadiness();
+  if (!readiness.can_place()) {
+    gui_->Text("PLACEMENT PALETTE");
+    gui_->TextDisabled("Complete these requirements before placing content:");
+    for (const std::string& blocker : readiness.placement_blockers) {
+      gui_->TextDisabled("- %s", blocker.c_str());
+    }
+    return absl::OkStatus();
+  }
   int tile_render_w = 16, tile_render_h = 16;
   if (const Level* level = level_model_.active_level(); level != nullptr) {
     tile_render_w = level->tile_render_width;
@@ -220,65 +326,39 @@ absl::Status LevelEditor::RenderNavigator() {
     return HandleLevelPanelEvent(event);
   }
 
-  // A Level is loaded. Render the Scene Graph.
+  // A level is one authored world, not a container of collapsible scenes.
   Level& level = *level_model_.active_level();
 
-  if (gui_->Button("Close Level")) {
-    level_model_.CloseActiveLevel();
-    world_layer_model_.Close();
-    viewport_tab_->Reset();
-    selection_.Clear();
-    save_error_.reset();
-    return absl::OkStatus();
-  }
-  gui_->SameLine();
-  if (gui_->Button("Save Level")) {
-    absl::Status status = SaveActiveLevel();
-    if (!status.ok()) {
-      save_error_ = status.message();
-    } else {
-      save_error_.reset();
-    }
-  }
-
-  if (save_error_.has_value()) {
-    gui_->TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Save failed: %s", save_error_->c_str());
-  }
+  gui_->Text("LEVEL CONTENTS");
+  gui_->TextDisabled("Level: %s", level.name.empty() ? "(unnamed)" : level.name.c_str());
   gui_->Separator();
 
-  // Root Node: The Level itself
-  ImGuiTreeNodeFlags root_flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow;
-  if (selection_.type == SelectionState::Type::kLevel) {
-    root_flags |= ImGuiTreeNodeFlags_Selected;
-  }
-
-  const std::string level_label =
-      absl::StrCat(level.name.empty() ? "(unnamed level)" : level.name, "##level_", level.id);
-  bool root_open = gui_->CollapsingHeader(level_label.c_str(), root_flags);
-  if (gui_->IsItemClicked()) {
+  if (gui_->Selectable("Level Settings##level_settings",
+                       selection_.type == SelectionState::Type::kLevel)) {
     selection_.Clear();
     selection_.type = SelectionState::Type::kLevel;
   }
 
-  if (root_open) {
-    if (gui_->CollapsingHeader("World Layers", ImGuiTreeNodeFlags_DefaultOpen)) {
-      RETURN_IF_ERROR(world_layer_panel_->RenderNavigator(level, world_layer_model_, selection_));
-    }
+  gui_->Spacing();
+  gui_->Separator();
+  gui_->Text("WORLD LAYERS");
+  RETURN_IF_ERROR(world_layer_panel_->RenderNavigator(level, world_layer_model_, selection_));
 
-    if (gui_->CollapsingHeader("Parallax", ImGuiTreeNodeFlags_DefaultOpen)) {
-      std::optional<int> previous_zone_id;
-      if (selection_.type == SelectionState::Type::kZone) {
-        previous_zone_id = selection_.zone_id;
-      }
-      RETURN_IF_ERROR(parallax_zone_panel_->RenderNavigator(level, selection_));
+  gui_->Spacing();
+  gui_->Separator();
+  gui_->Text("PARALLAX ZONES");
+  gui_->TextDisabled("Zones choose reusable backgrounds for world regions.");
+  std::optional<int> previous_zone_id;
+  if (selection_.type == SelectionState::Type::kZone) {
+    previous_zone_id = selection_.zone_id;
+  }
+  RETURN_IF_ERROR(parallax_zone_panel_->RenderNavigator(level, selection_));
 
-      if (selection_.type == SelectionState::Type::kZone &&
-          previous_zone_id != selection_.zone_id) {
-        if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, selection_.zone_id);
-            zone != nullptr) {
-          viewport_tab_->FrameZone(*zone);
-        }
-      }
+  if (selection_.type == SelectionState::Type::kZone && previous_zone_id != selection_.zone_id) {
+    if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, selection_.zone_id);
+        zone != nullptr) {
+      viewport_tab_->FrameZone(*zone);
+      viewport_tab_->SetParallaxPreviewMode(ParallaxPreviewMode::kSelectedZone);
     }
   }
 
@@ -286,30 +366,53 @@ absl::Status LevelEditor::RenderNavigator() {
 }
 
 absl::Status LevelEditor::RenderInspector() {
-  gui_->Text("Inspector");
-  gui_->Separator();
-
   if (!level_model_.has_active_level()) {
+    gui_->Text("INSPECTOR");
+    gui_->Separator();
     gui_->TextDisabled("No Level Loaded");
     return absl::OkStatus();
   }
 
   switch (selection_.type) {
     case SelectionState::Type::kNone:
+      gui_->Text("INSPECTOR");
+      gui_->Separator();
       gui_->TextDisabled("Select an item to view properties.");
       break;
 
     case SelectionState::Type::kLevel: {
+      gui_->Text("Level > Settings");
+      gui_->Separator();
       ASSIGN_OR_RETURN(LevelPanelEvent event, level_panel_->RenderDetails(level_model_));
       RETURN_IF_ERROR(HandleLevelPanelEvent(event));
+      const LevelAuthoringReadiness readiness = CurrentReadiness();
+      if (!readiness.can_save()) {
+        gui_->Separator();
+        gui_->TextColored({1.0f, 0.65f, 0.2f, 1.0f}, "Required before saving:");
+        for (const std::string& blocker : readiness.save_blockers) {
+          gui_->TextWrapped("- %s", blocker.c_str());
+        }
+      }
     } break;
 
-    case SelectionState::Type::kWorldLayer:
+    case SelectionState::Type::kWorldLayer: {
+      const WorldLayer* layer =
+          FindWorldLayer(*level_model_.active_level(), selection_.world_layer_id);
+      gui_->Text("Level > World Layers > %s",
+                 layer == nullptr || layer->name.empty() ? "(unnamed layer)" : layer->name.c_str());
+      gui_->Separator();
       RETURN_IF_ERROR(world_layer_panel_->RenderDetails(*level_model_.active_level(),
                                                         world_layer_model_, selection_));
-      break;
+    } break;
 
-    case SelectionState::Type::kZone:
+    case SelectionState::Type::kZone: {
+      const ParallaxZone* selected_zone =
+          FindParallaxZoneById(level_model_.active_level()->zones, selection_.zone_id);
+      gui_->Text("Level > Parallax Zones > %s",
+                 selected_zone == nullptr || selected_zone->name.empty()
+                     ? "(unnamed zone)"
+                     : selected_zone->name.c_str());
+      gui_->Separator();
       if (gui_->Button("Frame Zone")) {
         const Level& level = *level_model_.active_level();
         if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, selection_.zone_id);
@@ -320,9 +423,26 @@ absl::Status LevelEditor::RenderInspector() {
       RETURN_IF_ERROR(
           parallax_zone_panel_->RenderDetails(*level_model_.active_level(), selection_));
       theme_request_ = parallax_zone_panel_->TakeThemeRequest();
-      break;
+    } break;
+
+    case SelectionState::Type::kZoneCreation: {
+      gui_->Text("Level > Parallax Zones > New Zone");
+      gui_->Separator();
+      const std::optional<int> created =
+          parallax_zone_panel_->RenderCreation(*level_model_.active_level(), selection_);
+      if (created.has_value()) {
+        const ParallaxZone* zone =
+            FindParallaxZoneById(level_model_.active_level()->zones, *created);
+        if (zone != nullptr) {
+          viewport_tab_->FrameZone(*zone);
+          viewport_tab_->SetParallaxPreviewMode(ParallaxPreviewMode::kSelectedZone);
+        }
+      }
+    } break;
 
     case SelectionState::Type::kEntity: {
+      gui_->Text("Level > Entity");
+      gui_->Separator();
       Level& level = *level_model_.active_level();
       Entity* entity = FindEntity(level, selection_.entity_id);
       WorldLayer* entity_layer = FindEntityLayer(level, selection_.entity_id);
@@ -332,46 +452,71 @@ absl::Status LevelEditor::RenderInspector() {
       }
 
       const uint64_t entity_id = entity->id;
-      gui_->Text("ID: %" PRIu64, entity_id);
-      if (!entity->blueprint_id.empty()) {
-        gui_->Text("Blueprint: %s", entity->blueprint_id.c_str());
+      RenderInspectorSection(*gui_, "IDENTITY", "Stable entity and authored blueprint references.");
+      {
+        InspectorPropertyGrid grid(*gui_, "EntityIdentity");
+        if (grid.BeginRow("Entity ID", "Stable identity unique within this level.")) {
+          gui_->Text("%" PRIu64, entity_id);
+        }
+        if (!entity->blueprint_id.empty() &&
+            grid.BeginRow("Blueprint", "Asset that defines this entity's authored states.")) {
+          gui_->TextWrapped("%s", entity->blueprint_id.c_str());
+        }
       }
-      gui_->Text("Layer: %s", entity_layer->name.c_str());
-      gui_->Separator();
 
       const bool locked = world_layer_model_.IsLocked(entity_layer->id);
       ScopedDisabled locked_controls = gui_->CreateScopedDisabled(locked);
+      RenderInspectorSection(*gui_, "TRANSFORM", "Position of the entity origin in world pixels.");
       float pos_x = static_cast<float>(entity->transform.position.x);
       float pos_y = static_cast<float>(entity->transform.position.y);
-      if (gui_->InputFloat("X", &pos_x)) {
-        entity->transform.position.x = pos_x;
-      }
-      if (gui_->InputFloat("Y", &pos_y)) {
-        entity->transform.position.y = pos_y;
+      {
+        InspectorPropertyGrid grid(*gui_, "EntityTransform");
+        if (grid.BeginRow("X (px)", "Horizontal entity origin.")) {
+          if (gui_->InputFloat("##entity_x", &pos_x, 1.0f, 16.0f, "%.1f")) {
+            entity->transform.position.x = pos_x;
+          }
+        }
+        if (grid.BeginRow("Y (px)", "Vertical entity origin.")) {
+          if (gui_->InputFloat("##entity_y", &pos_y, 1.0f, 16.0f, "%.1f")) {
+            entity->transform.position.y = pos_y;
+          }
+        }
       }
 
       // Higher draws later among entities in this world layer. Moving content
       // across terrain depth is a layer operation, not a sort-order trick.
+      RenderInspectorSection(
+          *gui_, "COMPOSITION",
+          "World layers control terrain depth. Draw order only sorts entities within one layer.");
       int sort_order = entity->sort_order;
-      if (gui_->InputInt("Draw Order", &sort_order)) {
-        entity->sort_order = sort_order;
-      }
-
-      if (ScopedCombo combo = gui_->CreateScopedCombo("World Layer", entity_layer->name.c_str());
-          combo) {
-        for (const WorldLayer& candidate : level.layers) {
-          const bool selected = candidate.id == entity_layer->id;
-          ScopedDisabled destination_locked =
-              gui_->CreateScopedDisabled(world_layer_model_.IsLocked(candidate.id));
-          if (gui_->Selectable(candidate.name.c_str(), selected)) {
-            RETURN_IF_ERROR(MoveEntityToLayer(level, entity_id, candidate.id));
-            RETURN_IF_ERROR(world_layer_model_.Activate(level, candidate.id));
-            entity_layer = FindWorldLayer(level, candidate.id);
+      {
+        InspectorPropertyGrid grid(*gui_, "EntityComposition");
+        if (grid.BeginRow("World layer", "Depth slice that owns this entity.")) {
+          if (ScopedCombo combo =
+                  gui_->CreateScopedCombo("##entity_world_layer", entity_layer->name.c_str());
+              combo) {
+            for (const WorldLayer& candidate : level.layers) {
+              const bool selected = candidate.id == entity_layer->id;
+              ScopedDisabled destination_locked =
+                  gui_->CreateScopedDisabled(world_layer_model_.IsLocked(candidate.id));
+              if (gui_->Selectable(candidate.name.c_str(), selected)) {
+                RETURN_IF_ERROR(MoveEntityToLayer(level, entity_id, candidate.id));
+                RETURN_IF_ERROR(world_layer_model_.Activate(level, candidate.id));
+                entity_layer = FindWorldLayer(level, candidate.id);
+                entity = FindEntity(level, entity_id);
+              }
+              if (selected) gui_->SetItemDefaultFocus();
+            }
           }
-          if (selected) gui_->SetItemDefaultFocus();
+        }
+        if (grid.BeginRow("Draw order", "Higher values draw later within the world layer.")) {
+          if (gui_->InputInt("##entity_draw_order", &sort_order)) {
+            entity->sort_order = sort_order;
+          }
         }
       }
 
+      RenderInspectorSection(*gui_, "PLACEMENT", "Explicit alignment actions for this entity.");
       if (!entity->blueprint_id.empty() && gui_->Button("Resnap to Grid")) {
         ASSIGN_OR_RETURN(Blueprint * blueprint, api_->GetBlueprint(entity->blueprint_id));
         if (blueprint == nullptr) {
@@ -391,8 +536,8 @@ absl::Status LevelEditor::RenderInspector() {
                 blueprint->states[entity->blueprint_state_index].placement_mode));
         entity->transform.position = snapped_origin;
       }
-      gui_->Separator();
 
+      RenderInspectorSection(*gui_, "DANGER ZONE", "Removing deletes this entity from the level.");
       if (gui_->Button("Remove Entity")) {
         entity_layer->entities.erase(entity_id);
         selection_.Clear();
@@ -455,7 +600,7 @@ void LevelEditor::RenderDerivedArtworkStatus() {
 }
 
 absl::Status LevelEditor::RenderViewport() {
-  gui_->Text("Viewport");
+  gui_->Text("WORLD VIEWPORT");
   gui_->Separator();
 
   ScopedChild viewport = gui_->CreateScopedChild("LevelViewport", ImVec2(0, 0), true);
@@ -464,6 +609,17 @@ absl::Status LevelEditor::RenderViewport() {
   Level* level = level_model_.active_level();
   if (level == nullptr) {
     gui_->TextDisabled("No level selected.");
+    return absl::OkStatus();
+  }
+  if (!std::isfinite(level->width) || !std::isfinite(level->height) || level->width <= 0.0 ||
+      level->height <= 0.0) {
+    gui_->TextColored({1.0f, 0.75f, 0.2f, 1.0f}, "LEVEL SETTINGS REQUIRED");
+    gui_->TextWrapped(
+        "Enter a positive, tile-aligned world width and height in the Settings inspector.");
+    if (selection_.type != SelectionState::Type::kLevel && gui_->Button("Go to Level Settings")) {
+      selection_.Clear();
+      selection_.type = SelectionState::Type::kLevel;
+    }
     return absl::OkStatus();
   }
   world_layer_model_.Reconcile(*level);

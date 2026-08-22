@@ -358,6 +358,14 @@ target_link_libraries(parallax_zone_panel_test
 target_include_directories(parallax_zone_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_zone_panel_test COMMAND parallax_zone_panel_test)
 
+add_executable(parallax_zone_creation_model_test parallax_zone_creation_model_test.cc)
+target_link_libraries(parallax_zone_creation_model_test
+  parallax_zone_creation_model
+  macros
+  gtest_main
+)
+gtest_discover_tests(parallax_zone_creation_model_test)
+
 # --- Blueprint Palette Panel Test ---
 add_executable(anchor_gizmo_test anchor_gizmo_test.cc)
 target_link_libraries(anchor_gizmo_test
@@ -537,6 +545,10 @@ add_executable(level_panel_model_test level_panel_model_test.cc)
 target_link_libraries(level_panel_model_test level_panel_model gtest_main)
 gtest_discover_tests(level_panel_model_test)
 
+add_executable(level_authoring_readiness_test level_authoring_readiness_test.cc)
+target_link_libraries(level_authoring_readiness_test level_authoring_readiness gtest_main)
+gtest_discover_tests(level_authoring_readiness_test)
+
 add_executable(world_layer_model_test world_layer_model_test.cc)
 target_link_libraries(world_layer_model_test world_layer_model macros gtest_main)
 gtest_discover_tests(world_layer_model_test)
@@ -621,6 +633,16 @@ target_link_libraries(confirm_prompt_test
 target_include_directories(confirm_prompt_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME confirm_prompt_test COMMAND confirm_prompt_test)
 
+add_executable(inspector_ui_test inspector_ui_test.cc)
+target_link_libraries(inspector_ui_test
+  gtest_main
+  gmock
+  inspector_ui
+  gui_mock
+)
+target_include_directories(inspector_ui_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME inspector_ui_test COMMAND inspector_ui_test)
+
 add_executable(canvas_test canvas_test.cc)
 target_link_libraries(canvas_test
   gtest_main
@@ -640,3 +662,8 @@ add_executable(parallax_diagnostics_test parallax_diagnostics_test.cc)
 target_link_libraries(parallax_diagnostics_test parallax_diagnostics macros gtest_main)
 target_include_directories(parallax_diagnostics_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_diagnostics_test COMMAND parallax_diagnostics_test)
+
+add_executable(parallax_preview_model_test parallax_preview_model_test.cc)
+target_link_libraries(parallax_preview_model_test parallax_preview_model macros gtest_main)
+target_include_directories(parallax_preview_model_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME parallax_preview_model_test COMMAND parallax_preview_model_test)

@@ -38,6 +38,14 @@ TEST(ParallaxThemeEditorModelTest, IncompleteDraftCannotBecomeASaveRequest) {
   EXPECT_EQ(model.BuildSaveRequest().status().code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST(ParallaxThemeEditorModelTest, NewLayersStartAtTheMiddleBackgroundPreset) {
+  ParallaxThemeEditorModel model;
+  model.BeginNew();
+
+  ASSERT_EQ(model.draft()->layers.size(), 1);
+  EXPECT_EQ(model.draft()->layers[0].scroll_factor, Vec(0.20, 0.10));
+}
+
 TEST(ParallaxThemeEditorModelTest, DepthPresetsChangeOnlySelectedLayerScrollFactors) {
   ParallaxThemeEditorModel model;
   model.Open({

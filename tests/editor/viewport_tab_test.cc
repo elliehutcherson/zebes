@@ -249,6 +249,22 @@ TEST(ViewportTabTest, FrameZoneCentersAndFitsStableZoneBounds) {
   EXPECT_DOUBLE_EQ(camera.zoom, 2);
 }
 
+TEST(ViewportTabTest, FrameLevelCentersAndFitsCompleteWorldBounds) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  Level level{.width = 800, .height = 400};
+
+  tab.FrameLevel(level);
+  ViewportTabTestPeer::ApplyPendingCameraFrame(tab, ImVec2(1000, 800),
+                                               {.min = {0, 0}, .max = {800, 400}});
+
+  const Camera& camera = ViewportTabTestPeer::GetCamera(tab);
+  EXPECT_DOUBLE_EQ(camera.position.x, 400);
+  EXPECT_DOUBLE_EQ(camera.position.y, 200);
+  EXPECT_DOUBLE_EQ(camera.zoom, 1);
+}
+
 TEST(ViewportTabTest, RenderRejectsMissingLevelBeforeOpeningCanvas) {
   NiceMock<MockApi> api;
   NiceMock<MockGui> gui;
@@ -330,6 +346,26 @@ TEST(ViewportTabTest, SelectedZonePreviewRequiresAZoneSelection) {
 
   ViewportTabTestPeer::ReconcileParallaxPreviewMode(tab, {});
   EXPECT_EQ(ViewportTabTestPeer::GetParallaxPreviewMode(tab), ParallaxPreviewMode::kActiveZone);
+}
+
+TEST(ViewportTabTest, OffPreviewSkipsThemeResolution) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  Level level;
+  level.zones.push_back({
+      .id = 4,
+      .theme_id = "theme-1",
+      .min_point = {-10, -10},
+      .max_point = {10, 10},
+  });
+  ViewportTabTestPeer::SetParallaxPreviewMode(tab, ParallaxPreviewMode::kOff);
+
+  ASSERT_OK_AND_ASSIGN(std::optional<ActiveParallaxZone> active,
+                       ViewportTabTestPeer::RenderParallaxBackground(tab, level, {}));
+
+  ASSERT_TRUE(active.has_value());
+  EXPECT_EQ(active->zone_id, 4);
 }
 
 TEST(ViewportTabTest, ActiveZoneWithoutAssignedThemeDoesNotFailPreview) {

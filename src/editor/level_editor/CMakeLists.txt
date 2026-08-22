@@ -2,6 +2,18 @@ add_library(level_editor
   level_editor.cc
 )
 
+add_library(level_authoring_readiness level_authoring_readiness.cc)
+target_link_libraries(level_authoring_readiness
+  PUBLIC level
+  PRIVATE absl::status
+)
+
+add_library(parallax_zone_creation_model parallax_zone_creation_model.cc)
+target_link_libraries(parallax_zone_creation_model
+  PUBLIC level parallax_theme absl::status absl::statusor
+  PRIVATE status_macros absl::strings
+)
+
 add_library(level_selection_state INTERFACE)
 target_include_directories(level_selection_state INTERFACE .)
 
@@ -30,6 +42,7 @@ target_link_libraries(world_layer_panel
   PRIVATE
   confirm_prompt
   gui_interface
+  inspector_ui
   imgui_scoped
   status_macros
   ${IMGUI_LIBRARIES}
@@ -186,7 +199,10 @@ add_library(parallax_zone_panel
 target_link_libraries(parallax_zone_panel
   api
   level
+  level_authoring_readiness
+  parallax_zone_creation_model
   parallax_theme
+  inspector_ui
   imgui_scoped
   status_macros
   ${IMGUI_LIBRARIES}
@@ -196,6 +212,7 @@ target_link_libraries(parallax_zone_panel
 )
 
 target_link_libraries(level_editor
+  level_authoring_readiness
   level_panel
   level_panel_model
   parallax_zone_panel
@@ -205,6 +222,7 @@ target_link_libraries(level_editor
   viewport_model
   derived_terrain_session
   api
+  inspector_ui
   ${IMGUI_LIBRARIES}
   absl::status
   absl::memory
@@ -225,6 +243,7 @@ target_link_libraries(level_panel_model
   absl::status
   absl::statusor
   PRIVATE
+  level_authoring_readiness
   level_tiles
 )
 
@@ -236,6 +255,7 @@ target_link_libraries(level_panel
   level_panel_model
   level
   confirm_prompt
+  inspector_ui
   imgui_scoped
   status_macros
   ${IMGUI_LIBRARIES}

@@ -13,6 +13,7 @@
 #include "editor/gui_interface.h"
 #include "editor/level_editor/viewport_renderer.h"
 #include "editor/parallax_theme_editor/parallax_diagnostics.h"
+#include "editor/parallax_theme_editor/parallax_preview_model.h"
 #include "editor/parallax_theme_editor/parallax_theme_editor_model.h"
 #include "editor/texture_preview.h"
 
@@ -29,11 +30,21 @@ class ParallaxThemeEditor {
   ParallaxThemeEditor(Api* api, GuiInterface* gui);
   absl::Status Save();
   absl::Status Duplicate();
+  absl::Status RenderToolbar(ParallaxTheme& draft);
+  absl::Status RenderLibrary(ParallaxTheme& draft);
   absl::Status RenderInspector(ParallaxTheme& draft, const std::vector<Texture>& textures);
-  absl::Status RenderPreview(const ParallaxTheme& draft, const std::vector<Level>& levels);
+  absl::Status RenderViewport(const ParallaxTheme& draft, const std::vector<Level>& levels);
+  absl::Status RenderDiagnostics(const ParallaxTheme& draft, const std::vector<Level>& levels);
   absl::Status RenderTexturePicker(ParallaxLayer& layer, const std::vector<Texture>& textures);
   absl::Status AnalyzeSelectedTexture();
   void SetError(const absl::Status& status);
+
+  struct PreviewContext {
+    CameraCenterRoute route;
+    std::optional<CameraWorldBounds> world;
+  };
+
+  PreviewContext RenderContextPicker(const ParallaxTheme& draft, const std::vector<Level>& levels);
 
   struct DiagnosticsSnapshot {
     std::string texture_id;
@@ -60,6 +71,7 @@ class ParallaxThemeEditor {
   float travel_y_ = 0.0f;
   float preview_zoom_ = 1.0f;
   bool preview_selected_layer_ = false;
+  bool show_diagnostics_ = true;
 };
 
 }  // namespace zebes

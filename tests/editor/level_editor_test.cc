@@ -20,6 +20,8 @@ class LevelEditorTestPeer {
 
   static absl::Status RenderInspector(LevelEditor& editor) { return editor.RenderInspector(); }
 
+  static absl::Status RenderToolbar(LevelEditor& editor) { return editor.RenderToolbar(); }
+
   static void SetEditingLevel(LevelEditor& editor, std::optional<Level> level) {
     if (level.has_value()) {
       editor.level_model_.BeginEditingLevel(std::move(*level));
@@ -44,6 +46,10 @@ class LevelEditorTestPeer {
 
   static SelectionState::Type GetSelectionType(const LevelEditor& editor) {
     return editor.selection_.type;
+  }
+
+  static int GetSelectedWorldLayerId(const LevelEditor& editor) {
+    return editor.selection_.world_layer_id;
   }
 
   static absl::Status HandleLevelPanelEvent(LevelEditor& editor, LevelPanelEvent event) {
@@ -123,6 +129,22 @@ TEST(LevelEditorPanelLayoutTest, ClampsNegativeAvailableHeight) {
   EXPECT_FLOAT_EQ(layout.palette_height, 0.0f);
 }
 
+TEST(LevelEditorPanelLayoutTest, HonorsResizablePaletteWithoutHidingWorkspace) {
+  const LevelEditorPanelLayout layout =
+      CalculateLevelEditorPanelLayout(1000.0f, /*show_palette=*/true, 400.0f);
+
+  EXPECT_FLOAT_EQ(layout.workspace_height, 592.0f);
+  EXPECT_FLOAT_EQ(layout.palette_height, 400.0f);
+}
+
+TEST(LevelEditorPanelLayoutTest, HiddenPaletteGivesWorkspaceTheFullHeight) {
+  const LevelEditorPanelLayout layout =
+      CalculateLevelEditorPanelLayout(1000.0f, /*show_palette=*/false, 400.0f);
+
+  EXPECT_FLOAT_EQ(layout.workspace_height, 1000.0f);
+  EXPECT_FLOAT_EQ(layout.palette_height, 0.0f);
+}
+
 class LevelEditorTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -142,6 +164,9 @@ class LevelEditorTest : public ::testing::Test {
             [&](ImGuiCol idx, const ImVec4& col) { return ScopedStyleColor(&gui_, {}, {}); });
     ON_CALL(gui_, CreateScopedId(::testing::A<const char*>()))
         .WillByDefault(Invoke([this](const char* id) { return ScopedId(&gui_, id); }));
+    ON_CALL(gui_, CreateScopedId(::testing::A<int>())).WillByDefault(Invoke([this](int id) {
+      return ScopedId(&gui_, id);
+    }));
     ON_CALL(gui_, CreateScopedCombo(_, _, _))
         .WillByDefault(
             Invoke([this](const char* label, const char* preview, ImGuiComboFlags flags) {
@@ -151,6 +176,7 @@ class LevelEditorTest : public ::testing::Test {
 
     // All buttons return false by default; individual tests override as needed.
     EXPECT_CALL(gui_, Button(_, _)).WillRepeatedly(Return(false));
+    EXPECT_CALL(gui_, Selectable(_, An<bool>(), _, _)).WillRepeatedly(Return(false));
 
     // Retain a raw pointer to the mock level panel for EXPECT_CALL after the
     // unique_ptr is moved into LevelEditor::Options.
@@ -159,6 +185,7 @@ class LevelEditorTest : public ::testing::Test {
 
     ON_CALL(*mock_level_panel_, RenderList(_)).WillByDefault(Return(LevelPanelEvent{}));
     ON_CALL(*mock_level_panel_, RenderDetails(_)).WillByDefault(Return(LevelPanelEvent{}));
+    ON_CALL(*mock_level_panel_, RenderToolbar(_, _)).WillByDefault(Return(LevelPanelEvent{}));
 
     auto editor_or = LevelEditor::Create({
         .api = api_.get(),
@@ -183,42 +210,78 @@ TEST_F(LevelEditorTest, RenderNavigatorNoLevelDelegatesToLevelPanel) {
   ASSERT_OK(LevelEditorTestPeer::RenderNavigator(*editor_));
 }
 
-// --- RenderNavigator: level loaded, save ---
+TEST_F(LevelEditorTest, RenderNavigatorExposesLevelSettingsWithoutCollapsibleSceneRoot) {
+  LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "cave", .name = "Cave"});
+  EXPECT_CALL(gui_, CollapsingHeader(_, _)).Times(0);
+  EXPECT_CALL(gui_, Selectable(StrEq("Level Settings##level_settings"), false, _, _))
+      .WillOnce(Return(true));
 
-TEST_F(LevelEditorTest, RenderNavigatorSaveLevelSuccessCallsUpdateAndRefreshes) {
-  LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "a-id", .name = "Alpha"});
+  ASSERT_OK(LevelEditorTestPeer::RenderNavigator(*editor_));
 
-  EXPECT_CALL(gui_, Button(StrEq("Save Level"), _)).WillOnce(Return(true));
+  EXPECT_EQ(LevelEditorTestPeer::GetSelectionType(*editor_), SelectionState::Type::kLevel);
+}
+
+TEST_F(LevelEditorTest, RenderNavigatorSelectsAndActivatesAnAlwaysVisibleWorldLayer) {
+  Level level{.id = "cave", .name = "Cave"};
+  level.layers.push_back(WorldLayer{.id = 7, .name = "Front Decor"});
+  LevelEditorTestPeer::SetEditingLevel(*editor_, std::move(level));
+  EXPECT_CALL(gui_, Selectable(StrEq("Front Decor##world_layer"), false, _, _))
+      .WillOnce(Return(true));
+
+  ASSERT_OK(LevelEditorTestPeer::RenderNavigator(*editor_));
+
+  EXPECT_EQ(LevelEditorTestPeer::GetSelectionType(*editor_), SelectionState::Type::kWorldLayer);
+  EXPECT_EQ(LevelEditorTestPeer::GetSelectedWorldLayerId(*editor_), 7);
+}
+
+// --- Toolbar: level persistence ---
+
+TEST_F(LevelEditorTest, RenderToolbarSaveLevelSuccessCallsUpdateAndRefreshes) {
+  LevelEditorTestPeer::SetEditingLevel(
+      *editor_, Level{.id = "a-id", .name = "Alpha", .width = 32, .height = 32});
+
+  EXPECT_CALL(*mock_level_panel_, RenderToolbar(_, _))
+      .WillOnce(Return(LevelPanelEvent{.action = LevelPanelAction::kSave}));
   EXPECT_CALL(*api_, UpdateLevel(_)).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(*api_, GetAllLevels()).WillOnce(Return(std::vector<Level>{}));
 
-  ASSERT_OK(LevelEditorTestPeer::RenderNavigator(*editor_));
+  ASSERT_OK(LevelEditorTestPeer::RenderToolbar(*editor_));
   EXPECT_FALSE(LevelEditorTestPeer::HasSaveError(*editor_));
 }
 
-TEST_F(LevelEditorTest, RenderNavigatorSaveLevelFailureDoesNotCallRefresh) {
-  LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "a-id", .name = "Alpha"});
+TEST_F(LevelEditorTest, RenderToolbarSaveLevelFailureDoesNotCallRefresh) {
+  LevelEditorTestPeer::SetEditingLevel(
+      *editor_, Level{.id = "a-id", .name = "Alpha", .width = 32, .height = 32});
 
-  EXPECT_CALL(gui_, Button(StrEq("Save Level"), _)).WillOnce(Return(true));
+  EXPECT_CALL(*mock_level_panel_, RenderToolbar(_, _))
+      .WillOnce(Return(LevelPanelEvent{.action = LevelPanelAction::kSave}));
   EXPECT_CALL(*api_, UpdateLevel(_)).WillOnce(Return(absl::InternalError("disk full")));
   EXPECT_CALL(*api_, GetAllLevels()).Times(0);
 
-  ASSERT_OK(LevelEditorTestPeer::RenderNavigator(*editor_));
+  ASSERT_OK(LevelEditorTestPeer::RenderToolbar(*editor_));
   EXPECT_TRUE(LevelEditorTestPeer::HasSaveError(*editor_));
 }
 
-// --- RenderNavigator: close level ---
+// --- Toolbar: close level ---
 
-TEST_F(LevelEditorTest, RenderNavigatorCloseLevelDelegatesListOnNextRender) {
+TEST_F(LevelEditorTest, RenderToolbarCloseLevelDelegatesListOnNextNavigatorRender) {
   LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "a-id", .name = "Alpha"});
 
-  // First render: Close Level pressed → level cleared.
-  EXPECT_CALL(gui_, Button(StrEq("Close Level"), _)).WillOnce(Return(true));
-  ASSERT_OK(LevelEditorTestPeer::RenderNavigator(*editor_));
+  EXPECT_CALL(*mock_level_panel_, RenderToolbar(_, _))
+      .WillOnce(Return(LevelPanelEvent{.action = LevelPanelAction::kClose}));
+  ASSERT_OK(LevelEditorTestPeer::RenderToolbar(*editor_));
 
-  // Second render: now no level is loaded and delegates to the list panel.
   EXPECT_CALL(*mock_level_panel_, RenderList(_)).WillOnce(Return(LevelPanelEvent{}));
   ASSERT_OK(LevelEditorTestPeer::RenderNavigator(*editor_));
+}
+
+TEST_F(LevelEditorTest, ReviewIssuesSelectsLevelSettings) {
+  LevelEditorTestPeer::SetEditingLevel(*editor_, Level{.id = "a-id", .name = "Alpha"});
+
+  ASSERT_OK(LevelEditorTestPeer::HandleLevelPanelEvent(
+      *editor_, LevelPanelEvent{.action = LevelPanelAction::kReviewIssues}));
+
+  EXPECT_EQ(LevelEditorTestPeer::GetSelectionType(*editor_), SelectionState::Type::kLevel);
 }
 
 // --- RenderInspector ---
@@ -302,6 +365,8 @@ TEST_F(LevelEditorTest, RenderInspectorRejectsInvalidBlueprintStateDuringResnap)
 TEST_F(LevelEditorTest, CreateEventPersistsDraftAndSelectsLevel) {
   LevelPanelModel& model = LevelEditorTestPeer::GetLevelModel(*editor_);
   model.BeginNewLevel();
+  model.active_level()->width = 32;
+  model.active_level()->height = 32;
   EXPECT_CALL(*api_, CreateLevel(_)).WillOnce(Return(std::string("new-id")));
   EXPECT_CALL(*api_, GetAllLevels()).WillOnce(Return(std::vector<Level>{}));
 

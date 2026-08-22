@@ -77,13 +77,13 @@ TEST_F(LevelPanelTest, RenderListUsesSafeLabelForEmptyLevelName) {
   EXPECT_OK(panel_->RenderList(model_));
 }
 
-TEST_F(LevelPanelTest, CreateBeginsDraftAndReportsPersistenceIntent) {
-  EXPECT_CALL(gui_, Button(StrEq("Create"), _)).WillOnce(Return(true));
+TEST_F(LevelPanelTest, NewLevelBeginsUnsavedDraftWithoutPersistenceIntent) {
+  EXPECT_CALL(gui_, Button(StrEq("New Level"), _)).WillOnce(Return(true));
 
   absl::StatusOr<LevelPanelEvent> event = panel_->RenderList(model_);
 
   ASSERT_OK(event);
-  EXPECT_EQ(event->action, LevelPanelAction::kCreate);
+  EXPECT_EQ(event->action, LevelPanelAction::kNew);
   ASSERT_NE(model_.active_level(), nullptr);
   EXPECT_TRUE(model_.is_new_level());
 }
@@ -101,33 +101,45 @@ TEST_F(LevelPanelTest, EditOpensSelectedCatalogLevel) {
   EXPECT_EQ(model_.active_level()->id, "alpha");
 }
 
-TEST_F(LevelPanelTest, SaveReportsIntentWithoutPersisting) {
+TEST_F(LevelPanelTest, ToolbarSaveReportsIntentWithoutPersisting) {
   model_.BeginEditingLevel(Level{.id = "alpha", .name = "Alpha"});
-  EXPECT_CALL(gui_, Button(StrEq("Save"), _)).WillOnce(Return(true));
+  EXPECT_CALL(gui_, Button(StrEq("Save Level"), _)).WillOnce(Return(true));
 
-  absl::StatusOr<LevelPanelEvent> event = panel_->RenderDetails(model_);
+  absl::StatusOr<LevelPanelEvent> event = panel_->RenderToolbar(model_, {});
 
   ASSERT_OK(event);
   EXPECT_EQ(event->action, LevelPanelAction::kSave);
   EXPECT_TRUE(model_.has_active_level());
 }
 
-TEST_F(LevelPanelTest, BackClosesActiveLevel) {
+TEST_F(LevelPanelTest, ToolbarClosesCleanActiveLevel) {
   model_.BeginEditingLevel(Level{.id = "alpha", .name = "Alpha"});
-  EXPECT_CALL(gui_, Button(StrEq("Back"), _)).WillOnce(Return(true));
+  EXPECT_CALL(gui_, Button(StrEq("Close Level"), _)).WillOnce(Return(true));
 
-  absl::StatusOr<LevelPanelEvent> event = panel_->RenderDetails(model_);
+  absl::StatusOr<LevelPanelEvent> event = panel_->RenderToolbar(model_, {});
 
   ASSERT_OK(event);
   EXPECT_EQ(event->action, LevelPanelAction::kClose);
   EXPECT_FALSE(model_.has_active_level());
 }
 
+TEST_F(LevelPanelTest, ToolbarRoutesBlockedSaveToIssueReview) {
+  model_.BeginEditingLevel(Level{.id = "alpha", .name = "Alpha"});
+  LevelAuthoringReadiness readiness{.save_blockers = {"Set a positive world size."}};
+  EXPECT_CALL(gui_, Button(StrEq("Save Level"), _)).WillOnce(Return(false));
+  EXPECT_CALL(gui_, Button(StrEq("Review 1 issue"), _)).WillOnce(Return(true));
+
+  absl::StatusOr<LevelPanelEvent> event = panel_->RenderToolbar(model_, readiness);
+
+  ASSERT_OK(event);
+  EXPECT_EQ(event->action, LevelPanelAction::kReviewIssues);
+}
+
 TEST_F(LevelPanelTest, TilesetComboPreviewsTheLevelsTilesetByName) {
   model_.SetTilesetChoices({{.id = "grass-uuid", .name = "Grass"}});
   model_.BeginEditingLevel(Level{.id = "alpha", .tileset_id = "grass-uuid"});
 
-  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Tileset"), StrEq("Grass"), _));
+  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("##level_tileset"), StrEq("Grass"), _));
 
   EXPECT_OK(panel_->RenderDetails(model_));
 }
@@ -136,7 +148,16 @@ TEST_F(LevelPanelTest, AnUnboundLevelPreviewsNone) {
   model_.SetTilesetChoices({{.id = "grass-uuid", .name = "Grass"}});
   model_.BeginEditingLevel(Level{.id = "alpha"});
 
-  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("Tileset"), StrEq("(none)"), _));
+  EXPECT_CALL(gui_, CreateScopedCombo(StrEq("##level_tileset"), StrEq("(none selected)"), _));
+
+  EXPECT_OK(panel_->RenderDetails(model_));
+}
+
+TEST_F(LevelPanelTest, LevelNameUsesAnEditableTextField) {
+  model_.BeginEditingLevel(Level{.id = "alpha", .name = "Cave"});
+
+  EXPECT_CALL(gui_, InputText(StrEq("##level_name"), An<std::string*>(), _, _, _))
+      .WillOnce(Return(false));
 
   EXPECT_OK(panel_->RenderDetails(model_));
 }
