@@ -18,6 +18,7 @@ class MigrateDefinitionsTest(unittest.TestCase):
     def setUp(self):
         self._temp = tempfile.TemporaryDirectory()
         self.root = Path(self._temp.name)
+        (self.root / "blueprints").mkdir()
         (self.root / "levels").mkdir()
         (self.root / "prop_recipes").mkdir()
         (self.root / "sprites").mkdir()
@@ -29,6 +30,56 @@ class MigrateDefinitionsTest(unittest.TestCase):
         path = self.root / "levels" / name
         path.write_text(json.dumps(document), encoding="utf-8")
         return path
+
+    def write_blueprint(self, name, document):
+        path = self.root / "blueprints" / name
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
+    def test_blueprint_states_gain_explicit_grounded_placement(self):
+        path = self.write_blueprint(
+            "crystal.json",
+            {
+                "id": "crystal",
+                "name": "Crystal",
+                "states": [
+                    {"name": "Idle", "collider_id": "", "sprite_id": "sprite"}
+                ],
+            },
+        )
+
+        changed = migrate_definitions.migrate_directory(
+            self.root, "blueprints", dry_run=False
+        )
+
+        self.assertEqual(changed, [path])
+        document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(document["states"][0]["placement_mode"], "grounded")
+
+    def test_authored_blueprint_placement_is_not_reinterpreted(self):
+        path = self.write_blueprint(
+            "lamp.json",
+            {
+                "id": "lamp",
+                "name": "Lamp",
+                "states": [
+                    {
+                        "name": "Idle",
+                        "collider_id": "",
+                        "sprite_id": "sprite",
+                        "placement_mode": "ceiling",
+                    }
+                ],
+            },
+        )
+        before = path.read_bytes()
+
+        changed = migrate_definitions.migrate_directory(
+            self.root, "blueprints", dry_run=False
+        )
+
+        self.assertEqual(changed, [])
+        self.assertEqual(path.read_bytes(), before)
 
     def write_tileset(self, name, document):
         path = self.root / "tilesets" / name

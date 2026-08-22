@@ -6,6 +6,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "common/status_macros.h"
+#include "editor/anchor_gizmo_renderer.h"
 #include "editor/animator.h"
 #include "editor/blueprint_editor/blueprint_panel.h"
 #include "editor/blueprint_editor/collider_panel.h"
@@ -186,6 +187,17 @@ absl::Status BlueprintEditor::RenderCanvas() {
 
   RETURN_IF_ERROR(
       collider_panel_->RenderCanvas(collider_model_, canvas_, /*input_allowed=*/true).status());
+
+  const std::optional<BlueprintPlacementMode> placement_mode =
+      blueprint_state_panel_->GetPlacementMode();
+  if (!placement_mode.has_value()) {
+    return absl::FailedPreconditionError("blueprint canvas has no active placement mode");
+  }
+  ImDrawList* draw_list = canvas_.GetDrawList();
+  if (draw_list == nullptr) {
+    return absl::FailedPreconditionError("blueprint canvas has no active draw list");
+  }
+  RETURN_IF_ERROR(DrawWorldAnchorGizmo(*draw_list, canvas_, {0, 0}, placement_mode));
 
   return absl::OkStatus();
 }

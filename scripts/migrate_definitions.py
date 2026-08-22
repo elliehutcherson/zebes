@@ -27,6 +27,17 @@ from pathlib import Path
 SPRITE_FRAME_DEFAULTS = {"offset_x": 0, "offset_y": 0}
 
 
+def migrate_blueprint(document: dict) -> bool:
+    """Makes the former implicit grounded placement mode explicit."""
+    changed = False
+    for state in document.get("states", []):
+        if "placement_mode" in state:
+            continue
+        state["placement_mode"] = "grounded"
+        changed = True
+    return changed
+
+
 def migrate_sprite(document: dict) -> bool:
     """Fills missing frame offsets. Returns whether anything changed."""
     changed = False
@@ -284,6 +295,7 @@ def migrate_prop_recipe(document: dict) -> bool:
 # file and one the editor re-saves must be byte-identical, or every later save
 # produces a whole-file diff that hides the real change.
 MIGRATIONS = {
+    "blueprints": (migrate_blueprint, 4),
     "levels": (migrate_level, 4),
     "prop_recipes": (migrate_prop_recipe, 2),
     "sprites": (migrate_sprite, 4),

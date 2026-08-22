@@ -24,6 +24,7 @@ target_link_libraries(blueprint_panel
 
 add_library(blueprint_state_panel blueprint_state_panel.cc)
 target_link_libraries(blueprint_state_panel
+  blueprint
   editor_utils
   ${IMGUI_LIBRARIES}
   absl::status
@@ -61,6 +62,7 @@ target_link_libraries(sprite_panel
 
 add_library(blueprint_editor blueprint_editor.cc)
 target_link_libraries(blueprint_editor
+  anchor_gizmo_renderer
   editor_animator
   editor_canvas
   blueprint_panel

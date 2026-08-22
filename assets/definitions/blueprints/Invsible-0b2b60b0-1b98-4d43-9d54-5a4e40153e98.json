@@ -5,6 +5,7 @@
         {
             "collider_id": "94a787f3-11c0-4064-88f1-ec177c4f1e7b",
             "name": "default",
+            "placement_mode": "grounded",
             "sprite_id": ""
         }
     ]

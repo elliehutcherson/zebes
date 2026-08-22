@@ -16,6 +16,8 @@ namespace {
 
 using ::testing::_;
 using ::testing::An;
+using ::testing::Contains;
+using ::testing::HasSubstr;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -70,7 +72,10 @@ class PropArtworkControlsPanelTest : public ::testing::Test {
   NiceMock<MockGui> gui_;
   std::unique_ptr<PropArtworkControlsPanel> panel_;
   PropArtworkEditorModel model_;
-  PropGenerationStatus generation_{.capabilities = {.maximum_candidates = 4}};
+  PropGenerationStatus generation_{
+      .providers = {{.name = "Stub", .available = true}},
+      .capabilities = {.maximum_candidates = 4},
+  };
 };
 
 TEST_F(PropArtworkControlsPanelTest, RefreshUsesTheCurrentTerrainRecipeSnapshot) {
@@ -172,6 +177,99 @@ TEST_F(PropArtworkControlsPanelTest, GenerateReportsTheIntentOnceAPromptExists) 
                        panel_->Render(model_, {}, {}, generation_));
 
   EXPECT_EQ(action, PropArtworkControlsPanel::Action::kGenerate);
+}
+
+TEST_F(PropArtworkControlsPanelTest, RendersLargeEditableGenerationPrompts) {
+  ON_CALL(gui_, GetTextLineHeightWithSpacing()).WillByDefault(Return(20.0f));
+
+  EXPECT_CALL(gui_, InputTextMultiline(testing::StrEq("##PropArtworkPrompt"), &model_.prompt(),
+                                       testing::Truly([](const ImVec2& size) {
+                                         return size.x == -1.0f && size.y == 100.0f;
+                                       }),
+                                       0, nullptr, nullptr));
+  EXPECT_CALL(gui_, InputTextMultiline(testing::StrEq("##PropArtworkSystemPrompt"),
+                                       &model_.generation_instructions(),
+                                       testing::Truly([](const ImVec2& size) {
+                                         return size.x == -1.0f && size.y == 140.0f;
+                                       }),
+                                       0, nullptr, nullptr));
+  EXPECT_CALL(gui_,
+              InputTextMultiline(testing::StrEq("##PropArtworkStyleGuidance"),
+                                 &model_.style_guidance(), testing::Truly([](const ImVec2& size) {
+                                   return size.x == -1.0f && size.y == 80.0f;
+                                 }),
+                                 0, nullptr, nullptr));
+
+  ASSERT_OK(panel_->Render(model_, {}, {}, generation_));
+  EXPECT_THAT(model_.generation_instructions(), HasSubstr("transparent background"));
+  EXPECT_THAT(model_.generation_instructions(), HasSubstr("Do not add scenery"));
+}
+
+TEST_F(PropArtworkControlsPanelTest, StylePresetPopulatesEditableGuidance) {
+  ON_CALL(gui_, BeginCombo(_, _, _))
+      .WillByDefault(Invoke([](const char* label, const char*, ImGuiComboFlags) {
+        return std::string(label) == "Style preset##PropArtworkGeneration";
+      }));
+  ON_CALL(gui_, Selectable(_, An<bool>(), _, _))
+      .WillByDefault(Invoke([](const char* label, bool, ImGuiSelectableFlags, const ImVec2&) {
+        return std::string(label) == "Retro exploration";
+      }));
+
+  ASSERT_OK(panel_->Render(model_, {}, {}, generation_));
+
+  EXPECT_EQ(model_.style_preset(), PropArtworkStylePreset::kRetroExploration);
+  EXPECT_THAT(model_.style_guidance(), HasSubstr("16-bit science-fiction exploration game art"));
+  EXPECT_THAT(model_.style_guidance(), HasSubstr("strong silhouette"));
+}
+
+TEST_F(PropArtworkControlsPanelTest, EditingPresetGuidanceSwitchesToCustom) {
+  model_.SetStylePreset(PropArtworkStylePreset::kCleanCartoon);
+  ON_CALL(gui_, InputTextMultiline(_, _, _, _, _, _))
+      .WillByDefault(Invoke([](const char* label, std::string* value, const ImVec2&,
+                               ImGuiInputTextFlags, ImGuiInputTextCallback, void*) {
+        if (std::string(label) != "##PropArtworkStyleGuidance") return false;
+        *value = "Ink-wash adventure game art with a restrained blue palette.";
+        return true;
+      }));
+
+  ASSERT_OK(panel_->Render(model_, {}, {}, generation_));
+
+  EXPECT_EQ(model_.style_preset(), PropArtworkStylePreset::kCustom);
+  EXPECT_EQ(model_.style_guidance(), "Ink-wash adventure game art with a restrained blue palette.");
+}
+
+TEST_F(PropArtworkControlsPanelTest, ProviderSelectionIsReturnedToTheEditor) {
+  generation_.providers.push_back({.name = "OpenAI API", .available = true});
+  ON_CALL(gui_, BeginCombo(_, _, _))
+      .WillByDefault(Invoke([](const char* label, const char*, ImGuiComboFlags) {
+        return std::string(label) == "Provider##PropArtworkGeneration";
+      }));
+  ON_CALL(gui_, Selectable(_, An<bool>(), _, _))
+      .WillByDefault(Invoke([](const char* label, bool, ImGuiSelectableFlags, const ImVec2&) {
+        return std::string(label) == "OpenAI API";
+      }));
+
+  ASSERT_OK_AND_ASSIGN(const PropArtworkControlsPanel::Action action,
+                       panel_->Render(model_, {}, {}, generation_));
+
+  EXPECT_EQ(action, PropArtworkControlsPanel::Action::kSelectGenerationProvider);
+  EXPECT_EQ(generation_.selected_provider, 1);
+}
+
+TEST_F(PropArtworkControlsPanelTest, UnavailableProviderDisablesGenerationAndExplainsWhy) {
+  generation_.providers[0] = {
+      .name = "Codex",
+      .available = false,
+      .unavailable_reason = "Codex has no active account",
+  };
+  model_.prompt() = "a mossy boulder";
+  ClickOnly("Generate##PropArtwork");
+
+  ASSERT_OK_AND_ASSIGN(const PropArtworkControlsPanel::Action action,
+                       panel_->Render(model_, {}, {}, generation_));
+
+  EXPECT_EQ(action, PropArtworkControlsPanel::Action::kNone);
+  EXPECT_THAT(gui_.wrapped_text(), Contains(HasSubstr("Codex has no active account")));
 }
 
 // A running request replaces the whole section, so the only thing a second

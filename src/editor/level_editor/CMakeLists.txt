@@ -63,7 +63,6 @@ add_library(viewport_model
 target_link_libraries(viewport_model
   PUBLIC
   blueprint
-  collider
   level
   sprite
   tileset
@@ -167,6 +166,7 @@ add_library(viewport_renderer
 )
 target_link_libraries(viewport_renderer
   PUBLIC
+  anchor_gizmo_renderer
   editor_canvas
   viewport_scene
   PRIVATE
@@ -200,6 +200,7 @@ target_link_libraries(level_editor
   palette_panel
   parallax_layout
   viewport_tab
+  viewport_model
   derived_terrain_session
   api
   ${IMGUI_LIBRARIES}
@@ -261,13 +262,28 @@ target_link_libraries(parallax_theme_panel
   level_selection_state
 )
 
+add_library(blueprint_palette_model
+  blueprint_palette_model.cc
+)
+
+target_link_libraries(blueprint_palette_model
+  PUBLIC
+  blueprint
+  absl::status
+  PRIVATE
+  absl::strings
+)
+
 add_library(blueprint_palette_panel
   blueprint_palette_panel.cc
 )
 
 target_link_libraries(blueprint_palette_panel
   api
+  blueprint_palette_model
+  editor_texture_preview
   imgui_scoped
+  palette_ui
   ${IMGUI_LIBRARIES}
   absl::status
   absl::memory
@@ -279,8 +295,27 @@ add_library(tile_palette_panel
   tile_palette_panel.cc
 )
 
+add_library(tileset_selector
+  tileset_selector.cc
+)
+
+target_link_libraries(tileset_selector
+  PUBLIC
+  api
+  absl::statusor
+  PRIVATE
+  gui_interface
+  imgui_scoped
+  status_macros
+  tileset
+  absl::status
+  absl::strings
+)
+
 target_link_libraries(tile_palette_panel
   api
+  palette_ui
+  tileset_selector
   tileset
   imgui_scoped
   ${IMGUI_LIBRARIES}
@@ -297,6 +332,8 @@ add_library(terrain_palette_panel
 
 target_link_libraries(terrain_palette_panel
   api
+  palette_ui
+  tileset_selector
   tileset
   tile_shape_geometry
   terrain_placement

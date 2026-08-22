@@ -4,35 +4,62 @@
 > [`roadmap.md`](roadmap.md) for sequencing and the linked feature design—such
 > as [`prop-artwork.md`](prop-artwork.md)—for durable decisions and TODOs.
 
-## Current: The subscription-backed Codex adapter is implemented
+## Current: Codex is selectable in the editor; live smoke remains
 
-As of 2026-08-19, the headless Codex App Server scheme is implemented through
-the production service boundary. The durable plan, settled constraints,
-completed milestones, and remaining editor-wiring work are in
+As of 2026-08-20, the headless Codex App Server scheme is implemented through
+the production editor UI. The durable plan, settled constraints, completed
+milestones, and remaining live verification are in
 [`codex-image-generation.md`](codex-image-generation.md).
 
 The implementation owns one lazily started `codex app-server --stdio` child,
 requires the active `chatgpt` account and enabled `imagegen` skill, strips
-`OPENAI_API_KEY`, rejects approval requests, confines ephemeral threads and
-their output to a private directory, and multiplexes requests through the
-existing `ImageGenerationEngine`. JSON and its exceptions exist only in the
-typed protocol translator. Session, operation, protocol-outcome, and transport
+`OPENAI_API_KEY`, rejects approval requests, confines ephemeral threads to a
+private directory, allowlists image results from that directory or Codex's
+managed `generated_images` cache, and multiplexes requests through the existing
+`ImageGenerationEngine`. JSON and its exceptions exist only in the typed
+protocol translator. Session, operation, protocol-outcome, and transport
 lifecycle variants make contradictory ownership and state combinations
 unrepresentable; ambiguous writes fail the whole shared session.
 
-Focused verification is green: 6 protocol tests, 2 real process-transport
-tests, 11 client tests, the affected service tests, the 4 deterministic Python
+Focused verification is green: 6 protocol tests, 3 real process-transport
+tests, 12 client tests, the affected service tests, the 4 deterministic Python
 probe tests, clang-tidy across the edited translation units, and the
 `editor_ui` target. No live generation was used for the final verification
 passes.
 
+`EditorUi` now composes Codex and OpenAI independently. The Generate source
+section offers both, prefers Codex, and disables providers that cannot be
+constructed or fail lazy authentication/configuration. Those failures never
+prevent editor startup, and the offline import path remains usable when both
+providers are unavailable.
+
+The editor now resolves Codex explicitly for macOS GUI launches, whose inherited
+`PATH` may differ from the shell: `ZEBES_CODEX_BIN`, then `PATH`, then
+installed OpenAI editor extensions. Generate source also exposes large
+multiline subject and system-instruction editors. The default editable
+instructions request one uncropped isolated prop without scenery or background
+content. A separate style preset selects among six game-art directions and
+populates editable Style guidance; manual edits switch the preset to Custom,
+and submission appends the guidance without replacing the isolation rules.
+
+Finished terrain-context previews now support left-dragging the prop without
+changing its recipe or prepared output. Grounded and ceiling props follow the
+terrain surface and free props move on both axes. The platform-neutral drag
+controller is shared with Level Editor entity movement, preserving the grab
+offset in both editors.
+
+The 2026-08-21 live editor run confirmed executable discovery, ChatGPT
+authentication, skill discovery, and real generation. It also showed that the
+App Server returns `savedPath` under `~/.codex/generated_images`, rather than
+the thread `cwd`. Production now allowlists that Codex-owned cache alongside
+the private workspace, retains all existing file and decode limits, and does
+not delete provider-owned cache files. Focused coverage passes; the corrected
+decode/review path still needs one live retry.
+
 ### Pick up here next
 
-`EditorUi` still calls `ImageGenerationService::CreateOpenAi`, so the new
-adapter is available through `ImageGenerationService::CreateCodex` but is not
-yet selected by the production composition root. Add explicit startup provider
-selection, make Codex the normal local-editor path, retain OpenAI as an opt-in
-alternative, and perform one manual end-to-end editor smoke test. After that,
+Relaunch and retry one Codex generation to confirm the corrected cache-path
+decode, then review, accept, discard, cancel, and shut down. After that,
 exercise shutdown during a live turn and add the Windows process transport if
 the provider must be supported there.
 

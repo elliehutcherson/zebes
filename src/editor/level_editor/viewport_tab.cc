@@ -18,7 +18,6 @@
 #include "editor/level_editor/viewport_model.h"
 #include "editor/level_editor/viewport_scene.h"
 #include "imgui.h"
-#include "objects/collider.h"
 #include "objects/sprite.h"
 #include "objects/texture.h"
 
@@ -37,20 +36,33 @@ const char* ParallaxPreviewModeLabel(ParallaxPreviewMode mode) {
   return "Unknown";
 }
 
+absl::StatusOr<std::optional<BlueprintPlacementMode>> ResolveEntityPlacementMode(
+    Api& api, const Entity& entity) {
+  if (entity.blueprint_id.empty()) return std::nullopt;
+  absl::StatusOr<Blueprint*> blueprint = api.GetBlueprint(entity.blueprint_id);
+  if (!blueprint.ok() || *blueprint == nullptr) return std::nullopt;
+  if (entity.blueprint_state_index < 0 ||
+      entity.blueprint_state_index >= (*blueprint)->states.size()) {
+    return absl::FailedPreconditionError("selected entity has an invalid blueprint state index");
+  }
+  const BlueprintPlacementMode mode =
+      (*blueprint)->states[entity.blueprint_state_index].placement_mode;
+  if (!IsValidBlueprintPlacementMode(mode)) {
+    return absl::FailedPreconditionError("selected entity has an invalid placement mode");
+  }
+  return mode;
+}
+
 }  // namespace
 
 absl::StatusOr<Vec> ViewportTab::SnapBlueprintToGrid(Vec mouse_world, const Blueprint& blueprint,
-                                                     const Sprite* sprite, int tile_render_w,
-                                                     int tile_render_h) const {
+                                                     int tile_render_w, int tile_render_h) const {
   if (!canvas_.GetSnap()) return mouse_world;
-
-  Collider* collider = nullptr;
-  std::optional<std::string> collider_id = blueprint.collider_id(0);
-  if (collider_id.has_value()) {
-    ASSIGN_OR_RETURN(collider, api_.GetCollider(*collider_id));
+  if (blueprint.states.empty()) {
+    return absl::InvalidArgumentError("snapped blueprint placement requires a state");
   }
-
-  return SnapEntityToGrid(mouse_world, tile_render_w, tile_render_h, collider, sprite);
+  return SnapBlueprintOriginToGrid(mouse_world, tile_render_w, tile_render_h,
+                                   blueprint.states.front().placement_mode);
 }
 
 ViewportTab::ViewportTab(Api& api, GuiInterface* gui, PreviewTextureSink* terrain_ghost)
@@ -193,11 +205,19 @@ absl::StatusOr<ViewportTab::RenderedScene> ViewportTab::RenderScene(
       RETURN_IF_ERROR(renderer_.RenderTiles(tile_batch));
     }
 
-    ASSIGN_OR_RETURN(std::vector<EntityRenderItem> entity_items,
-                     ComposeEntityRenderItems(layer.entities, rendered.scene.entity_sprites,
-                                              {.selected_entity_id = options.selected_entity_id,
-                                               .show_borders = options.show_entity_borders,
-                                               .overlay_opacity = options.entity_overlay_opacity}));
+    std::optional<BlueprintPlacementMode> selected_placement_mode;
+    auto selected_entity = layer.entities.find(options.selected_entity_id);
+    if (selected_entity != layer.entities.end()) {
+      ASSIGN_OR_RETURN(selected_placement_mode,
+                       ResolveEntityPlacementMode(api_, selected_entity->second));
+    }
+    ASSIGN_OR_RETURN(
+        std::vector<EntityRenderItem> entity_items,
+        ComposeEntityRenderItems(layer.entities, rendered.scene.entity_sprites,
+                                 {.selected_entity_id = options.selected_entity_id,
+                                  .show_borders = options.show_entity_borders,
+                                  .overlay_opacity = options.entity_overlay_opacity,
+                                  .selected_placement_mode = selected_placement_mode}));
     for (EntityRenderItem& item : entity_items) {
       if (item.overlay_opacity > 0.0f || item.show_border || item.selected) {
         rendered.scene.entity_overlays.push_back(item);
@@ -253,11 +273,14 @@ absl::StatusOr<ViewportTab::PlacementFrame> ViewportTab::RenderPlacementPreview(
   if (options.placement_blueprint == nullptr) return placement;
 
   ASSIGN_OR_RETURN(placement.sprite, ResolveBlueprintSprite(*options.placement_blueprint));
-  ASSIGN_OR_RETURN(
-      placement.interaction_world,
-      SnapBlueprintToGrid(mouse_world, *options.placement_blueprint, placement.sprite.sprite,
-                          level.tile_render_width, level.tile_render_height));
-  RETURN_IF_ERROR(RenderPlacementGhost(placement.interaction_world, placement.sprite));
+  ASSIGN_OR_RETURN(placement.interaction_world,
+                   SnapBlueprintToGrid(mouse_world, *options.placement_blueprint,
+                                       level.tile_render_width, level.tile_render_height));
+  if (options.placement_blueprint->states.empty()) {
+    return absl::InvalidArgumentError("blueprint placement preview requires a state");
+  }
+  RETURN_IF_ERROR(RenderPlacementGhost(placement.interaction_world, placement.sprite,
+                                       options.placement_blueprint->states.front().placement_mode));
   return placement;
 }
 
@@ -470,8 +493,10 @@ absl::Status ViewportTab::RenderLooseTerrainGhost(const RgbaImage& artwork, cons
   return absl::OkStatus();
 }
 
-absl::Status ViewportTab::RenderPlacementGhost(Vec world_pos, const ResolvedSprite& resolved) {
-  ASSIGN_OR_RETURN(EntityRenderItem item, ComposeEntityPlacementItem(world_pos, resolved));
+absl::Status ViewportTab::RenderPlacementGhost(Vec world_pos, const ResolvedSprite& resolved,
+                                               BlueprintPlacementMode placement_mode) {
+  ASSIGN_OR_RETURN(EntityRenderItem item,
+                   ComposeEntityPlacementItem(world_pos, resolved, placement_mode));
   return renderer_.RenderEntities(std::span<const EntityRenderItem>(&item, 1));
 }
 

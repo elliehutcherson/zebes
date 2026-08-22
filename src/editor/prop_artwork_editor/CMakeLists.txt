@@ -64,6 +64,7 @@ target_link_libraries(prop_artwork_output_panel
 add_library(prop_artwork_editor prop_artwork_editor.cc)
 target_link_libraries(prop_artwork_editor
   PUBLIC
+  anchor_gizmo_renderer
   api
   background_task
   camera

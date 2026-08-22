@@ -189,8 +189,8 @@ void SpritePanel::RenderFrameDetails() {
   gui_->Text("Frame Details");
 
   // Editable fields
-  gui_->InputInt("Offset X", &frame->offset_x);
-  gui_->InputInt("Offset Y", &frame->offset_y);
+  gui_->InputInt("Render Offset X", &frame->offset_x);
+  gui_->InputInt("Render Offset Y", &frame->offset_y);
 
   // Read-only fields
   {

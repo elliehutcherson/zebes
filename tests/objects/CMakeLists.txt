@@ -20,3 +20,8 @@ add_executable(level_test level_test.cc)
 target_link_libraries(level_test level macros gtest_main)
 target_include_directories(level_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(level_test)
+
+add_executable(sprite_test sprite_test.cc)
+target_link_libraries(sprite_test sprite gtest_main)
+target_include_directories(sprite_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(sprite_test)

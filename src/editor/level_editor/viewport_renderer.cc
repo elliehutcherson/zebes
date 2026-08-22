@@ -10,6 +10,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
+#include "editor/anchor_gizmo_renderer.h"
 #include "editor/canvas/tile_draw.h"
 #include "editor/level_editor/parallax_layout.h"
 #include "imgui.h"
@@ -95,6 +96,10 @@ absl::Status ViewportRenderer::RenderEntities(std::span<const EntityRenderItem> 
 
     if (item.mode == EntityRenderMode::kPlacementGhost) {
       draw_list->AddRect(screen_min, screen_max, IM_COL32(100, 200, 100, 220), 0.0f, 0, 2.0f);
+      if (item.show_origin) {
+        RETURN_IF_ERROR(
+            DrawWorldAnchorGizmo(*draw_list, canvas_, item.origin, item.placement_mode));
+      }
       continue;
     }
 
@@ -137,6 +142,9 @@ absl::Status ViewportRenderer::RenderEntityOverlays(std::span<const EntityRender
     }
     if (item.selected) {
       draw_list->AddRect(screen_min, screen_max, IM_COL32(255, 200, 0, 255), 0.0f, 0, 2.0f);
+    }
+    if (item.show_origin) {
+      RETURN_IF_ERROR(DrawWorldAnchorGizmo(*draw_list, canvas_, item.origin, item.placement_mode));
     }
   }
   return absl::OkStatus();

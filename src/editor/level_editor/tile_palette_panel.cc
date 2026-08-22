@@ -2,11 +2,10 @@
 
 #include <cmath>
 
-#include "absl/log/log.h"
 #include "absl/memory/memory.h"
-#include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "editor/imgui_scoped.h"
+#include "editor/palette_ui.h"
 #include "editor/texture_preview.h"
 #include "imgui.h"
 #include "objects/texture.h"
@@ -43,8 +42,7 @@ void DrawTileThumbnail(ImDrawList* dl, ImVec2 cursor, const Tile& tile, const At
                       IM_COL32(50, 100, 255, static_cast<uint8_t>(overlay_opacity * 255.0f)));
   }
 
-  if (is_hovered) dl->AddRect(cursor, btn_max, IM_COL32(200, 200, 200, 180), 0.0f, 0, 1.0f);
-  if (is_selected) dl->AddRect(cursor, btn_max, IM_COL32(60, 120, 255, 255), 0.0f, 0, 2.0f);
+  DrawPaletteItemFrame(*dl, cursor, btn_max, is_selected, is_hovered);
 }
 
 }  // namespace
@@ -64,17 +62,20 @@ TilePalettePanel::TilePalettePanel(Options options)
 
 absl::Status TilePalettePanel::HandleTileClick(int tile_id, bool is_selected) {
   if (is_selected) {
+    selected_tile_id_.reset();
     selected_tile_ = nullptr;
     return absl::OkStatus();
   }
-  ASSIGN_OR_RETURN(Tileset * ts, api_.GetTileset(selected_tileset_->id));
-  selected_tileset_ = ts;
-  for (Tile& t : ts->tiles) {
+  if (selected_tileset_ == nullptr) {
+    return absl::FailedPreconditionError("Cannot select a tile without a tileset.");
+  }
+  for (const Tile& t : selected_tileset_->tiles) {
     if (t.id != tile_id) continue;
+    selected_tile_id_ = tile_id;
     selected_tile_ = &t;
     return absl::OkStatus();
   }
-  return absl::OkStatus();
+  return absl::NotFoundError("Selected tile is missing from the active tileset.");
 }
 
 absl::Status TilePalettePanel::RenderTileGrid(const AtlasBinding& atlas, int tile_render_w,
@@ -90,8 +91,9 @@ absl::Status TilePalettePanel::RenderTileGrid(const AtlasBinding& atlas, int til
   const float render_max = static_cast<float>(std::max(tile_render_w, tile_render_h));
   const float thumb_w = kThumbnailSize * (static_cast<float>(tile_render_w) / render_max);
   const float thumb_h = kThumbnailSize * (static_cast<float>(tile_render_h) / render_max);
-  const float step_w = thumb_w + kThumbnailPad;
-  const int tiles_per_row = std::max(1, static_cast<int>(gui_->GetContentRegionAvail().x / step_w));
+  ASSIGN_OR_RETURN(
+      const PaletteGridLayout layout,
+      CalculatePaletteGridLayout(gui_->GetContentRegionAvail().x, thumb_w, kThumbnailPad));
 
   int col = 0;
   for (const Tile& tile : selected_tileset_->tiles) {
@@ -115,34 +117,30 @@ absl::Status TilePalettePanel::RenderTileGrid(const AtlasBinding& atlas, int til
     }
 
     ++col;
-    if (col % tiles_per_row != 0) {
+    if (layout.ContinueRowAfter(col)) {
       gui_->SameLine();
-    } else {
-      col = 0;
     }
   }
   return absl::OkStatus();
 }
 
 absl::Status TilePalettePanel::Render(int tile_render_width, int tile_render_height) {
-  std::vector<Tileset> tilesets = api_.GetAllTilesets();
-  const char* preview = (selected_tileset_ != nullptr) ? selected_tileset_->name.c_str() : "(none)";
+  ASSIGN_OR_RETURN(const TilesetSelectorResult selection,
+                   tileset_selector_.Render(api_, *gui_, "Tileset##tile_palette", "tileset_"));
+  selected_tileset_ = selection.tileset;
+  if (selection.selection_changed) {
+    selected_tile_id_.reset();
+    selected_tile_ = nullptr;
+  }
 
-  if (ScopedCombo combo = gui_->CreateScopedCombo("Tileset##tile_palette", preview); combo) {
-    for (const Tileset& ts : tilesets) {
-      bool is_selected = (selected_tileset_ != nullptr && selected_tileset_->id == ts.id);
-      const std::string label =
-          absl::StrCat(ts.name.empty() ? "(unnamed tileset)" : ts.name, "##tileset_", ts.id);
-      if (!gui_->Selectable(label.c_str(), is_selected)) continue;
-
-      absl::StatusOr<Tileset*> ts_ptr = api_.GetTileset(ts.id);
-      if (!ts_ptr.ok()) {
-        LOG(ERROR) << "Couldn't find tileset: " << ts.id;
-        continue;
-      }
-      selected_tileset_ = *ts_ptr;
-      selected_tile_ = nullptr;
+  selected_tile_ = nullptr;
+  if (selected_tileset_ != nullptr && selected_tile_id_.has_value()) {
+    for (const Tile& tile : selected_tileset_->tiles) {
+      if (tile.id != *selected_tile_id_) continue;
+      selected_tile_ = &tile;
+      break;
     }
+    if (selected_tile_ == nullptr) selected_tile_id_.reset();
   }
 
   gui_->SameLine();
@@ -152,7 +150,7 @@ absl::Status TilePalettePanel::Render(int tile_render_width, int tile_render_hei
   gui_->SliderFloat("Tile Overlay", &tile_overlay_opacity_, /*v_min=*/0.0f, /*v_max=*/1.0f);
 
   if (selected_tileset_ == nullptr) {
-    gui_->TextDisabled(tilesets.empty() ? "No tilesets loaded." : "Select a tileset above.");
+    gui_->TextDisabled(selection.catalog_empty ? "No tilesets loaded." : "Select a tileset above.");
     return absl::OkStatus();
   }
 

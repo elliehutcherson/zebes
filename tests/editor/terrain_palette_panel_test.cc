@@ -6,17 +6,18 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/tileset.h"
 #include "terrain/terrain_placement.h"
 #include "tests/api_mock.h"
 #include "tests/editor/mock_gui.h"
-#include "macros.h"
 
 namespace zebes {
 
 class TerrainPalettePanelTestPeer {
  public:
   static void SetSelectedTileset(TerrainPalettePanel& panel, const Tileset* tileset) {
+    panel.tileset_selector_.Select(tileset == nullptr ? "" : tileset->id);
     panel.selected_tileset_ = tileset;
   }
   // Drives the picker's state directly, since choosing from a combo takes more
@@ -132,6 +133,20 @@ TEST(TerrainPalettePanelCreateTest, FailsWithNullGui) {
 TEST_F(TerrainPalettePanelTest, NoTilesetsRendersWithNothingSelected) {
   ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{}));
 
+  ASSERT_OK(Render());
+  EXPECT_EQ(panel_->GetSelectedTileset(), nullptr);
+  EXPECT_FALSE(panel_->GetSelectedTerrainId().has_value());
+}
+
+TEST_F(TerrainPalettePanelTest, RemovedTilesetClearsItsTerrainSelection) {
+  tileset_.tiles = {Tile{.id = 7, .name = "grass_solid"}};
+  tileset_.terrains = {MakeTerrain(3, "Grass", 7)};
+  PreselectTileset();
+  EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
+  ASSERT_OK(Render());
+  ASSERT_TRUE(panel_->GetSelectedTerrainId().has_value());
+
+  ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{}));
   ASSERT_OK(Render());
   EXPECT_EQ(panel_->GetSelectedTileset(), nullptr);
   EXPECT_FALSE(panel_->GetSelectedTerrainId().has_value());

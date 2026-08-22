@@ -41,6 +41,37 @@ target_link_libraries(editor_utils
   absl::status
 )
 
+# Shared, platform-neutral editor gizmo geometry and its ImGui adapter.
+add_library(anchor_gizmo anchor_gizmo.cc)
+target_link_libraries(anchor_gizmo
+  PUBLIC
+  blueprint
+  absl::statusor
+  PRIVATE
+  absl::status
+)
+
+add_library(anchor_gizmo_renderer anchor_gizmo_renderer.cc)
+target_link_libraries(anchor_gizmo_renderer
+  PUBLIC
+  anchor_gizmo
+  editor_canvas
+  PRIVATE
+  status_macros
+  ${IMGUI_LIBRARIES}
+  absl::status
+)
+
+# Shared visual-palette layout and selection chrome.
+add_library(palette_ui palette_ui.cc)
+target_link_libraries(palette_ui
+  PUBLIC
+  absl::statusor
+  ${IMGUI_LIBRARIES}
+  PRIVATE
+  absl::status
+)
+
 # Animator
 add_library(editor_animator animator.cc)
 target_link_libraries(editor_animator
@@ -118,6 +149,7 @@ target_link_libraries(sprite_editor_model
 
 add_library(editor_sprite sprite_editor/sprite_editor.cc)
 target_link_libraries(editor_sprite
+  anchor_gizmo_renderer
   editor_animator
   sprite_editor_model
   sprite_panel

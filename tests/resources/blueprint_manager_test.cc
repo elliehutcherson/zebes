@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <fstream>
 
 #include "absl/status/status.h"
 #include "common/utils.h"
@@ -52,6 +53,7 @@ TEST_F(BlueprintManagerTest, CreateAndGetBlueprint) {
 
   EXPECT_EQ(loaded_blueprint->states[0].name, "idle");
   EXPECT_EQ(loaded_blueprint->states[0].collider_id, "idle-collider");
+  EXPECT_EQ(loaded_blueprint->states[0].placement_mode, BlueprintPlacementMode::kGrounded);
   EXPECT_EQ(loaded_blueprint->states[1].name, "run");
   EXPECT_EQ(loaded_blueprint->states[1].sprite_id, "run-sprite");
 
@@ -116,6 +118,38 @@ TEST_F(BlueprintManagerTest, ValidationLogic) {
   // Correction
   blueprint.states[0].name = "valid";
   EXPECT_OK(manager_->SaveBlueprint(blueprint));
+
+  blueprint.states[0].placement_mode = static_cast<BlueprintPlacementMode>(99);
+  EXPECT_EQ(manager_->SaveBlueprint(blueprint).code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST_F(BlueprintManagerTest, LoadRejectsStateWithoutPlacementMode) {
+  std::ofstream(test_dir_ + "/definitions/blueprints/missing-placement.json") << R"({
+  "id": "missing-placement",
+  "name": "Missing placement",
+  "states": [{"name": "Default", "collider_id": "", "sprite_id": "sprite"}]
+})";
+
+  const absl::Status status = manager_->LoadAllBlueprints();
+  EXPECT_EQ(status.code(), absl::StatusCode::kDataLoss);
+  EXPECT_NE(status.message().find("placement_mode"), std::string_view::npos);
+}
+
+TEST_F(BlueprintManagerTest, LoadRejectsUnknownPlacementMode) {
+  std::ofstream(test_dir_ + "/definitions/blueprints/unknown-placement.json") << R"({
+  "id": "unknown-placement",
+  "name": "Unknown placement",
+  "states": [{
+    "name": "Default",
+    "collider_id": "",
+    "sprite_id": "sprite",
+    "placement_mode": "wall"
+  }]
+})";
+
+  const absl::Status status = manager_->LoadAllBlueprints();
+  EXPECT_EQ(status.code(), absl::StatusCode::kDataLoss);
+  EXPECT_NE(status.message().find("unknown blueprint placement mode"), std::string_view::npos);
 }
 
 TEST_F(BlueprintManagerTest, DeleteBlueprint) {

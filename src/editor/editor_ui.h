@@ -67,10 +67,12 @@ class EditorUi {
   std::unique_ptr<SdlPreviewTexture> prop_artwork_preview_;
   std::unique_ptr<TilesetEditor> tileset_editor_;
   std::unique_ptr<TerrainEditor> terrain_editor_;
-  // Declared before the editor that submits to it, so the editor cancels its
-  // in-flight request while the engine is still running. Destroying the
-  // service first would join its thread with a request nobody has abandoned.
-  std::unique_ptr<ImageGenerationService> image_generation_;
+  // Declared before the editor that submits to either service, so the editor
+  // cancels its in-flight request while the selected engine is still running.
+  // Destroying the services first would join their threads with a request
+  // nobody has abandoned.
+  std::unique_ptr<ImageGenerationService> codex_image_generation_;
+  std::unique_ptr<ImageGenerationService> openai_image_generation_;
   std::unique_ptr<PropArtworkEditor> prop_artwork_editor_;
 
   bool show_debug_metrics_ = false;

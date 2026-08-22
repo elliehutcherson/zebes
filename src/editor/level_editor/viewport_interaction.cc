@@ -36,7 +36,8 @@ absl::Status ValidateInput(const Level& level, const ViewportInteractionInput& i
 
 void ViewportInteractionController::Reset() {
   next_entity_id_ = 1;
-  entity_drag_.reset();
+  dragged_entity_id_ = Entity::kInvalidId;
+  entity_drag_.Reset();
   last_painted_.reset();
 }
 
@@ -58,11 +59,13 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::Update(
   if (!input.primary_down && !input.secondary_down) last_painted_.reset();
 
   if (options.paint_terrain_id.has_value()) {
-    entity_drag_.reset();
+    dragged_entity_id_ = Entity::kInvalidId;
+    entity_drag_.Reset();
     return UpdateTerrain(level, layer, input, options);
   }
   if (options.paint_tile_id.has_value()) {
-    entity_drag_.reset();
+    dragged_entity_id_ = Entity::kInvalidId;
+    entity_drag_.Reset();
     return UpdateTile(level, layer, input, *options.paint_tile_id);
   }
   return UpdateEntity(level, layer, input, options);
@@ -148,7 +151,8 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateE
   }
 
   if (options.placement_blueprint != nullptr) {
-    entity_drag_.reset();
+    dragged_entity_id_ = Entity::kInvalidId;
+    entity_drag_.Reset();
     if (!input.primary_pressed || !input.pointer_in_level) return result;
 
     const bool blueprint_references_sprite = options.placement_blueprint->sprite_id(0).has_value();
@@ -178,21 +182,24 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateE
     return result;
   }
 
-  if (entity_drag_.has_value()) {
+  if (entity_drag_.active()) {
     if (!input.primary_down) {
-      entity_drag_.reset();
+      dragged_entity_id_ = Entity::kInvalidId;
+      entity_drag_.Reset();
       return result;
     }
 
-    auto entity = layer.entities.find(entity_drag_->entity_id);
+    auto entity = layer.entities.find(dragged_entity_id_);
     if (entity == layer.entities.end()) {
-      entity_drag_.reset();
+      dragged_entity_id_ = Entity::kInvalidId;
+      entity_drag_.Reset();
       return absl::FailedPreconditionError("dragged entity no longer exists");
     }
-    entity->second.transform.position = {
-        input.world_position.x - entity_drag_->pointer_offset.x,
-        input.world_position.y - entity_drag_->pointer_offset.y,
-    };
+    const std::optional<Vec> requested = entity_drag_.Update(input.world_position, true);
+    if (!requested.has_value()) {
+      return absl::InternalError("active entity drag did not produce a position");
+    }
+    entity->second.transform.position = *requested;
     return result;
   }
 
@@ -206,14 +213,8 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateE
   if (entity == layer.entities.end()) {
     return absl::InternalError("picked entity is missing from the level");
   }
-  entity_drag_ = EntityDrag{
-      .entity_id = picked,
-      .pointer_offset =
-          {
-              input.world_position.x - entity->second.transform.position.x,
-              input.world_position.y - entity->second.transform.position.y,
-          },
-  };
+  dragged_entity_id_ = picked;
+  entity_drag_.Begin(input.world_position, entity->second.transform.position);
   return result;
 }
 

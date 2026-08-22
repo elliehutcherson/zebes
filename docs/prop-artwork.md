@@ -423,6 +423,15 @@ Stage previews are ordinary `RgbaImage` values uploaded through
 `PreviewTextureSink`. The final view also composites the prop over a small scene
 rendered from the selected terrain style, with the tile grid and anchor visible.
 That in-context composition is preview-only and is never baked into the prop.
+The author can left-drag the prop around this scene. Grounded and ceiling props
+follow the nearest valid terrain surface; free/background props follow both
+pointer axes. The gesture changes only transient preview placement—level
+placement remains a Level Editor concern, and neither the recipe nor prepared
+artwork is mutated.
+
+Canvas-backed movement shares a platform-neutral pointer-drag controller with
+Level Editor entities. It preserves the original grab offset, while each caller
+continues to own picking, constraints, and durable state.
 
 ### Example: a background boulder in finished-only mode
 
@@ -582,8 +591,9 @@ status text. Normal shutdown discards a session-owned import; recovery of
 leftovers after a process crash remains Milestone 6. Remote cancellation is a
 Milestone 5 provider responsibility.
 
-After creation the blueprint appears in the existing Level Editor palette. To
-place a boulder behind ground or actors, put it in an earlier world layer. Its
+After creation the blueprint appears in the Level Editor's searchable
+thumbnail palette. To place a boulder behind ground or actors, put it in an
+earlier world layer. Its
 `sort_order` only orders it among entities in that same layer. This pipeline does
 not infer a world layer.
 
@@ -672,7 +682,8 @@ unfinished provider behavior.
    regeneration, Save As, and reference-safe deletion prove the entire durable
    pipeline without a network dependency. Shared `Canvas` navigation gives
    previews rulers, pan, zoom, and Fit, and context bounds retain the complete
-   texture.
+   texture. Context props can be dragged for preview-only placement using the
+   same pointer-offset gesture controller as Level Editor entities.
 4a. **Attachment modes (implemented).** Grounded and ceiling contacts, explicit
    free/background anchors, strict persistence and migration, matching context
    previews, sprite offsets, regeneration, and editor controls share one

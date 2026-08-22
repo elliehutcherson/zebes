@@ -6,6 +6,7 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/gui_interface.h"
+#include "editor/level_editor/tileset_selector.h"
 #include "editor/texture_preview.h"
 #include "objects/tileset.h"
 
@@ -67,8 +68,8 @@ class TerrainPalettePanel {
   GuiInterface* gui_;
   TexturePreviewRenderer texture_preview_;
 
-  // Stable pointer into the Api's tileset storage, matching how the tile
-  // palette holds its selection.
+  TilesetSelector tileset_selector_;
+  // Transient pointer resolved from the selector's stable ID each frame.
   const Tileset* selected_tileset_ = nullptr;
   std::optional<int> selected_terrain_id_;
   TileShape selected_shape_ = TileShape::kFullBlock;

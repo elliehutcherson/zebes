@@ -178,6 +178,12 @@ bool Gui::InputText(const char* label, std::string* str, ImGuiInputTextFlags fla
   return ImGui::InputText(label, str, flags, callback, user_data);
 }
 
+bool Gui::InputTextMultiline(const char* label, std::string* str, const ImVec2& size,
+                             ImGuiInputTextFlags flags, ImGuiInputTextCallback callback,
+                             void* user_data) {
+  return ImGui::InputTextMultiline(label, str, size, flags, callback, user_data);
+}
+
 bool Gui::InputInt(const char* label, int* v, int step, int step_fast, ImGuiInputTextFlags flags) {
   return ImGui::InputInt(label, v, step, step_fast, flags);
 }

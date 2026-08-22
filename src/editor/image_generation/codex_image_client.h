@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/status/statusor.h"
@@ -13,6 +15,9 @@ namespace zebes {
 
 struct CodexImageConfig {
   CodexAppServerProcessConfig process;
+  // Trusted provider-owned image cache. When unset, this resolves from
+  // CODEX_HOME (or HOME/.codex) to match the App Server child environment.
+  std::optional<std::filesystem::path> generated_images_directory;
   std::string model = "codex-imagegen";
   int64_t maximum_candidate_bytes = 64 * 1024 * 1024;
   int64_t maximum_candidate_pixels = 4096 * 4096;
@@ -28,7 +33,8 @@ struct CodexImageConfig {
 // The adapter accepts only ChatGPT-authenticated Codex sessions and strips
 // OPENAI_API_KEY in the process transport. It grants no approvals, confines
 // each ephemeral Codex thread to the transport's private working directory,
-// and returns only decoded Zebes image types across the provider boundary.
+// accepts files only from that directory or Codex's generated-image cache, and
+// returns only decoded Zebes image types across the provider boundary.
 class CodexImageClient final : public ImageGenerationClient {
  public:
   static absl::StatusOr<std::unique_ptr<CodexImageClient>> Create(CodexImageConfig config);

@@ -5,6 +5,7 @@
         {
             "collider_id": "",
             "name": "Grass2",
+            "placement_mode": "grounded",
             "sprite_id": "b008d3de-2ac0-4450-97d2-60d75e0552aa"
         }
     ]

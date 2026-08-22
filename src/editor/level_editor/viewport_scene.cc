@@ -94,7 +94,10 @@ absl::StatusOr<EntityRenderItem> ComposeEntityRenderItem(uint64_t entity_id, con
       .overlay_opacity = options.overlay_opacity,
       .show_border = options.show_borders,
       .selected = entity_id == options.selected_entity_id,
+      .origin = entity.transform.position,
   };
+  item.show_origin = item.selected;
+  if (item.selected) item.placement_mode = options.selected_placement_mode;
 
   const Sprite* sprite = resolved.sprite;
   ASSIGN_OR_RETURN(item.bounds, CalculateEntityBounds(entity, sprite));
@@ -154,7 +157,8 @@ absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
 }
 
 absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
-                                                            const ResolvedSprite& resolved) {
+                                                            const ResolvedSprite& resolved,
+                                                            BlueprintPlacementMode placement_mode) {
   if (!std::isfinite(world_position.x) || !std::isfinite(world_position.y)) {
     return absl::InvalidArgumentError("entity placement position must be finite");
   }
@@ -162,13 +166,20 @@ absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
     return absl::FailedPreconditionError(
         "entity placement sprite requires a frame and texture resource");
   }
+  if (!IsValidBlueprintPlacementMode(placement_mode)) {
+    return absl::InvalidArgumentError("entity placement mode is invalid");
+  }
 
   Entity entity{
       .id = Entity::kInvalidId,
       .transform = {.position = world_position},
   };
-  return ComposeEntityRenderItem(Entity::kInvalidId, entity, resolved,
-                                 EntityRenderMode::kPlacementGhost, {});
+  ASSIGN_OR_RETURN(EntityRenderItem item,
+                   ComposeEntityRenderItem(Entity::kInvalidId, entity, resolved,
+                                           EntityRenderMode::kPlacementGhost, {}));
+  item.show_origin = true;
+  item.placement_mode = placement_mode;
+  return item;
 }
 
 absl::StatusOr<std::vector<ZoneGizmoItem>> ComposeZoneGizmoItems(

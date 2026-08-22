@@ -194,20 +194,18 @@ absl::StatusOr<AnimationPreviewLayout> SpriteEditorModel::CalculateAnimationPrev
   int64_t bottom = 0;
   bool has_renderable_frame = false;
   for (const SpriteFrame& frame : frames) {
-    if (frame.render_w <= 0 || frame.render_h <= 0) continue;
+    const SpriteFrameRenderBounds frame_bounds = CalculateSpriteFrameRenderBounds(frame);
+    if (!frame_bounds.IsValid()) continue;
     has_renderable_frame = true;
-    const int64_t frame_left = frame.offset_x;
-    const int64_t frame_top = frame.offset_y;
-    const int64_t frame_right = frame_left + frame.render_w;
-    const int64_t frame_bottom = frame_top + frame.render_h;
-    left = std::min(left, frame_left);
-    top = std::min(top, frame_top);
-    right = std::max(right, frame_right);
-    bottom = std::max(bottom, frame_bottom);
+    left = std::min(left, frame_bounds.left);
+    top = std::min(top, frame_bounds.top);
+    right = std::max(right, frame_bounds.right);
+    bottom = std::max(bottom, frame_bounds.bottom);
   }
 
   const SpriteFrame& current_frame = frames[current_frame_index];
-  if (!has_renderable_frame || current_frame.render_w <= 0 || current_frame.render_h <= 0) {
+  const SpriteFrameRenderBounds current_bounds = CalculateSpriteFrameRenderBounds(current_frame);
+  if (!has_renderable_frame || !current_bounds.IsValid()) {
     return absl::InvalidArgumentError("Animation frame dimensions must be positive");
   }
 
@@ -224,10 +222,10 @@ absl::StatusOr<AnimationPreviewLayout> SpriteEditorModel::CalculateAnimationPrev
       .scale = scale,
       .canvas_width = static_cast<float>(bounds_width) * scale,
       .canvas_height = static_cast<float>(bounds_height) * scale,
-      .frame_x = static_cast<float>(static_cast<int64_t>(current_frame.offset_x) - left) * scale,
-      .frame_y = static_cast<float>(static_cast<int64_t>(current_frame.offset_y) - top) * scale,
-      .frame_width = static_cast<float>(current_frame.render_w) * scale,
-      .frame_height = static_cast<float>(current_frame.render_h) * scale,
+      .frame_x = static_cast<float>(current_bounds.left - left) * scale,
+      .frame_y = static_cast<float>(current_bounds.top - top) * scale,
+      .frame_width = static_cast<float>(current_bounds.right - current_bounds.left) * scale,
+      .frame_height = static_cast<float>(current_bounds.bottom - current_bounds.top) * scale,
   };
 }
 

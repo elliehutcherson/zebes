@@ -51,8 +51,7 @@ class MockGui : public GuiInterface {
   MOCK_METHOD(void, EndCombo, (), (override));
   MOCK_METHOD(void, BeginGroup, (), (override));
   MOCK_METHOD(void, EndGroup, (), (override));
-  MOCK_METHOD(bool, BeginPopupContextItem,
-              (const char* str_id, ImGuiPopupFlags flags), (override));
+  MOCK_METHOD(bool, BeginPopupContextItem, (const char* str_id, ImGuiPopupFlags flags), (override));
   MOCK_METHOD(void, EndPopup, (), (override));
   MOCK_METHOD(bool, MenuItem,
               (const char* label, const char* shortcut, bool selected, bool enabled), (override));
@@ -140,6 +139,10 @@ class MockGui : public GuiInterface {
               (override));
   MOCK_METHOD(bool, InputText,
               (const char* label, std::string* str, ImGuiInputTextFlags flags,
+               ImGuiInputTextCallback callback, void* user_data),
+              (override));
+  MOCK_METHOD(bool, InputTextMultiline,
+              (const char* label, std::string* str, const ImVec2& size, ImGuiInputTextFlags flags,
                ImGuiInputTextCallback callback, void* user_data),
               (override));
   MOCK_METHOD(bool, InputInt,

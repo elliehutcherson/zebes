@@ -266,10 +266,22 @@ one entity-bounds calculation so invisible and textured entities do not acquire
 different interaction geometry.
 
 Blueprint placement previews use the same entity render description and native
-renderer path as persistent entities, with an explicit placement mode selecting
-their translucent presentation. A blueprint without a sprite is a valid
-placeholder; a referenced sprite with no frame or managed texture is invalid and
-stops the render pass instead of silently changing appearance.
+renderer path as persistent entities. Each blueprint state owns an explicit
+placement mode: grid snapping maps the entity origin to the hovered tile's
+bottom-center for grounded, top-center for ceiling, or center for free
+placement. Sprite render bounds and collider bounds never feed back into that
+origin calculation because both are already authored relative to the origin;
+therefore adjusting a sprite render offset remains visible in the Level Editor.
+The preview and committed entity share the resulting origin. A blueprint
+without a sprite is a valid placeholder; a referenced sprite with no frame or
+managed texture is invalid and stops the render pass instead of silently
+changing appearance.
+
+Existing entities are never moved implicitly when placement semantics change;
+their saved coordinates may contain intentional composition. The entity
+inspector instead offers an explicit resnap operation that maps the current
+origin to the nearest valid placement anchor. This uses an anchor lattice, not
+the pointer's containing cell, so resnapping is idempotent.
 
 World-layer tiles follow the same boundary. `ViewportScene` culls offscreen chunks
 before scanning their cells and emits a `TileRenderBatch` containing one opaque
@@ -311,6 +323,29 @@ tile and terrain palettes sampling individual atlas cells, request an
 `AtlasBinding` instead: the renderer still performs every SDL query and hands
 back only an ImGui texture ID plus native dimensions. Panels and domain models
 never receive `SDL_Texture*` values.
+
+The Level Editor blueprint palette is a searchable, deterministically sorted
+thumbnail grid rather than a name strip. Its platform-neutral model owns the
+filter and stable blueprint-ID selection; the panel resolves the selected ID
+through the resource API instead of retaining a pointer across catalogue
+refreshes. Each card previews the first state's first sprite frame through
+`AtlasBinding`, matching the state used for placement. A blueprint with no
+previewable artwork remains selectable through an explicit placeholder, so
+incomplete authoring data cannot hide an asset from the catalogue. Blueprint,
+tile, and terrain palettes share the same thumbnail-grid layout and item-frame
+presentation helpers. Tile and terrain palettes also share one tileset selector
+whose authoritative state is a stable resource ID; it resolves a transient
+resource pointer each frame and clears dependent brush selection if that
+tileset disappears or changes.
+
+Entity origins and their attachment surfaces use one platform-neutral anchor
+gizmo geometry calculation. A thin ImGui adapter renders that geometry in the
+Blueprint, Level, Prop Artwork, and Sprite editors. The Blueprint Editor always
+shows the origin; the Level Editor shows it for placement ghosts and selected
+entities. Grounded and ceiling modes add a directional surface bracket, while
+free or unresolved modes show only the origin cross. Gizmo geometry is constant
+in screen space and does not participate in authored coordinates, picking, or
+snapping.
 
 ## Terrain
 
@@ -565,6 +600,14 @@ or the prop bundle is removed. Runtime texture, sprite, and blueprint
 definitions remain ordinary engine assets; neither authoring resource enters
 runtime rendering.
 
+In-context prop placement is transient editor state. Its preview retains an
+unmodified terrain layer and recomposites the finished prop while it is
+dragged; grounded and ceiling movement resolves against terrain alpha, while
+free movement follows both axes. The recipe and prepared artwork never receive
+this scene position. A platform-neutral `PointerDragController` owns the
+no-jump grab offset for both this interaction and Level Editor entity dragging;
+the callers retain picking, constraints, object identity, and persistence.
+
 Remote image generation uses editor-owned, platform-neutral request contracts.
 `ImageGenerationClient` validates requested capabilities before an adapter can
 start work and returns an RAII request that is polled without blocking and
@@ -603,14 +646,38 @@ handle per request, verified HTTPS without redirects, receive-time byte limits,
 and immediate handle removal on cancellation. It requires libcurl's
 asynchronous DNS feature so a first poll cannot block on name resolution.
 
-`ImageGenerationService` is where that stack is assembled and the only thing
-that starts or stops it. It owns the transport, the credential source, the
-adapter, the engine, its `EngineRunner`, and the `BlockingCallbackThread` the
-runner blocks on, in that order, so each outlives what borrows it; destruction
-stops the runner before joining. `EditorUi` owns one for the process and hands
-`PropArtworkEditor` nothing but the engine reference, declared before the
-editor so the editor abandons its in-flight request while the engine still
-runs. Editors submit and drain; they never see the transport or the credential.
+`ImageGenerationService` is where one provider stack is assembled and the only
+thing that starts or stops it. It owns the transport, the credential source,
+the adapter, the engine, its `EngineRunner`, and the `BlockingCallbackThread`
+the runner blocks on, in that order, so each outlives what borrows it;
+destruction stops the runner before joining. `EditorUi` independently composes
+Codex and OpenAI services and hands `PropArtworkEditor` provider-neutral names,
+availability, and engine references. The services are declared before the
+editor so it abandons its in-flight request while the selected engine still
+runs. Editors submit and drain; they never see a transport or credential.
+
+Provider construction and authentication are optional capabilities, not editor
+invariants. A provider that cannot be composed is disabled immediately; a
+missing credential, ChatGPT login, or enabled skill discovered on first use
+also disables that provider with its reason retained for the UI. The offline
+import and processing path stays available. Contradictory provider entries
+still fail construction: each has exactly one of an engine or an unavailable
+reason.
+
+Codex executable discovery happens while its provider is composed. It prefers
+the explicit `ZEBES_CODEX_BIN` path, then `PATH`, then known macOS OpenAI
+editor-extension locations; the child process itself remains lazy. Subject and
+editable system prompts remain provider-neutral editor state. Codex maps the
+editable prompt into its ephemeral thread's developer instructions. The Images
+endpoint has no equivalent role, so the OpenAI adapter composes it ahead of the
+subject request. Stable accepted-source provenance retains the user's subject
+prompt.
+
+Optional prop-art style presets populate a separate editable guidance draft.
+The editor appends non-empty guidance under an `Art direction:` heading at
+submission time. Keeping it separate prevents preset selection from mutating
+the user-editable isolation and background requirements; direct edits mark the
+style as Custom.
 
 The subscription-backed Codex adapter preserves the same boundary without an
 HTTP credential. It owns one lazily started `codex app-server` child, speaks
@@ -633,9 +700,13 @@ and stopped states. Only the running state owns the child identity and its
 move-only pipe descriptors, so stopped and never-started transports cannot
 retain live process resources.
 The child receives no API key, approval requests are rejected, and every
-ephemeral thread is confined to a private temporary directory. Generated files
-are bounded, decoded into `RgbaImage`, and removed before provider data crosses
-into editor state.
+ephemeral thread is confined to a private temporary directory. The App
+Server's image tool returns files from the active Codex home's
+`generated_images` cache even for those threads, so the adapter allowlists
+exactly the private directory and that cache. It canonicalizes paths, rejects
+symlinks and non-regular files, and applies byte and decoded-pixel limits.
+Zebes removes only private-directory files it owns; Codex manages its cache.
+Only decoded `RgbaImage` data crosses into editor state.
 
 Generated and imported prop sources converge at one boundary. A finished
 generation is held as a review — provider, model, submitted prompt, request id,
@@ -712,6 +783,12 @@ It is now complete: `src/objects/` includes only Abseil and its own headers, so
 - `Texture` and `Sprite` carry an identity and reference their artwork by path
   or ID. The GPU handle lives in the texture store and is fetched through
   `Api::GetTextureHandle`.
+- An entity transform places its sprite origin in world space. Each
+  `SpriteFrame` then places its rendered top-left corner relative to that origin
+  with `offset_x` and `offset_y`; therefore `rendered_position = entity_origin +
+  frame_render_offset`. Atlas coordinates only select pixels and never change
+  world geometry. The serialized offset names remain stable, while editor UI
+  calls them render offsets to distinguish them from placement and collision.
 - `Entity` references its sprite and collider by ID. Rendering and picking
   resolve those once per frame into a `SpriteLookup` — a map to `ResolvedSprite`,
   which pairs the definition with its handle — and pass the result explicitly,

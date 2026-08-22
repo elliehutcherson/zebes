@@ -8,7 +8,6 @@
 #include "absl/status/statusor.h"
 #include "engine/texture_handle.h"
 #include "objects/blueprint.h"
-#include "objects/collider.h"
 #include "objects/entity.h"
 #include "objects/level.h"
 #include "objects/sprite.h"
@@ -118,9 +117,20 @@ struct PaletteBinding {
 // a palette swatch can never silently repoint a level.
 PaletteBinding ResolvePaletteBinding(const Level& level, const PaletteSelection& selection);
 
-// Centers an entity horizontally within the hovered tile and bottom-aligns
-// its collider or sprite bounds. Collider geometry takes priority.
-absl::StatusOr<Vec> SnapEntityToGrid(Vec mouse_world, int tile_render_w, int tile_render_h,
-                                     const Collider* collider, const Sprite* sprite);
+// Maps the blueprint's authored origin to the attachment point of the hovered
+// tile: bottom-center for grounded, top-center for ceiling, and center for
+// free placement. Sprite and collider bounds deliberately do not participate;
+// both are already authored relative to this origin.
+absl::StatusOr<Vec> SnapBlueprintOriginToGrid(Vec mouse_world, int tile_render_w, int tile_render_h,
+                                              BlueprintPlacementMode placement_mode);
+
+// Moves an existing authored origin to the nearest valid anchor for its
+// placement mode. Unlike pointer placement, this considers the anchor lattice
+// rather than a containing cell, so applying it repeatedly is idempotent.
+// Grounded and ceiling origins lie on horizontal grid lines; free origins lie
+// at cell centers. Every mode uses a cell-centered X coordinate.
+absl::StatusOr<Vec> SnapBlueprintOriginToNearestGridAnchor(Vec origin, int tile_render_w,
+                                                           int tile_render_h,
+                                                           BlueprintPlacementMode placement_mode);
 
 }  // namespace zebes

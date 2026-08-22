@@ -52,6 +52,19 @@ std::string PropTexturePath(std::string_view texture_id) {
 
 }  // namespace
 
+absl::StatusOr<BlueprintPlacementMode> BlueprintPlacementModeForAttachment(
+    PropAttachmentMode mode) {
+  switch (mode) {
+    case PropAttachmentMode::kGrounded:
+      return BlueprintPlacementMode::kGrounded;
+    case PropAttachmentMode::kCeiling:
+      return BlueprintPlacementMode::kCeiling;
+    case PropAttachmentMode::kFree:
+      return BlueprintPlacementMode::kFree;
+  }
+  return absl::InvalidArgumentError("prop attachment mode cannot initialize blueprint placement");
+}
+
 absl::StatusOr<PreparedPropAsset> PreparePropAsset(const SourceArtwork& source,
                                                    const RgbaImage& source_pixels,
                                                    const PreparePropAssetRequest& request) {
@@ -72,6 +85,9 @@ absl::StatusOr<PreparedPropAsset> PreparePropAsset(const SourceArtwork& source,
                    RunPropArtworkPipeline(source_pixels, request.style, request.pipeline));
   const RgbaImage& finished = artwork.finished.image;
   ASSIGN_OR_RETURN(const std::string final_digest, RgbaImageDigest(finished));
+  ASSIGN_OR_RETURN(
+      const BlueprintPlacementMode placement_mode,
+      BlueprintPlacementModeForAttachment(request.pipeline.composition.attachment.mode));
 
   const SpriteFrame frame = {
       .index = 0,
@@ -110,6 +126,7 @@ absl::StatusOr<PreparedPropAsset> PreparePropAsset(const SourceArtwork& source,
                   .name = "Default",
                   .collider_id = "",
                   .sprite_id = request.ids.sprite_id,
+                  .placement_mode = placement_mode,
               }},
           },
       .recipe =
@@ -175,6 +192,13 @@ absl::Status ValidatePreparedPropAsset(const PreparedPropAsset& prepared) {
       !prepared.blueprint.states.front().collider_id.empty() ||
       prepared.blueprint.states.front().sprite_id != prepared.sprite.id) {
     return absl::InvalidArgumentError("prepared prop blueprint definition is inconsistent");
+  }
+  ASSIGN_OR_RETURN(
+      const BlueprintPlacementMode expected_placement,
+      BlueprintPlacementModeForAttachment(prepared.recipe.pipeline.composition.attachment.mode));
+  if (prepared.blueprint.states.front().placement_mode != expected_placement) {
+    return absl::InvalidArgumentError(
+        "prepared prop blueprint placement does not match its artwork attachment");
   }
   if (prepared.recipe.source_artwork_id != prepared.source.id ||
       prepared.recipe.texture_id != prepared.texture.id ||

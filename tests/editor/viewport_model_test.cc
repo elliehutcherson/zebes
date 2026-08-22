@@ -8,6 +8,25 @@
 namespace zebes {
 namespace {
 
+TEST(CalculateEntityBoundsTest, RenderOffsetMovesArtworkWithoutChangingEntityOrigin) {
+  const Entity entity{.transform = {.position = {100, 200}}, .sprite_id = "sprite"};
+  Sprite sprite{
+      .frames = {SpriteFrame{.render_w = 32, .render_h = 64, .offset_x = -16, .offset_y = -56}},
+  };
+
+  absl::StatusOr<WorldRect> original = CalculateEntityBounds(entity, &sprite);
+  ASSERT_OK(original);
+  EXPECT_EQ(original->min, (Vec{84, 144}));
+  EXPECT_EQ(original->max, (Vec{116, 208}));
+
+  sprite.frames.front().offset_y = -52;
+  absl::StatusOr<WorldRect> moved = CalculateEntityBounds(entity, &sprite);
+  ASSERT_OK(moved);
+  EXPECT_EQ(moved->min, (Vec{84, 148}));
+  EXPECT_EQ(moved->max, (Vec{116, 212}));
+  EXPECT_EQ(entity.transform.position, (Vec{100, 200}));
+}
+
 TEST(ResolvePaletteBindingTest, NoPaletteSelectionLeavesTheBindingAlone) {
   Level level;
   level.tileset_id = "sunny";

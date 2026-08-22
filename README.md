@@ -126,8 +126,18 @@ the optimized editor.
 
 ## Credentials
 
-Prop artwork generation calls a remote image provider and needs an API key. The
-editor runs without one; only the Generate control fails, as `Unauthenticated`.
+The Prop Artwork tab offers two image-generation providers. Codex (ChatGPT) is
+selected first and uses the active Codex ChatGPT login plus the enabled
+`imagegen` skill; it does not use `OPENAI_API_KEY`. OpenAI API is the explicit
+alternative and requires that environment variable.
+
+The editor resolves `codex` from `ZEBES_CODEX_BIN`, then `PATH`, then known
+macOS OpenAI editor-extension locations. Set `ZEBES_CODEX_BIN` to an absolute
+executable path if a GUI launch cannot inherit the shell path.
+
+The editor does not require either provider. An unavailable provider is
+disabled with its reason shown in the Generate source section, while imported
+PNG sources and the rest of the editor continue to work.
 
 Copy the template, fill it in, and source it into the shell that launches the
 editor:
@@ -139,8 +149,8 @@ set -a; source secrets.env; set +a
 ```
 
 `secrets.env` is gitignored. Nothing loads it automatically — credentials reach
-the adapter through environment variables only, so a key that is not sourced is
-a missing key, never a default.
+the OpenAI API adapter through environment variables only, so a key that is not
+sourced is a missing key, never a default.
 
 ### The opt-in live provider test
 

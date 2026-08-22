@@ -44,7 +44,23 @@ if(BUILD_UI_TESTING)
   target_include_directories(sprite_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
   add_test(NAME sprite_panel_test COMMAND sprite_panel_test)
 
-  set_tests_properties(sanity_test sprite_panel_test PROPERTIES LABELS "ui")
+  add_executable(blueprint_palette_ui_test blueprint_palette_ui_test.cc)
+  target_link_libraries(blueprint_palette_ui_test
+    editor_test_main
+    anchor_gizmo_renderer
+    blueprint_palette_panel
+    editor_gui
+    viewport_model
+    api
+    gmock
+    absl::flags
+    absl::flags_parse
+  )
+  target_include_directories(blueprint_palette_ui_test PRIVATE ${CMAKE_SOURCE_DIR})
+  add_test(NAME blueprint_palette_ui_test COMMAND blueprint_palette_ui_test)
+
+  set_tests_properties(sanity_test sprite_panel_test blueprint_palette_ui_test
+    PROPERTIES LABELS "ui")
 endif()
 
 
@@ -60,6 +76,17 @@ gtest_discover_tests(collider_panel_model_test)
 add_executable(blueprint_panel_model_test blueprint_panel_model_test.cc)
 target_link_libraries(blueprint_panel_model_test blueprint_panel_model gtest_main)
 gtest_discover_tests(blueprint_panel_model_test)
+
+add_executable(blueprint_state_panel_test blueprint_state_panel_test.cc)
+target_link_libraries(blueprint_state_panel_test
+  blueprint_state_panel
+  gui_mock
+  macros
+  gtest_main
+  gmock
+)
+target_include_directories(blueprint_state_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(blueprint_state_panel_test)
 
 add_executable(texture_editor_model_test texture_editor_model_test.cc)
 target_link_libraries(texture_editor_model_test texture_editor_model gtest_main)
@@ -346,6 +373,33 @@ target_include_directories(parallax_zone_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_zone_panel_test COMMAND parallax_zone_panel_test)
 
 # --- Blueprint Palette Panel Test ---
+add_executable(anchor_gizmo_test anchor_gizmo_test.cc)
+target_link_libraries(anchor_gizmo_test
+  anchor_gizmo
+  gtest_main
+  macros
+)
+target_include_directories(anchor_gizmo_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(anchor_gizmo_test)
+
+add_executable(palette_ui_test palette_ui_test.cc)
+target_link_libraries(palette_ui_test
+  palette_ui
+  gtest_main
+  macros
+)
+target_include_directories(palette_ui_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(palette_ui_test)
+
+add_executable(blueprint_palette_model_test blueprint_palette_model_test.cc)
+target_link_libraries(blueprint_palette_model_test
+  blueprint_palette_model
+  gtest_main
+  macros
+)
+target_include_directories(blueprint_palette_model_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(blueprint_palette_model_test)
+
 add_executable(blueprint_palette_panel_test blueprint_palette_panel_test.cc)
 target_link_libraries(blueprint_palette_panel_test
   gtest_main
@@ -542,6 +596,18 @@ target_link_libraries(terrain_palette_panel_test
 )
 target_include_directories(terrain_palette_panel_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME terrain_palette_panel_test COMMAND terrain_palette_panel_test)
+
+add_executable(tileset_selector_test tileset_selector_test.cc)
+target_link_libraries(tileset_selector_test
+  gtest_main
+  gmock
+  api
+  tileset_selector
+  gui_mock
+  macros
+)
+target_include_directories(tileset_selector_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(tileset_selector_test)
 
 # --- Canvas Test ---
 # --- Tileset Editor Test ---

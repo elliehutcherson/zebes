@@ -27,14 +27,17 @@ enum class FakeCompletion : uint8_t {
   kInterruptFailure,
   kUsageLimit,
   kEscapedPath,
+  kCodexManagedPath,
   kApprovalRequest,
 };
 
 class FakeAppServerTransport final : public CodexAppServerTransport {
  public:
-  FakeAppServerTransport(std::filesystem::path working_directory, std::string account_type,
+  FakeAppServerTransport(std::filesystem::path working_directory,
+                         std::filesystem::path generated_images_directory, std::string account_type,
                          FakeCompletion completion)
       : working_directory_(std::move(working_directory)),
+        generated_images_directory_(std::move(generated_images_directory)),
         account_type_(std::move(account_type)),
         completion_(completion) {}
 
@@ -124,6 +127,8 @@ class FakeAppServerTransport final : public CodexAppServerTransport {
     std::filesystem::path saved_path = working_directory_ / ("generated-" + turn_id + ".png");
     if (completion_ == FakeCompletion::kEscapedPath) {
       saved_path = working_directory_.parent_path() / "zebes_codex_escape.png";
+    } else if (completion_ == FakeCompletion::kCodexManagedPath) {
+      saved_path = generated_images_directory_ / "thread-1" / "generated-turn-1.png";
     }
     nlohmann::json item{{"type", "imageGeneration"},
                         {"id", "image-1"},
@@ -143,6 +148,7 @@ class FakeAppServerTransport final : public CodexAppServerTransport {
   }
 
   std::filesystem::path working_directory_;
+  std::filesystem::path generated_images_directory_;
   std::string account_type_;
   FakeCompletion completion_;
   int start_count_ = 0;
@@ -188,6 +194,7 @@ absl::StatusOr<ImageGenerationResult> PollToCompletion(ImageGenerationRequest& r
 
 struct Fixture {
   std::filesystem::path working_directory;
+  std::filesystem::path generated_images_directory;
   FakeAppServerTransport* transport = nullptr;
   std::unique_ptr<CodexImageClient> client;
 };
@@ -196,14 +203,18 @@ absl::StatusOr<Fixture> MakeClient(FakeCompletion completion = FakeCompletion::k
                                    std::string account_type = "chatgpt") {
   Fixture fixture;
   fixture.working_directory = UniqueTestDirectory("zebes_codex_image_client_test");
+  fixture.generated_images_directory = UniqueTestDirectory("zebes_codex_generated_images_test");
   for (int turn = 1; turn <= 8; ++turn) {
     WriteCandidate(fixture.working_directory / ("generated-turn-" + std::to_string(turn) + ".png"));
   }
   auto transport = std::make_unique<FakeAppServerTransport>(fixture.working_directory,
+                                                            fixture.generated_images_directory,
                                                             std::move(account_type), completion);
   fixture.transport = transport.get();
+  CodexImageConfig config;
+  config.generated_images_directory = fixture.generated_images_directory;
   ASSIGN_OR_RETURN(fixture.client,
-                   CodexImageClient::CreateWithTransport(std::move(transport), CodexImageConfig{}));
+                   CodexImageClient::CreateWithTransport(std::move(transport), std::move(config)));
   return fixture;
 }
 
@@ -218,7 +229,9 @@ TEST(CodexImageClientTest, LazilyGeneratesThroughAConfinedChatGptSession) {
   ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient());
   EXPECT_EQ(fixture.transport->start_count(), 0);
 
-  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(SpecFor()));
+  ImageGenerationSpec spec = SpecFor();
+  spec.instructions = "Create one isolated prop.";
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(std::move(spec)));
   EXPECT_EQ(fixture.transport->start_count(), 1);
   ASSERT_OK_AND_ASSIGN(ImageGenerationResult result, PollToCompletion(request));
 
@@ -239,13 +252,20 @@ TEST(CodexImageClientTest, LazilyGeneratesThroughAConfinedChatGptSession) {
   EXPECT_EQ(thread->at("params").at("approvalPolicy"), "never");
   EXPECT_EQ(thread->at("params").at("sandbox"), "workspace-write");
   EXPECT_EQ(thread->at("params").at("cwd"), fixture.working_directory.string());
+  EXPECT_NE(thread->at("params")
+                .at("developerInstructions")
+                .get<std::string>()
+                .find("Artwork requirements:\nCreate one isolated prop."),
+            std::string::npos);
 
   const nlohmann::json* turn = FindSent(*fixture.transport, "turn/start");
   ASSERT_NE(turn, nullptr);
   const nlohmann::json& input = turn->at("params").at("input");
   EXPECT_EQ(input.at(1).at("type"), "skill");
   EXPECT_EQ(input.at(1).at("name"), "imagegen");
-  EXPECT_NE(input.at(0).at("text").get<std::string>().find("3:2"), std::string::npos);
+  const std::string request_text = input.at(0).at("text").get<std::string>();
+  EXPECT_NE(request_text.find("a mossy boulder"), std::string::npos);
+  EXPECT_NE(request_text.find("3:2"), std::string::npos);
 }
 
 TEST(CodexImageClientTest, RefusesApiKeyAuthenticationBeforeStartingAThread) {
@@ -268,7 +288,7 @@ TEST(CodexImageClientTest, ReportsImageGenerationUsageLimits) {
   EXPECT_EQ(status.code(), absl::StatusCode::kResourceExhausted);
 }
 
-TEST(CodexImageClientTest, RejectsImagesOutsideThePrivateWorkingDirectory) {
+TEST(CodexImageClientTest, RejectsImagesOutsideTheTrustedOutputDirectories) {
   ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kEscapedPath));
   const std::filesystem::path escaped =
       fixture.working_directory.parent_path() / "zebes_codex_escape.png";
@@ -279,6 +299,22 @@ TEST(CodexImageClientTest, RejectsImagesOutsideThePrivateWorkingDirectory) {
 
   EXPECT_EQ(status.code(), absl::StatusCode::kPermissionDenied);
   std::filesystem::remove(escaped);
+}
+
+TEST(CodexImageClientTest, ReadsButDoesNotDeleteImagesFromTheCodexManagedCache) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kCodexManagedPath));
+  const std::filesystem::path generated =
+      fixture.generated_images_directory / "thread-1" / "generated-turn-1.png";
+  std::filesystem::create_directories(generated.parent_path());
+  WriteCandidate(generated);
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(SpecFor()));
+
+  ASSERT_OK_AND_ASSIGN(ImageGenerationResult result, PollToCompletion(request));
+
+  ASSERT_EQ(result.candidates.size(), 1);
+  EXPECT_TRUE(result.candidates[0].image.IsValid());
+  EXPECT_TRUE(std::filesystem::exists(generated));
+  std::filesystem::remove_all(fixture.generated_images_directory);
 }
 
 TEST(CodexImageClientTest, RefusesApprovalRequestsFromTheAppServer) {
@@ -376,8 +412,9 @@ TEST(CodexImageClientTest, SessionFailureIsPermanent) {
 TEST(CodexImageClientTest, RejectsInvalidConfiguration) {
   std::filesystem::path working_directory =
       UniqueTestDirectory("zebes_codex_image_client_config_test");
-  auto transport = std::make_unique<FakeAppServerTransport>(working_directory, "chatgpt",
-                                                            FakeCompletion::kSuccess);
+  auto transport = std::make_unique<FakeAppServerTransport>(working_directory,
+                                                            working_directory / "generated_images",
+                                                            "chatgpt", FakeCompletion::kSuccess);
   CodexImageConfig config;
   config.maximum_candidate_pixels = 0;
 

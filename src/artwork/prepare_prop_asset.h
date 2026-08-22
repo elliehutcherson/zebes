@@ -44,6 +44,11 @@ struct PreparedPropAsset {
   PropRecipe recipe;
 };
 
+// Explicitly crosses the artwork/blueprint boundary. The enums remain
+// separate because attachment controls image composition while placement
+// controls Level Editor snapping.
+absl::StatusOr<BlueprintPlacementMode> BlueprintPlacementModeForAttachment(PropAttachmentMode mode);
+
 // Pure over its arguments: no resource catalogue, renderer, or filesystem is
 // touched. The retained source pixels are the reproducibility authority.
 absl::StatusOr<PreparedPropAsset> PreparePropAsset(const SourceArtwork& source,

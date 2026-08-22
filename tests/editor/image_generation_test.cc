@@ -126,6 +126,7 @@ TEST(ImageGenerationContractTest, ValidatesRequestedProviderCapabilities) {
   };
   const ImageGenerationSpec spec{
       .prompt = "an isolated cave boulder",
+      .instructions = "Use a transparent background.",
       .negative_prompt = "text",
       .requested_candidates = 2,
       .target_aspect = {.width = 4, .height = 3},
@@ -160,6 +161,10 @@ TEST(ImageGenerationContractTest, RejectsInvalidCoreInputs) {
   };
   ImageGenerationSpec spec{.prompt = "boulder"};
 
+  spec.instructions = "";
+  EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
+            absl::StatusCode::kInvalidArgument);
+  spec.instructions.reset();
   spec.requested_candidates = 0;
   EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
             absl::StatusCode::kInvalidArgument);
@@ -179,6 +184,20 @@ TEST(ImageGenerationContractTest, RejectsInvalidCoreInputs) {
   capabilities.maximum_candidates = 0;
   EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
             absl::StatusCode::kFailedPrecondition);
+}
+
+TEST(ImageGenerationContractTest, ComposesOptionalInstructionsWithoutChangingTheSubjectPrompt) {
+  ImageGenerationSpec spec{
+      .prompt = "a mossy boulder",
+      .instructions = "Create one isolated prop.",
+  };
+
+  EXPECT_EQ(ComposeImageGenerationPrompt(spec),
+            "Create one isolated prop.\n\nSubject request:\na mossy boulder");
+  EXPECT_EQ(spec.prompt, "a mossy boulder");
+
+  spec.instructions.reset();
+  EXPECT_EQ(ComposeImageGenerationPrompt(spec), "a mossy boulder");
 }
 
 TEST(ImageGenerationContractTest, RejectsIncompleteStableProvenanceAndCandidates) {

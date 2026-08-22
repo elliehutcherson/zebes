@@ -18,12 +18,10 @@ TEST(BlueprintPanelModelTest, OrderedCatalogPreservesDuplicateNames) {
 
 TEST(BlueprintPanelModelTest, SelectionUsesStableIdAcrossRefresh) {
   BlueprintPanelModel model;
-  model.SetBlueprints(
-      {{.id = "player", .name = "Z Player"}, {.id = "enemy", .name = "A Enemy"}});
+  model.SetBlueprints({{.id = "player", .name = "Z Player"}, {.id = "enemy", .name = "A Enemy"}});
   ASSERT_OK(model.SelectBlueprint("player"));
 
-  model.SetBlueprints(
-      {{.id = "player", .name = "A Player"}, {.id = "enemy", .name = "Z Enemy"}});
+  model.SetBlueprints({{.id = "player", .name = "A Player"}, {.id = "enemy", .name = "Z Enemy"}});
 
   EXPECT_EQ(model.selected_blueprint_id(), "player");
   ASSERT_OK(model.BeginEditingSelectedBlueprint());
@@ -66,6 +64,7 @@ TEST(BlueprintPanelModelTest, StateOperationsValidateIndices) {
   ASSERT_OK(model.AddState());
   ASSERT_EQ(model.active_blueprint()->states.size(), 2);
   EXPECT_EQ(model.active_blueprint()->states[0].name, "new state");
+  EXPECT_EQ(model.active_blueprint()->states[0].placement_mode, BlueprintPlacementMode::kGrounded);
   EXPECT_OK(model.ValidateStateIndex(1));
   EXPECT_EQ(model.ValidateStateIndex(2).code(), absl::StatusCode::kOutOfRange);
 
@@ -79,8 +78,7 @@ TEST(BlueprintPanelModelTest, FailedLookupDoesNotCreateEditingState) {
   model.SetBlueprints({{.id = "player", .name = "Player"}});
 
   EXPECT_EQ(model.SelectBlueprint("missing").code(), absl::StatusCode::kNotFound);
-  EXPECT_EQ(model.BeginEditingSelectedBlueprint().code(),
-            absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(model.BeginEditingSelectedBlueprint().code(), absl::StatusCode::kFailedPrecondition);
   EXPECT_FALSE(model.has_active_blueprint());
 }
 
@@ -94,8 +92,7 @@ TEST(BlueprintPanelModelTest, DeleteClearsSelectionAndEditingState) {
 
   EXPECT_FALSE(model.has_active_blueprint());
   EXPECT_FALSE(model.has_blueprint_selection());
-  EXPECT_EQ(model.BuildSaveRequest().status().code(),
-            absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(model.BuildSaveRequest().status().code(), absl::StatusCode::kFailedPrecondition);
 }
 
 // Back used to discard edits with no prompt. Knowing whether there is anything

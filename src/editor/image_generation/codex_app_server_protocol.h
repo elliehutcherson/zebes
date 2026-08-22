@@ -120,7 +120,9 @@ class CodexAppServerProtocol {
   absl::StatusOr<std::string> InitializedNotification() const;
   absl::StatusOr<std::string> ReadAccount();
   absl::StatusOr<std::string> ListSkills(const std::filesystem::path& cwd);
-  absl::StatusOr<std::string> StartThread(uint64_t operation_id, const std::filesystem::path& cwd);
+  absl::StatusOr<std::string> StartThread(
+      uint64_t operation_id, const std::filesystem::path& cwd,
+      const std::optional<std::string>& generation_instructions);
   absl::StatusOr<std::string> StartTurn(uint64_t operation_id, std::string_view thread_id,
                                         std::string_view prompt,
                                         const std::filesystem::path& skill_path);

@@ -5,31 +5,37 @@
         {
             "collider_id": "a3b28033-fafa-402b-a6df-c4ab5bd20a82",
             "name": "SamusRunningLeft",
+            "placement_mode": "grounded",
             "sprite_id": "11f2dee4-0ca7-4132-baf6-0ca5dd67784b"
         },
         {
             "collider_id": "a3b28033-fafa-402b-a6df-c4ab5bd20a82",
             "name": "SamusIdleRight",
+            "placement_mode": "grounded",
             "sprite_id": "65bd6ae3-5aa9-4ef9-8669-81d99c7c297a"
         },
         {
             "collider_id": "a3b28033-fafa-402b-a6df-c4ab5bd20a82",
             "name": "SamusIdleLeft",
+            "placement_mode": "grounded",
             "sprite_id": "61370e3c-25ca-438c-9b7f-0f978eb2dd4b"
         },
         {
             "collider_id": "a3b28033-fafa-402b-a6df-c4ab5bd20a82",
             "name": "SamusRunningRight",
+            "placement_mode": "grounded",
             "sprite_id": "12fb85c9-3969-42a6-a784-a4540c1dcd31"
         },
         {
             "collider_id": "a3b28033-fafa-402b-a6df-c4ab5bd20a82",
             "name": "SamusTurningLeft",
+            "placement_mode": "grounded",
             "sprite_id": "5cff1697-37cd-4a49-8087-f5d2e636ed59"
         },
         {
             "collider_id": "a3b28033-fafa-402b-a6df-c4ab5bd20a82",
             "name": "SamusTurningRight",
+            "placement_mode": "grounded",
             "sprite_id": "e73a2397-4ce0-407f-81ef-5ec4a213dedd"
         }
     ]

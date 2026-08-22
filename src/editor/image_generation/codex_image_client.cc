@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -32,6 +33,11 @@ constexpr absl::Duration kPollDelay = absl::Milliseconds(50);
 struct ImageItem {
   std::filesystem::path saved_path;
   std::optional<std::string> revised_prompt;
+};
+
+struct BoundedImageFile {
+  std::vector<uint8_t> bytes;
+  bool owned_by_zebes = false;
 };
 
 struct WaitingForSession {};
@@ -113,9 +119,29 @@ bool IsWithin(const std::filesystem::path& child, const std::filesystem::path& p
   return true;
 }
 
-absl::StatusOr<std::vector<uint8_t>> ReadBoundedFile(const std::filesystem::path& path,
-                                                     const std::filesystem::path& root,
-                                                     int64_t maximum_bytes) {
+absl::StatusOr<std::filesystem::path> ResolveGeneratedImagesDirectory(
+    const std::optional<std::filesystem::path>& configured) {
+  std::filesystem::path directory;
+  if (configured.has_value()) {
+    directory = *configured;
+  } else if (const char* const codex_home = std::getenv("CODEX_HOME");
+             codex_home != nullptr && *codex_home != '\0') {
+    directory = std::filesystem::path(codex_home) / "generated_images";
+  } else if (const char* const home = std::getenv("HOME"); home != nullptr && *home != '\0') {
+    directory = std::filesystem::path(home) / ".codex" / "generated_images";
+  } else {
+    return absl::FailedPreconditionError(
+        "Codex image generation requires CODEX_HOME or HOME to locate its image cache");
+  }
+  if (!directory.is_absolute()) {
+    return absl::InvalidArgumentError("Codex generated-images directory must be absolute");
+  }
+  return directory.lexically_normal();
+}
+
+absl::StatusOr<BoundedImageFile> ReadBoundedFile(
+    const std::filesystem::path& path, const std::filesystem::path& working_directory,
+    const std::filesystem::path& generated_images_directory, int64_t maximum_bytes) {
   if (!path.is_absolute()) {
     return absl::DataLossError("Codex image path is not absolute");
   }
@@ -128,14 +154,27 @@ absl::StatusOr<std::vector<uint8_t>> ReadBoundedFile(const std::filesystem::path
     return absl::DataLossError("Codex image path is not a regular non-symlink file");
   }
 
-  const std::filesystem::path canonical_root = std::filesystem::weakly_canonical(root, error);
+  const std::filesystem::path canonical_working_directory =
+      std::filesystem::weakly_canonical(working_directory, error);
   if (error) {
     return absl::InternalError(
         absl::StrCat("could not resolve Codex working directory: ", error.message()));
   }
+  const std::filesystem::path canonical_generated_images =
+      std::filesystem::weakly_canonical(generated_images_directory, error);
+  if (error) {
+    return absl::InternalError(
+        absl::StrCat("could not resolve Codex generated-images directory: ", error.message()));
+  }
   const std::filesystem::path canonical_path = std::filesystem::weakly_canonical(path, error);
-  if (error || !IsWithin(canonical_path, canonical_root)) {
-    return absl::PermissionDeniedError("Codex image path escaped its private working directory");
+  if (error) {
+    return absl::DataLossError(
+        absl::StrCat("could not resolve Codex image path: ", error.message()));
+  }
+  const bool owned_by_zebes = IsWithin(canonical_path, canonical_working_directory);
+  if (!owned_by_zebes && !IsWithin(canonical_path, canonical_generated_images)) {
+    return absl::PermissionDeniedError(
+        "Codex image path is outside the private workspace and Codex image cache");
   }
 
   const uintmax_t size = std::filesystem::file_size(canonical_path, error);
@@ -154,7 +193,7 @@ absl::StatusOr<std::vector<uint8_t>> ReadBoundedFile(const std::filesystem::path
   if (!stream || stream.gcount() != static_cast<std::streamsize>(bytes.size())) {
     return absl::DataLossError("could not read the complete Codex image");
   }
-  return bytes;
+  return BoundedImageFile{.bytes = std::move(bytes), .owned_by_zebes = owned_by_zebes};
 }
 
 absl::Status RequestFailureStatus(CodexRequestKind kind, std::string_view detail) {
@@ -171,8 +210,11 @@ absl::Status RequestFailureStatus(CodexRequestKind kind, std::string_view detail
 
 class CodexImageClient::Session {
  public:
-  Session(std::unique_ptr<CodexAppServerTransport> transport, CodexImageConfig config)
-      : transport_(std::move(transport)), config_(std::move(config)) {}
+  Session(std::unique_ptr<CodexAppServerTransport> transport, CodexImageConfig config,
+          std::filesystem::path generated_images_directory)
+      : transport_(std::move(transport)),
+        config_(std::move(config)),
+        generated_images_directory_(std::move(generated_images_directory)) {}
 
   ~Session() { transport_->Stop(); }
 
@@ -333,7 +375,8 @@ class CodexImageClient::Session {
       return absl::InternalError("Codex operation was not waiting for a thread");
     }
     state.phase = StartingThread{};
-    return Send(protocol_.StartThread(state.id, transport_->working_directory()));
+    return Send(
+        protocol_.StartThread(state.id, transport_->working_directory(), state.spec.instructions));
   }
 
   absl::Status HandleEvent(const CodexThreadStarted& started) {
@@ -435,14 +478,15 @@ class CodexImageClient::Session {
   absl::StatusOr<ImageGenerationResult> DecodeResult(const OperationState& state,
                                                      const AwaitingTurnCompletion& awaiting) {
     const std::filesystem::path path = awaiting.image.saved_path;
-    ASSIGN_OR_RETURN(
-        std::vector<uint8_t> bytes,
-        ReadBoundedFile(path, transport_->working_directory(), config_.maximum_candidate_bytes));
-    absl::Cleanup remove_image = [path] {
+    ASSIGN_OR_RETURN(BoundedImageFile file,
+                     ReadBoundedFile(path, transport_->working_directory(),
+                                     generated_images_directory_, config_.maximum_candidate_bytes));
+    absl::Cleanup remove_image = [&file, path] {
+      if (!file.owned_by_zebes) return;
       std::error_code ignored;
       std::filesystem::remove(path, ignored);
     };
-    ASSIGN_OR_RETURN(RgbaImage image, DecodeImage(absl::Span<const uint8_t>(bytes),
+    ASSIGN_OR_RETURN(RgbaImage image, DecodeImage(absl::Span<const uint8_t>(file.bytes),
                                                   config_.maximum_candidate_pixels));
     ImageGenerationResult result{
         .provider = "openai-codex",
@@ -505,6 +549,7 @@ class CodexImageClient::Session {
 
   std::unique_ptr<CodexAppServerTransport> transport_;
   CodexImageConfig config_;
+  std::filesystem::path generated_images_directory_;
   CodexAppServerProtocol protocol_;
   SessionState session_state_ = SessionNotStarted{};
   uint64_t next_operation_id_ = 1;
@@ -550,7 +595,10 @@ absl::StatusOr<std::unique_ptr<CodexImageClient>> CodexImageClient::CreateWithTr
       config.request_timeout == absl::InfiniteDuration()) {
     return absl::InvalidArgumentError("Codex image client requires a finite positive timeout");
   }
-  auto session = std::make_unique<Session>(std::move(transport), std::move(config));
+  ASSIGN_OR_RETURN(const std::filesystem::path generated_images_directory,
+                   ResolveGeneratedImagesDirectory(config.generated_images_directory));
+  auto session = std::make_unique<Session>(std::move(transport), std::move(config),
+                                           generated_images_directory);
   return std::unique_ptr<CodexImageClient>(new CodexImageClient(std::move(session)));
 }
 

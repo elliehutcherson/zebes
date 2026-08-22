@@ -187,18 +187,23 @@ absl::StatusOr<std::string> CodexAppServerProtocol::ListSkills(const std::filesy
   });
 }
 
-absl::StatusOr<std::string> CodexAppServerProtocol::StartThread(uint64_t operation_id,
-                                                                const std::filesystem::path& cwd) {
+absl::StatusOr<std::string> CodexAppServerProtocol::StartThread(
+    uint64_t operation_id, const std::filesystem::path& cwd,
+    const std::optional<std::string>& generation_instructions) {
   return TranslateJson("could not encode Codex thread request", [&] {
-    const nlohmann::json params{
-        {"cwd", cwd.string()},
-        {"ephemeral", true},
-        {"approvalPolicy", "never"},
-        {"sandbox", "workspace-write"},
-        {"developerInstructions",
-         "Act only as an image-generation worker. Use the explicitly supplied imagegen skill, "
-         "do not inspect unrelated files, do not run shell commands, generate exactly one "
-         "image, and then stop."}};
+    std::string developer_instructions =
+        "Act only as an image-generation worker. Use the explicitly supplied imagegen skill, "
+        "do not inspect unrelated files, do not run shell commands, generate exactly one "
+        "image, and then stop.";
+    if (generation_instructions.has_value()) {
+      absl::StrAppend(&developer_instructions, "\n\nArtwork requirements:\n",
+                      *generation_instructions);
+    }
+    const nlohmann::json params{{"cwd", cwd.string()},
+                                {"ephemeral", true},
+                                {"approvalPolicy", "never"},
+                                {"sandbox", "workspace-write"},
+                                {"developerInstructions", developer_instructions}};
     return EncodeOperationRequest(CodexRequestKind::kStartThread, operation_id, "thread/start",
                                   params.dump());
   });

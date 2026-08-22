@@ -7,7 +7,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
-#include "objects/collider.h"
 #include "objects/entity.h"
 #include "objects/level.h"
 #include "objects/sprite.h"
@@ -47,6 +46,12 @@ class ViewportTabTestPeer {
                                          const Tileset* tileset, Vec world_pos) {
     return tab.RenderTerrainGhost(options.level->layers.front(), options, tileset, TextureHandle{},
                                   world_pos);
+  }
+
+  static absl::StatusOr<Vec> SnapBlueprintToGrid(ViewportTab& tab, Vec mouse_world,
+                                                 const Blueprint& blueprint, int tile_render_w,
+                                                 int tile_render_h) {
+    return tab.SnapBlueprintToGrid(mouse_world, blueprint, tile_render_w, tile_render_h);
   }
 };
 
@@ -351,103 +356,123 @@ TEST(ViewportTabTest, ActiveZoneWithoutAssignedThemeDoesNotFailPreview) {
   EXPECT_EQ(active->value().zone_id, 4);
 }
 
-// SnapEntityToGrid tests
+// Blueprint origin snapping tests
 
-TEST(SnapEntityToGridTest, ColliderCenterAlignedAndBottomAligned) {
-  // Tile grid: 16×16. Mouse at (20, 20) → tile (1, 1): center_x=24, bottom_y=32.
-  // Collider: a box from x∈[-8,8], y∈[-16,0] → center_x_offset=0, max_y=0.
-  Collider collider;
-  collider.polygons.push_back({{-8, -16}, {8, -16}, {8, 0}, {-8, 0}});
-  absl::StatusOr<Vec> result = SnapEntityToGrid({20, 20}, 16, 16, &collider, nullptr);
-  ASSERT_OK(result);
-  EXPECT_DOUBLE_EQ(result->x, 24.0);  // cell_center_x - 0
-  EXPECT_DOUBLE_EQ(result->y, 32.0);  // cell_bottom_y - 0
+TEST(SnapBlueprintOriginToGridTest, GroundedUsesTheHoveredCellBottomCenter) {
+  ASSERT_OK_AND_ASSIGN(const Vec result, SnapBlueprintOriginToGrid(
+                                             {20, 20}, 16, 16, BlueprintPlacementMode::kGrounded));
+  EXPECT_EQ(result, (Vec{24, 32}));
 }
 
-TEST(SnapEntityToGridTest, ColliderAsymmetricBoundingBox) {
-  // Tile grid: 16×16. Mouse at (0, 0) → tile (0, 0): center_x=8, bottom_y=16.
-  // Collider x∈[4,12] → center_x_offset=8; max_y=10.
-  Collider collider;
-  collider.polygons.push_back({{4, 0}, {12, 0}, {12, 10}, {4, 10}});
-  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, nullptr);
-  ASSERT_OK(result);
-  EXPECT_DOUBLE_EQ(result->x, 0.0);  // 8 - 8
-  EXPECT_DOUBLE_EQ(result->y, 6.0);  // 16 - 10
+TEST(SnapBlueprintOriginToGridTest, CeilingUsesTheHoveredCellTopCenter) {
+  ASSERT_OK_AND_ASSIGN(const Vec result, SnapBlueprintOriginToGrid(
+                                             {20, 20}, 16, 16, BlueprintPlacementMode::kCeiling));
+  EXPECT_EQ(result, (Vec{24, 16}));
 }
 
-TEST(SnapEntityToGridTest, SpriteFallbackWhenNoCollider) {
-  // Tile grid: 16×16. Mouse at (0, 0) → tile (0, 0): center_x=8, bottom_y=16.
-  // Sprite: render_w=48, render_h=64, offset_x=-24, offset_y=0.
-  // center_x_offset = -24 + 24 = 0; bottom_y_offset = 0 + 64 = 64.
-  Sprite sprite;
-  sprite.frames.push_back(
-      SpriteFrame{.render_w = 48, .render_h = 64, .offset_x = -24, .offset_y = 0});
-  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, nullptr, &sprite);
-  ASSERT_OK(result);
-  EXPECT_DOUBLE_EQ(result->x, 8.0);    // 8 - 0
-  EXPECT_DOUBLE_EQ(result->y, -48.0);  // 16 - 64
+TEST(SnapBlueprintOriginToGridTest, FreeUsesTheHoveredCellCenter) {
+  ASSERT_OK_AND_ASSIGN(const Vec result,
+                       SnapBlueprintOriginToGrid({20, 20}, 16, 16, BlueprintPlacementMode::kFree));
+  EXPECT_EQ(result, (Vec{24, 24}));
 }
 
-TEST(SnapEntityToGridTest, ColliderTakesPriorityOverSprite) {
-  // Both collider and sprite present; collider wins.
-  // Tile grid: 16×16. Mouse at (0, 0) → center_x=8, bottom_y=16.
-  // Collider x∈[0,16], y∈[0,16] → center=8, bottom=16 → pos=(0,0).
-  Collider collider;
-  collider.polygons.push_back({{0, 0}, {16, 0}, {16, 16}, {0, 16}});
-  Sprite sprite;
-  sprite.frames.push_back(SpriteFrame{.render_w = 48, .render_h = 64});
-  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, &sprite);
-  ASSERT_OK(result);
-  EXPECT_DOUBLE_EQ(result->x, 0.0);
-  EXPECT_DOUBLE_EQ(result->y, 0.0);
+TEST(SnapBlueprintOriginToGridTest, RenderOffsetSurvivesGroundedPlacement) {
+  ASSERT_OK_AND_ASSIGN(const Vec origin, SnapBlueprintOriginToGrid(
+                                             {20, 20}, 16, 16, BlueprintPlacementMode::kGrounded));
+  const Entity entity{.transform = {.position = origin}, .sprite_id = "crystal"};
+  const Sprite sprite{
+      .frames =
+          {
+              SpriteFrame{.render_w = 32, .render_h = 64, .offset_x = -16, .offset_y = -56},
+          },
+  };
+
+  ASSERT_OK_AND_ASSIGN(const WorldRect bounds, CalculateEntityBounds(entity, &sprite));
+  EXPECT_EQ(entity.transform.position, (Vec{24, 32}));
+  EXPECT_EQ(bounds.min, (Vec{8, -24}));
+  EXPECT_EQ(bounds.max, (Vec{40, 40}));
 }
 
-TEST(SnapEntityToGridTest, ErrorWhenNeitherColliderNorSprite) {
-  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, nullptr, nullptr);
-  EXPECT_FALSE(result.ok());
-  EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
+TEST(SnapBlueprintOriginToGridTest, RejectsInvalidTileDimensions) {
+  EXPECT_EQ(
+      SnapBlueprintOriginToGrid({0, 0}, 0, 16, BlueprintPlacementMode::kGrounded).status().code(),
+      absl::StatusCode::kInvalidArgument);
 }
 
-TEST(SnapEntityToGridTest, ErrorWhenSpriteFrameHasZeroDimensions) {
-  Sprite sprite;
-  sprite.frames.push_back(SpriteFrame{.render_w = 0, .render_h = 0});
-  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, nullptr, &sprite);
-  EXPECT_FALSE(result.ok());
-  EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
+TEST(SnapBlueprintOriginToGridTest, RejectsUnrepresentableGridCoordinate) {
+  EXPECT_EQ(SnapBlueprintOriginToGrid({std::numeric_limits<double>::max(), 0}, 16, 16,
+                                      BlueprintPlacementMode::kGrounded)
+                .status()
+                .code(),
+            absl::StatusCode::kOutOfRange);
 }
 
-TEST(SnapEntityToGridTest, ErrorWhenTileDimensionsAreInvalid) {
-  Sprite sprite;
-  sprite.frames.push_back(SpriteFrame{.render_w = 16, .render_h = 16});
-
-  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 0, 16, nullptr, &sprite);
-
-  EXPECT_FALSE(result.ok());
-  EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
+TEST(SnapBlueprintOriginToGridTest, RejectsInvalidPlacementMode) {
+  EXPECT_EQ(SnapBlueprintOriginToGrid({0, 0}, 16, 16, static_cast<BlueprintPlacementMode>(99))
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
 }
 
-TEST(SnapEntityToGridTest, RejectsUnrepresentableGridCoordinate) {
-  Sprite sprite;
-  sprite.frames.push_back(SpriteFrame{.render_w = 16, .render_h = 16});
-
-  absl::StatusOr<Vec> result =
-      SnapEntityToGrid({std::numeric_limits<double>::max(), 0}, 16, 16, nullptr, &sprite);
-
-  EXPECT_EQ(result.status().code(), absl::StatusCode::kOutOfRange);
+TEST(SnapBlueprintOriginToNearestGridAnchorTest, MovesLegacyGroundedOriginToNearestGridLine) {
+  ASSERT_OK_AND_ASSIGN(const Vec result,
+                       SnapBlueprintOriginToNearestGridAnchor({176, 440}, 32, 32,
+                                                              BlueprintPlacementMode::kGrounded));
+  EXPECT_EQ(result, (Vec{176, 448}));
 }
 
-TEST(SnapEntityToGridTest, EmptyColliderFallsBackToSprite) {
-  // Collider present but has no polygons — falls through to sprite.
-  Collider collider;  // polygons empty
-  Sprite sprite;
-  sprite.frames.push_back(
-      SpriteFrame{.render_w = 16, .render_h = 16, .offset_x = 0, .offset_y = 0});
-  // Tile grid: 16×16. Mouse at (0, 0) → center_x=8, bottom_y=16.
-  // Sprite: center_x_offset=8, bottom_y_offset=16 → pos=(0, 0).
-  absl::StatusOr<Vec> result = SnapEntityToGrid({0, 0}, 16, 16, &collider, &sprite);
-  ASSERT_OK(result);
-  EXPECT_DOUBLE_EQ(result->x, 0.0);
-  EXPECT_DOUBLE_EQ(result->y, 0.0);
+TEST(SnapBlueprintOriginToNearestGridAnchorTest, IsIdempotent) {
+  ASSERT_OK_AND_ASSIGN(const Vec first, SnapBlueprintOriginToNearestGridAnchor(
+                                            {176, 440}, 32, 32, BlueprintPlacementMode::kGrounded));
+  ASSERT_OK_AND_ASSIGN(const Vec second, SnapBlueprintOriginToNearestGridAnchor(
+                                             first, 32, 32, BlueprintPlacementMode::kGrounded));
+  EXPECT_EQ(second, first);
+}
+
+TEST(SnapBlueprintOriginToNearestGridAnchorTest, FreePlacementUsesCellCenter) {
+  ASSERT_OK_AND_ASSIGN(const Vec result, SnapBlueprintOriginToNearestGridAnchor(
+                                             {31, 38}, 32, 32, BlueprintPlacementMode::kFree));
+  EXPECT_EQ(result, (Vec{16, 48}));
+}
+
+TEST(SnapBlueprintOriginToNearestGridAnchorTest, RejectsInvalidInput) {
+  EXPECT_EQ(SnapBlueprintOriginToNearestGridAnchor({0, 0}, 0, 32, BlueprintPlacementMode::kGrounded)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(SnapBlueprintOriginToNearestGridAnchor({std::numeric_limits<double>::infinity(), 0}, 32,
+                                                   32, BlueprintPlacementMode::kGrounded)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(SnapBlueprintOriginToNearestGridAnchor({std::numeric_limits<double>::max(), 0}, 32, 32,
+                                                   BlueprintPlacementMode::kGrounded)
+                .status()
+                .code(),
+            absl::StatusCode::kOutOfRange);
+}
+
+TEST(ViewportTabBlueprintSnapTest, ReadsPlacementModeFromTheBlueprintState) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  const Blueprint blueprint{
+      .states = {{.name = "Default", .placement_mode = BlueprintPlacementMode::kCeiling}},
+  };
+
+  ASSERT_OK_AND_ASSIGN(const Vec result,
+                       ViewportTabTestPeer::SnapBlueprintToGrid(tab, {20, 20}, blueprint, 16, 16));
+  EXPECT_EQ(result, (Vec{24, 16}));
+}
+
+TEST(ViewportTabBlueprintSnapTest, RejectsABlueprintWithoutAPlacementState) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+
+  EXPECT_EQ(
+      ViewportTabTestPeer::SnapBlueprintToGrid(tab, {20, 20}, Blueprint{}, 16, 16).status().code(),
+      absl::StatusCode::kInvalidArgument);
 }
 
 // PickEntity already uses a 32x32 default hit-box for entities with no sprite.

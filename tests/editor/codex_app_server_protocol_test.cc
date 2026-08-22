@@ -57,6 +57,15 @@ TEST(CodexAppServerProtocolTest, CorrelatesResponsesIntoTypedModels) {
 
 TEST(CodexAppServerProtocolTest, EncodesTurnInputsAndTracksTheirOperation) {
   CodexAppServerProtocol protocol;
+  ASSERT_OK_AND_ASSIGN(const std::string encoded_thread,
+                       protocol.StartThread(42, "/private/tmp", "Create one isolated prop."));
+  const nlohmann::json thread_request = nlohmann::json::parse(encoded_thread);
+  EXPECT_NE(thread_request.at("params")
+                .at("developerInstructions")
+                .get<std::string>()
+                .find("Artwork requirements:\nCreate one isolated prop."),
+            std::string::npos);
+
   ASSERT_OK_AND_ASSIGN(
       const std::string encoded,
       protocol.StartTurn(42, "thread-7", "a mossy boulder", "/skills/imagegen/SKILL.md"));
@@ -90,7 +99,7 @@ TEST(CodexAppServerProtocolTest, DistinguishesSessionAndOperationRequestFailures
   EXPECT_EQ(session_failure->kind, CodexRequestKind::kReadAccount);
   EXPECT_EQ(session_failure->detail, "not authenticated");
 
-  const int64_t thread_id = RequestId(protocol.StartThread(42, "/private/tmp"));
+  const int64_t thread_id = RequestId(protocol.StartThread(42, "/private/tmp", std::nullopt));
   ASSERT_OK_AND_ASSIGN(
       CodexProtocolEvent thread_event,
       protocol.Parse(

@@ -17,6 +17,15 @@ namespace {
 
 constexpr float kControlWidth = 180.0f;
 constexpr ImGuiTreeNodeFlags kSectionFlags = ImGuiTreeNodeFlags_DefaultOpen;
+constexpr std::array<PropArtworkStylePreset, 7> kStylePresets = {
+    PropArtworkStylePreset::kCustom,
+    PropArtworkStylePreset::kRetroExploration,
+    PropArtworkStylePreset::kModernPixelArt,
+    PropArtworkStylePreset::kHandPaintedPlatformer,
+    PropArtworkStylePreset::kDarkBiomechanical,
+    PropArtworkStylePreset::kStylizedFantasy,
+    PropArtworkStylePreset::kCleanCartoon,
+};
 
 const char* AttachmentModeLabel(PropAttachmentMode mode) {
   switch (mode) {
@@ -246,9 +255,36 @@ PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderCandidates(
 }
 
 PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderGeneration(
-    PropArtworkEditorModel& model, const PropGenerationStatus& generation) {
+    PropArtworkEditorModel& model, PropGenerationStatus& generation) {
   gui_->Separator();
   gui_->Text("Generate source");
+
+  const PropGenerationProviderStatus* selected = nullptr;
+  if (generation.selected_provider < generation.providers.size()) {
+    selected = &generation.providers[generation.selected_provider];
+  }
+  const char* provider_preview = selected == nullptr ? "(unavailable)" : selected->name.c_str();
+  Action action = Action::kNone;
+  gui_->SetNextItemWidth(kControlWidth);
+  gui_->BeginDisabled(generation.in_flight);
+  {
+    ScopedCombo combo =
+        gui_->CreateScopedCombo("Provider##PropArtworkGeneration", provider_preview);
+    if (combo.IsActive()) {
+      for (size_t index = 0; index < generation.providers.size(); ++index) {
+        const PropGenerationProviderStatus& provider = generation.providers[index];
+        const ImGuiSelectableFlags flags = provider.available ? 0 : ImGuiSelectableFlags_Disabled;
+        if (!gui_->Selectable(provider.name.c_str(), index == generation.selected_provider,
+                              flags)) {
+          continue;
+        }
+        generation.selected_provider = index;
+        selected = &provider;
+        action = Action::kSelectGenerationProvider;
+      }
+    }
+  }
+  gui_->EndDisabled();
 
   if (generation.in_flight) {
     gui_->TextWrapped("Generating. This can take a minute.");
@@ -257,8 +293,31 @@ PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderGeneration(
   }
   if (model.generation_review().has_value()) return RenderCandidates(model);
 
+  const bool provider_available = selected != nullptr && selected->available;
+  const float text_height = gui_->GetTextLineHeightWithSpacing();
+  gui_->Text("Prompt");
+  gui_->InputTextMultiline("##PropArtworkPrompt", &model.prompt(),
+                           ImVec2(-1.0f, text_height * 5.0f));
+  gui_->Text("System prompt");
+  gui_->InputTextMultiline("##PropArtworkSystemPrompt", &model.generation_instructions(),
+                           ImVec2(-1.0f, text_height * 7.0f));
   gui_->SetNextItemWidth(kControlWidth);
-  gui_->InputText("Prompt##PropArtwork", &model.prompt());
+  {
+    const PropArtworkStylePreset current = model.style_preset();
+    ScopedCombo combo = gui_->CreateScopedCombo("Style preset##PropArtworkGeneration",
+                                                PropArtworkStylePresetLabel(current));
+    if (combo.IsActive()) {
+      for (const PropArtworkStylePreset preset : kStylePresets) {
+        if (!gui_->Selectable(PropArtworkStylePresetLabel(preset), preset == current)) continue;
+        if (preset != current) model.SetStylePreset(preset);
+      }
+    }
+  }
+  gui_->Text("Style guidance");
+  if (gui_->InputTextMultiline("##PropArtworkStyleGuidance", &model.style_guidance(),
+                               ImVec2(-1.0f, text_height * 4.0f))) {
+    model.MarkStyleGuidanceCustom();
+  }
 
   const int maximum = std::max(1, generation.capabilities.maximum_candidates);
   int requested = model.requested_candidates();
@@ -273,18 +332,26 @@ PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderGeneration(
   // number was chosen.
   model.SetRequestedCandidates(model.requested_candidates(), maximum);
 
-  gui_->BeginDisabled(model.prompt().empty() || model.active_recipe().has_value());
+  gui_->BeginDisabled(!provider_available || model.prompt().empty() ||
+                      model.active_recipe().has_value());
   const bool generate = gui_->Button("Generate##PropArtwork");
   gui_->EndDisabled();
+  if (!provider_available) {
+    const char* reason = selected == nullptr || selected->unavailable_reason.empty()
+                             ? "No image generation provider is available."
+                             : selected->unavailable_reason.c_str();
+    gui_->TextWrapped("Image generation is unavailable: %s", reason);
+  }
   if (model.prompt().empty()) {
     gui_->TextWrapped("Describe the prop to generate a source for it.");
   }
-  return generate ? Action::kGenerate : Action::kNone;
+  if (action != Action::kNone) return action;
+  return provider_available && generate ? Action::kGenerate : Action::kNone;
 }
 
 absl::StatusOr<PropArtworkControlsPanel::Action> PropArtworkControlsPanel::Render(
     PropArtworkEditorModel& model, const std::vector<SourceArtwork>& sources,
-    const std::vector<TerrainRecipe>& terrain_recipes, const PropGenerationStatus& generation) {
+    const std::vector<TerrainRecipe>& terrain_recipes, PropGenerationStatus& generation) {
   Action action = RenderSource(model, sources);
   // One click reaches one widget, so at most one section reports an action.
   if (const Action generated = RenderGeneration(model, generation); generated != Action::kNone) {

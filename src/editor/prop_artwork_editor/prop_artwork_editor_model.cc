@@ -112,6 +112,61 @@ const char* PropPreviewStageLabel(PropPreviewStage stage) {
   return "Unknown";
 }
 
+const char* PropArtworkStylePresetLabel(PropArtworkStylePreset preset) {
+  switch (preset) {
+    case PropArtworkStylePreset::kCustom:
+      return "Custom";
+    case PropArtworkStylePreset::kRetroExploration:
+      return "Retro exploration";
+    case PropArtworkStylePreset::kModernPixelArt:
+      return "Modern pixel art";
+    case PropArtworkStylePreset::kHandPaintedPlatformer:
+      return "Hand-painted platformer";
+    case PropArtworkStylePreset::kDarkBiomechanical:
+      return "Dark biomechanical";
+    case PropArtworkStylePreset::kStylizedFantasy:
+      return "Stylized fantasy";
+    case PropArtworkStylePreset::kCleanCartoon:
+      return "Clean cartoon";
+  }
+  return "Invalid";
+}
+
+const char* PropArtworkStylePresetGuidance(PropArtworkStylePreset preset) {
+  switch (preset) {
+    case PropArtworkStylePreset::kCustom:
+      return "";
+    case PropArtworkStylePreset::kRetroExploration:
+      return "16-bit science-fiction exploration game art. Use a limited palette, strong "
+             "silhouette, crisp pixel clusters, a subtle dark outline, and a readable side view.";
+    case PropArtworkStylePreset::kModernPixelArt:
+      return "Modern pixel-art game asset. Use deliberate pixel clusters, selective "
+             "anti-aliasing, compact shading, and a strong silhouette that remains readable at "
+             "gameplay scale.";
+    case PropArtworkStylePreset::kHandPaintedPlatformer:
+      return "Hand-painted 2D platformer game art. Use simplified shapes, soft painted shading, "
+             "controlled texture, and a clear three-quarter silhouette.";
+    case PropArtworkStylePreset::kDarkBiomechanical:
+      return "Dark biomechanical science-fiction game art. Blend organic and mechanical forms, "
+             "use a muted alien palette with restrained highlights, high-contrast shapes, and "
+             "ominous surface detail.";
+    case PropArtworkStylePreset::kStylizedFantasy:
+      return "Stylized fantasy adventure game art. Use appealing exaggerated proportions, "
+             "painterly materials, a cohesive vivid palette, and an iconic three-quarter "
+             "silhouette.";
+    case PropArtworkStylePreset::kCleanCartoon:
+      return "Clean cartoon game art. Use bold simple shapes, flat colors, restrained two-tone "
+             "shading, a clear dark outline, and instantly readable features.";
+  }
+  return "";
+}
+
+void PropArtworkEditorModel::SetStylePreset(PropArtworkStylePreset preset) {
+  style_preset_ = preset;
+  if (preset == PropArtworkStylePreset::kCustom) return;
+  style_guidance_ = PropArtworkStylePresetGuidance(preset);
+}
+
 void PropArtworkEditorModel::ClearPrepared() {
   prepared_.emplace<std::monostate>();
   context_preview_.reset();
@@ -398,7 +453,10 @@ const RgbaImage* PropArtworkEditorModel::PreviewImage() const {
 
 std::optional<PropPreviewAnchor> PropArtworkEditorModel::PreviewAnchor() const {
   if (generation_.has_value()) return std::nullopt;
-  if (preview_stage_ == PropPreviewStage::kContext && context_preview_.has_value()) {
+  const bool context_visible =
+      context_preview_.has_value() && (preview_policy_ == PropPreviewPolicy::kFinishedOnly ||
+                                       preview_stage_ == PropPreviewStage::kContext);
+  if (context_visible) {
     return PropPreviewAnchor{.x = context_preview_->anchor_x, .y = context_preview_->anchor_y};
   }
   const PropArtworkPipelineResult* artwork = Artwork();
@@ -406,6 +464,35 @@ std::optional<PropPreviewAnchor> PropArtworkEditorModel::PreviewAnchor() const {
   const PropArtwork* stage = StageArtwork(*artwork, preview_stage_);
   if (stage == nullptr) return std::nullopt;
   return PropPreviewAnchor{.x = stage->anchor_x, .y = stage->anchor_y};
+}
+
+std::optional<PropPreviewBounds> PropArtworkEditorModel::ContextPreviewPropBounds() const {
+  if (generation_.has_value() || !context_preview_.has_value()) return std::nullopt;
+  if (preview_policy_ != PropPreviewPolicy::kFinishedOnly &&
+      preview_stage_ != PropPreviewStage::kContext) {
+    return std::nullopt;
+  }
+  const PropArtworkPipelineResult* artwork = Artwork();
+  if (artwork == nullptr) return std::nullopt;
+  return PropPreviewBounds{
+      .left = context_preview_->prop_left,
+      .top = context_preview_->prop_top,
+      .width = artwork->finished.image.width,
+      .height = artwork->finished.image.height,
+  };
+}
+
+absl::Status PropArtworkEditorModel::MoveContextPreviewProp(int requested_anchor_x,
+                                                            int requested_anchor_y) {
+  if (!ContextPreviewPropBounds().has_value()) {
+    return absl::FailedPreconditionError("prop movement requires a visible context preview");
+  }
+  const PropArtworkPipelineResult* artwork = Artwork();
+  if (artwork == nullptr) {
+    return absl::InternalError("visible context preview has no prepared prop artwork");
+  }
+  return MovePropArtworkContextPreview(artwork->finished, requested_anchor_x, requested_anchor_y,
+                                       &*context_preview_);
 }
 
 const PropStageDiagnostic* PropArtworkEditorModel::PreviewDiagnostic() const {

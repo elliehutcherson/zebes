@@ -28,6 +28,10 @@ enum class ImageTransparencyPreference : uint8_t {
 
 struct ImageGenerationSpec {
   std::string prompt;
+  // Provider-neutral guidance applied before the subject prompt. Providers
+  // that do not expose a distinct system-instruction field compose this into
+  // their request text; submitted_prompt remains the user's subject prompt.
+  std::optional<std::string> instructions;
   std::optional<std::string> negative_prompt;
   int requested_candidates = 1;
   ImageAspectRatio target_aspect;
@@ -59,6 +63,7 @@ struct ImageGenerationResult {
 
 absl::Status ValidateImageGenerationSpec(const ImageGenerationSpec& spec,
                                          const ImageGenerationCapabilities& capabilities);
+std::string ComposeImageGenerationPrompt(const ImageGenerationSpec& spec);
 absl::Status ValidateImageGenerationResult(const ImageGenerationResult& result);
 
 // Provider implementations own their asynchronous state here. Poll must not

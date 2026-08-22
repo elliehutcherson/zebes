@@ -1,9 +1,11 @@
 #include "editor/prop_artwork_editor/prop_artwork_context.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <utility>
 
 #include "absl/status/status.h"
@@ -15,6 +17,11 @@ namespace {
 
 constexpr int kCheckerSize = 8;
 constexpr int kMaximumPreviewDimension = 16384;
+
+struct ContextAnchor {
+  int x = 0;
+  int y = 0;
+};
 
 int AlignDown(int value, int step) {
   if (value >= 0) return (value / step) * step;
@@ -81,7 +88,94 @@ RgbaImage FlipVertical(const RgbaImage& source) {
   return flipped;
 }
 
+std::optional<int> SurfaceY(const PropArtworkContextPreview& preview, int preview_x) {
+  const int terrain_x = preview_x - preview.terrain_left;
+  if (terrain_x < 0 || terrain_x >= preview.terrain.width) return std::nullopt;
+
+  if (preview.attachment_mode == PropAttachmentMode::kGrounded) {
+    for (int y = 0; y < preview.terrain.height; ++y) {
+      const size_t offset = (static_cast<size_t>(y) * preview.terrain.width + terrain_x) * 4;
+      if (preview.terrain.pixels[offset + 3] != 0) return preview.terrain_top + y;
+    }
+    return std::nullopt;
+  }
+  if (preview.attachment_mode == PropAttachmentMode::kCeiling) {
+    for (int y = preview.terrain.height - 1; y >= 0; --y) {
+      const size_t offset = (static_cast<size_t>(y) * preview.terrain.width + terrain_x) * 4;
+      if (preview.terrain.pixels[offset + 3] != 0) return preview.terrain_top + y;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<ContextAnchor> NearestSurfaceAnchor(const PropArtwork& prop, int requested_x,
+                                                  const PropArtworkContextPreview& preview) {
+  const int minimum_x = prop.anchor_x;
+  const int maximum_x = preview.image.width - prop.image.width + prop.anchor_x;
+  const int minimum_y = prop.anchor_y;
+  const int maximum_y = preview.image.height - prop.image.height + prop.anchor_y;
+  const int clamped_x = std::clamp(requested_x, minimum_x, maximum_x);
+
+  for (int distance = 0; distance < preview.image.width; ++distance) {
+    const std::array<int, 2> candidates = {clamped_x - distance, clamped_x + distance};
+    for (size_t index = 0; index < candidates.size(); ++index) {
+      if (distance == 0 && index == 1) continue;
+      const int candidate_x = candidates[index];
+      if (candidate_x < minimum_x || candidate_x > maximum_x) continue;
+      const std::optional<int> candidate_y = SurfaceY(preview, candidate_x);
+      if (!candidate_y.has_value() || *candidate_y < minimum_y || *candidate_y > maximum_y) {
+        continue;
+      }
+      return ContextAnchor{.x = candidate_x, .y = *candidate_y};
+    }
+  }
+  return std::nullopt;
+}
+
 }  // namespace
+
+absl::Status MovePropArtworkContextPreview(const PropArtwork& prop, int requested_anchor_x,
+                                           int requested_anchor_y,
+                                           PropArtworkContextPreview* preview) {
+  if (preview == nullptr) {
+    return absl::InvalidArgumentError("moving a context preview requires an output preview");
+  }
+  if (!prop.IsValid() || !preview->image.IsValid() || !preview->base_image.IsValid() ||
+      !preview->terrain.IsValid() || preview->image.width != preview->base_image.width ||
+      preview->image.height != preview->base_image.height ||
+      prop.image.width > preview->image.width || prop.image.height > preview->image.height) {
+    return absl::InvalidArgumentError("moving a context preview requires valid matching layers");
+  }
+
+  ContextAnchor anchor;
+  if (preview->attachment_mode == PropAttachmentMode::kFree) {
+    anchor = {
+        .x = std::clamp(requested_anchor_x, prop.anchor_x,
+                        preview->image.width - prop.image.width + prop.anchor_x),
+        .y = std::clamp(requested_anchor_y, prop.anchor_y,
+                        preview->image.height - prop.image.height + prop.anchor_y),
+    };
+  } else if (preview->attachment_mode == PropAttachmentMode::kGrounded ||
+             preview->attachment_mode == PropAttachmentMode::kCeiling) {
+    const std::optional<ContextAnchor> surface =
+        NearestSurfaceAnchor(prop, requested_anchor_x, *preview);
+    if (!surface.has_value()) {
+      return absl::FailedPreconditionError(
+          "context preview has no terrain surface that can hold the complete prop");
+    }
+    anchor = *surface;
+  } else {
+    return absl::InvalidArgumentError("context preview attachment mode is invalid");
+  }
+
+  preview->anchor_x = anchor.x;
+  preview->anchor_y = anchor.y;
+  preview->prop_left = anchor.x - prop.anchor_x;
+  preview->prop_top = anchor.y - prop.anchor_y;
+  preview->image = preview->base_image;
+  Composite(prop.image, preview->prop_left, preview->prop_top, preview->image);
+  return absl::OkStatus();
+}
 
 absl::StatusOr<PropArtworkContextPreview> BuildPropArtworkContextPreview(
     const PropArtwork& prop, const TerrainGenConfig& terrain_config,
@@ -142,15 +236,20 @@ absl::StatusOr<PropArtworkContextPreview> BuildPropArtworkContextPreview(
 
   const int terrain_left = margin - content_left;
   const int terrain_top = margin - content_top;
-  RgbaImage preview =
+  RgbaImage base_image =
       Checkerboard(static_cast<int>(preview_width), static_cast<int>(preview_height));
-  Composite(terrain, terrain_left, terrain_top, preview);
-  Composite(prop.image, terrain_left + prop_left, terrain_top + prop_top, preview);
-  return PropArtworkContextPreview{
-      .image = std::move(preview),
-      .anchor_x = terrain_left + anchor_x,
-      .anchor_y = terrain_top + anchor_y,
+  Composite(terrain, terrain_left, terrain_top, base_image);
+  PropArtworkContextPreview preview{
+      .image = base_image,
+      .base_image = std::move(base_image),
+      .terrain = std::move(terrain),
+      .terrain_left = terrain_left,
+      .terrain_top = terrain_top,
+      .attachment_mode = attachment_mode,
   };
+  RETURN_IF_ERROR(MovePropArtworkContextPreview(prop, terrain_left + anchor_x,
+                                                terrain_top + anchor_y, &preview));
+  return preview;
 }
 
 }  // namespace zebes

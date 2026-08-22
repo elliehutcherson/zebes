@@ -1,9 +1,8 @@
 # Subscription-backed Codex image generation
 
 **Status:** Feasibility, process transport, typed protocol, provider adapter,
-service composition, and invariant hardening are implemented. The production
-editor still selects the API-backed OpenAI adapter; runtime provider selection
-and the final editor smoke test remain.
+service composition, invariant hardening, and runtime provider selection are
+implemented. The final live editor smoke test remains.
 
 ## Goal
 
@@ -13,10 +12,11 @@ must not require or forward `OPENAI_API_KEY`, must preserve the existing
 provider-neutral `ImageGenerationEngine` boundary, and must not expose Codex,
 JSON, or generated staging files to editor models.
 
-The API-backed `OpenAiImageClient` remains available as an explicit alternative
-and for its opt-in live integration test. The two adapters converge at
-`ImageGenerationClient`; provider selection belongs at the editor composition
-root rather than in the prop-artwork feature.
+The API-backed `OpenAiImageClient` remains available as an explicit UI
+alternative and for its opt-in live integration test. The two adapters
+converge at `ImageGenerationClient`; `EditorUi` owns both services while the
+Prop Artwork editor receives only provider-neutral names, availability, and
+engine borrows.
 
 ## Architecture
 
@@ -40,9 +40,10 @@ EditorUi
   objects borrow the session and are destroyed before their client by the
   engine's member order.
 - Successful files are accepted only when they are absolute, regular,
-  non-symlink files inside the private working directory and within configured
-  byte and decoded-pixel limits. Zebes decodes them to `RgbaImage` and removes
-  the staging file before returning provider-neutral data.
+  non-symlink files inside either the private working directory or the active
+  Codex home's `generated_images` cache and within configured byte and
+  decoded-pixel limits. Zebes removes files it owns in the private directory
+  after decoding, but leaves Codex-owned cache files to Codex.
 
 ## Security and failure policy
 
@@ -51,6 +52,9 @@ EditorUi
   enabled `imagegen` skill before starting work.
 - Threads are ephemeral, use `approvalPolicy: never`, use the
   `workspace-write` sandbox, and run in a newly created private directory.
+- The App Server's image tool writes its result to the Codex-managed image
+  cache even when the thread `cwd` is private. That cache is the only allowed
+  external output root; arbitrary paths remain permission failures.
 - Any approval or dynamic-tool request is rejected and permanently fails the
   session.
 - Any malformed protocol message, unknown response ID, ambiguous protocol
@@ -90,22 +94,53 @@ protocol behavior is covered by `tests/codex_imagegen_probe_test.py`.
 - `ImageGenerationService::CreateCodex` composes the adapter into the existing
   engine and runner stack.
 
-### 3. Editor provider selection — next
+### 3. Editor provider selection — implemented; live completion smoke remains
 
-The current editor composition root still calls
-`ImageGenerationService::CreateOpenAi`. Add an explicit startup provider
-selection and make Codex the normal local-editor path while retaining OpenAI as
-an opt-in alternative. Keep provider details out of `PropArtworkEditor`; it
-continues to receive only `ImageGenerationEngine&`.
+`EditorUi` composes Codex and OpenAI independently and offers both in the
+Generate source controls, with Codex selected first when it can be constructed.
+Failure to construct either stack is an unavailable provider, not an editor
+startup failure. Codex executable discovery checks `ZEBES_CODEX_BIN`, `PATH`,
+and known macOS OpenAI editor-extension locations during provider composition,
+so a missing executable starts disabled with an actionable reason.
+Authentication and skill checks remain lazy; a configuration failure from the
+first request disables that provider and leaves the user free to select the
+other one.
+
+The Generate source controls provide large multiline editors for the subject
+prompt and editable system instructions. The default instructions ask for one
+uncropped, isolated subject without scenery or other background content,
+preferring transparency when the provider supports it and otherwise requesting
+a contrasting flat background for deterministic isolation. Codex places them
+in the ephemeral thread's developer instructions; the Images API has no
+equivalent role, so its adapter composes them ahead of the subject request.
+Stable provenance retains the user's subject prompt.
+
+Art direction is a separate editor draft rather than part of those isolation
+requirements. The UI offers Custom, Retro exploration, Modern pixel art,
+Hand-painted platformer, Dark biomechanical, Stylized fantasy, and Clean
+cartoon presets. Selecting a preset replaces the visible, editable Style
+guidance text; editing that text switches the selection to Custom. Non-empty
+guidance is appended under an `Art direction:` heading when the provider
+request is composed, so changing style never overwrites the background and
+composition constraints.
+
+The broader Prop Artwork tab remains enabled when neither provider works,
+because importing and processing retained PNG sources is an offline workflow.
+Only the Generate source section is disabled, with the provider failure shown
+in place.
 
 Acceptance:
 
 - The editor starts without `OPENAI_API_KEY` when Codex is selected.
 - The child remains lazy until the first generation request.
-- Generate, cancel, review, accept, discard, and shutdown work through the real
+- Failure to find Codex disables it at startup. A missing ChatGPT login or
+  enabled skill is reported by the first request and then disables Codex.
+  Neither prevents unrelated editor use or selection of OpenAI.
+- Live startup, ChatGPT authentication, skill discovery, and generation are
+  confirmed. The first editor run exposed the App Server's Codex-cache output
+  path; the allowlist fix has focused coverage. Remaining live check: decode
+  the result, review, accept, discard, cancel, and shut down through the real
   editor flow.
-- Failure to find Codex, a ChatGPT login, or the enabled skill is reported as a
-  generation failure without preventing unrelated editor use.
 
 ### 4. Operational and platform follow-up
 

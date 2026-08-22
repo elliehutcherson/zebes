@@ -1,6 +1,10 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "editor/editor_ui.h"
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -10,6 +14,7 @@
 #include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
 #include "editor/gui_interface.h"
+#include "editor/image_generation/credential_source.h"
 #include "editor/image_generation/image_generation_service.h"
 #include "editor/image_generation/openai_image_client.h"
 #include "editor/imgui_scoped.h"
@@ -21,6 +26,17 @@
 #include "imgui.h"
 
 namespace zebes {
+namespace {
+
+absl::StatusOr<std::unique_ptr<ImageGenerationService>> CreateConfiguredOpenAiService(
+    OpenAiImageConfig config) {
+  EnvironmentCredentialSource credentials;
+  absl::StatusOr<SecretString> credential = credentials.Load(config.credential_reference);
+  if (!credential.ok()) return credential.status();
+  return ImageGenerationService::CreateOpenAi(std::move(config));
+}
+
+}  // namespace
 
 absl::StatusOr<std::unique_ptr<EditorUi>> EditorUi::Create(SdlWrapper* sdl, Api* api,
                                                            GuiInterface* gui) {
@@ -54,13 +70,49 @@ absl::Status EditorUi::Init() {
   terrain_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
   ASSIGN_OR_RETURN(terrain_editor_, TerrainEditor::Create(api_, gui_, terrain_preview_.get()));
   prop_artwork_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
-  ASSIGN_OR_RETURN(image_generation_, ImageGenerationService::CreateOpenAi(OpenAiImageConfig{}));
-  ASSIGN_OR_RETURN(prop_artwork_editor_, PropArtworkEditor::Create({
-                                             .api = api_,
-                                             .gui = gui_,
-                                             .preview = prop_artwork_preview_.get(),
-                                             .generation = &image_generation_->engine(),
-                                         }));
+
+  std::vector<PropArtworkGenerationProvider> generation_providers;
+  absl::StatusOr<std::unique_ptr<ImageGenerationService>> codex =
+      ImageGenerationService::CreateCodex(CodexImageConfig{});
+  if (codex.ok()) {
+    codex_image_generation_ = *std::move(codex);
+    generation_providers.push_back({
+        .name = "Codex (ChatGPT)",
+        .engine = &codex_image_generation_->engine(),
+        .disable_after_failure = true,
+    });
+  } else {
+    LOG(WARNING) << "Codex image generation is unavailable: " << codex.status();
+    generation_providers.push_back({
+        .name = "Codex (ChatGPT)",
+        .unavailable_reason = std::string(codex.status().message()),
+        .disable_after_failure = true,
+    });
+  }
+
+  absl::StatusOr<std::unique_ptr<ImageGenerationService>> openai =
+      CreateConfiguredOpenAiService(OpenAiImageConfig{});
+  if (openai.ok()) {
+    openai_image_generation_ = *std::move(openai);
+    generation_providers.push_back({
+        .name = "OpenAI API",
+        .engine = &openai_image_generation_->engine(),
+    });
+  } else {
+    LOG(WARNING) << "OpenAI API image generation is unavailable: " << openai.status();
+    generation_providers.push_back({
+        .name = "OpenAI API",
+        .unavailable_reason = std::string(openai.status().message()),
+    });
+  }
+
+  ASSIGN_OR_RETURN(prop_artwork_editor_,
+                   PropArtworkEditor::Create({
+                       .api = api_,
+                       .gui = gui_,
+                       .preview = prop_artwork_preview_.get(),
+                       .generation_providers = std::move(generation_providers),
+                   }));
   return absl::OkStatus();
 }
 

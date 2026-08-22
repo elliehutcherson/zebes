@@ -199,6 +199,27 @@ TEST_F(PropArtworkEditorModelTest, PreviewAnchorTracksTheDisplayedArtifact) {
   EXPECT_EQ(model_.PreviewAnchor()->y, 11);
 }
 
+TEST_F(PropArtworkEditorModelTest, ContextPreviewMovementIsTransientEditorState) {
+  ASSERT_OK_AND_ASSIGN(PreparedPropAsset prepared, PrepareFor(model_));
+  ASSERT_OK_AND_ASSIGN(
+      PropArtworkContextPreview context,
+      BuildPropArtworkContextPreview(prepared.artwork.finished, terrain_.config,
+                                     model_.settings().pipeline.composition.attachment.mode));
+  const int finished_anchor_x = prepared.artwork.finished.anchor_x;
+  const int finished_anchor_y = prepared.artwork.finished.anchor_y;
+  ASSERT_OK(model_.AcceptPrepared(model_.revision(), std::move(prepared), std::move(context)));
+  ASSERT_TRUE(model_.ContextPreviewPropBounds().has_value());
+  const PropPreviewBounds before = *model_.ContextPreviewPropBounds();
+
+  ASSERT_OK(model_.MoveContextPreviewProp(0, 0));
+
+  ASSERT_TRUE(model_.ContextPreviewPropBounds().has_value());
+  EXPECT_NE(model_.ContextPreviewPropBounds()->left, before.left);
+  ASSERT_NE(model_.prepared_creation(), nullptr);
+  EXPECT_EQ(model_.prepared_creation()->artwork.finished.anchor_x, finished_anchor_x);
+  EXPECT_EQ(model_.prepared_creation()->artwork.finished.anchor_y, finished_anchor_y);
+}
+
 TEST_F(PropArtworkEditorModelTest, SaveAsKeepsSourceAndSettingsButDropsOutputIdentity) {
   ASSERT_OK_AND_ASSIGN(PreparedPropAsset prepared, PrepareFor(model_));
   const PropRecipe committed = prepared.recipe;

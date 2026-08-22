@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -13,10 +15,17 @@
 
 namespace zebes {
 
-// What the panel needs to know about the provider without reaching it. The
-// editor owns the engine; the panel only bounds its controls by what the
-// adapter says it can do and by whether a request is already running.
+struct PropGenerationProviderStatus {
+  std::string name;
+  bool available = false;
+  std::string unavailable_reason;
+};
+
+// What the panel needs to know about generation without reaching an engine.
+// The editor owns provider selection and the composition root owns engines.
 struct PropGenerationStatus {
+  std::vector<PropGenerationProviderStatus> providers;
+  size_t selected_provider = 0;
   ImageGenerationCapabilities capabilities;
   bool in_flight = false;
 };
@@ -28,6 +37,7 @@ class PropArtworkControlsPanel {
     kBrowseSource,
     kOpenSource,
     kDeleteSource,
+    kSelectGenerationProvider,
     kGenerate,
     kCancelGeneration,
     kAcceptCandidate,
@@ -39,13 +49,13 @@ class PropArtworkControlsPanel {
   absl::StatusOr<Action> Render(PropArtworkEditorModel& model,
                                 const std::vector<SourceArtwork>& sources,
                                 const std::vector<TerrainRecipe>& terrain_recipes,
-                                const PropGenerationStatus& generation);
+                                PropGenerationStatus& generation);
 
  private:
   explicit PropArtworkControlsPanel(GuiInterface* gui) : gui_(gui) {}
 
   Action RenderSource(PropArtworkEditorModel& model, const std::vector<SourceArtwork>& sources);
-  Action RenderGeneration(PropArtworkEditorModel& model, const PropGenerationStatus& generation);
+  Action RenderGeneration(PropArtworkEditorModel& model, PropGenerationStatus& generation);
   Action RenderCandidates(PropArtworkEditorModel& model);
   absl::Status RenderTerrain(PropArtworkEditorModel& model,
                              const std::vector<TerrainRecipe>& terrain_recipes);

@@ -30,11 +30,14 @@ absl::StatusOr<bool> CanvasSprite::Render(Canvas& canvas, int frame_index, bool 
     frame_ptr = &sprite_.frames[frame_index];
   }
 
+  const SpriteFrameRenderBounds frame_bounds = CalculateSpriteFrameRenderBounds(*frame_ptr);
+  if (!frame_bounds.IsValid()) {
+    return absl::InvalidArgumentError("Sprite frame must have positive render dimensions.");
+  }
   ImVec2 p1 = canvas.WorldToScreen(
-      {static_cast<double>(frame_ptr->offset_x), static_cast<double>(frame_ptr->offset_y)});
-  ImVec2 p2 =
-      canvas.WorldToScreen({static_cast<double>(frame_ptr->offset_x) + frame_ptr->render_w,
-                            static_cast<double>(frame_ptr->offset_y) + frame_ptr->render_h});
+      {static_cast<double>(frame_bounds.left), static_cast<double>(frame_bounds.top)});
+  ImVec2 p2 = canvas.WorldToScreen(
+      {static_cast<double>(frame_bounds.right), static_cast<double>(frame_bounds.bottom)});
 
   ImDrawList* draw_list = canvas.GetDrawList();
 

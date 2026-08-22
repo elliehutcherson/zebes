@@ -18,6 +18,7 @@ class TilePalettePanelTestPeer {
     return p.selected_tileset_;
   }
   static void SetSelectedTileset(TilePalettePanel& p, const Tileset* ts) {
+    p.tileset_selector_.Select(ts == nullptr ? "" : ts->id);
     p.selected_tileset_ = ts;
   }
 };
@@ -65,6 +66,7 @@ class TilePalettePanelTest : public ::testing::Test {
     ON_CALL(gui_, CreateScopedId(An<int>())).WillByDefault(Invoke([this](int id) {
       return ScopedId(&gui_, id);
     }));
+    ON_CALL(*api_, GetTileset("ts-1")).WillByDefault(Return(&stable_ts_));
   }
 
   absl::Status Render() { return panel_->Render(16, 16); }
@@ -172,6 +174,22 @@ TEST_F(TilePalettePanelTest, ClearSelectionResetsSelectedTile) {
   ASSERT_NE(panel_->GetSelectedTile(), nullptr);
 
   panel_->ClearSelection();
+  EXPECT_EQ(panel_->GetSelectedTile(), nullptr);
+}
+
+TEST_F(TilePalettePanelTest, RemovedTilesetClearsItsTileSelection) {
+  stable_ts_.tiles = {stable_tile_};
+  TilePalettePanelTestPeer::SetSelectedTileset(*panel_, &stable_ts_);
+  ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{stable_ts_}));
+
+  EXPECT_CALL(gui_, InvisibleButton(_, _, _)).WillOnce(Return(false));
+  EXPECT_CALL(gui_, IsItemClicked(0)).WillOnce(Return(true));
+  ASSERT_OK(Render());
+  ASSERT_NE(panel_->GetSelectedTile(), nullptr);
+
+  ON_CALL(*api_, GetAllTilesets()).WillByDefault(Return(std::vector<Tileset>{}));
+  ASSERT_OK(Render());
+  EXPECT_EQ(panel_->GetSelectedTileset(), nullptr);
   EXPECT_EQ(panel_->GetSelectedTile(), nullptr);
 }
 

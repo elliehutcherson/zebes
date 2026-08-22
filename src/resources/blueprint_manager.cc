@@ -17,6 +17,15 @@ namespace {
 
 constexpr char kDefinitionsPath[] = "definitions/blueprints";
 
+absl::StatusOr<BlueprintPlacementMode> BlueprintPlacementModeFromId(
+    const std::string& placement_mode) {
+  if (placement_mode == "grounded") return BlueprintPlacementMode::kGrounded;
+  if (placement_mode == "ceiling") return BlueprintPlacementMode::kCeiling;
+  if (placement_mode == "free") return BlueprintPlacementMode::kFree;
+  return absl::InvalidArgumentError(
+      absl::StrCat("unknown blueprint placement mode: ", placement_mode));
+}
+
 }  // namespace
 
 void ToJson(nlohmann::json& j, const Blueprint& blueprint) {
@@ -31,6 +40,7 @@ void ToJson(nlohmann::json& j, const Blueprint& blueprint) {
         {"name", state.name},
         {"collider_id", state.collider_id},
         {"sprite_id", state.sprite_id},
+        {"placement_mode", BlueprintPlacementModeId(state.placement_mode)},
     });
   }
   j["states"] = states_json;
@@ -46,6 +56,9 @@ absl::StatusOr<Blueprint> GetBlueprintFromJson(const nlohmann::json& j) {
       state_json.at("name").get_to(state.name);
       state_json.at("collider_id").get_to(state.collider_id);
       state_json.at("sprite_id").get_to(state.sprite_id);
+      std::string placement_mode;
+      state_json.at("placement_mode").get_to(placement_mode);
+      ASSIGN_OR_RETURN(state.placement_mode, BlueprintPlacementModeFromId(placement_mode));
       blueprint.states.push_back(state);
     }
   } catch (const nlohmann::json::exception& e) {
@@ -154,6 +167,9 @@ absl::Status BlueprintManager::SaveBlueprint(Blueprint blueprint) {
   for (const auto& state : blueprint.states) {
     if (state.name.empty()) {
       return absl::InvalidArgumentError("All blueprint states must have a name.");
+    }
+    if (!IsValidBlueprintPlacementMode(state.placement_mode)) {
+      return absl::InvalidArgumentError("All blueprint states must have a valid placement mode.");
     }
   }
 

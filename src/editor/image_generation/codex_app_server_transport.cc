@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <memory>
@@ -101,6 +102,129 @@ std::vector<char*> MutablePointers(std::vector<std::string>& values) {
   for (std::string& value : values) pointers.push_back(value.data());
   pointers.push_back(nullptr);
   return pointers;
+}
+
+bool IsExecutableFile(const std::filesystem::path& path) {
+  std::error_code error;
+  return std::filesystem::is_regular_file(path, error) && !error && access(path.c_str(), X_OK) == 0;
+}
+
+absl::StatusOr<std::string> CheckedExecutable(const std::filesystem::path& path,
+                                              std::string_view source) {
+  if (!IsExecutableFile(path)) {
+    return absl::NotFoundError(absl::StrCat("Codex executable from ", source,
+                                            " is not an executable file: ", path.string()));
+  }
+  std::error_code error;
+  const std::filesystem::path absolute = std::filesystem::absolute(path, error);
+  if (error) {
+    return absl::InternalError(
+        absl::StrCat("could not resolve Codex executable path: ", error.message()));
+  }
+  return absolute.string();
+}
+
+std::optional<std::filesystem::path> FindExecutableOnPath(std::string_view executable) {
+  const char* const path_value = std::getenv("PATH");
+  if (path_value == nullptr) return std::nullopt;
+  std::string_view remaining(path_value);
+  while (true) {
+    const size_t separator = remaining.find(':');
+    const std::string_view entry = remaining.substr(0, separator);
+    const std::filesystem::path directory =
+        entry.empty() ? std::filesystem::current_path() : std::filesystem::path(entry);
+    const std::filesystem::path candidate = directory / executable;
+    if (IsExecutableFile(candidate)) return candidate;
+    if (separator == std::string_view::npos) return std::nullopt;
+    remaining.remove_prefix(separator + 1);
+  }
+}
+
+#if defined(__APPLE__)
+std::optional<std::filesystem::path> FindCodexInEditorExtensions(
+    const std::filesystem::path& extensions_root) {
+  std::error_code error;
+  std::filesystem::directory_iterator entries(extensions_root, error);
+  if (error) return std::nullopt;
+
+  std::optional<std::filesystem::path> newest;
+  std::filesystem::file_time_type newest_time{};
+  for (const std::filesystem::directory_entry& entry : entries) {
+    if (!entry.is_directory(error) || error) {
+      error.clear();
+      continue;
+    }
+    const std::string name = entry.path().filename().string();
+    if (!std::string_view(name).starts_with("openai.chatgpt-")) continue;
+    for (const char* architecture : {"macos-arm64", "macos-x86_64"}) {
+      const std::filesystem::path candidate = entry.path() / "bin" / architecture / "codex";
+      if (!IsExecutableFile(candidate)) continue;
+      const std::filesystem::file_time_type modified = entry.last_write_time(error);
+      if (error) {
+        error.clear();
+        continue;
+      }
+      if (!newest.has_value() || modified > newest_time) {
+        newest = candidate;
+        newest_time = modified;
+      }
+    }
+  }
+  return newest;
+}
+
+std::optional<std::filesystem::path> FindBundledMacCodex() {
+  for (const std::filesystem::path& candidate : {
+           std::filesystem::path("/Applications/Codex.app/Contents/Resources/codex"),
+           std::filesystem::path("/Applications/ChatGPT.app/Contents/Resources/codex"),
+       }) {
+    if (IsExecutableFile(candidate)) return candidate;
+  }
+
+  const char* const home_value = std::getenv("HOME");
+  if (home_value == nullptr || *home_value == '\0') return std::nullopt;
+  const std::filesystem::path home(home_value);
+  for (const std::filesystem::path& root : {
+           home / ".vscode" / "extensions",
+           home / ".vscode-insiders" / "extensions",
+           home / ".cursor" / "extensions",
+       }) {
+    if (std::optional<std::filesystem::path> found = FindCodexInEditorExtensions(root);
+        found.has_value()) {
+      return found;
+    }
+  }
+  return std::nullopt;
+}
+#endif
+
+absl::StatusOr<std::string> ResolveCodexExecutable(std::string configured) {
+  if (configured.empty()) {
+    return absl::InvalidArgumentError("Codex App Server executable must not be empty");
+  }
+  if (configured == "codex") {
+    if (const char* const override_value = std::getenv("ZEBES_CODEX_BIN");
+        override_value != nullptr && *override_value != '\0') {
+      return CheckedExecutable(override_value, "ZEBES_CODEX_BIN");
+    }
+  }
+  if (configured.find('/') != std::string::npos) {
+    return CheckedExecutable(configured, "configuration");
+  }
+  if (std::optional<std::filesystem::path> found = FindExecutableOnPath(configured);
+      found.has_value()) {
+    return CheckedExecutable(*found, "PATH");
+  }
+#if defined(__APPLE__)
+  if (configured == "codex") {
+    if (std::optional<std::filesystem::path> found = FindBundledMacCodex(); found.has_value()) {
+      return CheckedExecutable(*found, "an installed OpenAI editor extension");
+    }
+  }
+#endif
+  return absl::NotFoundError(absl::StrCat(
+      "could not find the Codex executable '", configured,
+      "'; install Codex, add it to PATH, or set ZEBES_CODEX_BIN to its absolute path"));
 }
 
 class OwnedDescriptor {
@@ -449,6 +573,7 @@ absl::StatusOr<std::unique_ptr<CodexAppServerTransport>> CreateCodexAppServerPro
   return absl::UnimplementedError(
       "Codex App Server process transport is not implemented on Windows");
 #else
+  ASSIGN_OR_RETURN(config.executable, ResolveCodexExecutable(std::move(config.executable)));
   ASSIGN_OR_RETURN(std::filesystem::path working_directory, CreatePrivateWorkingDirectory());
   return std::make_unique<PosixCodexAppServerTransport>(std::move(config),
                                                         std::move(working_directory));

@@ -6,6 +6,7 @@
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "editor/gui_interface.h"
+#include "editor/level_editor/tileset_selector.h"
 #include "editor/texture_preview.h"
 #include "objects/tileset.h"
 
@@ -48,7 +49,10 @@ class TilePalettePanel {
   float GetTileOverlayOpacity() const { return tile_overlay_opacity_; }
 
   // Deselects the current tile (e.g. after pressing Escape).
-  void ClearSelection() { selected_tile_ = nullptr; }
+  void ClearSelection() {
+    selected_tile_id_.reset();
+    selected_tile_ = nullptr;
+  }
 
  private:
   friend class TilePalettePanelTestPeer;
@@ -69,10 +73,11 @@ class TilePalettePanel {
   GuiInterface* gui_;
   TexturePreviewRenderer texture_preview_;
 
-  // Stable pointers into the Api's tileset storage; valid as long as the Api
-  // is alive and the tileset has not been modified.
+  TilesetSelector tileset_selector_;
+  // Transient pointers resolved from stable IDs for the current frame.
   const Tileset* selected_tileset_ = nullptr;
   const Tile* selected_tile_ = nullptr;
+  std::optional<int> selected_tile_id_;
 
   bool show_tile_frame_ = true;
   bool show_tile_collision_ = false;

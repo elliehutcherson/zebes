@@ -21,6 +21,17 @@ Level MakeLevel() {
   };
 }
 
+TEST(PointerDragTest, PreservesTheGrabOffsetAndEndsOnRelease) {
+  PointerDragController drag;
+  drag.Begin({104, 105}, {100, 100});
+
+  ASSERT_TRUE(drag.Update({130, 140}, true).has_value());
+  EXPECT_EQ(*drag.Update({130, 140}, true), (Vec{126, 135}));
+  EXPECT_FALSE(drag.Update({130, 140}, false).has_value());
+  EXPECT_FALSE(drag.active());
+  EXPECT_FALSE(drag.Update({150, 150}, true).has_value());
+}
+
 TEST(ViewportInteractionTileTest, PaintsAndErasesFromTranslatedPointerState) {
   ViewportInteractionController controller;
   Level level = MakeLevel();

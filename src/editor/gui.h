@@ -36,6 +36,7 @@ class Gui : public GuiInterface {
   using GuiInterface::InputFloat;
   using GuiInterface::InputInt;
   using GuiInterface::InputText;
+  using GuiInterface::InputTextMultiline;
   using GuiInterface::InvisibleButton;
   using GuiInterface::IsItemClicked;
   using GuiInterface::IsItemHovered;
@@ -124,6 +125,9 @@ class Gui : public GuiInterface {
                  ImGuiInputTextCallback callback, void* user_data) override;
   bool InputText(const char* label, std::string* str, ImGuiInputTextFlags flags,
                  ImGuiInputTextCallback callback, void* user_data) override;
+  bool InputTextMultiline(const char* label, std::string* str, const ImVec2& size,
+                          ImGuiInputTextFlags flags, ImGuiInputTextCallback callback,
+                          void* user_data) override;
   bool InputInt(const char* label, int* v, int step, int step_fast,
                 ImGuiInputTextFlags flags) override;
   bool InputDouble(const char* label, double* v, double step, double step_fast, const char* format,

@@ -1,6 +1,5 @@
 #include "editor/level_editor/viewport_model.h"
 
-#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -21,13 +20,14 @@ absl::StatusOr<WorldRect> CalculateEntityBounds(const Entity& entity, const Spri
   }
 
   const SpriteFrame& frame = sprite->frames.front();
+  const SpriteFrameRenderBounds frame_bounds = CalculateSpriteFrameRenderBounds(frame);
   WorldRect bounds{
-      .min = {entity.transform.position.x + frame.offset_x,
-              entity.transform.position.y + frame.offset_y},
-      .max = {entity.transform.position.x + frame.offset_x + frame.render_w,
-              entity.transform.position.y + frame.offset_y + frame.render_h},
+      .min = {entity.transform.position.x + frame_bounds.left,
+              entity.transform.position.y + frame_bounds.top},
+      .max = {entity.transform.position.x + frame_bounds.right,
+              entity.transform.position.y + frame_bounds.bottom},
   };
-  if (!bounds.IsValid()) {
+  if (!frame_bounds.IsValid() || !bounds.IsValid()) {
     return absl::InvalidArgumentError("entity sprite frame has invalid render dimensions");
   }
   return bounds;
@@ -160,38 +160,69 @@ PaletteBinding ResolvePaletteBinding(const Level& level, const PaletteSelection&
   return binding;
 }
 
-absl::StatusOr<Vec> SnapEntityToGrid(Vec mouse_world, int tile_render_w, int tile_render_h,
-                                     const Collider* collider, const Sprite* sprite) {
+absl::StatusOr<Vec> SnapBlueprintOriginToGrid(Vec mouse_world, int tile_render_w, int tile_render_h,
+                                              BlueprintPlacementMode placement_mode) {
+  if (!IsValidBlueprintPlacementMode(placement_mode)) {
+    return absl::InvalidArgumentError("blueprint placement mode is invalid");
+  }
   ASSIGN_OR_RETURN(const TileCoordinate tile,
                    WorldToTileCoordinate(mouse_world, tile_render_w, tile_render_h));
 
-  const double cell_center_x = static_cast<double>(tile.x) * tile_render_w + tile_render_w / 2.0;
-  const double cell_bottom_y = (static_cast<double>(tile.y) + 1.0) * tile_render_h;
+  const double cell_left = static_cast<double>(tile.x) * tile_render_w;
+  const double cell_top = static_cast<double>(tile.y) * tile_render_h;
+  const double cell_center_x = cell_left + tile_render_w / 2.0;
+  switch (placement_mode) {
+    case BlueprintPlacementMode::kGrounded:
+      return Vec{cell_center_x, cell_top + tile_render_h};
+    case BlueprintPlacementMode::kCeiling:
+      return Vec{cell_center_x, cell_top};
+    case BlueprintPlacementMode::kFree:
+      return Vec{cell_center_x, cell_top + tile_render_h / 2.0};
+  }
+  return absl::InternalError("validated blueprint placement mode was not handled");
+}
 
-  if (collider != nullptr && !collider->polygons.empty()) {
-    double min_x = std::numeric_limits<double>::max();
-    double max_x = std::numeric_limits<double>::lowest();
-    double max_y = std::numeric_limits<double>::lowest();
-    for (const Polygon& polygon : collider->polygons) {
-      for (const Vec& point : polygon) {
-        min_x = std::min(min_x, point.x);
-        max_x = std::max(max_x, point.x);
-        max_y = std::max(max_y, point.y);
-      }
-    }
-    return Vec{cell_center_x - (min_x + max_x) / 2.0, cell_bottom_y - max_y};
+absl::StatusOr<Vec> SnapBlueprintOriginToNearestGridAnchor(Vec origin, int tile_render_w,
+                                                           int tile_render_h,
+                                                           BlueprintPlacementMode placement_mode) {
+  if (tile_render_w <= 0 || tile_render_h <= 0) {
+    return absl::InvalidArgumentError("tile render dimensions must be positive");
+  }
+  if (!std::isfinite(origin.x) || !std::isfinite(origin.y)) {
+    return absl::InvalidArgumentError("blueprint origin must be finite");
+  }
+  if (!IsValidBlueprintPlacementMode(placement_mode)) {
+    return absl::InvalidArgumentError("blueprint placement mode is invalid");
   }
 
-  if (sprite != nullptr && !sprite->frames.empty()) {
-    const SpriteFrame& frame = sprite->frames[0];
-    if (frame.render_w <= 0 || frame.render_h <= 0) {
-      return absl::InvalidArgumentError("sprite frame has invalid render dimensions");
+  const auto nearest_anchor = [](double coordinate, int spacing,
+                                 double offset) -> absl::StatusOr<double> {
+    const double grid_index = std::round((coordinate - offset) / spacing);
+    constexpr double kMinCoordinate = std::numeric_limits<int>::min();
+    constexpr double kMaxCoordinate = std::numeric_limits<int>::max();
+    if (grid_index < kMinCoordinate || grid_index > kMaxCoordinate) {
+      return absl::OutOfRangeError("blueprint origin exceeds level grid range");
     }
-    return Vec{cell_center_x - (frame.offset_x + frame.render_w / 2.0),
-               cell_bottom_y - (frame.offset_y + frame.render_h)};
-  }
+    return grid_index * spacing + offset;
+  };
 
-  return absl::InvalidArgumentError("blueprint has no valid collider or sprite");
+  const double half_width = tile_render_w / 2.0;
+  ASSIGN_OR_RETURN(const double snapped_x, nearest_anchor(origin.x, tile_render_w, half_width));
+
+  switch (placement_mode) {
+    case BlueprintPlacementMode::kGrounded:
+    case BlueprintPlacementMode::kCeiling: {
+      ASSIGN_OR_RETURN(const double snapped_y, nearest_anchor(origin.y, tile_render_h, 0.0));
+      return Vec{snapped_x, snapped_y};
+    }
+    case BlueprintPlacementMode::kFree: {
+      const double half_height = tile_render_h / 2.0;
+      ASSIGN_OR_RETURN(const double snapped_y,
+                       nearest_anchor(origin.y, tile_render_h, half_height));
+      return Vec{snapped_x, snapped_y};
+    }
+  }
+  return absl::InternalError("validated blueprint placement mode was not handled");
 }
 
 }  // namespace zebes

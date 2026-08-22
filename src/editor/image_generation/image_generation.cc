@@ -15,6 +15,9 @@ namespace zebes {
 absl::Status ValidateImageGenerationSpec(const ImageGenerationSpec& spec,
                                          const ImageGenerationCapabilities& capabilities) {
   if (spec.prompt.empty()) return absl::InvalidArgumentError("image prompt must not be empty");
+  if (spec.instructions.has_value() && spec.instructions->empty()) {
+    return absl::InvalidArgumentError("image instructions must not be empty when supplied");
+  }
   if (capabilities.maximum_candidates <= 0) {
     return absl::FailedPreconditionError(
         "image generation provider reported an invalid candidate limit");
@@ -48,6 +51,11 @@ absl::Status ValidateImageGenerationSpec(const ImageGenerationSpec& spec,
     }
   }
   return absl::OkStatus();
+}
+
+std::string ComposeImageGenerationPrompt(const ImageGenerationSpec& spec) {
+  if (!spec.instructions.has_value()) return spec.prompt;
+  return absl::StrCat(*spec.instructions, "\n\nSubject request:\n", spec.prompt);
 }
 
 absl::Status ValidateImageGenerationResult(const ImageGenerationResult& result) {

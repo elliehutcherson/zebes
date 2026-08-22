@@ -23,6 +23,16 @@ enum class PropPreviewPolicy : uint8_t {
   kFinishedOnly = 1,
 };
 
+enum class PropArtworkStylePreset : uint8_t {
+  kCustom = 0,
+  kRetroExploration = 1,
+  kModernPixelArt = 2,
+  kHandPaintedPlatformer = 3,
+  kDarkBiomechanical = 4,
+  kStylizedFantasy = 5,
+  kCleanCartoon = 6,
+};
+
 enum class PropPreviewStage : uint8_t {
   kSource = 0,
   kIsolation = 1,
@@ -37,6 +47,13 @@ enum class PropPreviewStage : uint8_t {
 struct PropPreviewAnchor {
   int x = 0;
   int y = 0;
+};
+
+struct PropPreviewBounds {
+  int left = 0;
+  int top = 0;
+  int width = 0;
+  int height = 0;
 };
 
 // One finished generation held for review. This is not recipe state: a
@@ -103,12 +120,21 @@ class PropArtworkEditorModel {
   void NextPreviewStage();
   const RgbaImage* PreviewImage() const;
   std::optional<PropPreviewAnchor> PreviewAnchor() const;
+  std::optional<PropPreviewBounds> ContextPreviewPropBounds() const;
+  absl::Status MoveContextPreviewProp(int requested_anchor_x, int requested_anchor_y);
   const PropStageDiagnostic* PreviewDiagnostic() const;
 
-  // Generation draft. The prompt and candidate count survive a generation so a
-  // rejected result can be retried with one word changed.
+  // Generation draft. The prompts and candidate count survive a generation so
+  // a rejected result can be retried with one word changed.
   std::string& prompt() { return prompt_; }
   const std::string& prompt() const { return prompt_; }
+  std::string& generation_instructions() { return generation_instructions_; }
+  const std::string& generation_instructions() const { return generation_instructions_; }
+  PropArtworkStylePreset style_preset() const { return style_preset_; }
+  void SetStylePreset(PropArtworkStylePreset preset);
+  std::string& style_guidance() { return style_guidance_; }
+  const std::string& style_guidance() const { return style_guidance_; }
+  void MarkStyleGuidanceCustom() { style_preset_ = PropArtworkStylePreset::kCustom; }
   int requested_candidates() const { return requested_candidates_; }
   void SetRequestedCandidates(int candidates, int maximum);
 
@@ -142,6 +168,14 @@ class PropArtworkEditorModel {
   uint64_t revision_ = 1;
 
   std::string prompt_;
+  std::string generation_instructions_ =
+      "Create one isolated game prop centered on a square canvas. Show the complete subject "
+      "without cropping. The subject must be free of any depicted environment: use a transparent "
+      "background when supported, otherwise use one flat solid-color background that clearly "
+      "contrasts with the subject. Do not add scenery, a floor or ground plane, cast shadows, "
+      "text, a border, a frame, or additional objects.";
+  PropArtworkStylePreset style_preset_ = PropArtworkStylePreset::kCustom;
+  std::string style_guidance_;
   int requested_candidates_ = 1;
   std::optional<PropGenerationReview> generation_;
 
@@ -153,5 +187,7 @@ class PropArtworkEditorModel {
 };
 
 const char* PropPreviewStageLabel(PropPreviewStage stage);
+const char* PropArtworkStylePresetLabel(PropArtworkStylePreset preset);
+const char* PropArtworkStylePresetGuidance(PropArtworkStylePreset preset);
 
 }  // namespace zebes

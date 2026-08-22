@@ -91,6 +91,7 @@ TEST(PreparePropAssetTest, BuildsACompleteColliderFreeRuntimeBundle) {
   ASSERT_EQ(prepared.blueprint.states.size(), 1u);
   EXPECT_TRUE(prepared.blueprint.states.front().collider_id.empty());
   EXPECT_EQ(prepared.blueprint.states.front().sprite_id, prepared.sprite.id);
+  EXPECT_EQ(prepared.blueprint.states.front().placement_mode, BlueprintPlacementMode::kGrounded);
   EXPECT_EQ(prepared.recipe.expected_frame, frame);
   EXPECT_EQ(prepared.recipe.final_pixel_digest.size(), 64u);
   EXPECT_OK(ValidatePreparedPropAsset(prepared));
@@ -124,6 +125,18 @@ TEST(PreparePropAssetTest, FreeAnchorBecomesTheExactSpriteOffset) {
   EXPECT_EQ(prepared.artwork.finished.anchor_y, 6);
   EXPECT_EQ(prepared.sprite.frames.front().offset_x, -2);
   EXPECT_EQ(prepared.sprite.frames.front().offset_y, -6);
+  EXPECT_EQ(prepared.blueprint.states.front().placement_mode, BlueprintPlacementMode::kFree);
+}
+
+TEST(PreparePropAssetTest, CeilingAttachmentInitializesCeilingBlueprintPlacement) {
+  const RgbaImage pixels = TestSource();
+  ASSERT_OK_AND_ASSIGN(const SourceArtwork source, TestSourceDefinition(pixels));
+  ASSERT_OK_AND_ASSIGN(PreparePropAssetRequest request, TestRequest());
+  request.pipeline.composition.attachment.mode = PropAttachmentMode::kCeiling;
+
+  ASSERT_OK_AND_ASSIGN(const PreparedPropAsset prepared, PreparePropAsset(source, pixels, request));
+
+  EXPECT_EQ(prepared.blueprint.states.front().placement_mode, BlueprintPlacementMode::kCeiling);
 }
 
 TEST(PreparePropAssetTest, RefusesPixelsThatDoNotMatchTheAcceptedSource) {

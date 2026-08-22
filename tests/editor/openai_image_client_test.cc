@@ -188,14 +188,16 @@ TEST(OpenAiImageClientTest, SendsTheCredentialOnlyAsASensitiveHeader) {
 TEST(OpenAiImageClientTest, BuildsTheGenerationsRequest) {
   ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(JsonResponse(200, SuccessBody(1))));
 
-  ASSERT_OK(fixture.client->Start(SpecFor("a mossy boulder", 3)).status());
+  ImageGenerationSpec spec = SpecFor("a mossy boulder", 3);
+  spec.instructions = "Create one isolated prop.";
+  ASSERT_OK(fixture.client->Start(std::move(spec)).status());
 
   const HttpRequest& request = fixture.transport->last_request();
   EXPECT_EQ(request.url, "https://api.openai.com/v1/images/generations");
   const std::string body(request.body.begin(), request.body.end());
   const nlohmann::json payload = nlohmann::json::parse(body);
   EXPECT_EQ(payload.at("model"), "gpt-image-2");
-  EXPECT_EQ(payload.at("prompt"), "a mossy boulder");
+  EXPECT_EQ(payload.at("prompt"), "Create one isolated prop.\n\nSubject request:\na mossy boulder");
   EXPECT_EQ(payload.at("n"), 3);
   EXPECT_EQ(payload.at("output_format"), "png");
 }

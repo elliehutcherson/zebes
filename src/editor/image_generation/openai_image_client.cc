@@ -190,8 +190,9 @@ absl::StatusOr<ImageGenerationRequest> OpenAiImageClient::StartValidated(ImageGe
                    SecretString::Create(absl::StrCat("Bearer ", secret.value())));
 
   const nlohmann::json payload{
-      {"model", config_.model}, {"prompt", spec.prompt},      {"n", spec.requested_candidates},
-      {"size", config_.size},   {"quality", config_.quality}, {"output_format", "png"},
+      {"model", config_.model},         {"prompt", ComposeImageGenerationPrompt(spec)},
+      {"n", spec.requested_candidates}, {"size", config_.size},
+      {"quality", config_.quality},     {"output_format", "png"},
   };
   const std::string body = payload.dump();
 

@@ -82,6 +82,46 @@ TEST(CodexAppServerTransportTest, ExchangesJsonlWithoutPassingTheApiKey) {
   EXPECT_FALSE(std::filesystem::exists(working_directory));
 }
 
+TEST(CodexAppServerTransportTest, UsesTheConfiguredExecutableWhenGuiPathCannotFindCodex) {
+  const std::filesystem::path test_directory =
+      std::filesystem::temp_directory_path() / "zebes_codex_transport_override_test";
+  std::filesystem::remove_all(test_directory);
+  std::filesystem::create_directories(test_directory);
+  absl::Cleanup cleanup = [&test_directory] { std::filesystem::remove_all(test_directory); };
+
+  const std::filesystem::path executable = test_directory / "fake-codex";
+  {
+    std::ofstream script(executable);
+    script << "#!/bin/sh\n"
+              "IFS= read -r line\n"
+              "printf '%s\\n' \"$line\"\n";
+  }
+  ASSERT_EQ(chmod(executable.c_str(), 0700), 0);
+
+  const char* const previous_override = std::getenv("ZEBES_CODEX_BIN");
+  const std::string saved_override = previous_override == nullptr ? "" : previous_override;
+  ASSERT_EQ(setenv("ZEBES_CODEX_BIN", executable.c_str(), 1), 0);
+  absl::Cleanup restore_environment = [previous_override, saved_override] {
+    if (previous_override == nullptr) {
+      unsetenv("ZEBES_CODEX_BIN");
+      return;
+    }
+    setenv("ZEBES_CODEX_BIN", saved_override.c_str(), 1);
+  };
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<CodexAppServerTransport> transport,
+                       CreateCodexAppServerProcess(CodexAppServerProcessConfig{}));
+  ASSERT_OK(transport->Start());
+  ASSERT_OK(transport->SendLine(R"({"id":1})"));
+
+  std::vector<std::string> lines;
+  for (int attempt = 0; attempt < 100 && lines.empty(); ++attempt) {
+    ASSERT_OK_AND_ASSIGN(lines, transport->Poll());
+    if (lines.empty()) absl::SleepFor(absl::Milliseconds(5));
+  }
+  ASSERT_EQ(lines, std::vector<std::string>{R"({"id":1})"});
+}
+
 #else
 
 TEST(CodexAppServerTransportTest, ReportsUnsupportedWindowsProcessTransport) {

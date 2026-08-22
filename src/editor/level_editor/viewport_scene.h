@@ -65,12 +65,19 @@ struct EntityRenderItem {
   bool show_border = false;
   // Draw the persistent entity's selection border.
   bool selected = false;
+  // Authored entity origin, independent of sprite-frame render offsets.
+  Vec origin;
+  // Draw the shared origin gizmo. A missing placement mode still draws the
+  // cross, but omits a surface indicator for unresolved legacy entities.
+  bool show_origin = false;
+  std::optional<BlueprintPlacementMode> placement_mode;
 };
 
 struct EntityRenderOptions {
   uint64_t selected_entity_id = Entity::kInvalidId;
   bool show_borders = false;
   float overlay_opacity = 0.0f;
+  std::optional<BlueprintPlacementMode> selected_placement_mode;
 };
 
 enum class ZoneGizmoState {
@@ -163,7 +170,8 @@ absl::StatusOr<std::vector<EntityRenderItem>> ComposeEntityRenderItems(
 
 // Composes one transient entity preview using the same geometry as level entities.
 absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
-                                                            const ResolvedSprite& resolved);
+                                                            const ResolvedSprite& resolved,
+                                                            BlueprintPlacementMode placement_mode);
 
 // Builds gizmos for zones intersecting the current camera. Selection takes
 // visual precedence over active-zone state.

@@ -5,6 +5,7 @@
         {
             "collider_id": "",
             "name": "castle-entrance-right",
+            "placement_mode": "grounded",
             "sprite_id": "9d31e7ee-a983-4c8f-9ebc-952de4814d91"
         }
     ]

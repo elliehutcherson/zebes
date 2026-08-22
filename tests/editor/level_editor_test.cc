@@ -40,6 +40,8 @@ class LevelEditorTestPeer {
 
   static LevelPanelModel& GetLevelModel(LevelEditor& editor) { return editor.level_model_; }
 
+  static Level& GetEditingLevel(LevelEditor& editor) { return *editor.level_model_.active_level(); }
+
   static SelectionState::Type GetSelectionType(const LevelEditor& editor) {
     return editor.selection_.type;
   }
@@ -140,6 +142,12 @@ class LevelEditorTest : public ::testing::Test {
             [&](ImGuiCol idx, const ImVec4& col) { return ScopedStyleColor(&gui_, {}, {}); });
     ON_CALL(gui_, CreateScopedId(::testing::A<const char*>()))
         .WillByDefault(Invoke([this](const char* id) { return ScopedId(&gui_, id); }));
+    ON_CALL(gui_, CreateScopedCombo(_, _, _))
+        .WillByDefault(
+            Invoke([this](const char* label, const char* preview, ImGuiComboFlags flags) {
+              return ScopedCombo(&gui_, label, preview, flags);
+            }));
+    ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
 
     // All buttons return false by default; individual tests override as needed.
     EXPECT_CALL(gui_, Button(_, _)).WillRepeatedly(Return(false));
@@ -239,6 +247,56 @@ TEST_F(LevelEditorTest, RenderInspectorNoSelectionDoesNotDelegateToLevelPanel) {
   EXPECT_CALL(*mock_level_panel_, RenderDetails(_)).Times(0);
 
   ASSERT_OK(LevelEditorTestPeer::RenderInspector(*editor_));
+}
+
+TEST_F(LevelEditorTest, RenderInspectorResnapsSelectedBlueprintEntityToNearestAnchor) {
+  Blueprint blueprint{
+      .id = "crystal-blueprint",
+      .states = {{.name = "Default", .placement_mode = BlueprintPlacementMode::kGrounded}},
+  };
+  Level level{
+      .id = "cave",
+      .tile_render_width = 32,
+      .tile_render_height = 32,
+  };
+  level.layers.front().entities.emplace(7, Entity{.id = 7,
+                                                  .transform = {.position = {176, 440}},
+                                                  .blueprint_id = blueprint.id,
+                                                  .blueprint_state_index = 0});
+  LevelEditorTestPeer::SetEditingLevel(*editor_, std::move(level));
+  LevelEditorTestPeer::SetSelection(
+      *editor_, SelectionState{.type = SelectionState::Type::kEntity, .entity_id = 7});
+  EXPECT_CALL(*api_, GetBlueprint(StrEq("crystal-blueprint"))).WillOnce(Return(&blueprint));
+  EXPECT_CALL(gui_, Button(StrEq("Resnap to Grid"), _)).WillOnce(Return(true));
+
+  ASSERT_OK(LevelEditorTestPeer::RenderInspector(*editor_));
+
+  const Entity& entity =
+      LevelEditorTestPeer::GetEditingLevel(*editor_).layers.front().entities.at(7);
+  EXPECT_EQ(entity.transform.position, (Vec{176, 448}));
+}
+
+TEST_F(LevelEditorTest, RenderInspectorRejectsInvalidBlueprintStateDuringResnap) {
+  Blueprint blueprint{
+      .id = "crystal-blueprint",
+      .states = {{.name = "Default", .placement_mode = BlueprintPlacementMode::kGrounded}},
+  };
+  Level level{.id = "cave"};
+  level.layers.front().entities.emplace(7, Entity{.id = 7,
+                                                  .transform = {.position = {176, 440}},
+                                                  .blueprint_id = blueprint.id,
+                                                  .blueprint_state_index = 3});
+  LevelEditorTestPeer::SetEditingLevel(*editor_, std::move(level));
+  LevelEditorTestPeer::SetSelection(
+      *editor_, SelectionState{.type = SelectionState::Type::kEntity, .entity_id = 7});
+  EXPECT_CALL(*api_, GetBlueprint(StrEq("crystal-blueprint"))).WillOnce(Return(&blueprint));
+  EXPECT_CALL(gui_, Button(StrEq("Resnap to Grid"), _)).WillOnce(Return(true));
+
+  EXPECT_EQ(LevelEditorTestPeer::RenderInspector(*editor_).code(),
+            absl::StatusCode::kInvalidArgument);
+  const Entity& entity =
+      LevelEditorTestPeer::GetEditingLevel(*editor_).layers.front().entities.at(7);
+  EXPECT_EQ(entity.transform.position, (Vec{176, 440}));
 }
 
 TEST_F(LevelEditorTest, CreateEventPersistsDraftAndSelectsLevel) {

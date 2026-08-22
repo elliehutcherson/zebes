@@ -6,6 +6,7 @@
 #include "absl/status/statusor.h"
 #include "editor/level_editor/terrain_brush.h"
 #include "editor/level_editor/viewport_model.h"
+#include "editor/pointer_drag.h"
 #include "objects/blueprint.h"
 #include "objects/entity.h"
 #include "objects/level.h"
@@ -83,11 +84,6 @@ class ViewportInteractionController {
                                                    const ViewportInteractionOptions& options);
 
  private:
-  struct EntityDrag {
-    uint64_t entity_id = Entity::kInvalidId;
-    Vec pointer_offset;
-  };
-
   absl::StatusOr<ViewportInteractionResult> UpdateTile(const Level& level, WorldLayer& layer,
                                                        const ViewportInteractionInput& input,
                                                        int tile_id);
@@ -111,7 +107,8 @@ class ViewportInteractionController {
   bool ClaimPaintCell(TileCoordinate coordinate, bool erasing);
 
   std::optional<uint64_t> next_entity_id_ = 1;
-  std::optional<EntityDrag> entity_drag_;
+  uint64_t dragged_entity_id_ = Entity::kInvalidId;
+  PointerDragController entity_drag_;
   std::optional<PaintedCell> last_painted_;
 };
 

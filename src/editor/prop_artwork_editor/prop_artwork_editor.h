@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -13,6 +15,7 @@
 #include "editor/canvas/canvas.h"
 #include "editor/gui_interface.h"
 #include "editor/image_generation/image_generation_engine.h"
+#include "editor/pointer_drag.h"
 #include "editor/preview_texture_sink.h"
 #include "editor/prop_artwork_editor/prop_artwork_context.h"
 #include "editor/prop_artwork_editor/prop_artwork_controls_panel.h"
@@ -32,14 +35,27 @@ struct PreparedPropRegenerationPreview {
   std::optional<PropArtworkContextPreview> context;
 };
 
-// Every dependency is borrowed and must outlive the editor. `generation` is
-// the session-lifetime engine owned by the composition root; the editor
-// submits to it and drains its events, and never starts or stops it.
+// One provider offered by the composition root. An unavailable provider has
+// no engine and carries the reason the generation controls should show. The
+// editor borrows available engines and never starts or stops them.
+struct PropArtworkGenerationProvider {
+  std::string name;
+  ImageGenerationEngine* engine = nullptr;
+  std::string unavailable_reason;
+  // Some providers share a session whose state may be ambiguous after a
+  // request failure. Those providers require an editor restart rather than an
+  // automatic retry; other providers remain retryable except for configuration
+  // failures.
+  bool disable_after_failure = false;
+};
+
+// Every dependency is borrowed and must outlive the editor. Generation
+// providers are session-lifetime engines owned by the composition root.
 struct PropArtworkEditorOptions {
   Api* api = nullptr;
   GuiInterface* gui = nullptr;
   PreviewTextureSink* preview = nullptr;
-  ImageGenerationEngine* generation = nullptr;
+  std::vector<PropArtworkGenerationProvider> generation_providers;
 };
 
 class PropArtworkEditor {
@@ -58,6 +74,7 @@ class PropArtworkEditor {
   absl::Status Init();
   void StartImport(std::string path);
   void SelectSource();
+  void SelectGenerationProvider(size_t index);
   void StartGeneration();
   void CancelGeneration();
   void AcceptCandidate();
@@ -79,6 +96,7 @@ class PropArtworkEditor {
   absl::Status RenderControls();
   absl::Status RenderPreview();
   absl::Status RenderOutput();
+  absl::Status UpdateContextPreviewDrag();
 
   struct PendingImport {
     std::string path;
@@ -101,8 +119,10 @@ class PropArtworkEditor {
   Api* api_;
   GuiInterface* gui_;
   PreviewTextureSink* preview_;
-  ImageGenerationEngine* generation_;
+  std::vector<PropArtworkGenerationProvider> generation_providers_;
+  size_t selected_generation_provider_ = 0;
   Canvas preview_canvas_;
+  PointerDragController preview_prop_drag_;
   Camera preview_camera_;
   bool frame_pending_ = true;
   uint64_t framed_revision_ = 0;
@@ -117,7 +137,11 @@ class PropArtworkEditor {
   // The id of the one generation this editor is waiting for. At most one is in
   // flight: a second prompt would produce two candidate sets with no way to
   // say which the preview is showing.
-  std::optional<uint64_t> pending_generation_id_;
+  struct PendingGeneration {
+    size_t provider = 0;
+    uint64_t id = 0;
+  };
+  std::optional<PendingGeneration> pending_generation_;
   // Import persists pixels so the manager remains the single authority during
   // processing. Until a prop bundle references them, this editor session owns
   // the record and removes it on replacement, Clear, or normal shutdown.

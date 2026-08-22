@@ -108,5 +108,74 @@ TEST(PropArtworkContextTest, PlacesEachAttachmentModeInItsMatchingScene) {
   EXPECT_EQ(free.anchor_y, free.image.height / 2);
 }
 
+TEST(PropArtworkContextTest, FreePropFollowsTheRequestedPreviewPositionWithoutAccumulatingCopies) {
+  PropArtwork prop{
+      .image = RgbaImage{.width = 2,
+                         .height = 2,
+                         .pixels = {231, 17, 93, 255, 231, 17, 93, 255, 231, 17, 93, 255, 231, 17,
+                                    93, 255}},
+      .anchor_x = 1,
+      .anchor_y = 1,
+  };
+  TerrainGenConfig terrain;
+  terrain.tile_size = 8;
+  terrain.supersample = 1;
+  ASSERT_OK_AND_ASSIGN(PropArtworkContextPreview preview,
+                       BuildPropArtworkContextPreview(prop, terrain, PropAttachmentMode::kFree));
+
+  ASSERT_OK(MovePropArtworkContextPreview(prop, 20, 24, &preview));
+
+  EXPECT_EQ(preview.anchor_x, 20);
+  EXPECT_EQ(preview.anchor_y, 24);
+  EXPECT_EQ(preview.prop_left, 19);
+  EXPECT_EQ(preview.prop_top, 23);
+  size_t prop_pixels = 0;
+  for (size_t pixel = 0; pixel < static_cast<size_t>(preview.image.width) * preview.image.height;
+       ++pixel) {
+    const size_t offset = pixel * 4;
+    if (preview.image.pixels[offset + 0] == 231 && preview.image.pixels[offset + 1] == 17 &&
+        preview.image.pixels[offset + 2] == 93) {
+      ++prop_pixels;
+    }
+  }
+  EXPECT_EQ(prop_pixels, 4);
+}
+
+TEST(PropArtworkContextTest, GroundedPropFollowsTerrainAndStaysCompletelyInFrame) {
+  PropArtwork prop;
+  prop.image = RgbaImage{.width = 8, .height = 8};
+  prop.image.pixels.assign(8 * 8 * 4, 255);
+  prop.anchor_x = 4;
+  prop.anchor_y = 7;
+  TerrainGenConfig terrain;
+  terrain.tile_size = 8;
+  terrain.supersample = 1;
+  ASSERT_OK_AND_ASSIGN(
+      PropArtworkContextPreview preview,
+      BuildPropArtworkContextPreview(prop, terrain, PropAttachmentMode::kGrounded));
+  const int original_x = preview.anchor_x;
+
+  ASSERT_OK(MovePropArtworkContextPreview(prop, preview.terrain_left, 0, &preview));
+
+  EXPECT_NE(preview.anchor_x, original_x);
+  EXPECT_GE(preview.prop_left, 0);
+  EXPECT_GE(preview.prop_top, 0);
+  EXPECT_LE(preview.prop_left + prop.image.width, preview.image.width);
+  EXPECT_LE(preview.prop_top + prop.image.height, preview.image.height);
+  const int terrain_x = preview.anchor_x - preview.terrain_left;
+  const int terrain_y = preview.anchor_y - preview.terrain_top;
+  ASSERT_GE(terrain_x, 0);
+  ASSERT_LT(terrain_x, preview.terrain.width);
+  ASSERT_GE(terrain_y, 0);
+  ASSERT_LT(terrain_y, preview.terrain.height);
+  const size_t surface = (static_cast<size_t>(terrain_y) * preview.terrain.width + terrain_x) * 4;
+  EXPECT_NE(preview.terrain.pixels[surface + 3], 0);
+  if (terrain_y > 0) {
+    const size_t above =
+        (static_cast<size_t>(terrain_y - 1) * preview.terrain.width + terrain_x) * 4;
+    EXPECT_EQ(preview.terrain.pixels[above + 3], 0);
+  }
+}
+
 }  // namespace
 }  // namespace zebes

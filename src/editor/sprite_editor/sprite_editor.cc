@@ -7,6 +7,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/sdl_wrapper.h"
+#include "editor/anchor_gizmo_renderer.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
 #include "imgui.h"
@@ -352,10 +353,12 @@ void SpriteEditor::RenderSpriteAnimation() {
                              static_cast<float>(-layout->bounds_left) * layout->scale;
       const float origin_y = canvas_position.y + kAnimationPreviewPadding +
                              static_cast<float>(-layout->bounds_top) * layout->scale;
-      draw_list->AddLine(ImVec2(origin_x - 4.0f, origin_y), ImVec2(origin_x + 4.0f, origin_y),
-                         IM_COL32(120, 120, 128, 180));
-      draw_list->AddLine(ImVec2(origin_x, origin_y - 4.0f), ImVec2(origin_x, origin_y + 4.0f),
-                         IM_COL32(120, 120, 128, 180));
+      const absl::Status gizmo_status =
+          DrawAnchorGizmo(*draw_list, {origin_x, origin_y}, std::nullopt);
+      if (!gizmo_status.ok()) {
+        gui_->Text("Invalid origin gizmo: %s", gizmo_status.ToString().c_str());
+        return;
+      }
 
       const ImVec2 image_min(canvas_position.x + kAnimationPreviewPadding + layout->frame_x,
                              canvas_position.y + kAnimationPreviewPadding + layout->frame_y);
@@ -502,9 +505,9 @@ void SpriteEditor::RenderSpriteFrameItem(int index, SpriteFrame& frame) {
   render_int_field("Render W:", &frame.render_w, 1, 10000);
   render_int_field("Render H:", &frame.render_h, 1, 10000);
 
-  gui_->Text("Offsets:");
-  render_int_field("Offset X:", &frame.offset_x, -10000, 10000);
-  render_int_field("Offset Y:", &frame.offset_y, -10000, 10000);
+  gui_->Text("Render Offset:");
+  render_int_field("X:", &frame.offset_x, -10000, 10000);
+  render_int_field("Y:", &frame.offset_y, -10000, 10000);
 
   gui_->Text("Anim:");
   render_int_field("Duration:", &frame.frames_per_cycle, 1, 1000);

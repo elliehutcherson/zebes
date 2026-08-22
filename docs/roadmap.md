@@ -143,20 +143,39 @@ terrain colours are the production palette policy. Milestones 1-4a now provide
 the deterministic pipeline, strict source and recipe resources, compensated
 bundle lifecycle, regeneration/deletion, and the imported-source Prop Artwork
 tab. Its preview reuses the editor `Canvas` for rulers, pan, zoom, and Fit, and
-context framing retains the complete prop texture. Uncommitted imports are
+context framing retains the complete prop texture. Finished context props can
+be dragged transiently along their valid terrain surface without changing the
+recipe; the no-jump gesture state is shared with Level Editor entity movement.
+Uncommitted imports are
 discarded on replacement, Clear, or normal shutdown; retained sources can be
 deleted explicitly through the same reference checks as other assets.
 Grounded, ceiling, and free/background attachment modes are persisted and feed
-composition, validation, context preview, sprite offsets, and regeneration.
+composition, validation, context preview, sprite offsets, regeneration, and
+Level Editor origin snapping without canceling the authored render offset.
+Legacy entity positions can be migrated explicitly from the Level Editor
+inspector with an idempotent nearest-anchor resnap; schema migration never
+silently rewrites authored level composition.
+Blueprint selection now uses a searchable, sorted thumbnail grid with explicit
+placeholders for assets whose artwork cannot yet be previewed. Selection and
+filtering live in a platform-neutral stable-ID model, while blueprint, tile,
+and terrain palettes reuse common grid and item-frame presentation. Blueprint,
+Level, Prop Artwork, and Sprite editors also reuse one anchor-gizmo geometry and
+rendering path for origin and attachment-surface feedback. Tile and terrain
+palettes share a stable-ID tileset selector instead of duplicating combo logic
+and retaining authoritative resource pointers.
 The provider-neutral generation, credential, and bounded HTTP contracts, the
 poll-driven libcurl transport, the session-lifetime generation engine, the
 first provider adapter, and the generated-source editor flow are all
 implemented. `ImageGenerationService` assembles and owns that stack for the
 process; a generated candidate reaches `SelectSource` through the same
-retention the imported path uses. What remains is the credential-gated opt-in
-integration test and Milestone 6 hardening. The local feedback-loop milestone
-is complete, so provider work can proceed without multiplying an expensive
-verification cycle. Its §12 sequence:
+retention the imported path uses. The editor now composes the Codex and OpenAI
+providers independently and offers runtime selection without making either a
+startup requirement. Live Codex startup, authentication, skill discovery, and
+generation are confirmed; the corrected Codex-cache decode plus review and
+acceptance flow remain. Also outstanding are the credential-gated opt-in
+OpenAI integration run and Milestone 6 hardening. The local feedback-loop
+milestone is complete, so provider work can proceed
+without multiplying an expensive verification cycle. Its §12 sequence:
 
 0. **Accepted.** Run the visual feasibility spike:
    one imported boulder, one real terrain recipe, the deterministic C++ stages,

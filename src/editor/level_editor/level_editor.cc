@@ -13,6 +13,7 @@
 #include "editor/level_editor/level_panel.h"
 #include "editor/level_editor/level_panel_interface.h"
 #include "editor/level_editor/parallax_layout.h"
+#include "editor/level_editor/viewport_model.h"
 #include "imgui.h"
 #include "parallax_theme_panel.h"
 
@@ -387,6 +388,26 @@ absl::Status LevelEditor::RenderInspector() {
           }
           if (selected) gui_->SetItemDefaultFocus();
         }
+      }
+
+      if (!entity->blueprint_id.empty() && gui_->Button("Resnap to Grid")) {
+        ASSIGN_OR_RETURN(Blueprint * blueprint, api_->GetBlueprint(entity->blueprint_id));
+        if (blueprint == nullptr) {
+          return absl::FailedPreconditionError("selected entity resolved to a null blueprint");
+        }
+        if (entity->blueprint_state_index < 0 ||
+            entity->blueprint_state_index >= blueprint->states.size()) {
+          return absl::InvalidArgumentError(absl::StrCat("selected entity ", entity_id,
+                                                         " has invalid blueprint state index ",
+                                                         entity->blueprint_state_index));
+        }
+
+        ASSIGN_OR_RETURN(
+            const Vec snapped_origin,
+            SnapBlueprintOriginToNearestGridAnchor(
+                entity->transform.position, level.tile_render_width, level.tile_render_height,
+                blueprint->states[entity->blueprint_state_index].placement_mode));
+        entity->transform.position = snapped_origin;
       }
       gui_->Separator();
 

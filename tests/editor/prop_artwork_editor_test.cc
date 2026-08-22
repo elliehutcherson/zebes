@@ -49,8 +49,15 @@ class PropArtworkEditorTestPeer {
   static void CancelGeneration(PropArtworkEditor& editor) { editor.CancelGeneration(); }
   static void PollGeneration(PropArtworkEditor& editor) { editor.PollGeneration(); }
   static void AcceptCandidate(PropArtworkEditor& editor) { editor.AcceptCandidate(); }
+  static void SelectGenerationProvider(PropArtworkEditor& editor, size_t index) {
+    editor.SelectGenerationProvider(index);
+  }
+  static const PropArtworkGenerationProvider& GenerationProvider(const PropArtworkEditor& editor,
+                                                                 size_t index) {
+    return editor.generation_providers_.at(index);
+  }
   static bool HasPendingGeneration(const PropArtworkEditor& editor) {
-    return editor.pending_generation_id_.has_value();
+    return editor.pending_generation_.has_value();
   }
   static bool HasPendingWork(const PropArtworkEditor& editor) { return editor.HasPendingWork(); }
   static absl::Status WaitForWork(PropArtworkEditor& editor) {
@@ -126,11 +133,43 @@ class StubGenerationClient final : public ImageGenerationClient {
     return ImageGenerationCapabilities{.maximum_candidates = 4};
   }
 
+  const std::optional<ImageGenerationSpec>& submitted_spec() const { return submitted_spec_; }
+
  protected:
   absl::StatusOr<ImageGenerationRequest> StartValidated(ImageGenerationSpec spec) override {
+    submitted_spec_ = spec;
     return ImageGenerationRequest::Create(std::make_unique<StubGenerationOperation>(
         std::move(spec.prompt), spec.requested_candidates));
   }
+
+ private:
+  std::optional<ImageGenerationSpec> submitted_spec_;
+};
+
+class FailingGenerationOperation final : public ImageGenerationOperation {
+ public:
+  explicit FailingGenerationOperation(absl::Status failure) : failure_(std::move(failure)) {}
+
+  absl::StatusOr<std::optional<ImageGenerationResult>> Poll() override { return failure_; }
+  void Cancel() noexcept override {}
+
+ private:
+  absl::Status failure_;
+};
+
+class FailingGenerationClient final : public ImageGenerationClient {
+ public:
+  explicit FailingGenerationClient(absl::Status failure) : failure_(std::move(failure)) {}
+
+  ImageGenerationCapabilities Capabilities() const override { return {}; }
+
+ protected:
+  absl::StatusOr<ImageGenerationRequest> StartValidated(ImageGenerationSpec) override {
+    return ImageGenerationRequest::Create(std::make_unique<FailingGenerationOperation>(failure_));
+  }
+
+ private:
+  absl::Status failure_;
 };
 
 // A flat, opaque square: isolation is not what these generation tests are
@@ -168,14 +207,16 @@ RgbaImage SourcePixels() {
 class PropArtworkEditorTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    ASSERT_OK_AND_ASSIGN(generation_,
-                         ImageGenerationEngine::Create(std::make_unique<StubGenerationClient>()));
-    ASSERT_OK_AND_ASSIGN(editor_, PropArtworkEditor::Create({
-                                      .api = &api_,
-                                      .gui = &gui_,
-                                      .preview = &preview_,
-                                      .generation = generation_.get(),
-                                  }));
+    auto generation_client = std::make_unique<StubGenerationClient>();
+    generation_client_ = generation_client.get();
+    ASSERT_OK_AND_ASSIGN(generation_, ImageGenerationEngine::Create(std::move(generation_client)));
+    ASSERT_OK_AND_ASSIGN(
+        editor_, PropArtworkEditor::Create({
+                     .api = &api_,
+                     .gui = &gui_,
+                     .preview = &preview_,
+                     .generation_providers = {{.name = "Stub", .engine = generation_.get()}},
+                 }));
     pixels_ = SourcePixels();
     ASSERT_OK_AND_ASSIGN(const std::string digest, RgbaImageDigest(pixels_));
     source_ = SourceArtwork{
@@ -232,6 +273,7 @@ class PropArtworkEditorTest : public ::testing::Test {
   NiceMock<MockApi> api_;
   NiceMock<MockGui> gui_;
   StubPreviewSink preview_;
+  StubGenerationClient* generation_client_ = nullptr;
   // Declared before the editor so it outlives the editor that submits to it,
   // matching the composition root's ordering.
   std::unique_ptr<ImageGenerationEngine> generation_;
@@ -433,12 +475,20 @@ TEST_F(PropArtworkEditorTest, RefusedDeleteKeepsTheRecipeOpen) {
 // manager retains the pixels, and only then does the model point at them.
 TEST_F(PropArtworkEditorTest, AcceptedCandidateIsRetainedWithGeneratedProvenance) {
   model().prompt() = "a mossy boulder";
+  model().SetStylePreset(PropArtworkStylePreset::kRetroExploration);
   model().SetRequestedCandidates(2, 4);
 
   PropArtworkEditorTestPeer::StartGeneration(*editor_);
   ASSERT_TRUE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
   ASSERT_OK(RunGenerationUntilEvent());
 
+  ASSERT_TRUE(generation_client_->submitted_spec().has_value());
+  EXPECT_EQ(generation_client_->submitted_spec()->prompt, "a mossy boulder");
+  ASSERT_TRUE(generation_client_->submitted_spec()->instructions.has_value());
+  EXPECT_THAT(*generation_client_->submitted_spec()->instructions,
+              HasSubstr("transparent background"));
+  EXPECT_THAT(*generation_client_->submitted_spec()->instructions,
+              HasSubstr("Art direction:\n16-bit science-fiction exploration game art"));
   ASSERT_FALSE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
   ASSERT_TRUE(model().generation_review().has_value());
   EXPECT_EQ(model().generation_review()->candidates.size(), 2);
@@ -518,6 +568,61 @@ TEST_F(PropArtworkEditorTest, RefusedGenerationReportsTheProviderStatus) {
   EXPECT_FALSE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
   EXPECT_FALSE(model().generation_review().has_value());
   EXPECT_THAT(model().status(), HasSubstr("Describe the prop"));
+}
+
+TEST_F(PropArtworkEditorTest, MissingProvidersDisableOnlyGeneration) {
+  editor_.reset();
+  ASSERT_OK_AND_ASSIGN(editor_, PropArtworkEditor::Create({
+                                    .api = &api_,
+                                    .gui = &gui_,
+                                    .preview = &preview_,
+                                }));
+  model().prompt() = "a mossy boulder";
+
+  PropArtworkEditorTestPeer::StartGeneration(*editor_);
+
+  EXPECT_FALSE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
+  EXPECT_THAT(model().status(), HasSubstr("No image generation provider"));
+}
+
+TEST_F(PropArtworkEditorTest, PermanentProviderFailureAllowsFallbackSelection) {
+  editor_.reset();
+  generation_.reset();
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationEngine> failing,
+                       ImageGenerationEngine::Create(std::make_unique<FailingGenerationClient>(
+                           absl::UnauthenticatedError("Codex has no active account"))));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationEngine> fallback,
+                       ImageGenerationEngine::Create(std::make_unique<StubGenerationClient>()));
+  ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<PropArtworkEditor> editor,
+      PropArtworkEditor::Create({
+          .api = &api_,
+          .gui = &gui_,
+          .preview = &preview_,
+          .generation_providers =
+              {
+                  {.name = "Codex", .engine = failing.get(), .disable_after_failure = true},
+                  {.name = "OpenAI API", .engine = fallback.get()},
+              },
+      }));
+  PropArtworkEditorModel& model = PropArtworkEditorTestPeer::Model(*editor);
+  model.prompt() = "a mossy boulder";
+
+  PropArtworkEditorTestPeer::StartGeneration(*editor);
+  ASSERT_OK(failing->Run().status());
+  PropArtworkEditorTestPeer::PollGeneration(*editor);
+
+  EXPECT_EQ(PropArtworkEditorTestPeer::GenerationProvider(*editor, 0).engine, nullptr);
+  EXPECT_THAT(PropArtworkEditorTestPeer::GenerationProvider(*editor, 0).unavailable_reason,
+              HasSubstr("no active account"));
+
+  PropArtworkEditorTestPeer::SelectGenerationProvider(*editor, 1);
+  PropArtworkEditorTestPeer::StartGeneration(*editor);
+  ASSERT_OK(fallback->Run().status());
+  PropArtworkEditorTestPeer::PollGeneration(*editor);
+
+  EXPECT_TRUE(model.generation_review().has_value());
+  EXPECT_THAT(model.status(), HasSubstr("Review"));
 }
 
 // Cancelling does not retire the request: the engine still owes exactly one

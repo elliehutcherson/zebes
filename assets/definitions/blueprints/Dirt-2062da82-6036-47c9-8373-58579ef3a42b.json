@@ -5,6 +5,7 @@
         {
             "collider_id": "",
             "name": "Dirt",
+            "placement_mode": "grounded",
             "sprite_id": "f122dd5d-cde5-4bfb-a09c-5ec7c210c97c"
         }
     ]

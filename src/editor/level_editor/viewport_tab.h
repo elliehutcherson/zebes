@@ -60,7 +60,7 @@ struct ViewportRenderOptions {
   const Blueprint* placement_blueprint = nullptr;
   // Entity currently selected by the LevelEditor; kInvalidId = none.
   uint64_t selected_entity_id = Entity::kInvalidId;
-  // Whether entity placement and movement should snap to the grid relative to origin.
+  // Whether blueprint placement should snap its authored origin to a tile anchor.
   bool snap_to_grid = true;
   // Whether to draw bounding-box borders around all entities in the viewport.
   bool show_entity_borders = false;
@@ -186,7 +186,8 @@ class ViewportTab {
                        const SceneFrame& scene, Vec mouse_world, float zoom);
 
   // Composes and renders a semi-transparent placement preview at world_pos.
-  absl::Status RenderPlacementGhost(Vec world_pos, const ResolvedSprite& resolved);
+  absl::Status RenderPlacementGhost(Vec world_pos, const ResolvedSprite& resolved,
+                                    BlueprintPlacementMode placement_mode);
 
   // Draws the tile the hovered cell would actually receive, so the brush shows
   // its resolved edge or corner artwork rather than a generic swatch.
@@ -218,10 +219,9 @@ class ViewportTab {
   // constant-screen-size reticle at the camera position.
   void RenderCameraGuide();
 
-  // Resolves the blueprint collider and delegates platform-neutral grid snapping.
+  // Delegates platform-neutral origin snapping using the first blueprint state.
   absl::StatusOr<Vec> SnapBlueprintToGrid(Vec mouse_world, const Blueprint& blueprint,
-                                          const Sprite* sprite, int tile_render_w,
-                                          int tile_render_h) const;
+                                          int tile_render_w, int tile_render_h) const;
 
   // Resolves the blueprint's optional managed sprite for preview and placement.
   absl::StatusOr<ResolvedSprite> ResolveBlueprintSprite(const Blueprint& blueprint) const;

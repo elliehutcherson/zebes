@@ -38,9 +38,12 @@ TEST(ViewportSceneEntityTest, ComposesStableSpriteGeometryAndPresentationState) 
       {7, Entity{.id = 7, .transform = {.position = {100, 200}}, .sprite_id = "s1"}},
   };
 
-  absl::StatusOr<std::vector<EntityRenderItem>> items = ComposeEntityRenderItems(
-      entities, Lookup(sprite, texture),
-      {.selected_entity_id = 7, .show_borders = true, .overlay_opacity = 0.25f});
+  absl::StatusOr<std::vector<EntityRenderItem>> items =
+      ComposeEntityRenderItems(entities, Lookup(sprite, texture),
+                               {.selected_entity_id = 7,
+                                .show_borders = true,
+                                .overlay_opacity = 0.25f,
+                                .selected_placement_mode = BlueprintPlacementMode::kCeiling});
 
   ASSERT_OK(items);
   ASSERT_EQ(items->size(), 1u);
@@ -51,6 +54,9 @@ TEST(ViewportSceneEntityTest, ComposesStableSpriteGeometryAndPresentationState) 
   EXPECT_EQ(item.bounds.max, (Vec{122, 228}));
   EXPECT_TRUE(item.show_border);
   EXPECT_TRUE(item.selected);
+  EXPECT_EQ(item.origin, (Vec{100, 200}));
+  EXPECT_TRUE(item.show_origin);
+  EXPECT_EQ(item.placement_mode, BlueprintPlacementMode::kCeiling);
   EXPECT_FLOAT_EQ(item.overlay_opacity, 0.25f);
   ASSERT_TRUE(item.sprite.has_value());
   EXPECT_EQ(item.sprite->source.x, 8);
@@ -171,13 +177,17 @@ TEST(ViewportSceneEntityTest, ComposesPlacementGhostWithSharedEntityGeometry) {
   };
 
   absl::StatusOr<EntityRenderItem> item =
-      ComposeEntityPlacementItem({100, 200}, ResolvedSprite{.sprite = &sprite, .texture = texture});
+      ComposeEntityPlacementItem({100, 200}, ResolvedSprite{.sprite = &sprite, .texture = texture},
+                                 BlueprintPlacementMode::kGrounded);
 
   ASSERT_OK(item);
   EXPECT_EQ(item->mode, EntityRenderMode::kPlacementGhost);
   EXPECT_EQ(item->entity_id, Entity::kInvalidId);
   EXPECT_EQ(item->bounds.min, (Vec{90, 180}));
   EXPECT_EQ(item->bounds.max, (Vec{122, 228}));
+  EXPECT_EQ(item->origin, (Vec{100, 200}));
+  EXPECT_TRUE(item->show_origin);
+  EXPECT_EQ(item->placement_mode, BlueprintPlacementMode::kGrounded);
   ASSERT_TRUE(item->sprite.has_value());
   EXPECT_EQ(item->sprite->texture, texture);
   EXPECT_EQ(item->sprite->source.x, 4);
@@ -185,7 +195,8 @@ TEST(ViewportSceneEntityTest, ComposesPlacementGhostWithSharedEntityGeometry) {
 }
 
 TEST(ViewportSceneEntityTest, PlacementGhostAllowsNoSpriteButRejectsBrokenSprite) {
-  absl::StatusOr<EntityRenderItem> placeholder = ComposeEntityPlacementItem({100, 200}, {});
+  absl::StatusOr<EntityRenderItem> placeholder =
+      ComposeEntityPlacementItem({100, 200}, {}, BlueprintPlacementMode::kFree);
   ASSERT_OK(placeholder);
   EXPECT_EQ(placeholder->bounds.min, (Vec{84, 184}));
   EXPECT_EQ(placeholder->bounds.max, (Vec{116, 216}));
@@ -199,13 +210,20 @@ TEST(ViewportSceneEntityTest, PlacementGhostAllowsNoSpriteButRejectsBrokenSprite
           .render_h = 16,
       }},
   };
-  EXPECT_EQ(ComposeEntityPlacementItem({0, 0}, ResolvedSprite{.sprite = &missing_resource})
+  EXPECT_EQ(ComposeEntityPlacementItem({0, 0}, ResolvedSprite{.sprite = &missing_resource},
+                                       BlueprintPlacementMode::kFree)
                 .status()
                 .code(),
             absl::StatusCode::kFailedPrecondition);
-  EXPECT_EQ(
-      ComposeEntityPlacementItem({std::numeric_limits<double>::infinity(), 0}, {}).status().code(),
-      absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(ComposeEntityPlacementItem({std::numeric_limits<double>::infinity(), 0}, {},
+                                       BlueprintPlacementMode::kFree)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(ComposeEntityPlacementItem({0, 0}, {}, static_cast<BlueprintPlacementMode>(99))
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
 }
 
 TEST(ViewportSceneZoneTest, CullsOffscreenZonesAndGivesSelectionPrecedence) {

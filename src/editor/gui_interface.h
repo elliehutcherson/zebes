@@ -173,6 +173,12 @@ class GuiInterface {
   }
   virtual bool InputText(const char* label, std::string* str, ImGuiInputTextFlags flags,
                          ImGuiInputTextCallback callback, void* user_data) = 0;
+  bool InputTextMultiline(const char* label, std::string* str, const ImVec2& size) {
+    return InputTextMultiline(label, str, size, 0, nullptr, nullptr);
+  }
+  virtual bool InputTextMultiline(const char* label, std::string* str, const ImVec2& size,
+                                  ImGuiInputTextFlags flags, ImGuiInputTextCallback callback,
+                                  void* user_data) = 0;
   bool InputInt(const char* label, int* v) { return InputInt(label, v, 1, 100, 0); }
   bool InputInt(const char* label, int* v, int step) { return InputInt(label, v, step, 100, 0); }
   bool InputInt(const char* label, int* v, int step, int step_fast) {

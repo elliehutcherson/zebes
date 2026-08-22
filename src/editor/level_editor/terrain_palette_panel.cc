@@ -4,9 +4,9 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
-#include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "editor/imgui_scoped.h"
+#include "editor/palette_ui.h"
 #include "imgui.h"
 #include "objects/texture.h"
 #include "objects/tile_shape_geometry.h"
@@ -49,8 +49,7 @@ void DrawShapeGlyph(ImDrawList* draw_list, ImVec2 cursor, TileShape shape, bool 
     draw_list->AddConvexPolyFilled(points.data(), static_cast<int>(points.size()), fill);
   }
 
-  if (is_hovered) draw_list->AddRect(cursor, max, IM_COL32(200, 200, 200, 180), 0.0f, 0, 1.0f);
-  if (is_selected) draw_list->AddRect(cursor, max, IM_COL32(60, 120, 255, 255), 0.0f, 0, 2.0f);
+  DrawPaletteItemFrame(*draw_list, cursor, max, is_selected, is_hovered);
 }
 
 void DrawSwatch(ImDrawList* draw_list, ImVec2 cursor, const AtlasBinding& atlas, const Tile* tile,
@@ -67,8 +66,7 @@ void DrawSwatch(ImDrawList* draw_list, ImVec2 cursor, const AtlasBinding& atlas,
     draw_list->AddRectFilled(cursor, max, IM_COL32(80, 80, 80, 200));
   }
 
-  if (is_hovered) draw_list->AddRect(cursor, max, IM_COL32(200, 200, 200, 180), 0.0f, 0, 1.0f);
-  if (is_selected) draw_list->AddRect(cursor, max, IM_COL32(60, 120, 255, 255), 0.0f, 0, 2.0f);
+  DrawPaletteItemFrame(*draw_list, cursor, max, is_selected, is_hovered);
 }
 
 }  // namespace
@@ -189,26 +187,14 @@ void TerrainPalettePanel::RenderShapePicker() {
 }
 
 absl::Status TerrainPalettePanel::Render() {
-  std::vector<Tileset> tilesets = api_.GetAllTilesets();
-  const char* preview =
-      (selected_tileset_ != nullptr) ? selected_tileset_->name.c_str() : "(none)";
-
-  if (ScopedCombo combo = gui_->CreateScopedCombo("Tileset##terrain_palette", preview); combo) {
-    for (const Tileset& tileset : tilesets) {
-      const bool is_selected =
-          selected_tileset_ != nullptr && selected_tileset_->id == tileset.id;
-      const std::string label = absl::StrCat(
-          tileset.name.empty() ? "(unnamed tileset)" : tileset.name, "##terrain_ts_", tileset.id);
-      if (!gui_->Selectable(label.c_str(), is_selected)) continue;
-
-      ASSIGN_OR_RETURN(Tileset * stable, api_.GetTileset(tileset.id));
-      selected_tileset_ = stable;
-      selected_terrain_id_.reset();
-    }
-  }
+  ASSIGN_OR_RETURN(
+      const TilesetSelectorResult selection,
+      tileset_selector_.Render(api_, *gui_, "Tileset##terrain_palette", "terrain_ts_"));
+  selected_tileset_ = selection.tileset;
+  if (selection.selection_changed) selected_terrain_id_.reset();
 
   if (selected_tileset_ == nullptr) {
-    gui_->TextDisabled(tilesets.empty() ? "No tilesets loaded." : "Select a tileset above.");
+    gui_->TextDisabled(selection.catalog_empty ? "No tilesets loaded." : "Select a tileset above.");
     return absl::OkStatus();
   }
 
@@ -218,8 +204,7 @@ absl::Status TerrainPalettePanel::Render() {
   // to placeholders rather than failing the frame.
   AtlasBinding atlas;
   if (!selected_tileset_->texture_id.empty()) {
-    ASSIGN_OR_RETURN(TextureHandle handle,
-                     api_.GetTextureHandle(selected_tileset_->texture_id));
+    ASSIGN_OR_RETURN(TextureHandle handle, api_.GetTextureHandle(selected_tileset_->texture_id));
     ASSIGN_OR_RETURN(atlas, texture_preview_.BindAtlas(handle));
   }
 

@@ -1,6 +1,7 @@
 #include "editor/prop_artwork_editor/prop_artwork_editor.h"
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <utility>
@@ -14,6 +15,7 @@
 #include "absl/time/time.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
+#include "editor/anchor_gizmo_renderer.h"
 #include "editor/imgui_scoped.h"
 #include "editor/prop_artwork_editor/prop_artwork_context.h"
 #include "editor/texture_preview.h"
@@ -24,7 +26,6 @@ namespace {
 constexpr char kSourceDialogKey[] = "PropArtworkSourceDlg";
 constexpr float kPreviewFrameFill = 0.9f;
 constexpr float kPreviewStatusHeight = 48.0f;
-constexpr float kAnchorArmLength = 6.0f;
 
 std::string OriginalFilename(const std::string& path) {
   const size_t separator = path.find_last_of("/\\");
@@ -79,7 +80,7 @@ PropArtworkEditor::PropArtworkEditor(const PropArtworkEditorOptions& options)
     : api_(options.api),
       gui_(options.gui),
       preview_(options.preview),
-      generation_(options.generation),
+      generation_providers_(options.generation_providers),
       preview_canvas_(Canvas::Options{.gui = options.gui, .grid_size = 32.0f}) {}
 
 PropArtworkEditor::~PropArtworkEditor() {
@@ -100,10 +101,29 @@ absl::StatusOr<std::unique_ptr<PropArtworkEditor>> PropArtworkEditor::Create(
   if (options.preview == nullptr) {
     return absl::InvalidArgumentError("PropArtworkEditor requires a preview sink");
   }
-  if (options.generation == nullptr) {
-    return absl::InvalidArgumentError("PropArtworkEditor requires an image generation engine");
+  for (size_t index = 0; index < options.generation_providers.size(); ++index) {
+    const PropArtworkGenerationProvider& provider = options.generation_providers[index];
+    if (provider.name.empty()) {
+      return absl::InvalidArgumentError("Image generation provider name must not be empty");
+    }
+    if ((provider.engine == nullptr) == provider.unavailable_reason.empty()) {
+      return absl::InvalidArgumentError(
+          "Image generation provider must have either an engine or an unavailable reason");
+    }
+    for (size_t previous = 0; previous < index; ++previous) {
+      if (options.generation_providers[previous].name == provider.name) {
+        return absl::InvalidArgumentError("Image generation provider names must be unique");
+      }
+    }
   }
   auto editor = absl::WrapUnique(new PropArtworkEditor(options));
+  const auto available = std::find_if(
+      editor->generation_providers_.begin(), editor->generation_providers_.end(),
+      [](const PropArtworkGenerationProvider& provider) { return provider.engine != nullptr; });
+  if (available != editor->generation_providers_.end()) {
+    editor->selected_generation_provider_ =
+        static_cast<size_t>(available - editor->generation_providers_.begin());
+  }
   RETURN_IF_ERROR(editor->Init());
   return editor;
 }
@@ -181,25 +201,60 @@ void PropArtworkEditor::SelectSource() {
   model_.SetStatus(absl::StrCat("Selected retained source '", source_snapshot.name, "'."));
 }
 
+void PropArtworkEditor::SelectGenerationProvider(size_t index) {
+  if (index >= generation_providers_.size()) {
+    model_.SetStatus("The selected image generation provider does not exist.");
+    return;
+  }
+  if (pending_generation_.has_value()) {
+    model_.SetStatus("Cancel the running generation before changing providers.");
+    return;
+  }
+  selected_generation_provider_ = index;
+  const PropArtworkGenerationProvider& provider = generation_providers_[index];
+  if (provider.engine == nullptr) {
+    model_.SetStatus(provider.unavailable_reason);
+    return;
+  }
+  model_.SetStatus(absl::StrCat("Using ", provider.name, " for image generation."));
+}
+
 void PropArtworkEditor::StartGeneration() {
-  if (pending_generation_id_.has_value()) {
+  if (pending_generation_.has_value()) {
     model_.SetStatus("A generation is already running.");
+    return;
+  }
+  if (generation_providers_.empty() ||
+      selected_generation_provider_ >= generation_providers_.size()) {
+    model_.SetStatus("No image generation provider is available.");
+    return;
+  }
+  PropArtworkGenerationProvider& provider = generation_providers_[selected_generation_provider_];
+  if (provider.engine == nullptr) {
+    model_.SetStatus(provider.unavailable_reason);
     return;
   }
   if (model_.prompt().empty()) {
     model_.SetStatus("Describe the prop before generating a source for it.");
     return;
   }
-  const ImageGenerationCapabilities capabilities = generation_->Capabilities();
+  const ImageGenerationCapabilities capabilities = provider.engine->Capabilities();
+  std::string instructions = model_.generation_instructions();
+  if (!model_.style_guidance().empty()) {
+    if (!instructions.empty()) absl::StrAppend(&instructions, "\n\n");
+    absl::StrAppend(&instructions, "Art direction:\n", model_.style_guidance());
+  }
   ImageGenerationSpec spec{
       .prompt = model_.prompt(),
+      .instructions =
+          instructions.empty() ? std::nullopt : std::optional<std::string>(std::move(instructions)),
       .requested_candidates = model_.requested_candidates(),
       .target_aspect = {.width = 1, .height = 1},
       .transparency = capabilities.supports_transparency
                           ? ImageTransparencyPreference::kPreferTransparent
                           : ImageTransparencyPreference::kNoPreference,
   };
-  absl::StatusOr<uint64_t> id = generation_->Submit(std::move(spec));
+  absl::StatusOr<uint64_t> id = provider.engine->Submit(std::move(spec));
   if (!id.ok()) {
     model_.SetStatus(std::string(id.status().message()));
     return;
@@ -208,13 +263,19 @@ void PropArtworkEditor::StartGeneration() {
   // prompt supersedes it, and keeping it would show a candidate from a prompt
   // the user has already moved on from.
   model_.ClearGeneration();
-  pending_generation_id_ = *id;
+  pending_generation_ = PendingGeneration{.provider = selected_generation_provider_, .id = *id};
   model_.SetStatus("Generating. This can take a minute.");
 }
 
 void PropArtworkEditor::CancelGeneration() {
-  if (!pending_generation_id_.has_value()) return;
-  const absl::Status cancelled = generation_->Cancel(*pending_generation_id_);
+  if (!pending_generation_.has_value()) return;
+  const PendingGeneration pending = *pending_generation_;
+  ImageGenerationEngine* const engine = generation_providers_[pending.provider].engine;
+  if (engine == nullptr) {
+    LOG(ERROR) << "Could not cancel prop generation: provider became unavailable while running";
+    return;
+  }
+  const absl::Status cancelled = engine->Cancel(pending.id);
   if (!cancelled.ok()) {
     LOG(ERROR) << "Could not cancel prop generation: " << cancelled;
   }
@@ -223,12 +284,30 @@ void PropArtworkEditor::CancelGeneration() {
 }
 
 void PropArtworkEditor::PollGeneration() {
-  while (std::optional<GenerationEvent> event = generation_->NextEvent()) {
-    if (pending_generation_id_ != event->id) continue;
-    pending_generation_id_.reset();
+  if (!pending_generation_.has_value()) return;
+  const PendingGeneration pending = *pending_generation_;
+  PropArtworkGenerationProvider& provider = generation_providers_[pending.provider];
+  if (provider.engine == nullptr) {
+    model_.SetStatus("Image generation provider became unavailable while running.");
+    pending_generation_.reset();
+    return;
+  }
+  while (std::optional<GenerationEvent> event = provider.engine->NextEvent()) {
+    if (pending.id != event->id) continue;
+    pending_generation_.reset();
     if (!event->result.ok()) {
-      model_.SetStatus(std::string(event->result.status().message()));
-      continue;
+      const absl::Status failure = event->result.status();
+      model_.SetStatus(std::string(failure.message()));
+      const bool configuration_failure = failure.code() == absl::StatusCode::kUnauthenticated ||
+                                         failure.code() == absl::StatusCode::kPermissionDenied ||
+                                         failure.code() == absl::StatusCode::kNotFound ||
+                                         failure.code() == absl::StatusCode::kFailedPrecondition ||
+                                         failure.code() == absl::StatusCode::kUnimplemented;
+      if (provider.disable_after_failure || configuration_failure) {
+        provider.engine = nullptr;
+        provider.unavailable_reason = std::string(failure.message());
+      }
+      return;
     }
     ImageGenerationResult result = *std::move(event->result);
     const absl::Status accepted = model_.AcceptGeneration(PropGenerationReview{
@@ -244,6 +323,7 @@ void PropArtworkEditor::PollGeneration() {
       continue;
     }
     model_.SetStatus("Review the candidates, then accept one as the source.");
+    return;
   }
 }
 
@@ -612,10 +692,22 @@ void PropArtworkEditor::PollWork() {
 absl::Status PropArtworkEditor::RenderControls() {
   gui_->BeginDisabled(HasPendingWork());
   auto enabled = absl::MakeCleanup([this] { gui_->EndDisabled(); });
-  const PropGenerationStatus generation{
-      .capabilities = generation_->Capabilities(),
-      .in_flight = pending_generation_id_.has_value(),
-  };
+  PropGenerationStatus generation;
+  generation.selected_provider = selected_generation_provider_;
+  generation.in_flight = pending_generation_.has_value();
+  generation.providers.reserve(generation_providers_.size());
+  for (const PropArtworkGenerationProvider& provider : generation_providers_) {
+    generation.providers.push_back(PropGenerationProviderStatus{
+        .name = provider.name,
+        .available = provider.engine != nullptr,
+        .unavailable_reason = provider.unavailable_reason,
+    });
+  }
+  if (selected_generation_provider_ < generation_providers_.size()) {
+    const PropArtworkGenerationProvider& selected =
+        generation_providers_[selected_generation_provider_];
+    if (selected.engine != nullptr) generation.capabilities = selected.engine->Capabilities();
+  }
   ASSIGN_OR_RETURN(const PropArtworkControlsPanel::Action action,
                    controls_panel_->Render(model_, api_->GetAllSourceArtwork(),
                                            api_->GetAllTerrainRecipes(), generation));
@@ -630,6 +722,9 @@ absl::Status PropArtworkEditor::RenderControls() {
       break;
     case PropArtworkControlsPanel::Action::kDeleteSource:
       DeleteSelectedSource();
+      break;
+    case PropArtworkControlsPanel::Action::kSelectGenerationProvider:
+      SelectGenerationProvider(generation.selected_provider);
       break;
     case PropArtworkControlsPanel::Action::kGenerate:
       StartGeneration();
@@ -714,20 +809,24 @@ absl::Status PropArtworkEditor::RenderPreview() {
         anchor.has_value()) {
       const ImVec2 point = preview_canvas_.WorldToScreen(
           {static_cast<double>(anchor->x), static_cast<double>(anchor->y)});
-      draw_list->AddLine(ImVec2(point.x - kAnchorArmLength, point.y),
-                         ImVec2(point.x + kAnchorArmLength, point.y), IM_COL32(255, 96, 96, 255),
-                         2.0f);
-      draw_list->AddLine(ImVec2(point.x, point.y - kAnchorArmLength),
-                         ImVec2(point.x, point.y + kAnchorArmLength), IM_COL32(255, 96, 96, 255),
-                         2.0f);
+      ASSIGN_OR_RETURN(const BlueprintPlacementMode placement_mode,
+                       BlueprintPlacementModeForAttachment(
+                           model_.settings().pipeline.composition.attachment.mode));
+      RETURN_IF_ERROR(DrawAnchorGizmo(*draw_list, {point.x, point.y}, placement_mode));
     }
   }
   preview_canvas_.HandleInput();
+  RETURN_IF_ERROR(UpdateContextPreviewDrag());
 
   const float zoom = preview_canvas_.GetZoom();
   std::move(canvas_end).Invoke();
 
-  gui_->Text("WASD or middle-drag to pan, wheel to zoom  |  Zoom: %.2f", zoom);
+  if (model_.ContextPreviewPropBounds().has_value()) {
+    gui_->Text("Left-drag prop (preview only), middle-drag to pan, wheel to zoom  |  Zoom: %.2f",
+               zoom);
+  } else {
+    gui_->Text("WASD or middle-drag to pan, wheel to zoom  |  Zoom: %.2f", zoom);
+  }
   gui_->SameLine();
   if (gui_->Button("Fit##PropArtworkPreview")) frame_pending_ = true;
 
@@ -738,6 +837,30 @@ absl::Status PropArtworkEditor::RenderPreview() {
     gui_->TextDisabled("%dx%d", image->width, image->height);
   }
   return absl::OkStatus();
+}
+
+absl::Status PropArtworkEditor::UpdateContextPreviewDrag() {
+  const std::optional<PropPreviewBounds> bounds = model_.ContextPreviewPropBounds();
+  const std::optional<PropPreviewAnchor> anchor = model_.PreviewAnchor();
+  if (!bounds.has_value() || !anchor.has_value()) {
+    preview_prop_drag_.Reset();
+    return absl::OkStatus();
+  }
+
+  const Vec pointer = preview_canvas_.ScreenToWorld(gui_->GetMousePos());
+  const bool pointer_over_prop = pointer.x >= bounds->left && pointer.y >= bounds->top &&
+                                 pointer.x < bounds->left + bounds->width &&
+                                 pointer.y < bounds->top + bounds->height;
+  if (!preview_prop_drag_.active() && gui_->IsItemClicked(ImGuiMouseButton_Left) &&
+      pointer_over_prop) {
+    preview_prop_drag_.Begin(pointer,
+                             Vec{static_cast<double>(anchor->x), static_cast<double>(anchor->y)});
+  }
+
+  const std::optional<Vec> requested = preview_prop_drag_.Update(pointer, gui_->IsItemActive());
+  if (!requested.has_value()) return absl::OkStatus();
+  return model_.MoveContextPreviewProp(static_cast<int>(std::lround(requested->x)),
+                                       static_cast<int>(std::lround(requested->y)));
 }
 
 absl::Status PropArtworkEditor::RenderOutput() {
