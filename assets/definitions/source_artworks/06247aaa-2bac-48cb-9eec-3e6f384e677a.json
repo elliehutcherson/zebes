@@ -1,0 +1,18 @@
+{
+  "content_digest": "c3ae4d97ed8ba68cb50c8d580dc7a8d2959a44b95ed609b21cb26607cb329706",
+  "height": 1254,
+  "id": "06247aaa-2bac-48cb-9eec-3e6f384e677a",
+  "name": "prop source",
+  "provenance": {
+    "generated_at_utc": "2026-08-22T00:12:29Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": "01a026cf-4a08-7553-a88d-1117bc1d8c21",
+    "revised_prompt": "Use case: stylized-concept\nAsset type: isolated 2D pixel-art game prop sprite for a 16-bit cartoon cave tileset built on a 32-pixel tile grid\nPrimary request: A low, wide cluster of exactly three chunky blue cave crystals growing directly from a rounded navy rock base.\nScene/backdrop: No depicted environment. Use a genuinely transparent background with preserved alpha.\nSubject: One complete, centered crystal-and-rock prop. Exactly three stout, broad geometric blue crystal points of varied but compact heights, fused directly into one low rounded navy rock base. Keep the silhouette low and wide, sturdy rather than spindly.\nStyle/medium: Authentic 16-bit pixel art with crisp native one-pixel clusters, intentionally stepped pixel edges, broad geometric shapes, flat three-tone shading, a limited dark-navy, lavender-blue, and cyan palette, and a continuous single-pixel dark-navy outline.\nComposition/framing: Square 1:1 canvas. Center the isolated prop with comfortable transparent padding on every side. Show the entire subject with no cropping.\nLighting/mood: Simple readable sprite lighting expressed only through three flat color tones.\nConstraints: Generate exactly one isolated prop. PNG-compatible raster appearance. Transparent background. Exactly three crystals. Rock base and crystals read as a single game object. No text, watermark, border, frame, scenery, cave walls, floor, ground plane, cast shadow, or additional objects.\nAvoid: gradients, glow, bloom, anti-aliasing, blur, soft edges, realistic facets, thin shards, needle-like points, tiny highlights, drop shadows, texture noise, painterly rendering, 3D rendering.",
+    "submitted_prompt": "A low, wide cluster of three chunky blue cave crystals growing directly from a rounded navy rock base."
+  },
+  "schema_version": 1,
+  "source_path": "source_art/props/06247aaa-2bac-48cb-9eec-3e6f384e677a.png",
+  "width": 1254
+}

@@ -1,0 +1,19 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "offset_x": -16,
+            "offset_y": -56,
+            "render_h": 64,
+            "render_w": 32,
+            "texture_h": 64,
+            "texture_w": 32,
+            "texture_x": 0,
+            "texture_y": 0
+        }
+    ],
+    "id": "438b282b-d4af-4d56-9356-72266f1be70a",
+    "name": "Cave Crystal",
+    "texture_id": "696ed354-f84c-4d6a-ac8b-e8643a2290e0"
+}

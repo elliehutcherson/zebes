@@ -1,0 +1,12 @@
+{
+    "id": "11755e1d-bca7-476d-8f24-5c6dda8cd0ef",
+    "name": "Cave Crystal",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Default",
+            "placement_mode": "grounded",
+            "sprite_id": "438b282b-d4af-4d56-9356-72266f1be70a"
+        }
+    ]
+}
