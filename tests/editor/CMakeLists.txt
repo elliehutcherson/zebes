@@ -339,6 +339,17 @@ target_link_libraries(image_generation_request_controller_test
 target_include_directories(image_generation_request_controller_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(image_generation_request_controller_test)
 
+add_executable(source_artwork_retention_test source_artwork_retention_test.cc)
+target_link_libraries(source_artwork_retention_test
+  PRIVATE
+  source_artwork_retention
+  macros
+  gmock
+  gtest_main
+)
+target_include_directories(source_artwork_retention_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(source_artwork_retention_test)
+
 add_executable(image_generation_service_test image_generation_service_test.cc)
 target_link_libraries(image_generation_service_test
   PRIVATE

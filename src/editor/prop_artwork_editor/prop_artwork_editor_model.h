@@ -12,6 +12,7 @@
 #include "artwork/regenerate_prop_asset.h"
 #include "artwork/source_artwork.h"
 #include "common/image_io.h"
+#include "editor/image_generation/artwork_generation_prompts.h"
 #include "editor/image_generation/image_generation.h"
 #include "editor/prop_artwork_editor/prop_artwork_context.h"
 #include "terrain/terrain_recipe.h"
@@ -23,15 +24,7 @@ enum class PropPreviewPolicy : uint8_t {
   kFinishedOnly = 1,
 };
 
-enum class PropArtworkStylePreset : uint8_t {
-  kCustom = 0,
-  kRetroExploration = 1,
-  kModernPixelArt = 2,
-  kHandPaintedPlatformer = 3,
-  kDarkBiomechanical = 4,
-  kStylizedFantasy = 5,
-  kCleanCartoon = 6,
-};
+using PropArtworkStylePreset = ArtworkGenerationStylePreset;
 
 enum class PropPreviewStage : uint8_t {
   kSource = 0,
@@ -143,12 +136,7 @@ class PropArtworkEditorModel {
   uint64_t revision_ = 1;
 
   std::string prompt_;
-  std::string generation_instructions_ =
-      "Create one isolated game prop centered on a square canvas. Show the complete subject "
-      "without cropping. The subject must be free of any depicted environment: use a transparent "
-      "background when supported, otherwise use one flat solid-color background that clearly "
-      "contrasts with the subject. Do not add scenery, a floor or ground plane, cast shadows, "
-      "text, a border, a frame, or additional objects.";
+  std::string generation_instructions_ = kDefaultPropGenerationInstructions;
   PropArtworkStylePreset style_preset_ = PropArtworkStylePreset::kCustom;
   std::string style_guidance_;
   int requested_candidates_ = 1;
@@ -160,7 +148,5 @@ class PropArtworkEditorModel {
 };
 
 const char* PropPreviewStageLabel(PropPreviewStage stage);
-const char* PropArtworkStylePresetLabel(PropArtworkStylePreset preset);
-const char* PropArtworkStylePresetGuidance(PropArtworkStylePreset preset);
 
 }  // namespace zebes

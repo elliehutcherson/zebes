@@ -103,6 +103,8 @@ class PropArtworkEditor {
     BackgroundTask<PreparedPropRegenerationPreview> work;
   };
 
+  absl::Status FinishImport(PendingImport completed);
+
   Api* api_;
   GuiInterface* gui_;
   PreviewTextureSink* preview_;

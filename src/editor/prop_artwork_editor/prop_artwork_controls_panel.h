@@ -10,28 +10,15 @@
 #include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
 #include "editor/image_generation/image_generation.h"
+#include "editor/image_generation/image_generation_lifecycle_panel.h"
 #include "editor/image_generation/image_generation_request_controller.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor_model.h"
 #include "terrain/terrain_recipe.h"
 
 namespace zebes {
 
-struct PropGenerationProviderStatus {
-  std::string name;
-  bool available = false;
-  std::string unavailable_reason;
-};
-
-// What the panel needs to know about generation without reaching an engine.
-// The editor owns provider selection and the composition root owns engines.
-struct PropGenerationStatus {
-  std::vector<PropGenerationProviderStatus> providers;
-  size_t selected_provider = 0;
-  ImageGenerationCapabilities capabilities;
-  bool in_flight = false;
-  const ImageGenerationReview* review = nullptr;
-  size_t selected_candidate = 0;
-};
+using PropGenerationProviderStatus = ImageGenerationProviderStatus;
+using PropGenerationStatus = ImageGenerationUiState;
 
 class PropArtworkControlsPanel {
  public:
@@ -60,7 +47,6 @@ class PropArtworkControlsPanel {
 
   Action RenderSource(PropArtworkEditorModel& model, const std::vector<SourceArtwork>& sources);
   Action RenderGeneration(PropArtworkEditorModel& model, PropGenerationStatus& generation);
-  Action RenderCandidates(PropArtworkEditorModel& model, PropGenerationStatus& generation);
   absl::Status RenderTerrain(PropArtworkEditorModel& model,
                              const std::vector<TerrainRecipe>& terrain_recipes);
   bool RenderPipeline(PropArtworkEditorModel& model);

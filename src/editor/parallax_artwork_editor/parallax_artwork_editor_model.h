@@ -12,6 +12,7 @@
 #include "artwork/regenerate_parallax_artwork_asset.h"
 #include "artwork/source_artwork.h"
 #include "common/image_io.h"
+#include "editor/image_generation/artwork_generation_prompts.h"
 #include "terrain/terrain_recipe.h"
 
 namespace zebes {
@@ -57,6 +58,11 @@ class ParallaxArtworkEditorModel {
   const std::string& generation_instructions() const { return generation_instructions_; }
   int requested_candidates() const { return requested_candidates_; }
   void SetRequestedCandidates(int candidates, int maximum);
+  ArtworkGenerationStylePreset style_preset() const { return style_preset_; }
+  void SetStylePreset(ArtworkGenerationStylePreset preset);
+  std::string& style_guidance() { return style_guidance_; }
+  const std::string& style_guidance() const { return style_guidance_; }
+  void MarkStyleGuidanceCustom() { style_preset_ = ArtworkGenerationStylePreset::kCustom; }
 
   uint64_t revision() const { return revision_; }
   void MarkInputsChanged();
@@ -116,11 +122,9 @@ class ParallaxArtworkEditorModel {
   ParallaxArtworkRegenerationSettings settings_;
   bool has_style_ = false;
   std::string prompt_;
-  std::string generation_instructions_ =
-      "Create one camera-relative parallax background layer for a side-view exploration game. "
-      "Fill the entire canvas with a coherent environment composition. Keep strong silhouettes "
-      "and broad value groups so gameplay remains readable. Do not add text, borders, UI, or a "
-      "picture frame.";
+  std::string generation_instructions_ = kDefaultParallaxGenerationInstructions;
+  ArtworkGenerationStylePreset style_preset_ = ArtworkGenerationStylePreset::kCustom;
+  std::string style_guidance_;
   int requested_candidates_ = 1;
   uint64_t revision_ = 1;
   PreparedResult prepared_;

@@ -112,6 +112,9 @@ target_link_libraries(image_digest
   absl::status
 )
 
+add_library(utc_timestamp utc_timestamp.cc)
+target_link_libraries(utc_timestamp PUBLIC absl::time)
+
 add_library(sdl_wrapper sdl_wrapper.cc)
 target_link_libraries(sdl_wrapper config)
 target_link_libraries(sdl_wrapper absl::status)

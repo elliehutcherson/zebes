@@ -12,8 +12,8 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/time/clock.h"
-#include "absl/time/time.h"
+#include "common/status_macros.h"
+#include "common/utc_timestamp.h"
 #include "editor/image_generation/image_generation.h"
 #include "editor/image_generation/image_generation_engine.h"
 
@@ -85,9 +85,8 @@ absl::Status ImageGenerationRequestController::Submit(ImageGenerationSpec spec) 
   }
   ImageGenerationProvider& provider = registry_->providers[selected_provider_];
   if (!provider.available()) return absl::UnavailableError(provider.unavailable_reason);
-  absl::StatusOr<uint64_t> id = provider.engine->Submit(std::move(spec));
-  if (!id.ok()) return id.status();
-  pending_ = PendingRequest{.provider = selected_provider_, .id = *id};
+  ASSIGN_OR_RETURN(const uint64_t id, provider.engine->Submit(std::move(spec)));
+  pending_ = PendingRequest{.provider = selected_provider_, .id = id};
   review_.reset();
   return absl::OkStatus();
 }
@@ -140,14 +139,14 @@ absl::StatusOr<bool> ImageGenerationRequestController::Poll() {
       .model = std::move(result.model),
       .submitted_prompt = std::move(result.submitted_prompt),
       .provider_request_id = std::move(result.provider_request_id),
-      .generated_at_utc = absl::FormatTime("%Y-%m-%dT%H:%M:%SZ", absl::Now(), absl::UTCTimeZone()),
+      .generated_at_utc = CurrentUtcTimestamp(),
       .candidates = std::move(result.candidates),
   };
   return true;
 }
 
 const ImageGenerationCandidate* ImageGenerationRequestController::SelectedCandidate() const {
-  if (!review_.has_value()) return nullptr;
+  if (!review_.has_value() || review_->selected >= review_->candidates.size()) return nullptr;
   return &review_->candidates[review_->selected];
 }
 
@@ -159,8 +158,14 @@ void ImageGenerationRequestController::SelectCandidate(size_t index) {
 absl::Status ImageGenerationRequestController::AcceptCandidate(
     const std::function<absl::Status(const ImageGenerationReview&,
                                      const ImageGenerationCandidate&)>& accept) {
+  if (!accept) {
+    return absl::InvalidArgumentError("candidate acceptance needs a callback");
+  }
   if (!review_.has_value()) {
     return absl::FailedPreconditionError("generate a candidate before accepting one");
+  }
+  if (review_->selected >= review_->candidates.size()) {
+    return absl::FailedPreconditionError("image generation review has no selected candidate");
   }
   const absl::Status accepted = accept(*review_, review_->candidates[review_->selected]);
   if (accepted.ok()) review_.reset();

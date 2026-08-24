@@ -267,6 +267,7 @@ TEST_F(ParallaxArtworkEditorTest, WorkerPreparesBeforeEditorPublishesTheBundle) 
 TEST_F(ParallaxArtworkEditorTest, GeneratedCandidateUsesTheRetainedSourceAndBundlePath) {
   model().prompt() = "a distant cave plate";
   model().SetRequestedCandidates(2, 4);
+  model().SetStylePreset(ArtworkGenerationStylePreset::kRetroExploration);
   model().settings().pipeline.alpha_role = ParallaxArtworkAlphaRole::kTransparentOverlay;
   model().settings().pipeline.review_repeat_x = true;
 
@@ -278,6 +279,8 @@ TEST_F(ParallaxArtworkEditorTest, GeneratedCandidateUsesTheRetainedSourceAndBund
   ASSERT_TRUE(submitted.instructions.has_value());
   EXPECT_THAT(*submitted.instructions, HasSubstr("transparent overlay"));
   EXPECT_THAT(*submitted.instructions, HasSubstr("left and right edges seamlessly tile"));
+  EXPECT_THAT(*submitted.instructions,
+              HasSubstr("Art direction:\n16-bit science-fiction exploration game art"));
   EXPECT_EQ(submitted.target_aspect.width, pixels_.width);
   EXPECT_EQ(submitted.target_aspect.height, pixels_.height);
   EXPECT_EQ(submitted.transparency, ImageTransparencyPreference::kPreferTransparent);

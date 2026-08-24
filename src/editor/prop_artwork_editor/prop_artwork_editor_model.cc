@@ -112,59 +112,10 @@ const char* PropPreviewStageLabel(PropPreviewStage stage) {
   return "Unknown";
 }
 
-const char* PropArtworkStylePresetLabel(PropArtworkStylePreset preset) {
-  switch (preset) {
-    case PropArtworkStylePreset::kCustom:
-      return "Custom";
-    case PropArtworkStylePreset::kRetroExploration:
-      return "Retro exploration";
-    case PropArtworkStylePreset::kModernPixelArt:
-      return "Modern pixel art";
-    case PropArtworkStylePreset::kHandPaintedPlatformer:
-      return "Hand-painted platformer";
-    case PropArtworkStylePreset::kDarkBiomechanical:
-      return "Dark biomechanical";
-    case PropArtworkStylePreset::kStylizedFantasy:
-      return "Stylized fantasy";
-    case PropArtworkStylePreset::kCleanCartoon:
-      return "Clean cartoon";
-  }
-  return "Invalid";
-}
-
-const char* PropArtworkStylePresetGuidance(PropArtworkStylePreset preset) {
-  switch (preset) {
-    case PropArtworkStylePreset::kCustom:
-      return "";
-    case PropArtworkStylePreset::kRetroExploration:
-      return "16-bit science-fiction exploration game art. Use a limited palette, strong "
-             "silhouette, crisp pixel clusters, a subtle dark outline, and a readable side view.";
-    case PropArtworkStylePreset::kModernPixelArt:
-      return "Modern pixel-art game asset. Use deliberate pixel clusters, selective "
-             "anti-aliasing, compact shading, and a strong silhouette that remains readable at "
-             "gameplay scale.";
-    case PropArtworkStylePreset::kHandPaintedPlatformer:
-      return "Hand-painted 2D platformer game art. Use simplified shapes, soft painted shading, "
-             "controlled texture, and a clear three-quarter silhouette.";
-    case PropArtworkStylePreset::kDarkBiomechanical:
-      return "Dark biomechanical science-fiction game art. Blend organic and mechanical forms, "
-             "use a muted alien palette with restrained highlights, high-contrast shapes, and "
-             "ominous surface detail.";
-    case PropArtworkStylePreset::kStylizedFantasy:
-      return "Stylized fantasy adventure game art. Use appealing exaggerated proportions, "
-             "painterly materials, a cohesive vivid palette, and an iconic three-quarter "
-             "silhouette.";
-    case PropArtworkStylePreset::kCleanCartoon:
-      return "Clean cartoon game art. Use bold simple shapes, flat colors, restrained two-tone "
-             "shading, a clear dark outline, and instantly readable features.";
-  }
-  return "";
-}
-
 void PropArtworkEditorModel::SetStylePreset(PropArtworkStylePreset preset) {
   style_preset_ = preset;
   if (preset == PropArtworkStylePreset::kCustom) return;
-  style_guidance_ = PropArtworkStylePresetGuidance(preset);
+  style_guidance_ = ArtworkGenerationStylePresetGuidance(preset);
 }
 
 void PropArtworkEditorModel::ClearPrepared() {

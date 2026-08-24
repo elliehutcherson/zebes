@@ -777,6 +777,23 @@ models. The services and registry are declared before the editors, so each
 controller abandons its in-flight request while the selected engine still
 runs. Editors never see a transport or credential.
 
+Generation presentation is split at the same boundary. The shared lifecycle
+panel renders provider selection, cancellation, candidate navigation,
+provenance, acceptance, and discard controls from a provider-neutral UI
+snapshot. Domain editors supply their own subject prompt, system instructions,
+style draft, and processing settings. Default system prompts, reusable style
+presets, and background role/repetition fragments are named constants in
+`artwork_generation_prompts.h`; policy text is not hidden in widget code or
+model member initializers.
+
+Imported and generated images share one compensated retained-source
+transaction. `RetainSourceArtwork` writes through `Api`, reloads the canonical
+definition, and invokes a domain acceptance callback; failure to reload or
+accept deletes the new source. `RetainGeneratedSourceArtwork` only maps stable
+generation provenance into that transaction. Prop and Parallax editors retain
+their distinct model-selection rules without duplicating persistence and
+cleanup logic. Provenance timestamps use the shared UTC formatter.
+
 Provider construction and authentication are optional capabilities, not editor
 invariants. A provider that cannot be composed is disabled immediately; a
 missing credential, ChatGPT login, or enabled skill discovered on first use

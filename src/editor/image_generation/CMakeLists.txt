@@ -11,6 +11,19 @@ target_link_libraries(image_generation
   status_macros
 )
 
+add_library(artwork_generation_prompts artwork_generation_prompts.cc)
+
+add_library(image_generation_lifecycle_panel image_generation_lifecycle_panel.cc)
+target_link_libraries(image_generation_lifecycle_panel
+  PUBLIC
+  gui_interface
+  image_generation_request_controller
+  PRIVATE
+  imgui_scoped
+  absl::strings
+  ${IMGUI_LIBRARIES}
+)
+
 add_library(credential_source credential_source.cc)
 target_link_libraries(credential_source
   PUBLIC
@@ -115,7 +128,8 @@ target_link_libraries(image_generation_request_controller
   PRIVATE
   absl::log
   absl::memory
-  absl::time
+  status_macros
+  utc_timestamp
 )
 
 add_library(curl_http_transport curl_http_transport.cc)

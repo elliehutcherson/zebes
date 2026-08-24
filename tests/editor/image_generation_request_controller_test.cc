@@ -135,6 +135,8 @@ TEST(ImageGenerationRequestControllerTest, OwnsCandidateNavigationAcceptanceAndD
 
   controller->SelectCandidate(9);
   EXPECT_EQ(controller->review()->selected, 0);
+  EXPECT_EQ(controller->AcceptCandidate({}).code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_TRUE(controller->review().has_value());
   const absl::Status refused = controller->AcceptCandidate(
       [](const ImageGenerationReview&, const ImageGenerationCandidate&) {
         return absl::UnavailableError("retention failed");

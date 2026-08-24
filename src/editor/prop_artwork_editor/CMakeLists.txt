@@ -14,7 +14,9 @@ target_link_libraries(prop_artwork_context
 add_library(prop_artwork_editor_model prop_artwork_editor_model.cc)
 target_link_libraries(prop_artwork_editor_model
   PUBLIC
+  artwork_generation_prompts
   image_generation
+  image_generation_lifecycle_panel
   prepare_prop_asset
   prop_artwork_context
   regenerate_prop_asset
@@ -72,6 +74,7 @@ target_link_libraries(prop_artwork_editor
   gui_interface
   image_generation
   image_generation_request_controller
+  source_artwork_retention
   prop_artwork_controls_panel
   prop_artwork_context
   prop_artwork_editor_model
@@ -87,5 +90,5 @@ target_link_libraries(prop_artwork_editor
   absl::cleanup
   absl::memory
   absl::strings
-  absl::time
+  utc_timestamp
 )

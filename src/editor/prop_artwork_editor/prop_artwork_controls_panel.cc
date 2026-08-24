@@ -1,7 +1,6 @@
 #include "editor/prop_artwork_editor/prop_artwork_controls_panel.h"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -17,16 +16,6 @@ namespace {
 
 constexpr float kControlWidth = 180.0f;
 constexpr ImGuiTreeNodeFlags kSectionFlags = ImGuiTreeNodeFlags_DefaultOpen;
-constexpr std::array<PropArtworkStylePreset, 7> kStylePresets = {
-    PropArtworkStylePreset::kCustom,
-    PropArtworkStylePreset::kRetroExploration,
-    PropArtworkStylePreset::kModernPixelArt,
-    PropArtworkStylePreset::kHandPaintedPlatformer,
-    PropArtworkStylePreset::kDarkBiomechanical,
-    PropArtworkStylePreset::kStylizedFantasy,
-    PropArtworkStylePreset::kCleanCartoon,
-};
-
 const char* AttachmentModeLabel(PropAttachmentMode mode) {
   switch (mode) {
     case PropAttachmentMode::kGrounded:
@@ -218,82 +207,46 @@ bool PropArtworkControlsPanel::RenderPipeline(PropArtworkEditorModel& model) {
   return changed;
 }
 
-PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderCandidates(
-    PropArtworkEditorModel& model, PropGenerationStatus& generation) {
-  const ImageGenerationReview& review = *generation.review;
-  const size_t count = review.candidates.size();
-  gui_->Text("Candidate %zu of %zu", review.selected + 1, count);
-  if (count > 1) {
-    if (gui_->Button("Previous##PropArtworkCandidate")) {
-      generation.selected_candidate = review.selected == 0 ? count - 1 : review.selected - 1;
-      return Action::kSelectCandidate;
-    }
-    gui_->SameLine();
-    if (gui_->Button("Next##PropArtworkCandidate")) {
-      generation.selected_candidate = review.selected + 1 == count ? 0 : review.selected + 1;
-      return Action::kSelectCandidate;
-    }
-  }
-
-  const ImageGenerationCandidate& candidate = review.candidates[review.selected];
-  if (candidate.revised_prompt.has_value()) {
-    gui_->TextWrapped("Provider rewrote the prompt: %s", candidate.revised_prompt->c_str());
-  }
-  gui_->TextDisabled("%s / %s", review.provider.c_str(), review.model.c_str());
-
-  Action action = Action::kNone;
-  // Accepting retains the candidate as source artwork, which is the same
-  // boundary an imported PNG crosses; an existing prop keeps the source it
-  // committed to, so neither button is offered then.
-  gui_->BeginDisabled(model.active_recipe().has_value());
-  if (gui_->Button("Accept candidate##PropArtwork")) action = Action::kAcceptCandidate;
-  gui_->EndDisabled();
-  gui_->SameLine();
-  if (gui_->Button("Discard##PropArtworkCandidate")) action = Action::kDiscardCandidates;
-  if (model.active_recipe().has_value()) {
-    gui_->TextWrapped("An open prop keeps its retained source. Use Save As before accepting.");
-  }
-  return action;
-}
-
 PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderGeneration(
     PropArtworkEditorModel& model, PropGenerationStatus& generation) {
   gui_->Separator();
   gui_->Text("Generate source");
 
+  const ImageGenerationLifecycleResult lifecycle = RenderImageGenerationLifecycle(
+      *gui_,
+      {
+          .editor_id = "PropArtwork",
+          .can_accept_candidate = !model.active_recipe().has_value(),
+          .acceptance_blocked_message =
+              "An open prop keeps its retained source. Use Save As before accepting.",
+      },
+      generation);
+  Action action = Action::kNone;
+  switch (lifecycle.action) {
+    case ImageGenerationLifecycleAction::kNone:
+      break;
+    case ImageGenerationLifecycleAction::kSelectProvider:
+      action = Action::kSelectGenerationProvider;
+      break;
+    case ImageGenerationLifecycleAction::kCancel:
+      action = Action::kCancelGeneration;
+      break;
+    case ImageGenerationLifecycleAction::kSelectCandidate:
+      action = Action::kSelectCandidate;
+      break;
+    case ImageGenerationLifecycleAction::kAcceptCandidate:
+      action = Action::kAcceptCandidate;
+      break;
+    case ImageGenerationLifecycleAction::kDiscardCandidates:
+      action = Action::kDiscardCandidates;
+      break;
+  }
+  if (!lifecycle.show_draft) return action;
+
   const PropGenerationProviderStatus* selected = nullptr;
   if (generation.selected_provider < generation.providers.size()) {
     selected = &generation.providers[generation.selected_provider];
   }
-  const char* provider_preview = selected == nullptr ? "(unavailable)" : selected->name.c_str();
-  Action action = Action::kNone;
-  gui_->SetNextItemWidth(kControlWidth);
-  gui_->BeginDisabled(generation.in_flight);
-  {
-    ScopedCombo combo =
-        gui_->CreateScopedCombo("Provider##PropArtworkGeneration", provider_preview);
-    if (combo.IsActive()) {
-      for (size_t index = 0; index < generation.providers.size(); ++index) {
-        const PropGenerationProviderStatus& provider = generation.providers[index];
-        const ImGuiSelectableFlags flags = provider.available ? 0 : ImGuiSelectableFlags_Disabled;
-        if (!gui_->Selectable(provider.name.c_str(), index == generation.selected_provider,
-                              flags)) {
-          continue;
-        }
-        generation.selected_provider = index;
-        selected = &provider;
-        action = Action::kSelectGenerationProvider;
-      }
-    }
-  }
-  gui_->EndDisabled();
-
-  if (generation.in_flight) {
-    gui_->TextWrapped("Generating. This can take a minute.");
-    return gui_->Button("Cancel generation##PropArtwork") ? Action::kCancelGeneration
-                                                          : Action::kNone;
-  }
-  if (generation.review != nullptr) return RenderCandidates(model, generation);
 
   const bool provider_available = selected != nullptr && selected->available;
   const float text_height = gui_->GetTextLineHeightWithSpacing();
@@ -307,10 +260,12 @@ PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderGeneration(
   {
     const PropArtworkStylePreset current = model.style_preset();
     ScopedCombo combo = gui_->CreateScopedCombo("Style preset##PropArtworkGeneration",
-                                                PropArtworkStylePresetLabel(current));
+                                                ArtworkGenerationStylePresetLabel(current));
     if (combo.IsActive()) {
-      for (const PropArtworkStylePreset preset : kStylePresets) {
-        if (!gui_->Selectable(PropArtworkStylePresetLabel(preset), preset == current)) continue;
+      for (const PropArtworkStylePreset preset : kArtworkGenerationStylePresets) {
+        if (!gui_->Selectable(ArtworkGenerationStylePresetLabel(preset), preset == current)) {
+          continue;
+        }
         if (preset != current) model.SetStylePreset(preset);
       }
     }

@@ -10,13 +10,13 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-#include "absl/time/clock.h"
-#include "absl/time/time.h"
 #include "common/status_macros.h"
+#include "common/utc_timestamp.h"
 #include "common/utils.h"
 #include "editor/anchor_gizmo_renderer.h"
 #include "editor/imgui_scoped.h"
 #include "editor/prop_artwork_editor/prop_artwork_context.h"
+#include "editor/source_artwork_retention.h"
 #include "editor/texture_preview.h"
 
 namespace zebes {
@@ -29,10 +29,6 @@ constexpr float kPreviewStatusHeight = 48.0f;
 std::string OriginalFilename(const std::string& path) {
   const size_t separator = path.find_last_of("/\\");
   return separator == std::string::npos ? path : path.substr(separator + 1);
-}
-
-std::string CurrentUtcTimestamp() {
-  return absl::FormatTime("%Y-%m-%dT%H:%M:%SZ", absl::Now(), absl::UTCTimeZone());
 }
 
 absl::StatusOr<std::optional<PropArtworkContextPreview>> BuildContext(
@@ -128,6 +124,10 @@ void PropArtworkEditor::StartImport(std::string path) {
     model_.SetStatus("Prop artwork work is already running.");
     return;
   }
+  if (model_.active_recipe().has_value()) {
+    model_.SetStatus("Use Save As before importing a different retained source.");
+    return;
+  }
   const std::string original_filename = OriginalFilename(path);
   if (original_filename.empty()) {
     model_.SetStatus("Choose a PNG file with a filename.");
@@ -211,11 +211,8 @@ void PropArtworkEditor::StartGeneration() {
     return;
   }
   const ImageGenerationCapabilities capabilities = generation_->capabilities();
-  std::string instructions = model_.generation_instructions();
-  if (!model_.style_guidance().empty()) {
-    if (!instructions.empty()) absl::StrAppend(&instructions, "\n\n");
-    absl::StrAppend(&instructions, "Art direction:\n", model_.style_guidance());
-  }
+  std::string instructions =
+      AppendArtworkGenerationStyle(model_.generation_instructions(), model_.style_guidance());
   ImageGenerationSpec spec{
       .prompt = model_.prompt(),
       .instructions =
@@ -256,29 +253,19 @@ void PropArtworkEditor::PollGeneration() {
 // anywhere leaves no half-attached source behind.
 absl::Status PropArtworkEditor::RetainCandidateAsSource(const ImageGenerationReview& review,
                                                         const ImageGenerationCandidate& candidate) {
-  SourceArtworkProvenance provenance = GeneratedArtworkProvenance{
-      .provider = review.provider,
-      .model = review.model,
-      .submitted_prompt = review.submitted_prompt,
-      .revised_prompt = candidate.revised_prompt,
-      .provider_request_id = review.provider_request_id,
-      .generated_at_utc = review.generated_at_utc,
-  };
+  if (model_.active_recipe().has_value()) {
+    return absl::FailedPreconditionError(
+        "an existing prop keeps its retained source; use Save As before accepting another");
+  }
   const std::string source_name =
       model_.name().empty() ? review.submitted_prompt : absl::StrCat(model_.name(), " source");
-  ASSIGN_OR_RETURN(const std::string id,
-                   api_->CreateSourceArtwork(source_name, std::move(provenance), candidate.image));
-  auto remove_source = absl::MakeCleanup([this, &id] {
-    const absl::Status cleanup = api_->DeleteSourceArtwork(id);
-    if (!cleanup.ok()) LOG(ERROR) << "Could not remove a rejected generated source: " << cleanup;
-  });
-
-  ASSIGN_OR_RETURN(SourceArtwork * source, api_->GetSourceArtwork(id));
-  const SourceArtwork snapshot = *source;
-  RETURN_IF_ERROR(DiscardSessionSource());
-  RETURN_IF_ERROR(model_.SelectSource(snapshot, candidate.image));
-
-  std::move(remove_source).Cancel();
+  ASSIGN_OR_RETURN(
+      const std::string id,
+      RetainGeneratedSourceArtwork(*api_, source_name, review, candidate,
+                                   [this](const SourceArtwork& source, const RgbaImage& pixels) {
+                                     RETURN_IF_ERROR(DiscardSessionSource());
+                                     return model_.SelectSource(source, pixels);
+                                   }));
   session_source_id_ = id;
   return absl::OkStatus();
 }
@@ -504,6 +491,30 @@ void PropArtworkEditor::DeleteProp() {
   model_.SetStatus(absl::StrCat("Deleted '", recipe.name, "' and its generated bundle."));
 }
 
+absl::Status PropArtworkEditor::FinishImport(PendingImport completed) {
+  if (model_.active_recipe().has_value()) {
+    return absl::FailedPreconditionError(
+        "an existing prop keeps its retained source; use Save As before importing another");
+  }
+  ASSIGN_OR_RETURN(RgbaImage pixels, completed.work.TakeResult());
+  SourceArtworkProvenance provenance = ImportedArtworkProvenance{
+      .original_filename = std::move(completed.original_filename),
+      .imported_at_utc = std::move(completed.imported_at_utc),
+  };
+  ASSIGN_OR_RETURN(
+      const std::string id,
+      RetainSourceArtwork(*api_, std::move(completed.source_name), std::move(provenance), pixels,
+                          [this](const SourceArtwork& source, const RgbaImage& retained_pixels) {
+                            RETURN_IF_ERROR(DiscardSessionSource());
+                            return model_.SelectSource(source, retained_pixels);
+                          }));
+  session_source_id_ = id;
+  generation_->DiscardCandidates();
+  model_.SetStatus(absl::StrCat("Accepted source '", model_.source()->name,
+                                "'. Choose a terrain and process it."));
+  return absl::OkStatus();
+}
+
 void PropArtworkEditor::PollWork() {
   if (PendingImport* pending = std::get_if<PendingImport>(&pending_work_); pending != nullptr) {
     absl::StatusOr<bool> ready = pending->work.IsReady();
@@ -516,53 +527,8 @@ void PropArtworkEditor::PollWork() {
 
     PendingImport completed = std::move(*pending);
     pending_work_.emplace<std::monostate>();
-    absl::StatusOr<RgbaImage> pixels = completed.work.TakeResult();
-    if (!pixels.ok()) {
-      model_.SetStatus(std::string(pixels.status().message()));
-      return;
-    }
-    SourceArtworkProvenance provenance = ImportedArtworkProvenance{
-        .original_filename = completed.original_filename,
-        .imported_at_utc = completed.imported_at_utc,
-    };
-    absl::StatusOr<std::string> id =
-        api_->CreateSourceArtwork(completed.source_name, std::move(provenance), *pixels);
-    if (!id.ok()) {
-      model_.SetStatus(std::string(id.status().message()));
-      return;
-    }
-    absl::StatusOr<SourceArtwork*> source = api_->GetSourceArtwork(*id);
-    if (!source.ok()) {
-      const absl::Status cleanup = api_->DeleteSourceArtwork(*id);
-      model_.SetStatus(absl::StrCat(
-          "Imported source could not be reloaded: ", source.status().message(),
-          cleanup.ok() ? "" : absl::StrCat("; cleanup also failed: ", cleanup.message())));
-      return;
-    }
-    const SourceArtwork source_snapshot = **source;
-    const absl::Status discarded = DiscardSessionSource();
-    if (!discarded.ok()) {
-      const absl::Status cleanup = api_->DeleteSourceArtwork(*id);
-      model_.SetStatus(absl::StrCat(
-          "Could not replace the current imported source: ", discarded.message(),
-          cleanup.ok() ? ""
-                       : absl::StrCat("; new-source cleanup also failed: ", cleanup.message())));
-      return;
-    }
-    const absl::Status selected = model_.SelectSource(source_snapshot, *std::move(pixels));
-    if (!selected.ok()) {
-      const absl::Status cleanup = api_->DeleteSourceArtwork(*id);
-      model_.StartNewRecipe();
-      model_.SetStatus(absl::StrCat(
-          selected.message(), cleanup.ok() ? ""
-                                           : absl::StrCat("; imported-source cleanup also failed: ",
-                                                          cleanup.message())));
-      return;
-    }
-    generation_->DiscardCandidates();
-    session_source_id_ = *id;
-    model_.SetStatus(absl::StrCat("Accepted source '", source_snapshot.name,
-                                  "'. Choose a terrain and process it."));
+    const absl::Status accepted = FinishImport(std::move(completed));
+    if (!accepted.ok()) model_.SetStatus(std::string(accepted.message()));
     return;
   }
 
@@ -622,20 +588,7 @@ void PropArtworkEditor::PollWork() {
 absl::Status PropArtworkEditor::RenderControls() {
   gui_->BeginDisabled(HasPendingWork());
   auto enabled = absl::MakeCleanup([this] { gui_->EndDisabled(); });
-  PropGenerationStatus generation;
-  generation.selected_provider = generation_->selected_provider();
-  generation.in_flight = generation_->in_flight();
-  generation.providers.reserve(generation_->providers().size());
-  for (const ImageGenerationProvider& provider : generation_->providers()) {
-    generation.providers.push_back(PropGenerationProviderStatus{
-        .name = provider.name,
-        .available = provider.available(),
-        .unavailable_reason = provider.unavailable_reason,
-    });
-  }
-  generation.capabilities = generation_->capabilities();
-  generation.review = generation_->review().has_value() ? &*generation_->review() : nullptr;
-  generation.selected_candidate = generation.review == nullptr ? 0 : generation.review->selected;
+  PropGenerationStatus generation = BuildImageGenerationUiState(*generation_);
   ASSIGN_OR_RETURN(const PropArtworkControlsPanel::Action action,
                    controls_panel_->Render(model_, api_->GetAllSourceArtwork(),
                                            api_->GetAllTerrainRecipes(), generation));

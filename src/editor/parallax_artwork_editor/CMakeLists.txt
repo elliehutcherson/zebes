@@ -1,6 +1,7 @@
 add_library(parallax_artwork_editor_model parallax_artwork_editor_model.cc)
 target_link_libraries(parallax_artwork_editor_model
   PUBLIC
+  artwork_generation_prompts
   prepare_parallax_artwork_asset
   regenerate_parallax_artwork_asset
   source_artwork
@@ -21,6 +22,8 @@ target_link_libraries(parallax_artwork_editor
   editor_canvas
   gui_interface
   image_generation_request_controller
+  image_generation_lifecycle_panel
+  source_artwork_retention
   parallax_artwork_editor_model
   absl::status
   absl::statusor
@@ -35,5 +38,5 @@ target_link_libraries(parallax_artwork_editor
   absl::log
   absl::memory
   absl::strings
-  absl::time
+  utc_timestamp
 )

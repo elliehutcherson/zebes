@@ -14,11 +14,12 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-#include "absl/time/clock.h"
-#include "absl/time/time.h"
 #include "common/status_macros.h"
+#include "common/utc_timestamp.h"
 #include "common/utils.h"
+#include "editor/image_generation/image_generation_lifecycle_panel.h"
 #include "editor/imgui_scoped.h"
+#include "editor/source_artwork_retention.h"
 #include "editor/texture_preview.h"
 
 namespace zebes {
@@ -33,10 +34,6 @@ constexpr ImGuiTreeNodeFlags kSectionFlags = ImGuiTreeNodeFlags_DefaultOpen;
 std::string OriginalFilename(const std::string& path) {
   const size_t separator = path.find_last_of("/\\");
   return separator == std::string::npos ? path : path.substr(separator + 1);
-}
-
-std::string CurrentUtcTimestamp() {
-  return absl::FormatTime("%Y-%m-%dT%H:%M:%SZ", absl::Now(), absl::UTCTimeZone());
 }
 
 const char* FramePolicyLabel(ParallaxArtworkFramePolicy policy) {
@@ -166,27 +163,25 @@ void ParallaxArtworkEditor::StartGeneration() {
   const ImageGenerationCapabilities capabilities = generation_->capabilities();
   std::string role;
   if (pipeline.alpha_role == ParallaxArtworkAlphaRole::kOpaquePlate) {
-    role = "Layer role: opaque plate; fill every edge of the canvas.";
+    role = kOpaquePlateGenerationGuidance;
   } else if (capabilities.supports_transparency) {
-    role = "Layer role: transparent overlay; return a transparent background.";
+    role = kTransparentOverlayGenerationGuidance;
   } else {
-    role =
-        "Layer role: transparent overlay; place the foreground shapes over one flat, strongly "
-        "contrasting matte color for deterministic removal.";
+    role = kMatteOverlayGenerationGuidance;
   }
-  const std::string repetition =
-      pipeline.review_repeat_x
-          ? "Horizontal repetition: make the left and right edges seamlessly tile."
-          : "Horizontal repetition is not required; avoid an obvious repeated motif at both "
-            "edges.";
+  const std::string repetition = pipeline.review_repeat_x
+                                     ? kSeamlessHorizontalGenerationGuidance
+                                     : kNonRepeatingHorizontalGenerationGuidance;
   const std::string palette =
       model_.terrain_recipe().has_value()
           ? absl::StrCat("Palette and style: follow the attached terrain style '",
                          model_.terrain_recipe()->name, "' with broad color groups.")
-          : "Palette and style: use the editor's configured background-art style.";
-  const std::string instructions = absl::StrCat(
-      model_.generation_instructions(), "\n\n", role, "\nTarget aspect: ", pipeline.target_width,
-      ":", pipeline.target_height, ".\n", palette, "\n", repetition);
+          : kDefaultBackgroundPaletteGuidance;
+  std::string instructions = AppendArtworkGenerationStyle(
+      absl::StrCat(model_.generation_instructions(), "\n\n", role,
+                   "\nTarget aspect: ", pipeline.target_width, ":", pipeline.target_height, ".\n",
+                   palette, "\n", repetition),
+      model_.style_guidance());
   ImageGenerationSpec spec{
       .prompt = model_.prompt(),
       .instructions = instructions,
@@ -224,30 +219,20 @@ void ParallaxArtworkEditor::PollGeneration() {
 
 absl::Status ParallaxArtworkEditor::RetainCandidateAsSource(
     const ImageGenerationReview& review, const ImageGenerationCandidate& candidate) {
-  SourceArtworkProvenance provenance = GeneratedArtworkProvenance{
-      .provider = review.provider,
-      .model = review.model,
-      .submitted_prompt = review.submitted_prompt,
-      .revised_prompt = candidate.revised_prompt,
-      .provider_request_id = review.provider_request_id,
-      .generated_at_utc = review.generated_at_utc,
-  };
+  if (model_.active_recipe().has_value()) {
+    return absl::FailedPreconditionError(
+        "existing parallax artwork keeps its retained source; use Save As before accepting "
+        "another");
+  }
   const std::string source_name =
       model_.name().empty() ? review.submitted_prompt : absl::StrCat(model_.name(), " source");
-  ASSIGN_OR_RETURN(const std::string id,
-                   api_->CreateSourceArtwork(source_name, std::move(provenance), candidate.image));
-  auto remove_source = absl::MakeCleanup([this, &id] {
-    const absl::Status cleanup = api_->DeleteSourceArtwork(id);
-    if (!cleanup.ok()) {
-      LOG(ERROR) << "Could not remove a rejected generated parallax source: " << cleanup;
-    }
-  });
-  ASSIGN_OR_RETURN(SourceArtwork * source, api_->GetSourceArtwork(id));
-  const SourceArtwork snapshot = *source;
-  RETURN_IF_ERROR(DiscardSessionSource());
-  RETURN_IF_ERROR(model_.SelectSource(snapshot, candidate.image));
-
-  std::move(remove_source).Cancel();
+  ASSIGN_OR_RETURN(
+      const std::string id,
+      RetainGeneratedSourceArtwork(*api_, source_name, review, candidate,
+                                   [this](const SourceArtwork& source, const RgbaImage& pixels) {
+                                     RETURN_IF_ERROR(DiscardSessionSource());
+                                     return model_.SelectSource(source, pixels);
+                                   }));
   session_source_id_ = id;
   return absl::OkStatus();
 }
@@ -522,6 +507,31 @@ void ParallaxArtworkEditor::DeleteArtwork() {
   model_.SetSuccess(absl::StrCat("Deleted '", recipe.name, "' and its generated bundle."));
 }
 
+absl::Status ParallaxArtworkEditor::FinishImport(PendingImport completed) {
+  if (model_.active_recipe().has_value()) {
+    return absl::FailedPreconditionError(
+        "existing parallax artwork keeps its retained source; use Save As before importing "
+        "another");
+  }
+  ASSIGN_OR_RETURN(RgbaImage pixels, completed.work.TakeResult());
+  SourceArtworkProvenance provenance = ImportedArtworkProvenance{
+      .original_filename = std::move(completed.original_filename),
+      .imported_at_utc = std::move(completed.imported_at_utc),
+  };
+  ASSIGN_OR_RETURN(
+      const std::string id,
+      RetainSourceArtwork(*api_, std::move(completed.source_name), std::move(provenance), pixels,
+                          [this](const SourceArtwork& source, const RgbaImage& retained_pixels) {
+                            RETURN_IF_ERROR(DiscardSessionSource());
+                            return model_.SelectSource(source, retained_pixels);
+                          }));
+  session_source_id_ = id;
+  generation_->DiscardCandidates();
+  model_.SetSuccess(absl::StrCat("Accepted source '", model_.source()->name,
+                                 "'. Choose a terrain style and process it."));
+  return absl::OkStatus();
+}
+
 void ParallaxArtworkEditor::PollWork() {
   if (PendingImport* pending = std::get_if<PendingImport>(&pending_work_); pending != nullptr) {
     absl::StatusOr<bool> ready = pending->work.IsReady();
@@ -534,53 +544,10 @@ void ParallaxArtworkEditor::PollWork() {
 
     PendingImport completed = std::move(*pending);
     pending_work_.emplace<std::monostate>();
-    absl::StatusOr<RgbaImage> pixels = completed.work.TakeResult();
-    if (!pixels.ok()) {
-      model_.SetError(absl::StrCat("Import failed: ", pixels.status().message()));
-      return;
+    const absl::Status accepted = FinishImport(std::move(completed));
+    if (!accepted.ok()) {
+      model_.SetError(absl::StrCat("Import failed: ", accepted.message()));
     }
-    SourceArtworkProvenance provenance = ImportedArtworkProvenance{
-        .original_filename = completed.original_filename,
-        .imported_at_utc = completed.imported_at_utc,
-    };
-    absl::StatusOr<std::string> id =
-        api_->CreateSourceArtwork(completed.source_name, std::move(provenance), *pixels);
-    if (!id.ok()) {
-      model_.SetError(absl::StrCat("Could not retain imported source: ", id.status().message()));
-      return;
-    }
-    absl::StatusOr<SourceArtwork*> source = api_->GetSourceArtwork(*id);
-    if (!source.ok()) {
-      const absl::Status cleanup = api_->DeleteSourceArtwork(*id);
-      model_.SetError(absl::StrCat(
-          "Imported source could not be reloaded: ", source.status().message(),
-          cleanup.ok() ? "" : absl::StrCat("; cleanup also failed: ", cleanup.message())));
-      return;
-    }
-    const SourceArtwork source_snapshot = **source;
-    const absl::Status discarded = DiscardSessionSource();
-    if (!discarded.ok()) {
-      const absl::Status cleanup = api_->DeleteSourceArtwork(*id);
-      model_.SetError(absl::StrCat(
-          "Could not replace the current imported source: ", discarded.message(),
-          cleanup.ok() ? ""
-                       : absl::StrCat("; new-source cleanup also failed: ", cleanup.message())));
-      return;
-    }
-    const absl::Status selected = model_.SelectSource(source_snapshot, *std::move(pixels));
-    if (!selected.ok()) {
-      const absl::Status cleanup = api_->DeleteSourceArtwork(*id);
-      model_.StartNewRecipe();
-      model_.SetError(absl::StrCat(
-          selected.message(), cleanup.ok() ? ""
-                                           : absl::StrCat("; imported-source cleanup also failed: ",
-                                                          cleanup.message())));
-      return;
-    }
-    generation_->DiscardCandidates();
-    session_source_id_ = *id;
-    model_.SetSuccess(absl::StrCat("Accepted source '", source_snapshot.name,
-                                   "'. Choose a terrain style and process it."));
     return;
   }
 
@@ -771,60 +738,35 @@ void ParallaxArtworkEditor::RenderGeneration() {
   gui_->Separator();
   if (!gui_->CollapsingHeader("Generate source##ParallaxArtwork", kSectionFlags)) return;
 
-  const std::vector<ImageGenerationProvider>& providers = generation_->providers();
-  const size_t selected_index = generation_->selected_provider();
-  const ImageGenerationProvider* selected =
-      selected_index < providers.size() ? &providers[selected_index] : nullptr;
-  const char* provider_preview = selected == nullptr ? "(unavailable)" : selected->name.c_str();
-  gui_->SetNextItemWidth(kControlWidth);
-  gui_->BeginDisabled(generation_->in_flight());
-  {
-    ScopedCombo combo =
-        gui_->CreateScopedCombo("Provider##ParallaxArtworkGeneration", provider_preview);
-    if (combo.IsActive()) {
-      for (size_t index = 0; index < providers.size(); ++index) {
-        const ImageGenerationProvider& provider = providers[index];
-        const ImGuiSelectableFlags flags = provider.available() ? 0 : ImGuiSelectableFlags_Disabled;
-        if (gui_->Selectable(provider.name.c_str(), index == selected_index, flags)) {
-          SelectGenerationProvider(index);
-        }
-      }
-    }
-  }
-  gui_->EndDisabled();
-
-  if (generation_->in_flight()) {
-    gui_->TextWrapped("Generating. This can take a minute.");
-    if (gui_->Button("Cancel generation##ParallaxArtwork")) CancelGeneration();
-    return;
-  }
-
-  if (generation_->review().has_value()) {
-    const ImageGenerationReview& review = *generation_->review();
-    const size_t count = review.candidates.size();
-    gui_->Text("Candidate %zu of %zu", review.selected + 1, count);
-    if (count > 1) {
-      if (gui_->Button("Previous##ParallaxArtworkCandidate")) {
-        generation_->SelectCandidate(review.selected == 0 ? count - 1 : review.selected - 1);
-      }
-      gui_->SameLine();
-      if (gui_->Button("Next##ParallaxArtworkCandidate")) {
-        generation_->SelectCandidate(review.selected + 1 == count ? 0 : review.selected + 1);
-      }
-    }
-    const ImageGenerationCandidate& candidate = review.candidates[review.selected];
-    if (candidate.revised_prompt.has_value()) {
-      gui_->TextWrapped("Provider rewrote the prompt: %s", candidate.revised_prompt->c_str());
-    }
-    gui_->TextDisabled("%s / %s", review.provider.c_str(), review.model.c_str());
-    if (gui_->Button("Accept candidate##ParallaxArtwork")) AcceptCandidate();
-    gui_->SameLine();
-    if (gui_->Button("Discard##ParallaxArtworkCandidate")) {
+  ImageGenerationUiState generation = BuildImageGenerationUiState(*generation_);
+  const ImageGenerationLifecycleResult lifecycle =
+      RenderImageGenerationLifecycle(*gui_, {.editor_id = "ParallaxArtwork"}, generation);
+  switch (lifecycle.action) {
+    case ImageGenerationLifecycleAction::kNone:
+      break;
+    case ImageGenerationLifecycleAction::kSelectProvider:
+      SelectGenerationProvider(generation.selected_provider);
+      break;
+    case ImageGenerationLifecycleAction::kCancel:
+      CancelGeneration();
+      break;
+    case ImageGenerationLifecycleAction::kSelectCandidate:
+      generation_->SelectCandidate(generation.selected_candidate);
+      break;
+    case ImageGenerationLifecycleAction::kAcceptCandidate:
+      AcceptCandidate();
+      break;
+    case ImageGenerationLifecycleAction::kDiscardCandidates:
       generation_->DiscardCandidates();
       model_.SetInfo("Discarded the generated candidates.");
-    }
-    return;
+      break;
   }
+  if (!lifecycle.show_draft) return;
+
+  const ImageGenerationProviderStatus* selected =
+      generation.selected_provider < generation.providers.size()
+          ? &generation.providers[generation.selected_provider]
+          : nullptr;
 
   const float text_height = gui_->GetTextLineHeightWithSpacing();
   gui_->Text("Prompt");
@@ -833,6 +775,25 @@ void ParallaxArtworkEditor::RenderGeneration() {
   gui_->Text("Background instructions");
   gui_->InputTextMultiline("##ParallaxArtworkSystemPrompt", &model_.generation_instructions(),
                            ImVec2(-1.0f, text_height * 7.0f));
+  gui_->SetNextItemWidth(kControlWidth);
+  {
+    const ArtworkGenerationStylePreset current = model_.style_preset();
+    ScopedCombo combo = gui_->CreateScopedCombo("Style preset##ParallaxArtworkGeneration",
+                                                ArtworkGenerationStylePresetLabel(current));
+    if (combo.IsActive()) {
+      for (const ArtworkGenerationStylePreset preset : kArtworkGenerationStylePresets) {
+        if (!gui_->Selectable(ArtworkGenerationStylePresetLabel(preset), preset == current)) {
+          continue;
+        }
+        if (preset != current) model_.SetStylePreset(preset);
+      }
+    }
+  }
+  gui_->Text("Style guidance");
+  if (gui_->InputTextMultiline("##ParallaxArtworkStyleGuidance", &model_.style_guidance(),
+                               ImVec2(-1.0f, text_height * 4.0f))) {
+    model_.MarkStyleGuidanceCustom();
+  }
 
   const int maximum = std::max(1, generation_->capabilities().maximum_candidates);
   int requested = model_.requested_candidates();
@@ -844,7 +805,7 @@ void ParallaxArtworkEditor::RenderGeneration() {
   }
   model_.SetRequestedCandidates(model_.requested_candidates(), maximum);
 
-  const bool available = selected != nullptr && selected->available();
+  const bool available = selected != nullptr && selected->available;
   gui_->BeginDisabled(!available || model_.prompt().empty() || model_.active_recipe().has_value());
   if (gui_->Button("Generate##ParallaxArtwork")) StartGeneration();
   gui_->EndDisabled();

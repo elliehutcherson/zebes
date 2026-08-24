@@ -59,6 +59,12 @@ void ParallaxArtworkEditorModel::SetRequestedCandidates(int candidates, int maxi
   requested_candidates_ = std::clamp(candidates, 1, maximum);
 }
 
+void ParallaxArtworkEditorModel::SetStylePreset(ArtworkGenerationStylePreset preset) {
+  style_preset_ = preset;
+  if (preset == ArtworkGenerationStylePreset::kCustom) return;
+  style_guidance_ = ArtworkGenerationStylePresetGuidance(preset);
+}
+
 absl::Status ParallaxArtworkEditorModel::SelectSource(SourceArtwork source, RgbaImage pixels) {
   if (active_recipe_.has_value()) {
     return absl::FailedPreconditionError(

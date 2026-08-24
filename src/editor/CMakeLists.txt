@@ -35,6 +35,22 @@ target_link_libraries(confirm_prompt
   ${IMGUI_LIBRARIES}
 )
 
+# Compensated retained-source transaction shared by import and generation
+# workflows. Domain editors supply only their model-acceptance callback.
+add_library(source_artwork_retention source_artwork_retention.cc)
+target_link_libraries(source_artwork_retention
+  PUBLIC
+  api
+  image_generation_request_controller
+  source_artwork
+  absl::status
+  absl::statusor
+  PRIVATE
+  absl::cleanup
+  absl::log
+  status_macros
+)
+
 
 # Gui Implementation
 add_library(editor_gui gui.cc)
