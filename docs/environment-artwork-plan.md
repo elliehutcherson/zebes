@@ -912,6 +912,8 @@ recipe, or native-resource ownership boundary is weakened.
 
 ### Milestone 2 — import-first background artwork pipeline
 
+**Status: implemented and accepted.**
+
 - Generalize `SourceArtwork` storage and limits with a strict migration.
 - Add `ParallaxArtworkRecipe`, serializer, manager, reference scans, and bundle
   lifecycle.
@@ -925,7 +927,7 @@ recipe, or native-resource ownership boundary is weakened.
 Acceptance: an imported plate becomes a reproducible managed Texture, and
 regeneration from retained source is pixel-identical.
 
-#### Immediate next steps
+#### Completion record
 
 1. **Implemented.** Generalize retained source-artwork storage and its
    serialized limits without weakening existing Prop Artwork ownership;

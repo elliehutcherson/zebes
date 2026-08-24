@@ -272,11 +272,13 @@ keeps camera-relative parallax layers distinct from world-relative background,
 gameplay, and foreground prop layers. It reuses the existing generation,
 retained-source, palette, texture, API-compensation, and reference-scan
 boundaries while adding a background-specific recipe and deterministic output
-builder. Theme extraction and separate editor ownership are implemented. Next
-it validates one imported layered cave composition, then adds retained
-background recipes, exposes generated candidates, and finally implements zone
-fades. The document is also the source of truth for migration, validation, and
-the human authoring workflow.
+builder. Theme extraction, separate editor ownership, the imported layered cave
+composition, and retained background recipes are implemented and accepted.
+Milestone 3 now extracts the shared generation-request controller and exposes
+generated parallax candidates through the same retained-source path. Milestone
+4 turns those workflows into the first production cave kit; Milestone 5 then
+implements zone fades. The document is also the source of truth for migration,
+validation, and the human authoring workflow.
 
 **`ParallaxZone::fade_length`** — authored, serialized, exposed in the editor,
 and ignored. It is not currently checked by `ValidateLevel`, despite an earlier
