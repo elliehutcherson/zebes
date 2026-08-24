@@ -107,7 +107,8 @@ absl::Status SourceArtworkManager::LoadAllArtwork() {
       definitions_path_, "source artwork",
       [this, &loaded](const std::filesystem::path& path) -> absl::Status {
         ASSIGN_OR_RETURN(SourceArtwork artwork, LoadDefinition(path.string()));
-        RETURN_IF_ERROR(ValidateStoredArtwork(artwork));
+        const absl::Status validation = ValidateStoredArtwork(artwork);
+        if (!validation.ok()) return validation;
         if (path.stem() != artwork.id) {
           return absl::InvalidArgumentError("source artwork filename does not match its ID");
         }

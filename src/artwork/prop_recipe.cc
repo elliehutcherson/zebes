@@ -264,8 +264,9 @@ absl::Status ValidatePropRecipe(const PropRecipe& recipe) {
   if (recipe.source_artwork_id.empty()) {
     return absl::InvalidArgumentError("prop recipe source artwork ID is empty");
   }
-  if (recipe.texture_id.empty())
+  if (recipe.texture_id.empty()) {
     return absl::InvalidArgumentError("prop recipe texture ID is empty");
+  }
   if (recipe.sprite_id.empty()) return absl::InvalidArgumentError("prop recipe sprite ID is empty");
   if (recipe.blueprint_id.empty()) {
     return absl::InvalidArgumentError("prop recipe blueprint ID is empty");

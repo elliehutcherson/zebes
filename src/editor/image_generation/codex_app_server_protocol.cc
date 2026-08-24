@@ -169,7 +169,7 @@ absl::StatusOr<std::string> CodexAppServerProtocol::Initialize() {
       R"({"clientInfo":{"name":"zebes","title":"Zebes Image Generation","version":"0.1.0"}})");
 }
 
-absl::StatusOr<std::string> CodexAppServerProtocol::InitializedNotification() const {
+absl::StatusOr<std::string> CodexAppServerProtocol::InitializedNotification() {
   return R"({"method":"initialized","params":{}})";
 }
 

@@ -95,8 +95,9 @@ PropArtworkEditor::~PropArtworkEditor() {
 
 absl::StatusOr<std::unique_ptr<PropArtworkEditor>> PropArtworkEditor::Create(
     const PropArtworkEditorOptions& options) {
-  if (options.api == nullptr)
+  if (options.api == nullptr) {
     return absl::InvalidArgumentError("PropArtworkEditor requires an Api");
+  }
   if (options.gui == nullptr) return absl::InvalidArgumentError("PropArtworkEditor requires a GUI");
   if (options.preview == nullptr) {
     return absl::InvalidArgumentError("PropArtworkEditor requires a preview sink");

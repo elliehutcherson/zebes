@@ -19,9 +19,10 @@ namespace zebes {
 namespace {
 
 constexpr size_t kMaximumResponseHeaderBytes = 64 * 1024;
+using CurlLong = long;  // NOLINT(google-runtime-int): libcurl's C API requires long.
 
 absl::Status EnsureCurlInitialized() {
-  static const absl::Status status = [] {
+  static const absl::Status kStatus = [] {
     const CURLcode result = curl_global_init(CURL_GLOBAL_DEFAULT);
     if (result != CURLE_OK) {
       return absl::InternalError(
@@ -34,7 +35,7 @@ absl::Status EnsureCurlInitialized() {
     }
     return absl::OkStatus();
   }();
-  return status;
+  return kStatus;
 }
 
 absl::Status CurlError(CURLcode result) {
@@ -102,7 +103,7 @@ class CurlHttpOperation final : public HttpOperation {
       RETURN_IF_ERROR(callback_status_);
       if (message->data.result != CURLE_OK) return CurlError(message->data.result);
 
-      long status_code = 0;
+      CurlLong status_code = 0;
       const CURLcode info = curl_easy_getinfo(easy_, CURLINFO_RESPONSE_CODE, &status_code);
       if (info != CURLE_OK) return CurlError(info);
       if (status_code > std::numeric_limits<int>::max()) {
@@ -129,7 +130,7 @@ class CurlHttpOperation final : public HttpOperation {
   // Zero means curl wants attention immediately and must not be slept on.
   absl::Duration SuggestedPollDelay() const override {
     if (!active_) return absl::ZeroDuration();
-    long timeout_milliseconds = 0;
+    CurlLong timeout_milliseconds = 0;
     if (curl_multi_timeout(multi_, &timeout_milliseconds) != CURLM_OK) {
       return absl::ZeroDuration();
     }
@@ -141,8 +142,8 @@ class CurlHttpOperation final : public HttpOperation {
   explicit CurlHttpOperation(HttpRequest request) : request_(std::move(request)) {}
 
   absl::Status Initialize() {
-    if (request_.connect_timeout.count() > std::numeric_limits<long>::max() ||
-        request_.total_timeout.count() > std::numeric_limits<long>::max()) {
+    if (request_.connect_timeout.count() > std::numeric_limits<CurlLong>::max() ||
+        request_.total_timeout.count() > std::numeric_limits<CurlLong>::max()) {
       return absl::OutOfRangeError("HTTP timeout exceeds libcurl's supported range");
     }
     if (request_.body.size() > static_cast<size_t>(std::numeric_limits<curl_off_t>::max())) {
@@ -170,9 +171,9 @@ class CurlHttpOperation final : public HttpOperation {
     RETURN_IF_ERROR(SetOption(easy_, CURLOPT_SSL_VERIFYPEER, 1L));
     RETURN_IF_ERROR(SetOption(easy_, CURLOPT_SSL_VERIFYHOST, 2L));
     RETURN_IF_ERROR(SetOption(easy_, CURLOPT_CONNECTTIMEOUT_MS,
-                              static_cast<long>(request_.connect_timeout.count())));
-    RETURN_IF_ERROR(
-        SetOption(easy_, CURLOPT_TIMEOUT_MS, static_cast<long>(request_.total_timeout.count())));
+                              static_cast<CurlLong>(request_.connect_timeout.count())));
+    RETURN_IF_ERROR(SetOption(easy_, CURLOPT_TIMEOUT_MS,
+                              static_cast<CurlLong>(request_.total_timeout.count())));
     RETURN_IF_ERROR(SetOption(easy_, CURLOPT_POST, 1L));
     RETURN_IF_ERROR(SetOption(easy_, CURLOPT_POSTFIELDSIZE_LARGE,
                               static_cast<curl_off_t>(request_.body.size())));

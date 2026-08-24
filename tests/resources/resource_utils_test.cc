@@ -18,18 +18,18 @@ class ResourceUtilsTest : public ::testing::Test {
  protected:
   void SetUp() override {
     directory_ = std::filesystem::temp_directory_path() /
-                 ("zebes-resource-utils-" + std::to_string(++sequence_));
+                 ("zebes-resource-utils-" + std::to_string(++sequence));
     std::filesystem::remove_all(directory_);
     std::filesystem::create_directories(directory_);
   }
 
   void TearDown() override { std::filesystem::remove_all(directory_); }
 
-  static int sequence_;
+  static int sequence;
   std::filesystem::path directory_;
 };
 
-int ResourceUtilsTest::sequence_ = 0;
+int ResourceUtilsTest::sequence = 0;
 
 TEST_F(ResourceUtilsTest, LoadsEveryJsonAndAggregatesFailures) {
   std::ofstream(directory_ / "good.json") << "{}";

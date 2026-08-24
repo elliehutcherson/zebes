@@ -306,7 +306,7 @@ class CodexImageClient::Session {
     return std::visit([this](const auto& value) { return HandleEvent(value); }, event);
   }
 
-  absl::Status HandleEvent(const CodexSessionRequestFailed& failure) {
+  static absl::Status HandleEvent(const CodexSessionRequestFailed& failure) {
     return RequestFailureStatus(failure.kind, failure.detail);
   }
 
@@ -466,14 +466,14 @@ class CodexImageClient::Session {
     return absl::OkStatus();
   }
 
-  absl::Status HandleEvent(const CodexTurnInterrupted&) { return absl::OkStatus(); }
+  static absl::Status HandleEvent(const CodexTurnInterrupted&) { return absl::OkStatus(); }
 
-  absl::Status HandleEvent(const CodexServerRequest&) {
+  static absl::Status HandleEvent(const CodexServerRequest&) {
     return absl::PermissionDeniedError(
         "Codex App Server requested an approval or dynamic tool from Zebes");
   }
 
-  absl::Status HandleEvent(const CodexIgnoredEvent&) { return absl::OkStatus(); }
+  static absl::Status HandleEvent(const CodexIgnoredEvent&) { return absl::OkStatus(); }
 
   absl::StatusOr<ImageGenerationResult> DecodeResult(const OperationState& state,
                                                      const AwaitingTurnCompletion& awaiting) {

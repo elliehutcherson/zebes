@@ -117,7 +117,7 @@ using CodexProtocolEvent =
 class CodexAppServerProtocol {
  public:
   absl::StatusOr<std::string> Initialize();
-  absl::StatusOr<std::string> InitializedNotification() const;
+  static absl::StatusOr<std::string> InitializedNotification();
   absl::StatusOr<std::string> ReadAccount();
   absl::StatusOr<std::string> ListSkills(const std::filesystem::path& cwd);
   absl::StatusOr<std::string> StartThread(

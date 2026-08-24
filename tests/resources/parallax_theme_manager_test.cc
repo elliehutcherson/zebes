@@ -33,19 +33,19 @@ class ParallaxThemeManagerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     path_ = std::filesystem::temp_directory_path() /
-            ("zebes-parallax-themes-" + std::to_string(++sequence_));
+            ("zebes-parallax-themes-" + std::to_string(++sequence));
     std::filesystem::remove_all(path_);
     ASSERT_OK_AND_ASSIGN(manager_, ParallaxThemeManager::Create(path_.string()));
     ASSERT_OK(manager_->LoadAllThemes());
   }
   void TearDown() override { std::filesystem::remove_all(path_); }
 
-  static int sequence_;
+  static int sequence;
   std::filesystem::path path_;
   std::unique_ptr<ParallaxThemeManager> manager_;
 };
 
-int ParallaxThemeManagerTest::sequence_ = 0;
+int ParallaxThemeManagerTest::sequence = 0;
 
 TEST_F(ParallaxThemeManagerTest, RoundTripsACompleteTheme) {
   ParallaxTheme expected = CompleteTheme();

@@ -267,8 +267,8 @@ TEST(NotificationSetTest, WaitsForAnExternalFileDescriptor) {
         BlockingCallbackThread waiter,
         BlockingCallbackThread::Start([&notification_set] { return notification_set->Wait(); }));
 
-    constexpr uint8_t byte = 1;
-    ASSERT_EQ(write(pipe_fds[1], &byte, sizeof(byte)), sizeof(byte));
+    constexpr uint8_t kByte = 1;
+    ASSERT_EQ(write(pipe_fds[1], &kByte, sizeof(kByte)), sizeof(kByte));
     ASSERT_OK(waiter.Wait());
     notification_set->Disarm();
   }
