@@ -1,6 +1,5 @@
 #include "editor/prop_artwork_editor/prop_artwork_editor.h"
 
-#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -80,13 +79,11 @@ PropArtworkEditor::PropArtworkEditor(const PropArtworkEditorOptions& options)
     : api_(options.api),
       gui_(options.gui),
       preview_(options.preview),
-      generation_providers_(options.generation_providers),
       preview_canvas_(Canvas::Options{.gui = options.gui, .grid_size = 32.0f}) {}
 
 PropArtworkEditor::~PropArtworkEditor() {
   // The engine outlives this editor, so an abandoned request would keep polling
   // a result nobody will collect.
-  CancelGeneration();
   const absl::Status discarded = DiscardSessionSource();
   if (!discarded.ok()) {
     LOG(ERROR) << "Could not discard uncommitted prop source during shutdown: " << discarded;
@@ -102,29 +99,9 @@ absl::StatusOr<std::unique_ptr<PropArtworkEditor>> PropArtworkEditor::Create(
   if (options.preview == nullptr) {
     return absl::InvalidArgumentError("PropArtworkEditor requires a preview sink");
   }
-  for (size_t index = 0; index < options.generation_providers.size(); ++index) {
-    const PropArtworkGenerationProvider& provider = options.generation_providers[index];
-    if (provider.name.empty()) {
-      return absl::InvalidArgumentError("Image generation provider name must not be empty");
-    }
-    if ((provider.engine == nullptr) == provider.unavailable_reason.empty()) {
-      return absl::InvalidArgumentError(
-          "Image generation provider must have either an engine or an unavailable reason");
-    }
-    for (size_t previous = 0; previous < index; ++previous) {
-      if (options.generation_providers[previous].name == provider.name) {
-        return absl::InvalidArgumentError("Image generation provider names must be unique");
-      }
-    }
-  }
   auto editor = absl::WrapUnique(new PropArtworkEditor(options));
-  const auto available = std::find_if(
-      editor->generation_providers_.begin(), editor->generation_providers_.end(),
-      [](const PropArtworkGenerationProvider& provider) { return provider.engine != nullptr; });
-  if (available != editor->generation_providers_.end()) {
-    editor->selected_generation_provider_ =
-        static_cast<size_t>(available - editor->generation_providers_.begin());
-  }
+  ASSIGN_OR_RETURN(editor->generation_,
+                   ImageGenerationRequestController::Create(options.generation_providers));
   RETURN_IF_ERROR(editor->Init());
   return editor;
 }
@@ -199,39 +176,33 @@ void PropArtworkEditor::SelectSource() {
     model_.SetStatus(std::string(selected.message()));
     return;
   }
+  generation_->DiscardCandidates();
   model_.SetStatus(absl::StrCat("Selected retained source '", source_snapshot.name, "'."));
 }
 
 void PropArtworkEditor::SelectGenerationProvider(size_t index) {
-  if (index >= generation_providers_.size()) {
-    model_.SetStatus("The selected image generation provider does not exist.");
+  const absl::Status selected = generation_->SelectProvider(index);
+  if (!selected.ok()) {
+    model_.SetStatus(std::string(selected.message()));
     return;
   }
-  if (pending_generation_.has_value()) {
-    model_.SetStatus("Cancel the running generation before changing providers.");
-    return;
-  }
-  selected_generation_provider_ = index;
-  const PropArtworkGenerationProvider& provider = generation_providers_[index];
-  if (provider.engine == nullptr) {
-    model_.SetStatus(provider.unavailable_reason);
-    return;
-  }
-  model_.SetStatus(absl::StrCat("Using ", provider.name, " for image generation."));
+  model_.SetStatus(
+      absl::StrCat("Using ", generation_->providers()[index].name, " for image generation."));
 }
 
 void PropArtworkEditor::StartGeneration() {
-  if (pending_generation_.has_value()) {
+  if (generation_->in_flight()) {
     model_.SetStatus("A generation is already running.");
     return;
   }
-  if (generation_providers_.empty() ||
-      selected_generation_provider_ >= generation_providers_.size()) {
+  if (generation_->providers().empty() ||
+      generation_->selected_provider() >= generation_->providers().size()) {
     model_.SetStatus("No image generation provider is available.");
     return;
   }
-  PropArtworkGenerationProvider& provider = generation_providers_[selected_generation_provider_];
-  if (provider.engine == nullptr) {
+  const ImageGenerationProvider& provider =
+      generation_->providers()[generation_->selected_provider()];
+  if (!provider.available()) {
     model_.SetStatus(provider.unavailable_reason);
     return;
   }
@@ -239,7 +210,7 @@ void PropArtworkEditor::StartGeneration() {
     model_.SetStatus("Describe the prop before generating a source for it.");
     return;
   }
-  const ImageGenerationCapabilities capabilities = provider.engine->Capabilities();
+  const ImageGenerationCapabilities capabilities = generation_->capabilities();
   std::string instructions = model_.generation_instructions();
   if (!model_.style_guidance().empty()) {
     if (!instructions.empty()) absl::StrAppend(&instructions, "\n\n");
@@ -255,85 +226,36 @@ void PropArtworkEditor::StartGeneration() {
                           ? ImageTransparencyPreference::kPreferTransparent
                           : ImageTransparencyPreference::kNoPreference,
   };
-  absl::StatusOr<uint64_t> id = provider.engine->Submit(std::move(spec));
-  if (!id.ok()) {
-    model_.SetStatus(std::string(id.status().message()));
+  const absl::Status submitted = generation_->Submit(std::move(spec));
+  if (!submitted.ok()) {
+    model_.SetStatus(std::string(submitted.message()));
     return;
   }
-  // The previous review is dropped here rather than on acceptance: a new
-  // prompt supersedes it, and keeping it would show a candidate from a prompt
-  // the user has already moved on from.
-  model_.ClearGeneration();
-  pending_generation_ = PendingGeneration{.provider = selected_generation_provider_, .id = *id};
   model_.SetStatus("Generating. This can take a minute.");
 }
 
 void PropArtworkEditor::CancelGeneration() {
-  if (!pending_generation_.has_value()) return;
-  const PendingGeneration pending = *pending_generation_;
-  ImageGenerationEngine* const engine = generation_providers_[pending.provider].engine;
-  if (engine == nullptr) {
-    LOG(ERROR) << "Could not cancel prop generation: provider became unavailable while running";
-    return;
-  }
-  const absl::Status cancelled = engine->Cancel(pending.id);
+  const absl::Status cancelled = generation_->Cancel();
   if (!cancelled.ok()) {
     LOG(ERROR) << "Could not cancel prop generation: " << cancelled;
   }
-  // The id stays pending: the engine still owes exactly one event for it, and
-  // dropping it now would leave that event to be mistaken for a later request.
 }
 
 void PropArtworkEditor::PollGeneration() {
-  if (!pending_generation_.has_value()) return;
-  const PendingGeneration pending = *pending_generation_;
-  PropArtworkGenerationProvider& provider = generation_providers_[pending.provider];
-  if (provider.engine == nullptr) {
-    model_.SetStatus("Image generation provider became unavailable while running.");
-    pending_generation_.reset();
+  absl::StatusOr<bool> polled = generation_->Poll();
+  if (!polled.ok()) {
+    model_.SetStatus(std::string(polled.status().message()));
     return;
   }
-  while (std::optional<GenerationEvent> event = provider.engine->NextEvent()) {
-    if (pending.id != event->id) continue;
-    pending_generation_.reset();
-    if (!event->result.ok()) {
-      const absl::Status failure = event->result.status();
-      model_.SetStatus(std::string(failure.message()));
-      const bool configuration_failure = failure.code() == absl::StatusCode::kUnauthenticated ||
-                                         failure.code() == absl::StatusCode::kPermissionDenied ||
-                                         failure.code() == absl::StatusCode::kNotFound ||
-                                         failure.code() == absl::StatusCode::kFailedPrecondition ||
-                                         failure.code() == absl::StatusCode::kUnimplemented;
-      if (provider.disable_after_failure || configuration_failure) {
-        provider.engine = nullptr;
-        provider.unavailable_reason = std::string(failure.message());
-      }
-      return;
-    }
-    ImageGenerationResult result = *std::move(event->result);
-    const absl::Status accepted = model_.AcceptGeneration(PropGenerationReview{
-        .provider = std::move(result.provider),
-        .model = std::move(result.model),
-        .submitted_prompt = std::move(result.submitted_prompt),
-        .provider_request_id = std::move(result.provider_request_id),
-        .generated_at_utc = CurrentUtcTimestamp(),
-        .candidates = std::move(result.candidates),
-    });
-    if (!accepted.ok()) {
-      model_.SetStatus(std::string(accepted.message()));
-      continue;
-    }
-    model_.SetStatus("Review the candidates, then accept one as the source.");
-    return;
-  }
+  if (!*polled) return;
+  model_.SetStatus("Review the candidates, then accept one as the source.");
 }
 
 // Retains the selected candidate the way an imported PNG is retained: the
 // manager owns the pixels before the model points at them, so a failure
 // anywhere leaves no half-attached source behind.
-absl::Status PropArtworkEditor::RetainCandidateAsSource() {
-  const PropGenerationReview& review = *model_.generation_review();
-  const ImageGenerationCandidate& candidate = review.candidates[review.selected];
+absl::Status PropArtworkEditor::RetainCandidateAsSource(const ImageGenerationReview& review,
+                                                        const ImageGenerationCandidate& candidate) {
   SourceArtworkProvenance provenance = GeneratedArtworkProvenance{
       .provider = review.provider,
       .model = review.model,
@@ -362,17 +284,19 @@ absl::Status PropArtworkEditor::RetainCandidateAsSource() {
 }
 
 void PropArtworkEditor::AcceptCandidate() {
-  if (!model_.generation_review().has_value()) {
+  if (!generation_->review().has_value()) {
     model_.SetStatus("Generate a candidate before accepting one.");
     return;
   }
-  const absl::Status retained = RetainCandidateAsSource();
+  const std::string prompt = generation_->review()->submitted_prompt;
+  const absl::Status retained = generation_->AcceptCandidate(
+      [this](const ImageGenerationReview& review, const ImageGenerationCandidate& candidate) {
+        return RetainCandidateAsSource(review, candidate);
+      });
   if (!retained.ok()) {
     model_.SetStatus(std::string(retained.message()));
     return;
   }
-  const std::string prompt = model_.generation_review()->submitted_prompt;
-  model_.ClearGeneration();
   model_.SetStatus(absl::StrCat("Accepted a generated source for '", prompt,
                                 "'. Choose a terrain and process it."));
 }
@@ -389,6 +313,7 @@ void PropArtworkEditor::DeleteSelectedSource() {
     return;
   }
   if (session_source_id_ == source.id) session_source_id_.reset();
+  generation_->DiscardCandidates();
   model_.StartNewRecipe();
   model_.SetStatus(absl::StrCat("Deleted retained source '", source.name, "'."));
 }
@@ -435,6 +360,7 @@ void PropArtworkEditor::OpenRecipe() {
     model_.SetStatus(std::string(loaded.message()));
     return;
   }
+  generation_->DiscardCandidates();
   model_.SetStatus(absl::StrCat("Opened '", snapshot.name, "'. Process to preview it."));
 }
 
@@ -445,6 +371,7 @@ void PropArtworkEditor::ClearWorkspace() {
         absl::StrCat("Could not discard the uncommitted imported source: ", discarded.message()));
     return;
   }
+  generation_->DiscardCandidates();
   model_.StartNewRecipe();
   model_.SetStatus("Prop Artwork workspace cleared. Saved prop bundles were not changed.");
 }
@@ -572,6 +499,7 @@ void PropArtworkEditor::DeleteProp() {
     model_.SetStatus(std::string(deleted.message()));
     return;
   }
+  generation_->DiscardCandidates();
   model_.StartNewRecipe();
   model_.SetStatus(absl::StrCat("Deleted '", recipe.name, "' and its generated bundle."));
 }
@@ -631,6 +559,7 @@ void PropArtworkEditor::PollWork() {
                                                           cleanup.message())));
       return;
     }
+    generation_->DiscardCandidates();
     session_source_id_ = *id;
     model_.SetStatus(absl::StrCat("Accepted source '", source_snapshot.name,
                                   "'. Choose a terrain and process it."));
@@ -694,21 +623,19 @@ absl::Status PropArtworkEditor::RenderControls() {
   gui_->BeginDisabled(HasPendingWork());
   auto enabled = absl::MakeCleanup([this] { gui_->EndDisabled(); });
   PropGenerationStatus generation;
-  generation.selected_provider = selected_generation_provider_;
-  generation.in_flight = pending_generation_.has_value();
-  generation.providers.reserve(generation_providers_.size());
-  for (const PropArtworkGenerationProvider& provider : generation_providers_) {
+  generation.selected_provider = generation_->selected_provider();
+  generation.in_flight = generation_->in_flight();
+  generation.providers.reserve(generation_->providers().size());
+  for (const ImageGenerationProvider& provider : generation_->providers()) {
     generation.providers.push_back(PropGenerationProviderStatus{
         .name = provider.name,
-        .available = provider.engine != nullptr,
+        .available = provider.available(),
         .unavailable_reason = provider.unavailable_reason,
     });
   }
-  if (selected_generation_provider_ < generation_providers_.size()) {
-    const PropArtworkGenerationProvider& selected =
-        generation_providers_[selected_generation_provider_];
-    if (selected.engine != nullptr) generation.capabilities = selected.engine->Capabilities();
-  }
+  generation.capabilities = generation_->capabilities();
+  generation.review = generation_->review().has_value() ? &*generation_->review() : nullptr;
+  generation.selected_candidate = generation.review == nullptr ? 0 : generation.review->selected;
   ASSIGN_OR_RETURN(const PropArtworkControlsPanel::Action action,
                    controls_panel_->Render(model_, api_->GetAllSourceArtwork(),
                                            api_->GetAllTerrainRecipes(), generation));
@@ -733,11 +660,14 @@ absl::Status PropArtworkEditor::RenderControls() {
     case PropArtworkControlsPanel::Action::kCancelGeneration:
       CancelGeneration();
       break;
+    case PropArtworkControlsPanel::Action::kSelectCandidate:
+      generation_->SelectCandidate(generation.selected_candidate);
+      break;
     case PropArtworkControlsPanel::Action::kAcceptCandidate:
       AcceptCandidate();
       break;
     case PropArtworkControlsPanel::Action::kDiscardCandidates:
-      model_.ClearGeneration();
+      generation_->DiscardCandidates();
       model_.SetStatus("Discarded the generated candidates.");
       break;
   }
@@ -745,11 +675,11 @@ absl::Status PropArtworkEditor::RenderControls() {
 }
 
 absl::Status PropArtworkEditor::RenderPreview() {
-  const bool reviewing_candidate = model_.generation_review().has_value();
+  const bool reviewing_candidate = generation_->review().has_value();
   PropPreviewStage shown_stage =
       model_.HasPreparedResult() ? model_.preview_stage() : PropPreviewStage::kSource;
   if (reviewing_candidate) {
-    const PropGenerationReview& review = *model_.generation_review();
+    const ImageGenerationReview& review = *generation_->review();
     gui_->Text("Generated candidate %zu of %zu", review.selected + 1, review.candidates.size());
   } else {
     gui_->Text("%s", PropPreviewStageLabel(shown_stage));
@@ -764,7 +694,8 @@ absl::Status PropArtworkEditor::RenderPreview() {
   }
   shown_stage = model_.HasPreparedResult() ? model_.preview_stage() : PropPreviewStage::kSource;
 
-  const RgbaImage* image = model_.PreviewImage();
+  const RgbaImage* image =
+      reviewing_candidate ? &generation_->SelectedCandidate()->image : model_.PreviewImage();
   if (image == nullptr) {
     gui_->TextWrapped("No preview yet. Accept a source, choose terrain, and process it.");
     return absl::OkStatus();
@@ -806,7 +737,8 @@ absl::Status PropArtworkEditor::RenderPreview() {
     draw_list->AddImage(texture, image_min, image_max);
     preview_canvas_.DrawGrid();
 
-    if (const std::optional<PropPreviewAnchor> anchor = model_.PreviewAnchor();
+    if (const std::optional<PropPreviewAnchor> anchor =
+            reviewing_candidate ? std::nullopt : model_.PreviewAnchor();
         anchor.has_value()) {
       const ImVec2 point = preview_canvas_.WorldToScreen(
           {static_cast<double>(anchor->x), static_cast<double>(anchor->y)});
@@ -817,12 +749,16 @@ absl::Status PropArtworkEditor::RenderPreview() {
     }
   }
   preview_canvas_.HandleInput();
-  RETURN_IF_ERROR(UpdateContextPreviewDrag());
+  if (reviewing_candidate) {
+    preview_prop_drag_.Reset();
+  } else {
+    RETURN_IF_ERROR(UpdateContextPreviewDrag());
+  }
 
   const float zoom = preview_canvas_.GetZoom();
   std::move(canvas_end).Invoke();
 
-  if (model_.ContextPreviewPropBounds().has_value()) {
+  if (!reviewing_candidate && model_.ContextPreviewPropBounds().has_value()) {
     gui_->Text("Left-drag prop (preview only), middle-drag to pan, wheel to zoom  |  Zoom: %.2f",
                zoom);
   } else {
@@ -831,7 +767,9 @@ absl::Status PropArtworkEditor::RenderPreview() {
   gui_->SameLine();
   if (gui_->Button("Fit##PropArtworkPreview")) frame_pending_ = true;
 
-  if (const PropStageDiagnostic* diagnostic = model_.PreviewDiagnostic(); diagnostic != nullptr) {
+  if (const PropStageDiagnostic* diagnostic =
+          reviewing_candidate ? nullptr : model_.PreviewDiagnostic();
+      diagnostic != nullptr) {
     gui_->TextDisabled("%dx%d, %zu visible pixels", diagnostic->width, diagnostic->height,
                        diagnostic->visible_pixels);
   } else {

@@ -75,6 +75,11 @@ class ImageGenerationEngine final : public Engine {
   // can drain it without ever waiting on the engine.
   std::optional<GenerationEvent> NextEvent();
 
+  // Collects one specific request without consuming another editor surface's
+  // result. Events encountered for other ids remain owned by the engine until
+  // their controller asks for them.
+  std::optional<GenerationEvent> NextEvent(uint64_t id);
+
  private:
   struct StartGeneration {
     uint64_t id = 0;
@@ -109,6 +114,11 @@ class ImageGenerationEngine final : public Engine {
   // No notification: results are collected by a thread that polls on its own
   // schedule and never sleeps on this engine.
   MpscQueue<GenerationEvent, kMaxOutstandingRequests> events_;
+
+  // Result-consumer-thread only. Multiple editor surfaces may share this
+  // engine; targeted collection parks an event here when another surface asks
+  // first. These events still count as outstanding until delivered.
+  absl::flat_hash_map<uint64_t, GenerationEvent> ready_events_;
 
   // Submitted and not yet collected. Reserving a slot before the command is
   // queued is what keeps every later event push infallible.

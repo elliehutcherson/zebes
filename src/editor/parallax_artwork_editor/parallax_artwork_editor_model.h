@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -49,6 +50,13 @@ class ParallaxArtworkEditorModel {
   ParallaxArtworkRegenerationSettings& settings() { return settings_; }
   const ParallaxArtworkRegenerationSettings& settings() const { return settings_; }
   bool has_style() const { return has_style_; }
+
+  std::string& prompt() { return prompt_; }
+  const std::string& prompt() const { return prompt_; }
+  std::string& generation_instructions() { return generation_instructions_; }
+  const std::string& generation_instructions() const { return generation_instructions_; }
+  int requested_candidates() const { return requested_candidates_; }
+  void SetRequestedCandidates(int candidates, int maximum);
 
   uint64_t revision() const { return revision_; }
   void MarkInputsChanged();
@@ -107,6 +115,13 @@ class ParallaxArtworkEditorModel {
   std::optional<ParallaxArtworkRecipe> active_recipe_;
   ParallaxArtworkRegenerationSettings settings_;
   bool has_style_ = false;
+  std::string prompt_;
+  std::string generation_instructions_ =
+      "Create one camera-relative parallax background layer for a side-view exploration game. "
+      "Fill the entire canvas with a coherent environment composition. Keep strong silhouettes "
+      "and broad value groups so gameplay remains readable. Do not add text, borders, UI, or a "
+      "picture frame.";
+  int requested_candidates_ = 1;
   uint64_t revision_ = 1;
   PreparedResult prepared_;
   bool prepared_committed_ = false;

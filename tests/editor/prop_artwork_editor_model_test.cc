@@ -52,24 +52,6 @@ absl::StatusOr<SourceArtwork> AcceptedSource(const RgbaImage& pixels) {
   };
 }
 
-PropGenerationReview GenerationReview(size_t candidates) {
-  PropGenerationReview review{
-      .provider = "openai",
-      .model = "gpt-image-2",
-      .submitted_prompt = "a mossy boulder",
-      .provider_request_id = "req-1",
-      .generated_at_utc = "2026-08-19T12:00:00Z",
-  };
-  for (size_t index = 0; index < candidates; ++index) {
-    review.candidates.push_back(ImageGenerationCandidate{
-        .image =
-            RgbaImage{
-                .width = 1, .height = 1, .pixels = {static_cast<uint8_t>(10 * index), 20, 30, 255}},
-    });
-  }
-  return review;
-}
-
 TerrainRecipe Terrain() {
   TerrainRecipe recipe{
       .id = "terrain-1",
@@ -244,61 +226,6 @@ TEST_F(PropArtworkEditorModelTest, ExistingRecipeKeepsItsSourceUntilSaveAs) {
   another.source_path = "source_art/source-2.png";
   EXPECT_EQ(model_.SelectSource(std::move(another), pixels_).code(),
             absl::StatusCode::kFailedPrecondition);
-}
-
-// A candidate under review is the decision in front of the user, so it wins the
-// preview over the source and every prepared stage until it is resolved.
-TEST_F(PropArtworkEditorModelTest, CandidateUnderReviewOwnsThePreview) {
-  EXPECT_EQ(model_.PreviewImage(), &*model_.source_pixels());
-
-  ASSERT_OK(model_.AcceptGeneration(GenerationReview(2)));
-
-  ASSERT_NE(model_.SelectedCandidate(), nullptr);
-  EXPECT_EQ(model_.PreviewImage(), &model_.SelectedCandidate()->image);
-  EXPECT_FALSE(model_.PreviewAnchor().has_value());
-  EXPECT_EQ(model_.PreviewDiagnostic(), nullptr);
-
-  model_.SelectCandidate(1);
-  EXPECT_EQ(model_.generation_review()->selected, 1);
-  EXPECT_EQ(model_.PreviewImage(), &model_.generation_review()->candidates[1].image);
-
-  model_.ClearGeneration();
-  EXPECT_EQ(model_.PreviewImage(), &*model_.source_pixels());
-}
-
-TEST_F(PropArtworkEditorModelTest, SelectingAnOutOfRangeCandidateKeepsTheCurrentOne) {
-  ASSERT_OK(model_.AcceptGeneration(GenerationReview(2)));
-
-  model_.SelectCandidate(7);
-
-  EXPECT_EQ(model_.generation_review()->selected, 0);
-}
-
-TEST_F(PropArtworkEditorModelTest, GenerationReviewRejectsIncompleteResults) {
-  PropGenerationReview empty = GenerationReview(1);
-  empty.candidates.clear();
-  EXPECT_EQ(model_.AcceptGeneration(std::move(empty)).code(), absl::StatusCode::kInvalidArgument);
-
-  PropGenerationReview past_the_end = GenerationReview(2);
-  past_the_end.selected = 2;
-  EXPECT_EQ(model_.AcceptGeneration(std::move(past_the_end)).code(),
-            absl::StatusCode::kInvalidArgument);
-
-  PropGenerationReview unusable = GenerationReview(1);
-  unusable.candidates[0].image = RgbaImage{};
-  EXPECT_EQ(model_.AcceptGeneration(std::move(unusable)).code(),
-            absl::StatusCode::kInvalidArgument);
-
-  PropGenerationReview anonymous = GenerationReview(1);
-  anonymous.provider.clear();
-  EXPECT_EQ(model_.AcceptGeneration(std::move(anonymous)).code(),
-            absl::StatusCode::kInvalidArgument);
-
-  PropGenerationReview undated = GenerationReview(1);
-  undated.generated_at_utc.clear();
-  EXPECT_EQ(model_.AcceptGeneration(std::move(undated)).code(), absl::StatusCode::kInvalidArgument);
-
-  EXPECT_FALSE(model_.generation_review().has_value());
 }
 
 TEST_F(PropArtworkEditorModelTest, RequestedCandidatesStayInsideTheProviderCeiling) {

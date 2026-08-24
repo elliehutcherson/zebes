@@ -71,7 +71,7 @@ target_link_libraries(prop_artwork_editor
   editor_canvas
   gui_interface
   image_generation
-  image_generation_engine
+  image_generation_request_controller
   prop_artwork_controls_panel
   prop_artwork_context
   prop_artwork_editor_model

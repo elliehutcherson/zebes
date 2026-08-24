@@ -52,12 +52,22 @@ class PropArtworkEditorTestPeer {
   static void SelectGenerationProvider(PropArtworkEditor& editor, size_t index) {
     editor.SelectGenerationProvider(index);
   }
-  static const PropArtworkGenerationProvider& GenerationProvider(const PropArtworkEditor& editor,
-                                                                 size_t index) {
-    return editor.generation_providers_.at(index);
+  static const ImageGenerationProvider& GenerationProvider(const PropArtworkEditor& editor,
+                                                           size_t index) {
+    return editor.generation_->providers().at(index);
+  }
+  static const std::optional<ImageGenerationReview>& GenerationReview(
+      const PropArtworkEditor& editor) {
+    return editor.generation_->review();
+  }
+  static const ImageGenerationCandidate* SelectedCandidate(const PropArtworkEditor& editor) {
+    return editor.generation_->SelectedCandidate();
+  }
+  static void SelectCandidate(PropArtworkEditor& editor, size_t index) {
+    editor.generation_->SelectCandidate(index);
   }
   static bool HasPendingGeneration(const PropArtworkEditor& editor) {
-    return editor.pending_generation_.has_value();
+    return editor.generation_->in_flight();
   }
   static bool HasPendingWork(const PropArtworkEditor& editor) { return editor.HasPendingWork(); }
   static absl::Status WaitForWork(PropArtworkEditor& editor) {
@@ -210,13 +220,13 @@ class PropArtworkEditorTest : public ::testing::Test {
     auto generation_client = std::make_unique<StubGenerationClient>();
     generation_client_ = generation_client.get();
     ASSERT_OK_AND_ASSIGN(generation_, ImageGenerationEngine::Create(std::move(generation_client)));
-    ASSERT_OK_AND_ASSIGN(
-        editor_, PropArtworkEditor::Create({
-                     .api = &api_,
-                     .gui = &gui_,
-                     .preview = &preview_,
-                     .generation_providers = {{.name = "Stub", .engine = generation_.get()}},
-                 }));
+    generation_providers_.providers = {{.name = "Stub", .engine = generation_.get()}};
+    ASSERT_OK_AND_ASSIGN(editor_, PropArtworkEditor::Create({
+                                      .api = &api_,
+                                      .gui = &gui_,
+                                      .preview = &preview_,
+                                      .generation_providers = &generation_providers_,
+                                  }));
     pixels_ = SourcePixels();
     ASSERT_OK_AND_ASSIGN(const std::string digest, RgbaImageDigest(pixels_));
     source_ = SourceArtwork{
@@ -277,6 +287,7 @@ class PropArtworkEditorTest : public ::testing::Test {
   // Declared before the editor so it outlives the editor that submits to it,
   // matching the composition root's ordering.
   std::unique_ptr<ImageGenerationEngine> generation_;
+  ImageGenerationProviderRegistry generation_providers_;
   std::unique_ptr<PropArtworkEditor> editor_;
   RgbaImage pixels_;
   SourceArtwork source_;
@@ -490,13 +501,13 @@ TEST_F(PropArtworkEditorTest, AcceptedCandidateIsRetainedWithGeneratedProvenance
   EXPECT_THAT(*generation_client_->submitted_spec()->instructions,
               HasSubstr("Art direction:\n16-bit science-fiction exploration game art"));
   ASSERT_FALSE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
-  ASSERT_TRUE(model().generation_review().has_value());
-  EXPECT_EQ(model().generation_review()->candidates.size(), 2);
-  EXPECT_EQ(model().generation_review()->submitted_prompt, "a mossy boulder");
-  ASSERT_NE(model().SelectedCandidate(), nullptr);
-  EXPECT_EQ(model().PreviewImage(), &model().SelectedCandidate()->image);
+  ASSERT_TRUE(PropArtworkEditorTestPeer::GenerationReview(*editor_).has_value());
+  EXPECT_EQ(PropArtworkEditorTestPeer::GenerationReview(*editor_)->candidates.size(), 2);
+  EXPECT_EQ(PropArtworkEditorTestPeer::GenerationReview(*editor_)->submitted_prompt,
+            "a mossy boulder");
+  ASSERT_NE(PropArtworkEditorTestPeer::SelectedCandidate(*editor_), nullptr);
 
-  model().SelectCandidate(1);
+  PropArtworkEditorTestPeer::SelectCandidate(*editor_, 1);
   SourceArtwork generated;
   EXPECT_CALL(api_, CreateSourceArtwork(_, _, _))
       .WillOnce([&](std::string name, SourceArtworkProvenance provenance, const RgbaImage& image) {
@@ -520,7 +531,7 @@ TEST_F(PropArtworkEditorTest, AcceptedCandidateIsRetainedWithGeneratedProvenance
   ASSERT_TRUE(model().source().has_value());
   EXPECT_EQ(model().source()->id, "generated-source");
   EXPECT_TRUE(PropArtworkEditorTestPeer::HasSessionSource(*editor_));
-  EXPECT_FALSE(model().generation_review().has_value());
+  EXPECT_FALSE(PropArtworkEditorTestPeer::GenerationReview(*editor_).has_value());
   ASSERT_TRUE(std::holds_alternative<GeneratedArtworkProvenance>(generated.provenance));
   const auto& provenance = std::get<GeneratedArtworkProvenance>(generated.provenance);
   EXPECT_EQ(provenance.provider, "openai");
@@ -538,7 +549,7 @@ TEST_F(PropArtworkEditorTest, CandidateThatCannotBeRetainedIsRemovedAgain) {
   model().prompt() = "a mossy boulder";
   PropArtworkEditorTestPeer::StartGeneration(*editor_);
   ASSERT_OK(RunGenerationUntilEvent());
-  ASSERT_TRUE(model().generation_review().has_value());
+  ASSERT_TRUE(PropArtworkEditorTestPeer::GenerationReview(*editor_).has_value());
 
   EXPECT_CALL(api_, CreateSourceArtwork(_, _, _))
       .WillOnce(Return(absl::StatusOr<std::string>("generated-source")));
@@ -556,7 +567,7 @@ TEST_F(PropArtworkEditorTest, CandidateThatCannotBeRetainedIsRemovedAgain) {
   EXPECT_FALSE(PropArtworkEditorTestPeer::HasSessionSource(*editor_));
   // The review survives so the user can accept another candidate rather than
   // regenerating after a failure that had nothing to do with the artwork.
-  EXPECT_TRUE(model().generation_review().has_value());
+  EXPECT_TRUE(PropArtworkEditorTestPeer::GenerationReview(*editor_).has_value());
   EXPECT_THAT(model().status(), HasSubstr("no such retained source"));
 }
 
@@ -566,16 +577,18 @@ TEST_F(PropArtworkEditorTest, RefusedGenerationReportsTheProviderStatus) {
   PropArtworkEditorTestPeer::StartGeneration(*editor_);
 
   EXPECT_FALSE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
-  EXPECT_FALSE(model().generation_review().has_value());
+  EXPECT_FALSE(PropArtworkEditorTestPeer::GenerationReview(*editor_).has_value());
   EXPECT_THAT(model().status(), HasSubstr("Describe the prop"));
 }
 
 TEST_F(PropArtworkEditorTest, MissingProvidersDisableOnlyGeneration) {
   editor_.reset();
+  generation_providers_.providers.clear();
   ASSERT_OK_AND_ASSIGN(editor_, PropArtworkEditor::Create({
                                     .api = &api_,
                                     .gui = &gui_,
                                     .preview = &preview_,
+                                    .generation_providers = &generation_providers_,
                                 }));
   model().prompt() = "a mossy boulder";
 
@@ -593,18 +606,20 @@ TEST_F(PropArtworkEditorTest, PermanentProviderFailureAllowsFallbackSelection) {
                            absl::UnauthenticatedError("Codex has no active account"))));
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationEngine> fallback,
                        ImageGenerationEngine::Create(std::make_unique<StubGenerationClient>()));
-  ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<PropArtworkEditor> editor,
-      PropArtworkEditor::Create({
-          .api = &api_,
-          .gui = &gui_,
-          .preview = &preview_,
-          .generation_providers =
-              {
-                  {.name = "Codex", .engine = failing.get(), .disable_after_failure = true},
-                  {.name = "OpenAI API", .engine = fallback.get()},
-              },
-      }));
+  ImageGenerationProviderRegistry providers{
+      .providers =
+          {
+              {.name = "Codex", .engine = failing.get(), .disable_after_failure = true},
+              {.name = "OpenAI API", .engine = fallback.get()},
+          },
+  };
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<PropArtworkEditor> editor,
+                       PropArtworkEditor::Create({
+                           .api = &api_,
+                           .gui = &gui_,
+                           .preview = &preview_,
+                           .generation_providers = &providers,
+                       }));
   PropArtworkEditorModel& model = PropArtworkEditorTestPeer::Model(*editor);
   model.prompt() = "a mossy boulder";
 
@@ -612,7 +627,8 @@ TEST_F(PropArtworkEditorTest, PermanentProviderFailureAllowsFallbackSelection) {
   ASSERT_OK(failing->Run().status());
   PropArtworkEditorTestPeer::PollGeneration(*editor);
 
-  EXPECT_EQ(PropArtworkEditorTestPeer::GenerationProvider(*editor, 0).engine, nullptr);
+  EXPECT_FALSE(PropArtworkEditorTestPeer::GenerationProvider(*editor, 0).available());
+  EXPECT_EQ(PropArtworkEditorTestPeer::GenerationProvider(*editor, 0).engine, failing.get());
   EXPECT_THAT(PropArtworkEditorTestPeer::GenerationProvider(*editor, 0).unavailable_reason,
               HasSubstr("no active account"));
 
@@ -621,7 +637,7 @@ TEST_F(PropArtworkEditorTest, PermanentProviderFailureAllowsFallbackSelection) {
   ASSERT_OK(fallback->Run().status());
   PropArtworkEditorTestPeer::PollGeneration(*editor);
 
-  EXPECT_TRUE(model.generation_review().has_value());
+  EXPECT_TRUE(PropArtworkEditorTestPeer::GenerationReview(*editor).has_value());
   EXPECT_THAT(model.status(), HasSubstr("Review"));
 }
 
@@ -636,7 +652,7 @@ TEST_F(PropArtworkEditorTest, CancelledGenerationStaysPendingUntilItsEventArrive
   EXPECT_TRUE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
   ASSERT_OK(RunGenerationUntilEvent());
   EXPECT_FALSE(PropArtworkEditorTestPeer::HasPendingGeneration(*editor_));
-  EXPECT_FALSE(model().generation_review().has_value());
+  EXPECT_FALSE(PropArtworkEditorTestPeer::GenerationReview(*editor_).has_value());
 }
 
 }  // namespace

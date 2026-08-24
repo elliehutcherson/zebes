@@ -54,6 +54,11 @@ void ParallaxArtworkEditorModel::MarkInputsChanged() {
   ClearPrepared();
 }
 
+void ParallaxArtworkEditorModel::SetRequestedCandidates(int candidates, int maximum) {
+  if (maximum < 1) return;
+  requested_candidates_ = std::clamp(candidates, 1, maximum);
+}
+
 absl::Status ParallaxArtworkEditorModel::SelectSource(SourceArtwork source, RgbaImage pixels) {
   if (active_recipe_.has_value()) {
     return absl::FailedPreconditionError(

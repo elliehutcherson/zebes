@@ -105,6 +105,19 @@ target_link_libraries(image_generation_engine
   status_macros
 )
 
+add_library(image_generation_request_controller image_generation_request_controller.cc)
+target_link_libraries(image_generation_request_controller
+  PUBLIC
+  image_generation
+  image_generation_engine
+  absl::status
+  absl::statusor
+  PRIVATE
+  absl::log
+  absl::memory
+  absl::time
+)
+
 add_library(curl_http_transport curl_http_transport.cc)
 target_link_libraries(curl_http_transport
   PUBLIC

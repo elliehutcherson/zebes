@@ -219,17 +219,19 @@ bool PropArtworkControlsPanel::RenderPipeline(PropArtworkEditorModel& model) {
 }
 
 PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderCandidates(
-    PropArtworkEditorModel& model) {
-  const PropGenerationReview& review = *model.generation_review();
+    PropArtworkEditorModel& model, PropGenerationStatus& generation) {
+  const ImageGenerationReview& review = *generation.review;
   const size_t count = review.candidates.size();
   gui_->Text("Candidate %zu of %zu", review.selected + 1, count);
   if (count > 1) {
     if (gui_->Button("Previous##PropArtworkCandidate")) {
-      model.SelectCandidate(review.selected == 0 ? count - 1 : review.selected - 1);
+      generation.selected_candidate = review.selected == 0 ? count - 1 : review.selected - 1;
+      return Action::kSelectCandidate;
     }
     gui_->SameLine();
     if (gui_->Button("Next##PropArtworkCandidate")) {
-      model.SelectCandidate(review.selected + 1 == count ? 0 : review.selected + 1);
+      generation.selected_candidate = review.selected + 1 == count ? 0 : review.selected + 1;
+      return Action::kSelectCandidate;
     }
   }
 
@@ -291,7 +293,7 @@ PropArtworkControlsPanel::Action PropArtworkControlsPanel::RenderGeneration(
     return gui_->Button("Cancel generation##PropArtwork") ? Action::kCancelGeneration
                                                           : Action::kNone;
   }
-  if (model.generation_review().has_value()) return RenderCandidates(model);
+  if (generation.review != nullptr) return RenderCandidates(model, generation);
 
   const bool provider_available = selected != nullptr && selected->available;
   const float text_height = gui_->GetTextLineHeightWithSpacing();

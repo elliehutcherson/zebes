@@ -20,6 +20,7 @@ target_link_libraries(parallax_artwork_editor
   camera
   editor_canvas
   gui_interface
+  image_generation_request_controller
   parallax_artwork_editor_model
   absl::status
   absl::statusor

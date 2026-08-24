@@ -53,8 +53,8 @@ class PropArtworkControlsPanelTest : public ::testing::Test {
 
   // Builds the review the editor holds after a finished generation, so the
   // panel can be asked what it offers for one without an engine.
-  static PropGenerationReview Review(size_t candidates) {
-    PropGenerationReview review{
+  static ImageGenerationReview Review(size_t candidates) {
+    ImageGenerationReview review{
         .provider = "openai",
         .model = "gpt-image-2",
         .submitted_prompt = "a mossy boulder",
@@ -289,16 +289,20 @@ TEST_F(PropArtworkControlsPanelTest, AnInFlightRequestOffersOnlyCancel) {
 }
 
 TEST_F(PropArtworkControlsPanelTest, CandidateNavigationWrapsAcrossTheGeneratedSet) {
-  ASSERT_OK(model_.AcceptGeneration(Review(3)));
+  ImageGenerationReview review = Review(3);
+  generation_.review = &review;
   ClickOnly("Previous##PropArtworkCandidate");
 
-  ASSERT_OK(panel_->Render(model_, {}, {}, generation_));
+  ASSERT_OK_AND_ASSIGN(const PropArtworkControlsPanel::Action action,
+                       panel_->Render(model_, {}, {}, generation_));
 
-  EXPECT_EQ(model_.generation_review()->selected, 2);
+  EXPECT_EQ(action, PropArtworkControlsPanel::Action::kSelectCandidate);
+  EXPECT_EQ(generation_.selected_candidate, 2);
 }
 
 TEST_F(PropArtworkControlsPanelTest, ReviewOffersAcceptAndDiscard) {
-  ASSERT_OK(model_.AcceptGeneration(Review(1)));
+  ImageGenerationReview review = Review(1);
+  generation_.review = &review;
 
   ClickOnly("Accept candidate##PropArtwork");
   ASSERT_OK_AND_ASSIGN(PropArtworkControlsPanel::Action action,

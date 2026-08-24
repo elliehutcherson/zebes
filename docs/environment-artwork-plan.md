@@ -984,16 +984,26 @@ content work.
 
 ### Milestone 3 — generated candidates
 
-- Extract the shared image-generation request controller from Prop Artwork.
-- Give Parallax Artwork independent background prompts and settings.
-- Wire existing Codex/OpenAI provider availability, generate, cancel, review,
-  accept, and discard into the same retained-source path as import.
-- Keep at most one request per editor surface in flight and preserve the
-  engine's existing global outstanding bound.
+- **Implemented.** Extract the shared image-generation request controller from
+  Prop Artwork, including targeted request-ID collection, candidate navigation,
+  retry-safe acceptance, and discard state.
+- **Implemented.** Give Parallax Artwork independent background prompts and
+  settings derived from layer role, target aspect, terrain style, transparency
+  capability, and horizontal-repeat intent.
+- **Implemented.** Wire existing Codex/OpenAI provider availability, generate,
+  cancel, review, accept, and discard into the same retained-source path as
+  import.
+- **Implemented.** Keep at most one request per editor surface in flight and
+  preserve the engine's existing global outstanding bound.
 
 Acceptance: a live candidate can be accepted as retained source, processed,
 committed as a recipe-owned Texture, and selected by a parallax layer; provider
 failure leaves no partial assets.
+
+Automated coverage proves the retained-source, processing, commit,
+shared-engine routing, cancellation, and provider-failure boundaries. The
+live-provider and parallax-layer selection portion remains the Milestone 3
+human gate.
 
 ### Milestone 4 — theme workflow and first cave kit
 

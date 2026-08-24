@@ -63,11 +63,38 @@ absl::Status ImageGenerationEngine::Cancel(uint64_t id) {
 }
 
 std::optional<GenerationEvent> ImageGenerationEngine::NextEvent() {
+  if (!ready_events_.empty()) {
+    auto found = ready_events_.begin();
+    GenerationEvent event = std::move(found->second);
+    ready_events_.erase(found);
+    outstanding_.fetch_sub(1, std::memory_order_acq_rel);
+    return event;
+  }
   std::optional<GenerationEvent> event = events_.TryPop();
   if (event.has_value()) {
     outstanding_.fetch_sub(1, std::memory_order_acq_rel);
   }
   return event;
+}
+
+std::optional<GenerationEvent> ImageGenerationEngine::NextEvent(uint64_t id) {
+  if (auto found = ready_events_.find(id); found != ready_events_.end()) {
+    GenerationEvent event = std::move(found->second);
+    ready_events_.erase(found);
+    outstanding_.fetch_sub(1, std::memory_order_acq_rel);
+    return event;
+  }
+
+  while (std::optional<GenerationEvent> event = events_.TryPop()) {
+    if (event->id == id) {
+      outstanding_.fetch_sub(1, std::memory_order_acq_rel);
+      return event;
+    }
+    const uint64_t event_id = event->id;
+    ABSL_CHECK(ready_events_.emplace(event_id, std::move(*event)).second)
+        << "image generation engine produced duplicate event id " << event_id;
+  }
+  return std::nullopt;
 }
 
 absl::StatusOr<RunResult> ImageGenerationEngine::Run() {

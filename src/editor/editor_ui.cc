@@ -3,7 +3,6 @@
 
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
@@ -74,19 +73,18 @@ absl::Status EditorUi::Init() {
   prop_artwork_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
   parallax_artwork_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
 
-  std::vector<PropArtworkGenerationProvider> generation_providers;
   absl::StatusOr<std::unique_ptr<ImageGenerationService>> codex =
       ImageGenerationService::CreateCodex(CodexImageConfig{});
   if (codex.ok()) {
     codex_image_generation_ = *std::move(codex);
-    generation_providers.push_back({
+    generation_providers_.providers.push_back({
         .name = "Codex (ChatGPT)",
         .engine = &codex_image_generation_->engine(),
         .disable_after_failure = true,
     });
   } else {
     LOG(WARNING) << "Codex image generation is unavailable: " << codex.status();
-    generation_providers.push_back({
+    generation_providers_.providers.push_back({
         .name = "Codex (ChatGPT)",
         .unavailable_reason = std::string(codex.status().message()),
         .disable_after_failure = true,
@@ -97,29 +95,29 @@ absl::Status EditorUi::Init() {
       CreateConfiguredOpenAiService(OpenAiImageConfig{});
   if (openai.ok()) {
     openai_image_generation_ = *std::move(openai);
-    generation_providers.push_back({
+    generation_providers_.providers.push_back({
         .name = "OpenAI API",
         .engine = &openai_image_generation_->engine(),
     });
   } else {
     LOG(WARNING) << "OpenAI API image generation is unavailable: " << openai.status();
-    generation_providers.push_back({
+    generation_providers_.providers.push_back({
         .name = "OpenAI API",
         .unavailable_reason = std::string(openai.status().message()),
     });
   }
 
-  ASSIGN_OR_RETURN(prop_artwork_editor_,
-                   PropArtworkEditor::Create({
-                       .api = api_,
-                       .gui = gui_,
-                       .preview = prop_artwork_preview_.get(),
-                       .generation_providers = std::move(generation_providers),
-                   }));
+  ASSIGN_OR_RETURN(prop_artwork_editor_, PropArtworkEditor::Create({
+                                             .api = api_,
+                                             .gui = gui_,
+                                             .preview = prop_artwork_preview_.get(),
+                                             .generation_providers = &generation_providers_,
+                                         }));
   ASSIGN_OR_RETURN(parallax_artwork_editor_, ParallaxArtworkEditor::Create({
                                                  .api = api_,
                                                  .gui = gui_,
                                                  .preview = parallax_artwork_preview_.get(),
+                                                 .generation_providers = &generation_providers_,
                                              }));
   return absl::OkStatus();
 }

@@ -10,6 +10,7 @@
 #include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
 #include "editor/gui_interface.h"
+#include "editor/image_generation/image_generation_request_controller.h"
 #include "editor/image_generation/image_generation_service.h"
 #include "editor/level_editor/level_editor.h"
 #include "editor/parallax_artwork_editor/parallax_artwork_editor.h"
@@ -80,6 +81,7 @@ class EditorUi {
   // nobody has abandoned.
   std::unique_ptr<ImageGenerationService> codex_image_generation_;
   std::unique_ptr<ImageGenerationService> openai_image_generation_;
+  ImageGenerationProviderRegistry generation_providers_;
   std::unique_ptr<PropArtworkEditor> prop_artwork_editor_;
   std::unique_ptr<ParallaxArtworkEditor> parallax_artwork_editor_;
 

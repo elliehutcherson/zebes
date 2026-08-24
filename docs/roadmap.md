@@ -175,12 +175,12 @@ saved Near composition to five elements and an 8192-pixel repeat period while
 accepting the managed cave-plate workflow. The evidence is recorded in
 [`cave-parallax-content-gate.md`](cave-parallax-content-gate.md).
 
-**Environment artwork next — Milestone 3.** Milestone 2's import-first
-Parallax Artwork resource, deterministic recipe, reference-safe managed output,
-editor lifecycle, and cave-plate human gate are accepted. Next, extract the
-shared generation-request controller and add background-specific candidate
-generation, cancellation, review, accept, and discard to the same retained
-source path. The pre-pilot Near candidates remain test content and must be
+**Environment artwork next — Milestone 3 human gate.** The shared
+generation-request controller and background-specific candidate generation,
+cancellation, review, accept, and discard are implemented through the existing
+retained-source and deterministic recipe path. Next, accept a live provider
+candidate, process and commit it, and select its managed Texture in a parallax
+layer. The pre-pilot Near candidates remain test content and must be
 palette-normalized or replaced before the final Milestone 4 cave kit; do not
 fold that art-polish work into generation infrastructure.
 
@@ -274,11 +274,12 @@ retained-source, palette, texture, API-compensation, and reference-scan
 boundaries while adding a background-specific recipe and deterministic output
 builder. Theme extraction, separate editor ownership, the imported layered cave
 composition, and retained background recipes are implemented and accepted.
-Milestone 3 now extracts the shared generation-request controller and exposes
-generated parallax candidates through the same retained-source path. Milestone
-4 turns those workflows into the first production cave kit; Milestone 5 then
-implements zone fades. The document is also the source of truth for migration,
-validation, and the human authoring workflow.
+Milestone 3's implementation now shares generation-request and candidate-review
+ownership between Prop and Parallax Artwork and exposes generated parallax
+candidates through the same retained-source path; its live human gate remains.
+Milestone 4 turns those workflows into the first production cave kit;
+Milestone 5 then implements zone fades. The document is also the source of
+truth for migration, validation, and the human authoring workflow.
 
 **`ParallaxZone::fade_length`** — authored, serialized, exposed in the editor,
 and ignored. It is not currently checked by `ValidateLevel`, despite an earlier

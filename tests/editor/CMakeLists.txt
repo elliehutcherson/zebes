@@ -325,6 +325,20 @@ target_link_libraries(image_generation_engine_test
 target_include_directories(image_generation_engine_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(image_generation_engine_test)
 
+add_executable(image_generation_request_controller_test
+  image_generation_request_controller_test.cc
+)
+target_link_libraries(image_generation_request_controller_test
+  PRIVATE
+  image_generation_request_controller
+  macros
+  absl::status
+  absl::statusor
+  gtest_main
+)
+target_include_directories(image_generation_request_controller_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(image_generation_request_controller_test)
+
 add_executable(image_generation_service_test image_generation_service_test.cc)
 target_link_libraries(image_generation_service_test
   PRIVATE

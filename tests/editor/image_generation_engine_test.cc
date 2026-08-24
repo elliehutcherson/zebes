@@ -162,6 +162,23 @@ TEST(ImageGenerationEngineTest, DeliversACompletedRequestUnderItsSubmittedId) {
   ASSERT_EQ(event.result->candidates.size(), 1);
 }
 
+TEST(ImageGenerationEngineTest, TargetedCollectionPreservesAnotherSurfacesEvent) {
+  ASSERT_OK_AND_ASSIGN(EngineFixture fixture, MakeEngine());
+  ASSERT_OK_AND_ASSIGN(const uint64_t first, fixture.engine->Submit(SpecFor("prop")));
+  ASSERT_OK_AND_ASSIGN(const uint64_t second, fixture.engine->Submit(SpecFor("parallax")));
+  ASSERT_OK(fixture.engine->Run().status());
+
+  std::optional<GenerationEvent> second_event = fixture.engine->NextEvent(second);
+  ASSERT_TRUE(second_event.has_value());
+  ASSERT_TRUE(second_event->result.ok());
+  EXPECT_EQ(second_event->result->submitted_prompt, "parallax");
+
+  std::optional<GenerationEvent> first_event = fixture.engine->NextEvent(first);
+  ASSERT_TRUE(first_event.has_value());
+  ASSERT_TRUE(first_event->result.ok());
+  EXPECT_EQ(first_event->result->submitted_prompt, "prop");
+}
+
 // The guarantee a session-lifetime engine rests on: with nothing in flight
 // there is no deadline, so the runner sleeps until Submit notifies it.
 TEST(ImageGenerationEngineTest, ReportsNoDeadlineWhileNothingIsInFlight) {

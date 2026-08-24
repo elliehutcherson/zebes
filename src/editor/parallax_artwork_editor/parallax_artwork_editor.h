@@ -12,6 +12,7 @@
 #include "editor/canvas/canvas.h"
 #include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
+#include "editor/image_generation/image_generation_request_controller.h"
 #include "editor/parallax_artwork_editor/parallax_artwork_editor_model.h"
 #include "editor/preview_texture_sink.h"
 #include "objects/camera.h"
@@ -22,6 +23,7 @@ struct ParallaxArtworkEditorOptions {
   Api* api = nullptr;
   GuiInterface* gui = nullptr;
   PreviewTextureSink* preview = nullptr;
+  ImageGenerationProviderRegistry* generation_providers = nullptr;
 };
 
 class ParallaxArtworkEditor {
@@ -38,6 +40,13 @@ class ParallaxArtworkEditor {
   explicit ParallaxArtworkEditor(const ParallaxArtworkEditorOptions& options);
 
   void StartImport(std::string path);
+  void SelectGenerationProvider(size_t index);
+  void StartGeneration();
+  void CancelGeneration();
+  void PollGeneration();
+  void AcceptCandidate();
+  absl::Status RetainCandidateAsSource(const ImageGenerationReview& review,
+                                       const ImageGenerationCandidate& candidate);
   void SelectSource();
   void DeleteSelectedSource();
   void OpenRecipe();
@@ -53,6 +62,7 @@ class ParallaxArtworkEditor {
   absl::Status RenderPreview();
   absl::Status RenderOutput();
   bool RenderPipelineSettings();
+  void RenderGeneration();
 
   struct PendingImport {
     std::string source_name;
@@ -74,6 +84,7 @@ class ParallaxArtworkEditor {
   Api* api_;
   GuiInterface* gui_;
   PreviewTextureSink* preview_;
+  std::unique_ptr<ImageGenerationRequestController> generation_;
   Canvas preview_canvas_;
   Camera preview_camera_;
   bool frame_pending_ = true;
@@ -81,6 +92,8 @@ class ParallaxArtworkEditor {
   ParallaxArtworkPreviewStage framed_stage_ = ParallaxArtworkPreviewStage::kSource;
   int framed_width_ = 0;
   int framed_height_ = 0;
+  bool framed_generation_review_ = false;
+  size_t framed_generation_candidate_ = 0;
   ParallaxArtworkEditorModel model_;
   ConfirmPrompt delete_source_prompt_;
   ConfirmPrompt delete_artwork_prompt_;

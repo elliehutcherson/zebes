@@ -109,7 +109,11 @@ absl::StatusOr<std::unique_ptr<ParallaxArtworkEditor>> ParallaxArtworkEditor::Cr
   if (options.preview == nullptr) {
     return absl::InvalidArgumentError("ParallaxArtworkEditor requires a preview sink");
   }
-  return absl::WrapUnique(new ParallaxArtworkEditor(options));
+  ASSIGN_OR_RETURN(std::unique_ptr<ImageGenerationRequestController> generation,
+                   ImageGenerationRequestController::Create(options.generation_providers));
+  auto editor = absl::WrapUnique(new ParallaxArtworkEditor(options));
+  editor->generation_ = std::move(generation);
+  return editor;
 }
 
 bool ParallaxArtworkEditor::HasPendingWork() const {
@@ -121,6 +125,149 @@ absl::Status ParallaxArtworkEditor::DiscardSessionSource() {
   RETURN_IF_ERROR(api_->DeleteSourceArtwork(*session_source_id_));
   session_source_id_.reset();
   return absl::OkStatus();
+}
+
+void ParallaxArtworkEditor::SelectGenerationProvider(size_t index) {
+  const absl::Status selected = generation_->SelectProvider(index);
+  if (!selected.ok()) {
+    model_.SetError(std::string(selected.message()));
+    return;
+  }
+  model_.SetInfo(
+      absl::StrCat("Using ", generation_->providers()[index].name, " for image generation."));
+}
+
+void ParallaxArtworkEditor::StartGeneration() {
+  if (generation_->in_flight()) {
+    model_.SetInfo("A generation is already running.");
+    return;
+  }
+  if (model_.active_recipe().has_value()) {
+    model_.SetInfo("Use Save As before generating a different retained source.");
+    return;
+  }
+  if (model_.prompt().empty()) {
+    model_.SetInfo("Describe the background before generating a source for it.");
+    return;
+  }
+  if (generation_->providers().empty() ||
+      generation_->selected_provider() >= generation_->providers().size()) {
+    model_.SetError("No image generation provider is available.");
+    return;
+  }
+  const ImageGenerationProvider& provider =
+      generation_->providers()[generation_->selected_provider()];
+  if (!provider.available()) {
+    model_.SetError(provider.unavailable_reason);
+    return;
+  }
+
+  const ParallaxArtworkPipelineConfig& pipeline = model_.settings().pipeline;
+  const ImageGenerationCapabilities capabilities = generation_->capabilities();
+  std::string role;
+  if (pipeline.alpha_role == ParallaxArtworkAlphaRole::kOpaquePlate) {
+    role = "Layer role: opaque plate; fill every edge of the canvas.";
+  } else if (capabilities.supports_transparency) {
+    role = "Layer role: transparent overlay; return a transparent background.";
+  } else {
+    role =
+        "Layer role: transparent overlay; place the foreground shapes over one flat, strongly "
+        "contrasting matte color for deterministic removal.";
+  }
+  const std::string repetition =
+      pipeline.review_repeat_x
+          ? "Horizontal repetition: make the left and right edges seamlessly tile."
+          : "Horizontal repetition is not required; avoid an obvious repeated motif at both "
+            "edges.";
+  const std::string palette =
+      model_.terrain_recipe().has_value()
+          ? absl::StrCat("Palette and style: follow the attached terrain style '",
+                         model_.terrain_recipe()->name, "' with broad color groups.")
+          : "Palette and style: use the editor's configured background-art style.";
+  const std::string instructions = absl::StrCat(
+      model_.generation_instructions(), "\n\n", role, "\nTarget aspect: ", pipeline.target_width,
+      ":", pipeline.target_height, ".\n", palette, "\n", repetition);
+  ImageGenerationSpec spec{
+      .prompt = model_.prompt(),
+      .instructions = instructions,
+      .requested_candidates = model_.requested_candidates(),
+      .target_aspect = {.width = pipeline.target_width, .height = pipeline.target_height},
+      .transparency = pipeline.alpha_role == ParallaxArtworkAlphaRole::kTransparentOverlay &&
+                              capabilities.supports_transparency
+                          ? ImageTransparencyPreference::kPreferTransparent
+                          : ImageTransparencyPreference::kNoPreference,
+  };
+  const absl::Status submitted = generation_->Submit(std::move(spec));
+  if (!submitted.ok()) {
+    model_.SetError(std::string(submitted.message()));
+    return;
+  }
+  model_.SetInfo("Generating background artwork. This can take a minute.");
+}
+
+void ParallaxArtworkEditor::CancelGeneration() {
+  const absl::Status cancelled = generation_->Cancel();
+  if (!cancelled.ok()) {
+    LOG(ERROR) << "Could not cancel parallax generation: " << cancelled;
+  }
+}
+
+void ParallaxArtworkEditor::PollGeneration() {
+  absl::StatusOr<bool> polled = generation_->Poll();
+  if (!polled.ok()) {
+    model_.SetError(std::string(polled.status().message()));
+    return;
+  }
+  if (!*polled) return;
+  model_.SetReady("Review the generated candidates, then accept one as retained source artwork.");
+}
+
+absl::Status ParallaxArtworkEditor::RetainCandidateAsSource(
+    const ImageGenerationReview& review, const ImageGenerationCandidate& candidate) {
+  SourceArtworkProvenance provenance = GeneratedArtworkProvenance{
+      .provider = review.provider,
+      .model = review.model,
+      .submitted_prompt = review.submitted_prompt,
+      .revised_prompt = candidate.revised_prompt,
+      .provider_request_id = review.provider_request_id,
+      .generated_at_utc = review.generated_at_utc,
+  };
+  const std::string source_name =
+      model_.name().empty() ? review.submitted_prompt : absl::StrCat(model_.name(), " source");
+  ASSIGN_OR_RETURN(const std::string id,
+                   api_->CreateSourceArtwork(source_name, std::move(provenance), candidate.image));
+  auto remove_source = absl::MakeCleanup([this, &id] {
+    const absl::Status cleanup = api_->DeleteSourceArtwork(id);
+    if (!cleanup.ok()) {
+      LOG(ERROR) << "Could not remove a rejected generated parallax source: " << cleanup;
+    }
+  });
+  ASSIGN_OR_RETURN(SourceArtwork * source, api_->GetSourceArtwork(id));
+  const SourceArtwork snapshot = *source;
+  RETURN_IF_ERROR(DiscardSessionSource());
+  RETURN_IF_ERROR(model_.SelectSource(snapshot, candidate.image));
+
+  std::move(remove_source).Cancel();
+  session_source_id_ = id;
+  return absl::OkStatus();
+}
+
+void ParallaxArtworkEditor::AcceptCandidate() {
+  if (!generation_->review().has_value()) {
+    model_.SetInfo("Generate a candidate before accepting one.");
+    return;
+  }
+  const std::string prompt = generation_->review()->submitted_prompt;
+  const absl::Status retained = generation_->AcceptCandidate(
+      [this](const ImageGenerationReview& review, const ImageGenerationCandidate& candidate) {
+        return RetainCandidateAsSource(review, candidate);
+      });
+  if (!retained.ok()) {
+    model_.SetError(absl::StrCat("Could not retain generated source: ", retained.message()));
+    return;
+  }
+  model_.SetSuccess(absl::StrCat("Accepted a generated source for '", prompt,
+                                 "'. Choose a terrain style and process it."));
 }
 
 void ParallaxArtworkEditor::StartImport(std::string path) {
@@ -179,6 +326,7 @@ void ParallaxArtworkEditor::SelectSource() {
     model_.SetError(absl::StrCat("Could not select source: ", selected.message()));
     return;
   }
+  generation_->DiscardCandidates();
   model_.SetSuccess(absl::StrCat("Selected retained source '", snapshot.name, "'."));
 }
 
@@ -194,6 +342,7 @@ void ParallaxArtworkEditor::DeleteSelectedSource() {
     return;
   }
   if (session_source_id_ == source.id) session_source_id_.reset();
+  generation_->DiscardCandidates();
   model_.StartNewRecipe();
   model_.SetSuccess(absl::StrCat("Deleted retained source '", source.name, "'."));
 }
@@ -242,6 +391,7 @@ void ParallaxArtworkEditor::OpenRecipe() {
     model_.SetError(absl::StrCat("Could not open artwork: ", loaded.message()));
     return;
   }
+  generation_->DiscardCandidates();
   model_.SetInfo(
       absl::StrCat("Opened '", recipe_snapshot.name, "'. Process to rebuild its preview."));
 }
@@ -253,6 +403,7 @@ void ParallaxArtworkEditor::ClearWorkspace() {
         absl::StrCat("Could not discard the uncommitted imported source: ", discarded.message()));
     return;
   }
+  generation_->DiscardCandidates();
   model_.StartNewRecipe();
   model_.SetSuccess("Parallax Artwork workspace cleared. Saved artwork bundles were not changed.");
 }
@@ -366,6 +517,7 @@ void ParallaxArtworkEditor::DeleteArtwork() {
     model_.SetError(absl::StrCat("Delete artwork failed: ", deleted.message()));
     return;
   }
+  generation_->DiscardCandidates();
   model_.StartNewRecipe();
   model_.SetSuccess(absl::StrCat("Deleted '", recipe.name, "' and its generated bundle."));
 }
@@ -425,6 +577,7 @@ void ParallaxArtworkEditor::PollWork() {
                                                           cleanup.message())));
       return;
     }
+    generation_->DiscardCandidates();
     session_source_id_ = *id;
     model_.SetSuccess(absl::StrCat("Accepted source '", source_snapshot.name,
                                    "'. Choose a terrain style and process it."));
@@ -614,6 +767,101 @@ bool ParallaxArtworkEditor::RenderPipelineSettings() {
   return changed;
 }
 
+void ParallaxArtworkEditor::RenderGeneration() {
+  gui_->Separator();
+  if (!gui_->CollapsingHeader("Generate source##ParallaxArtwork", kSectionFlags)) return;
+
+  const std::vector<ImageGenerationProvider>& providers = generation_->providers();
+  const size_t selected_index = generation_->selected_provider();
+  const ImageGenerationProvider* selected =
+      selected_index < providers.size() ? &providers[selected_index] : nullptr;
+  const char* provider_preview = selected == nullptr ? "(unavailable)" : selected->name.c_str();
+  gui_->SetNextItemWidth(kControlWidth);
+  gui_->BeginDisabled(generation_->in_flight());
+  {
+    ScopedCombo combo =
+        gui_->CreateScopedCombo("Provider##ParallaxArtworkGeneration", provider_preview);
+    if (combo.IsActive()) {
+      for (size_t index = 0; index < providers.size(); ++index) {
+        const ImageGenerationProvider& provider = providers[index];
+        const ImGuiSelectableFlags flags = provider.available() ? 0 : ImGuiSelectableFlags_Disabled;
+        if (gui_->Selectable(provider.name.c_str(), index == selected_index, flags)) {
+          SelectGenerationProvider(index);
+        }
+      }
+    }
+  }
+  gui_->EndDisabled();
+
+  if (generation_->in_flight()) {
+    gui_->TextWrapped("Generating. This can take a minute.");
+    if (gui_->Button("Cancel generation##ParallaxArtwork")) CancelGeneration();
+    return;
+  }
+
+  if (generation_->review().has_value()) {
+    const ImageGenerationReview& review = *generation_->review();
+    const size_t count = review.candidates.size();
+    gui_->Text("Candidate %zu of %zu", review.selected + 1, count);
+    if (count > 1) {
+      if (gui_->Button("Previous##ParallaxArtworkCandidate")) {
+        generation_->SelectCandidate(review.selected == 0 ? count - 1 : review.selected - 1);
+      }
+      gui_->SameLine();
+      if (gui_->Button("Next##ParallaxArtworkCandidate")) {
+        generation_->SelectCandidate(review.selected + 1 == count ? 0 : review.selected + 1);
+      }
+    }
+    const ImageGenerationCandidate& candidate = review.candidates[review.selected];
+    if (candidate.revised_prompt.has_value()) {
+      gui_->TextWrapped("Provider rewrote the prompt: %s", candidate.revised_prompt->c_str());
+    }
+    gui_->TextDisabled("%s / %s", review.provider.c_str(), review.model.c_str());
+    if (gui_->Button("Accept candidate##ParallaxArtwork")) AcceptCandidate();
+    gui_->SameLine();
+    if (gui_->Button("Discard##ParallaxArtworkCandidate")) {
+      generation_->DiscardCandidates();
+      model_.SetInfo("Discarded the generated candidates.");
+    }
+    return;
+  }
+
+  const float text_height = gui_->GetTextLineHeightWithSpacing();
+  gui_->Text("Prompt");
+  gui_->InputTextMultiline("##ParallaxArtworkPrompt", &model_.prompt(),
+                           ImVec2(-1.0f, text_height * 5.0f));
+  gui_->Text("Background instructions");
+  gui_->InputTextMultiline("##ParallaxArtworkSystemPrompt", &model_.generation_instructions(),
+                           ImVec2(-1.0f, text_height * 7.0f));
+
+  const int maximum = std::max(1, generation_->capabilities().maximum_candidates);
+  int requested = model_.requested_candidates();
+  if (maximum > 1) {
+    gui_->SetNextItemWidth(kControlWidth);
+    if (gui_->SliderInt("Candidates##ParallaxArtwork", &requested, 1, maximum)) {
+      model_.SetRequestedCandidates(requested, maximum);
+    }
+  }
+  model_.SetRequestedCandidates(model_.requested_candidates(), maximum);
+
+  const bool available = selected != nullptr && selected->available();
+  gui_->BeginDisabled(!available || model_.prompt().empty() || model_.active_recipe().has_value());
+  if (gui_->Button("Generate##ParallaxArtwork")) StartGeneration();
+  gui_->EndDisabled();
+  if (!available) {
+    const char* reason = selected == nullptr || selected->unavailable_reason.empty()
+                             ? "No image generation provider is available."
+                             : selected->unavailable_reason.c_str();
+    gui_->TextWrapped("Image generation is unavailable: %s", reason);
+  }
+  if (model_.prompt().empty()) {
+    gui_->TextWrapped("Describe the background layer to generate a source for it.");
+  }
+  if (model_.active_recipe().has_value()) {
+    gui_->TextWrapped("An open recipe keeps its retained source. Use Save As first.");
+  }
+}
+
 absl::Status ParallaxArtworkEditor::RenderInput() {
   gui_->BeginDisabled(HasPendingWork());
   auto enabled = absl::MakeCleanup([this] { gui_->EndDisabled(); });
@@ -681,29 +929,42 @@ absl::Status ParallaxArtworkEditor::RenderInput() {
 
   gui_->Separator();
   if (RenderPipelineSettings()) model_.MarkInputsChanged();
+  RenderGeneration();
   return absl::OkStatus();
 }
 
 absl::Status ParallaxArtworkEditor::RenderPreview() {
-  gui_->Text("%s", ParallaxArtworkPreviewStageLabel(model_.preview_stage()));
-  if (model_.HasPreparedResult()) {
+  const bool reviewing_candidate = generation_->review().has_value();
+  if (reviewing_candidate) {
+    const ImageGenerationReview& review = *generation_->review();
+    gui_->Text("Generated candidate %zu of %zu", review.selected + 1, review.candidates.size());
+  } else {
+    gui_->Text("%s", ParallaxArtworkPreviewStageLabel(model_.preview_stage()));
+  }
+  if (!reviewing_candidate && model_.HasPreparedResult()) {
     if (gui_->Button("Previous##ParallaxArtworkPreview")) model_.PreviousPreviewStage();
     gui_->SameLine();
     if (gui_->Button("Next##ParallaxArtworkPreview")) model_.NextPreviewStage();
   }
 
-  const RgbaImage* image = model_.PreviewImage();
+  const RgbaImage* image =
+      reviewing_candidate ? &generation_->SelectedCandidate()->image : model_.PreviewImage();
   if (image == nullptr) {
     gui_->TextWrapped("No preview yet. Accept a source, choose a terrain style, and process it.");
     return absl::OkStatus();
   }
+  const size_t generation_candidate = reviewing_candidate ? generation_->review()->selected : 0;
   if (framed_revision_ != model_.revision() || framed_stage_ != model_.preview_stage() ||
-      framed_width_ != image->width || framed_height_ != image->height) {
+      framed_width_ != image->width || framed_height_ != image->height ||
+      framed_generation_review_ != reviewing_candidate ||
+      framed_generation_candidate_ != generation_candidate) {
     frame_pending_ = true;
     framed_revision_ = model_.revision();
     framed_stage_ = model_.preview_stage();
     framed_width_ = image->width;
     framed_height_ = image->height;
+    framed_generation_review_ = reviewing_candidate;
+    framed_generation_candidate_ = generation_candidate;
   }
 
   ImVec2 canvas_size = gui_->GetContentRegionAvail();
@@ -757,7 +1018,7 @@ absl::Status ParallaxArtworkEditor::RenderPreview() {
 }
 
 absl::Status ParallaxArtworkEditor::RenderOutput() {
-  gui_->BeginDisabled(HasPendingWork());
+  gui_->BeginDisabled(HasPendingWork() || generation_->in_flight());
   auto enabled = absl::MakeCleanup([this] { gui_->EndDisabled(); });
 
   gui_->Text("Output");
@@ -859,6 +1120,7 @@ absl::Status ParallaxArtworkEditor::RenderOutput() {
 }
 
 absl::Status ParallaxArtworkEditor::Render() {
+  PollGeneration();
   PollWork();
 
   constexpr ImGuiTableFlags kTableFlags = ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable;

@@ -739,14 +739,16 @@ work on the editor thread, which is why remote operations do not use
 infrastructure, and the shape later long-lived pollers should follow. It is
 created once at editor startup and destroyed at shutdown, owns every in-flight
 request, and exposes only `Submit`, `Cancel`, and `NextEvent` — producers never
-touch its queues. Submissions arrive over an `MpscNotifyQueue`; results leave
+touch its queues. A targeted `NextEvent(request_id)` parks events for other
+request IDs, so two editor surfaces sharing one engine cannot consume each
+other's results. Submissions arrive over an `MpscNotifyQueue`; results leave
 over a plain `MpscQueue` with no notification, because the editor drains it on
 its own frame schedule and never sleeps on the engine. Bounding outstanding
 requests is what makes event delivery infallible: `Submit` reserves a slot
 before queueing and `NextEvent` releases it, so a request always has somewhere
-to put its one event, and the queue cannot overflow. A rejected specification or
-a failed provider start is reported as that request's event, never as a `Run`
-failure, because a failing `Run` ends the runner and discards every other
+to put its one event, and the queue cannot overflow. A rejected specification
+or a failed provider start is reported as that request's event, never as a
+`Run` failure, because a failing `Run` ends the runner and discards every other
 request with it.
 
 A remote transfer has no descriptor the runner can wait on, so the engine
@@ -765,18 +767,25 @@ thing that starts or stops it. It owns the transport, the credential source,
 the adapter, the engine, its `EngineRunner`, and the `BlockingCallbackThread`
 the runner blocks on, in that order, so each outlives what borrows it;
 destruction stops the runner before joining. `EditorUi` independently composes
-Codex and OpenAI services and hands `PropArtworkEditor` provider-neutral names,
-availability, and engine references. The services are declared before the
-editor so it abandons its in-flight request while the selected engine still
-runs. Editors submit and drain; they never see a transport or credential.
+Codex and OpenAI services, then owns one shared registry of provider-neutral
+names, availability, and engine references. Each generated-artwork surface
+owns an `ImageGenerationRequestController` that borrows this registry and owns
+that surface's provider selection, single in-flight request, request ID,
+cancellation, candidate navigation, and retry-safe accept/discard state. Prop
+and Parallax editors retain separate prompts and deterministic processing
+models. The services and registry are declared before the editors, so each
+controller abandons its in-flight request while the selected engine still
+runs. Editors never see a transport or credential.
 
 Provider construction and authentication are optional capabilities, not editor
 invariants. A provider that cannot be composed is disabled immediately; a
 missing credential, ChatGPT login, or enabled skill discovered on first use
-also disables that provider with its reason retained for the UI. The offline
-import and processing path stays available. Contradictory provider entries
-still fail construction: each has exactly one of an engine or an unavailable
-reason.
+also disables that provider with its reason retained for both UIs. Runtime
+disablement retains the engine reference until shutdown so another surface can
+still collect a request that was already in flight, while the nonempty reason
+prevents new submissions. The offline import and processing path stays
+available. A provider without an engine must have an unavailable reason, and
+provider names must be unique.
 
 Codex executable discovery happens while its provider is composed. It prefers
 the explicit `ZEBES_CODEX_BIN` path, then `PATH`, then known macOS OpenAI

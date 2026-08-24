@@ -395,46 +395,7 @@ void PropArtworkEditorModel::SetRequestedCandidates(int candidates, int maximum)
   requested_candidates_ = std::clamp(candidates, 1, maximum);
 }
 
-absl::Status PropArtworkEditorModel::AcceptGeneration(PropGenerationReview review) {
-  if (review.candidates.empty()) {
-    return absl::InvalidArgumentError("a generation review needs at least one candidate");
-  }
-  if (review.selected >= review.candidates.size()) {
-    return absl::InvalidArgumentError("selected candidate is outside the generated set");
-  }
-  for (const ImageGenerationCandidate& candidate : review.candidates) {
-    if (!candidate.image.IsValid()) {
-      return absl::InvalidArgumentError("a generated candidate has no usable image");
-    }
-  }
-  if (review.provider.empty() || review.model.empty() || review.generated_at_utc.empty()) {
-    return absl::InvalidArgumentError("a generation review needs complete provenance");
-  }
-  generation_ = std::move(review);
-  return absl::OkStatus();
-}
-
-void PropArtworkEditorModel::ClearGeneration() { generation_.reset(); }
-
-void PropArtworkEditorModel::SelectCandidate(size_t index) {
-  if (!generation_.has_value()) return;
-  if (index >= generation_->candidates.size()) return;
-  generation_->selected = index;
-}
-
-const ImageGenerationCandidate* PropArtworkEditorModel::SelectedCandidate() const {
-  if (!generation_.has_value()) return nullptr;
-  return &generation_->candidates[generation_->selected];
-}
-
 const RgbaImage* PropArtworkEditorModel::PreviewImage() const {
-  // A candidate under review is the decision in front of the user, so it
-  // precedes every pipeline stage until it is accepted or discarded. Nothing
-  // downstream describes it: it is not the source yet, and the anchors and
-  // diagnostics below belong to a prepared result it had no part in.
-  if (const ImageGenerationCandidate* candidate = SelectedCandidate(); candidate != nullptr) {
-    return &candidate->image;
-  }
   if (preview_policy_ == PropPreviewPolicy::kFinishedOnly) {
     if (context_preview_.has_value()) return &context_preview_->image;
     const PropArtworkPipelineResult* artwork = Artwork();
@@ -452,7 +413,6 @@ const RgbaImage* PropArtworkEditorModel::PreviewImage() const {
 }
 
 std::optional<PropPreviewAnchor> PropArtworkEditorModel::PreviewAnchor() const {
-  if (generation_.has_value()) return std::nullopt;
   const bool context_visible =
       context_preview_.has_value() && (preview_policy_ == PropPreviewPolicy::kFinishedOnly ||
                                        preview_stage_ == PropPreviewStage::kContext);
@@ -467,7 +427,7 @@ std::optional<PropPreviewAnchor> PropArtworkEditorModel::PreviewAnchor() const {
 }
 
 std::optional<PropPreviewBounds> PropArtworkEditorModel::ContextPreviewPropBounds() const {
-  if (generation_.has_value() || !context_preview_.has_value()) return std::nullopt;
+  if (!context_preview_.has_value()) return std::nullopt;
   if (preview_policy_ != PropPreviewPolicy::kFinishedOnly &&
       preview_stage_ != PropPreviewStage::kContext) {
     return std::nullopt;
@@ -496,7 +456,6 @@ absl::Status PropArtworkEditorModel::MoveContextPreviewProp(int requested_anchor
 }
 
 const PropStageDiagnostic* PropArtworkEditorModel::PreviewDiagnostic() const {
-  if (generation_.has_value()) return nullptr;
   const PropArtworkPipelineResult* artwork = Artwork();
   if (artwork == nullptr) return nullptr;
   const size_t stage = StageIndex(preview_stage_);

@@ -56,23 +56,6 @@ struct PropPreviewBounds {
   int height = 0;
 };
 
-// One finished generation held for review. This is not recipe state: a
-// candidate becomes an input only once it is accepted as retained source
-// artwork, which is the same boundary an imported PNG crosses.
-//
-// The provider fields are the result's, copied once so accepting a candidate
-// maps field-for-field onto GeneratedArtworkProvenance without keeping the
-// provider response alive.
-struct PropGenerationReview {
-  std::string provider;
-  std::string model;
-  std::string submitted_prompt;
-  std::optional<std::string> provider_request_id;
-  std::string generated_at_utc;
-  std::vector<ImageGenerationCandidate> candidates;
-  size_t selected = 0;
-};
-
 // Platform-neutral authoring state. Panels mutate settings and report intents;
 // the containing editor performs filesystem, Api, worker, and GPU operations.
 class PropArtworkEditorModel {
@@ -138,14 +121,6 @@ class PropArtworkEditorModel {
   int requested_candidates() const { return requested_candidates_; }
   void SetRequestedCandidates(int candidates, int maximum);
 
-  const std::optional<PropGenerationReview>& generation_review() const { return generation_; }
-  // Replaces any review already held: only one generation is in flight, so an
-  // arriving result can only be the one the caller is waiting for.
-  absl::Status AcceptGeneration(PropGenerationReview review);
-  void ClearGeneration();
-  void SelectCandidate(size_t index);
-  const ImageGenerationCandidate* SelectedCandidate() const;
-
   void SetStatus(std::string status) { status_ = std::move(status); }
   void ClearStatus() { status_.clear(); }
   const std::string& status() const { return status_; }
@@ -177,8 +152,6 @@ class PropArtworkEditorModel {
   PropArtworkStylePreset style_preset_ = PropArtworkStylePreset::kCustom;
   std::string style_guidance_;
   int requested_candidates_ = 1;
-  std::optional<PropGenerationReview> generation_;
-
   PreparedResult prepared_;
   std::optional<PropArtworkContextPreview> context_preview_;
   PropPreviewPolicy preview_policy_ = PropPreviewPolicy::kFinishedOnly;
