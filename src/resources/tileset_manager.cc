@@ -40,8 +40,7 @@ absl::StatusOr<Tile> GetTileFromJson(const nlohmann::json& j) {
     j.at("is_one_way").get_to(tile_def.is_one_way);
     j.at("tags").get_to(tile_def.tags);
   } catch (const nlohmann::json::exception& e) {
-    return absl::InternalError(
-        absl::StrCat("JSON parsing error for Tile: ", e.what()));
+    return absl::InternalError(absl::StrCat("JSON parsing error for Tile: ", e.what()));
   }
   return tile_def;
 }
@@ -115,9 +114,9 @@ absl::StatusOr<Terrain> GetTerrainFromJson(const nlohmann::json& j) {
 
       const nlohmann::json& neighbors = derived_j.at("neighbors");
       if (neighbors.size() != kNeighborCount) {
-        return absl::InvalidArgumentError(
-            absl::StrCat("derived tile ", derived.tile_id, " names ", neighbors.size(),
-                         " neighbours; a cell has ", kNeighborCount));
+        return absl::InvalidArgumentError(absl::StrCat("derived tile ", derived.tile_id, " names ",
+                                                       neighbors.size(), " neighbours; a cell has ",
+                                                       kNeighborCount));
       }
       for (int i = 0; i < kNeighborCount; ++i) {
         derived.key.neighbors[i] = static_cast<TileShape>(neighbors[i].get<int>());
@@ -183,8 +182,7 @@ absl::StatusOr<Tileset> GetTilesetFromJson(const nlohmann::json& j) {
           "Tileset definition must list both 'tiles' and 'terrains', even when empty");
     }
   } catch (const nlohmann::json::exception& e) {
-    return absl::InternalError(
-        absl::StrCat("JSON parsing error for Tileset: ", e.what()));
+    return absl::InternalError(absl::StrCat("JSON parsing error for Tileset: ", e.what()));
   }
 
   for (const nlohmann::json& tile_j : j["tiles"]) {
@@ -214,9 +212,9 @@ absl::Status ValidateTerrainRules(const Terrain& terrain,
           "Terrain '", terrain.name, "' lists unknown shape tile ID ", shape_tile_id, "."));
     }
     if (painted_ids.contains(shape_tile_id)) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Terrain '", terrain.name, "' lists tile ", shape_tile_id,
-                       " as both rule-produced and shape-keyed."));
+      return absl::InvalidArgumentError(absl::StrCat("Terrain '", terrain.name, "' lists tile ",
+                                                     shape_tile_id,
+                                                     " as both rule-produced and shape-keyed."));
     }
   }
 
@@ -243,40 +241,39 @@ absl::Status ValidateTerrainRules(const Terrain& terrain,
   }
 
   if (terrain.variant_period < 0) {
-    return absl::InvalidArgumentError(absl::StrCat("Terrain '", terrain.name,
-                                                   "' has a negative variant period."));
+    return absl::InvalidArgumentError(
+        absl::StrCat("Terrain '", terrain.name, "' has a negative variant period."));
   }
 
   absl::flat_hash_set<int> seen_masks;
   for (const TerrainRule& rule : terrain.rules) {
     if (!seen_masks.insert(rule.mask).second) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Terrain '", terrain.name, "' repeats mask ", static_cast<int>(rule.mask), "."));
+      return absl::InvalidArgumentError(absl::StrCat("Terrain '", terrain.name, "' repeats mask ",
+                                                     static_cast<int>(rule.mask), "."));
     }
     if (rule.variants.empty()) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Terrain '", terrain.name, "' mask ", static_cast<int>(rule.mask),
-          " must have at least one variant."));
+      return absl::InvalidArgumentError(absl::StrCat("Terrain '", terrain.name, "' mask ",
+                                                     static_cast<int>(rule.mask),
+                                                     " must have at least one variant."));
     }
     // A periodic terrain's variants are the phases of one pattern, so a missing
     // phase is not a smaller set to choose from -- it is a hole the brush would
     // hit the first time a cell landed on it.
     const int expected = terrain.variant_period * terrain.variant_period;
     if (terrain.variant_period > 0 && static_cast<int>(rule.variants.size()) != expected) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Terrain '", terrain.name, "' repeats every ", terrain.variant_period,
-          " tiles and so needs ", expected, " variants for mask ", static_cast<int>(rule.mask),
-          ", but has ", rule.variants.size(), "."));
+      return absl::InvalidArgumentError(
+          absl::StrCat("Terrain '", terrain.name, "' repeats every ", terrain.variant_period,
+                       " tiles and so needs ", expected, " variants for mask ",
+                       static_cast<int>(rule.mask), ", but has ", rule.variants.size(), "."));
     }
     for (const TerrainVariant& variant : rule.variants) {
       if (variant.weight <= 0) {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Terrain '", terrain.name, "' variant weights must be positive."));
+        return absl::InvalidArgumentError(
+            absl::StrCat("Terrain '", terrain.name, "' variant weights must be positive."));
       }
       if (!tile_ids.contains(variant.tile_id)) {
-        return absl::InvalidArgumentError(
-            absl::StrCat("Terrain '", terrain.name, "' references unknown tile ID ",
-                         variant.tile_id, "."));
+        return absl::InvalidArgumentError(absl::StrCat(
+            "Terrain '", terrain.name, "' references unknown tile ID ", variant.tile_id, "."));
       }
     }
   }
@@ -337,10 +334,8 @@ absl::Status ValidateTileset(const Tileset& tileset) {
   return ValidateTerrains(tileset, seen_ids);
 }
 
-absl::StatusOr<std::unique_ptr<TilesetManager>> TilesetManager::Create(
-    std::string root_path) {
-  return std::unique_ptr<TilesetManager>(
-      new TilesetManager(std::move(root_path)));
+absl::StatusOr<std::unique_ptr<TilesetManager>> TilesetManager::Create(std::string root_path) {
+  return std::unique_ptr<TilesetManager>(new TilesetManager(std::move(root_path)));
 }
 
 TilesetManager::TilesetManager(std::string root_path)
@@ -351,8 +346,7 @@ std::string TilesetManager::GetDefinitionsPath(const std::string& relative_path)
   return absl::StrCat(definitions_path_, "/", relative_path);
 }
 
-absl::StatusOr<Tileset*> TilesetManager::LoadTileset(
-    const std::string& path_json) {
+absl::StatusOr<Tileset*> TilesetManager::LoadTileset(const std::string& path_json) {
   const std::string full_path = GetDefinitionsPath(path_json);
   if (!std::filesystem::exists(full_path)) {
     return absl::NotFoundError(absl::StrCat("File not found: ", full_path));
@@ -375,23 +369,10 @@ absl::StatusOr<Tileset*> TilesetManager::LoadTileset(
 }
 
 absl::Status TilesetManager::LoadAllTilesets() {
-  if (!std::filesystem::exists(definitions_path_)) {
-    return absl::NotFoundError(
-        absl::StrCat("Tileset root directory not found: ", definitions_path_));
-  }
-
-  ResourceLoadFailures failures;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    auto status = LoadTileset(entry.path().filename().string());
-    if (!status.ok()) {
-      LOG(WARNING) << "Failed to load tileset from " << entry.path() << ": "
-                   << status.status();
-      failures.Add(entry.path().filename().string(), status.status());
-    }
-  }
-  return failures.ToStatus("tileset");
+  return LoadJsonDefinitions(definitions_path_, "tileset",
+                             [this](const std::filesystem::path& path) -> absl::Status {
+                               return LoadTileset(path.filename().string()).status();
+                             });
 }
 
 absl::StatusOr<std::string> TilesetManager::CreateTileset(Tileset tileset) {
@@ -419,8 +400,7 @@ absl::Status TilesetManager::SaveTileset(const Tileset& tileset) {
   // Handle renaming: remove the old file if the name has changed.
   auto it = tilesets_.find(tileset.id);
   if (it != tilesets_.end()) {
-    RemoveOldFileIfExists(tileset.id, it->second->name, tileset.name,
-                          definitions_path_);
+    RemoveOldFileIfExists(tileset.id, it->second->name, tileset.name, definitions_path_);
   }
 
   nlohmann::json json = ToJson(tileset);
@@ -431,8 +411,7 @@ absl::Status TilesetManager::SaveTileset(const Tileset& tileset) {
 
   std::ofstream file(full_path);
   if (!file.is_open()) {
-    return absl::InternalError(
-        absl::StrCat("Failed to open file for writing: ", full_path));
+    return absl::InternalError(absl::StrCat("Failed to open file for writing: ", full_path));
   }
   file << json.dump(4);
 
@@ -452,8 +431,7 @@ absl::Status TilesetManager::SaveTileset(const Tileset& tileset) {
 absl::StatusOr<Tileset*> TilesetManager::GetTileset(const std::string& id) {
   auto it = tilesets_.find(id);
   if (it == tilesets_.end()) {
-    return absl::NotFoundError(
-        absl::StrCat("Tileset with id ", id, " not found in manager."));
+    return absl::NotFoundError(absl::StrCat("Tileset with id ", id, " not found in manager."));
   }
   return it->second.get();
 }

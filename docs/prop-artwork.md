@@ -251,7 +251,7 @@ real alpha is a change to `OpenAiImageConfig`, not to the adapter.
 
 Add an editor-only `SourceArtwork` resource under
 `assets/definitions/source_artworks/`; store its lossless image under
-`assets/source_art/props/` using an ID-backed filename. It is not a `Texture`, is
+`assets/source_art/` using an ID-backed filename. It is not a `Texture`, is
 never loaded by the renderer resource store, and is not shipped as runtime art.
 
 Implemented: `SourceArtworkManager` constructs the ID-backed path rather than

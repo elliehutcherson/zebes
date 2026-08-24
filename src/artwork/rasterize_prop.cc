@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 namespace {
@@ -96,21 +97,31 @@ RgbaImage ExpandNearest(const RgbaImage& logical, int scale) {
 
 }  // namespace
 
-absl::StatusOr<PropArtwork> RasterizeProp(const PropArtwork& composed,
-                                          const PropRasterConfig& config) {
-  if (!composed.IsValid()) return absl::InvalidArgumentError("composed prop is invalid");
-  if (config.tile_size <= 0 || config.canvas_tiles_wide <= 0 || config.canvas_tiles_high <= 0 ||
-      config.pixel_block_size <= 0) {
-    return absl::InvalidArgumentError("prop raster settings must be positive");
+absl::Status ValidatePropRasterConfig(const PropRasterConfig& config) {
+  if (config.tile_size <= 0) return absl::InvalidArgumentError("prop tile size must be positive");
+  if (config.canvas_tiles_wide <= 0 || config.canvas_tiles_high <= 0) {
+    return absl::InvalidArgumentError("prop raster canvas dimensions must be positive");
+  }
+  if (config.pixel_block_size <= 0) {
+    return absl::InvalidArgumentError("prop pixel block size must be positive");
   }
   const int64_t output_width = static_cast<int64_t>(config.tile_size) * config.canvas_tiles_wide;
   const int64_t output_height = static_cast<int64_t>(config.tile_size) * config.canvas_tiles_high;
-  if (output_width > 4096 || output_height > 4096 || output_width % config.pixel_block_size != 0 ||
-      output_height % config.pixel_block_size != 0) {
-    return absl::InvalidArgumentError(
-        "prop output must fit 4096 pixels and divide into whole pixel blocks");
+  if (output_width > 4096 || output_height > 4096) {
+    return absl::InvalidArgumentError("prop output dimensions cannot exceed 4096 pixels");
   }
+  if (output_width % config.pixel_block_size != 0 || output_height % config.pixel_block_size != 0) {
+    return absl::InvalidArgumentError("prop output must divide into whole pixel blocks");
+  }
+  return absl::OkStatus();
+}
 
+absl::StatusOr<PropArtwork> RasterizeProp(const PropArtwork& composed,
+                                          const PropRasterConfig& config) {
+  if (!composed.IsValid()) return absl::InvalidArgumentError("composed prop is invalid");
+  RETURN_IF_ERROR(ValidatePropRasterConfig(config));
+  const int64_t output_width = static_cast<int64_t>(config.tile_size) * config.canvas_tiles_wide;
+  const int64_t output_height = static_cast<int64_t>(config.tile_size) * config.canvas_tiles_high;
   const int logical_width = static_cast<int>(output_width) / config.pixel_block_size;
   const int logical_height = static_cast<int>(output_height) / config.pixel_block_size;
   RgbaImage logical = AreaResize(composed.image, logical_width, logical_height);

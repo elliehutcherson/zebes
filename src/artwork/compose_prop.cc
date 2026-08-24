@@ -9,6 +9,17 @@
 
 namespace zebes {
 
+absl::Status ValidatePropCompositionConfig(const PropCompositionConfig& config) {
+  if (config.canvas_tiles_wide <= 0 || config.canvas_tiles_high <= 0) {
+    return absl::InvalidArgumentError("prop composition canvas dimensions must be positive");
+  }
+  if (!std::isfinite(config.padding_fraction) || config.padding_fraction < 0.0f ||
+      config.padding_fraction >= 0.45f) {
+    return absl::InvalidArgumentError("prop composition padding must be in [0, 0.45)");
+  }
+  return absl::OkStatus();
+}
+
 absl::Status ValidatePropAttachment(const PropAttachmentConfig& attachment, int output_width,
                                     int output_height) {
   if (output_width <= 0 || output_height <= 0) {
@@ -39,11 +50,7 @@ absl::StatusOr<PropArtwork> ComposeProp(const RgbaImage& isolated,
                                         const PropCompositionConfig& config, int final_output_width,
                                         int final_output_height) {
   if (!isolated.IsValid()) return absl::InvalidArgumentError("isolated image is invalid");
-  if (config.canvas_tiles_wide <= 0 || config.canvas_tiles_high <= 0 ||
-      !std::isfinite(config.padding_fraction) || config.padding_fraction < 0.0f ||
-      config.padding_fraction >= 0.45f) {
-    return absl::InvalidArgumentError("prop composition settings are invalid");
-  }
+  RETURN_IF_ERROR(ValidatePropCompositionConfig(config));
   RETURN_IF_ERROR(
       ValidatePropAttachment(config.attachment, final_output_width, final_output_height));
 

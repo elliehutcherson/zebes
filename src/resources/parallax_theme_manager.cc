@@ -54,27 +54,19 @@ absl::Status ParallaxThemeManager::LoadAllThemes() {
   }
 
   absl::flat_hash_map<std::string, std::unique_ptr<ParallaxTheme>> loaded;
-  ResourceLoadFailures failures;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    absl::StatusOr<ParallaxTheme> theme = LoadThemeFile(entry.path().string());
-    if (!theme.ok()) {
-      failures.Add(entry.path().filename().string(), theme.status());
-      continue;
-    }
-    if (entry.path().stem() != theme->id) {
-      failures.Add(entry.path().filename().string(),
-                   absl::InvalidArgumentError("filename does not match theme ID"));
-      continue;
-    }
-    const std::string id = theme->id;
-    if (!loaded.emplace(id, std::make_unique<ParallaxTheme>(std::move(*theme))).second) {
-      failures.Add(entry.path().filename().string(),
-                   absl::AlreadyExistsError(absl::StrCat("duplicate theme ID ", id)));
-    }
-  }
-  if (!failures.empty()) return failures.ToStatus("parallax theme");
+  RETURN_IF_ERROR(LoadJsonDefinitions(
+      definitions_path_, "parallax theme",
+      [&loaded](const std::filesystem::path& path) -> absl::Status {
+        ASSIGN_OR_RETURN(ParallaxTheme theme, LoadThemeFile(path.string()));
+        if (path.stem() != theme.id) {
+          return absl::InvalidArgumentError("filename does not match theme ID");
+        }
+        const std::string id = theme.id;
+        if (!loaded.emplace(id, std::make_unique<ParallaxTheme>(std::move(theme))).second) {
+          return absl::AlreadyExistsError(absl::StrCat("duplicate theme ID ", id));
+        }
+        return absl::OkStatus();
+      }));
   themes_ = std::move(loaded);
   return absl::OkStatus();
 }

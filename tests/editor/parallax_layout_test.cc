@@ -2,8 +2,21 @@
 
 #include <gtest/gtest.h>
 
+#include "macros.h"
+
 namespace zebes {
 namespace {
+
+ParallaxLayer SingleElementLayer(Vec scroll_factor = {0, 0}) {
+  return {
+      .name = "Layer",
+      .scroll_factor = scroll_factor,
+      .elements = {{.id = 7, .name = "Element", .texture_id = "texture"}},
+  };
+}
+
+const std::vector<ParallaxElementSize> kSingleElementSize = {
+    {.element_id = 7, .width = 100, .height = 50}};
 
 TEST(ParallaxLayoutTest, VisibleBoundsAccountForZoom) {
   Camera camera{
@@ -28,15 +41,13 @@ TEST(ParallaxLayoutTest, FixedLayerStartsAtVisibleWorldOriginAtAnyZoom) {
       .viewport_width = 800,
       .viewport_height = 600,
   };
-  ParallaxLayer layer{
-      .scroll_factor = {0, 0},
-  };
+  ParallaxLayer layer = SingleElementLayer();
 
-  std::optional<ParallaxLayout> layout = CalculateParallaxLayout(camera, layer, 100, 50);
+  ASSERT_OK_AND_ASSIGN(const ParallaxLayout layout,
+                       CalculateParallaxLayout(camera, layer, kSingleElementSize));
 
-  ASSERT_TRUE(layout.has_value());
-  EXPECT_DOUBLE_EQ(layout->origin.x, 300);
-  EXPECT_DOUBLE_EQ(layout->origin.y, 250);
+  EXPECT_DOUBLE_EQ(layout.origin.x, 300);
+  EXPECT_DOUBLE_EQ(layout.origin.y, 250);
 }
 
 TEST(ParallaxLayoutTest, FullyScrollingLayerRemainsAnchoredInWorld) {
@@ -46,16 +57,14 @@ TEST(ParallaxLayoutTest, FullyScrollingLayerRemainsAnchoredInWorld) {
       .viewport_width = 800,
       .viewport_height = 600,
   };
-  ParallaxLayer layer{
-      .scroll_factor = {1, 1},
-      .offset = {25, 50},
-  };
+  ParallaxLayer layer = SingleElementLayer({1, 1});
+  layer.offset = {25, 50};
 
-  std::optional<ParallaxLayout> layout = CalculateParallaxLayout(camera, layer, 100, 50);
+  ASSERT_OK_AND_ASSIGN(const ParallaxLayout layout,
+                       CalculateParallaxLayout(camera, layer, kSingleElementSize));
 
-  ASSERT_TRUE(layout.has_value());
-  EXPECT_DOUBLE_EQ(layout->origin.x, 25);
-  EXPECT_DOUBLE_EQ(layout->origin.y, 50);
+  EXPECT_DOUBLE_EQ(layout.origin.x, 25);
+  EXPECT_DOUBLE_EQ(layout.origin.y, 50);
 }
 
 TEST(ParallaxLayoutTest, RepeatedLayerCoversVisibleWorld) {
@@ -65,22 +74,20 @@ TEST(ParallaxLayoutTest, RepeatedLayerCoversVisibleWorld) {
       .viewport_width = 800,
       .viewport_height = 600,
   };
-  ParallaxLayer layer{
-      .scroll_factor = {0, 0},
-      .base_scale = 2,
-      .repeat_x = true,
-      .repeat_y = true,
-  };
+  ParallaxLayer layer = SingleElementLayer();
+  layer.elements[0].scale = 2.0f;
+  layer.repeat_period = {200, 100};
 
-  std::optional<ParallaxLayout> layout = CalculateParallaxLayout(camera, layer, 100, 50);
+  ASSERT_OK_AND_ASSIGN(const ParallaxLayout layout,
+                       CalculateParallaxLayout(camera, layer, kSingleElementSize));
 
-  ASSERT_TRUE(layout.has_value());
-  EXPECT_DOUBLE_EQ(layout->tile_width, 200);
-  EXPECT_DOUBLE_EQ(layout->tile_height, 100);
-  EXPECT_EQ(layout->first_column, 0);
-  EXPECT_EQ(layout->last_column, 2);
-  EXPECT_EQ(layout->first_row, 0);
-  EXPECT_EQ(layout->last_row, 3);
+  ASSERT_EQ(layout.elements.size(), 6);
+  EXPECT_EQ(layout.elements.front().repeat_column, 0);
+  EXPECT_EQ(layout.elements.front().repeat_row, 0);
+  EXPECT_DOUBLE_EQ(layout.elements.front().bounds.min.x, 300);
+  EXPECT_DOUBLE_EQ(layout.elements.front().bounds.max.x, 500);
+  EXPECT_EQ(layout.elements.back().repeat_column, 1);
+  EXPECT_EQ(layout.elements.back().repeat_row, 2);
 }
 
 TEST(ParallaxLayoutTest, NonRepeatingLayerDrawsOnlyItsBaseTile) {
@@ -90,17 +97,31 @@ TEST(ParallaxLayoutTest, NonRepeatingLayerDrawsOnlyItsBaseTile) {
       .viewport_width = 800,
       .viewport_height = 600,
   };
-  ParallaxLayer layer{
-      .scroll_factor = {0.5, 0.5},
+  ParallaxLayer layer = SingleElementLayer();
+
+  ASSERT_OK_AND_ASSIGN(const ParallaxLayout layout,
+                       CalculateParallaxLayout(camera, layer, kSingleElementSize));
+
+  ASSERT_EQ(layout.elements.size(), 1);
+  EXPECT_EQ(layout.elements[0].repeat_column, 0);
+  EXPECT_EQ(layout.elements[0].repeat_row, 0);
+}
+
+TEST(ParallaxLayoutTest, FiniteOffscreenAxisSkipsAllRepeatCells) {
+  Camera camera{
+      .position = {500, 400},
+      .zoom = 1,
+      .viewport_width = 800,
+      .viewport_height = 600,
   };
+  ParallaxLayer layer = SingleElementLayer({1, 1});
+  layer.offset = {100, -1000};
+  layer.repeat_period.x = 0.01;
 
-  std::optional<ParallaxLayout> layout = CalculateParallaxLayout(camera, layer, 100, 50);
+  ASSERT_OK_AND_ASSIGN(const ParallaxLayout layout,
+                       CalculateParallaxLayout(camera, layer, kSingleElementSize));
 
-  ASSERT_TRUE(layout.has_value());
-  EXPECT_EQ(layout->first_column, 0);
-  EXPECT_EQ(layout->last_column, 0);
-  EXPECT_EQ(layout->first_row, 0);
-  EXPECT_EQ(layout->last_row, 0);
+  EXPECT_TRUE(layout.elements.empty());
 }
 
 TEST(ParallaxLayoutTest, RejectsInvalidGeometry) {
@@ -110,11 +131,70 @@ TEST(ParallaxLayoutTest, RejectsInvalidGeometry) {
       .viewport_width = 800,
       .viewport_height = 600,
   };
-  ParallaxLayer layer;
+  ParallaxLayer layer = SingleElementLayer();
 
-  EXPECT_FALSE(CalculateParallaxLayout(camera, layer, 0, 50).has_value());
-  layer.base_scale = 0;
-  EXPECT_FALSE(CalculateParallaxLayout(camera, layer, 100, 50).has_value());
+  EXPECT_FALSE(CalculateParallaxLayout(camera, layer, {}).ok());
+  layer.elements[0].scale = 0;
+  EXPECT_FALSE(CalculateParallaxLayout(camera, layer, kSingleElementSize).ok());
+}
+
+TEST(ParallaxLayoutTest, RefusesPathologicalRepeatBeforeBuildingInstances) {
+  Camera camera{
+      .position = {500, 400},
+      .zoom = 1,
+      .viewport_width = 800,
+      .viewport_height = 600,
+  };
+  ParallaxLayer layer = SingleElementLayer();
+  layer.repeat_period = {0.01, 0};
+
+  EXPECT_EQ(CalculateParallaxLayout(camera, layer, kSingleElementSize).status().code(),
+            absl::StatusCode::kResourceExhausted);
+}
+
+TEST(ParallaxLayoutTest, RepeatsCompleteCompositionInElementOrder) {
+  Camera camera{.position = {50, 25}, .zoom = 1, .viewport_width = 100, .viewport_height = 50};
+  ParallaxLayer layer{
+      .name = "Near formations",
+      .repeat_period = {100, 0},
+      .elements =
+          {
+              {.id = 1, .name = "Left", .texture_id = "left", .position = {0, 0}},
+              {.id = 2, .name = "Right", .texture_id = "right", .position = {60, 5}},
+          },
+  };
+  const std::vector<ParallaxElementSize> sizes = {
+      {.element_id = 1, .width = 40, .height = 40},
+      {.element_id = 2, .width = 30, .height = 30},
+  };
+
+  ASSERT_OK_AND_ASSIGN(const ParallaxLayout layout, CalculateParallaxLayout(camera, layer, sizes));
+
+  ASSERT_EQ(layout.elements.size(), 2);
+  EXPECT_EQ(layout.elements[0].element_id, 1);
+  EXPECT_EQ(layout.elements[1].element_id, 2);
+  EXPECT_DOUBLE_EQ(layout.elements[1].bounds.min.x, 60);
+}
+
+TEST(ParallaxLayoutTest, CompositionBoundsIncludePositionAndScale) {
+  ParallaxLayer layer{
+      .name = "Near formations",
+      .elements =
+          {
+              {.id = 1, .name = "A", .texture_id = "a", .position = {-20, 10}, .scale = 2},
+              {.id = 2, .name = "B", .texture_id = "b", .position = {100, -5}},
+          },
+  };
+
+  ASSERT_OK_AND_ASSIGN(
+      const WorldRect bounds,
+      CalculateParallaxCompositionBounds(layer, {{.element_id = 1, .width = 30, .height = 20},
+                                                 {.element_id = 2, .width = 25, .height = 10}}));
+
+  EXPECT_DOUBLE_EQ(bounds.min.x, -20);
+  EXPECT_DOUBLE_EQ(bounds.min.y, -5);
+  EXPECT_DOUBLE_EQ(bounds.max.x, 125);
+  EXPECT_DOUBLE_EQ(bounds.max.y, 50);
 }
 
 TEST(ParallaxLayoutTest, ActiveZoneUsesReferencePointInsteadOfViewportOverlap) {

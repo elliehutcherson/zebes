@@ -1,5 +1,6 @@
 #pragma once
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "artwork/prop_artwork.h"
 #include "terrain/terrain_palette.h"
@@ -10,6 +11,8 @@ struct PropEdgeConfig {
   int width = 1;
   int alpha_threshold = 128;
 };
+
+absl::Status ValidatePropEdgeConfig(const PropEdgeConfig& config);
 
 // Recolours the opaque inside boundary without changing alpha or expanding the
 // silhouette.

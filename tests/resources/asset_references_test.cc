@@ -25,9 +25,11 @@ struct Catalogs {
   std::vector<ParallaxTheme> parallax_themes;
   std::vector<TerrainRecipe> recipes;
   std::vector<PropRecipe> prop_recipes;
+  std::vector<ParallaxArtworkRecipe> parallax_artwork_recipes;
 
   AssetCatalog View() const {
-    return {tilesets, sprites, blueprints, levels, parallax_themes, recipes, prop_recipes};
+    return {tilesets,        sprites, blueprints,   levels,
+            parallax_themes, recipes, prop_recipes, parallax_artwork_recipes};
   }
 };
 
@@ -36,7 +38,10 @@ ParallaxTheme ThemeWithParallax(std::string id, std::string name, std::string la
   return ParallaxTheme{
       .id = std::move(id),
       .name = std::move(name),
-      .layers = {ParallaxLayer{.name = std::move(layer_name), .texture_id = std::move(texture_id)}},
+      .layers = {ParallaxLayer{
+          .name = std::move(layer_name),
+          .elements = {{.id = 0, .name = "Artwork", .texture_id = std::move(texture_id)}},
+      }},
   };
 }
 
@@ -61,14 +66,36 @@ TEST(AssetReferencesTest, FindsATextureAcrossEveryKindThatCanNameOne) {
   c.parallax_themes.push_back(ThemeWithParallax("theme", "Sky", "Clouds", "tex"));
   c.recipes.push_back(TerrainRecipe{.id = "rc", .name = "Cave", .texture_id = "tex"});
   c.prop_recipes.push_back(PropRecipe{.id = "prop", .name = "Tree", .texture_id = "tex"});
+  c.parallax_artwork_recipes.push_back(
+      ParallaxArtworkRecipe{.id = "background", .name = "Cave", .texture_id = "tex"});
 
   const std::vector<AssetReference> referrers = FindTextureReferrers(c.View(), "tex");
 
-  EXPECT_THAT(referrers, ElementsAre(Field(&AssetReference::kind, AssetKind::kTileset),
-                                     Field(&AssetReference::kind, AssetKind::kSprite),
-                                     Field(&AssetReference::kind, AssetKind::kParallaxTheme),
-                                     Field(&AssetReference::kind, AssetKind::kTerrainRecipe),
-                                     Field(&AssetReference::kind, AssetKind::kPropRecipe)));
+  EXPECT_THAT(referrers,
+              ElementsAre(Field(&AssetReference::kind, AssetKind::kTileset),
+                          Field(&AssetReference::kind, AssetKind::kSprite),
+                          Field(&AssetReference::kind, AssetKind::kParallaxTheme),
+                          Field(&AssetReference::kind, AssetKind::kTerrainRecipe),
+                          Field(&AssetReference::kind, AssetKind::kPropRecipe),
+                          Field(&AssetReference::kind, AssetKind::kParallaxArtworkRecipe)));
+}
+
+TEST(AssetReferencesTest, FindsParallaxArtworkAuthoringAndOutputReferences) {
+  Catalogs c;
+  c.parallax_artwork_recipes.push_back(ParallaxArtworkRecipe{
+      .id = "background",
+      .name = "Cave Plate",
+      .source_artwork_id = "source",
+      .terrain_recipe_id = "terrain",
+      .texture_id = "texture",
+  });
+
+  EXPECT_THAT(FindSourceArtworkReferrers(c.View(), "source"),
+              ElementsAre(Field(&AssetReference::kind, AssetKind::kParallaxArtworkRecipe)));
+  EXPECT_THAT(FindTerrainRecipeReferrers(c.View(), "terrain"),
+              ElementsAre(Field(&AssetReference::kind, AssetKind::kParallaxArtworkRecipe)));
+  EXPECT_THAT(FindTextureReferrers(c.View(), "texture"),
+              ElementsAre(Field(&AssetReference::kind, AssetKind::kParallaxArtworkRecipe)));
 }
 
 TEST(AssetReferencesTest, FindsPropAuthoringAndOutputReferences) {
@@ -92,7 +119,7 @@ TEST(AssetReferencesTest, FindsPropAuthoringAndOutputReferences) {
               ElementsAre(Field(&AssetReference::field, "blueprint_id")));
 }
 
-TEST(AssetReferencesTest, AParallaxReferenceNamesItsThemeAndLayer) {
+TEST(AssetReferencesTest, AParallaxReferenceNamesItsThemeLayerAndElement) {
   Catalogs c;
   c.parallax_themes.push_back(ThemeWithParallax("theme", "Sky", "Clouds", "tex"));
 
@@ -102,6 +129,7 @@ TEST(AssetReferencesTest, AParallaxReferenceNamesItsThemeAndLayer) {
   EXPECT_EQ(referrers[0].display_name, "Sky");
   EXPECT_EQ(referrers[0].kind, AssetKind::kParallaxTheme);
   EXPECT_THAT(referrers[0].field, HasSubstr("Clouds"));
+  EXPECT_THAT(referrers[0].field, HasSubstr("Artwork"));
 }
 
 TEST(AssetReferencesTest, FindsLevelsAndZonesNamingATheme) {

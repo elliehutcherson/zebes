@@ -551,14 +551,15 @@ absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBac
 
   std::map<std::string, TextureHandle> textures;
   for (const ParallaxLayer& layer : theme_it->layers) {
-    if (layer.texture_id.empty()) continue;
-    if (textures.contains(layer.texture_id)) continue;
+    for (const ParallaxElement& element : layer.elements) {
+      if (element.texture_id.empty() || textures.contains(element.texture_id)) continue;
 
-    ASSIGN_OR_RETURN(TextureHandle handle, api_.GetTextureHandle(layer.texture_id));
-    if (!handle) {
-      return absl::FailedPreconditionError("parallax layer texture is unavailable");
+      ASSIGN_OR_RETURN(TextureHandle handle, api_.GetTextureHandle(element.texture_id));
+      if (!handle) {
+        return absl::FailedPreconditionError("parallax element texture is unavailable");
+      }
+      textures.emplace(element.texture_id, handle);
     }
-    textures.emplace(layer.texture_id, handle);
   }
 
   ASSIGN_OR_RETURN(ParallaxRenderBatch batch,

@@ -1,5 +1,8 @@
 add_library(resource_utils resource_utils.cc)
-target_link_libraries(resource_utils absl::strings)
+target_link_libraries(resource_utils
+  PUBLIC absl::status
+  PRIVATE absl::strings
+)
 
 add_library(texture_resource_store INTERFACE texture_resource_store.h)
 target_link_libraries(texture_resource_store INTERFACE texture_handle absl::status absl::statusor)
@@ -78,13 +81,14 @@ target_link_libraries(terrain_recipe_manager
   PUBLIC
   terrain_recipe
   prop_recipe
+  parallax_artwork_recipe
   absl::status
   absl::statusor
   PRIVATE
   common
+  resource_utils
   status_macros
   absl::flat_hash_map
-  absl::cleanup
   absl::strings
   nlohmann_json::nlohmann_json
 )
@@ -93,7 +97,6 @@ add_library(source_artwork_manager source_artwork_manager.cc)
 target_link_libraries(source_artwork_manager
   PUBLIC
   source_artwork
-  prop_artwork
   image_io
   absl::status
   absl::statusor
@@ -112,6 +115,21 @@ add_library(prop_recipe_manager prop_recipe_manager.cc)
 target_link_libraries(prop_recipe_manager
   PUBLIC
   prop_recipe
+  absl::status
+  absl::statusor
+  PRIVATE
+  common
+  resource_utils
+  status_macros
+  absl::flat_hash_map
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
+add_library(parallax_artwork_recipe_manager parallax_artwork_recipe_manager.cc)
+target_link_libraries(parallax_artwork_recipe_manager
+  PUBLIC
+  parallax_artwork_recipe
   absl::status
   absl::statusor
   PRIVATE

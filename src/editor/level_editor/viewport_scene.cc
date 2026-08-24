@@ -313,25 +313,44 @@ absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
       (*options.layer_index < 0 || *options.layer_index >= static_cast<int>(theme.layers.size()))) {
     return absl::InvalidArgumentError("parallax preview layer index is out of range");
   }
+  if (options.element_id.has_value() && !options.layer_index.has_value()) {
+    return absl::InvalidArgumentError("parallax element preview requires an isolated layer");
+  }
 
   ParallaxRenderBatch batch{.camera = camera};
   batch.layers.reserve(options.layer_index.has_value() ? 1 : theme.layers.size());
   for (int index = 0; index < static_cast<int>(theme.layers.size()); ++index) {
     if (options.layer_index.has_value() && index != *options.layer_index) continue;
     const ParallaxLayer& layer = theme.layers[index];
-    if (layer.texture_id.empty()) continue;
     if (!std::isfinite(layer.scroll_factor.x) || !std::isfinite(layer.scroll_factor.y) ||
         !std::isfinite(layer.offset.x) || !std::isfinite(layer.offset.y) ||
-        !std::isfinite(layer.base_scale) || layer.base_scale <= 0.0f) {
-      return absl::InvalidArgumentError("parallax layer geometry must be finite and positive");
+        !std::isfinite(layer.repeat_period.x) || !std::isfinite(layer.repeat_period.y) ||
+        layer.repeat_period.x < 0.0 || layer.repeat_period.y < 0.0 || layer.elements.empty()) {
+      return absl::InvalidArgumentError("parallax layer geometry is invalid");
     }
 
-    auto texture = textures.find(layer.texture_id);
-    if (texture == textures.end() || !texture->second) {
-      return absl::FailedPreconditionError(
-          absl::StrCat("parallax texture is unavailable: ", layer.texture_id));
+    ParallaxRenderItem item{.layer = layer};
+    if (options.element_id.has_value()) item.layer.elements.clear();
+    item.elements.reserve(layer.elements.size());
+    for (const ParallaxElement& element : layer.elements) {
+      if (options.element_id.has_value() && element.id != *options.element_id) continue;
+      if (element.id < 0 || element.texture_id.empty() || !std::isfinite(element.position.x) ||
+          !std::isfinite(element.position.y) || !std::isfinite(element.scale) ||
+          element.scale <= 0.0f) {
+        return absl::InvalidArgumentError("parallax element geometry is invalid");
+      }
+      auto texture = textures.find(element.texture_id);
+      if (texture == textures.end() || !texture->second) {
+        return absl::FailedPreconditionError(
+            absl::StrCat("parallax texture is unavailable: ", element.texture_id));
+      }
+      if (options.element_id.has_value()) item.layer.elements.push_back(element);
+      item.elements.push_back({.element_id = element.id, .texture = texture->second});
     }
-    batch.layers.push_back({.texture = texture->second, .layer = layer});
+    if (item.elements.empty()) {
+      return absl::InvalidArgumentError("parallax preview element ID is unavailable");
+    }
+    batch.layers.push_back(std::move(item));
   }
   return batch;
 }

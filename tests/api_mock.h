@@ -80,7 +80,7 @@ class MockApi : public Api {
   MOCK_METHOD(absl::StatusOr<std::optional<TerrainRecipe>>, FindTerrainRecipeForTileset,
               (const std::string&), (override));
 
-  // Retained prop sources
+  // Retained artwork sources
   MOCK_METHOD(absl::StatusOr<std::string>, CreateSourceArtwork,
               (std::string, SourceArtworkProvenance, const RgbaImage&), (override));
   MOCK_METHOD(absl::StatusOr<SourceArtwork*>, GetSourceArtwork, (const std::string&), (override));
@@ -98,6 +98,20 @@ class MockApi : public Api {
               (override));
   MOCK_METHOD(absl::Status, DeleteGeneratedProp, (const std::string&), (override));
   MOCK_METHOD(absl::Status, RegenerateGeneratedProp, (const PreparedPropRegeneration&), (override));
+
+  // Generated parallax artwork recipes and bundles
+  MOCK_METHOD(absl::StatusOr<std::string>, CreateParallaxArtworkRecipe, (ParallaxArtworkRecipe),
+              (override));
+  MOCK_METHOD(absl::Status, SaveParallaxArtworkRecipe, (const ParallaxArtworkRecipe&), (override));
+  MOCK_METHOD(absl::StatusOr<ParallaxArtworkRecipe*>, GetParallaxArtworkRecipe,
+              (const std::string&), (override));
+  MOCK_METHOD(std::vector<ParallaxArtworkRecipe>, GetAllParallaxArtworkRecipes, (),
+              (const, override));
+  MOCK_METHOD(absl::StatusOr<std::string>, CreateGeneratedParallaxArtwork,
+              (const PreparedParallaxArtworkAsset&), (override));
+  MOCK_METHOD(absl::Status, DeleteGeneratedParallaxArtwork, (const std::string&), (override));
+  MOCK_METHOD(absl::Status, RegenerateGeneratedParallaxArtwork,
+              (const PreparedParallaxArtworkRegeneration&), (override));
 
   // Routes every recipe call to a real manager, for tests that care whether a
   // recipe actually round-trips to disk rather than that a call was made.

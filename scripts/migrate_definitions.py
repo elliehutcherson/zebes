@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import struct
 import sys
 import uuid
 from pathlib import Path
@@ -191,6 +193,192 @@ def migrate_parallax_themes(definitions_root: Path, dry_run: bool) -> list[Path]
     for level_path, document in level_updates:
         write_document(level_path, document, 4)
     return changed
+
+
+PARALLAX_THEME_SCHEMA_VERSION = 2
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def _positive_png_dimensions(path: Path) -> tuple[int, int]:
+    """Reads the fixed PNG signature and IHDR dimensions without a dependency."""
+    try:
+        with path.open("rb") as handle:
+            header = handle.read(24)
+    except OSError as error:
+        raise ValueError(f"Parallax texture PNG cannot be read: {path}") from error
+    if len(header) != 24 or header[:8] != PNG_SIGNATURE or header[12:16] != b"IHDR":
+        raise ValueError(f"Parallax texture is not a readable PNG: {path}")
+    width, height = struct.unpack(">II", header[16:24])
+    if width <= 0 or height <= 0:
+        raise ValueError(f"Parallax texture has invalid dimensions: {path}")
+    return width, height
+
+
+def _parallax_texture_dimensions(
+    definitions_root: Path, required_ids: set[str]
+) -> dict[str, tuple[int, int]]:
+    textures_directory = definitions_root / "textures"
+    if not textures_directory.is_dir():
+        raise ValueError(f"Definition directory does not exist: {textures_directory}")
+
+    assets_root = definitions_root.parent.resolve()
+    texture_paths: dict[str, Path] = {}
+    for definition_path in sorted(textures_directory.glob("*.json")):
+        texture = load_document(definition_path)
+        texture_id = texture.get("id")
+        relative_path = texture.get("path")
+        if not isinstance(texture_id, str) or not texture_id:
+            raise ValueError(f"Texture has an invalid ID: {definition_path}")
+        if texture_id in texture_paths:
+            raise ValueError(f"Duplicate texture ID {texture_id!r}: {definition_path}")
+        if not isinstance(relative_path, str) or not relative_path:
+            raise ValueError(f"Texture has an invalid path: {definition_path}")
+        if relative_path.startswith("textures/"):
+            image_path = (assets_root / relative_path).resolve()
+        else:
+            image_path = (assets_root / "textures" / relative_path).resolve()
+        if not image_path.is_relative_to(assets_root):
+            raise ValueError(f"Texture path escapes the asset root: {definition_path}")
+        texture_paths[texture_id] = image_path
+
+    missing = required_ids - texture_paths.keys()
+    if missing:
+        raise ValueError(f"Parallax layers reference missing textures: {sorted(missing)!r}")
+    return {
+        texture_id: _positive_png_dimensions(texture_paths[texture_id])
+        for texture_id in sorted(required_ids)
+    }
+
+
+def _migrate_parallax_theme_composition(
+    document: dict, texture_dimensions: dict[str, tuple[int, int]], path: Path
+) -> bool:
+    version = document.get("schema_version")
+    if version == PARALLAX_THEME_SCHEMA_VERSION:
+        for layer in document.get("layers", []):
+            if isinstance(layer, dict) and any(
+                field in layer
+                for field in ("texture_id", "base_scale", "repeat_x", "repeat_y")
+            ):
+                raise ValueError(f"Current parallax theme retains legacy layer fields: {path}")
+        return False
+    if version is not None:
+        raise ValueError(
+            f"Cannot migrate parallax theme schema version {version!r}: {path}"
+        )
+
+    layers = document.get("layers")
+    if not isinstance(layers, list):
+        raise ValueError(f"Parallax theme layers are not a list: {path}")
+    migrated_layers = []
+    for layer in layers:
+        if not isinstance(layer, dict):
+            raise ValueError(f"Parallax theme layer is not an object: {path}")
+        if any(
+            field in layer for field in ("elements", "repeat_period_x", "repeat_period_y")
+        ):
+            raise ValueError(f"Parallax theme has an ambiguous half-migrated layer: {path}")
+
+        name = layer.get("name")
+        texture_id = layer.get("texture_id")
+        scale = layer.get("base_scale")
+        repeat_x = layer.get("repeat_x")
+        repeat_y = layer.get("repeat_y")
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"Parallax layer has an invalid name: {path}")
+        if not isinstance(texture_id, str) or texture_id not in texture_dimensions:
+            raise ValueError(
+                f"Parallax layer references missing texture {texture_id!r}: {path}"
+            )
+        if (
+            isinstance(scale, bool)
+            or not isinstance(scale, (int, float))
+            or not math.isfinite(scale)
+            or scale <= 0
+        ):
+            raise ValueError(f"Parallax layer has an invalid base scale: {path}")
+        if not isinstance(repeat_x, bool) or not isinstance(repeat_y, bool):
+            raise ValueError(f"Parallax layer has invalid repeat flags: {path}")
+
+        width, height = texture_dimensions[texture_id]
+        migrated = {
+            field: layer[field]
+            for field in ("name", "scroll_factor_x", "scroll_factor_y", "offset_x", "offset_y")
+            if field in layer
+        }
+        required_fields = {
+            "name",
+            "scroll_factor_x",
+            "scroll_factor_y",
+            "offset_x",
+            "offset_y",
+        }
+        if migrated.keys() != required_fields:
+            raise ValueError(f"Parallax layer is missing required geometry: {path}")
+        unexpected = set(layer) - required_fields - {
+            "texture_id",
+            "base_scale",
+            "repeat_x",
+            "repeat_y",
+        }
+        if unexpected:
+            raise ValueError(
+                f"Parallax layer has unsupported fields {sorted(unexpected)!r}: {path}"
+            )
+        migrated["repeat_period_x"] = float(width * scale) if repeat_x else 0.0
+        migrated["repeat_period_y"] = float(height * scale) if repeat_y else 0.0
+        migrated["elements"] = [
+            {
+                "id": 0,
+                "name": name,
+                "texture_id": texture_id,
+                "position_x": 0.0,
+                "position_y": 0.0,
+                "scale": float(scale),
+            }
+        ]
+        migrated_layers.append(migrated)
+
+    document["layers"] = migrated_layers
+    document["schema_version"] = PARALLAX_THEME_SCHEMA_VERSION
+    return True
+
+
+def migrate_parallax_layer_compositions(
+    definitions_root: Path, dry_run: bool
+) -> list[Path]:
+    """Upgrades one-texture layers into explicit repeatable compositions.
+
+    Texture dimensions are read before any file is written because the old
+    boolean repeat flags implicitly used the scaled source image dimensions as
+    their period. Materialising that period preserves existing rendering while
+    allowing multiple independently positioned elements in the new schema.
+    """
+    themes_directory = definitions_root / "parallax_themes"
+    if not themes_directory.is_dir():
+        raise ValueError(f"Definition directory does not exist: {themes_directory}")
+    documents = []
+    required_texture_ids = set()
+    for path in sorted(themes_directory.glob("*.json")):
+        document = load_document(path)
+        documents.append((path, document))
+        if document.get("schema_version") is None:
+            for layer in document.get("layers", []):
+                if isinstance(layer, dict) and isinstance(layer.get("texture_id"), str):
+                    required_texture_ids.add(layer["texture_id"])
+    texture_dimensions = _parallax_texture_dimensions(
+        definitions_root, required_texture_ids
+    )
+
+    updates = []
+    for path, document in documents:
+        if _migrate_parallax_theme_composition(document, texture_dimensions, path):
+            updates.append((path, document))
+
+    if not dry_run:
+        for path, document in updates:
+            write_document(path, document, 2)
+    return [path for path, _ in updates]
 
 
 # The slope enumerators lost the underscore before their final segment when
@@ -376,6 +564,109 @@ def migrate_prop_recipe(document: dict) -> bool:
     return True
 
 
+SOURCE_ARTWORK_SCHEMA_VERSION = 2
+LEGACY_SOURCE_ARTWORK_DIRECTORY = Path("source_art/props")
+SOURCE_ARTWORK_DIRECTORY = Path("source_art")
+
+
+def migrate_source_artwork(definitions_root: Path, dry_run: bool) -> list[Path]:
+    """Moves retained artwork to its neutral ID-backed directory.
+
+    Definitions and images are preflighted as one set before any directory is
+    created or file is moved. A definition describing one location while only
+    the other image exists is a half-migration and is refused; the script does
+    not guess which file should be authoritative.
+    """
+    definitions_directory = definitions_root / "source_artworks"
+    if not definitions_directory.is_dir():
+        raise ValueError(
+            f"Definition directory does not exist: {definitions_directory}"
+        )
+    assets_root = definitions_root.parent
+    plans: list[tuple[Path, dict, Path, Path, bytes]] = []
+
+    for definition_path in sorted(definitions_directory.glob("*.json")):
+        document = load_document(definition_path)
+        artwork_id = document.get("id")
+        if (
+            not isinstance(artwork_id, str)
+            or not artwork_id
+            or not all(
+                "a" <= character <= "z"
+                or "A" <= character <= "Z"
+                or "0" <= character <= "9"
+                or character == "-"
+                for character in artwork_id
+            )
+        ):
+            raise ValueError(f"Source artwork has an invalid ID: {definition_path}")
+        if definition_path.stem != artwork_id:
+            raise ValueError(
+                f"Source artwork filename does not match its ID: {definition_path}"
+            )
+
+        legacy_relative = LEGACY_SOURCE_ARTWORK_DIRECTORY / f"{artwork_id}.png"
+        current_relative = SOURCE_ARTWORK_DIRECTORY / f"{artwork_id}.png"
+        legacy_image = assets_root / legacy_relative
+        current_image = assets_root / current_relative
+        version = document.get("schema_version")
+
+        if version == SOURCE_ARTWORK_SCHEMA_VERSION:
+            if document.get("source_path") != current_relative.as_posix():
+                raise ValueError(
+                    f"Current source artwork has a non-canonical path: {definition_path}"
+                )
+            if not current_image.is_file() or legacy_image.exists():
+                raise ValueError(
+                    f"Current source artwork has missing or conflicting image files: {definition_path}"
+                )
+            continue
+
+        if version != 1:
+            raise ValueError(
+                f"Cannot migrate source artwork schema version {version!r}: {definition_path}"
+            )
+        if document.get("source_path") != legacy_relative.as_posix():
+            raise ValueError(
+                f"Legacy source artwork has a non-canonical path: {definition_path}"
+            )
+        if not legacy_image.is_file() or current_image.exists():
+            raise ValueError(
+                f"Legacy source artwork has missing or conflicting image files: {definition_path}"
+            )
+
+        migrated = dict(document)
+        migrated["schema_version"] = SOURCE_ARTWORK_SCHEMA_VERSION
+        migrated["source_path"] = current_relative.as_posix()
+        plans.append(
+            (definition_path, migrated, legacy_image, current_image, definition_path.read_bytes())
+        )
+
+    changed = [definition_path for definition_path, *_ in plans]
+    if dry_run or not changed:
+        return changed
+
+    (assets_root / SOURCE_ARTWORK_DIRECTORY).mkdir(parents=True, exist_ok=True)
+    moved: list[tuple[Path, Path]] = []
+    written: list[tuple[Path, bytes]] = []
+    try:
+        for _, _, legacy_image, current_image, _ in plans:
+            legacy_image.replace(current_image)
+            moved.append((legacy_image, current_image))
+        for definition_path, migrated, _, _, original in plans:
+            write_document(definition_path, migrated, 2)
+            written.append((definition_path, original))
+    except OSError:
+        for definition_path, original in reversed(written):
+            definition_path.write_bytes(original)
+        for legacy_image, current_image in reversed(moved):
+            if current_image.exists() and not legacy_image.exists():
+                legacy_image.parent.mkdir(parents=True, exist_ok=True)
+                current_image.replace(legacy_image)
+        raise
+    return changed
+
+
 # Each definition directory, the migration that brings its files current, and
 # the indent its manager writes with. Matching the indent matters: a migrated
 # file and one the editor re-saves must be byte-identical, or every later save
@@ -442,6 +733,16 @@ def main(argv: list[str]) -> int:
     total = 0
     if (args.definitions / "levels").is_dir():
         changed = migrate_parallax_themes(args.definitions, args.dry_run)
+        total += len(changed)
+        for path in changed:
+            print(f"{'would migrate' if args.dry_run else 'migrated'}: {path}")
+    if (args.definitions / "parallax_themes").is_dir():
+        changed = migrate_parallax_layer_compositions(args.definitions, args.dry_run)
+        total += len(changed)
+        for path in changed:
+            print(f"{'would migrate' if args.dry_run else 'migrated'}: {path}")
+    if (args.definitions / "source_artworks").is_dir():
+        changed = migrate_source_artwork(args.definitions, args.dry_run)
         total += len(changed)
         for path in changed:
             print(f"{'would migrate' if args.dry_run else 'migrated'}: {path}")

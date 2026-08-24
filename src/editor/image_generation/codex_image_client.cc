@@ -260,8 +260,8 @@ class CodexImageClient::Session {
 
     absl::StatusOr<ImageGenerationResult> outcome = std::move(completed->outcome);
     operations_.erase(operation_id);
-    if (!outcome.ok()) return outcome.status();
-    return std::optional<ImageGenerationResult>(std::move(outcome).value());
+    ASSIGN_OR_RETURN(ImageGenerationResult result, std::move(outcome));
+    return std::optional<ImageGenerationResult>(std::move(result));
   }
 
   void Cancel(uint64_t operation_id) noexcept {

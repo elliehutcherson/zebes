@@ -12,6 +12,7 @@
 #include "editor/gui_interface.h"
 #include "editor/image_generation/image_generation_service.h"
 #include "editor/level_editor/level_editor.h"
+#include "editor/parallax_artwork_editor/parallax_artwork_editor.h"
 #include "editor/parallax_theme_editor/parallax_theme_editor.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor.h"
 #include "editor/sdl_preview_texture.h"
@@ -69,6 +70,8 @@ class EditorUi {
   // Prop previews update independently of terrain previews; sharing one
   // streaming texture would make whichever tab rendered last own both images.
   std::unique_ptr<SdlPreviewTexture> prop_artwork_preview_;
+  // Parallax artwork has independently selected source and stage previews.
+  std::unique_ptr<SdlPreviewTexture> parallax_artwork_preview_;
   std::unique_ptr<TilesetEditor> tileset_editor_;
   std::unique_ptr<TerrainEditor> terrain_editor_;
   // Declared before the editor that submits to either service, so the editor
@@ -78,6 +81,7 @@ class EditorUi {
   std::unique_ptr<ImageGenerationService> codex_image_generation_;
   std::unique_ptr<ImageGenerationService> openai_image_generation_;
   std::unique_ptr<PropArtworkEditor> prop_artwork_editor_;
+  std::unique_ptr<ParallaxArtworkEditor> parallax_artwork_editor_;
 
   bool show_debug_metrics_ = false;
   bool select_parallax_theme_tab_ = false;

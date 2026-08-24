@@ -6,13 +6,14 @@ target_link_libraries(parallax_theme_editor_model
 
 add_library(parallax_preview_model parallax_preview_model.cc)
 target_link_libraries(parallax_preview_model
-  PUBLIC game_view level absl::statusor
-  PRIVATE absl::status
+  PUBLIC game_view level parallax_theme absl::status absl::statusor
 )
 
 add_library(parallax_diagnostics parallax_diagnostics.cc)
 target_link_libraries(parallax_diagnostics
-  PUBLIC image_io camera game_view parallax_preview_model parallax_theme absl::statusor
+  PUBLIC
+  camera game_view parallax_layout parallax_preview_model parallax_theme repetition_review
+  absl::statusor
   PRIVATE status_macros absl::status
 )
 
@@ -24,6 +25,7 @@ target_link_libraries(parallax_theme_editor
   editor_canvas
   editor_texture_preview
   imgui_scoped
+  inspector_ui
   parallax_diagnostics
   parallax_preview_model
   status_macros

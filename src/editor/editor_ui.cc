@@ -19,6 +19,7 @@
 #include "editor/image_generation/openai_image_client.h"
 #include "editor/imgui_scoped.h"
 #include "editor/level_editor/level_editor.h"
+#include "editor/parallax_artwork_editor/parallax_artwork_editor.h"
 #include "editor/parallax_theme_editor/parallax_theme_editor.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor.h"
 #include "editor/sprite_editor/sprite_editor.h"
@@ -32,8 +33,7 @@ namespace {
 absl::StatusOr<std::unique_ptr<ImageGenerationService>> CreateConfiguredOpenAiService(
     OpenAiImageConfig config) {
   EnvironmentCredentialSource credentials;
-  absl::StatusOr<SecretString> credential = credentials.Load(config.credential_reference);
-  if (!credential.ok()) return credential.status();
+  RETURN_IF_ERROR(credentials.Load(config.credential_reference).status());
   return ImageGenerationService::CreateOpenAi(std::move(config));
 }
 
@@ -72,6 +72,7 @@ absl::Status EditorUi::Init() {
   terrain_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
   ASSIGN_OR_RETURN(terrain_editor_, TerrainEditor::Create(api_, gui_, terrain_preview_.get()));
   prop_artwork_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
+  parallax_artwork_preview_ = std::make_unique<SdlPreviewTexture>(sdl_);
 
   std::vector<PropArtworkGenerationProvider> generation_providers;
   absl::StatusOr<std::unique_ptr<ImageGenerationService>> codex =
@@ -115,6 +116,11 @@ absl::Status EditorUi::Init() {
                        .preview = prop_artwork_preview_.get(),
                        .generation_providers = std::move(generation_providers),
                    }));
+  ASSIGN_OR_RETURN(parallax_artwork_editor_, ParallaxArtworkEditor::Create({
+                                                 .api = api_,
+                                                 .gui = gui_,
+                                                 .preview = parallax_artwork_preview_.get(),
+                                             }));
   return absl::OkStatus();
 }
 
@@ -151,6 +157,7 @@ void EditorUi::Render() {
     RenderTab("Tileset Editor", [this]() { return tileset_editor_->Render(); });
     RenderTab("Terrain Editor", [this]() { return terrain_editor_->Render(); });
     RenderTab("Prop Artwork", [this]() { return prop_artwork_editor_->Render(); });
+    RenderTab("Parallax Artwork", [this]() { return parallax_artwork_editor_->Render(); });
     RenderTab("Config Editor", [this]() {
       config_editor_->Render();
       return absl::OkStatus();

@@ -2,16 +2,25 @@
   "id": "39bb8062-238e-58f3-9cd6-d625604e7949",
   "layers": [
     {
-      "base_scale": 7.0,
+      "elements": [
+        {
+          "id": 0,
+          "name": "Space Layer",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 7.0,
+          "texture_id": "132b63e6-cec0-46cc-9232-9573733129aa"
+        }
+      ],
       "name": "Space Layer",
       "offset_x": 0.0,
       "offset_y": 0.0,
-      "repeat_x": true,
-      "repeat_y": false,
+      "repeat_period_x": 2688.0,
+      "repeat_period_y": 0.0,
       "scroll_factor_x": 0.1,
-      "scroll_factor_y": 0.1,
-      "texture_id": "132b63e6-cec0-46cc-9232-9573733129aa"
+      "scroll_factor_y": 0.1
     }
   ],
-  "name": "level_0 \u2014 Space Theme"
+  "name": "level_0 \u2014 Space Theme",
+  "schema_version": 2
 }

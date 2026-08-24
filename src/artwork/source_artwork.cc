@@ -3,12 +3,14 @@
 #include <array>
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <string>
 #include <utility>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/image_digest.h"
 #include "common/status_macros.h"
 #include "nlohmann/json.hpp"
 
@@ -36,17 +38,6 @@ absl::StatusOr<std::optional<std::string>> RequiredNullableString(const nlohmann
   if (json.at(key).is_null()) return std::nullopt;
   ASSIGN_OR_RETURN(std::string value, Required<std::string>(json, key));
   return value;
-}
-
-bool IsSha256(std::string_view digest) {
-  if (digest.size() != 64) return false;
-  for (const char character : digest) {
-    if (!std::isdigit(static_cast<unsigned char>(character)) &&
-        (character < 'a' || character > 'f')) {
-      return false;
-    }
-  }
-  return true;
 }
 
 absl::Status ValidateTimestamp(std::string_view timestamp, std::string_view field) {
@@ -115,6 +106,37 @@ absl::StatusOr<SourceArtworkProvenance> ProvenanceFromJson(const nlohmann::json&
 
 }  // namespace
 
+absl::Status ValidateSourceArtworkLimits(const SourceArtworkLimits& limits) {
+  if (limits.maximum_width <= 0) {
+    return absl::InvalidArgumentError("source artwork maximum width must be positive");
+  }
+  if (limits.maximum_height <= 0) {
+    return absl::InvalidArgumentError("source artwork maximum height must be positive");
+  }
+  if (limits.maximum_pixels == 0) {
+    return absl::InvalidArgumentError("source artwork maximum pixels must be positive");
+  }
+  if (limits.maximum_bytes == 0) {
+    return absl::InvalidArgumentError("source artwork maximum bytes must be positive");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateSourceArtworkPixels(const RgbaImage& image,
+                                         const SourceArtworkLimits& limits) {
+  if (!image.IsValid()) return absl::InvalidArgumentError("source artwork is not valid RGBA8");
+  RETURN_IF_ERROR(ValidateSourceArtworkLimits(limits));
+
+  const uint64_t pixels = static_cast<uint64_t>(image.width) * image.height;
+  if (image.width > limits.maximum_width || image.height > limits.maximum_height ||
+      pixels > limits.maximum_pixels || image.pixels.size() > limits.maximum_bytes) {
+    return absl::ResourceExhaustedError(absl::StrCat("source artwork ", image.width, "x",
+                                                     image.height, " (", image.pixels.size(),
+                                                     " bytes) exceeds configured limits"));
+  }
+  return absl::OkStatus();
+}
+
 absl::Status ValidateSourceArtwork(const SourceArtwork& artwork) {
   if (artwork.id.empty() || artwork.name.empty() || artwork.source_path.empty()) {
     return absl::InvalidArgumentError("source artwork needs an ID, name, and source path");
@@ -122,7 +144,7 @@ absl::Status ValidateSourceArtwork(const SourceArtwork& artwork) {
   if (artwork.width <= 0 || artwork.height <= 0) {
     return absl::InvalidArgumentError("source artwork dimensions must be positive");
   }
-  if (!IsSha256(artwork.content_digest)) {
+  if (!IsLowercaseSha256Digest(artwork.content_digest)) {
     return absl::InvalidArgumentError("source artwork content digest is not lowercase SHA-256");
   }
   if (const auto* imported = std::get_if<ImportedArtworkProvenance>(&artwork.provenance)) {

@@ -302,8 +302,7 @@ class PosixCodexAppServerTransport final : public CodexAppServerTransport {
     }
     for (const int descriptor : {input_pipe[0], input_pipe[1], output_pipe[0], output_pipe[1],
                                  error_pipe[0], error_pipe[1]}) {
-      const absl::Status status = SetDescriptorFlags(descriptor);
-      if (!status.ok()) return status;
+      RETURN_IF_ERROR(SetDescriptorFlags(descriptor));
     }
 
     posix_spawn_file_actions_t actions;
@@ -366,8 +365,8 @@ class PosixCodexAppServerTransport final : public CodexAppServerTransport {
     const absl::Status error_status = SetNonBlocking(running.error.get());
     if (input_status.ok() && output_status.ok() && error_status.ok()) return absl::OkStatus();
     Stop();
-    if (!input_status.ok()) return input_status;
-    if (!output_status.ok()) return output_status;
+    RETURN_IF_ERROR(input_status);
+    RETURN_IF_ERROR(output_status);
     return error_status;
   }
 

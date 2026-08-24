@@ -3,17 +3,26 @@
 #include <cstddef>
 
 #include "absl/status/status.h"
+#include "common/status_macros.h"
 
 namespace zebes {
+
+absl::Status ValidatePropEdgeConfig(const PropEdgeConfig& config) {
+  if (config.width < 0 || config.width > 8) {
+    return absl::InvalidArgumentError("prop edge width must be between 0 and 8");
+  }
+  if (config.alpha_threshold < 0 || config.alpha_threshold > 255) {
+    return absl::InvalidArgumentError("prop edge alpha threshold must be between 0 and 255");
+  }
+  return absl::OkStatus();
+}
 
 absl::StatusOr<PropArtwork> ApplyPropEdgeTreatment(const PropArtwork& artwork,
                                                    const RgbaColor& outline,
                                                    const PropEdgeConfig& config) {
   if (!artwork.IsValid()) return absl::InvalidArgumentError("prop artwork is invalid");
-  if (outline.a != 255 || config.width < 0 || config.width > 8 || config.alpha_threshold < 0 ||
-      config.alpha_threshold > 255) {
-    return absl::InvalidArgumentError("prop edge settings are invalid");
-  }
+  if (outline.a != 255) return absl::InvalidArgumentError("prop outline must be opaque");
+  RETURN_IF_ERROR(ValidatePropEdgeConfig(config));
   if (config.width == 0) return artwork;
 
   PropArtwork treated = artwork;

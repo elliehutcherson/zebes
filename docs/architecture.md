@@ -196,8 +196,15 @@ and calculations such as preview bounds or atlas-cell snapping. They must not
 depend on ImGui, SDL, or `Api`. Panels render model state and report persistence
 intents; the containing editor coordinates those intents with `Api`.
 
-Two rules are uniform across every editor tab, so that authoring one asset kind
+Three rules are uniform across every editor tab, so that authoring one asset kind
 teaches you the others.
+
+**A resource editor never traps the author in its detail view.** Tabs that keep
+their catalog visible need no extra navigation. Tabs that replace the catalog
+with an asset workspace expose an explicit Back or Close action outside any
+scrolling region; selector-based editors keep their existing-resource selector
+visible. Leaving a dirty workspace follows the snapshot rule below rather than
+silently discarding work.
 
 **A destructive action asks before it acts, against a remembered target.**
 `ConfirmPrompt` (`src/editor/confirm_prompt.h`) replaces the button with a
@@ -265,6 +272,13 @@ shared mutation visible and prevents saving a level from publishing an
 unrelated theme draft. The level loader refuses the retired embedded `themes`
 field and directs authors to the deterministic migration instead of maintaining
 two ownership paths.
+
+Each theme layer owns an ordered stable-ID `ParallaxElement` composition.
+Elements carry texture ID, layer-local position, and scale; the layer owns its
+camera-relative transform and an explicit repeat period, where zero leaves an
+axis finite. Repetition copies the complete composition, never each element
+independently. Element placement therefore remains reusable theme content—not
+level or zone state—and terrain-aligned scenery remains a world-layer prop.
 
 Theme Editor and Level Editor communicate through stable-ID navigation requests
 routed by `EditorUi`, which owns both. Neither editor borrows the other's model
@@ -339,17 +353,20 @@ use stable zone IDs; selecting or explicitly framing a zone may move the editor
 camera without changing activation semantics.
 
 For the active parallax theme, the composition boundary resolves the zone's
-theme resource and its authored texture IDs once per frame, then
+theme resource and each unique authored element texture ID once per frame, then
 `ViewportScene` binds them to a `ParallaxRenderBatch`. `ViewportRenderer` alone
 converts those handles, queries native texture dimensions, calculates the
-already headlessly tested parallax layout, and emits draw commands. A missing
-theme resource, texture definition, or runtime handle fails the render pass.
+already headlessly tested composition layout, culls element instances, and
+emits repeat cells in authored order. A missing theme resource, texture
+definition, runtime handle, invalid repeat period, or excessive visible
+instance count fails the render pass.
 Incomplete layer drafts live only in Theme Editor and are never published to
 the resource catalog.
 
 The Level viewport may preview the active or selected zone's resolved theme.
-Theme Editor renders complete-theme or isolated-layer composition into the
-configured logical game view, aspect-fitted into the physical ImGui region.
+Theme Editor renders complete-theme, isolated-layer, or isolated-element
+composition into the configured logical game view, aspect-fitted into the
+physical ImGui region.
 Resizing the editor therefore never changes simulated camera coverage. Its
 optional level/zone context supplies world bounds and an authored route; the
 preview intersects that route with camera centers actually reachable inside
@@ -357,6 +374,14 @@ the level at the selected zoom. Manual route endpoints are explicitly camera
 centers. These preview choices never change zone activation, theme drafts, or
 persistent level data, and both modes use the same platform-neutral batch
 request and renderer as the Level viewport.
+
+An incomplete Theme Editor element remains draft-only: preview input omits that
+element while preserving every renderable element and layer, but the normal
+theme validator still prevents saving. The canvas selects and moves elements
+from the selected layer with no-jump left dragging. Canvas arrow/WASD and
+middle-drag navigation project back into the normalized route controls, so
+direct movement and fast Travel X/Y scrubbing are two views of one camera
+state rather than competing navigation modes.
 
 Managed texture thumbnails use `TexturePreviewRenderer` at the editor boundary.
 Panels supply an opaque `TextureHandle`; the renderer resolves SDL state,
@@ -632,16 +657,62 @@ Stop latency is bounded by the stop notification rather than by any engine
 deadline, so a long poll interval never makes shutdown slower.
 
 Generated prop authoring follows the same thread and ownership boundary.
-`SourceArtworkManager` owns editor-only retained PNG inputs and their strict
-definitions; it never creates renderer resources. `PropRecipeManager` owns the
-versioned deterministic build record, including a resolved terrain-style
-snapshot and stable output IDs. Both managers are singletons owned by
-`EditorEngine` and exposed through `Api`, so editors cannot create competing
-caches over the same directories. Source deletion scans prop recipes first, and
-an attached terrain recipe cannot be deleted until the prop style is detached
-or the prop bundle is removed. Runtime texture, sprite, and blueprint
-definitions remain ordinary engine assets; neither authoring resource enters
-runtime rendering.
+`SourceArtworkManager` owns editor-only retained PNG inputs under neutral,
+ID-backed `source_art/<source-id>.png` paths and their strict definitions; it never creates
+renderer resources. `PropRecipeManager` owns the versioned deterministic build
+record, including a resolved terrain-style snapshot and stable output IDs.
+`ParallaxArtworkRecipeManager` owns the corresponding one-source/one-texture
+background build record. Its platform-neutral coordinator shares matte,
+nearest-neighbour resize, palette, alpha, and repetition-review primitives but
+does not enter the prop subject-isolation or anchoring workflow. Creation
+publishes the Texture before the recipe and compensates on failure;
+regeneration replaces only recipe-owned texture pixels after snapshot checks.
+Generated texture paths are ID-backed and grouped by their owning authoring
+domain as `textures/<category>/<texture-id>.png`; `TextureManager` enforces that
+generic shape without hard-coding a single recipe kind's category.
+These managers are singletons owned by `EditorEngine` and exposed through
+`Api`, so editors cannot create competing caches over the same directories.
+Source deletion scans every recipe kind first, and an attached terrain recipe
+cannot be deleted until the artwork style is detached or its bundle is removed.
+Runtime texture, sprite, and blueprint definitions remain ordinary engine
+assets; authoring resources do not enter runtime rendering.
+
+Artwork persistence shares filesystem and identity primitives, not schema
+policy. Resource managers use `LoadJsonDefinitions` and
+`WriteTextFileAtomically`; digest producers and validators use the shared image
+digest module. Each versioned recipe still owns an explicit, strict parser and
+serializer so unknown fields, invalid enums, and migration decisions fail at
+the correct domain boundary. Do not introduce a generic recipe manager or
+workflow graph merely to reduce similar-looking control flow: prop, terrain,
+and background transactions have different outputs and rollback obligations.
+`source_art/` is one flat authoring-input store; semantic roles live in recipes
+and metadata rather than directory names.
+
+Validation follows the same boundary. Public domain validators compose small
+validators for cohesive concerns such as geometry, policy enums, matte
+settings, and asset-graph identity. Each check uses an early return with a
+specific error; unrelated invariants do not belong in one compound condition.
+An ORM is not part of this architecture: authoring definitions are versioned
+files in small in-memory catalogs, with no relational database, query planner,
+or unit-of-work boundary for an ORM to own. If persistence later moves to a
+database, evaluate a repository layer against those concrete requirements
+rather than wrapping the current JSON resources in database-shaped machinery.
+
+Post-generation image cleanup is a platform-neutral artwork operation rather
+than editor UI or resource-manager logic. `generated_artwork_postprocessor`
+accepts copied RGBA input plus a copied palette-reference image and returns
+typed intermediate and final images with diagnostics. It removes an explicitly
+declared solid backdrop, decontaminates partially covered edges against the
+reference palette, reuses the premultiplied artwork resizer and Oklab
+quantizer, and validates binary alpha and clear canvas borders. The command-line
+adapter reads and writes PNGs; the Parallax Artwork editor calls the same
+operation on a worker and commits its prepared result on the editor thread
+rather than growing a second processing path. Palette references define
+allowed output colors but do not become retained handles or extend a resource
+store's lifetime. Solid-matte removal keeps tolerant exterior cleanup
+border-connected, then also seeds enclosed components from pixels matching the
+explicit matte color. That clears holes in arches without classifying every
+isolated foreground color inside the broader fringe tolerance as background.
 
 In-context prop placement is transient editor state. Its preview retains an
 unmodified terrain layer and recomposites the finished prop while it is

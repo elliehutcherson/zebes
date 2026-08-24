@@ -222,7 +222,7 @@ class PropArtworkEditorTest : public ::testing::Test {
     source_ = SourceArtwork{
         .id = "source-1",
         .name = "Boulder source",
-        .source_path = "source_art/props/source-1.png",
+        .source_path = "source_art/source-1.png",
         .provenance =
             ImportedArtworkProvenance{
                 .original_filename = "boulder.png",
@@ -343,7 +343,7 @@ TEST_F(PropArtworkEditorTest, ImportDecodesOnAWorkerThenAcceptsSourceOnTheEditor
         imported = SourceArtwork{
             .id = "imported-source",
             .name = std::move(name),
-            .source_path = "source_art/props/imported-source.png",
+            .source_path = "source_art/imported-source.png",
             .provenance = std::move(provenance),
             .width = image.width,
             .height = image.height,
@@ -394,7 +394,7 @@ TEST_F(PropArtworkEditorTest, SelectingARetainedSourceDiscardsTheSessionOwnedImp
   SourceArtwork retained = source_;
   retained.id = "retained-source";
   retained.name = "Retained tree";
-  retained.source_path = "source_art/props/retained-source.png";
+  retained.source_path = "source_art/retained-source.png";
   model().source_to_open() = retained.id;
   EXPECT_CALL(api_, GetSourceArtwork(StrEq(retained.id))).WillOnce(Return(&retained));
   EXPECT_CALL(api_, ReadSourceArtworkPixels(StrEq(retained.id))).WillOnce(Return(pixels_));
@@ -505,7 +505,7 @@ TEST_F(PropArtworkEditorTest, AcceptedCandidateIsRetainedWithGeneratedProvenance
         generated = SourceArtwork{
             .id = "generated-source",
             .name = std::move(name),
-            .source_path = "source_art/props/generated-source.png",
+            .source_path = "source_art/generated-source.png",
             .provenance = std::move(provenance),
             .width = image.width,
             .height = image.height,

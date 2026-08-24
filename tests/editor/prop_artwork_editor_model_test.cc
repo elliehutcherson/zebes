@@ -40,7 +40,7 @@ absl::StatusOr<SourceArtwork> AcceptedSource(const RgbaImage& pixels) {
   return SourceArtwork{
       .id = "source-1",
       .name = "Boulder source",
-      .source_path = "source_art/props/source-1.png",
+      .source_path = "source_art/source-1.png",
       .provenance =
           ImportedArtworkProvenance{
               .original_filename = "boulder.png",
@@ -241,7 +241,7 @@ TEST_F(PropArtworkEditorModelTest, ExistingRecipeKeepsItsSourceUntilSaveAs) {
 
   SourceArtwork another = source_;
   another.id = "source-2";
-  another.source_path = "source_art/props/source-2.png";
+  another.source_path = "source_art/source-2.png";
   EXPECT_EQ(model_.SelectSource(std::move(another), pixels_).code(),
             absl::StatusCode::kFailedPrecondition);
 }

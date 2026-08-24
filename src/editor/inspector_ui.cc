@@ -19,6 +19,14 @@ void RenderInspectorSection(GuiInterface& gui, const char* title, const char* de
   if (description != nullptr && description[0] != '\0') gui.TextWrapped("%s", description);
 }
 
+bool InputCommittedDouble(GuiInterface& gui, const char* label, double& value, const char* format) {
+  double edited_value = value;
+  gui.InputDouble(label, &edited_value, 0.0, 0.0, format);
+  if (!gui.IsItemDeactivatedAfterEdit()) return false;
+  value = edited_value;
+  return true;
+}
+
 InspectorPropertyGrid::InspectorPropertyGrid(GuiInterface& gui, const char* id, float label_width)
     : gui_(gui), table_(gui.CreateScopedTable(id, 2, kPropertyTableFlags)) {
   if (!table_) return;

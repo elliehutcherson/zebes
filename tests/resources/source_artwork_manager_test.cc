@@ -58,7 +58,7 @@ TEST_F(SourceArtworkManagerTest, CreatesAndReloadsAnImportedSourceFromCanonicalP
                        SourceArtworkManager::Create(path_.string()));
   ASSERT_OK(reloaded->LoadAllArtwork());
   ASSERT_OK_AND_ASSIGN(SourceArtwork * artwork, reloaded->GetArtwork(id));
-  EXPECT_EQ(artwork->source_path, "source_art/props/" + id + ".png");
+  EXPECT_EQ(artwork->source_path, "source_art/" + id + ".png");
   EXPECT_EQ(artwork->width, image.width);
   EXPECT_EQ(artwork->height, image.height);
   EXPECT_EQ(artwork->content_digest.size(), 64u);
@@ -98,7 +98,7 @@ TEST_F(SourceArtworkManagerTest, RejectsPixelsChangedAfterAcceptance) {
       .height = 2,
       .pixels = {1, 2, 3, 255, 1, 2, 3, 255, 1, 2, 3, 255, 1, 2, 3, 255},
   };
-  ASSERT_OK(WritePng((path_ / "source_art/props" / (id + ".png")).string(), replacement.width,
+  ASSERT_OK(WritePng((path_ / "source_art" / (id + ".png")).string(), replacement.width,
                      replacement.height, replacement.pixels));
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<SourceArtworkManager> reloaded,
@@ -133,7 +133,7 @@ TEST_F(SourceArtworkManagerTest, RejectsAPathOutsideTheIdBackedSourceDirectory) 
 TEST_F(SourceArtworkManagerTest, EnforcesLimitsBeforeWritingAnything) {
   ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<SourceArtworkManager> limited,
-      SourceArtworkManager::Create(path_.string(), PropSourceLimits{.maximum_width = 1}));
+      SourceArtworkManager::Create(path_.string(), SourceArtworkLimits{.maximum_width = 1}));
   const absl::Status status =
       limited
           ->CreateArtwork("Too large",
@@ -155,7 +155,7 @@ TEST_F(SourceArtworkManagerTest, DeleteRemovesDefinitionAndRetainedPixels) {
   ASSERT_OK(manager_->DeleteArtwork(id));
 
   EXPECT_FALSE(std::filesystem::exists(path_ / "definitions/source_artworks" / (id + ".json")));
-  EXPECT_FALSE(std::filesystem::exists(path_ / "source_art/props" / (id + ".png")));
+  EXPECT_FALSE(std::filesystem::exists(path_ / "source_art" / (id + ".png")));
   EXPECT_EQ(manager_->GetArtwork(id).status().code(), absl::StatusCode::kNotFound);
 }
 

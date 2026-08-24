@@ -102,24 +102,10 @@ absl::StatusOr<Blueprint*> BlueprintManager::LoadBlueprint(const std::string& pa
 }
 
 absl::Status BlueprintManager::LoadAllBlueprints() {
-  if (!std::filesystem::exists(definitions_path_)) {
-    // An error, not an empty catalog: a misconfigured assets path must not look
-    // like a project with no blueprints.
-    return absl::NotFoundError(
-        absl::StrCat("Blueprint root directory not found: ", definitions_path_));
-  }
-
-  ResourceLoadFailures failures;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    auto status = LoadBlueprint(entry.path().filename().string());
-    if (!status.ok()) {
-      LOG(WARNING) << "Failed to load blueprint from " << entry.path() << ": " << status.status();
-      failures.Add(entry.path().filename().string(), status.status());
-    }
-  }
-  return failures.ToStatus("blueprint");
+  return LoadJsonDefinitions(definitions_path_, "blueprint",
+                             [this](const std::filesystem::path& path) -> absl::Status {
+                               return LoadBlueprint(path.filename().string()).status();
+                             });
 }
 
 absl::StatusOr<std::string> BlueprintManager::CreateBlueprint(Blueprint blueprint) {

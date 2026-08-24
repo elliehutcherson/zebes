@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "artwork/cleanup_prop.h"
 #include "artwork/compose_prop.h"
@@ -13,6 +14,7 @@
 #include "artwork/prop_artwork.h"
 #include "artwork/prop_artwork_style.h"
 #include "artwork/quantize_prop.h"
+#include "artwork/source_artwork.h"
 #include "common/image_io.h"
 
 namespace zebes {
@@ -28,15 +30,8 @@ enum class PropArtworkStage : uint8_t {
   kCleanup = 5,
 };
 
-struct PropSourceLimits {
-  int maximum_width = 4096;
-  int maximum_height = 4096;
-  size_t maximum_pixels = 16 * 1024 * 1024;
-  size_t maximum_bytes = 64 * 1024 * 1024;
-};
-
 struct PropArtworkPipelineConfig {
-  PropSourceLimits source_limits;
+  SourceArtworkLimits source_limits;
   SubjectIsolationConfig isolation;
   PropCompositionConfig composition;
   PropEdgeConfig edge;
@@ -69,7 +64,8 @@ struct PropArtworkPipelineResult {
   std::array<PropStageDiagnostic, 6> diagnostics;
 };
 
-absl::Status ValidatePropSource(const RgbaImage& source, const PropSourceLimits& limits);
+absl::Status ValidatePropArtworkPipelineConfig(const PropArtworkPipelineConfig& config,
+                                               const PropArtworkStyle& style);
 
 absl::StatusOr<PropArtworkPipelineResult> RunPropArtworkPipeline(
     const RgbaImage& source, const PropArtworkStyle& style,

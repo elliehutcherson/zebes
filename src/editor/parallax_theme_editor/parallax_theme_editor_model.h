@@ -30,11 +30,18 @@ class ParallaxThemeEditorModel {
   ParallaxTheme* draft() { return draft_ ? &*draft_ : nullptr; }
   const ParallaxTheme* draft() const { return draft_ ? &*draft_ : nullptr; }
   std::optional<int> selected_layer() const { return selected_layer_; }
+  std::optional<int> selected_element_id() const { return selected_element_id_; }
   void SelectLayer(int index);
+  void SelectElement(int element_id);
 
   absl::Status AddLayer();
   absl::Status DeleteSelectedLayer();
   absl::Status MoveSelectedLayer(int delta);
+  absl::Status AddElement();
+  absl::Status AddElementAt(Vec position);
+  absl::Status DuplicateSelectedElement();
+  absl::Status DeleteSelectedElement();
+  absl::Status MoveSelectedElement(int delta);
   absl::Status ApplyDepthPreset(ParallaxDepthPreset preset);
   absl::StatusOr<ParallaxTheme> BuildSaveRequest() const;
   void FinishSave(const std::string& id);
@@ -45,6 +52,7 @@ class ParallaxThemeEditorModel {
   std::optional<ParallaxTheme> draft_;
   std::optional<ParallaxTheme> snapshot_;
   std::optional<int> selected_layer_;
+  std::optional<int> selected_element_id_;
 };
 
 }  // namespace zebes

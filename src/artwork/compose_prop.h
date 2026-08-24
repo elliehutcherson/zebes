@@ -33,6 +33,7 @@ struct PropCompositionConfig {
   PropAttachmentConfig attachment;
 };
 
+absl::Status ValidatePropCompositionConfig(const PropCompositionConfig& config);
 absl::Status ValidatePropAttachment(const PropAttachmentConfig& attachment, int output_width,
                                     int output_height);
 

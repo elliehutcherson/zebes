@@ -13,7 +13,7 @@ phase has decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
-| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — resume the cave content gate |
+| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 2 import-first background artwork is accepted; Milestone 3 generated candidates are next |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -164,10 +164,25 @@ labeled property grid, and consolidates readiness blockers behind the toolbar's
 review action. The same gate established the next priority before background
 processing: Far Fill and Far Formations may repeat, but distinctive Near
 Formations need multiple positioned elements within one layer. Milestone 1.6
-adds finite or group-repeating compositions, deterministic migration, culling,
-Theme Editor arrangement, and adjacent/wrap seam diagnostics without moving
-composition into levels or misusing zones. The accepted evidence is recorded in
+now implements finite or group-repeating compositions, deterministic migration,
+culling, Theme Editor arrangement and dragging, explicit repeat-cell guides,
+and adjacent/wrap seam diagnostics without moving composition into levels or
+misusing zones. Its automated and human gates are accepted: the Milestone 1.6
+review used a four-element, 5000-pixel group-repeating Near composition;
+direct manipulation, camera navigation, persistence, the 0.5–2.0 zoom route,
+and the first/last wrap were reviewed. Milestone 2 subsequently extended the
+saved Near composition to five elements and an 8192-pixel repeat period while
+accepting the managed cave-plate workflow. The evidence is recorded in
 [`cave-parallax-content-gate.md`](cave-parallax-content-gate.md).
+
+**Environment artwork next — Milestone 3.** Milestone 2's import-first
+Parallax Artwork resource, deterministic recipe, reference-safe managed output,
+editor lifecycle, and cave-plate human gate are accepted. Next, extract the
+shared generation-request controller and add background-specific candidate
+generation, cancellation, review, accept, and discard to the same retained
+source path. The pre-pilot Near candidates remain test content and must be
+palette-normalized or replaced before the final Milestone 4 cave kit; do not
+fold that art-polish work into generation infrastructure.
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved

@@ -21,14 +21,16 @@ void Add(std::vector<AssetReference>& out, AssetKind kind, std::string_view id,
   });
 }
 
-// Walks a reusable theme for parallax layers naming `texture_id`, recording the
-// layer so the user can find the one that matters.
+// Walks a reusable theme for elements naming `texture_id`, recording both
+// owning layer and element so the user can find the one that matters.
 void AddParallaxReferences(std::vector<AssetReference>& out, const ParallaxTheme& theme,
                            std::string_view texture_id) {
   for (const ParallaxLayer& layer : theme.layers) {
-    if (!Names(layer.texture_id, texture_id)) continue;
-    Add(out, AssetKind::kParallaxTheme, theme.id, theme.name,
-        absl::StrCat("layer '", layer.name, "'"));
+    for (const ParallaxElement& element : layer.elements) {
+      if (!Names(element.texture_id, texture_id)) continue;
+      Add(out, AssetKind::kParallaxTheme, theme.id, theme.name,
+          absl::StrCat("layer '", layer.name, "', element '", element.name, "'"));
+    }
   }
 }
 
@@ -56,6 +58,8 @@ std::string_view AssetKindName(AssetKind kind) {
       return "Source artwork";
     case AssetKind::kPropRecipe:
       return "Prop recipe";
+    case AssetKind::kParallaxArtworkRecipe:
+      return "Parallax artwork recipe";
   }
   return "Unknown";
 }
@@ -86,6 +90,11 @@ std::vector<AssetReference> FindTextureReferrers(const AssetCatalog& catalog,
   for (const PropRecipe& recipe : catalog.prop_recipes) {
     if (Names(recipe.texture_id, texture_id)) {
       Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "texture_id");
+    }
+  }
+  for (const ParallaxArtworkRecipe& recipe : catalog.parallax_artwork_recipes) {
+    if (Names(recipe.texture_id, texture_id)) {
+      Add(referrers, AssetKind::kParallaxArtworkRecipe, recipe.id, recipe.name, "texture_id");
     }
   }
   return referrers;
@@ -209,6 +218,12 @@ std::vector<AssetReference> FindSourceArtworkReferrers(const AssetCatalog& catal
       Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "source_artwork_id");
     }
   }
+  for (const ParallaxArtworkRecipe& recipe : catalog.parallax_artwork_recipes) {
+    if (Names(recipe.source_artwork_id, source_artwork_id)) {
+      Add(referrers, AssetKind::kParallaxArtworkRecipe, recipe.id, recipe.name,
+          "source_artwork_id");
+    }
+  }
   return referrers;
 }
 
@@ -220,6 +235,13 @@ std::vector<AssetReference> FindTerrainRecipeReferrers(const AssetCatalog& catal
     if (recipe.terrain_recipe_id.has_value() &&
         Names(*recipe.terrain_recipe_id, terrain_recipe_id)) {
       Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "terrain_recipe_id");
+    }
+  }
+  for (const ParallaxArtworkRecipe& recipe : catalog.parallax_artwork_recipes) {
+    if (recipe.terrain_recipe_id.has_value() &&
+        Names(*recipe.terrain_recipe_id, terrain_recipe_id)) {
+      Add(referrers, AssetKind::kParallaxArtworkRecipe, recipe.id, recipe.name,
+          "terrain_recipe_id");
     }
   }
   return referrers;

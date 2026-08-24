@@ -6,6 +6,7 @@
 #include "resources/blueprint_manager_mock.h"
 #include "resources/collider_manager_mock.h"
 #include "resources/level_manager_mock.h"
+#include "resources/parallax_artwork_recipe_manager_mock.h"
 #include "resources/parallax_theme_manager_mock.h"
 #include "resources/prop_recipe_manager_mock.h"
 #include "resources/source_artwork_manager_mock.h"
@@ -40,6 +41,7 @@ class ApiValidationTest : public ::testing::Test {
         .terrain_recipe_manager = &terrain_recipe_manager_,
         .source_artwork_manager = &source_artwork_manager_,
         .prop_recipe_manager = &prop_recipe_manager_,
+        .parallax_artwork_recipe_manager = &parallax_artwork_recipe_manager_,
     };
 
     ASSERT_OK_AND_ASSIGN(api_, Api::Create(options));
@@ -59,6 +61,7 @@ class ApiValidationTest : public ::testing::Test {
   NiceMock<TerrainRecipeManagerMock> terrain_recipe_manager_;
   NiceMock<SourceArtworkManagerMock> source_artwork_manager_;
   NiceMock<PropRecipeManagerMock> prop_recipe_manager_;
+  NiceMock<ParallaxArtworkRecipeManagerMock> parallax_artwork_recipe_manager_;
   std::unique_ptr<Api> api_;
 };
 
@@ -112,7 +115,8 @@ TEST_F(ApiValidationTest, DeleteTextureInUseByAParallaxThemeReturnsError) {
       .WillOnce(Return(std::vector<ParallaxTheme>{{
           .id = "theme",
           .name = "Crystal Cave",
-          .layers = {{.name = "Far", .texture_id = "texture"}},
+          .layers = {{.name = "Far",
+                      .elements = {{.id = 0, .name = "Far", .texture_id = "texture"}}}},
       }}));
   EXPECT_CALL(texture_manager_, DeleteTexture(_)).Times(0);
 
@@ -145,7 +149,7 @@ TEST_F(ApiValidationTest, CreateParallaxThemeRefusesMissingTextureBeforePublishi
   EXPECT_CALL(parallax_theme_manager_, CreateTheme(_)).Times(0);
   ParallaxTheme theme{
       .name = "Cave",
-      .layers = {{.name = "Far", .texture_id = "missing"}},
+      .layers = {{.name = "Far", .elements = {{.id = 0, .name = "Far", .texture_id = "missing"}}}},
   };
 
   EXPECT_EQ(api_->CreateParallaxTheme(theme).status().code(),
@@ -508,7 +512,7 @@ class GeneratedPropCommitTest : public ApiValidationTest {
             SourceArtwork{
                 .id = "source-1",
                 .name = "Boulder source",
-                .source_path = "source_art/props/source-1.png",
+                .source_path = "source_art/source-1.png",
                 .provenance =
                     ImportedArtworkProvenance{
                         .original_filename = "boulder.png",
@@ -968,6 +972,194 @@ TEST_F(GeneratedPropRegenerationTest, ReportsFailedRollbackAlongsidePixelFailure
   EXPECT_THAT(std::string(status.message()), HasSubstr("pixel replacement failed"));
   EXPECT_THAT(std::string(status.message()), HasSubstr("recipe restore failed"));
   EXPECT_THAT(std::string(status.message()), HasSubstr("sprite restore failed"));
+}
+
+class GeneratedParallaxArtworkCommitTest : public ApiValidationTest {
+ protected:
+  void SetUp() override {
+    ApiValidationTest::SetUp();
+    const RgbaImage source_pixels{
+        .width = 1,
+        .height = 1,
+        .pixels = {10, 20, 30, 255},
+    };
+    ASSERT_OK_AND_ASSIGN(const std::string source_digest, RgbaImageDigest(source_pixels));
+    SourceArtwork source{
+        .id = "background-source",
+        .name = "Raw cave plate",
+        .source_path = "source_art/background-source.png",
+        .provenance =
+            ImportedArtworkProvenance{
+                .original_filename = "cave.png",
+                .imported_at_utc = "2026-08-23T12:00:00Z",
+            },
+        .width = 1,
+        .height = 1,
+        .content_digest = source_digest,
+    };
+    ASSERT_OK_AND_ASSIGN(
+        prepared_,
+        PrepareParallaxArtworkAsset(
+            source, source_pixels,
+            {
+                .name = "Far cave plate",
+                .style = {.pixel_block_size = 1, .quantize_to_palette = false},
+                .pipeline = {.target_width = 1, .target_height = 1},
+                .ids = {.texture_id = "background-texture", .recipe_id = "background-recipe"},
+            }));
+
+    ON_CALL(source_artwork_manager_, GetArtwork("background-source"))
+        .WillByDefault(Return(&prepared_.source));
+    ON_CALL(texture_manager_, GetTexture("background-texture"))
+        .WillByDefault(Return(absl::NotFoundError("missing texture")));
+    ON_CALL(parallax_artwork_recipe_manager_, GetRecipe("background-recipe"))
+        .WillByDefault(Return(absl::NotFoundError("missing recipe")));
+    ON_CALL(texture_manager_, PreflightGeneratedTexture(_)).WillByDefault(Return(absl::OkStatus()));
+    ON_CALL(parallax_artwork_recipe_manager_, PreflightRecipeWithId(_))
+        .WillByDefault(Return(absl::OkStatus()));
+  }
+
+  PreparedParallaxArtworkAsset prepared_;
+};
+
+TEST_F(GeneratedParallaxArtworkCommitTest, PublishesRecipeAfterTexture) {
+  InSequence sequence;
+  EXPECT_CALL(texture_manager_, CreateGeneratedTexture(_, 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, CreateRecipeWithId(_))
+      .WillOnce(Return(absl::OkStatus()));
+
+  ASSERT_OK_AND_ASSIGN(const std::string id, api_->CreateGeneratedParallaxArtwork(prepared_));
+  EXPECT_EQ(id, "background-recipe");
+}
+
+TEST_F(GeneratedParallaxArtworkCommitTest, RecipeFailureDeletesPublishedTexture) {
+  InSequence sequence;
+  EXPECT_CALL(texture_manager_, CreateGeneratedTexture(_, 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, CreateRecipeWithId(_))
+      .WillOnce(Return(absl::InternalError("recipe write failed")));
+  EXPECT_CALL(texture_manager_, DeleteTexture("background-texture"))
+      .WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_EQ(api_->CreateGeneratedParallaxArtwork(prepared_).status().code(),
+            absl::StatusCode::kInternal);
+}
+
+class GeneratedParallaxArtworkDeleteTest : public GeneratedParallaxArtworkCommitTest {
+ protected:
+  void SetUp() override {
+    GeneratedParallaxArtworkCommitTest::SetUp();
+    recipes_ = {prepared_.recipe};
+    ON_CALL(parallax_artwork_recipe_manager_, GetRecipe("background-recipe"))
+        .WillByDefault(Return(&prepared_.recipe));
+    ON_CALL(parallax_artwork_recipe_manager_, GetAllRecipes()).WillByDefault([this] {
+      return recipes_;
+    });
+    ON_CALL(texture_manager_, DeleteTexture("background-texture"))
+        .WillByDefault(Return(absl::OkStatus()));
+    ON_CALL(parallax_artwork_recipe_manager_, DeleteRecipe("background-recipe"))
+        .WillByDefault(Return(absl::OkStatus()));
+    ON_CALL(source_artwork_manager_, DeleteArtwork("background-source"))
+        .WillByDefault(Return(absl::OkStatus()));
+  }
+
+  std::vector<ParallaxArtworkRecipe> recipes_;
+};
+
+TEST_F(GeneratedParallaxArtworkDeleteTest, DeletesTextureThenRecipeThenUnsharedSource) {
+  InSequence sequence;
+  EXPECT_CALL(texture_manager_, DeleteTexture("background-texture"));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, DeleteRecipe("background-recipe"));
+  EXPECT_CALL(source_artwork_manager_, DeleteArtwork("background-source"));
+
+  EXPECT_OK(api_->DeleteGeneratedParallaxArtwork("background-recipe"));
+}
+
+TEST_F(GeneratedParallaxArtworkDeleteTest, ThemeReferenceRefusesEveryDeletion) {
+  ON_CALL(parallax_theme_manager_, GetAllThemes())
+      .WillByDefault(Return(std::vector<ParallaxTheme>{ParallaxTheme{
+          .id = "theme",
+          .name = "Cave",
+          .layers = {ParallaxLayer{
+              .name = "Far",
+              .elements = {{.id = 0, .name = "Plate", .texture_id = "background-texture"}},
+          }},
+      }}));
+  EXPECT_CALL(texture_manager_, DeleteTexture(_)).Times(0);
+  EXPECT_CALL(parallax_artwork_recipe_manager_, DeleteRecipe(_)).Times(0);
+
+  const absl::Status status = api_->DeleteGeneratedParallaxArtwork("background-recipe");
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Cave"));
+}
+
+TEST_F(GeneratedParallaxArtworkDeleteTest, SourceSharedWithPropSurvives) {
+  ON_CALL(prop_recipe_manager_, GetAllRecipes())
+      .WillByDefault(Return(std::vector<PropRecipe>{PropRecipe{
+          .id = "prop",
+          .name = "Crystal",
+          .source_artwork_id = "background-source",
+      }}));
+  EXPECT_CALL(source_artwork_manager_, DeleteArtwork(_)).Times(0);
+
+  EXPECT_OK(api_->DeleteGeneratedParallaxArtwork("background-recipe"));
+}
+
+class GeneratedParallaxArtworkRegenerationTest : public GeneratedParallaxArtworkCommitTest {
+ protected:
+  void SetUp() override {
+    GeneratedParallaxArtworkCommitTest::SetUp();
+    regeneration_ = PreparedParallaxArtworkRegeneration{
+        .source_snapshot = prepared_.source,
+        .recipe_snapshot = prepared_.recipe,
+        .texture_snapshot = prepared_.texture,
+        .texture_pixel_digest = prepared_.recipe.final_pixel_digest,
+        .artwork = prepared_.artwork,
+        .updated_recipe = prepared_.recipe,
+    };
+    ASSERT_OK(ValidatePreparedParallaxArtworkRegeneration(regeneration_));
+    ON_CALL(parallax_artwork_recipe_manager_, GetRecipe("background-recipe"))
+        .WillByDefault(Return(&regeneration_.recipe_snapshot));
+    ON_CALL(texture_manager_, GetTexture("background-texture"))
+        .WillByDefault(Return(&regeneration_.texture_snapshot));
+    ON_CALL(texture_manager_, ReadTexturePixels("background-texture"))
+        .WillByDefault(Return(regeneration_.artwork.finished));
+  }
+
+  PreparedParallaxArtworkRegeneration regeneration_;
+};
+
+TEST_F(GeneratedParallaxArtworkRegenerationTest, SavesRecipeThenReplacesPixels) {
+  InSequence sequence;
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels("background-texture", 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_OK(api_->RegenerateGeneratedParallaxArtwork(regeneration_));
+}
+
+TEST_F(GeneratedParallaxArtworkRegenerationTest, StaleRecipeRefusesWrites) {
+  ParallaxArtworkRecipe changed = regeneration_.recipe_snapshot;
+  changed.name = "Changed while processing";
+  ON_CALL(parallax_artwork_recipe_manager_, GetRecipe("background-recipe"))
+      .WillByDefault(Return(&changed));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).Times(0);
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  EXPECT_EQ(api_->RegenerateGeneratedParallaxArtwork(regeneration_).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST_F(GeneratedParallaxArtworkRegenerationTest, PixelFailureRestoresRecipeSnapshot) {
+  InSequence sequence;
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _))
+      .WillOnce(Return(absl::InternalError("pixel replacement failed")));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+
+  const absl::Status status = api_->RegenerateGeneratedParallaxArtwork(regeneration_);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("pixel replacement failed"));
 }
 
 }  // namespace

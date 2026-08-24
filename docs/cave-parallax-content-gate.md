@@ -1,7 +1,9 @@
 # Cave parallax content gate
 
-**Status: accepted with one explicit follow-up: composed Near Formation layers
-are Milestone 1.6.**
+**Status: accepted for Milestones 1, 1.6, and 2.** The original three-plane
+review, composed-Near follow-up, and import-first managed cave-plate workflow
+are complete. Current implementation sequence, next steps, and carried debt live in
+[`environment-artwork-plan.md`](environment-artwork-plan.md).
 The three textures were imported, theme composition was assembled, and X/Y
 repeat rendering remained filled and stable while scrubbing. Repetition was
 accepted for low-salience Far Fill and Far Formations but rejected as the
@@ -23,10 +25,11 @@ Milestone 2.
 | Item | Value |
 |---|---|
 | Logical game viewport | 960 × 540 world units (`assets/config.json`) |
-| Diagnostic zoom range | 0.5–2.0; provisional authoring range, not a runtime-camera contract |
+| Diagnostic zoom range | 0.5–2.0; accepted authoring range, not a runtime-camera contract |
+| Saved world and route | `65536×1280` level; zone `0` retains the intentional `65536×1024` route |
 | Terrain style | `lucinda_cave` terrain recipe and tileset |
 | Existing prop | `Cave Crystal`, grounded and non-colliding |
-| Theme order | Far Fill → Far Formations → Near Background |
+| Theme order | Far Fill → Far Formations → Near Formations |
 | World order | Back Decor → Gameplay → Front Decor |
 | Zone fades | Zero; rendering is deferred until Milestone 5 |
 
@@ -34,7 +37,7 @@ Use a short temporary level or a disposable copy of a level. Do not turn the
 gate into the production first level: its purpose is to expose workflow,
 coverage, and seam problems before background processing defaults are fixed.
 
-## Input and observation record
+## Original Milestone 1 input and observation record
 
 Negative coverage margins are uncovered world units. Edge deltas are
 measurements for seam review, not pass/fail scores. Exact diagnostic numbers
@@ -50,8 +53,9 @@ Also record:
 
 - level ID and zone ID: level `3edc8568-0c40-4276-9d48-352bebb62362`,
   zone `0`;
-- tested camera route: the authored cave route within the full-level
-  `65536×1024` zone; exact preview endpoints were not persisted;
+- tested camera route: zone `0` spans `65536×1024` inside the enlarged
+  `65536×1280` world. The extra world height allows the 1080-world-pixel game
+  view at zoom 0.5 to reach valid camera centers;
 - visual result at zoom 0.5, 1.0, and 2.0: coverage and scrubbing accepted by
   human review; distinctive Near repetition remains visually apparent;
 - whether the far/middle/near split adds useful depth without foreground
@@ -64,7 +68,52 @@ Also record:
   elements and compose several variants rather than forcing each output to
   tile alone.
 
-## Human workflow
+## Milestone 1.6 composed-Near acceptance
+
+The follow-up gate retained the migrated Far Fill and Far Formations cells and
+replaced the one-screen Near repetition with one authored layer composition:
+
+| Layer | Elements | Repeat period | Authored canvas span | Accepted result |
+|---|---:|---|---:|---|
+| Cave Near Formations | 4 | X `5000`, Y finite | X `5264` | Complete group repeats with a deliberate 264-pixel bounds overlap; first/last wrap and route scrub accepted |
+
+The saved elements are the original Near plate, palette-normalized Pilot,
+Slant, and Floor Ridge, with stable IDs `0–3`. The multi-element Near wrap is
+the group-repeat validation; a disposable second Far element would exercise
+the same layout and was not retained. The review also accepted direct element
+selection and no-jump dragging, incomplete-element preview without hiding the
+valid backdrop, on-screen and keyboard camera movement synchronized with
+Travel X/Y, save, close, reopen, reorder, and identical persisted composition.
+
+The Pilot is the accepted proof of the new exact cave-palette postprocessor.
+Slant and Floor Ridge are older binary-alpha, high-color test candidates. They
+remain valid evidence for composition behavior but must be palette-normalized
+or replaced before the final cave kit. Unused pre-pilot candidates are likewise
+experimental catalog content, not accepted production art.
+
+## Milestone 2 import-first cave-plate acceptance
+
+The import-first gate retained the 1672×941 magenta-source PNG as source
+`86d5d138-e64b-4edc-8682-88d64bc416a6` and created reproducible recipe
+`fa03f699-3884-4976-8902-3a4cd0adfe8b`. Its managed output Texture is
+`045787f7-81b8-485d-8d8a-dd37c4e7bd0e` at 960×540.
+
+The review accepted fit-inside framing, enclosed and exterior magenta removal,
+exact cave-palette quantization, binary alpha, processing previews, and X/Y
+repetition review. Closing and reopening the saved recipe restored the complete
+settings snapshot; regeneration from retained source reproduced the same final
+pixel digest. The Texture was assigned at both ends of the saved five-element
+Near layer, whose current X repeat period is 8192 pixels. Attempts to delete the
+referenced Texture or retained source were refused and left the bundle intact.
+This accepts the Milestone 2 workflow and ownership model, not the final visual
+composition; remaining candidate cleanup and art direction stay carried debt.
+
+## Original Milestone 1 human workflow (historical)
+
+This records the workflow that exposed the old one-texture limitation. Use the
+current workflow in `environment-artwork-plan.md` for new composition work; in
+particular, the former three-copy selected-texture preview no longer exists
+because repetition now applies to the complete element composition.
 
 1. Prepare three PNGs with one job each: an opaque Far Fill, a transparent or
    intentionally composited Far Formations layer, and a transparent Near
@@ -119,7 +168,7 @@ Also record:
     Compare layer order, texture IDs, factors, offsets, scale, repeat flags, and
     the rendered composition with the values recorded above.
 
-## Acceptance
+## Original Milestone 1 acceptance criteria
 
 The gate passes only when all statements are true:
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "artwork/prop_artwork.h"
 
@@ -11,6 +12,8 @@ struct PropRasterConfig {
   int canvas_tiles_high = 2;
   int pixel_block_size = 1;
 };
+
+absl::Status ValidatePropRasterConfig(const PropRasterConfig& config);
 
 // Area-downsamples premultiplied RGBA to the logical grid, then expands by an
 // integer nearest-neighbor scale when the style uses larger pixel blocks.

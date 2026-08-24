@@ -270,23 +270,10 @@ absl::StatusOr<Level*> LevelManager::LoadLevel(const std::string& path_json) {
 }
 
 absl::Status LevelManager::LoadAllLevels() {
-  if (!std::filesystem::exists(definitions_path_)) {
-    // An error, not an empty catalog: a misconfigured assets path must not look
-    // like a project with no levels.
-    return absl::NotFoundError(absl::StrCat("Level root directory not found: ", definitions_path_));
-  }
-
-  ResourceLoadFailures failures;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    auto status = LoadLevel(entry.path().filename().string());
-    if (!status.ok()) {
-      LOG(WARNING) << "Failed to load level from " << entry.path() << ": " << status.status();
-      failures.Add(entry.path().filename().string(), status.status());
-    }
-  }
-  return failures.ToStatus("level");
+  return LoadJsonDefinitions(definitions_path_, "level",
+                             [this](const std::filesystem::path& path) -> absl::Status {
+                               return LoadLevel(path.filename().string()).status();
+                             });
 }
 
 absl::StatusOr<std::string> LevelManager::CreateLevel(Level level) {

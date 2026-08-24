@@ -7,7 +7,6 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "artwork/prop_artwork_pipeline.h"
 #include "artwork/source_artwork.h"
 #include "common/image_io.h"
 
@@ -18,8 +17,8 @@ namespace zebes {
 // resources are deliberately outside this boundary.
 class SourceArtworkManager {
  public:
-  static absl::StatusOr<std::unique_ptr<SourceArtworkManager>> Create(std::string root_path,
-                                                                      PropSourceLimits limits = {});
+  static absl::StatusOr<std::unique_ptr<SourceArtworkManager>> Create(
+      std::string root_path, SourceArtworkLimits limits = {});
 
   virtual ~SourceArtworkManager() = default;
 
@@ -36,7 +35,7 @@ class SourceArtworkManager {
   SourceArtworkManager() = default;
 
  private:
-  SourceArtworkManager(std::string root_path, PropSourceLimits limits);
+  SourceArtworkManager(std::string root_path, SourceArtworkLimits limits);
 
   absl::Status EnsureDirectories() const;
   absl::Status ValidateStoredArtwork(const SourceArtwork& artwork) const;
@@ -47,7 +46,7 @@ class SourceArtworkManager {
   std::string root_path_;
   std::string definitions_path_;
   std::string images_path_;
-  PropSourceLimits limits_;
+  SourceArtworkLimits limits_;
   absl::flat_hash_map<std::string, std::unique_ptr<SourceArtwork>> artwork_;
 };
 

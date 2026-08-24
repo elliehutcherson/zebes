@@ -4,14 +4,44 @@
 
 | Directory | Holds | Read by |
 |---|---|---|
-| `assets/source_art/` | Hand-drawn originals the tools crop and composite from | These scripts only |
+| `assets/source_art/` | Flat store of retained and loose authoring inputs | Authoring tools and editor pipelines only |
 | `assets/textures/` | Finished artwork the game and editor sample | A texture definition, always |
 
 The split matters because every file in `assets/textures/` is expected to have a
-definition in `assets/definitions/textures/` pointing at it. Source art has no
-definition and never should: it is an input, not a shipped texture. Keeping the
-two in one directory is how a tileset once ended up referencing a file that had
-been replaced with unrelated artwork, with nothing to catch it.
+definition in `assets/definitions/textures/` pointing at it. Source art is an
+input, not a shipped texture. Inputs retained by the editor have ID-backed
+definitions under `assets/definitions/source_artworks/`; loose reference files
+do not. Keep the image directory flat: roles such as prop or parallax belong in
+recipes and editor metadata, not in parallel folder taxonomies.
+
+## Prepare generated artwork for import
+
+Ask the image generator for an opaque, solid `#ff00ff` background and keep the
+subject clear of every canvas edge. Then turn the raw result into a transparent,
+project-palette PNG before importing it:
+
+```bash
+build/bin/process_generated_artwork \
+  --input=assets/source_art/cave-formation-source.png \
+  --output=assets/source_art/cave-formation-processed.png \
+  --palette_reference=assets/textures/cave-near-background.png \
+  --output_width=960 \
+  --output_height=540
+```
+
+The tool owns the common post-generation stages: chroma-background removal,
+palette-aware edge decontamination, premultiplied-alpha resizing, Oklab mapping
+to the exact opaque colors in the reference, binary alpha, and transparent-
+border validation. It fails instead of writing artwork when the source is
+empty, clipped, the settings are invalid, or the reference is not a small exact
+palette. Keep both raw and processed files in `assets/source_art/`; only copy or
+import the reviewed processed PNG into `assets/textures/`.
+
+Choose a reference texture from the destination art family. A cave formation
+should use the accepted cave background palette; a prop from another biome
+should not. The reference controls color vocabulary, not composition or
+lighting, so generation still needs a strong style reference and an explicit
+lighting prompt.
 
 ## Make a terrain in the editor
 

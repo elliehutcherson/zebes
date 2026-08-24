@@ -7,6 +7,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 namespace {
@@ -65,15 +66,27 @@ bool PaletteContains(absl::Span<const RgbaColor> palette, const RgbaColor& candi
 
 }  // namespace
 
+absl::Status ValidatePropCleanupConfig(const PropCleanupConfig& config) {
+  if (config.alpha_threshold < 0 || config.alpha_threshold > 255) {
+    return absl::InvalidArgumentError("prop cleanup alpha threshold must be between 0 and 255");
+  }
+  if (config.minimum_component_area <= 0) {
+    return absl::InvalidArgumentError("prop cleanup minimum component area must be positive");
+  }
+  if (config.contact_tolerance < 0) {
+    return absl::InvalidArgumentError("prop cleanup contact tolerance cannot be negative");
+  }
+  return absl::OkStatus();
+}
+
 absl::StatusOr<PropArtwork> CleanupAndValidateProp(const PropArtwork& artwork,
                                                    absl::Span<const RgbaColor> palette,
                                                    int tile_size, const PropCleanupConfig& config,
                                                    PropAttachmentMode attachment_mode) {
   if (!artwork.IsValid()) return absl::InvalidArgumentError("prop artwork is invalid");
-  if (palette.empty() || config.alpha_threshold < 0 || config.alpha_threshold > 255 ||
-      config.minimum_component_area <= 0 || tile_size <= 0 || config.contact_tolerance < 0) {
-    return absl::InvalidArgumentError("prop cleanup settings are invalid");
-  }
+  if (palette.empty()) return absl::InvalidArgumentError("prop cleanup palette is empty");
+  if (tile_size <= 0) return absl::InvalidArgumentError("prop cleanup tile size must be positive");
+  RETURN_IF_ERROR(ValidatePropCleanupConfig(config));
   if (attachment_mode != PropAttachmentMode::kGrounded &&
       attachment_mode != PropAttachmentMode::kCeiling &&
       attachment_mode != PropAttachmentMode::kFree) {

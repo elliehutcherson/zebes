@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <string_view>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
@@ -20,6 +21,32 @@ namespace {
 
 constexpr char kDefinitionsPath[] = "definitions/textures";
 constexpr char kImagesPath[] = "textures";
+
+bool IsSafeGeneratedTextureCategory(std::string_view category) {
+  if (category.empty()) return false;
+  for (const char character : category) {
+    const bool safe = (character >= 'a' && character <= 'z') ||
+                      (character >= '0' && character <= '9') || character == '-' ||
+                      character == '_';
+    if (!safe) return false;
+  }
+  return true;
+}
+
+bool IsIdBackedGeneratedTexturePath(const Texture& texture) {
+  constexpr std::string_view kPrefix = "textures/";
+  if (texture.path.rfind(kPrefix, 0) != 0) return false;
+  const std::string_view remainder(texture.path.data() + kPrefix.size(),
+                                   texture.path.size() - kPrefix.size());
+  const size_t separator = remainder.find('/');
+  if (separator == std::string_view::npos ||
+      remainder.find('/', separator + 1) != std::string_view::npos) {
+    return false;
+  }
+  const std::string_view category = remainder.substr(0, separator);
+  const std::string_view filename = remainder.substr(separator + 1);
+  return IsSafeGeneratedTextureCategory(category) && filename == absl::StrCat(texture.id, ".png");
+}
 
 }  // namespace
 
@@ -66,21 +93,10 @@ std::string TextureManager::GetImagesPath(const std::string& relative_path) {
 }
 
 absl::Status TextureManager::LoadAllTextures() {
-  if (!std::filesystem::exists(definitions_path_)) {
-    return absl::NotFoundError(
-        absl::StrCat("Texture root directory not found: ", definitions_path_));
-  }
-
-  ResourceLoadFailures failures;
-  for (const auto& entry : std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    auto status = LoadTexture(entry.path().filename().string());
-    if (!status.ok()) {
-      LOG(WARNING) << "Failed to load texture from " << entry.path() << ": " << status.status();
-      failures.Add(entry.path().filename().string(), status.status());
-    }
-  }
-  return failures.ToStatus("texture");
+  return LoadJsonDefinitions(definitions_path_, "texture",
+                             [this](const std::filesystem::path& path) -> absl::Status {
+                               return LoadTexture(path.filename().string()).status();
+                             });
 }
 
 absl::StatusOr<Texture*> TextureManager::LoadTexture(const std::string& path_json) {
@@ -178,10 +194,9 @@ absl::Status TextureManager::PreflightGeneratedTexture(const Texture& texture) {
     return absl::InvalidArgumentError(absl::StrCat("Texture name too long: ", texture.name,
                                                    ". Max length is ", kMaxTextureNameLength));
   }
-  const std::string expected_path = absl::StrCat("textures/props/", texture.id, ".png");
-  if (texture.path != expected_path) {
+  if (!IsIdBackedGeneratedTexturePath(texture)) {
     return absl::InvalidArgumentError(
-        "prepared generated texture path must be ID-backed under textures/props");
+        "prepared generated texture path must be ID-backed under textures/<category>");
   }
   if (textures_.contains(texture.id)) {
     return absl::AlreadyExistsError(absl::StrCat("Texture with id ", texture.id, " exists"));

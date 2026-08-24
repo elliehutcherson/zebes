@@ -218,34 +218,38 @@ absl::Status ViewportRenderer::RenderParallax(const ParallaxRenderBatch& batch) 
 
   std::map<SDL_Texture*, NativeTextureInfo> texture_info;
   for (const ParallaxRenderItem& item : batch.layers) {
-    SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(item.texture);
-    if (native_texture == nullptr) {
-      return absl::FailedPreconditionError("parallax texture handle cannot be resolved");
-    }
-
-    auto [texture_it, inserted] = texture_info.try_emplace(native_texture);
-    if (inserted) {
-      ASSIGN_OR_RETURN(texture_it->second, QueryTextureInfo(native_texture));
-    }
-    const NativeTextureInfo& texture = texture_it->second;
-
-    std::optional<ParallaxLayout> layout =
-        CalculateParallaxLayout(batch.camera, item.layer, texture.width, texture.height);
-    if (!layout.has_value()) {
-      return absl::InvalidArgumentError("parallax render item has invalid layout inputs");
-    }
-
-    for (int row = layout->first_row; row <= layout->last_row; ++row) {
-      for (int column = layout->first_column; column <= layout->last_column; ++column) {
-        const Vec world_min{
-            layout->origin.x + column * layout->tile_width,
-            layout->origin.y + row * layout->tile_height,
-        };
-        const ImVec2 screen_min = canvas_.WorldToScreen(world_min);
-        const ImVec2 screen_max = canvas_.WorldToScreen(
-            {world_min.x + layout->tile_width, world_min.y + layout->tile_height});
-        draw_list->AddImage(reinterpret_cast<ImTextureID>(native_texture), screen_min, screen_max);
+    std::map<int, SDL_Texture*> native_textures;
+    std::vector<ParallaxElementSize> element_sizes;
+    element_sizes.reserve(item.elements.size());
+    for (const ParallaxElementRenderResource& resource : item.elements) {
+      SDL_Texture* native_texture = SdlTextureHandleAdapter::ToNative(resource.texture);
+      if (native_texture == nullptr) {
+        return absl::FailedPreconditionError("parallax texture handle cannot be resolved");
       }
+      if (!native_textures.emplace(resource.element_id, native_texture).second) {
+        return absl::InvalidArgumentError("parallax render item has duplicate element IDs");
+      }
+      auto [texture_it, inserted] = texture_info.try_emplace(native_texture);
+      if (inserted) {
+        ASSIGN_OR_RETURN(texture_it->second, QueryTextureInfo(native_texture));
+      }
+      element_sizes.push_back({
+          .element_id = resource.element_id,
+          .width = texture_it->second.width,
+          .height = texture_it->second.height,
+      });
+    }
+
+    ASSIGN_OR_RETURN(const ParallaxLayout layout,
+                     CalculateParallaxLayout(batch.camera, item.layer, element_sizes));
+    for (const ParallaxElementLayout& element : layout.elements) {
+      const auto texture = native_textures.find(element.element_id);
+      if (texture == native_textures.end()) {
+        return absl::FailedPreconditionError("parallax layout references an unbound element");
+      }
+      draw_list->AddImage(reinterpret_cast<ImTextureID>(texture->second),
+                          canvas_.WorldToScreen(element.bounds.min),
+                          canvas_.WorldToScreen(element.bounds.max));
     }
   }
   return absl::OkStatus();

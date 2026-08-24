@@ -24,7 +24,7 @@ add_executable(generate_blob47_mask generate_blob47_mask.cc)
 target_include_directories(generate_blob47_mask PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include/stb)
 target_link_libraries(
   generate_blob47_mask
-  PRIVATE terrain_mask absl::log absl::log_initialize absl::status absl::strings
+  PRIVATE terrain_mask status_macros absl::log absl::log_initialize absl::status absl::strings
 )
 
 add_executable(prop_artwork_spike prop_artwork_spike.cc)
@@ -33,4 +33,15 @@ target_link_libraries(
   PRIVATE prop_artwork terrain_generator terrain_palette terrain_recipe image_io status_macros
           nlohmann_json::nlohmann_json absl::log absl::log_initialize absl::status
           absl::statusor absl::strings
+)
+
+add_executable(process_generated_artwork process_generated_artwork.cc)
+target_link_libraries(process_generated_artwork
+  PRIVATE
+  generated_artwork_postprocessor
+  image_io
+  absl::flags
+  absl::flags_parse
+  absl::status
+  absl::statusor
 )

@@ -10,6 +10,12 @@ namespace zebes {
 void RenderInspectorSection(GuiInterface& gui, const char* title,
                             const char* description = nullptr);
 
+// Keeps transient numeric text out of the committed model until the user
+// finishes editing the field. This prevents incomplete values such as the
+// leading "6" in "6000" from invalidating live previews between keystrokes.
+bool InputCommittedDouble(GuiInterface& gui, const char* label, double& value,
+                          const char* format = "%.6f");
+
 // Two-column inspector layout with permanent labels and full-width controls.
 // Widget labels inside a row should be hidden ImGui IDs (for example
 // "##level_name"); the visible, user-facing label belongs to BeginRow.

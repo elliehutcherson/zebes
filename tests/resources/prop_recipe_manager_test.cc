@@ -172,6 +172,21 @@ TEST_F(PropRecipeManagerTest, RejectsAttachmentDataThatDoesNotMatchItsMode) {
   EXPECT_THAT(std::string(status.message()), HasSubstr("cannot contain a free anchor"));
 }
 
+TEST_F(PropRecipeManagerTest, RecipeValidationUsesRuntimePipelineConstraints) {
+  PropRecipe recipe = CompleteRecipe();
+  recipe.pipeline.isolation.enclosed_background_distance =
+      recipe.pipeline.isolation.background_distance + 1.0f;
+  EXPECT_EQ(manager_->CreateRecipe(recipe).status().code(), absl::StatusCode::kInvalidArgument);
+
+  recipe = CompleteRecipe();
+  recipe.pipeline.composition.padding_fraction = 0.47f;
+  EXPECT_EQ(manager_->CreateRecipe(recipe).status().code(), absl::StatusCode::kInvalidArgument);
+
+  recipe = CompleteRecipe();
+  recipe.pipeline.edge.width = 9;
+  EXPECT_EQ(manager_->CreateRecipe(recipe).status().code(), absl::StatusCode::kInvalidArgument);
+}
+
 TEST_F(PropRecipeManagerTest, RejectsUnknownSchemaAndNamesTheMigration) {
   PropRecipe recipe = CompleteRecipe();
   recipe.id = "future";

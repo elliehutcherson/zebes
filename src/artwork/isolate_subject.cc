@@ -10,6 +10,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 namespace {
@@ -80,18 +81,37 @@ std::vector<int> ComponentAreas(const std::vector<uint8_t>& foreground, int widt
 
 }  // namespace
 
+absl::Status ValidateSubjectIsolationConfig(const SubjectIsolationConfig& config) {
+  if (config.alpha_threshold < 0 || config.alpha_threshold > 255) {
+    return absl::InvalidArgumentError(
+        "subject isolation alpha threshold must be between 0 and 255");
+  }
+  if (!std::isfinite(config.background_distance) || config.background_distance < 0.0f) {
+    return absl::InvalidArgumentError(
+        "subject isolation background distance must be finite and non-negative");
+  }
+  if (!std::isfinite(config.enclosed_background_distance) ||
+      config.enclosed_background_distance < 0.0f ||
+      config.enclosed_background_distance > config.background_distance) {
+    return absl::InvalidArgumentError(
+        "subject isolation enclosed distance must be finite and no greater than background "
+        "distance");
+  }
+  if (config.minimum_subject_area <= 0) {
+    return absl::InvalidArgumentError("subject isolation minimum area must be positive");
+  }
+  if (!std::isfinite(config.competing_subject_ratio) || config.competing_subject_ratio < 0.0f ||
+      config.competing_subject_ratio > 1.0f) {
+    return absl::InvalidArgumentError(
+        "subject isolation competing-subject ratio must be between 0 and 1");
+  }
+  return absl::OkStatus();
+}
+
 absl::StatusOr<RgbaImage> IsolateSubject(const RgbaImage& source,
                                          const SubjectIsolationConfig& config) {
   if (!source.IsValid()) return absl::InvalidArgumentError("source image is invalid");
-  if (config.alpha_threshold < 0 || config.alpha_threshold > 255 ||
-      !std::isfinite(config.background_distance) || config.background_distance < 0.0f ||
-      !std::isfinite(config.enclosed_background_distance) ||
-      config.enclosed_background_distance < 0.0f ||
-      config.enclosed_background_distance > config.background_distance ||
-      config.minimum_subject_area <= 0 || !std::isfinite(config.competing_subject_ratio) ||
-      config.competing_subject_ratio < 0.0f || config.competing_subject_ratio > 1.0f) {
-    return absl::InvalidArgumentError("subject isolation settings are invalid");
-  }
+  RETURN_IF_ERROR(ValidateSubjectIsolationConfig(config));
 
   const size_t pixel_count = static_cast<size_t>(source.width) * source.height;
   size_t transparent = 0;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "artwork/compose_prop.h"
@@ -13,6 +14,8 @@ struct PropCleanupConfig {
   int minimum_component_area = 2;
   int contact_tolerance = 3;
 };
+
+absl::Status ValidatePropCleanupConfig(const PropCleanupConfig& config);
 
 // Makes alpha binary, removes only explicitly small components, and verifies
 // the finished prop contract.

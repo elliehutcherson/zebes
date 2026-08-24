@@ -140,12 +140,18 @@ struct TileRenderOptions {
   bool show_collision = false;
 };
 
-// Platform-neutral description of one parallax layer and its managed texture.
-struct ParallaxRenderItem {
-  // Opaque texture reference resolved only by ViewportRenderer.
+// Managed texture bound to a stable authored element ID.
+struct ParallaxElementRenderResource {
+  int element_id = -1;
   TextureHandle texture;
+};
+
+// Platform-neutral description of one parallax layer and its managed textures.
+struct ParallaxRenderItem {
   // Layer settings copied from the active theme for this rendering pass.
   ParallaxLayer layer;
+  // Opaque texture references resolved only by ViewportRenderer.
+  std::vector<ParallaxElementRenderResource> elements;
 };
 
 // Complete platform-neutral description of the active parallax environment.
@@ -160,6 +166,8 @@ struct ParallaxRenderBatch {
 struct ParallaxRenderOptions {
   // Authored layer index to isolate; empty renders the complete theme.
   std::optional<int> layer_index;
+  // Stable element ID to isolate within layer_index.
+  std::optional<int> element_id;
 };
 
 // Builds render items in stable entity-ID order. Inactive entities are omitted.

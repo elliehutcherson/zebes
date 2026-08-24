@@ -10,16 +10,29 @@
 
 namespace zebes {
 
-// One camera-relative image plane. Layers are ordered farthest to nearest in a
-// ParallaxTheme and are never owned by a Level.
-struct ParallaxLayer {
+inline constexpr int kParallaxThemeSchemaVersion = 2;
+
+// One positioned texture inside a camera-relative layer. IDs are stable within
+// their owning layer so editor selection survives reorder and deletion.
+struct ParallaxElement {
+  int id = -1;
   std::string name;
   std::string texture_id;
+  Vec position;
+  float scale = 1.0f;
+
+  bool operator==(const ParallaxElement& other) const = default;
+};
+
+// One camera-relative image plane. Elements are ordered back to front within
+// the plane. A positive repeat-period component repeats the complete element
+// composition on that axis; zero makes that axis finite.
+struct ParallaxLayer {
+  std::string name;
   Vec scroll_factor;
   Vec offset;
-  float base_scale = 1.0f;
-  bool repeat_x = false;
-  bool repeat_y = false;
+  Vec repeat_period;
+  std::vector<ParallaxElement> elements;
 
   bool operator==(const ParallaxLayer& other) const = default;
 };

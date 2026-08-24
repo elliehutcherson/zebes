@@ -1,18 +1,16 @@
 #include "artwork/prop_recipe.h"
 
 #include <array>
-#include <cctype>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
-#include <limits>
 #include <optional>
 #include <string>
 #include <utility>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/image_digest.h"
 #include "common/status_macros.h"
 #include "nlohmann/json.hpp"
 
@@ -30,17 +28,6 @@ absl::StatusOr<T> Required(const nlohmann::json& json, const char* key) {
     return absl::InvalidArgumentError(
         absl::StrCat("prop recipe field '", key, "' is invalid: ", error.what()));
   }
-}
-
-bool IsSha256(std::string_view digest) {
-  if (digest.size() != 64) return false;
-  for (const char character : digest) {
-    if (!std::isdigit(static_cast<unsigned char>(character)) &&
-        (character < 'a' || character > 'f')) {
-      return false;
-    }
-  }
-  return true;
 }
 
 nlohmann::json ColorToJson(const RgbaColor& color) {
@@ -242,81 +229,22 @@ absl::StatusOr<SpriteFrame> FrameFromJson(const nlohmann::json& json) {
   return frame;
 }
 
-absl::Status ValidatePipelineSettings(const PropArtworkPipelineConfig& pipeline,
-                                      const PropArtworkStyle& style) {
-  const PropSourceLimits& limits = pipeline.source_limits;
-  if (limits.maximum_width <= 0 || limits.maximum_height <= 0 || limits.maximum_pixels == 0 ||
-      limits.maximum_bytes == 0) {
-    return absl::InvalidArgumentError("prop recipe source limits must be positive");
-  }
-  const SubjectIsolationConfig& isolation = pipeline.isolation;
-  if (isolation.alpha_threshold < 0 || isolation.alpha_threshold > 255 ||
-      !std::isfinite(isolation.background_distance) ||
-      !std::isfinite(isolation.enclosed_background_distance) ||
-      !std::isfinite(isolation.competing_subject_ratio) || isolation.background_distance < 0.0f ||
-      isolation.enclosed_background_distance < 0.0f || isolation.minimum_subject_area <= 0 ||
-      isolation.competing_subject_ratio < 0.0f || isolation.competing_subject_ratio > 1.0f) {
-    return absl::InvalidArgumentError("prop recipe isolation settings are invalid");
-  }
-  const PropCompositionConfig& composition = pipeline.composition;
-  if (composition.canvas_tiles_wide <= 0 || composition.canvas_tiles_high <= 0 ||
-      !std::isfinite(composition.padding_fraction) || composition.padding_fraction < 0.0f ||
-      composition.padding_fraction >= 0.5f) {
-    return absl::InvalidArgumentError("prop recipe composition settings are invalid");
-  }
-  if (pipeline.edge.width < 0 || pipeline.edge.alpha_threshold < 0 ||
-      pipeline.edge.alpha_threshold > 255) {
-    return absl::InvalidArgumentError("prop recipe edge settings are invalid");
-  }
-  if (pipeline.cleanup.alpha_threshold < 0 || pipeline.cleanup.alpha_threshold > 255 ||
-      pipeline.cleanup.minimum_component_area <= 0 || pipeline.cleanup.contact_tolerance < 0) {
-    return absl::InvalidArgumentError("prop recipe cleanup settings are invalid");
-  }
-  const int64_t output_width =
-      static_cast<int64_t>(style.tile_size) * composition.canvas_tiles_wide;
-  const int64_t output_height =
-      static_cast<int64_t>(style.tile_size) * composition.canvas_tiles_high;
-  if (output_width > std::numeric_limits<int>::max() ||
-      output_height > std::numeric_limits<int>::max()) {
-    return absl::InvalidArgumentError("prop recipe canvas dimensions overflow integer storage");
-  }
-  RETURN_IF_ERROR(ValidatePropAttachment(composition.attachment, static_cast<int>(output_width),
-                                         static_cast<int>(output_height)));
-  return absl::OkStatus();
-}
-
-}  // namespace
-
-absl::Status ValidatePropRecipe(const PropRecipe& recipe) {
-  if (recipe.id.empty() || recipe.name.empty() || recipe.source_artwork_id.empty() ||
-      recipe.texture_id.empty() || recipe.sprite_id.empty() || recipe.blueprint_id.empty()) {
-    return absl::InvalidArgumentError("prop recipe needs a name and every stable asset ID");
-  }
-  if (recipe.terrain_recipe_id.has_value() && recipe.terrain_recipe_id->empty()) {
-    return absl::InvalidArgumentError("attached terrain recipe ID cannot be empty");
-  }
-  RETURN_IF_ERROR(ValidatePropArtworkStyle(recipe.style));
-  RETURN_IF_ERROR(ValidatePipelineSettings(recipe.pipeline, recipe.style));
-  if (recipe.pipeline_version != kPropArtworkPipelineVersion) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("prop recipe pipeline version ", recipe.pipeline_version,
-                     " is not supported version ", kPropArtworkPipelineVersion));
-  }
+absl::Status ValidateExpectedFrame(const PropRecipe& recipe) {
   const int64_t expected_width =
       static_cast<int64_t>(recipe.style.tile_size) * recipe.pipeline.composition.canvas_tiles_wide;
   const int64_t expected_height =
       static_cast<int64_t>(recipe.style.tile_size) * recipe.pipeline.composition.canvas_tiles_high;
-  if (expected_width > std::numeric_limits<int>::max() ||
-      expected_height > std::numeric_limits<int>::max()) {
-    return absl::InvalidArgumentError("prop recipe canvas dimensions overflow integer storage");
-  }
   const SpriteFrame& frame = recipe.expected_frame;
-  if (frame.index != 0 || frame.texture_x != 0 || frame.texture_y != 0 ||
-      frame.texture_w != expected_width || frame.texture_h != expected_height ||
-      frame.render_w != expected_width || frame.render_h != expected_height ||
-      frame.frames_per_cycle != 0) {
+  if (frame.index != 0 || frame.texture_x != 0 || frame.texture_y != 0) {
+    return absl::InvalidArgumentError("prop recipe expected frame must start at atlas origin");
+  }
+  if (frame.texture_w != expected_width || frame.texture_h != expected_height ||
+      frame.render_w != expected_width || frame.render_h != expected_height) {
     return absl::InvalidArgumentError(
         "prop recipe expected frame must be one full-size, 1:1 static frame");
+  }
+  if (frame.frames_per_cycle != 0) {
+    return absl::InvalidArgumentError("prop recipe expected frame must be static");
   }
   const PropAttachmentConfig& attachment = recipe.pipeline.composition.attachment;
   if (attachment.mode == PropAttachmentMode::kFree &&
@@ -325,7 +253,34 @@ absl::Status ValidatePropRecipe(const PropRecipe& recipe) {
     return absl::InvalidArgumentError(
         "prop recipe frame offset does not match its explicit free anchor");
   }
-  if (!IsSha256(recipe.final_pixel_digest)) {
+  return absl::OkStatus();
+}
+
+}  // namespace
+
+absl::Status ValidatePropRecipe(const PropRecipe& recipe) {
+  if (recipe.id.empty()) return absl::InvalidArgumentError("prop recipe ID is empty");
+  if (recipe.name.empty()) return absl::InvalidArgumentError("prop recipe name is empty");
+  if (recipe.source_artwork_id.empty()) {
+    return absl::InvalidArgumentError("prop recipe source artwork ID is empty");
+  }
+  if (recipe.texture_id.empty())
+    return absl::InvalidArgumentError("prop recipe texture ID is empty");
+  if (recipe.sprite_id.empty()) return absl::InvalidArgumentError("prop recipe sprite ID is empty");
+  if (recipe.blueprint_id.empty()) {
+    return absl::InvalidArgumentError("prop recipe blueprint ID is empty");
+  }
+  if (recipe.terrain_recipe_id.has_value() && recipe.terrain_recipe_id->empty()) {
+    return absl::InvalidArgumentError("attached terrain recipe ID cannot be empty");
+  }
+  RETURN_IF_ERROR(ValidatePropArtworkPipelineConfig(recipe.pipeline, recipe.style));
+  if (recipe.pipeline_version != kPropArtworkPipelineVersion) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("prop recipe pipeline version ", recipe.pipeline_version,
+                     " is not supported version ", kPropArtworkPipelineVersion));
+  }
+  RETURN_IF_ERROR(ValidateExpectedFrame(recipe));
+  if (!IsLowercaseSha256Digest(recipe.final_pixel_digest)) {
     return absl::InvalidArgumentError("prop recipe final pixel digest is not lowercase SHA-256");
   }
   return absl::OkStatus();

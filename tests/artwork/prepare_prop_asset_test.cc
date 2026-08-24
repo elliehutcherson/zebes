@@ -37,7 +37,7 @@ absl::StatusOr<SourceArtwork> TestSourceDefinition(const RgbaImage& pixels) {
   return SourceArtwork{
       .id = "source-1",
       .name = "Boulder source",
-      .source_path = "source_art/props/source-1.png",
+      .source_path = "source_art/source-1.png",
       .provenance =
           ImportedArtworkProvenance{
               .original_filename = "boulder.png",

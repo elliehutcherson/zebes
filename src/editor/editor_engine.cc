@@ -75,6 +75,10 @@ absl::Status EditorEngine::Init() {
   ASSIGN_OR_RETURN(prop_recipe_manager_, PropRecipeManager::Create(config_.paths.assets()));
   RETURN_IF_ERROR(prop_recipe_manager_->LoadAllRecipes());
 
+  ASSIGN_OR_RETURN(parallax_artwork_recipe_manager_,
+                   ParallaxArtworkRecipeManager::Create(config_.paths.assets()));
+  RETURN_IF_ERROR(parallax_artwork_recipe_manager_->LoadAllRecipes());
+
   imgui_wrapper_ = ImGuiWrapper::Create();
 
   // Translates SDL events into Zebes input types; nothing above sees SDL.
@@ -93,6 +97,7 @@ absl::Status EditorEngine::Init() {
       .terrain_recipe_manager = terrain_recipe_manager_.get(),
       .source_artwork_manager = source_artwork_manager_.get(),
       .prop_recipe_manager = prop_recipe_manager_.get(),
+      .parallax_artwork_recipe_manager = parallax_artwork_recipe_manager_.get(),
   };
   ASSIGN_OR_RETURN(api_, Api::Create(api_options));
 
@@ -157,6 +162,7 @@ void EditorEngine::Shutdown() {
   ui_.reset();
   api_.reset();
   prop_recipe_manager_.reset();
+  parallax_artwork_recipe_manager_.reset();
   source_artwork_manager_.reset();
   terrain_recipe_manager_.reset();
   tileset_manager_.reset();

@@ -189,6 +189,28 @@ target_link_libraries(prop_artwork_editor_model_test
 target_include_directories(prop_artwork_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(prop_artwork_editor_model_test)
 
+add_executable(parallax_artwork_editor_model_test parallax_artwork_editor_model_test.cc)
+target_link_libraries(parallax_artwork_editor_model_test
+  gtest_main
+  macros
+  parallax_artwork_editor_model
+  prepare_parallax_artwork_asset
+  terrain_palette
+)
+target_include_directories(parallax_artwork_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(parallax_artwork_editor_model_test)
+
+add_executable(parallax_artwork_editor_test parallax_artwork_editor_test.cc)
+target_link_libraries(parallax_artwork_editor_test
+  gtest_main
+  gmock
+  macros
+  parallax_artwork_editor
+  gui_mock
+)
+target_include_directories(parallax_artwork_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(parallax_artwork_editor_test)
+
 add_executable(prop_artwork_context_test prop_artwork_context_test.cc)
 target_link_libraries(prop_artwork_context_test
   gtest_main
@@ -657,6 +679,17 @@ target_link_libraries(parallax_theme_editor_model_test
   parallax_theme_editor_model macros gtest_main)
 target_include_directories(parallax_theme_editor_model_test PRIVATE ${CMAKE_SOURCE_DIR})
 add_test(NAME parallax_theme_editor_model_test COMMAND parallax_theme_editor_model_test)
+
+add_executable(parallax_theme_editor_test parallax_theme_editor_test.cc)
+target_link_libraries(parallax_theme_editor_test
+  parallax_theme_editor
+  gui_mock
+  macros
+  gtest_main
+  gmock
+)
+target_include_directories(parallax_theme_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME parallax_theme_editor_test COMMAND parallax_theme_editor_test)
 
 add_executable(parallax_diagnostics_test parallax_diagnostics_test.cc)
 target_link_libraries(parallax_diagnostics_test parallax_diagnostics macros gtest_main)

@@ -54,6 +54,10 @@ target_link_libraries(notification_set_test
 )
 gtest_discover_tests(notification_set_test)
 
+add_executable(resource_utils_test resources/resource_utils_test.cc)
+target_link_libraries(resource_utils_test resource_utils gtest_main gmock)
+gtest_discover_tests(resource_utils_test)
+
 # --- Texture Manager ---
 add_executable(texture_manager_test resources/texture_manager_test.cc)
 target_link_libraries(texture_manager_test texture_manager macros gtest_main)
@@ -159,6 +163,16 @@ target_link_libraries(prop_recipe_manager_test
 )
 gtest_discover_tests(prop_recipe_manager_test)
 
+add_executable(parallax_artwork_recipe_manager_test
+  resources/parallax_artwork_recipe_manager_test.cc)
+target_link_libraries(parallax_artwork_recipe_manager_test
+  parallax_artwork_recipe_manager
+  macros
+  gtest_main
+  nlohmann_json::nlohmann_json
+)
+gtest_discover_tests(parallax_artwork_recipe_manager_test)
+
 # --- Shipped assets ---
 # Reads the repository's assets/ directly, so the path is baked in rather than
 # depending on ctest's working directory.
@@ -172,6 +186,7 @@ target_link_libraries(shipped_assets_test
   blueprint_manager
   collider_manager
   prop_recipe_manager
+  parallax_artwork_recipe_manager
   source_artwork_manager
   terrain_brush
   terrain_mask

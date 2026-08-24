@@ -100,22 +100,10 @@ absl::StatusOr<Collider*> ColliderManager::LoadCollider(const std::string& path_
 }
 
 absl::Status ColliderManager::LoadAllColliders() {
-  if (!std::filesystem::exists(definitions_path_)) {
-    return absl::NotFoundError(
-        absl::StrCat("Collider root directory not found: ", definitions_path_));
-  }
-
-  ResourceLoadFailures failures;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    auto status = LoadCollider(entry.path().filename().string());
-    if (!status.ok()) {
-      LOG(WARNING) << "Failed to load collider from " << entry.path() << ": " << status.status();
-      failures.Add(entry.path().filename().string(), status.status());
-    }
-  }
-  return failures.ToStatus("collider");
+  return LoadJsonDefinitions(definitions_path_, "collider",
+                             [this](const std::filesystem::path& path) -> absl::Status {
+                               return LoadCollider(path.filename().string()).status();
+                             });
 }
 
 absl::StatusOr<std::string> ColliderManager::CreateCollider(Collider collider) {

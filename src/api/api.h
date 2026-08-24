@@ -3,8 +3,10 @@
 #include <memory>
 
 #include "absl/status/statusor.h"
+#include "artwork/prepare_parallax_artwork_asset.h"
 #include "artwork/prepare_prop_asset.h"
 #include "artwork/prop_recipe.h"
+#include "artwork/regenerate_parallax_artwork_asset.h"
 #include "artwork/regenerate_prop_asset.h"
 #include "artwork/source_artwork.h"
 #include "common/config.h"
@@ -14,6 +16,7 @@
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
 #include "resources/level_manager.h"
+#include "resources/parallax_artwork_recipe_manager.h"
 #include "resources/parallax_theme_manager.h"
 #include "resources/prop_recipe_manager.h"
 #include "resources/source_artwork_manager.h"
@@ -38,6 +41,7 @@ class Api {
     TerrainRecipeManager* terrain_recipe_manager;
     SourceArtworkManager* source_artwork_manager;
     PropRecipeManager* prop_recipe_manager;
+    ParallaxArtworkRecipeManager* parallax_artwork_recipe_manager;
   };
 
   static absl::StatusOr<std::unique_ptr<Api>> Create(const Options& options);
@@ -178,6 +182,21 @@ class Api {
   // checked for existence and is never overwritten.
   virtual absl::Status RegenerateGeneratedProp(const PreparedPropRegeneration& prepared);
 
+  virtual absl::StatusOr<std::string> CreateParallaxArtworkRecipe(ParallaxArtworkRecipe recipe);
+  virtual absl::Status SaveParallaxArtworkRecipe(const ParallaxArtworkRecipe& recipe);
+  virtual absl::StatusOr<ParallaxArtworkRecipe*> GetParallaxArtworkRecipe(
+      const std::string& recipe_id);
+  virtual std::vector<ParallaxArtworkRecipe> GetAllParallaxArtworkRecipes() const;
+
+  // A background bundle contains exactly one managed Texture and its recipe.
+  // The recipe publishes last and deletion refuses while any external asset,
+  // especially a parallax theme, still names that Texture.
+  virtual absl::StatusOr<std::string> CreateGeneratedParallaxArtwork(
+      const PreparedParallaxArtworkAsset& prepared);
+  virtual absl::Status DeleteGeneratedParallaxArtwork(const std::string& recipe_id);
+  virtual absl::Status RegenerateGeneratedParallaxArtwork(
+      const PreparedParallaxArtworkRegeneration& prepared);
+
  protected:
   // Allow default construction for mocks
   Api()
@@ -191,7 +210,8 @@ class Api {
         tileset_manager_(nullptr),
         terrain_recipe_manager_(nullptr),
         source_artwork_manager_(nullptr),
-        prop_recipe_manager_(nullptr) {}
+        prop_recipe_manager_(nullptr),
+        parallax_artwork_recipe_manager_(nullptr) {}
 
  private:
   // Every catalogue a reference can live in, read once for one deletion check.
@@ -207,6 +227,7 @@ class Api {
     std::vector<ParallaxTheme> parallax_themes;
     std::vector<TerrainRecipe> recipes;
     std::vector<PropRecipe> prop_recipes;
+    std::vector<ParallaxArtworkRecipe> parallax_artwork_recipes;
 
     AssetCatalog View() const;
   };
@@ -227,6 +248,7 @@ class Api {
   TerrainRecipeManager* terrain_recipe_manager_;
   SourceArtworkManager* source_artwork_manager_;
   PropRecipeManager* prop_recipe_manager_;
+  ParallaxArtworkRecipeManager* parallax_artwork_recipe_manager_;
 };
 
 }  // namespace zebes

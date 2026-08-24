@@ -1,17 +1,26 @@
 #include "editor/parallax_theme_editor/parallax_theme_editor_model.h"
 
+#include <limits>
+
 #include "gtest/gtest.h"
 #include "macros.h"
 
 namespace zebes {
 namespace {
 
+ParallaxLayer Layer(std::string name, std::string texture_id) {
+  return {
+      .name = std::move(name),
+      .elements = {{.id = 0, .name = "Element", .texture_id = std::move(texture_id)}},
+  };
+}
+
 TEST(ParallaxThemeEditorModelTest, ReorderMovesSelectionWithTheLayer) {
   ParallaxThemeEditorModel model;
   model.Open({
       .id = "theme",
       .name = "Cave",
-      .layers = {{.name = "Far", .texture_id = "far"}, {.name = "Near", .texture_id = "near"}},
+      .layers = {Layer("Far", "far"), Layer("Near", "near")},
   });
   model.SelectLayer(0);
   ASSERT_OK(model.MoveSelectedLayer(1));
@@ -24,7 +33,7 @@ TEST(ParallaxThemeEditorModelTest, DeletionReconcilesSelection) {
   model.Open({
       .id = "theme",
       .name = "Cave",
-      .layers = {{.name = "Far", .texture_id = "far"}, {.name = "Near", .texture_id = "near"}},
+      .layers = {Layer("Far", "far"), Layer("Near", "near")},
   });
   model.SelectLayer(1);
   ASSERT_OK(model.DeleteSelectedLayer());
@@ -52,22 +61,61 @@ TEST(ParallaxThemeEditorModelTest, DepthPresetsChangeOnlySelectedLayerScrollFact
       .id = "theme",
       .name = "Cave",
       .layers = {{.name = "Far",
-                  .texture_id = "far",
                   .scroll_factor = {0.9, 0.8},
                   .offset = {12, 34},
-                  .base_scale = 2.0f}},
+                  .elements = {{.id = 0, .name = "Element", .texture_id = "far", .scale = 2.0f}}}},
   });
 
   ASSERT_OK(model.ApplyDepthPreset(ParallaxDepthPreset::kFar));
   EXPECT_EQ(model.draft()->layers[0].scroll_factor, Vec(0.05, 0.05));
   EXPECT_EQ(model.draft()->layers[0].offset, Vec(12, 34));
-  EXPECT_FLOAT_EQ(model.draft()->layers[0].base_scale, 2.0f);
+  EXPECT_FLOAT_EQ(model.draft()->layers[0].elements[0].scale, 2.0f);
 
   ASSERT_OK(model.ApplyDepthPreset(ParallaxDepthPreset::kMiddle));
   EXPECT_EQ(model.draft()->layers[0].scroll_factor, Vec(0.20, 0.10));
 
   ASSERT_OK(model.ApplyDepthPreset(ParallaxDepthPreset::kNearBackground));
   EXPECT_EQ(model.draft()->layers[0].scroll_factor, Vec(0.50, 0.25));
+}
+
+TEST(ParallaxThemeEditorModelTest, ElementSelectionUsesStableIdsAcrossReorderAndDelete) {
+  ParallaxThemeEditorModel model;
+  ParallaxLayer layer = Layer("Near", "left");
+  layer.elements.push_back({.id = 5, .name = "Right", .texture_id = "right"});
+  model.Open({.id = "theme", .name = "Cave", .layers = {layer}});
+  model.SelectElement(5);
+
+  ASSERT_OK(model.MoveSelectedElement(-1));
+  EXPECT_EQ(model.selected_element_id(), 5);
+  EXPECT_EQ(model.draft()->layers[0].elements[0].id, 5);
+
+  ASSERT_OK(model.DeleteSelectedElement());
+  EXPECT_EQ(model.selected_element_id(), 0);
+}
+
+TEST(ParallaxThemeEditorModelTest, DuplicateElementGetsIndependentStableIdentity) {
+  ParallaxThemeEditorModel model;
+  model.Open({.id = "theme", .name = "Cave", .layers = {Layer("Near", "near")}});
+
+  ASSERT_OK(model.DuplicateSelectedElement());
+
+  ASSERT_EQ(model.draft()->layers[0].elements.size(), 2);
+  EXPECT_EQ(model.draft()->layers[0].elements[0].id, 0);
+  EXPECT_EQ(model.draft()->layers[0].elements[1].id, 1);
+  EXPECT_EQ(model.selected_element_id(), 1);
+  EXPECT_EQ(model.draft()->layers[0].elements[1].texture_id, "near");
+}
+
+TEST(ParallaxThemeEditorModelTest, AddingElementUsesAnAvailableIdWithoutOverflow) {
+  ParallaxThemeEditorModel model;
+  ParallaxLayer layer = Layer("Near", "left");
+  layer.elements[0].id = std::numeric_limits<int>::max();
+  model.Open({.id = "theme", .name = "Cave", .layers = {layer}});
+
+  ASSERT_OK(model.AddElement());
+
+  ASSERT_EQ(model.draft()->layers[0].elements.size(), 2);
+  EXPECT_EQ(model.draft()->layers[0].elements[1].id, 0);
 }
 
 TEST(ParallaxThemeEditorModelTest, DepthPresetRequiresASelectedLayer) {

@@ -4,6 +4,7 @@
 #include <string_view>
 #include <vector>
 
+#include "artwork/parallax_artwork_recipe.h"
 #include "artwork/prop_recipe.h"
 #include "objects/blueprint.h"
 #include "objects/level.h"
@@ -26,6 +27,7 @@ enum class AssetKind {
   kTerrainRecipe,
   kSourceArtwork,
   kPropRecipe,
+  kParallaxArtworkRecipe,
 };
 
 // Human-facing name for a kind, for refusal messages.
@@ -60,6 +62,7 @@ struct AssetCatalog {
   const std::vector<ParallaxTheme>& parallax_themes;
   const std::vector<TerrainRecipe>& recipes;
   const std::vector<PropRecipe>& prop_recipes;
+  const std::vector<ParallaxArtworkRecipe>& parallax_artwork_recipes;
 };
 
 // Everything naming this texture, including reusable parallax themes.

@@ -37,11 +37,13 @@ bool AnyRecipeReferrer(const std::vector<AssetReference>& referrers) {
 absl::Status ValidateThemeTextures(Api& api, const ParallaxTheme& theme) {
   RETURN_IF_ERROR(ValidateParallaxTheme(theme));
   for (const ParallaxLayer& layer : theme.layers) {
-    absl::StatusOr<Texture*> texture = api.GetTexture(layer.texture_id);
-    if (!texture.ok() || *texture == nullptr) {
-      return absl::FailedPreconditionError(absl::StrCat("Parallax layer '", layer.name,
-                                                        "' references missing texture '",
-                                                        layer.texture_id, "'."));
+    for (const ParallaxElement& element : layer.elements) {
+      absl::StatusOr<Texture*> texture = api.GetTexture(element.texture_id);
+      if (!texture.ok() || *texture == nullptr) {
+        return absl::FailedPreconditionError(absl::StrCat("Parallax element '", element.name,
+                                                          "' references missing texture '",
+                                                          element.texture_id, "'."));
+      }
     }
   }
   return absl::OkStatus();
@@ -125,6 +127,9 @@ absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
   if (options.prop_recipe_manager == nullptr) {
     return absl::InvalidArgumentError("PropRecipeManager is null.");
   }
+  if (options.parallax_artwork_recipe_manager == nullptr) {
+    return absl::InvalidArgumentError("ParallaxArtworkRecipeManager is null.");
+  }
   return std::unique_ptr<Api>(new Api(options));
 }
 
@@ -139,7 +144,8 @@ Api::Api(const Options& options)
       tileset_manager_(options.tileset_manager),
       terrain_recipe_manager_(options.terrain_recipe_manager),
       source_artwork_manager_(options.source_artwork_manager),
-      prop_recipe_manager_(options.prop_recipe_manager) {}
+      prop_recipe_manager_(options.prop_recipe_manager),
+      parallax_artwork_recipe_manager_(options.parallax_artwork_recipe_manager) {}
 
 absl::Status Api::SaveConfig(const EngineConfig& config) {
   LOG(INFO) << "SaveConfig in the api....";
@@ -215,12 +221,13 @@ Api::CatalogSnapshot Api::SnapshotCatalog() {
       .parallax_themes = parallax_theme_manager_->GetAllThemes(),
       .recipes = terrain_recipe_manager_->GetAllRecipes(),
       .prop_recipes = prop_recipe_manager_->GetAllRecipes(),
+      .parallax_artwork_recipes = parallax_artwork_recipe_manager_->GetAllRecipes(),
   };
 }
 
 AssetCatalog Api::CatalogSnapshot::View() const {
-  return AssetCatalog{tilesets,        sprites, blueprints,  levels,
-                      parallax_themes, recipes, prop_recipes};
+  return AssetCatalog{tilesets,        sprites, blueprints,   levels,
+                      parallax_themes, recipes, prop_recipes, parallax_artwork_recipes};
 }
 
 absl::Status Api::DeleteSprite(const std::string& sprite_id) {
@@ -681,6 +688,154 @@ absl::Status Api::RegenerateGeneratedProp(const PreparedPropRegeneration& prepar
     CompensationFailures compensation;
     compensation.Add("restore recipe", prop_recipe_manager_->SaveRecipe(prepared.recipe_snapshot));
     compensation.Add("restore sprite", sprite_manager_->SaveSprite(prepared.sprite_snapshot));
+    return compensation.Report(status);
+  }
+  return absl::OkStatus();
+}
+
+absl::StatusOr<std::string> Api::CreateParallaxArtworkRecipe(ParallaxArtworkRecipe recipe) {
+  RETURN_IF_ERROR(source_artwork_manager_->GetArtwork(recipe.source_artwork_id).status());
+  if (recipe.terrain_recipe_id.has_value()) {
+    RETURN_IF_ERROR(terrain_recipe_manager_->GetRecipe(*recipe.terrain_recipe_id).status());
+  }
+  RETURN_IF_ERROR(texture_manager_->GetTexture(recipe.texture_id).status());
+  return parallax_artwork_recipe_manager_->CreateRecipe(std::move(recipe));
+}
+
+absl::Status Api::SaveParallaxArtworkRecipe(const ParallaxArtworkRecipe& recipe) {
+  RETURN_IF_ERROR(source_artwork_manager_->GetArtwork(recipe.source_artwork_id).status());
+  if (recipe.terrain_recipe_id.has_value()) {
+    RETURN_IF_ERROR(terrain_recipe_manager_->GetRecipe(*recipe.terrain_recipe_id).status());
+  }
+  RETURN_IF_ERROR(texture_manager_->GetTexture(recipe.texture_id).status());
+  return parallax_artwork_recipe_manager_->SaveRecipe(recipe);
+}
+
+absl::StatusOr<ParallaxArtworkRecipe*> Api::GetParallaxArtworkRecipe(const std::string& recipe_id) {
+  return parallax_artwork_recipe_manager_->GetRecipe(recipe_id);
+}
+
+std::vector<ParallaxArtworkRecipe> Api::GetAllParallaxArtworkRecipes() const {
+  return parallax_artwork_recipe_manager_->GetAllRecipes();
+}
+
+absl::StatusOr<std::string> Api::CreateGeneratedParallaxArtwork(
+    const PreparedParallaxArtworkAsset& prepared) {
+  RETURN_IF_ERROR(ValidatePreparedParallaxArtworkAsset(prepared));
+
+  ASSIGN_OR_RETURN(SourceArtwork * current_source,
+                   source_artwork_manager_->GetArtwork(prepared.source.id));
+  if (SourceArtworkToJson(*current_source) != SourceArtworkToJson(prepared.source)) {
+    return absl::FailedPreconditionError(
+        "accepted source artwork changed after this parallax artwork was prepared");
+  }
+  if (prepared.recipe.terrain_recipe_id.has_value()) {
+    RETURN_IF_ERROR(
+        terrain_recipe_manager_->GetRecipe(*prepared.recipe.terrain_recipe_id).status());
+  }
+
+  RETURN_IF_ERROR(RequireAbsent(texture_manager_->GetTexture(prepared.texture.id).status(),
+                                "texture", prepared.texture.id));
+  RETURN_IF_ERROR(
+      RequireAbsent(parallax_artwork_recipe_manager_->GetRecipe(prepared.recipe.id).status(),
+                    "parallax artwork recipe", prepared.recipe.id));
+  RETURN_IF_ERROR(texture_manager_->PreflightGeneratedTexture(prepared.texture));
+  RETURN_IF_ERROR(parallax_artwork_recipe_manager_->PreflightRecipeWithId(prepared.recipe));
+
+  const RgbaImage& image = prepared.artwork.finished;
+  RETURN_IF_ERROR(texture_manager_->CreateGeneratedTexture(prepared.texture, image.width,
+                                                           image.height, image.pixels));
+  const absl::Status status = parallax_artwork_recipe_manager_->CreateRecipeWithId(prepared.recipe);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("delete texture", texture_manager_->DeleteTexture(prepared.texture.id));
+    return compensation.Report(status);
+  }
+  return prepared.recipe.id;
+}
+
+absl::Status Api::DeleteGeneratedParallaxArtwork(const std::string& recipe_id) {
+  ASSIGN_OR_RETURN(const ParallaxArtworkRecipe* loaded,
+                   parallax_artwork_recipe_manager_->GetRecipe(recipe_id));
+  const ParallaxArtworkRecipe recipe = *loaded;
+
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  std::vector<AssetReference> outside;
+  for (const AssetReference& referrer : FindTextureReferrers(catalog.View(), recipe.texture_id)) {
+    if (referrer.kind == AssetKind::kParallaxArtworkRecipe && referrer.id == recipe.id) continue;
+    outside.push_back(referrer);
+  }
+  RETURN_IF_ERROR(
+      RefuseIfReferenced(absl::StrCat("generated parallax artwork '", recipe.name, "'"), outside));
+
+  bool source_is_shared = false;
+  for (const AssetReference& referrer :
+       FindSourceArtworkReferrers(catalog.View(), recipe.source_artwork_id)) {
+    if (referrer.kind != AssetKind::kParallaxArtworkRecipe || referrer.id != recipe.id) {
+      source_is_shared = true;
+      break;
+    }
+  }
+
+  const absl::Status texture_deleted = texture_manager_->DeleteTexture(recipe.texture_id);
+  if (!texture_deleted.ok() && !absl::IsNotFound(texture_deleted)) return texture_deleted;
+  RETURN_IF_ERROR(parallax_artwork_recipe_manager_->DeleteRecipe(recipe.id));
+
+  if (!source_is_shared) {
+    const absl::Status source_deleted =
+        source_artwork_manager_->DeleteArtwork(recipe.source_artwork_id);
+    if (!source_deleted.ok() && !absl::IsNotFound(source_deleted)) return source_deleted;
+  }
+  return absl::OkStatus();
+}
+
+absl::Status Api::RegenerateGeneratedParallaxArtwork(
+    const PreparedParallaxArtworkRegeneration& prepared) {
+  RETURN_IF_ERROR(ValidatePreparedParallaxArtworkRegeneration(prepared));
+
+  ASSIGN_OR_RETURN(SourceArtwork * current_source,
+                   source_artwork_manager_->GetArtwork(prepared.source_snapshot.id));
+  if (SourceArtworkToJson(*current_source) != SourceArtworkToJson(prepared.source_snapshot)) {
+    return absl::FailedPreconditionError(
+        "source artwork changed while parallax artwork was regenerating; retry");
+  }
+
+  ASSIGN_OR_RETURN(ParallaxArtworkRecipe * current_recipe,
+                   parallax_artwork_recipe_manager_->GetRecipe(prepared.recipe_snapshot.id));
+  if (ParallaxArtworkRecipeToJson(*current_recipe) !=
+      ParallaxArtworkRecipeToJson(prepared.recipe_snapshot)) {
+    return absl::FailedPreconditionError(
+        "parallax artwork recipe changed while artwork was regenerating; retry");
+  }
+
+  ASSIGN_OR_RETURN(Texture * current_texture,
+                   texture_manager_->GetTexture(prepared.texture_snapshot.id));
+  if (current_texture->id != prepared.texture_snapshot.id ||
+      current_texture->name != prepared.texture_snapshot.name ||
+      current_texture->path != prepared.texture_snapshot.path) {
+    return absl::FailedPreconditionError(
+        "generated texture definition changed while parallax artwork was regenerating");
+  }
+  ASSIGN_OR_RETURN(const RgbaImage current_pixels,
+                   texture_manager_->ReadTexturePixels(current_texture->id));
+  ASSIGN_OR_RETURN(const std::string current_digest, RgbaImageDigest(current_pixels));
+  if (current_digest != prepared.texture_pixel_digest) {
+    return absl::FailedPreconditionError(
+        "generated texture pixels changed while parallax artwork was regenerating");
+  }
+  if (prepared.updated_recipe.terrain_recipe_id.has_value()) {
+    RETURN_IF_ERROR(
+        terrain_recipe_manager_->GetRecipe(*prepared.updated_recipe.terrain_recipe_id).status());
+  }
+
+  RETURN_IF_ERROR(parallax_artwork_recipe_manager_->SaveRecipe(prepared.updated_recipe));
+  const RgbaImage& image = prepared.artwork.finished;
+  const absl::Status status = texture_manager_->ReplaceTexturePixels(
+      prepared.texture_snapshot.id, image.width, image.height, image.pixels);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore recipe",
+                     parallax_artwork_recipe_manager_->SaveRecipe(prepared.recipe_snapshot));
     return compensation.Report(status);
   }
   return absl::OkStatus();

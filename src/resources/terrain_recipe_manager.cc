@@ -6,12 +6,12 @@
 #include <system_error>
 #include <utility>
 
-#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
+#include "resources/resource_utils.h"
 
 namespace zebes {
 namespace {
@@ -68,20 +68,20 @@ absl::Status TerrainRecipeManager::LoadAllRecipes() {
   }
 
   absl::flat_hash_map<std::string, std::unique_ptr<TerrainRecipe>> loaded;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    ASSIGN_OR_RETURN(TerrainRecipe recipe, LoadRecipeFile(entry.path().string()));
-    if (entry.path().stem() != recipe.id) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("terrain recipe filename does not match its ID: ", entry.path().string()));
-    }
-    if (loaded.contains(recipe.id)) {
-      return absl::AlreadyExistsError(absl::StrCat("duplicate terrain recipe ID ", recipe.id));
-    }
-    const std::string id = recipe.id;
-    loaded[id] = std::make_unique<TerrainRecipe>(std::move(recipe));
-  }
+  RETURN_IF_ERROR(LoadJsonDefinitions(
+      definitions_path_, "terrain recipe",
+      [&loaded](const std::filesystem::path& path) -> absl::Status {
+        ASSIGN_OR_RETURN(TerrainRecipe recipe, LoadRecipeFile(path.string()));
+        if (path.stem() != recipe.id) {
+          return absl::InvalidArgumentError("terrain recipe filename does not match its ID");
+        }
+        if (loaded.contains(recipe.id)) {
+          return absl::AlreadyExistsError(absl::StrCat("duplicate terrain recipe ID ", recipe.id));
+        }
+        const std::string id = recipe.id;
+        loaded[id] = std::make_unique<TerrainRecipe>(std::move(recipe));
+        return absl::OkStatus();
+      }));
   recipes_ = std::move(loaded);
   return absl::OkStatus();
 }
@@ -95,39 +95,8 @@ absl::StatusOr<std::string> TerrainRecipeManager::CreateRecipe(TerrainRecipe rec
 absl::Status TerrainRecipeManager::SaveRecipe(const TerrainRecipe& recipe) {
   RETURN_IF_ERROR(ValidateRecipeForSave(recipe));
 
-  std::error_code error;
-  std::filesystem::create_directories(definitions_path_, error);
-  if (error) {
-    return absl::InternalError(
-        absl::StrCat("could not create terrain recipe directory: ", error.message()));
-  }
-
-  const std::string target = RecipePath(recipe.id);
-  const std::string temporary = absl::StrCat(target, ".tmp");
-  absl::Cleanup remove_temporary = [&temporary] {
-    std::error_code ignored;
-    std::filesystem::remove(temporary, ignored);
-  };
-  {
-    std::ofstream stream(temporary, std::ios::trunc);
-    if (!stream.is_open()) {
-      return absl::InternalError(absl::StrCat("could not write terrain recipe: ", temporary));
-    }
-    stream << TerrainRecipeToJson(recipe).dump(2);
-    stream.flush();
-    if (!stream.good()) {
-      return absl::InternalError(absl::StrCat("failed while writing terrain recipe: ", temporary));
-    }
-  }
-
-  std::filesystem::rename(temporary, target, error);
-  if (error) {
-    // Windows does not replace an existing destination. Keep the common path
-    // atomic, but report platforms that cannot provide that guarantee instead
-    // of deleting the old file first and risking data loss.
-    return absl::InternalError(absl::StrCat("could not commit terrain recipe: ", error.message()));
-  }
-  std::move(remove_temporary).Cancel();
+  RETURN_IF_ERROR(
+      WriteTextFileAtomically(RecipePath(recipe.id), TerrainRecipeToJson(recipe).dump(2)));
 
   // Assigned through the existing allocation rather than replacing it: callers
   // hold TerrainRecipe* from GetRecipe, and swapping the unique_ptr frees what

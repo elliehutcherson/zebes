@@ -27,6 +27,7 @@
 #include "resources/collider_manager.h"
 #include "resources/fake_texture_resource_store.h"
 #include "resources/level_manager.h"
+#include "resources/parallax_artwork_recipe_manager.h"
 #include "resources/parallax_theme_manager.h"
 #include "resources/prop_recipe_manager.h"
 #include "resources/source_artwork_manager.h"
@@ -164,6 +165,22 @@ TEST(ShippedAssetsTest, EveryShippedPropRecipeLoads) {
   EXPECT_EQ((*manager)->GetAllRecipes().size(), DefinitionFileCount("prop_recipes"));
 }
 
+TEST(ShippedAssetsTest, EveryShippedParallaxArtworkRecipeLoads) {
+  const std::string directory = std::string(kAssetsRoot) + "/definitions/parallax_artwork_recipes";
+  if (!std::filesystem::exists(directory)) {
+    EXPECT_EQ(DefinitionFileCount("parallax_artwork_recipes"), 0);
+    return;
+  }
+
+  absl::StatusOr<std::unique_ptr<ParallaxArtworkRecipeManager>> manager =
+      ParallaxArtworkRecipeManager::Create(kAssetsRoot);
+  ASSERT_OK(manager);
+
+  const absl::Status loaded = (*manager)->LoadAllRecipes();
+  EXPECT_OK(loaded);
+  EXPECT_EQ((*manager)->GetAllRecipes().size(), DefinitionFileCount("parallax_artwork_recipes"));
+}
+
 TEST(ShippedAssetsTest, EveryShippedLevelLoads) {
   absl::StatusOr<std::unique_ptr<LevelManager>> manager = LevelManager::Create(kAssetsRoot);
   ASSERT_OK(manager);
@@ -185,9 +202,11 @@ TEST(ShippedAssetsTest, EveryShippedParallaxThemeLoadsAndReferencesArtwork) {
   for (const ParallaxTheme& theme : themes) {
     EXPECT_OK(ValidateParallaxTheme(theme)) << theme.name;
     for (const ParallaxLayer& layer : theme.layers) {
-      EXPECT_TRUE(textures.contains(layer.texture_id))
-          << "theme '" << theme.name << "' layer '" << layer.name << "' references missing texture "
-          << layer.texture_id;
+      for (const ParallaxElement& element : layer.elements) {
+        EXPECT_TRUE(textures.contains(element.texture_id))
+            << "theme '" << theme.name << "' layer '" << layer.name << "' element '" << element.name
+            << "' references missing texture " << element.texture_id;
+      }
     }
   }
 }

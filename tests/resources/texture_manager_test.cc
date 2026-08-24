@@ -209,6 +209,22 @@ TEST_F(TextureManagerTest, CreateGeneratedTextureKeepsItsPreparedIdBackedPath) {
             absl::StatusCode::kAlreadyExists);
 }
 
+TEST_F(TextureManagerTest, CreateGeneratedTextureAcceptsAParallaxArtworkCategory) {
+  const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
+  const Texture definition{
+      .id = "prepared-texture-1",
+      .name = "Cave formation",
+      .path = "textures/parallax_artwork/prepared-texture-1.png",
+  };
+
+  ASSERT_OK(manager_->CreateGeneratedTexture(definition, 4, 4, pixels));
+
+  ASSERT_OK_AND_ASSIGN(Texture * loaded, manager_->GetTexture(definition.id));
+  EXPECT_EQ(loaded->path, definition.path);
+  EXPECT_TRUE(
+      std::filesystem::exists(test_dir_ + "/textures/parallax_artwork/prepared-texture-1.png"));
+}
+
 TEST_F(TextureManagerTest, CreateGeneratedTextureRejectsANameBackedPath) {
   const std::vector<uint8_t> pixels(4 * 4 * 4, 0xAB);
   const Texture definition{

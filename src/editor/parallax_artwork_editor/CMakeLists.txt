@@ -1,0 +1,38 @@
+add_library(parallax_artwork_editor_model parallax_artwork_editor_model.cc)
+target_link_libraries(parallax_artwork_editor_model
+  PUBLIC
+  prepare_parallax_artwork_asset
+  regenerate_parallax_artwork_asset
+  source_artwork
+  terrain_recipe
+  absl::status
+  PRIVATE
+  image_digest
+  terrain_palette
+  status_macros
+)
+
+add_library(parallax_artwork_editor parallax_artwork_editor.cc)
+target_link_libraries(parallax_artwork_editor
+  PUBLIC
+  api
+  background_task
+  camera
+  editor_canvas
+  gui_interface
+  parallax_artwork_editor_model
+  absl::status
+  absl::statusor
+  PRIVATE
+  confirm_prompt
+  editor_texture_preview
+  image_io
+  imgui_scoped
+  status_macros
+  ${IMGUI_LIBRARIES}
+  absl::cleanup
+  absl::log
+  absl::memory
+  absl::strings
+  absl::time
+)

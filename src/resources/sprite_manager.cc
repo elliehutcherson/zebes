@@ -128,22 +128,10 @@ absl::StatusOr<Sprite*> SpriteManager::LoadSprite(const std::string& path_json) 
 }
 
 absl::Status SpriteManager::LoadAllSprites() {
-  if (!std::filesystem::exists(definitions_path_)) {
-    return absl::NotFoundError(
-        absl::StrCat("Sprite root directory not found: ", definitions_path_));
-  }
-
-  ResourceLoadFailures failures;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    auto status = LoadSprite(entry.path().filename().string());
-    if (!status.ok()) {
-      LOG(WARNING) << "Failed to load sprite from " << entry.path() << ": " << status.status();
-      failures.Add(entry.path().filename().string(), status.status());
-    }
-  }
-  return failures.ToStatus("sprite");
+  return LoadJsonDefinitions(definitions_path_, "sprite",
+                             [this](const std::filesystem::path& path) -> absl::Status {
+                               return LoadSprite(path.filename().string()).status();
+                             });
 }
 
 absl::StatusOr<std::string> SpriteManager::CreateSprite(Sprite sprite) {

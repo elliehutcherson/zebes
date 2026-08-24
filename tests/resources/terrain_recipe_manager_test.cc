@@ -170,7 +170,9 @@ TEST_F(TerrainRecipeManagerTest, RejectsAnUnknownFutureSchema) {
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<TerrainRecipeManager> reloaded,
                        TerrainRecipeManager::Create(path_.string()));
-  EXPECT_EQ(reloaded->LoadAllRecipes().code(), absl::StatusCode::kFailedPrecondition);
+  const absl::Status status = reloaded->LoadAllRecipes();
+  EXPECT_EQ(status.code(), absl::StatusCode::kDataLoss);
+  EXPECT_THAT(std::string(status.message()), ::testing::HasSubstr("migrate_definitions.py"));
 }
 
 TEST_F(TerrainRecipeManagerTest, RejectsMissingConfigurationInsteadOfUsingDefaults) {
@@ -185,7 +187,9 @@ TEST_F(TerrainRecipeManagerTest, RejectsMissingConfigurationInsteadOfUsingDefaul
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<TerrainRecipeManager> reloaded,
                        TerrainRecipeManager::Create(path_.string()));
-  EXPECT_EQ(reloaded->LoadAllRecipes().code(), absl::StatusCode::kInvalidArgument);
+  const absl::Status status = reloaded->LoadAllRecipes();
+  EXPECT_EQ(status.code(), absl::StatusCode::kDataLoss);
+  EXPECT_THAT(std::string(status.message()), ::testing::HasSubstr("scale"));
 }
 
 }  // namespace

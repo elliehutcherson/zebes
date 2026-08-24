@@ -6,7 +6,9 @@ add_library(api STATIC
 target_link_libraries(api
   asset_references
   prepare_prop_asset
+  prepare_parallax_artwork_asset
   regenerate_prop_asset
+  regenerate_parallax_artwork_asset
   image_digest
   absl::status
   absl::statusor
@@ -24,5 +26,6 @@ target_link_libraries(api
   terrain_recipe_manager
   source_artwork_manager
   prop_recipe_manager
+  parallax_artwork_recipe_manager
   absl::strings
 )

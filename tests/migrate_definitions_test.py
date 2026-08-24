@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import struct
 import sys
 import tempfile
 import unittest
@@ -17,12 +18,17 @@ SPEC.loader.exec_module(migrate_definitions)
 class MigrateDefinitionsTest(unittest.TestCase):
     def setUp(self):
         self._temp = tempfile.TemporaryDirectory()
-        self.root = Path(self._temp.name)
+        self.assets_root = Path(self._temp.name)
+        self.root = self.assets_root / "definitions"
+        self.root.mkdir()
         (self.root / "blueprints").mkdir()
         (self.root / "levels").mkdir()
         (self.root / "prop_recipes").mkdir()
+        (self.root / "source_artworks").mkdir()
+        (self.root / "parallax_themes").mkdir()
         (self.root / "sprites").mkdir()
         (self.root / "terrain_recipes").mkdir()
+        (self.root / "textures").mkdir()
         (self.root / "tilesets").mkdir()
         self.addCleanup(self._temp.cleanup)
 
@@ -33,6 +39,115 @@ class MigrateDefinitionsTest(unittest.TestCase):
 
     def write_blueprint(self, name, document):
         path = self.root / "blueprints" / name
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
+    def write_source_artwork(self, artwork_id, schema_version=1, current=False):
+        relative_directory = "source_art" if current else "source_art/props"
+        image_path = self.assets_root / relative_directory / f"{artwork_id}.png"
+        image_path.parent.mkdir(parents=True, exist_ok=True)
+        image_path.write_bytes(b"retained png bytes")
+        definition_path = self.root / "source_artworks" / f"{artwork_id}.json"
+        definition_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": schema_version,
+                    "id": artwork_id,
+                    "name": "Cave source",
+                    "source_path": f"{relative_directory}/{artwork_id}.png",
+                    "provenance": {
+                        "kind": "imported",
+                        "original_filename": "cave.png",
+                        "imported_at_utc": "2026-08-23T12:00:00Z",
+                    },
+                    "width": 1,
+                    "height": 1,
+                    "content_digest": "0" * 64,
+                }
+            ),
+            encoding="utf-8",
+        )
+        return definition_path, image_path
+
+    def test_source_artwork_moves_to_neutral_directory(self):
+        definition, legacy_image = self.write_source_artwork("source-1")
+
+        changed = migrate_definitions.migrate_source_artwork(self.root, dry_run=False)
+
+        self.assertEqual(changed, [definition])
+        current_image = self.assets_root / "source_art/source-1.png"
+        self.assertFalse(legacy_image.exists())
+        self.assertEqual(current_image.read_bytes(), b"retained png bytes")
+        document = json.loads(definition.read_text(encoding="utf-8"))
+        self.assertEqual(document["schema_version"], 2)
+        self.assertEqual(document["source_path"], "source_art/source-1.png")
+        self.assertEqual(
+            migrate_definitions.migrate_source_artwork(self.root, dry_run=False), []
+        )
+
+    def test_source_artwork_dry_run_changes_nothing(self):
+        definition, legacy_image = self.write_source_artwork("source-1")
+
+        changed = migrate_definitions.migrate_source_artwork(self.root, dry_run=True)
+
+        self.assertEqual(changed, [definition])
+        self.assertTrue(legacy_image.exists())
+        self.assertEqual(
+            json.loads(definition.read_text(encoding="utf-8"))["schema_version"], 1
+        )
+
+    def test_source_artwork_migration_preflights_every_definition(self):
+        _, first_image = self.write_source_artwork("source-1")
+        self.write_source_artwork("source-2")
+        conflicting = self.assets_root / "source_art/source-2.png"
+        conflicting.parent.mkdir(parents=True, exist_ok=True)
+        conflicting.write_bytes(b"conflict")
+
+        with self.assertRaisesRegex(ValueError, "missing or conflicting"):
+            migrate_definitions.migrate_source_artwork(self.root, dry_run=False)
+
+        self.assertTrue(first_image.exists())
+        self.assertFalse(
+            (self.assets_root / "source_art/source-1.png").exists()
+        )
+
+    def test_source_artwork_migration_refuses_half_migrated_state(self):
+        definition, legacy_image = self.write_source_artwork("source-1")
+        current_image = self.assets_root / "source_art/source-1.png"
+        current_image.parent.mkdir(parents=True, exist_ok=True)
+        legacy_image.replace(current_image)
+
+        with self.assertRaisesRegex(ValueError, "missing or conflicting"):
+            migrate_definitions.migrate_source_artwork(self.root, dry_run=False)
+
+        self.assertEqual(
+            json.loads(definition.read_text(encoding="utf-8"))["schema_version"], 1
+        )
+
+    def write_parallax_texture(self, texture_id, width, height):
+        image_directory = self.assets_root / "textures" / "test_images"
+        image_directory.mkdir(parents=True, exist_ok=True)
+        image_path = image_directory / f"{texture_id}.png"
+        image_path.write_bytes(
+            migrate_definitions.PNG_SIGNATURE
+            + struct.pack(">I", 13)
+            + b"IHDR"
+            + struct.pack(">II", width, height)
+        )
+        definition_path = self.root / "textures" / f"{texture_id}.json"
+        definition_path.write_text(
+            json.dumps(
+                {
+                    "id": texture_id,
+                    "name": texture_id,
+                    "path": f"test_images/{texture_id}.png",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def write_parallax_theme(self, name, document):
+        path = self.root / "parallax_themes" / name
         path.write_text(json.dumps(document), encoding="utf-8")
         return path
 
@@ -89,6 +204,135 @@ class MigrateDefinitionsTest(unittest.TestCase):
             migrate_definitions.migrate_parallax_themes(self.root, dry_run=False), []
         )
 
+    def test_parallax_repeat_flags_become_explicit_composition_periods(self):
+        self.write_parallax_texture("cave-far", 320, 180)
+        path = self.write_parallax_theme(
+            "cave.json",
+            {
+                "id": "theme-1",
+                "name": "Cave",
+                "layers": [
+                    {
+                        "name": "Far formations",
+                        "texture_id": "cave-far",
+                        "scroll_factor_x": 0.1,
+                        "scroll_factor_y": 0.05,
+                        "offset_x": -12.0,
+                        "offset_y": 8.0,
+                        "base_scale": 2.0,
+                        "repeat_x": True,
+                        "repeat_y": False,
+                    }
+                ],
+            },
+        )
+
+        changed = migrate_definitions.migrate_parallax_layer_compositions(
+            self.root, dry_run=False
+        )
+
+        self.assertEqual(changed, [path])
+        document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(document["schema_version"], 2)
+        layer = document["layers"][0]
+        self.assertEqual(layer["repeat_period_x"], 640.0)
+        self.assertEqual(layer["repeat_period_y"], 0.0)
+        self.assertNotIn("repeat_x", layer)
+        self.assertNotIn("texture_id", layer)
+        self.assertEqual(
+            layer["elements"],
+            [
+                {
+                    "id": 0,
+                    "name": "Far formations",
+                    "texture_id": "cave-far",
+                    "position_x": 0.0,
+                    "position_y": 0.0,
+                    "scale": 2.0,
+                }
+            ],
+        )
+        self.assertEqual(
+            migrate_definitions.migrate_parallax_layer_compositions(
+                self.root, dry_run=False
+            ),
+            [],
+        )
+
+    def test_parallax_composition_migration_preflights_every_theme(self):
+        self.write_parallax_texture("cave-far", 320, 180)
+        valid = self.write_parallax_theme(
+            "a-valid.json",
+            {
+                "id": "theme-1",
+                "name": "Cave",
+                "layers": [
+                    {
+                        "name": "Far",
+                        "texture_id": "cave-far",
+                        "scroll_factor_x": 0.0,
+                        "scroll_factor_y": 0.0,
+                        "offset_x": 0.0,
+                        "offset_y": 0.0,
+                        "base_scale": 1.0,
+                        "repeat_x": True,
+                        "repeat_y": True,
+                    }
+                ],
+            },
+        )
+        before = valid.read_bytes()
+        self.write_parallax_theme(
+            "z-invalid.json",
+            {
+                "id": "theme-2",
+                "name": "Broken",
+                "layers": [
+                    {
+                        "name": "Near",
+                        "texture_id": "missing",
+                        "scroll_factor_x": 0.5,
+                        "scroll_factor_y": 0.5,
+                        "offset_x": 0.0,
+                        "offset_y": 0.0,
+                        "base_scale": 1.0,
+                        "repeat_x": False,
+                        "repeat_y": False,
+                    }
+                ],
+            },
+        )
+
+        with self.assertRaisesRegex(ValueError, "missing texture"):
+            migrate_definitions.migrate_parallax_layer_compositions(
+                self.root, dry_run=False
+            )
+        self.assertEqual(valid.read_bytes(), before)
+
+    def test_current_parallax_theme_with_legacy_fields_is_refused(self):
+        self.write_parallax_theme(
+            "half.json",
+            {
+                "schema_version": 2,
+                "id": "theme-1",
+                "name": "Half",
+                "layers": [
+                    {
+                        "name": "Far",
+                        "repeat_period_x": 100.0,
+                        "repeat_period_y": 0.0,
+                        "elements": [],
+                        "repeat_x": True,
+                    }
+                ],
+            },
+        )
+
+        with self.assertRaisesRegex(ValueError, "retains legacy"):
+            migrate_definitions.migrate_parallax_layer_compositions(
+                self.root, dry_run=False
+            )
+
     def test_conflicting_extracted_theme_is_refused_before_level_changes(self):
         path = self.write_level(
             "cave.json",
@@ -102,7 +346,7 @@ class MigrateDefinitionsTest(unittest.TestCase):
         before = path.read_bytes()
         theme_id = migrate_definitions.parallax_theme_id("level-1", 7)
         directory = self.root / "parallax_themes"
-        directory.mkdir()
+        directory.mkdir(exist_ok=True)
         (directory / f"{theme_id}.json").write_text(
             json.dumps({"id": theme_id, "name": "Independent", "layers": []}),
             encoding="utf-8",

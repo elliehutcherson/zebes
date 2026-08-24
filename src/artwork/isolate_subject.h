@@ -1,5 +1,6 @@
 #pragma once
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "common/image_io.h"
 
@@ -16,6 +17,8 @@ struct SubjectIsolationConfig {
   int minimum_subject_area = 64;
   float competing_subject_ratio = 0.20f;
 };
+
+absl::Status ValidateSubjectIsolationConfig(const SubjectIsolationConfig& config);
 
 // Removes only background connected to the image border. Meaningful source
 // alpha takes precedence over colour estimation.

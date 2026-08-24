@@ -3,7 +3,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <utility>
 
 #include "absl/status/status.h"
@@ -57,28 +56,32 @@ PropStageDiagnostic Diagnostic(PropArtworkStage stage, const RgbaImage& image) {
 
 }  // namespace
 
-absl::Status ValidatePropSource(const RgbaImage& source, const PropSourceLimits& limits) {
-  if (!source.IsValid()) return absl::InvalidArgumentError("source artwork is not valid RGBA8");
-  if (limits.maximum_width <= 0 || limits.maximum_height <= 0 || limits.maximum_pixels == 0 ||
-      limits.maximum_bytes == 0) {
-    return absl::InvalidArgumentError("source artwork limits must be positive");
-  }
+absl::Status ValidatePropArtworkPipelineConfig(const PropArtworkPipelineConfig& config,
+                                               const PropArtworkStyle& style) {
+  RETURN_IF_ERROR(ValidatePropArtworkStyle(style));
+  RETURN_IF_ERROR(ValidateSourceArtworkLimits(config.source_limits));
+  RETURN_IF_ERROR(ValidateSubjectIsolationConfig(config.isolation));
+  RETURN_IF_ERROR(ValidatePropCompositionConfig(config.composition));
+  RETURN_IF_ERROR(ValidatePropEdgeConfig(config.edge));
+  RETURN_IF_ERROR(ValidatePropCleanupConfig(config.cleanup));
 
-  const uint64_t pixels = static_cast<uint64_t>(source.width) * source.height;
-  if (source.width > limits.maximum_width || source.height > limits.maximum_height ||
-      pixels > limits.maximum_pixels || source.pixels.size() > limits.maximum_bytes) {
-    return absl::ResourceExhaustedError(absl::StrCat("source artwork ", source.width, "x",
-                                                     source.height, " (", source.pixels.size(),
-                                                     " bytes) exceeds configured limits"));
-  }
-  return absl::OkStatus();
+  const PropRasterConfig raster{
+      .tile_size = style.tile_size,
+      .canvas_tiles_wide = config.composition.canvas_tiles_wide,
+      .canvas_tiles_high = config.composition.canvas_tiles_high,
+      .pixel_block_size = style.pixel_block_size,
+  };
+  RETURN_IF_ERROR(ValidatePropRasterConfig(raster));
+  const int output_width = style.tile_size * config.composition.canvas_tiles_wide;
+  const int output_height = style.tile_size * config.composition.canvas_tiles_high;
+  return ValidatePropAttachment(config.composition.attachment, output_width, output_height);
 }
 
 absl::StatusOr<PropArtworkPipelineResult> RunPropArtworkPipeline(
     const RgbaImage& source, const PropArtworkStyle& style,
     const PropArtworkPipelineConfig& config) {
-  RETURN_IF_ERROR(ValidatePropSource(source, config.source_limits));
-  RETURN_IF_ERROR(ValidatePropArtworkStyle(style));
+  RETURN_IF_ERROR(ValidateSourceArtworkPixels(source, config.source_limits));
+  RETURN_IF_ERROR(ValidatePropArtworkPipelineConfig(config, style));
 
   const PropRasterConfig raster_config{
       .tile_size = style.tile_size,
@@ -90,13 +93,6 @@ absl::StatusOr<PropArtworkPipelineResult> RunPropArtworkPipeline(
       static_cast<int64_t>(style.tile_size) * config.composition.canvas_tiles_wide;
   const int64_t output_height =
       static_cast<int64_t>(style.tile_size) * config.composition.canvas_tiles_high;
-  if (output_width <= 0 || output_height <= 0 || output_width > std::numeric_limits<int>::max() ||
-      output_height > std::numeric_limits<int>::max()) {
-    return absl::InvalidArgumentError("prop output dimensions overflow integer storage");
-  }
-  RETURN_IF_ERROR(ValidatePropAttachment(config.composition.attachment,
-                                         static_cast<int>(output_width),
-                                         static_cast<int>(output_height)));
 
   ASSIGN_OR_RETURN(const std::string source_digest, RgbaImageDigest(source));
   ASSIGN_OR_RETURN(RgbaImage isolated,

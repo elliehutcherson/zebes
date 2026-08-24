@@ -106,7 +106,7 @@ TEST_F(PropArtworkControlsPanelTest, DeletingARetainedSourceRequiresConfirmation
   SourceArtwork source{
       .id = "source-1",
       .name = "Boulder source",
-      .source_path = "source_art/props/source-1.png",
+      .source_path = "source_art/source-1.png",
       .provenance = ImportedArtworkProvenance{.original_filename = "boulder.png",
                                               .imported_at_utc = "2026-08-17T12:00:00Z"},
       .width = 1,

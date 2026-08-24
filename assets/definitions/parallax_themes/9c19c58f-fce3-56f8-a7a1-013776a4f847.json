@@ -2,16 +2,25 @@
   "id": "9c19c58f-fce3-56f8-a7a1-013776a4f847",
   "layers": [
     {
-      "base_scale": 6.0,
+      "elements": [
+        {
+          "id": 0,
+          "name": "Sunny Layer",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 6.0,
+          "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
+        }
+      ],
       "name": "Sunny Layer",
       "offset_x": 0.0,
       "offset_y": 0.0,
-      "repeat_x": true,
-      "repeat_y": false,
+      "repeat_period_x": 2304.0,
+      "repeat_period_y": 0.0,
       "scroll_factor_x": 0.1,
-      "scroll_factor_y": 0.01,
-      "texture_id": "78f31764-d173-4887-9343-ba80e2ccc625"
+      "scroll_factor_y": 0.01
     }
   ],
-  "name": "level_0 \u2014 Sunny Theme"
+  "name": "level_0 \u2014 Sunny Theme",
+  "schema_version": 2
 }

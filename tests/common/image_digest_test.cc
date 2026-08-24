@@ -28,5 +28,13 @@ TEST(ImageDigestTest, RejectsInvalidStorage) {
   EXPECT_FALSE(RgbaImageDigest(invalid).ok());
 }
 
+TEST(ImageDigestTest, RecognizesOnlyCanonicalLowercaseSha256Text) {
+  EXPECT_TRUE(IsLowercaseSha256Digest(std::string(64, '0')));
+  EXPECT_TRUE(IsLowercaseSha256Digest(std::string(64, 'f')));
+  EXPECT_FALSE(IsLowercaseSha256Digest(std::string(63, '0')));
+  EXPECT_FALSE(IsLowercaseSha256Digest(std::string(64, 'F')));
+  EXPECT_FALSE(IsLowercaseSha256Digest(std::string(64, 'g')));
+}
+
 }  // namespace
 }  // namespace zebes

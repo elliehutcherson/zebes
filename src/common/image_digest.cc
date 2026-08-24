@@ -2,6 +2,7 @@
 
 #include <array>
 #include <bit>
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <iomanip>
@@ -117,6 +118,17 @@ class Sha256 {
 };
 
 }  // namespace
+
+bool IsLowercaseSha256Digest(std::string_view digest) {
+  if (digest.size() != 64) return false;
+  for (const char character : digest) {
+    if (!std::isdigit(static_cast<unsigned char>(character)) &&
+        (character < 'a' || character > 'f')) {
+      return false;
+    }
+  }
+  return true;
+}
 
 absl::StatusOr<std::string> RgbaImageDigest(const RgbaImage& image) {
   if (!image.IsValid()) return absl::InvalidArgumentError("cannot digest an invalid RGBA image");

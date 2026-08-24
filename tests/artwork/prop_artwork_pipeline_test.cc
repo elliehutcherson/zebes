@@ -319,7 +319,8 @@ TEST(PropArtworkPipelineTest, CoordinatorNamesTheFailingStage) {
 
 TEST(PropArtworkPipelineTest, SourceLimitsFailBeforeAnyTransformRuns) {
   const RgbaImage source = SolidImage(16, 16, RgbaColor{74, 68, 64, 255});
-  const absl::Status status = ValidatePropSource(source, PropSourceLimits{.maximum_width = 8});
+  const absl::Status status =
+      ValidateSourceArtworkPixels(source, SourceArtworkLimits{.maximum_width = 8});
 
   EXPECT_EQ(status.code(), absl::StatusCode::kResourceExhausted);
   EXPECT_NE(status.message().find("exceeds configured limits"), absl::string_view::npos);

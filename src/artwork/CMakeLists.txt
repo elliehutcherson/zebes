@@ -8,16 +8,100 @@ add_library(prop_artwork
   rasterize_prop.cc
 )
 
+add_library(generated_artwork_postprocessor generated_artwork_postprocessor.cc)
+target_link_libraries(generated_artwork_postprocessor
+  PUBLIC
+  image_io
+  terrain_palette
+  absl::status
+  absl::statusor
+  PRIVATE
+  prop_artwork
+  status_macros
+  absl::strings
+)
+
+add_library(repetition_review repetition_review.cc)
+target_link_libraries(repetition_review
+  PUBLIC
+  image_io
+  absl::statusor
+  PRIVATE
+  absl::status
+)
+
+add_library(parallax_artwork_pipeline parallax_artwork_pipeline.cc)
+target_link_libraries(parallax_artwork_pipeline
+  PUBLIC
+  image_io
+  repetition_review
+  source_artwork
+  terrain_palette
+  absl::status
+  absl::statusor
+  PRIVATE
+  generated_artwork_postprocessor
+  image_digest
+  status_macros
+  absl::strings
+)
+
+add_library(parallax_artwork_recipe parallax_artwork_recipe.cc)
+target_link_libraries(parallax_artwork_recipe
+  PUBLIC
+  parallax_artwork_pipeline
+  nlohmann_json::nlohmann_json
+  absl::status
+  absl::statusor
+  PRIVATE
+  image_digest
+  status_macros
+  absl::strings
+)
+
+add_library(prepare_parallax_artwork_asset prepare_parallax_artwork_asset.cc)
+target_link_libraries(prepare_parallax_artwork_asset
+  PUBLIC
+  parallax_artwork_pipeline
+  parallax_artwork_recipe
+  source_artwork
+  texture
+  absl::status
+  absl::statusor
+  PRIVATE
+  common
+  image_digest
+  status_macros
+  absl::strings
+)
+
+add_library(regenerate_parallax_artwork_asset regenerate_parallax_artwork_asset.cc)
+target_link_libraries(regenerate_parallax_artwork_asset
+  PUBLIC
+  parallax_artwork_pipeline
+  parallax_artwork_recipe
+  source_artwork
+  texture
+  image_io
+  absl::status
+  absl::statusor
+  PRIVATE
+  prepare_parallax_artwork_asset
+  image_digest
+  status_macros
+)
+
 target_link_libraries(prop_artwork
   PUBLIC
   image_io
   image_digest
   prop_artwork_style
+  source_artwork
   terrain_palette
   absl::span
+  absl::status
   absl::statusor
   PRIVATE
-  absl::status
   absl::strings
   status_macros
 )
@@ -32,10 +116,12 @@ target_link_libraries(prop_artwork_style
 add_library(source_artwork source_artwork.cc)
 target_link_libraries(source_artwork
   PUBLIC
+  image_io
   absl::status
   absl::statusor
   nlohmann_json::nlohmann_json
   PRIVATE
+  image_digest
   status_macros
   absl::strings
 )
@@ -49,6 +135,7 @@ target_link_libraries(prop_recipe
   absl::status
   absl::statusor
   PRIVATE
+  image_digest
   prop_artwork
   status_macros
   absl::strings

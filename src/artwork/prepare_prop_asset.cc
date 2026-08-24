@@ -1,6 +1,7 @@
 #include "artwork/prepare_prop_asset.h"
 
 #include <array>
+#include <set>
 #include <string_view>
 #include <utility>
 
@@ -38,16 +39,84 @@ absl::Status ValidateIds(const PropAssetIds& ids) {
       return absl::InvalidArgumentError(absl::StrCat(kind, " ID is not path-safe"));
     }
   }
-  if (ids.texture_id == ids.sprite_id || ids.texture_id == ids.blueprint_id ||
-      ids.texture_id == ids.recipe_id || ids.sprite_id == ids.blueprint_id ||
-      ids.sprite_id == ids.recipe_id || ids.blueprint_id == ids.recipe_id) {
-    return absl::InvalidArgumentError("prepared prop asset IDs must be distinct");
+  std::set<std::string_view> distinct_ids;
+  for (const auto& [unused_kind, id] : named_ids) {
+    static_cast<void>(unused_kind);
+    if (!distinct_ids.insert(id).second) {
+      return absl::InvalidArgumentError("prepared prop asset IDs must be distinct");
+    }
   }
   return absl::OkStatus();
 }
 
 std::string PropTexturePath(std::string_view texture_id) {
   return absl::StrCat("textures/props/", texture_id, ".png");
+}
+
+absl::Status ValidatePreparedTexture(const PreparedPropAsset& prepared) {
+  if (prepared.texture.name != prepared.recipe.name) {
+    return absl::InvalidArgumentError("prepared prop texture and recipe names differ");
+  }
+  if (prepared.texture.path != PropTexturePath(prepared.texture.id)) {
+    return absl::InvalidArgumentError("prepared prop texture path is inconsistent");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidatePreparedSprite(const PreparedPropAsset& prepared) {
+  if (prepared.sprite.name != prepared.recipe.name) {
+    return absl::InvalidArgumentError("prepared prop sprite and recipe names differ");
+  }
+  if (prepared.sprite.texture_id != prepared.texture.id) {
+    return absl::InvalidArgumentError("prepared prop sprite names a different texture");
+  }
+  if (prepared.sprite.frames.size() != 1 ||
+      prepared.sprite.frames.front() != prepared.recipe.expected_frame) {
+    return absl::InvalidArgumentError("prepared prop sprite frame is inconsistent");
+  }
+  const SpriteFrame& frame = prepared.sprite.frames.front();
+  if (frame.offset_x != -prepared.artwork.finished.anchor_x ||
+      frame.offset_y != -prepared.artwork.finished.anchor_y) {
+    return absl::InvalidArgumentError("prepared prop sprite does not preserve its authored anchor");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidatePreparedBlueprint(const PreparedPropAsset& prepared) {
+  if (prepared.blueprint.name != prepared.recipe.name) {
+    return absl::InvalidArgumentError("prepared prop blueprint and recipe names differ");
+  }
+  if (prepared.blueprint.states.size() != 1) {
+    return absl::InvalidArgumentError("prepared prop blueprint must have exactly one state");
+  }
+  const Blueprint::State& state = prepared.blueprint.states.front();
+  if (state.name.empty() || !state.collider_id.empty() || state.sprite_id != prepared.sprite.id) {
+    return absl::InvalidArgumentError("prepared prop blueprint state is inconsistent");
+  }
+  ASSIGN_OR_RETURN(
+      const BlueprintPlacementMode expected_placement,
+      BlueprintPlacementModeForAttachment(prepared.recipe.pipeline.composition.attachment.mode));
+  if (state.placement_mode != expected_placement) {
+    return absl::InvalidArgumentError(
+        "prepared prop blueprint placement does not match its artwork attachment");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidatePreparedRecipeBindings(const PreparedPropAsset& prepared) {
+  if (prepared.recipe.source_artwork_id != prepared.source.id) {
+    return absl::InvalidArgumentError("prepared prop recipe names a different source");
+  }
+  if (prepared.recipe.texture_id != prepared.texture.id) {
+    return absl::InvalidArgumentError("prepared prop recipe names a different texture");
+  }
+  if (prepared.recipe.sprite_id != prepared.sprite.id) {
+    return absl::InvalidArgumentError("prepared prop recipe names a different sprite");
+  }
+  if (prepared.recipe.blueprint_id != prepared.blueprint.id) {
+    return absl::InvalidArgumentError("prepared prop recipe names a different blueprint");
+  }
+  return absl::OkStatus();
 }
 
 }  // namespace
@@ -173,40 +242,10 @@ absl::Status ValidatePreparedPropAsset(const PreparedPropAsset& prepared) {
   if (final_digest != prepared.recipe.final_pixel_digest) {
     return absl::FailedPreconditionError("prepared prop final pixel digest does not match recipe");
   }
-  if (prepared.texture.name != prepared.recipe.name ||
-      prepared.texture.path != PropTexturePath(prepared.texture.id)) {
-    return absl::InvalidArgumentError("prepared prop texture definition is inconsistent");
-  }
-  if (prepared.sprite.name != prepared.recipe.name ||
-      prepared.sprite.texture_id != prepared.texture.id || prepared.sprite.frames.size() != 1 ||
-      prepared.sprite.frames.front() != prepared.recipe.expected_frame) {
-    return absl::InvalidArgumentError("prepared prop sprite definition is inconsistent");
-  }
-  const SpriteFrame& frame = prepared.sprite.frames.front();
-  if (frame.offset_x != -prepared.artwork.finished.anchor_x ||
-      frame.offset_y != -prepared.artwork.finished.anchor_y) {
-    return absl::InvalidArgumentError("prepared prop sprite does not preserve its authored anchor");
-  }
-  if (prepared.blueprint.name != prepared.recipe.name || prepared.blueprint.states.size() != 1 ||
-      prepared.blueprint.states.front().name.empty() ||
-      !prepared.blueprint.states.front().collider_id.empty() ||
-      prepared.blueprint.states.front().sprite_id != prepared.sprite.id) {
-    return absl::InvalidArgumentError("prepared prop blueprint definition is inconsistent");
-  }
-  ASSIGN_OR_RETURN(
-      const BlueprintPlacementMode expected_placement,
-      BlueprintPlacementModeForAttachment(prepared.recipe.pipeline.composition.attachment.mode));
-  if (prepared.blueprint.states.front().placement_mode != expected_placement) {
-    return absl::InvalidArgumentError(
-        "prepared prop blueprint placement does not match its artwork attachment");
-  }
-  if (prepared.recipe.source_artwork_id != prepared.source.id ||
-      prepared.recipe.texture_id != prepared.texture.id ||
-      prepared.recipe.sprite_id != prepared.sprite.id ||
-      prepared.recipe.blueprint_id != prepared.blueprint.id) {
-    return absl::InvalidArgumentError("prepared prop recipe references are inconsistent");
-  }
-  return absl::OkStatus();
+  RETURN_IF_ERROR(ValidatePreparedTexture(prepared));
+  RETURN_IF_ERROR(ValidatePreparedSprite(prepared));
+  RETURN_IF_ERROR(ValidatePreparedBlueprint(prepared));
+  return ValidatePreparedRecipeBindings(prepared);
 }
 
 }  // namespace zebes

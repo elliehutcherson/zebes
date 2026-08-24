@@ -1,12 +1,14 @@
 # Environment artwork and parallax plan
 
-**Status: Milestones 0, 1, and 1.5 are accepted. Milestone 1.6, composed
-parallax layers, is the next implementation priority before Milestone 2.**
-Written 2026-08-22 for
-the first cave vertical slice and revised the same day to make standalone
-parallax-theme ownership the highest-priority implementation milestone. Update
-milestone states here as work lands; use [`roadmap.md`](roadmap.md) only for the
-higher-level sequence.
+**Status: Milestones 0, 1, 1.5, 1.6, and 2 are accepted. The import-first
+background artwork pipeline, retained source, deterministic recipe, managed
+bundle lifecycle, editor workflow, and cave-plate acceptance gate are complete.
+Milestone 3, generated background candidates, is next.**
+Written 2026-08-22 for the first cave vertical slice, revised the same day to
+make standalone parallax-theme ownership the highest-priority implementation
+milestone, and updated 2026-08-23 after accepting composed parallax layers.
+Update milestone states here as work lands; use [`roadmap.md`](roadmap.md) only
+for the higher-level sequence.
 
 ## 1. Goal
 
@@ -206,12 +208,12 @@ new theme and every rewritten level.
 `SourceArtwork` already has the correct identity, digest, dimensions, and
 imported/generated provenance. Generalize it rather than duplicating it:
 
-- rename `PropSourceLimits` at the storage boundary to
-  `SourceArtworkLimits`; prop configuration may continue embedding an instance;
-- move the canonical image directory from `source_art/props/` to a neutral
-  `source_art/artwork/` path;
-- add a strict schema migration that moves each ID-backed PNG and rewrites its
-  definition without overwriting an existing target;
+- **Implemented.** Rename `PropSourceLimits` at the storage boundary to
+  `SourceArtworkLimits`; prop configuration continues embedding an instance.
+- **Implemented.** Move retained images from the prop-specific directory to
+  the neutral ID-backed path `source_art/<source-id>.png`.
+- **Implemented.** Add a strict schema migration that moves each ID-backed PNG
+  and rewrites its definition without overwriting an existing target.
 - let prop and parallax recipes both reference the same source;
 - delete a source only after reference scans find no recipe of either kind.
 
@@ -221,7 +223,7 @@ guessing which image is authoritative.
 
 ### 4.2 One recipe produces one texture
 
-Add a versioned `ParallaxArtworkRecipe` under
+**Implemented.** A versioned `ParallaxArtworkRecipe` lives under
 `assets/definitions/parallax_artwork_recipes/`. One recipe owns one processed
 Texture. A theme can combine several recipe outputs, and one output can be used
 by several theme layers or levels.
@@ -243,7 +245,8 @@ processing
   nearest-neighbour raster policy
   palette quantization policy
   alpha role: opaque plate or transparent overlay
-  overlay extraction: preserve alpha or remove a border-connected flat matte
+  overlay extraction: preserve alpha or remove a configured flat matte,
+  including enclosed openings containing that matte
   repeat diagnostics requested for X and/or Y
 
 output authority
@@ -290,9 +293,11 @@ diagnostics:
 5. **Apply alpha policy:**
    - an opaque plate must finish with alpha 255 for every pixel;
    - an imported transparent overlay may preserve meaningful source alpha;
-   - an opaque generated overlay may remove a configured, border-connected
-     flat matte before continuing, while retaining every non-matte component
-     even when the artwork intentionally touches an edge;
+   - an opaque generated overlay may remove a configured flat matte before
+     continuing; tolerant exterior cleanup remains border-connected, while an
+     enclosed opening is removed only when it contains a configured-matte
+     core, preserving isolated merely similar foreground colours and every
+     non-matte component even when the artwork intentionally touches an edge;
    - every overlay must finish with at least one visible pixel.
 6. **Build repetition review:** create wrapped 3-by-1 and/or 1-by-3 previews
    and report opposing-edge difference statistics.
@@ -356,8 +361,8 @@ Reject before writing when:
 - target dimensions or image limits are invalid;
 - an opaque plate contains transparency;
 - a transparent overlay contains no visible pixels;
-- requested matte removal cannot identify and clear a valid border-connected
-  matte under its stored configuration;
+- requested matte removal cannot identify and clear any pixels matching its
+  stored matte configuration;
 - a repeated/non-repeated coverage configuration cannot be represented by the
   current renderer;
 - a resource ID or name collides;
@@ -751,7 +756,24 @@ assignment in both hierarchy and viewport, save, close, and reopen without
 consulting documentation. No failed or canceled step publishes a partial
 level or zone, and the Level Editor still cannot mutate theme layers.
 
-### Milestone 1.6 — compose multiple elements inside one parallax layer (next)
+### Milestone 1.6 — compose multiple elements inside one parallax layer
+
+**Accepted 2026-08-23.** Schema version 2 owns ordered
+stable-ID elements and explicit repeat periods. The deterministic migration
+materialized every shipped one-texture layer without changing its scaled repeat
+geometry. Pure composition bounds, repeat-cell enumeration, per-element
+culling, renderer resource binding, reference scans, and route diagnostics now
+share that contract.
+
+The Theme Editor exposes complete-theme, selected-layer, and selected-element
+previews; Add, Append Right, Duplicate, Delete, and back/front ordering;
+searchable texture assignment; numeric position/scale; adjacent-edge snapping;
+no-jump viewport dragging; finite and repeated modes; Fit Period to Content;
+and visible repeat-cell guides. Diagnostics retain selected-texture edge facts
+but label them as source facts, and separately report adjacent element bounds,
+first/last wrap deltas, period-versus-content gap/overlap, and route coverage.
+The former three-copy selected-texture preview was removed because it depicted
+the wrong repeated unit once layers became compositions.
 
 The cave gate established the missing abstraction: repetition is appropriate
 for low-salience Far Fill and Far Formations, while repeating one distinctive
@@ -759,10 +781,10 @@ Near Formation plate exposes its landmarks. A second zone is not the solution.
 Zones continue selecting complete environment themes for world regions;
 stitching several pieces at one depth belongs inside one theme layer.
 
-Implement this milestone before the artwork pipeline. Otherwise Milestone 2
-would generate assets against the known one-texture layer limitation and force
-immediate changes to its editor integration, diagnostics, reference scans, and
-first production content.
+This milestone deliberately landed before the artwork pipeline. Reversing that
+order would have generated assets against the known one-texture layer
+limitation and forced immediate changes to Milestone 2 editor integration,
+diagnostics, reference scans, and first production content.
 
 #### Target data contract
 
@@ -843,23 +865,47 @@ parallax element.
    tests. Run shipped-asset loading and the affected Level/Theme viewport
    targets before handoff.
 
-#### Human workflow and gate
+#### Human workflow and gate — accepted
 
 1. Preserve Far Fill as a one-element repeating composition and verify that
    migration produces the same output at zoom 0.5, 1.0, and 2.0.
 2. Preserve Far Formations as a repeating composition, then add a second
    formation element and verify the complete group—not each texture—repeats.
-3. Import or generate at least three transparent Near Formation variants.
-   Append and overlap them into one finite strip, use numeric and direct
-   manipulation controls, and inspect every adjacent seam.
+3. Generate at least three Near Formation variants on an opaque `#ff00ff`
+   background with visible content clear of every edge. Run each raw source
+   through `process_generated_artwork`, using the accepted cave texture as its
+   palette reference, and import only the reviewed transparent result. Append
+   and overlap the variants into one finite strip, use numeric and direct
+   manipulation controls, and inspect every adjacent seam. While adding each
+   element, confirm its incomplete draft does not hide the existing backdrop;
+   left-drag it after assigning a texture, then move the camera with both the
+   arrow controls and Travel X/Y scrubbers. The exact processing command and
+   source/output ownership rules live in `scripts/README.md`.
 4. Preview the saved Cave level route with the Near strip finite. If the route
    is longer than its coverage, either add deliberate elements or author a
    longer repeated super-cell; do not add zones merely to hide repetition.
 5. Save, close, reopen, reorder elements, and confirm stable selection,
    identical composition, coverage results, and Level viewport output.
 
-Acceptance: all old themes migrate without visual change; a theme layer can
-compose and cull multiple texture elements; repetition copies an authored
+The accepted gate used the saved `Cave Theme` and `Cave` level. The Cave world
+is `65536×1280`; its intentional environment-zone route remains
+`65536×1024`, which leaves enough world height for the 960×540 logical view at
+0.5 zoom. Far Fill and Far Formations retain their migrated one-element
+960×540 repeat cells. Near Formations is an accepted four-element horizontal
+super-cell with a 5000-pixel repeat period and no vertical repetition. Its
+element canvases span 5264 pixels, so neighbouring cells overlap by 264 pixels;
+the first/last wrap and complete route were visually accepted. This repeated
+multi-element Near composition exercises the same group-repeat contract as a
+temporary second Far element, so duplicating that test was unnecessary.
+
+The human review also accepted incomplete-draft preview behavior, direct
+element selection and dragging, on-screen and keyboard camera movement,
+Travel X/Y synchronization, save, close, reopen, reorder, and stable-ID
+persistence. Automated shipped-asset, theme-manager, reference, migration,
+layout, interaction, and preview-model checks remain the non-visual evidence.
+
+Acceptance achieved: all old themes migrate without visual change; a theme
+layer can compose and cull multiple texture elements; repetition copies an authored
 composition with an explicit period; the cave Near layer can traverse its
 reviewed route without an obvious one-screen motif repeat; and no level, zone,
 recipe, or native-resource ownership boundary is weakened.
@@ -869,12 +915,70 @@ recipe, or native-resource ownership boundary is weakened.
 - Generalize `SourceArtwork` storage and limits with a strict migration.
 - Add `ParallaxArtworkRecipe`, serializer, manager, reference scans, and bundle
   lifecycle.
-- Implement the deterministic background stages and typed diagnostics.
+- Integrate the reusable `generated_artwork_postprocessor` stages and typed
+  diagnostics. The command-line tool already proves chroma matting,
+  premultiplied resizing, reference-palette quantization, binary alpha, and
+  transparent-border validation; do not duplicate those stages in the editor.
 - Add the Parallax Artwork editor with imported-source review, processing,
   wrapped repetition preview, create, regenerate, and delete.
 
 Acceptance: an imported plate becomes a reproducible managed Texture, and
 regeneration from retained source is pixel-identical.
+
+#### Immediate next steps
+
+1. **Implemented.** Generalize retained source-artwork storage and its
+   serialized limits without weakening existing Prop Artwork ownership;
+   migrate and load every shipped definition.
+2. **Implemented.** Add the versioned `ParallaxArtworkRecipe`, manager, output bundle,
+   provenance, reference scans, and compensated create/regenerate/delete
+   lifecycle.
+3. **Implemented.** Call the existing `generated_artwork_postprocessor` from the shared
+   deterministic operation. The CLI remains a thin adapter; the editor must
+   not acquire a second matting, resizing, or palette-quantization path.
+4. **Implemented.** Build the import-first Parallax Artwork editor around
+   retained-source review, processing diagnostics, output preview, and
+   lifecycle actions. Remote generation remains out until Milestone 3.
+5. **Accepted human gate.** Import a raw cave plate, create and assign its
+   managed Texture, regenerate pixel-identically after reopen, and prove
+   deletion/reference refusal leaves no partial assets.
+
+#### Human workflow and gate — accepted
+
+The accepted gate imported
+`cave-near-formation-pilot-magenta-source.png` as retained source
+`86d5d138-e64b-4edc-8682-88d64bc416a6`, then created recipe
+`fa03f699-3884-4976-8902-3a4cd0adfe8b` and managed Texture
+`045787f7-81b8-485d-8d8a-dd37c4e7bd0e`. The saved recipe produces a 960×540
+transparent overlay with fit-inside framing, border-connected solid-matte
+removal, binary alpha at 128, the resolved cave palette, and both repetition
+reviews enabled.
+
+The human review accepted source import, processing-stage and repetition
+previews, creation, close/reopen through the existing-recipe selector, complete
+settings restoration, and pixel-identical regeneration. The managed Texture
+was assigned to the saved Cave Theme, where it now appears at both ends of the
+five-element Near composition with an 8192-pixel X repeat period. Referenced
+texture and source deletion were refused without removing or partially changing
+the recipe bundle. The architecture gate is accepted; final composition polish
+and replacement of experimental high-colour candidates remain Milestone 4
+content work.
+
+#### Carried debt
+
+- `cave-near-formation-pilot-v2.png` proves the magenta-background and exact
+  cave-palette path. The Slant and Floor Ridge textures used in the accepted
+  editor gate are older 1672×941 binary-alpha candidates with tens of thousands
+  of colors, not normalized cave-palette outputs. They are test content, not
+  final cave art.
+- The remaining pre-pilot Near candidates are catalogued experiments. Reprocess
+  or regenerate them through the shared pipeline before promoting them into
+  the final kit; remove unused definitions and PNGs only through normal
+  reference-checked asset lifecycle.
+- The accepted 5000-pixel Near super-cell proves composition and avoids a
+  one-screen repeat, but it is not a promise that its temporary element mix is
+  the final Milestone 4 cave composition. Final seam, palette, silhouette, and
+  gameplay-readability review belongs to that content milestone.
 
 ### Milestone 3 — generated candidates
 

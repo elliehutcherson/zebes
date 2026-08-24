@@ -9,6 +9,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
+#include "common/status_macros.h"
 #include "terrain/terrain_mask.h"
 
 // stb_image_write is a header-only library. Keep its implementation in this
@@ -115,10 +116,7 @@ absl::Status Generate(const std::string& output_prefix) {
   }
 
   const std::string csv_path = absl::StrCat(output_prefix, ".csv");
-  absl::Status csv_status = WriteCsv(csv_path, masks);
-  if (!csv_status.ok()) {
-    return csv_status;
-  }
+  RETURN_IF_ERROR(WriteCsv(csv_path, masks));
 
   LOG(INFO) << "Generated " << masks.size() << " masks in " << width << "x" << height
             << " atlas: " << png_path;

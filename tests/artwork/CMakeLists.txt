@@ -8,6 +8,45 @@ target_link_libraries(prop_artwork_pipeline_test
 target_include_directories(prop_artwork_pipeline_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(prop_artwork_pipeline_test)
 
+add_executable(generated_artwork_postprocessor_test generated_artwork_postprocessor_test.cc)
+target_link_libraries(generated_artwork_postprocessor_test
+  generated_artwork_postprocessor
+  gtest_main
+  macros
+)
+target_include_directories(generated_artwork_postprocessor_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(generated_artwork_postprocessor_test)
+
+add_executable(parallax_artwork_pipeline_test parallax_artwork_pipeline_test.cc)
+target_link_libraries(parallax_artwork_pipeline_test
+  parallax_artwork_pipeline
+  gtest_main
+  macros
+)
+target_include_directories(parallax_artwork_pipeline_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(parallax_artwork_pipeline_test)
+
+add_executable(parallax_artwork_recipe_test parallax_artwork_recipe_test.cc)
+target_link_libraries(parallax_artwork_recipe_test
+  parallax_artwork_recipe
+  gtest_main
+  macros
+)
+target_include_directories(parallax_artwork_recipe_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(parallax_artwork_recipe_test)
+
+add_executable(prepare_parallax_artwork_asset_test prepare_parallax_artwork_asset_test.cc)
+target_link_libraries(prepare_parallax_artwork_asset_test
+  prepare_parallax_artwork_asset
+  regenerate_parallax_artwork_asset
+  image_digest
+  gtest_main
+  macros
+  status_macros
+)
+target_include_directories(prepare_parallax_artwork_asset_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(prepare_parallax_artwork_asset_test)
+
 add_executable(prepare_prop_asset_test prepare_prop_asset_test.cc)
 target_link_libraries(prepare_prop_asset_test
   gtest_main

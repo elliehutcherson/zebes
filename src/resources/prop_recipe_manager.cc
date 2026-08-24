@@ -58,35 +58,23 @@ absl::Status PropRecipeManager::LoadAllRecipes() {
   }
 
   absl::flat_hash_map<std::string, std::unique_ptr<PropRecipe>> loaded;
-  ResourceLoadFailures failures;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    absl::StatusOr<PropRecipe> parsed = LoadRecipeFile(entry.path().string());
-    if (!parsed.ok()) {
-      failures.Add(entry.path().string(), parsed.status());
-      continue;
-    }
-    PropRecipe recipe = std::move(*parsed);
-    if (!IsPathSafeResourceId(recipe.id)) {
-      failures.Add(entry.path().string(),
-                   absl::InvalidArgumentError("prop recipe ID is not path-safe"));
-      continue;
-    }
-    if (entry.path().stem() != recipe.id) {
-      failures.Add(entry.path().string(),
-                   absl::InvalidArgumentError("prop recipe filename does not match its ID"));
-      continue;
-    }
-    if (loaded.contains(recipe.id)) {
-      failures.Add(entry.path().string(),
-                   absl::AlreadyExistsError(absl::StrCat("duplicate prop recipe ID ", recipe.id)));
-      continue;
-    }
-    const std::string id = recipe.id;
-    loaded[id] = std::make_unique<PropRecipe>(std::move(recipe));
-  }
-  RETURN_IF_ERROR(failures.ToStatus("prop recipe"));
+  RETURN_IF_ERROR(LoadJsonDefinitions(
+      definitions_path_, "prop recipe",
+      [&loaded](const std::filesystem::path& path) -> absl::Status {
+        ASSIGN_OR_RETURN(PropRecipe recipe, LoadRecipeFile(path.string()));
+        if (!IsPathSafeResourceId(recipe.id)) {
+          return absl::InvalidArgumentError("prop recipe ID is not path-safe");
+        }
+        if (path.stem() != recipe.id) {
+          return absl::InvalidArgumentError("prop recipe filename does not match its ID");
+        }
+        if (loaded.contains(recipe.id)) {
+          return absl::AlreadyExistsError(absl::StrCat("duplicate prop recipe ID ", recipe.id));
+        }
+        const std::string id = recipe.id;
+        loaded[id] = std::make_unique<PropRecipe>(std::move(recipe));
+        return absl::OkStatus();
+      }));
   recipes_ = std::move(loaded);
   return absl::OkStatus();
 }
@@ -119,32 +107,7 @@ absl::Status PropRecipeManager::SaveRecipe(const PropRecipe& recipe) {
     return absl::InvalidArgumentError("prop recipe ID is not path-safe");
   }
 
-  std::error_code error;
-  std::filesystem::create_directories(definitions_path_, error);
-  if (error) {
-    return absl::InternalError(
-        absl::StrCat("could not create prop recipe directory: ", error.message()));
-  }
-
-  const std::string target = RecipePath(recipe.id);
-  const std::string temporary = absl::StrCat(target, ".tmp");
-  {
-    std::ofstream stream(temporary, std::ios::trunc);
-    if (!stream.is_open()) {
-      return absl::InternalError(absl::StrCat("could not write prop recipe: ", temporary));
-    }
-    stream << PropRecipeToJson(recipe).dump(2);
-    stream.flush();
-    if (!stream.good()) {
-      std::filesystem::remove(temporary, error);
-      return absl::InternalError(absl::StrCat("failed while writing prop recipe: ", temporary));
-    }
-  }
-  std::filesystem::rename(temporary, target, error);
-  if (error) {
-    std::filesystem::remove(temporary);
-    return absl::InternalError(absl::StrCat("could not commit prop recipe: ", error.message()));
-  }
+  RETURN_IF_ERROR(WriteTextFileAtomically(RecipePath(recipe.id), PropRecipeToJson(recipe).dump(2)));
 
   if (auto found = recipes_.find(recipe.id); found != recipes_.end()) {
     *found->second = recipe;

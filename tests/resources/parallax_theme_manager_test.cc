@@ -17,11 +17,14 @@ ParallaxTheme CompleteTheme() {
       .name = "Crystal Cave",
       .layers = {{
           .name = "Far Formations",
-          .texture_id = "texture-1",
           .scroll_factor = {0.2, 0.1},
           .offset = {-8.0, 4.0},
-          .base_scale = 2.0f,
-          .repeat_x = true,
+          .repeat_period = {640.0, 0.0},
+          .elements = {{.id = 0,
+                        .name = "Far A",
+                        .texture_id = "texture-1",
+                        .position = {16.0, -4.0},
+                        .scale = 2.0f}},
       }},
   };
 }
@@ -58,7 +61,7 @@ TEST_F(ParallaxThemeManagerTest, RoundTripsACompleteTheme) {
 
 TEST_F(ParallaxThemeManagerTest, RefusesAnIncompleteThemeWithoutPublishingIt) {
   ParallaxTheme theme = CompleteTheme();
-  theme.layers[0].texture_id.clear();
+  theme.layers[0].elements[0].texture_id.clear();
   EXPECT_EQ(manager_->CreateTheme(theme).status().code(), absl::StatusCode::kInvalidArgument);
   EXPECT_TRUE(manager_->GetAllThemes().empty());
 }

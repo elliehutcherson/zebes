@@ -188,6 +188,7 @@ add_subdirectory(level_editor)
 add_subdirectory(tileset_editor)
 add_subdirectory(terrain_editor)
 add_subdirectory(prop_artwork_editor)
+add_subdirectory(parallax_artwork_editor)
 add_subdirectory(parallax_theme_editor)
 
 
@@ -216,6 +217,7 @@ target_link_libraries(editor_ui
   tileset_editor
   terrain_editor
   prop_artwork_editor
+  parallax_artwork_editor
   parallax_theme_editor
   api
   gui_interface
@@ -240,6 +242,7 @@ target_link_libraries(editor_engine
   collider_manager
   level_manager
   parallax_theme_manager
+  parallax_artwork_recipe_manager
   sdl_wrapper
   imgui_wrapper
   input_manager

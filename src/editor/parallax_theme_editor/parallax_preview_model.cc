@@ -10,7 +10,31 @@ namespace {
 
 bool Finite(Vec value) { return std::isfinite(value.x) && std::isfinite(value.y); }
 
+bool Previewable(const ParallaxElement& element) {
+  return element.id >= 0 && !element.texture_id.empty() && Finite(element.position) &&
+         std::isfinite(element.scale) && element.scale > 0.0f;
+}
+
+bool Previewable(const ParallaxLayer& layer) {
+  return Finite(layer.scroll_factor) && Finite(layer.offset) && Finite(layer.repeat_period) &&
+         layer.repeat_period.x >= 0.0 && layer.repeat_period.y >= 0.0;
+}
+
 }  // namespace
+
+bool IsRecoverableParallaxPreviewError(const absl::Status& status) {
+  return status.code() == absl::StatusCode::kResourceExhausted;
+}
+
+CameraCenterRoute EnsureNavigableManualCameraRoute(CameraCenterRoute route,
+                                                   const GameViewSize& game_view) {
+  if (route.min != route.max) return route;
+  route.max = {
+      route.min.x + game_view.width,
+      route.min.y + game_view.height,
+  };
+  return route;
+}
 
 std::vector<ParallaxThemeUsage> FindParallaxThemeUsages(const std::vector<Level>& levels,
                                                         const std::string& theme_id) {
@@ -79,6 +103,54 @@ Vec InterpolateCameraCenter(CameraCenterRoute route, double x_progress, double y
       route.min.x + (route.max.x - route.min.x) * x_progress,
       route.min.y + (route.max.y - route.min.y) * y_progress,
   };
+}
+
+absl::StatusOr<Vec> CalculateCameraTravel(CameraCenterRoute route, Vec camera_center) {
+  if (!Finite(route.min) || !Finite(route.max) || route.min.x > route.max.x ||
+      route.min.y > route.max.y || !Finite(camera_center)) {
+    return absl::InvalidArgumentError("camera travel requires a valid route and center");
+  }
+  const auto progress = [](double minimum, double maximum, double center) {
+    if (minimum == maximum) return 0.0;
+    return std::clamp((center - minimum) / (maximum - minimum), 0.0, 1.0);
+  };
+  return Vec{
+      progress(route.min.x, route.max.x, camera_center.x),
+      progress(route.min.y, route.max.y, camera_center.y),
+  };
+}
+
+ParallaxPreviewTheme BuildParallaxPreviewTheme(const ParallaxTheme& draft) {
+  ParallaxPreviewTheme preview;
+  preview.theme.id = draft.id;
+  preview.theme.name = draft.name;
+  preview.theme.layers.reserve(draft.layers.size());
+  preview.source_layer_indices.reserve(draft.layers.size());
+  for (int layer_index = 0; layer_index < static_cast<int>(draft.layers.size()); ++layer_index) {
+    const ParallaxLayer& source_layer = draft.layers[layer_index];
+    if (!Previewable(source_layer)) {
+      preview.omitted_elements += source_layer.elements.size();
+      continue;
+    }
+    ParallaxLayer layer = source_layer;
+    std::erase_if(layer.elements, [&preview](const ParallaxElement& element) {
+      if (Previewable(element)) return false;
+      ++preview.omitted_elements;
+      return true;
+    });
+    if (layer.elements.empty()) continue;
+    preview.theme.layers.push_back(std::move(layer));
+    preview.source_layer_indices.push_back(layer_index);
+  }
+  return preview;
+}
+
+std::optional<int> FindPreviewLayerIndex(const ParallaxPreviewTheme& preview,
+                                         int source_layer_index) {
+  const auto found = std::find(preview.source_layer_indices.begin(),
+                               preview.source_layer_indices.end(), source_layer_index);
+  if (found == preview.source_layer_indices.end()) return std::nullopt;
+  return static_cast<int>(found - preview.source_layer_indices.begin());
 }
 
 }  // namespace zebes

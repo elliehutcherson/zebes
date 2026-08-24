@@ -2,16 +2,25 @@
   "id": "ad4ca069-7cf6-56d8-ab07-007a7fd15b36",
   "layers": [
     {
-      "base_scale": 1.0,
+      "elements": [
+        {
+          "id": 0,
+          "name": "SkyMountainBackground",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "5118d3ee-cb3c-46f3-a1e7-59d458f12c82"
+        }
+      ],
       "name": "SkyMountainBackground",
       "offset_x": 0.0,
       "offset_y": 20.0,
-      "repeat_x": true,
-      "repeat_y": false,
+      "repeat_period_x": 2304.0,
+      "repeat_period_y": 0.0,
       "scroll_factor_x": 1.0,
-      "scroll_factor_y": 1.0,
-      "texture_id": "5118d3ee-cb3c-46f3-a1e7-59d458f12c82"
+      "scroll_factor_y": 1.0
     }
   ],
-  "name": "Donut Plains \u2014 SkyBackground"
+  "name": "Donut Plains \u2014 SkyBackground",
+  "schema_version": 2
 }

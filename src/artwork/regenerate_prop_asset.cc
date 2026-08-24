@@ -9,6 +9,69 @@
 #include "common/status_macros.h"
 
 namespace zebes {
+namespace {
+
+absl::Status ValidateRegenerationInputGraph(const PreparedPropRegeneration& prepared) {
+  if (prepared.texture_snapshot.id != prepared.recipe_snapshot.texture_id) {
+    return absl::InvalidArgumentError(
+        "prepared regeneration texture snapshot does not match its recipe");
+  }
+  if (prepared.sprite_snapshot.id != prepared.recipe_snapshot.sprite_id ||
+      prepared.sprite_snapshot.texture_id != prepared.texture_snapshot.id) {
+    return absl::InvalidArgumentError(
+        "prepared regeneration sprite snapshot does not match its recipe and texture");
+  }
+  if (prepared.sprite_snapshot.frames.size() != 1 ||
+      prepared.sprite_snapshot.frames.front() != prepared.recipe_snapshot.expected_frame) {
+    return absl::InvalidArgumentError("prepared regeneration sprite snapshot frame changed");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateRegenerationOutputSprite(const PreparedPropRegeneration& prepared) {
+  if (prepared.updated_sprite.id != prepared.sprite_snapshot.id ||
+      prepared.updated_sprite.name != prepared.sprite_snapshot.name) {
+    return absl::InvalidArgumentError("prepared regeneration cannot change sprite identity");
+  }
+  if (prepared.updated_sprite.texture_id != prepared.texture_snapshot.id) {
+    return absl::InvalidArgumentError(
+        "prepared regeneration output sprite names a different texture");
+  }
+  if (prepared.updated_sprite.frames.size() != 1 ||
+      prepared.updated_sprite.frames.front() != prepared.updated_recipe.expected_frame) {
+    return absl::InvalidArgumentError("prepared regeneration output sprite frame is inconsistent");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateRegenerationRecipeIdentity(const PreparedPropRegeneration& prepared) {
+  if (prepared.updated_recipe.id != prepared.recipe_snapshot.id ||
+      prepared.updated_recipe.name != prepared.recipe_snapshot.name) {
+    return absl::InvalidArgumentError("regeneration cannot change prop recipe identity");
+  }
+  if (prepared.updated_recipe.source_artwork_id != prepared.recipe_snapshot.source_artwork_id) {
+    return absl::InvalidArgumentError("regeneration cannot change prop source artwork");
+  }
+  if (prepared.updated_recipe.texture_id != prepared.recipe_snapshot.texture_id ||
+      prepared.updated_recipe.sprite_id != prepared.recipe_snapshot.sprite_id ||
+      prepared.updated_recipe.blueprint_id != prepared.recipe_snapshot.blueprint_id) {
+    return absl::InvalidArgumentError("regeneration cannot change prop output IDs");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateRegenerationTexture(const PreparedPropRegeneration& prepared) {
+  if (prepared.texture_snapshot.name != prepared.updated_recipe.name) {
+    return absl::InvalidArgumentError("prepared regeneration texture and recipe names differ");
+  }
+  if (prepared.texture_snapshot.path !=
+      absl::StrCat("textures/props/", prepared.texture_snapshot.id, ".png")) {
+    return absl::InvalidArgumentError("prepared regeneration texture path is inconsistent");
+  }
+  return absl::OkStatus();
+}
+
+}  // namespace
 
 absl::StatusOr<PreparedPropRegeneration> PreparePropRegeneration(
     const SourceArtwork& source, const RgbaImage& source_pixels, const PropRecipe& recipe,
@@ -22,10 +85,13 @@ absl::StatusOr<PreparedPropRegeneration> PreparePropRegeneration(
   if (texture.id != recipe.texture_id) {
     return absl::FailedPreconditionError("prop recipe no longer names the generated texture");
   }
-  if (sprite.id != recipe.sprite_id || sprite.texture_id != texture.id ||
-      sprite.frames.size() != 1 || sprite.frames.front() != recipe.expected_frame) {
+  if (sprite.id != recipe.sprite_id || sprite.texture_id != texture.id) {
     return absl::FailedPreconditionError(
-        "generated sprite changed outside the prop recipe; use Save As rather than overwriting it");
+        "generated sprite identity changed outside the prop recipe; use Save As");
+  }
+  if (sprite.frames.size() != 1 || sprite.frames.front() != recipe.expected_frame) {
+    return absl::FailedPreconditionError(
+        "generated sprite frame changed outside the prop recipe; use Save As");
   }
   ASSIGN_OR_RETURN(const std::string current_texture_digest, RgbaImageDigest(texture_pixels));
   if (current_texture_digest != recipe.final_pixel_digest) {
@@ -80,34 +146,10 @@ absl::Status ValidatePreparedPropRegeneration(const PreparedPropRegeneration& pr
   if (prepared.texture_pixel_digest != prepared.recipe_snapshot.final_pixel_digest) {
     return absl::FailedPreconditionError("prepared regeneration texture snapshot is inconsistent");
   }
-  if (prepared.texture_snapshot.id != prepared.recipe_snapshot.texture_id ||
-      prepared.sprite_snapshot.id != prepared.recipe_snapshot.sprite_id ||
-      prepared.sprite_snapshot.texture_id != prepared.texture_snapshot.id ||
-      prepared.sprite_snapshot.frames.size() != 1 ||
-      prepared.sprite_snapshot.frames.front() != prepared.recipe_snapshot.expected_frame) {
-    return absl::InvalidArgumentError("prepared regeneration input graph is inconsistent");
-  }
-  if (prepared.updated_sprite.id != prepared.sprite_snapshot.id ||
-      prepared.updated_sprite.name != prepared.sprite_snapshot.name ||
-      prepared.updated_sprite.texture_id != prepared.texture_snapshot.id ||
-      prepared.updated_sprite.frames.size() != 1 ||
-      prepared.updated_sprite.frames.front() != prepared.updated_recipe.expected_frame) {
-    return absl::InvalidArgumentError("prepared regeneration output sprite is inconsistent");
-  }
-  if (prepared.updated_recipe.id != prepared.recipe_snapshot.id ||
-      prepared.updated_recipe.name != prepared.recipe_snapshot.name ||
-      prepared.updated_recipe.source_artwork_id != prepared.recipe_snapshot.source_artwork_id ||
-      prepared.updated_recipe.texture_id != prepared.recipe_snapshot.texture_id ||
-      prepared.updated_recipe.sprite_id != prepared.recipe_snapshot.sprite_id ||
-      prepared.updated_recipe.blueprint_id != prepared.recipe_snapshot.blueprint_id) {
-    return absl::InvalidArgumentError("regeneration cannot change prop identity or output IDs");
-  }
-  if (prepared.texture_snapshot.name != prepared.updated_recipe.name ||
-      prepared.texture_snapshot.path !=
-          absl::StrCat("textures/props/", prepared.texture_snapshot.id, ".png")) {
-    return absl::InvalidArgumentError("prepared regeneration texture identity is inconsistent");
-  }
-  return absl::OkStatus();
+  RETURN_IF_ERROR(ValidateRegenerationInputGraph(prepared));
+  RETURN_IF_ERROR(ValidateRegenerationOutputSprite(prepared));
+  RETURN_IF_ERROR(ValidateRegenerationRecipeIdentity(prepared));
+  return ValidateRegenerationTexture(prepared);
 }
 
 }  // namespace zebes

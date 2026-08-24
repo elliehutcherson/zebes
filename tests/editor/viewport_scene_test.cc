@@ -19,6 +19,15 @@ SpriteLookup Lookup(const Sprite& sprite, TextureHandle texture = {}) {
   return SpriteLookup{{"s1", ResolvedSprite{.sprite = &sprite, .texture = texture}}};
 }
 
+ParallaxLayer ParallaxLayerWithTexture(std::string name, std::string texture_id,
+                                       Vec scroll_factor) {
+  return {
+      .name = std::move(name),
+      .scroll_factor = scroll_factor,
+      .elements = {{.id = 0, .name = "Element", .texture_id = std::move(texture_id)}},
+  };
+}
+
 TEST(ViewportSceneEntityTest, ComposesStableSpriteGeometryAndPresentationState) {
   int texture_owner = 0;
   const TextureHandle texture = TextureHandleAccess::Create(1, &texture_owner);
@@ -261,17 +270,16 @@ TEST(ViewportSceneZoneTest, RejectsInvalidCameraAndZoneBounds) {
       absl::StatusCode::kInvalidArgument);
 }
 
-TEST(ViewportSceneParallaxTest, BindsTexturesInAuthoredLayerOrder) {
+TEST(ViewportSceneParallaxTest, BindsTexturesInAuthoredLayerAndElementOrder) {
   int texture_owner = 0;
   const TextureHandle forest = TextureHandleAccess::Create(1, &texture_owner);
   const TextureHandle fog = TextureHandleAccess::Create(2, &texture_owner);
   ParallaxTheme theme{
       .layers =
           {
-              {.name = "Incomplete", .scroll_factor = {1, 1}},
-              {.name = "Forest", .texture_id = "forest", .scroll_factor = {0.5, 0.5}},
-              {.name = "Fog", .texture_id = "fog", .scroll_factor = {0.8, 0.8}},
-              {.name = "Forest Front", .texture_id = "forest", .scroll_factor = {1, 1}},
+              ParallaxLayerWithTexture("Forest", "forest", {0.5, 0.5}),
+              ParallaxLayerWithTexture("Fog", "fog", {0.8, 0.8}),
+              ParallaxLayerWithTexture("Forest Front", "forest", {1, 1}),
           },
   };
   Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
@@ -285,17 +293,17 @@ TEST(ViewportSceneParallaxTest, BindsTexturesInAuthoredLayerOrder) {
   ASSERT_OK(batch);
   ASSERT_EQ(batch->layers.size(), 3u);
   EXPECT_EQ(batch->layers[0].layer.name, "Forest");
-  EXPECT_EQ(batch->layers[0].texture, forest);
+  EXPECT_EQ(batch->layers[0].elements[0].texture, forest);
   EXPECT_EQ(batch->layers[1].layer.name, "Fog");
-  EXPECT_EQ(batch->layers[1].texture, fog);
+  EXPECT_EQ(batch->layers[1].elements[0].texture, fog);
   EXPECT_EQ(batch->layers[2].layer.name, "Forest Front");
-  EXPECT_EQ(batch->layers[2].texture, forest);
+  EXPECT_EQ(batch->layers[2].elements[0].texture, forest);
 }
 
 TEST(ViewportSceneParallaxTest, RejectsMissingTexturesAndInvalidGeometry) {
   Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
   ParallaxTheme theme{
-      .layers = {{.texture_id = "missing", .scroll_factor = {1, 1}}},
+      .layers = {ParallaxLayerWithTexture("Missing", "missing", {1, 1})},
   };
   EXPECT_EQ(ComposeParallaxRenderBatch(theme, camera, {}).status().code(),
             absl::StatusCode::kFailedPrecondition);
@@ -304,7 +312,7 @@ TEST(ViewportSceneParallaxTest, RejectsMissingTexturesAndInvalidGeometry) {
   std::map<std::string, TextureHandle> textures{
       {"missing", TextureHandleAccess::Create(1, &texture_owner)},
   };
-  theme.layers.front().base_scale = 0.0f;
+  theme.layers.front().elements.front().scale = 0.0f;
   EXPECT_EQ(ComposeParallaxRenderBatch(theme, camera, textures).status().code(),
             absl::StatusCode::kInvalidArgument);
 
@@ -320,8 +328,8 @@ TEST(ViewportSceneParallaxTest, IsolatesSelectedLayerAndRejectsStaleIndex) {
   ParallaxTheme theme{
       .layers =
           {
-              {.name = "Back", .texture_id = "back", .scroll_factor = {0.5, 0.5}},
-              {.name = "Front", .texture_id = "front", .scroll_factor = {1, 1}},
+              ParallaxLayerWithTexture("Back", "back", {0.5, 0.5}),
+              ParallaxLayerWithTexture("Front", "front", {1, 1}),
           },
   };
   Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
@@ -333,9 +341,34 @@ TEST(ViewportSceneParallaxTest, IsolatesSelectedLayerAndRejectsStaleIndex) {
   ASSERT_OK(batch);
   ASSERT_EQ(batch->layers.size(), 1u);
   EXPECT_EQ(batch->layers.front().layer.name, "Front");
-  EXPECT_EQ(batch->layers.front().texture, front);
+  EXPECT_EQ(batch->layers.front().elements.front().texture, front);
   EXPECT_EQ(ComposeParallaxRenderBatch(theme, camera, textures, {.layer_index = 2}).status().code(),
             absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ViewportSceneParallaxTest, IsolatesSelectedElementByStableId) {
+  int texture_owner = 0;
+  const TextureHandle first = TextureHandleAccess::Create(1, &texture_owner);
+  const TextureHandle second = TextureHandleAccess::Create(2, &texture_owner);
+  ParallaxLayer layer = ParallaxLayerWithTexture("Near", "first", {0.5, 0.5});
+  layer.elements.push_back({.id = 9, .name = "Second", .texture_id = "second"});
+  ParallaxTheme theme{.layers = {layer}};
+  Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
+  std::map<std::string, TextureHandle> textures{{"first", first}, {"second", second}};
+
+  ASSERT_OK_AND_ASSIGN(
+      const ParallaxRenderBatch batch,
+      ComposeParallaxRenderBatch(theme, camera, textures, {.layer_index = 0, .element_id = 9}));
+
+  ASSERT_EQ(batch.layers.size(), 1);
+  ASSERT_EQ(batch.layers[0].layer.elements.size(), 1);
+  EXPECT_EQ(batch.layers[0].layer.elements[0].id, 9);
+  EXPECT_EQ(batch.layers[0].elements[0].texture, second);
+  EXPECT_EQ(
+      ComposeParallaxRenderBatch(theme, camera, textures, {.layer_index = 0, .element_id = 99})
+          .status()
+          .code(),
+      absl::StatusCode::kInvalidArgument);
 }
 
 TEST(ViewportSceneTileTest, ComposesOnlyVisibleTilesWithAtlasAndPresentationState) {

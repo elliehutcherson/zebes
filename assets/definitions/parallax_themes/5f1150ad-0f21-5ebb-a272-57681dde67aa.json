@@ -2,16 +2,25 @@
   "id": "5f1150ad-0f21-5ebb-a272-57681dde67aa",
   "layers": [
     {
-      "base_scale": 7.0,
+      "elements": [
+        {
+          "id": 0,
+          "name": "Storm Layer",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 7.0,
+          "texture_id": "137ec081-0f1b-4cf6-89e6-6b4a8d1a5e8a"
+        }
+      ],
       "name": "Storm Layer",
       "offset_x": 0.0,
       "offset_y": 0.0,
-      "repeat_x": true,
-      "repeat_y": false,
+      "repeat_period_x": 2688.0,
+      "repeat_period_y": 0.0,
       "scroll_factor_x": 0.1,
-      "scroll_factor_y": 0.01,
-      "texture_id": "137ec081-0f1b-4cf6-89e6-6b4a8d1a5e8a"
+      "scroll_factor_y": 0.01
     }
   ],
-  "name": "level_0 \u2014 Storm Theme"
+  "name": "level_0 \u2014 Storm Theme",
+  "schema_version": 2
 }

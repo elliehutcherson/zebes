@@ -10,7 +10,6 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-#include "artwork/prop_artwork_pipeline.h"
 #include "common/image_digest.h"
 #include "common/resource_identity.h"
 #include "common/status_macros.h"
@@ -22,7 +21,7 @@ namespace zebes {
 namespace {
 
 constexpr char kDefinitionsPath[] = "definitions/source_artworks";
-constexpr char kImagesPath[] = "source_art/props";
+constexpr char kImagesPath[] = "source_art";
 
 absl::StatusOr<SourceArtwork> LoadDefinition(const std::string& path) {
   std::ifstream stream(path);
@@ -37,43 +36,17 @@ absl::StatusOr<SourceArtwork> LoadDefinition(const std::string& path) {
   }
 }
 
-absl::Status WriteDefinition(const std::string& path, const SourceArtwork& artwork) {
-  const std::string temporary = absl::StrCat(path, ".tmp");
-  absl::Cleanup remove_temporary = [&temporary] {
-    std::error_code ignored;
-    std::filesystem::remove(temporary, ignored);
-  };
-  std::ofstream stream(temporary, std::ios::trunc);
-  if (!stream.is_open()) {
-    return absl::InternalError(absl::StrCat("could not write source artwork: ", temporary));
-  }
-  stream << SourceArtworkToJson(artwork).dump(2);
-  stream.flush();
-  if (!stream.good()) {
-    return absl::InternalError(absl::StrCat("failed while writing source artwork: ", temporary));
-  }
-  stream.close();
-  std::error_code error;
-  std::filesystem::rename(temporary, path, error);
-  if (error) {
-    return absl::InternalError(absl::StrCat("could not commit source artwork: ", error.message()));
-  }
-  std::move(remove_temporary).Cancel();
-  return absl::OkStatus();
-}
-
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<SourceArtworkManager>> SourceArtworkManager::Create(
-    std::string root_path, PropSourceLimits limits) {
+    std::string root_path, SourceArtworkLimits limits) {
   if (root_path.empty()) return absl::InvalidArgumentError("source artwork asset root is empty");
-  RgbaImage smallest{.width = 1, .height = 1, .pixels = {0, 0, 0, 0}};
-  RETURN_IF_ERROR(ValidatePropSource(smallest, limits));
+  RETURN_IF_ERROR(ValidateSourceArtworkLimits(limits));
   return std::unique_ptr<SourceArtworkManager>(
       new SourceArtworkManager(std::move(root_path), limits));
 }
 
-SourceArtworkManager::SourceArtworkManager(std::string root_path, PropSourceLimits limits)
+SourceArtworkManager::SourceArtworkManager(std::string root_path, SourceArtworkLimits limits)
     : root_path_(std::move(root_path)),
       definitions_path_(absl::StrCat(root_path_, "/", kDefinitionsPath)),
       images_path_(absl::StrCat(root_path_, "/", kImagesPath)),
@@ -113,10 +86,10 @@ absl::Status SourceArtworkManager::ValidateStoredArtwork(const SourceArtwork& ar
   }
   if (artwork.source_path != RelativeImagePath(artwork.id)) {
     return absl::InvalidArgumentError(
-        "source artwork path must be the ID-backed path under source_art/props");
+        "source artwork path must be the ID-backed path under source_art");
   }
   ASSIGN_OR_RETURN(const RgbaImage image, ReadPng(ImagePath(artwork.id)));
-  RETURN_IF_ERROR(ValidatePropSource(image, limits_));
+  RETURN_IF_ERROR(ValidateSourceArtworkPixels(image, limits_));
   if (image.width != artwork.width || image.height != artwork.height) {
     return absl::DataLossError("source artwork dimensions do not match its retained image");
   }
@@ -130,35 +103,21 @@ absl::Status SourceArtworkManager::ValidateStoredArtwork(const SourceArtwork& ar
 absl::Status SourceArtworkManager::LoadAllArtwork() {
   RETURN_IF_ERROR(EnsureDirectories());
   absl::flat_hash_map<std::string, std::unique_ptr<SourceArtwork>> loaded;
-  ResourceLoadFailures failures;
-  for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(definitions_path_)) {
-    if (entry.path().extension() != ".json") continue;
-    absl::StatusOr<SourceArtwork> parsed = LoadDefinition(entry.path().string());
-    if (!parsed.ok()) {
-      failures.Add(entry.path().string(), parsed.status());
-      continue;
-    }
-    SourceArtwork artwork = std::move(*parsed);
-    absl::Status valid = ValidateStoredArtwork(artwork);
-    if (!valid.ok()) {
-      failures.Add(entry.path().string(), valid);
-      continue;
-    }
-    if (entry.path().stem() != artwork.id) {
-      failures.Add(entry.path().string(),
-                   absl::InvalidArgumentError("source artwork filename does not match its ID"));
-      continue;
-    }
-    if (loaded.contains(artwork.id)) {
-      failures.Add(entry.path().string(), absl::AlreadyExistsError(absl::StrCat(
-                                              "duplicate source artwork ID ", artwork.id)));
-      continue;
-    }
-    const std::string id = artwork.id;
-    loaded[id] = std::make_unique<SourceArtwork>(std::move(artwork));
-  }
-  RETURN_IF_ERROR(failures.ToStatus("source artwork"));
+  RETURN_IF_ERROR(LoadJsonDefinitions(
+      definitions_path_, "source artwork",
+      [this, &loaded](const std::filesystem::path& path) -> absl::Status {
+        ASSIGN_OR_RETURN(SourceArtwork artwork, LoadDefinition(path.string()));
+        RETURN_IF_ERROR(ValidateStoredArtwork(artwork));
+        if (path.stem() != artwork.id) {
+          return absl::InvalidArgumentError("source artwork filename does not match its ID");
+        }
+        if (loaded.contains(artwork.id)) {
+          return absl::AlreadyExistsError(absl::StrCat("duplicate source artwork ID ", artwork.id));
+        }
+        const std::string id = artwork.id;
+        loaded[id] = std::make_unique<SourceArtwork>(std::move(artwork));
+        return absl::OkStatus();
+      }));
   artwork_ = std::move(loaded);
   return absl::OkStatus();
 }
@@ -167,7 +126,7 @@ absl::StatusOr<std::string> SourceArtworkManager::CreateArtwork(std::string name
                                                                 SourceArtworkProvenance provenance,
                                                                 const RgbaImage& image) {
   RETURN_IF_ERROR(EnsureDirectories());
-  RETURN_IF_ERROR(ValidatePropSource(image, limits_));
+  RETURN_IF_ERROR(ValidateSourceArtworkPixels(image, limits_));
   ASSIGN_OR_RETURN(const std::string digest, RgbaImageDigest(image));
 
   const std::string id = GenerateGuid();
@@ -206,7 +165,7 @@ absl::StatusOr<std::string> SourceArtworkManager::CreateArtwork(std::string name
     std::filesystem::remove(image_path, ignored);
   };
 
-  RETURN_IF_ERROR(WriteDefinition(definition_path, artwork));
+  RETURN_IF_ERROR(WriteTextFileAtomically(definition_path, SourceArtworkToJson(artwork).dump(2)));
   artwork_[id] = std::make_unique<SourceArtwork>(std::move(artwork));
   std::move(remove_image).Cancel();
   return id;
@@ -238,7 +197,7 @@ absl::StatusOr<RgbaImage> SourceArtworkManager::ReadArtworkPixels(const std::str
     return absl::NotFoundError(absl::StrCat("source artwork ", id, " is not loaded"));
   }
   ASSIGN_OR_RETURN(RgbaImage image, ReadPng(ImagePath(id)));
-  RETURN_IF_ERROR(ValidatePropSource(image, limits_));
+  RETURN_IF_ERROR(ValidateSourceArtworkPixels(image, limits_));
   ASSIGN_OR_RETURN(const std::string digest, RgbaImageDigest(image));
   if (digest != found->second->content_digest) {
     return absl::DataLossError("source artwork changed since it was loaded");
