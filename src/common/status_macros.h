@@ -4,16 +4,18 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
-#define RETURN_IF_ERROR(expr)                                                \
-  do {                                                                       \
-    /* Using _status below to avoid capture problems if expr is "status". */ \
-    const absl::Status _status = (expr);                                     \
-    if (!_status.ok()) return _status;                                       \
-  } while (0)
-
 // Internal helper for concatenating macro values.
 #define STATUS_MACROS_CONCAT_NAME_INNER(x, y) x##y
 #define STATUS_MACROS_CONCAT_NAME(x, y) STATUS_MACROS_CONCAT_NAME_INNER(x, y)
+
+#define RETURN_IF_ERROR_IMPL(status, expr) \
+  do {                                     \
+    const absl::Status status = (expr);    \
+    if (!status.ok()) return status;       \
+  } while (0)
+
+#define RETURN_IF_ERROR(expr) \
+  RETURN_IF_ERROR_IMPL(STATUS_MACROS_CONCAT_NAME(status_macro_result_, __COUNTER__), expr)
 
 #define ASSIGN_OR_RETURN_IMPL(statusor, lhs, rexpr) \
   auto statusor = (rexpr);                          \
