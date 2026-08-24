@@ -40,6 +40,9 @@ class ParallaxArtworkEditorTestPeer {
   static void StartGeneration(ParallaxArtworkEditor& editor) { editor.StartGeneration(); }
   static void PollGeneration(ParallaxArtworkEditor& editor) { editor.PollGeneration(); }
   static void AcceptCandidate(ParallaxArtworkEditor& editor) { editor.AcceptCandidate(); }
+  static bool RenderPipelineSettings(ParallaxArtworkEditor& editor) {
+    return editor.RenderPipelineSettings();
+  }
   static const std::optional<ImageGenerationReview>& GenerationReview(
       const ParallaxArtworkEditor& editor) {
     return editor.generation_->review();
@@ -78,6 +81,7 @@ namespace {
 
 using ::testing::_;
 using ::testing::HasSubstr;
+using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrEq;
@@ -185,6 +189,12 @@ class ParallaxArtworkEditorTest : public ::testing::Test {
                                       .preview = &preview_,
                                       .generation_providers = &generation_providers_,
                                   }));
+    ON_CALL(gui_, CreateScopedCombo(_, _, _))
+        .WillByDefault(
+            Invoke([this](const char* label, const char* preview, ImGuiComboFlags flags) {
+              return ScopedCombo(&gui_, label, preview, flags);
+            }));
+    ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
     pixels_ = SourcePixels();
     ASSERT_OK_AND_ASSIGN(const std::string digest, RgbaImageDigest(pixels_));
     source_ = SourceArtwork{
@@ -262,6 +272,19 @@ TEST_F(ParallaxArtworkEditorTest, WorkerPreparesBeforeEditorPublishesTheBundle) 
   EXPECT_THAT(model().status(), HasSubstr("managed texture"));
   EXPECT_EQ(model().status_kind(), ParallaxArtworkStatusKind::kSuccess);
   EXPECT_FALSE(model().HasUncommittedPreparedResult());
+}
+
+TEST_F(ParallaxArtworkEditorTest, FitInsideFramingIsDirectlySelectable) {
+  EXPECT_CALL(gui_, CollapsingHeader(StrEq("Processing settings##ParallaxArtwork"), _))
+      .WillOnce(Return(true));
+  EXPECT_CALL(gui_, Selectable(StrEq("Crop to fill##ParallaxArtworkFramingCrop"), true, _, _))
+      .WillOnce(Return(false));
+  EXPECT_CALL(gui_, Selectable(StrEq("Fit inside##ParallaxArtworkFramingFit"), false, _, _))
+      .WillOnce(Return(true));
+
+  EXPECT_TRUE(ParallaxArtworkEditorTestPeer::RenderPipelineSettings(*editor_));
+
+  EXPECT_EQ(model().settings().pipeline.frame_policy, ParallaxArtworkFramePolicy::kFitInside);
 }
 
 TEST_F(ParallaxArtworkEditorTest, GeneratedCandidateUsesTheRetainedSourceAndBundlePath) {

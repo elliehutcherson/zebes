@@ -36,16 +36,6 @@ std::string OriginalFilename(const std::string& path) {
   return separator == std::string::npos ? path : path.substr(separator + 1);
 }
 
-const char* FramePolicyLabel(ParallaxArtworkFramePolicy policy) {
-  switch (policy) {
-    case ParallaxArtworkFramePolicy::kCropToFill:
-      return "Crop to fill";
-    case ParallaxArtworkFramePolicy::kFitInside:
-      return "Fit inside";
-  }
-  return "Invalid";
-}
-
 const char* AlphaRoleLabel(ParallaxArtworkAlphaRole role) {
   switch (role) {
     case ParallaxArtworkAlphaRole::kOpaquePlate:
@@ -617,19 +607,21 @@ bool ParallaxArtworkEditor::RenderPipelineSettings() {
   gui_->SetNextItemWidth(kControlWidth);
   changed |= gui_->InputInt("Height##ParallaxArtwork", &pipeline.target_height, 16, 128);
 
-  gui_->SetNextItemWidth(kControlWidth);
-  {
-    const ParallaxArtworkFramePolicy current = pipeline.frame_policy;
-    ScopedCombo combo =
-        gui_->CreateScopedCombo("Framing##ParallaxArtwork", FramePolicyLabel(current));
-    if (combo.IsActive()) {
-      for (const ParallaxArtworkFramePolicy candidate :
-           {ParallaxArtworkFramePolicy::kCropToFill, ParallaxArtworkFramePolicy::kFitInside}) {
-        if (!gui_->Selectable(FramePolicyLabel(candidate), candidate == current)) continue;
-        pipeline.frame_policy = candidate;
-        changed |= candidate != current;
-      }
-    }
+  gui_->Text("Framing");
+  const ParallaxArtworkFramePolicy current = pipeline.frame_policy;
+  constexpr float kFramingChoiceWidth = (kControlWidth - 4.0f) / 2.0f;
+  if (gui_->Selectable("Crop to fill##ParallaxArtworkFramingCrop",
+                       current == ParallaxArtworkFramePolicy::kCropToFill, 0,
+                       ImVec2(kFramingChoiceWidth, 0.0f))) {
+    pipeline.frame_policy = ParallaxArtworkFramePolicy::kCropToFill;
+    changed |= current != pipeline.frame_policy;
+  }
+  gui_->SameLine();
+  if (gui_->Selectable("Fit inside##ParallaxArtworkFramingFit",
+                       current == ParallaxArtworkFramePolicy::kFitInside, 0,
+                       ImVec2(kFramingChoiceWidth, 0.0f))) {
+    pipeline.frame_policy = ParallaxArtworkFramePolicy::kFitInside;
+    changed |= current != pipeline.frame_policy;
   }
 
   gui_->SetNextItemWidth(kControlWidth);
