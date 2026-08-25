@@ -9,6 +9,7 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gtest/gtest.h"
@@ -22,6 +23,18 @@ namespace zebes {
 namespace {
 
 #if !defined(_WIN32)
+
+absl::StatusOr<std::vector<std::string>> WaitForProtocolLines(CodexAppServerTransport& transport) {
+  const absl::Time deadline = absl::Now() + absl::Seconds(10);
+  while (absl::Now() < deadline) {
+    absl::StatusOr<std::vector<std::string>> lines = transport.Poll();
+    if (!lines.ok()) return lines.status();
+    if (!lines->empty()) return lines;
+    absl::SleepFor(absl::Milliseconds(5));
+  }
+  return absl::DeadlineExceededError(absl::StrCat(
+      "fake Codex process did not emit a protocol line; diagnostics: ", transport.diagnostics()));
+}
 
 TEST(CodexAppServerTransportTest, ExchangesJsonlWithoutPassingTheApiKey) {
   const std::filesystem::path test_directory =
@@ -63,13 +76,7 @@ TEST(CodexAppServerTransportTest, ExchangesJsonlWithoutPassingTheApiKey) {
   ASSERT_OK(transport->Start());
   ASSERT_OK(transport->SendLine(R"({"id":1,"method":"test","params":{}})"));
 
-  std::vector<std::string> lines;
-  for (int attempt = 0; attempt < 100 && lines.empty(); ++attempt) {
-    absl::StatusOr<std::vector<std::string>> polled = transport->Poll();
-    ASSERT_OK(polled.status()) << transport->diagnostics();
-    lines = *std::move(polled);
-    if (lines.empty()) absl::SleepFor(absl::Milliseconds(5));
-  }
+  ASSERT_OK_AND_ASSIGN(std::vector<std::string> lines, WaitForProtocolLines(*transport));
 
   ASSERT_EQ(lines.size(), 1);
   EXPECT_EQ(lines[0], R"({"id":1,"method":"test","params":{}})");
@@ -114,11 +121,7 @@ TEST(CodexAppServerTransportTest, UsesTheConfiguredExecutableWhenGuiPathCannotFi
   ASSERT_OK(transport->Start());
   ASSERT_OK(transport->SendLine(R"({"id":1})"));
 
-  std::vector<std::string> lines;
-  for (int attempt = 0; attempt < 100 && lines.empty(); ++attempt) {
-    ASSERT_OK_AND_ASSIGN(lines, transport->Poll());
-    if (lines.empty()) absl::SleepFor(absl::Milliseconds(5));
-  }
+  ASSERT_OK_AND_ASSIGN(std::vector<std::string> lines, WaitForProtocolLines(*transport));
   ASSERT_EQ(lines, std::vector<std::string>{R"({"id":1})"});
 }
 
