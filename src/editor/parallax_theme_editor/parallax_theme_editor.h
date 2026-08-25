@@ -44,7 +44,8 @@ class ParallaxThemeEditor {
   absl::Status RenderInspector(ParallaxTheme& draft, const std::vector<Texture>& textures);
   absl::Status RenderViewport(ParallaxTheme& draft, const std::vector<Level>& levels);
   absl::Status RenderDiagnostics(const ParallaxTheme& draft, const std::vector<Level>& levels);
-  absl::Status RenderTexturePicker(ParallaxElement& element, const std::vector<Texture>& textures);
+  absl::Status RenderTexturePicker(int layer_index, ParallaxElement& element,
+                                   const std::vector<Texture>& textures);
   absl::Status AnalyzeSelectedTexture();
   absl::StatusOr<std::vector<ParallaxElementSize>> ResolveElementSizes(const ParallaxLayer& layer);
   absl::Status SetRepeatMode(ParallaxLayer& layer, bool repeat_x, bool repeat_y);
@@ -53,7 +54,8 @@ class ParallaxThemeEditor {
   absl::Status SnapSelectedElement(ParallaxLayer& layer, int direction);
   absl::Status UpdatePreviewElementDrag(ParallaxLayer& editable_layer,
                                         const ParallaxLayer& preview_layer,
-                                        const std::vector<ParallaxElementSize>& element_sizes);
+                                        const std::vector<ParallaxElementSize>& element_sizes,
+                                        bool allow_drag);
   void SetError(const absl::Status& status);
   void CloseTheme();
 
@@ -63,6 +65,7 @@ class ParallaxThemeEditor {
   };
 
   PreviewContext RenderContextPicker(const ParallaxTheme& draft, const std::vector<Level>& levels);
+  absl::Status FitManualRouteToContent(const ParallaxTheme& draft);
 
   struct DiagnosticsSnapshot {
     std::string texture_id;
@@ -81,9 +84,13 @@ class ParallaxThemeEditor {
   ParallaxThemeEditorModel model_;
   ConfirmPrompt close_prompt_;
   ConfirmPrompt delete_prompt_;
+  ConfirmPrompt discard_prompt_;
   std::optional<std::string> error_;
   std::optional<DiagnosticsSnapshot> diagnostics_;
   std::string texture_search_;
+  std::string texture_choice_id_;
+  std::optional<int> texture_choice_layer_;
+  std::optional<int> texture_choice_element_id_;
   std::string context_level_id_;
   std::optional<int> context_zone_id_;
   bool manual_context_ = false;
@@ -94,6 +101,7 @@ class ParallaxThemeEditor {
   float preview_zoom_ = 1.0f;
   ParallaxPreviewScope preview_scope_ = ParallaxPreviewScope::kCompleteTheme;
   bool show_diagnostics_ = true;
+  bool edit_mode_ = false;
 };
 
 }  // namespace zebes

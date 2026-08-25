@@ -34,15 +34,13 @@ class ParallaxArtworkEditorTestPeer {
     editor.StartImport(std::move(path));
   }
   static void CommitPrepared(ParallaxArtworkEditor& editor) { editor.CommitPrepared(); }
+  static void RenameArtwork(ParallaxArtworkEditor& editor) { editor.RenameArtwork(); }
   static void ClearWorkspace(ParallaxArtworkEditor& editor) { editor.ClearWorkspace(); }
   static void DeleteArtwork(ParallaxArtworkEditor& editor) { editor.DeleteArtwork(); }
   static void PollWork(ParallaxArtworkEditor& editor) { editor.PollWork(); }
   static void StartGeneration(ParallaxArtworkEditor& editor) { editor.StartGeneration(); }
   static void PollGeneration(ParallaxArtworkEditor& editor) { editor.PollGeneration(); }
   static void AcceptCandidate(ParallaxArtworkEditor& editor) { editor.AcceptCandidate(); }
-  static bool RenderPipelineSettings(ParallaxArtworkEditor& editor) {
-    return editor.RenderPipelineSettings();
-  }
   static const std::optional<ImageGenerationReview>& GenerationReview(
       const ParallaxArtworkEditor& editor) {
     return editor.generation_->review();
@@ -81,7 +79,6 @@ namespace {
 
 using ::testing::_;
 using ::testing::HasSubstr;
-using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrEq;
@@ -189,12 +186,6 @@ class ParallaxArtworkEditorTest : public ::testing::Test {
                                       .preview = &preview_,
                                       .generation_providers = &generation_providers_,
                                   }));
-    ON_CALL(gui_, CreateScopedCombo(_, _, _))
-        .WillByDefault(
-            Invoke([this](const char* label, const char* preview, ImGuiComboFlags flags) {
-              return ScopedCombo(&gui_, label, preview, flags);
-            }));
-    ON_CALL(gui_, BeginCombo(_, _, _)).WillByDefault(Return(false));
     pixels_ = SourcePixels();
     ASSERT_OK_AND_ASSIGN(const std::string digest, RgbaImageDigest(pixels_));
     source_ = SourceArtwork{
@@ -272,19 +263,6 @@ TEST_F(ParallaxArtworkEditorTest, WorkerPreparesBeforeEditorPublishesTheBundle) 
   EXPECT_THAT(model().status(), HasSubstr("managed texture"));
   EXPECT_EQ(model().status_kind(), ParallaxArtworkStatusKind::kSuccess);
   EXPECT_FALSE(model().HasUncommittedPreparedResult());
-}
-
-TEST_F(ParallaxArtworkEditorTest, FitInsideFramingIsDirectlySelectable) {
-  EXPECT_CALL(gui_, CollapsingHeader(StrEq("Processing settings##ParallaxArtwork"), _))
-      .WillOnce(Return(true));
-  EXPECT_CALL(gui_, Selectable(StrEq("Crop to fill##ParallaxArtworkFramingCrop"), true, _, _))
-      .WillOnce(Return(false));
-  EXPECT_CALL(gui_, Selectable(StrEq("Fit inside##ParallaxArtworkFramingFit"), false, _, _))
-      .WillOnce(Return(true));
-
-  EXPECT_TRUE(ParallaxArtworkEditorTestPeer::RenderPipelineSettings(*editor_));
-
-  EXPECT_EQ(model().settings().pipeline.frame_policy, ParallaxArtworkFramePolicy::kFitInside);
 }
 
 TEST_F(ParallaxArtworkEditorTest, GeneratedCandidateUsesTheRetainedSourceAndBundlePath) {
@@ -469,6 +447,46 @@ TEST_F(ParallaxArtworkEditorTest, RegenerationKeepsRecipeAndTextureIdentity) {
   EXPECT_EQ(model().active_recipe()->id, created.recipe.id);
   EXPECT_EQ(model().active_recipe()->texture_id, created.texture.id);
   EXPECT_THAT(model().status(), HasSubstr("without changing"));
+}
+
+TEST_F(ParallaxArtworkEditorTest, RenameKeepsRecipeAndTextureIdentity) {
+  ParallaxArtworkEditorTestPeer::StartPreparation(*editor_);
+  ASSERT_OK(ParallaxArtworkEditorTestPeer::WaitForWork(*editor_));
+  ParallaxArtworkEditorTestPeer::PollWork(*editor_);
+  ASSERT_NE(model().prepared_creation(), nullptr);
+  const ParallaxArtworkRecipe created = model().prepared_creation()->recipe;
+  model().BindCommittedRecipe(created);
+  model().name() = "Renamed cave overlay";
+  EXPECT_CALL(api_,
+              RenameGeneratedParallaxArtwork(StrEq(created.id), StrEq("Renamed cave overlay")))
+      .WillOnce(Return(absl::OkStatus()));
+
+  ParallaxArtworkEditorTestPeer::RenameArtwork(*editor_);
+
+  ASSERT_TRUE(model().active_recipe().has_value());
+  EXPECT_EQ(model().active_recipe()->id, created.id);
+  EXPECT_EQ(model().active_recipe()->texture_id, created.texture_id);
+  EXPECT_EQ(model().active_recipe()->name, "Renamed cave overlay");
+  EXPECT_THAT(model().status(), HasSubstr("without changing its IDs"));
+}
+
+TEST_F(ParallaxArtworkEditorTest, FailedRenameKeepsSavedRecipeIdentity) {
+  ParallaxArtworkEditorTestPeer::StartPreparation(*editor_);
+  ASSERT_OK(ParallaxArtworkEditorTestPeer::WaitForWork(*editor_));
+  ParallaxArtworkEditorTestPeer::PollWork(*editor_);
+  ASSERT_NE(model().prepared_creation(), nullptr);
+  const ParallaxArtworkRecipe created = model().prepared_creation()->recipe;
+  model().BindCommittedRecipe(created);
+  model().name() = "Rejected name";
+  EXPECT_CALL(api_, RenameGeneratedParallaxArtwork(StrEq(created.id), StrEq("Rejected name")))
+      .WillOnce(Return(absl::InternalError("definition write failed")));
+
+  ParallaxArtworkEditorTestPeer::RenameArtwork(*editor_);
+
+  ASSERT_TRUE(model().active_recipe().has_value());
+  EXPECT_EQ(model().active_recipe()->name, created.name);
+  EXPECT_EQ(model().status_kind(), ParallaxArtworkStatusKind::kError);
+  EXPECT_THAT(model().status(), HasSubstr("definition write failed"));
 }
 
 TEST_F(ParallaxArtworkEditorTest, RefusedDeleteKeepsTheRecipeOpen) {

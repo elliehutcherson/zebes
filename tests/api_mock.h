@@ -109,6 +109,8 @@ class MockApi : public Api {
               (const, override));
   MOCK_METHOD(absl::StatusOr<std::string>, CreateGeneratedParallaxArtwork,
               (const PreparedParallaxArtworkAsset&), (override));
+  MOCK_METHOD(absl::Status, RenameGeneratedParallaxArtwork,
+              (const std::string&, const std::string&), (override));
   MOCK_METHOD(absl::Status, DeleteGeneratedParallaxArtwork, (const std::string&), (override));
   MOCK_METHOD(absl::Status, RegenerateGeneratedParallaxArtwork,
               (const PreparedParallaxArtworkRegeneration&), (override));

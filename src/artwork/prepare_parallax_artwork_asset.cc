@@ -14,18 +14,6 @@
 namespace zebes {
 namespace {
 
-absl::Status ValidateName(std::string_view name) {
-  if (name.empty()) return absl::InvalidArgumentError("prepared parallax artwork needs a name");
-  if (name.size() > kMaxTextureNameLength) {
-    return absl::InvalidArgumentError(absl::StrCat("prepared parallax artwork name is longer than ",
-                                                   kMaxTextureNameLength, " characters"));
-  }
-  if (!IsSafeResourceName(name)) {
-    return absl::InvalidArgumentError("prepared parallax artwork name is not a safe filename");
-  }
-  return absl::OkStatus();
-}
-
 absl::Status ValidateIds(const ParallaxArtworkAssetIds& ids) {
   const std::array<std::pair<std::string_view, std::string_view>, 2> named_ids = {{
       {"texture", ids.texture_id},
@@ -73,11 +61,23 @@ absl::Status ValidatePreparedRecipeBindings(const PreparedParallaxArtworkAsset& 
 
 }  // namespace
 
+absl::Status ValidateParallaxArtworkAssetName(std::string_view name) {
+  if (name.empty()) return absl::InvalidArgumentError("prepared parallax artwork needs a name");
+  if (name.size() > kMaxTextureNameLength) {
+    return absl::InvalidArgumentError(absl::StrCat("prepared parallax artwork name is longer than ",
+                                                   kMaxTextureNameLength, " characters"));
+  }
+  if (!IsSafeResourceName(name)) {
+    return absl::InvalidArgumentError("prepared parallax artwork name is not a safe filename");
+  }
+  return absl::OkStatus();
+}
+
 absl::StatusOr<PreparedParallaxArtworkAsset> PrepareParallaxArtworkAsset(
     const SourceArtwork& source, const RgbaImage& source_pixels,
     const PrepareParallaxArtworkAssetRequest& request) {
   RETURN_IF_ERROR(ValidateSourceArtwork(source));
-  RETURN_IF_ERROR(ValidateName(request.name));
+  RETURN_IF_ERROR(ValidateParallaxArtworkAssetName(request.name));
   RETURN_IF_ERROR(ValidateIds(request.ids));
   if (source.width != source_pixels.width || source.height != source_pixels.height) {
     return absl::FailedPreconditionError(
@@ -122,7 +122,7 @@ absl::StatusOr<PreparedParallaxArtworkAsset> PrepareParallaxArtworkAsset(
 
 absl::Status ValidatePreparedParallaxArtworkAsset(const PreparedParallaxArtworkAsset& prepared) {
   RETURN_IF_ERROR(ValidateSourceArtwork(prepared.source));
-  RETURN_IF_ERROR(ValidateName(prepared.recipe.name));
+  RETURN_IF_ERROR(ValidateParallaxArtworkAssetName(prepared.recipe.name));
   RETURN_IF_ERROR(ValidateIds({
       .texture_id = prepared.texture.id,
       .recipe_id = prepared.recipe.id,

@@ -193,6 +193,11 @@ class Api {
   // especially a parallax theme, still names that Texture.
   virtual absl::StatusOr<std::string> CreateGeneratedParallaxArtwork(
       const PreparedParallaxArtworkAsset& prepared);
+  // Renames the recipe-owned bundle without changing any ID or artwork path.
+  // The recipe and managed Texture share a display name and are updated as one
+  // operation so editor catalogues cannot disagree about the same output.
+  virtual absl::Status RenameGeneratedParallaxArtwork(const std::string& recipe_id,
+                                                      const std::string& name);
   virtual absl::Status DeleteGeneratedParallaxArtwork(const std::string& recipe_id);
   virtual absl::Status RegenerateGeneratedParallaxArtwork(
       const PreparedParallaxArtworkRegeneration& prepared);

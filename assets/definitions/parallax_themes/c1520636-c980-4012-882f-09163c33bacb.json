@@ -1,0 +1,104 @@
+{
+  "id": "c1520636-c980-4012-882f-09163c33bacb",
+  "layers": [
+    {
+      "elements": [
+        {
+          "id": 0,
+          "name": "Cave Far Fill",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "2fd319f2-f8ac-487f-9a28-a8c987c148a8"
+        }
+      ],
+      "name": "Cave Far Fill",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_period_x": 960.0,
+      "repeat_period_y": 540.0,
+      "scroll_factor_x": 0.05,
+      "scroll_factor_y": 0.05
+    },
+    {
+      "elements": [
+        {
+          "id": 0,
+          "name": "Cave Far Formations",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "88f60ea9-c1aa-4688-9943-687bb0b45879"
+        }
+      ],
+      "name": "Cave Far Formations",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_period_x": 960.0,
+      "repeat_period_y": 540.0,
+      "scroll_factor_x": 0.2,
+      "scroll_factor_y": 0.1
+    },
+    {
+      "elements": [
+        {
+          "id": 0,
+          "name": "Stone Columns",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "045787f7-81b8-485d-8d8a-dd37c4e7bd0e"
+        },
+        {
+          "id": 1,
+          "name": "Pilot",
+          "position_x": 960.0,
+          "position_y": 63.700932308413314,
+          "scale": 1.0,
+          "texture_id": "a990ca8f-1508-4bb5-95ec-e45b65482893"
+        },
+        {
+          "id": 2,
+          "name": "Slant",
+          "position_x": 1920.0,
+          "position_y": -208.14952528946327,
+          "scale": 1.0,
+          "texture_id": "df9397e0-035d-4342-90d2-23f6b6259833"
+        },
+        {
+          "id": 3,
+          "name": "Floor Ridge",
+          "position_x": 3592.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "23320208-32f4-4075-8486-8c9e60b0ef56"
+        },
+        {
+          "id": 4,
+          "name": "Gate",
+          "position_x": 5264.0,
+          "position_y": 56.523362470845655,
+          "scale": 1.0,
+          "texture_id": "045787f7-81b8-485d-8d8a-dd37c4e7bd0e"
+        },
+        {
+          "id": 5,
+          "name": "M3 Gate",
+          "position_x": 6187.446893508139,
+          "position_y": 68.29659370847855,
+          "scale": 1.0,
+          "texture_id": "973c2589-2a6b-479e-91ab-fe8beb27d479"
+        }
+      ],
+      "name": "Cave Near Formations",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_period_x": 8192.0,
+      "repeat_period_y": 0.0,
+      "scroll_factor_x": 0.5,
+      "scroll_factor_y": 0.25
+    }
+  ],
+  "name": "M3 Gate Cave Theme",
+  "schema_version": 2
+}

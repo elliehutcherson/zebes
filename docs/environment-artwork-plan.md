@@ -1,12 +1,14 @@
 # Environment artwork and parallax plan
 
-**Status: Milestones 0, 1, 1.5, 1.6, and 2 are accepted. The import-first
-background artwork pipeline, retained source, deterministic recipe, managed
-bundle lifecycle, editor workflow, and cave-plate acceptance gate are complete.
-Milestone 3, generated background candidates, is next.**
+**Status: Milestones 0, 1, 1.5, 1.6, 2, and 3 are accepted. Imported and
+generated background artwork now share retained source, deterministic
+processing, compensated bundle lifecycle, and the accepted Parallax Artwork
+and Theme Editor workflow. Milestone 4, the first production cave kit, is
+next.**
 Written 2026-08-22 for the first cave vertical slice, revised the same day to
 make standalone parallax-theme ownership the highest-priority implementation
-milestone, and updated 2026-08-23 after accepting composed parallax layers.
+milestone, updated 2026-08-23 after accepting composed parallax layers, and
+updated 2026-08-24 after accepting the live generated-background gate.
 Update milestone states here as work lands; use [`roadmap.md`](roadmap.md) only
 for the higher-level sequence.
 
@@ -273,6 +275,12 @@ Regeneration starts from retained `SourceArtwork`, reproduces the processed
 pixels locally, checks that the recipe and output snapshots are still current,
 and replaces only the owned texture pixels and digest. It never makes a remote
 request silently.
+
+Renaming a generated output changes the recipe and its managed Texture display
+name as one compensated API operation. Recipe, Texture, and source IDs plus the
+ID-backed PNG path remain stable, so themes and other Texture consumers do not
+need rewriting. A pre-existing recipe/Texture name mismatch fails before either
+definition changes.
 
 Deletion preflights every external reference to the output texture. A texture
 used by a parallax layer, sprite, tileset, or unrelated recipe prevents bundle
@@ -984,6 +992,8 @@ content work.
 
 ### Milestone 3 — generated candidates
 
+**Status: implemented and accepted.**
+
 - **Implemented.** Extract the shared image-generation request controller from
   Prop Artwork, including targeted request-ID collection, candidate navigation,
   retry-safe acceptance, and discard state.
@@ -1001,9 +1011,33 @@ committed as a recipe-owned Texture, and selected by a parallax layer; provider
 failure leaves no partial assets.
 
 Automated coverage proves the retained-source, processing, commit,
-shared-engine routing, cancellation, and provider-failure boundaries. The
-live-provider and parallax-layer selection portion remains the Milestone 3
-human gate.
+shared-engine routing, cancellation, and provider-failure boundaries.
+
+#### Accepted human gate
+
+The live Codex gate retained generated source
+`6ac9fe46-4c84-4131-b3c4-f24576b56a57`, created recipe
+`36caa8bb-968f-4436-9bd0-9b02f8c2e804`, and committed managed Texture
+`973c2589-2a6b-479e-91ab-fe8beb27d479`. The 1672×941 generated source used a
+uniform magenta matte; deterministic fit-inside framing, matte removal, exact
+cave-palette quantization, binary alpha, and 960×540 output produced final
+pixel digest `913e1004e9e23e5138b80158df51e4d6fc31144b41e0277919c391e5553d2482`.
+
+The managed Texture was assigned as element `5` of unassigned theme
+`c1520636-c980-4012-882f-09163c33bacb` (`M3 Gate Cave Theme`), preserving the
+existing far/middle layers and six-element Near composition. Reopening the
+theme derived a navigable camera route from its authored content, and **Fit
+Route to Content** restored that route after manual changes. Reopening the
+artwork restored the full recipe, and rename-in-place changed recipe and
+Texture names without changing recipe, Texture, source, or theme references.
+
+The usability closeout accepted a default read-only Theme Editor preview:
+camera navigation and element inspection remain available, while canvas drag
+and inspector mutation require **Edit Theme**. Texture catalogue selection is
+staged until **Apply Texture**, and **Discard Changes** restores the last saved
+snapshot without leaving the editor. The Framing combo was exercised through
+the SDL/ImGui test harness. This closes Milestone 3; remaining palette,
+silhouette, seam, and composition polish belongs to Milestone 4.
 
 ### Milestone 4 — theme workflow and first cave kit
 
@@ -1072,9 +1106,11 @@ three Near Formation variants:
 
 ### C. Assemble the standalone parallax theme
 
-1. In Theme Editor, create and save one Cave theme resource.
+1. In Theme Editor, create and save one Cave theme resource. Saved themes open
+   in read-only Preview mode; choose **Edit Theme** before changing the draft.
 2. Add layers in far-to-near order. Add the Far outputs as one-element layers
-   and add the Near variants as ordered elements of the Near layer.
+   and add the Near variants as ordered elements of the Near layer. Selecting a
+   catalogue texture is non-destructive until **Apply Texture**.
 3. Apply Far, Middle, and Near-background presets, then tune the layer anchor,
    element position, and element scale in their owning inspectors.
 4. Enable repetition only on axes reviewed in Parallax Artwork. For a
@@ -1085,7 +1121,9 @@ three Near Formation variants:
    resolve coverage warnings in the bottom Diagnostics drawer. Use the manual
    route only when the theme is not yet assigned; its endpoints are camera
    centers, not world-content corners.
-7. Save the theme explicitly.
+7. Save the theme explicitly. Use **Preview** to lock the inspector while
+   reviewing, or **Discard Changes** to restore the last saved snapshot in
+   place.
 8. In Level Editor, add a zone covering the intended route and assign the Cave
    theme from the resource catalog. Keep fade at zero until fade rendering is
    implemented.

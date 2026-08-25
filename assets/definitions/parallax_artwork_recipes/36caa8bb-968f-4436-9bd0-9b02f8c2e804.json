@@ -1,0 +1,193 @@
+{
+  "expected_height": 540,
+  "expected_width": 960,
+  "final_pixel_digest": "913e1004e9e23e5138b80158df51e4d6fc31144b41e0277919c391e5553d2482",
+  "id": "36caa8bb-968f-4436-9bd0-9b02f8c2e804",
+  "name": "background",
+  "pipeline": {
+    "alpha_role": "transparent_overlay",
+    "binary_alpha_threshold": 128,
+    "frame_policy": "fit_inside",
+    "matte_color": [
+      255,
+      0,
+      255,
+      255
+    ],
+    "matte_opaque_distance": 190.0,
+    "matte_transparent_distance": 24.0,
+    "overlay_alpha_policy": "binary",
+    "overlay_extraction": "remove_solid_matte",
+    "review_repeat_x": false,
+    "review_repeat_y": false,
+    "source_limits": {
+      "maximum_bytes": 67108864,
+      "maximum_height": 4096,
+      "maximum_pixels": 16777216,
+      "maximum_width": 4096
+    },
+    "target_height": 540,
+    "target_width": 960
+  },
+  "pipeline_version": 1,
+  "schema_version": 1,
+  "source_artwork_id": "6ac9fe46-4c84-4131-b3c4-f24576b56a57",
+  "style": {
+    "palette": [
+      [
+        37,
+        35,
+        50,
+        255
+      ],
+      [
+        170,
+        193,
+        199,
+        255
+      ],
+      [
+        125,
+        142,
+        166,
+        255
+      ],
+      [
+        81,
+        80,
+        126,
+        255
+      ],
+      [
+        7,
+        0,
+        13,
+        255
+      ],
+      [
+        16,
+        27,
+        76,
+        255
+      ],
+      [
+        10,
+        16,
+        59,
+        255
+      ],
+      [
+        26,
+        43,
+        96,
+        255
+      ],
+      [
+        9,
+        16,
+        59,
+        255
+      ],
+      [
+        31,
+        67,
+        104,
+        255
+      ],
+      [
+        11,
+        7,
+        51,
+        255
+      ],
+      [
+        149,
+        171,
+        184,
+        255
+      ],
+      [
+        99,
+        108,
+        144,
+        255
+      ],
+      [
+        22,
+        35,
+        88,
+        255
+      ],
+      [
+        136,
+        155,
+        174,
+        255
+      ],
+      [
+        90,
+        94,
+        136,
+        255
+      ],
+      [
+        154,
+        216,
+        232,
+        255
+      ],
+      [
+        154,
+        202,
+        232,
+        255
+      ],
+      [
+        154,
+        187,
+        233,
+        255
+      ],
+      [
+        154,
+        173,
+        233,
+        255
+      ],
+      [
+        155,
+        159,
+        233,
+        255
+      ],
+      [
+        165,
+        155,
+        233,
+        255
+      ],
+      [
+        180,
+        155,
+        234,
+        255
+      ],
+      [
+        195,
+        155,
+        234,
+        255
+      ],
+      [
+        31,
+        31,
+        60,
+        255
+      ]
+    ],
+    "pixel_block_size": 1,
+    "quantize_to_palette": true
+  },
+  "terrain_recipe_id": "00a2a23d-47fa-4468-b101-9431671f643d",
+  "texture_id": "973c2589-2a6b-479e-91ab-fe8beb27d479"
+}

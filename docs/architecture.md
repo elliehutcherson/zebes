@@ -273,6 +273,13 @@ unrelated theme draft. The level loader refuses the retired embedded `themes`
 field and directs authors to the deterministic migration instead of maintaining
 two ownership paths.
 
+Saved themes open in a read-only preview state. Layer/element selection and
+camera navigation remain available there, but draft mutation and canvas drag
+require an explicit Edit Theme transition. Texture catalogue clicks stage a
+candidate ID and only Apply Texture changes the element. Discard Changes
+restores the model's saved snapshot in place and returns to preview, so visual
+review never requires risking a live draft mutation.
+
 Each theme layer owns an ordered stable-ID `ParallaxElement` composition.
 Elements carry texture ID, layer-local position, and scale; the layer owns its
 camera-relative transform and an explicit repeat period, where zero leaves an
@@ -667,6 +674,9 @@ nearest-neighbour resize, palette, alpha, and repetition-review primitives but
 does not enter the prop subject-isolation or anchoring workflow. Creation
 publishes the Texture before the recipe and compensates on failure;
 regeneration replaces only recipe-owned texture pixels after snapshot checks.
+Renaming updates the recipe and managed Texture display names through one API
+operation with compensation, while recipe, Texture, source, and path identity
+remain stable; an existing name mismatch fails before writing.
 Generated texture paths are ID-backed and grouped by their owning authoring
 domain as `textures/<category>/<texture-id>.png`; `TextureManager` enforces that
 generic shape without hard-coding a single recipe kind's category.

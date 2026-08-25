@@ -36,6 +36,16 @@ std::string OriginalFilename(const std::string& path) {
   return separator == std::string::npos ? path : path.substr(separator + 1);
 }
 
+const char* FramePolicyLabel(ParallaxArtworkFramePolicy policy) {
+  switch (policy) {
+    case ParallaxArtworkFramePolicy::kCropToFill:
+      return "Crop to fill";
+    case ParallaxArtworkFramePolicy::kFitInside:
+      return "Fit inside";
+  }
+  return "Invalid";
+}
+
 const char* AlphaRoleLabel(ParallaxArtworkAlphaRole role) {
   switch (role) {
     case ParallaxArtworkAlphaRole::kOpaquePlate:
@@ -481,6 +491,28 @@ void ParallaxArtworkEditor::CommitPrepared() {
                                  "' without changing its texture or recipe ID."));
 }
 
+void ParallaxArtworkEditor::RenameArtwork() {
+  if (!model_.active_recipe().has_value()) {
+    model_.SetInfo("Create or open parallax artwork before renaming it.");
+    return;
+  }
+  if (model_.HasUncommittedPreparedResult()) {
+    model_.SetInfo("Apply or replace the pending regeneration before renaming the artwork.");
+    return;
+  }
+  const ParallaxArtworkRecipe snapshot = *model_.active_recipe();
+  const absl::Status renamed = api_->RenameGeneratedParallaxArtwork(snapshot.id, model_.name());
+  if (!renamed.ok()) {
+    model_.SetError(absl::StrCat("Rename artwork failed: ", renamed.message()));
+    return;
+  }
+  ParallaxArtworkRecipe updated = snapshot;
+  updated.name = model_.name();
+  model_.BindCommittedRecipe(updated);
+  model_.SetSuccess(
+      absl::StrCat("Renamed parallax artwork to '", updated.name, "' without changing its IDs."));
+}
+
 void ParallaxArtworkEditor::DeleteArtwork() {
   if (!model_.active_recipe().has_value()) {
     model_.SetInfo("Open parallax artwork before deleting it.");
@@ -607,21 +639,19 @@ bool ParallaxArtworkEditor::RenderPipelineSettings() {
   gui_->SetNextItemWidth(kControlWidth);
   changed |= gui_->InputInt("Height##ParallaxArtwork", &pipeline.target_height, 16, 128);
 
-  gui_->Text("Framing");
-  const ParallaxArtworkFramePolicy current = pipeline.frame_policy;
-  constexpr float kFramingChoiceWidth = (kControlWidth - 4.0f) / 2.0f;
-  if (gui_->Selectable("Crop to fill##ParallaxArtworkFramingCrop",
-                       current == ParallaxArtworkFramePolicy::kCropToFill, 0,
-                       ImVec2(kFramingChoiceWidth, 0.0f))) {
-    pipeline.frame_policy = ParallaxArtworkFramePolicy::kCropToFill;
-    changed |= current != pipeline.frame_policy;
-  }
-  gui_->SameLine();
-  if (gui_->Selectable("Fit inside##ParallaxArtworkFramingFit",
-                       current == ParallaxArtworkFramePolicy::kFitInside, 0,
-                       ImVec2(kFramingChoiceWidth, 0.0f))) {
-    pipeline.frame_policy = ParallaxArtworkFramePolicy::kFitInside;
-    changed |= current != pipeline.frame_policy;
+  gui_->SetNextItemWidth(kControlWidth);
+  {
+    const ParallaxArtworkFramePolicy current = pipeline.frame_policy;
+    ScopedCombo combo =
+        gui_->CreateScopedCombo("Framing##ParallaxArtwork", FramePolicyLabel(current));
+    if (combo.IsActive()) {
+      for (const ParallaxArtworkFramePolicy candidate :
+           {ParallaxArtworkFramePolicy::kCropToFill, ParallaxArtworkFramePolicy::kFitInside}) {
+        if (!gui_->Selectable(FramePolicyLabel(candidate), candidate == current)) continue;
+        pipeline.frame_policy = candidate;
+        changed |= candidate != current;
+      }
+    }
   }
 
   gui_->SetNextItemWidth(kControlWidth);
@@ -1016,13 +1046,22 @@ absl::Status ParallaxArtworkEditor::RenderOutput() {
   }
 
   gui_->SetNextItemWidth(kControlWidth);
-  gui_->BeginDisabled(model_.active_recipe().has_value());
+  gui_->BeginDisabled(model_.active_recipe().has_value() && model_.HasUncommittedPreparedResult());
   const bool name_changed = gui_->InputText("Name##ParallaxArtwork", &model_.name());
   gui_->EndDisabled();
-  if (name_changed) model_.MarkInputsChanged();
+  if (name_changed && !model_.active_recipe().has_value()) model_.MarkInputsChanged();
+  const bool rename_pending =
+      model_.active_recipe().has_value() && model_.name() != model_.active_recipe()->name;
+  if (model_.active_recipe().has_value()) {
+    gui_->SameLine();
+    gui_->BeginDisabled(!rename_pending || model_.name().empty() ||
+                        model_.HasUncommittedPreparedResult());
+    if (gui_->Button("Rename##ParallaxArtwork")) RenameArtwork();
+    gui_->EndDisabled();
+  }
 
   gui_->Separator();
-  gui_->BeginDisabled(!model_.CanPrepare());
+  gui_->BeginDisabled(!model_.CanPrepare() || rename_pending);
   if (gui_->Button(model_.HasPreparedResult() ? "Reprocess##ParallaxArtwork"
                                               : "Process##ParallaxArtwork")) {
     StartPreparation();
@@ -1036,6 +1075,7 @@ absl::Status ParallaxArtworkEditor::RenderOutput() {
   if (gui_->Button(commit_label)) CommitPrepared();
   gui_->EndDisabled();
 
+  if (rename_pending) gui_->TextWrapped("Apply or undo the pending name change before processing.");
   if (model_.name().empty()) gui_->TextWrapped("Name the artwork first.");
   if (!model_.source().has_value()) gui_->TextWrapped("Choose or import a retained source.");
   if (!model_.has_style()) gui_->TextWrapped("Choose a terrain style.");

@@ -29,6 +29,46 @@ TEST(ParallaxPreviewModelTest, ManualFallbackPreservesAnAuthoredRoute) {
   EXPECT_EQ(route.max, Vec(500, 600));
 }
 
+TEST(ParallaxPreviewModelTest, ContentRouteReachesAuthoredElementsThroughLayerScroll) {
+  const ParallaxTheme theme{
+      .id = "cave",
+      .name = "Cave",
+      .layers = {{
+          .name = "Near",
+          .scroll_factor = {0.5, 0.25},
+          .elements =
+              {
+                  {.id = 0, .name = "Start", .position = {0, -208}},
+                  {.id = 1, .name = "Gate", .position = {6187, 68}},
+              },
+      }},
+  };
+
+  ASSERT_OK_AND_ASSIGN(const CameraCenterRoute route,
+                       CalculateContentCameraRoute(theme, {960, 540}));
+
+  EXPECT_EQ(route.min, Vec(480, -562));
+  EXPECT_EQ(route.max, Vec(12854, 542));
+}
+
+TEST(ParallaxPreviewModelTest, ContentRouteIgnoresAxesPinnedToTheCamera) {
+  const ParallaxTheme theme{
+      .id = "sky",
+      .name = "Sky",
+      .layers = {{
+          .name = "Fill",
+          .scroll_factor = {0, 0},
+          .elements = {{.id = 0, .name = "Fill", .position = {50000, 50000}}},
+      }},
+  };
+
+  ASSERT_OK_AND_ASSIGN(const CameraCenterRoute route,
+                       CalculateContentCameraRoute(theme, {960, 540}));
+
+  EXPECT_EQ(route.min, Vec(480, 270));
+  EXPECT_EQ(route.max, Vec(1440, 810));
+}
+
 TEST(ParallaxPreviewModelTest, FindsStableLevelZoneContextsForATheme) {
   const std::vector<Level> levels = {
       {.id = "first",

@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -31,6 +32,8 @@ struct PreparedParallaxArtworkAsset {
   Texture texture;
   ParallaxArtworkRecipe recipe;
 };
+
+absl::Status ValidateParallaxArtworkAssetName(std::string_view name);
 
 absl::StatusOr<PreparedParallaxArtworkAsset> PrepareParallaxArtworkAsset(
     const SourceArtwork& source, const RgbaImage& source_pixels,

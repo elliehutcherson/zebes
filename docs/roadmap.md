@@ -13,7 +13,7 @@ phase has decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
-| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 2 import-first background artwork is accepted; Milestone 3 generated candidates are next |
+| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 3 generated background artwork is accepted; Milestone 4 cave-kit production is next |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -172,17 +172,21 @@ review used a four-element, 5000-pixel group-repeating Near composition;
 direct manipulation, camera navigation, persistence, the 0.5–2.0 zoom route,
 and the first/last wrap were reviewed. Milestone 2 subsequently extended the
 saved Near composition to five elements and an 8192-pixel repeat period while
-accepting the managed cave-plate workflow. The evidence is recorded in
+accepting the managed cave-plate workflow. Milestone 3 accepted a live
+generated candidate through retained source, deterministic processing,
+recipe-owned Texture creation, in-place rename, and theme assignment. Its
+usability closeout added content-derived routes for unassigned themes plus a
+preview-safe Theme Editor with explicit texture application and in-place draft
+discard. The evidence is recorded in
 [`cave-parallax-content-gate.md`](cave-parallax-content-gate.md).
 
-**Environment artwork next — Milestone 3 human gate.** The shared
-generation-request controller and background-specific candidate generation,
-cancellation, review, accept, and discard are implemented through the existing
-retained-source and deterministic recipe path. Next, accept a live provider
-candidate, process and commit it, and select its managed Texture in a parallax
-layer. The pre-pilot Near candidates remain test content and must be
-palette-normalized or replaced before the final Milestone 4 cave kit; do not
-fold that art-polish work into generation infrastructure.
+**Environment artwork next — Milestone 4 cave kit.** The Milestone 3 live gate
+is accepted: a Codex candidate was retained, processed, committed, reopened,
+renamed without changing its IDs, and assigned to the six-element M3 Gate Cave
+Theme. Provider failure and compensated persistence remain covered at their
+platform-neutral boundaries. The pre-pilot Near candidates remain test content
+and must be palette-normalized or replaced while producing the final cave kit;
+do not fold that art-polish work back into generation infrastructure.
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved
@@ -274,9 +278,9 @@ retained-source, palette, texture, API-compensation, and reference-scan
 boundaries while adding a background-specific recipe and deterministic output
 builder. Theme extraction, separate editor ownership, the imported layered cave
 composition, and retained background recipes are implemented and accepted.
-Milestone 3's implementation now shares generation-request and candidate-review
-ownership between Prop and Parallax Artwork and exposes generated parallax
-candidates through the same retained-source path; its live human gate remains.
+Milestone 3 shares generation-request and candidate-review ownership between
+Prop and Parallax Artwork and exposes generated parallax candidates through
+the same retained-source path; its automated and live human gates are accepted.
 Milestone 4 turns those workflows into the first production cave kit;
 Milestone 5 then implements zone fades. The document is also the source of
 truth for migration, validation, and the human authoring workflow.

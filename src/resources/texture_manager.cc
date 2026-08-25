@@ -360,21 +360,30 @@ absl::Status TextureManager::UpdateTexture(const Texture& texture) {
     return absl::InvalidArgumentError(absl::StrCat("Texture name too long: ", texture.name,
                                                    ". Max length is ", kMaxTextureNameLength));
   }
-
-  std::string old_name = it->second->name;
-  it->second->name = texture.name;
-  // Note: path and id are generally immutable for an existing texture reference in this context,
-  // or at least we don't want to change the file path here without reloading.
-  // For now, only name is mutable via this method.
-
-  // Rename file if name changed
-  if (old_name != texture.name) {
-    std::string old_filename = absl::StrCat(old_name, "-", texture.id, ".json");
-    std::string new_filename = absl::StrCat(texture.name, "-", texture.id, ".json");
-    std::filesystem::rename(GetDefinitionsPath(old_filename), GetDefinitionsPath(new_filename));
+  if (!IsSafeResourceName(texture.name)) {
+    return absl::InvalidArgumentError("Texture name is not a safe filename.");
+  }
+  if (texture.path != it->second->path) {
+    return absl::InvalidArgumentError("Texture path cannot be changed by a metadata update.");
   }
 
-  return SaveTexture(*it->second);
+  const Texture snapshot = *it->second;
+  Texture updated = snapshot;
+  updated.name = texture.name;
+  RETURN_IF_ERROR(SaveTexture(updated));
+  if (snapshot.name != updated.name) {
+    const std::string old_filename = absl::StrCat(snapshot.name, "-", snapshot.id, ".json");
+    std::error_code error;
+    if (!std::filesystem::remove(GetDefinitionsPath(old_filename), error) || error) {
+      std::error_code ignored;
+      const std::string new_filename = absl::StrCat(updated.name, "-", updated.id, ".json");
+      std::filesystem::remove(GetDefinitionsPath(new_filename), ignored);
+      return absl::InternalError(
+          absl::StrCat("Could not remove renamed texture definition: ", error.message()));
+    }
+  }
+  *it->second = std::move(updated);
+  return absl::OkStatus();
 }
 
 absl::StatusOr<Texture*> TextureManager::GetTexture(const std::string& id) {

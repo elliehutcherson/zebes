@@ -1,0 +1,18 @@
+{
+  "content_digest": "50eb070d294298aec554372fbba9995711c45b593bf9caabd66d62618fc1bf70",
+  "height": 941,
+  "id": "6ac9fe46-4c84-4131-b3c4-f24576b56a57",
+  "name": "background source",
+  "provenance": {
+    "generated_at_utc": "2026-08-24T20:40:30Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": "01a0357f-e4e3-7f63-9cdd-48541438dfad",
+    "revised_prompt": "Use case: stylized-concept\nAsset type: reusable camera-relative near-foreground parallax overlay layer for a side-view science-fiction exploration game\nPrimary request: Create exactly one cave formation overlay: ribbed rock arches and clustered stalactites framing the top and both sides, leaving a large, clearly open center for gameplay readability. No characters, creatures, props, text, UI, borders, or picture frame.\nScene/backdrop: foreground cave silhouettes only, displayed over one perfectly flat, uniform, strongly contrasting chroma-key matte color that appears nowhere in the cave artwork, for deterministic background removal. Use pure bright magenta #FF00FF as the matte. No gradients, shadows, texture, particles, or variation in the matte.\nSubject: asymmetric ribbed cave-rock arch across the upper region; layered stalactite clusters of varied lengths; irregular rocky formations entering from the left and right; an unobstructed central gameplay corridor.\nStyle/medium: authentic 16-bit science-fiction exploration game pixel art in the terrain style “lucinda_cave,” interpreted as broad color groups, limited palette, strong silhouettes, crisp intentional pixel clusters, subtle dark outline, readable side view. No anti-aliasing, painterly blur, vector smoothness, or high-resolution rendering artifacts.\nComposition/framing: exact 16:9 landscape composition targeted at 960:540. Fill the entire canvas coherently. Keep roughly the central 55–65% visually open and unobstructed. The formations should read as one reusable near-camera parallax layer, not a decorative picture frame. Avoid mirrored symmetry. Avoid matching or repeated motifs at the two horizontal edges.\nColor palette: restrained alien-cave hues with near-black plum outlines, deep indigo-violet shadow masses, muted rust and ochre rock midtones, and sparse pale mineral highlights, all separated into broad clusters. The pure #FF00FF matte appears nowhere within the cave forms.\nConstraints: output exactly one PNG; clean hard-edged separation between cave formations and matte; no transparency gradients; no text; no watermark; no characters; no repeated edge motif; no enclosed center.",
+    "submitted_prompt": "Reusable near cave formation overlay for a side-view science-fiction exploration game: ribbed rock arches and stalactite clusters framing the top and sides, with an open center for gameplay readability. No characters or text.\n"
+  },
+  "schema_version": 2,
+  "source_path": "source_art/6ac9fe46-4c84-4131-b3c4-f24576b56a57.png",
+  "width": 1672
+}

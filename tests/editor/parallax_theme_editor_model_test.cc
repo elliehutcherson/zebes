@@ -47,6 +47,39 @@ TEST(ParallaxThemeEditorModelTest, IncompleteDraftCannotBecomeASaveRequest) {
   EXPECT_EQ(model.BuildSaveRequest().status().code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST(ParallaxThemeEditorModelTest, DiscardChangesRestoresTheSavedSnapshotInPlace) {
+  ParallaxThemeEditorModel model;
+  model.Open({
+      .id = "theme",
+      .name = "Cave",
+      .layers = {Layer("Far", "saved-texture"), Layer("Near", "near")},
+  });
+  model.SelectLayer(1);
+  model.draft()->name = "Accidental rename";
+  model.draft()->layers[1].elements[0].texture_id = "accidental-texture";
+  ASSERT_TRUE(model.dirty());
+
+  ASSERT_OK(model.DiscardChanges());
+
+  EXPECT_FALSE(model.dirty());
+  EXPECT_EQ(model.draft()->name, "Cave");
+  EXPECT_EQ(model.draft()->layers[1].elements[0].texture_id, "near");
+  EXPECT_EQ(model.selected_layer(), 1);
+}
+
+TEST(ParallaxThemeEditorModelTest, DiscardChangesResetsANewDraft) {
+  ParallaxThemeEditorModel model;
+  model.BeginNew();
+  model.draft()->name = "Accidental rename";
+
+  ASSERT_OK(model.DiscardChanges());
+
+  ASSERT_TRUE(model.is_new());
+  EXPECT_EQ(model.draft()->name, "New Theme");
+  ASSERT_EQ(model.draft()->layers.size(), 1);
+  EXPECT_EQ(model.selected_layer(), 0);
+}
+
 TEST(ParallaxThemeEditorModelTest, NewLayersStartAtTheMiddleBackgroundPreset) {
   ParallaxThemeEditorModel model;
   model.BeginNew();

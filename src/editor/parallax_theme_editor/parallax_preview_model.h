@@ -35,6 +35,13 @@ struct CameraCenterRoute {
 CameraCenterRoute EnsureNavigableManualCameraRoute(CameraCenterRoute route,
                                                    const GameViewSize& game_view);
 
+// Builds an editor-only route that can reach every authored element anchor.
+// Layer positions are expressed in parallax-local pixels, so converting them
+// to camera travel accounts for each layer's scroll factor and offset. Axes
+// pinned to the camera cannot reveal more content and are ignored.
+absl::StatusOr<CameraCenterRoute> CalculateContentCameraRoute(const ParallaxTheme& theme,
+                                                              const GameViewSize& game_view);
+
 struct ParallaxThemeUsage {
   std::string level_id;
   std::string level_name;

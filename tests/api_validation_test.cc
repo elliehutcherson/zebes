@@ -1046,6 +1046,58 @@ TEST_F(GeneratedParallaxArtworkCommitTest, RecipeFailureDeletesPublishedTexture)
             absl::StatusCode::kInternal);
 }
 
+class GeneratedParallaxArtworkRenameTest : public GeneratedParallaxArtworkCommitTest {
+ protected:
+  void SetUp() override {
+    GeneratedParallaxArtworkCommitTest::SetUp();
+    ON_CALL(parallax_artwork_recipe_manager_, GetRecipe("background-recipe"))
+        .WillByDefault(Return(&prepared_.recipe));
+    ON_CALL(texture_manager_, GetTexture("background-texture"))
+        .WillByDefault(Return(&prepared_.texture));
+  }
+};
+
+TEST_F(GeneratedParallaxArtworkRenameTest, RenamesRecipeThenManagedTexture) {
+  InSequence sequence;
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_))
+      .WillOnce([](const ParallaxArtworkRecipe& recipe) {
+        EXPECT_EQ(recipe.name, "Renamed cave overlay");
+        EXPECT_EQ(recipe.id, "background-recipe");
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(texture_manager_, UpdateTexture(_)).WillOnce([](const Texture& texture) {
+    EXPECT_EQ(texture.name, "Renamed cave overlay");
+    EXPECT_EQ(texture.id, "background-texture");
+    return absl::OkStatus();
+  });
+
+  EXPECT_OK(api_->RenameGeneratedParallaxArtwork("background-recipe", "Renamed cave overlay"));
+}
+
+TEST_F(GeneratedParallaxArtworkRenameTest, TextureFailureRestoresRecipeName) {
+  InSequence sequence;
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, UpdateTexture(_))
+      .WillOnce(Return(absl::InternalError("texture definition write failed")));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_))
+      .WillOnce([](const ParallaxArtworkRecipe& recipe) {
+        EXPECT_EQ(recipe.name, "Far cave plate");
+        return absl::OkStatus();
+      });
+
+  const absl::Status status =
+      api_->RenameGeneratedParallaxArtwork("background-recipe", "Renamed cave overlay");
+  EXPECT_THAT(std::string(status.message()), HasSubstr("texture definition write failed"));
+}
+
+TEST_F(GeneratedParallaxArtworkRenameTest, UnsafeNameRefusesEveryWrite) {
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).Times(0);
+  EXPECT_CALL(texture_manager_, UpdateTexture(_)).Times(0);
+
+  EXPECT_EQ(api_->RenameGeneratedParallaxArtwork("background-recipe", "../unsafe").code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
 class GeneratedParallaxArtworkDeleteTest : public GeneratedParallaxArtworkCommitTest {
  protected:
   void SetUp() override {

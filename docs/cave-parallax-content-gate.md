@@ -1,8 +1,9 @@
 # Cave parallax content gate
 
-**Status: accepted for Milestones 1, 1.6, and 2.** The original three-plane
-review, composed-Near follow-up, and import-first managed cave-plate workflow
-are complete. Current implementation sequence, next steps, and carried debt live in
+**Status: accepted for Milestones 1, 1.6, 2, and 3.** The original three-plane
+review, composed-Near follow-up, import-first managed cave-plate workflow, and
+live generated-background workflow are complete. Current implementation
+sequence, next steps, and carried debt live in
 [`environment-artwork-plan.md`](environment-artwork-plan.md).
 The three textures were imported, theme composition was assembled, and X/Y
 repeat rendering remained filled and stable while scrubbing. Repetition was
@@ -107,6 +108,33 @@ Near layer, whose current X repeat period is 8192 pixels. Attempts to delete the
 referenced Texture or retained source were refused and left the bundle intact.
 This accepts the Milestone 2 workflow and ownership model, not the final visual
 composition; remaining candidate cleanup and art direction stay carried debt.
+
+## Milestone 3 generated-background acceptance
+
+The live-provider gate retained Codex-generated source
+`6ac9fe46-4c84-4131-b3c4-f24576b56a57`, created deterministic recipe
+`36caa8bb-968f-4436-9bd0-9b02f8c2e804`, and committed managed Texture
+`973c2589-2a6b-479e-91ab-fe8beb27d479`. Fit-inside framing converted the
+1672×941 magenta-matte source to a 960×540 transparent overlay, removed the
+matte, quantized to the resolved cave palette, applied binary alpha, and
+recorded final digest
+`913e1004e9e23e5138b80158df51e4d6fc31144b41e0277919c391e5553d2482`.
+
+The Texture was assigned as element `5` of theme
+`c1520636-c980-4012-882f-09163c33bacb` (`M3 Gate Cave Theme`). The unassigned
+theme reopened with a content-derived manual camera route, **Fit Route to
+Content** restored that route on demand, and the six-element Near composition
+remained navigable. Rename-in-place preserved recipe, Texture, retained-source,
+and theme references while updating the recipe/Texture display name together.
+
+The final usability pass accepted Preview mode as the safe default for saved
+themes. Element selection and camera movement remain non-mutating; canvas drag
+and inspector changes require **Edit Theme**. Texture selection requires an
+explicit **Apply Texture**, and confirmed **Discard Changes** restores the
+saved snapshot without closing the editor. The complete generated candidate,
+retention, processing, commit, reopen, rename, theme assignment, route, and
+preview workflow is therefore accepted. The resulting art is gate evidence;
+final cave-kit composition and art polish remain Milestone 4.
 
 ## Original Milestone 1 human workflow (historical)
 

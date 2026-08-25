@@ -59,7 +59,21 @@ if(BUILD_UI_TESTING)
   target_include_directories(blueprint_palette_ui_test PRIVATE ${CMAKE_SOURCE_DIR})
   add_test(NAME blueprint_palette_ui_test COMMAND blueprint_palette_ui_test)
 
+  add_executable(parallax_artwork_ui_test parallax_artwork_ui_test.cc)
+  target_link_libraries(parallax_artwork_ui_test
+    editor_test_main
+    parallax_artwork_editor
+    editor_gui
+    api
+    gmock
+    absl::flags
+    absl::flags_parse
+  )
+  target_include_directories(parallax_artwork_ui_test PRIVATE ${CMAKE_SOURCE_DIR})
+  add_test(NAME parallax_artwork_ui_test COMMAND parallax_artwork_ui_test)
+
   set_tests_properties(sanity_test sprite_panel_test blueprint_palette_ui_test
+    parallax_artwork_ui_test
     PROPERTIES LABELS "ui")
 endif()
 

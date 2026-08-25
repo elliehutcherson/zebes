@@ -51,6 +51,20 @@ void ParallaxThemeEditorModel::Close() {
   selected_element_id_.reset();
 }
 
+absl::Status ParallaxThemeEditorModel::DiscardChanges() {
+  if (!draft_) return absl::FailedPreconditionError("No parallax theme draft is open.");
+  if (!snapshot_) {
+    if (!draft_->id.empty()) {
+      return absl::FailedPreconditionError("Saved parallax theme snapshot is unavailable.");
+    }
+    BeginNew();
+    return absl::OkStatus();
+  }
+  draft_ = *snapshot_;
+  ReconcileSelection();
+  return absl::OkStatus();
+}
+
 void ParallaxThemeEditorModel::SelectLayer(int index) {
   selected_layer_ = index;
   selected_element_id_.reset();

@@ -754,6 +754,36 @@ absl::StatusOr<std::string> Api::CreateGeneratedParallaxArtwork(
   return prepared.recipe.id;
 }
 
+absl::Status Api::RenameGeneratedParallaxArtwork(const std::string& recipe_id,
+                                                 const std::string& name) {
+  RETURN_IF_ERROR(ValidateParallaxArtworkAssetName(name));
+  ASSIGN_OR_RETURN(ParallaxArtworkRecipe * current_recipe,
+                   parallax_artwork_recipe_manager_->GetRecipe(recipe_id));
+  ASSIGN_OR_RETURN(Texture * current_texture,
+                   texture_manager_->GetTexture(current_recipe->texture_id));
+  if (current_recipe->name != current_texture->name) {
+    return absl::FailedPreconditionError(
+        "generated parallax artwork recipe and texture names already differ");
+  }
+  if (current_recipe->name == name) return absl::OkStatus();
+
+  const ParallaxArtworkRecipe recipe_snapshot = *current_recipe;
+  ParallaxArtworkRecipe renamed_recipe = recipe_snapshot;
+  renamed_recipe.name = name;
+  Texture renamed_texture = *current_texture;
+  renamed_texture.name = name;
+
+  RETURN_IF_ERROR(parallax_artwork_recipe_manager_->SaveRecipe(renamed_recipe));
+  const absl::Status texture_status = texture_manager_->UpdateTexture(renamed_texture);
+  if (!texture_status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore recipe",
+                     parallax_artwork_recipe_manager_->SaveRecipe(recipe_snapshot));
+    return compensation.Report(texture_status);
+  }
+  return absl::OkStatus();
+}
+
 absl::Status Api::DeleteGeneratedParallaxArtwork(const std::string& recipe_id) {
   ASSIGN_OR_RETURN(const ParallaxArtworkRecipe* loaded,
                    parallax_artwork_recipe_manager_->GetRecipe(recipe_id));

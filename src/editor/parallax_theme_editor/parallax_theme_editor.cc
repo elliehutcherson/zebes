@@ -79,8 +79,13 @@ absl::Status ParallaxThemeEditor::OpenTheme(const std::string& theme_id) {
   model_.Open(*theme);
   close_prompt_.Disarm();
   delete_prompt_.Disarm();
+  discard_prompt_.Disarm();
   element_drag_.Reset();
   dragged_element_id_.reset();
+  texture_choice_id_.clear();
+  texture_choice_layer_.reset();
+  texture_choice_element_id_.reset();
+  edit_mode_ = false;
   diagnostics_.reset();
   context_level_id_.clear();
   context_zone_id_.reset();
@@ -88,13 +93,10 @@ absl::Status ParallaxThemeEditor::OpenTheme(const std::string& theme_id) {
       FindParallaxThemeUsages(api_->GetAllLevels(), theme->id);
   manual_context_ = usages.empty();
   if (manual_context_) {
-    const Vec center{api_->GetConfig()->game_view.width / 2.0,
-                     api_->GetConfig()->game_view.height / 2.0};
-    const CameraCenterRoute route = EnsureNavigableManualCameraRoute({.min = center, .max = center},
-                                                                     api_->GetConfig()->game_view);
-    manual_route_min_ = route.min;
-    manual_route_max_ = route.max;
+    RETURN_IF_ERROR(FitManualRouteToContent(*theme));
   }
+  travel_x_ = 0.0f;
+  travel_y_ = 0.0f;
   error_.reset();
   return absl::OkStatus();
 }
@@ -103,8 +105,13 @@ void ParallaxThemeEditor::CloseTheme() {
   model_.Close();
   close_prompt_.Disarm();
   delete_prompt_.Disarm();
+  discard_prompt_.Disarm();
   element_drag_.Reset();
   dragged_element_id_.reset();
+  texture_choice_id_.clear();
+  texture_choice_layer_.reset();
+  texture_choice_element_id_.reset();
+  edit_mode_ = false;
   diagnostics_.reset();
   context_level_id_.clear();
   context_zone_id_.reset();
@@ -182,7 +189,16 @@ absl::Status ParallaxThemeEditor::RenderToolbar(ParallaxTheme& draft, bool& save
   }
   gui_->SameLine();
   gui_->SetNextItemWidth(260.0f);
-  gui_->InputText("Theme Name", &draft.name);
+  {
+    ScopedDisabled preview_only = gui_->CreateScopedDisabled(!edit_mode_);
+    gui_->InputText("Theme Name", &draft.name);
+  }
+  gui_->SameLine();
+  if (gui_->Button(edit_mode_ ? "Preview" : "Edit Theme")) {
+    edit_mode_ = !edit_mode_;
+    element_drag_.Reset();
+    dragged_element_id_.reset();
+  }
   gui_->SameLine();
   if (gui_->Button("Save")) save_requested = true;
   gui_->SameLine();
@@ -204,6 +220,30 @@ absl::Status ParallaxThemeEditor::RenderToolbar(ParallaxTheme& draft, bool& save
   if (model_.dirty()) {
     gui_->SameLine();
     gui_->TextColored({1.0f, 0.75f, 0.2f, 1.0f}, "Unsaved changes");
+    if (!discard_prompt_.armed()) gui_->SameLine();
+    const std::string discard_target = draft.id.empty() ? "new-theme" : draft.id;
+    const std::string discard_question =
+        draft.id.empty() ? "Discard this new theme and reset it to a blank draft?"
+                         : absl::StrCat("Discard all unsaved changes to '", draft.name,
+                                        "' and restore the last saved version?");
+    if (discard_prompt_.Render(*gui_, "Discard Changes", discard_target, discard_question,
+                               "ParallaxThemeDiscard")) {
+      RETURN_IF_ERROR(model_.DiscardChanges());
+      diagnostics_.reset();
+      texture_choice_id_.clear();
+      texture_choice_layer_.reset();
+      texture_choice_element_id_.reset();
+      edit_mode_ = false;
+      element_drag_.Reset();
+      dragged_element_id_.reset();
+      return absl::OkStatus();
+    }
+  } else {
+    discard_prompt_.Disarm();
+  }
+  if (!edit_mode_) {
+    gui_->SameLine();
+    gui_->TextColored({0.45f, 0.75f, 1.0f, 1.0f}, "Preview only");
   }
   return absl::OkStatus();
 }
@@ -211,41 +251,73 @@ absl::Status ParallaxThemeEditor::RenderToolbar(ParallaxTheme& draft, bool& save
 absl::Status ParallaxThemeEditor::RenderLayerNavigator(ParallaxTheme& draft) {
   gui_->Text("LAYERS (FAR TO NEAR)");
   gui_->SameLine();
-  if (gui_->Button("Add Layer")) RETURN_IF_ERROR(model_.AddLayer());
+  {
+    ScopedDisabled preview_only = gui_->CreateScopedDisabled(!edit_mode_);
+    if (gui_->Button("Add Layer")) RETURN_IF_ERROR(model_.AddLayer());
+  }
   for (int index = 0; index < static_cast<int>(draft.layers.size()); ++index) {
     ScopedId id = gui_->CreateScopedId(index);
     const std::string label = absl::StrCat(index + 1, ".  ", draft.layers[index].name);
     if (gui_->Selectable(label.c_str(), model_.selected_layer() == index)) {
       model_.SelectLayer(index);
       diagnostics_.reset();
+      texture_choice_id_.clear();
+      texture_choice_layer_.reset();
+      texture_choice_element_id_.reset();
     }
   }
   gui_->TextDisabled("First draws farthest back; last draws nearest.");
   return absl::OkStatus();
 }
 
-absl::Status ParallaxThemeEditor::RenderTexturePicker(ParallaxElement& element,
+absl::Status ParallaxThemeEditor::RenderTexturePicker(int layer_index, ParallaxElement& element,
                                                       const std::vector<Texture>& textures) {
-  gui_->InputText("Search Textures", &texture_search_);
-  ScopedChild catalog = gui_->CreateScopedChild("TextureCatalog", ImVec2(0, 220), true);
-  if (!catalog) return absl::OkStatus();
+  if (texture_choice_layer_ != layer_index || texture_choice_element_id_ != element.id) {
+    texture_choice_layer_ = layer_index;
+    texture_choice_element_id_ = element.id;
+    texture_choice_id_ = element.texture_id;
+  }
 
-  for (const Texture& texture : textures) {
-    if (!MatchesTextureSearch(texture, texture_search_)) continue;
-    ScopedId id = gui_->CreateScopedId(texture.id.c_str());
-    ASSIGN_OR_RETURN(const TextureHandle handle, api_->GetTextureHandle(texture.id));
-    ASSIGN_OR_RETURN(const AtlasBinding binding, texture_preview_.BindAtlas(handle));
-    if (binding.IsValid()) {
-      ASSIGN_OR_RETURN(const TexturePreviewLayout layout,
-                       CalculateTexturePreviewLayout(binding.width, binding.height, 40.0f, 40.0f));
-      gui_->Image(binding.texture_id, {layout.display_width, layout.display_height});
-      gui_->SameLine();
+  gui_->InputText("Search Textures", &texture_search_);
+  {
+    ScopedChild catalog = gui_->CreateScopedChild("TextureCatalog", ImVec2(0, 220), true);
+    if (catalog) {
+      for (const Texture& texture : textures) {
+        if (!MatchesTextureSearch(texture, texture_search_)) continue;
+        ScopedId id = gui_->CreateScopedId(texture.id.c_str());
+        ASSIGN_OR_RETURN(const TextureHandle handle, api_->GetTextureHandle(texture.id));
+        ASSIGN_OR_RETURN(const AtlasBinding binding, texture_preview_.BindAtlas(handle));
+        if (binding.IsValid()) {
+          ASSIGN_OR_RETURN(
+              const TexturePreviewLayout layout,
+              CalculateTexturePreviewLayout(binding.width, binding.height, 40.0f, 40.0f));
+          gui_->Image(binding.texture_id, {layout.display_width, layout.display_height});
+          gui_->SameLine();
+        }
+        if (gui_->Selectable(texture.name_id().c_str(), texture.id == texture_choice_id_, 0,
+                             ImVec2(0, 40))) {
+          texture_choice_id_ = texture.id;
+        }
+      }
     }
-    if (gui_->Selectable(texture.name_id().c_str(), texture.id == element.texture_id, 0,
-                         ImVec2(0, 40))) {
-      element.texture_id = texture.id;
+  }
+
+  const bool replacement_pending =
+      !texture_choice_id_.empty() && texture_choice_id_ != element.texture_id;
+  {
+    ScopedDisabled no_replacement = gui_->CreateScopedDisabled(!replacement_pending);
+    if (gui_->Button("Apply Texture")) {
+      element.texture_id = texture_choice_id_;
       diagnostics_.reset();
     }
+  }
+  gui_->SameLine();
+  {
+    ScopedDisabled no_replacement = gui_->CreateScopedDisabled(!replacement_pending);
+    if (gui_->Button("Cancel Texture Choice")) texture_choice_id_ = element.texture_id;
+  }
+  if (replacement_pending) {
+    gui_->TextWrapped("Texture choice is pending; press Apply Texture to change the element.");
   }
   return absl::OkStatus();
 }
@@ -360,69 +432,81 @@ absl::Status ParallaxThemeEditor::RenderInspector(ParallaxTheme& draft,
     gui_->TextDisabled("Select a layer to edit it.");
     return absl::OkStatus();
   }
+  if (!edit_mode_) {
+    gui_->TextDisabled("Preview mode: layer and element changes are locked.");
+  }
 
   ParallaxLayer& layer = draft.layers[*model_.selected_layer()];
-  gui_->InputText("Layer Name", &layer.name);
+  {
+    ScopedDisabled preview_only = gui_->CreateScopedDisabled(!edit_mode_);
+    gui_->InputText("Layer Name", &layer.name);
 
-  gui_->Text("Depth preset");
-  if (gui_->Button("Far")) SetError(model_.ApplyDepthPreset(ParallaxDepthPreset::kFar));
-  gui_->SameLine();
-  if (gui_->Button("Middle")) SetError(model_.ApplyDepthPreset(ParallaxDepthPreset::kMiddle));
-  gui_->SameLine();
-  if (gui_->Button("Near Background")) {
-    SetError(model_.ApplyDepthPreset(ParallaxDepthPreset::kNearBackground));
-  }
-  gui_->InputDouble("Scroll X", &layer.scroll_factor.x);
-  gui_->InputDouble("Scroll Y", &layer.scroll_factor.y);
-  if (layer.scroll_factor.x < 0.0 || layer.scroll_factor.x > 1.0 || layer.scroll_factor.y < 0.0 ||
-      layer.scroll_factor.y > 1.0) {
-    gui_->TextColored({1.0f, 0.75f, 0.2f, 1.0f}, "Background scroll is normally within [0, 1].");
-  }
-  gui_->InputDouble("Offset X", &layer.offset.x);
-  gui_->InputDouble("Offset Y", &layer.offset.y);
-  gui_->Spacing();
-  gui_->Text("COMPOSITION REPEAT");
-  gui_->TextDisabled("Zero keeps that axis finite; positive values repeat the whole layer.");
-  InputCommittedDouble(*gui_, "Period X (px)", layer.repeat_period.x);
-  InputCommittedDouble(*gui_, "Period Y (px)", layer.repeat_period.y);
-  if (layer.repeat_period.x < 0.0 || layer.repeat_period.y < 0.0) {
-    gui_->TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Repeat periods cannot be negative.");
-  }
-  if (gui_->Button("Finite")) SetError(SetRepeatMode(layer, false, false));
-  gui_->SameLine();
-  if (gui_->Button("Repeat X")) SetError(SetRepeatMode(layer, true, false));
-  gui_->SameLine();
-  if (gui_->Button("Repeat Y")) SetError(SetRepeatMode(layer, false, true));
-  gui_->SameLine();
-  if (gui_->Button("Repeat X/Y")) SetError(SetRepeatMode(layer, true, true));
-  if (gui_->Button("Fit Period to Content")) SetError(FitRepeatPeriodToContent(layer));
-  if (gui_->Button("Move Farther")) {
-    SetError(model_.MoveSelectedLayer(-1));
-    return absl::OkStatus();
-  }
-  gui_->SameLine();
-  if (gui_->Button("Move Nearer")) {
-    SetError(model_.MoveSelectedLayer(1));
-    return absl::OkStatus();
-  }
-  gui_->SameLine();
-  if (gui_->Button("Delete Layer")) {
-    RETURN_IF_ERROR(model_.DeleteSelectedLayer());
-    return absl::OkStatus();
+    gui_->Text("Depth preset");
+    if (gui_->Button("Far")) SetError(model_.ApplyDepthPreset(ParallaxDepthPreset::kFar));
+    gui_->SameLine();
+    if (gui_->Button("Middle")) SetError(model_.ApplyDepthPreset(ParallaxDepthPreset::kMiddle));
+    gui_->SameLine();
+    if (gui_->Button("Near Background")) {
+      SetError(model_.ApplyDepthPreset(ParallaxDepthPreset::kNearBackground));
+    }
+    gui_->InputDouble("Scroll X", &layer.scroll_factor.x);
+    gui_->InputDouble("Scroll Y", &layer.scroll_factor.y);
+    if (layer.scroll_factor.x < 0.0 || layer.scroll_factor.x > 1.0 || layer.scroll_factor.y < 0.0 ||
+        layer.scroll_factor.y > 1.0) {
+      gui_->TextColored({1.0f, 0.75f, 0.2f, 1.0f}, "Background scroll is normally within [0, 1].");
+    }
+    gui_->InputDouble("Offset X", &layer.offset.x);
+    gui_->InputDouble("Offset Y", &layer.offset.y);
+    gui_->Spacing();
+    gui_->Text("COMPOSITION REPEAT");
+    gui_->TextDisabled("Zero keeps that axis finite; positive values repeat the whole layer.");
+    InputCommittedDouble(*gui_, "Period X (px)", layer.repeat_period.x);
+    InputCommittedDouble(*gui_, "Period Y (px)", layer.repeat_period.y);
+    if (layer.repeat_period.x < 0.0 || layer.repeat_period.y < 0.0) {
+      gui_->TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Repeat periods cannot be negative.");
+    }
+    if (gui_->Button("Finite")) SetError(SetRepeatMode(layer, false, false));
+    gui_->SameLine();
+    if (gui_->Button("Repeat X")) SetError(SetRepeatMode(layer, true, false));
+    gui_->SameLine();
+    if (gui_->Button("Repeat Y")) SetError(SetRepeatMode(layer, false, true));
+    gui_->SameLine();
+    if (gui_->Button("Repeat X/Y")) SetError(SetRepeatMode(layer, true, true));
+    if (gui_->Button("Fit Period to Content")) SetError(FitRepeatPeriodToContent(layer));
+    if (gui_->Button("Move Farther")) {
+      SetError(model_.MoveSelectedLayer(-1));
+      return absl::OkStatus();
+    }
+    gui_->SameLine();
+    if (gui_->Button("Move Nearer")) {
+      SetError(model_.MoveSelectedLayer(1));
+      return absl::OkStatus();
+    }
+    gui_->SameLine();
+    if (gui_->Button("Delete Layer")) {
+      RETURN_IF_ERROR(model_.DeleteSelectedLayer());
+      return absl::OkStatus();
+    }
   }
 
   gui_->Spacing();
   gui_->Separator();
   gui_->Text("ELEMENTS (BACK TO FRONT)");
   gui_->SameLine();
-  if (gui_->Button("Add Element")) RETURN_IF_ERROR(model_.AddElement());
-  gui_->SameLine();
-  if (gui_->Button("Append Right")) SetError(AppendElementRight(layer));
+  {
+    ScopedDisabled preview_only = gui_->CreateScopedDisabled(!edit_mode_);
+    if (gui_->Button("Add Element")) RETURN_IF_ERROR(model_.AddElement());
+    gui_->SameLine();
+    if (gui_->Button("Append Right")) SetError(AppendElementRight(layer));
+  }
   for (const ParallaxElement& item : layer.elements) {
     ScopedId id = gui_->CreateScopedId(item.id);
     if (gui_->Selectable(item.name.c_str(), model_.selected_element_id() == item.id)) {
       model_.SelectElement(item.id);
       diagnostics_.reset();
+      texture_choice_id_.clear();
+      texture_choice_layer_.reset();
+      texture_choice_element_id_.reset();
     }
   }
 
@@ -431,32 +515,35 @@ absl::Status ParallaxThemeEditor::RenderInspector(ParallaxTheme& draft,
     gui_->TextDisabled("Add or select an element to edit its artwork.");
     return absl::OkStatus();
   }
-  gui_->InputText("Element Name", &element->name);
-  RETURN_IF_ERROR(RenderTexturePicker(*element, textures));
-  gui_->InputDouble("Position X (px)", &element->position.x);
-  gui_->InputDouble("Position Y (px)", &element->position.y);
-  gui_->InputFloat("Element Scale", &element->scale);
-  if (gui_->Button("Duplicate Element")) {
-    RETURN_IF_ERROR(model_.DuplicateSelectedElement());
-    return absl::OkStatus();
-  }
-  gui_->SameLine();
-  if (gui_->Button("Snap After Previous")) SetError(SnapSelectedElement(layer, -1));
-  gui_->SameLine();
-  if (gui_->Button("Snap Before Next")) SetError(SnapSelectedElement(layer, 1));
-  if (gui_->Button("Move Element Back")) {
-    SetError(model_.MoveSelectedElement(-1));
-    return absl::OkStatus();
-  }
-  gui_->SameLine();
-  if (gui_->Button("Move Element Front")) {
-    SetError(model_.MoveSelectedElement(1));
-    return absl::OkStatus();
-  }
-  gui_->SameLine();
-  if (gui_->Button("Delete Element")) {
-    RETURN_IF_ERROR(model_.DeleteSelectedElement());
-    return absl::OkStatus();
+  {
+    ScopedDisabled preview_only = gui_->CreateScopedDisabled(!edit_mode_);
+    gui_->InputText("Element Name", &element->name);
+    RETURN_IF_ERROR(RenderTexturePicker(*model_.selected_layer(), *element, textures));
+    gui_->InputDouble("Position X (px)", &element->position.x);
+    gui_->InputDouble("Position Y (px)", &element->position.y);
+    gui_->InputFloat("Element Scale", &element->scale);
+    if (gui_->Button("Duplicate Element")) {
+      RETURN_IF_ERROR(model_.DuplicateSelectedElement());
+      return absl::OkStatus();
+    }
+    gui_->SameLine();
+    if (gui_->Button("Snap After Previous")) SetError(SnapSelectedElement(layer, -1));
+    gui_->SameLine();
+    if (gui_->Button("Snap Before Next")) SetError(SnapSelectedElement(layer, 1));
+    if (gui_->Button("Move Element Back")) {
+      SetError(model_.MoveSelectedElement(-1));
+      return absl::OkStatus();
+    }
+    gui_->SameLine();
+    if (gui_->Button("Move Element Front")) {
+      SetError(model_.MoveSelectedElement(1));
+      return absl::OkStatus();
+    }
+    gui_->SameLine();
+    if (gui_->Button("Delete Element")) {
+      RETURN_IF_ERROR(model_.DeleteSelectedElement());
+      return absl::OkStatus();
+    }
   }
   return absl::OkStatus();
 }
@@ -517,9 +604,19 @@ ParallaxThemeEditor::PreviewContext ParallaxThemeEditor::RenderContextPicker(
   return {.route = selected_usage->route, .world = selected_usage->world};
 }
 
+absl::Status ParallaxThemeEditor::FitManualRouteToContent(const ParallaxTheme& draft) {
+  ASSIGN_OR_RETURN(const CameraCenterRoute route,
+                   CalculateContentCameraRoute(draft, api_->GetConfig()->game_view));
+  manual_route_min_ = route.min;
+  manual_route_max_ = route.max;
+  travel_x_ = 0.0f;
+  travel_y_ = 0.0f;
+  return absl::OkStatus();
+}
+
 absl::Status ParallaxThemeEditor::UpdatePreviewElementDrag(
     ParallaxLayer& editable_layer, const ParallaxLayer& preview_layer,
-    const std::vector<ParallaxElementSize>& element_sizes) {
+    const std::vector<ParallaxElementSize>& element_sizes, bool allow_drag) {
   ASSIGN_OR_RETURN(const ParallaxLayout layout,
                    CalculateParallaxLayout(preview_camera_, preview_layer, element_sizes));
   const Vec pointer = preview_canvas_.ScreenToWorld(gui_->GetMousePos());
@@ -531,14 +628,25 @@ absl::Status ParallaxThemeEditor::UpdatePreviewElementDrag(
       }
       model_.SelectElement(item->element_id);
       diagnostics_.reset();
-      dragged_element_id_ = item->element_id;
-      element_drag_.Begin(pointer, item->bounds.min);
-      dragged_repeat_offset_ = {
-          item->repeat_column * preview_layer.repeat_period.x,
-          item->repeat_row * preview_layer.repeat_period.y,
-      };
+      texture_choice_id_.clear();
+      texture_choice_layer_.reset();
+      texture_choice_element_id_.reset();
+      if (allow_drag) {
+        dragged_element_id_ = item->element_id;
+        element_drag_.Begin(pointer, item->bounds.min);
+        dragged_repeat_offset_ = {
+            item->repeat_column * preview_layer.repeat_period.x,
+            item->repeat_row * preview_layer.repeat_period.y,
+        };
+      }
       break;
     }
+  }
+
+  if (!allow_drag) {
+    element_drag_.Reset();
+    dragged_element_id_.reset();
+    return absl::OkStatus();
   }
 
   const bool was_active = element_drag_.active();
@@ -592,6 +700,10 @@ absl::Status ParallaxThemeEditor::RenderViewport(ParallaxTheme& draft,
       gui_->TextDisabled("Selected Element");
       break;
   }
+  if (manual_context_ && gui_->Button("Fit Route to Content")) {
+    RETURN_IF_ERROR(FitManualRouteToContent(draft));
+  }
+  if (manual_context_) gui_->SameLine();
   if (gui_->Button("0.5x")) preview_zoom_ = 0.5f;
   gui_->SameLine();
   if (gui_->Button("1x")) preview_zoom_ = 1.0f;
@@ -753,7 +865,7 @@ absl::Status ParallaxThemeEditor::RenderViewport(ParallaxTheme& draft,
           }
         }
       }
-      RETURN_IF_ERROR(UpdatePreviewElementDrag(editable_layer, selected_layer, sizes));
+      RETURN_IF_ERROR(UpdatePreviewElementDrag(editable_layer, selected_layer, sizes, edit_mode_));
     } else {
       element_drag_.Reset();
       dragged_element_id_.reset();
@@ -781,9 +893,15 @@ absl::Status ParallaxThemeEditor::RenderViewport(ParallaxTheme& draft,
   } else if (preview.theme.layers.empty()) {
     gui_->TextDisabled("Assign a texture to an element to begin previewing the theme.");
   } else {
-    gui_->TextDisabled(
-        "Left-drag an element in the selected layer. Arrow keys/WASD or middle-drag move the "
-        "camera; the scrub bars stay synchronized.");
+    if (edit_mode_) {
+      gui_->TextDisabled(
+          "Left-drag an element in the selected layer. Arrow keys/WASD or middle-drag move the "
+          "camera; the scrub bars stay synchronized.");
+    } else {
+      gui_->TextDisabled(
+          "Preview mode: click to inspect elements; camera navigation remains available and "
+          "cannot change the theme.");
+    }
   }
   return render_status;
 }
@@ -928,7 +1046,12 @@ absl::Status ParallaxThemeEditor::Render() {
     if (gui_->Button("New Theme")) {
       model_.BeginNew();
       close_prompt_.Disarm();
+      discard_prompt_.Disarm();
       manual_context_ = true;
+      edit_mode_ = true;
+      texture_choice_id_.clear();
+      texture_choice_layer_.reset();
+      texture_choice_element_id_.reset();
     }
     gui_->SameLine();
     gui_->TextDisabled("Select a theme below or create a new one.");

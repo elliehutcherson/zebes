@@ -53,6 +53,7 @@ class ParallaxArtworkEditor {
   void ClearWorkspace();
   void StartPreparation();
   void CommitPrepared();
+  void RenameArtwork();
   void DeleteArtwork();
   void PollWork();
   bool HasPendingWork() const;

@@ -36,6 +36,44 @@ CameraCenterRoute EnsureNavigableManualCameraRoute(CameraCenterRoute route,
   return route;
 }
 
+absl::StatusOr<CameraCenterRoute> CalculateContentCameraRoute(const ParallaxTheme& theme,
+                                                              const GameViewSize& game_view) {
+  if (!game_view.IsValid()) {
+    return absl::InvalidArgumentError("content camera route requires a valid game view");
+  }
+  const Vec fallback{game_view.width / 2.0, game_view.height / 2.0};
+  CameraCenterRoute route{.min = fallback, .max = fallback};
+  for (const ParallaxLayer& layer : theme.layers) {
+    if (!Finite(layer.scroll_factor) || !Finite(layer.offset)) {
+      return absl::InvalidArgumentError("content camera route requires finite layer geometry");
+    }
+    for (const ParallaxElement& element : layer.elements) {
+      if (!Finite(element.position)) {
+        return absl::InvalidArgumentError("content camera route requires finite element positions");
+      }
+      if (layer.scroll_factor.x != 0.0) {
+        const double center =
+            fallback.x + layer.offset.x + element.position.x / layer.scroll_factor.x;
+        if (!std::isfinite(center)) {
+          return absl::InvalidArgumentError("horizontal content camera route is not finite");
+        }
+        route.min.x = std::min(route.min.x, center);
+        route.max.x = std::max(route.max.x, center);
+      }
+      if (layer.scroll_factor.y != 0.0) {
+        const double center =
+            fallback.y + layer.offset.y + element.position.y / layer.scroll_factor.y;
+        if (!std::isfinite(center)) {
+          return absl::InvalidArgumentError("vertical content camera route is not finite");
+        }
+        route.min.y = std::min(route.min.y, center);
+        route.max.y = std::max(route.max.y, center);
+      }
+    }
+  }
+  return EnsureNavigableManualCameraRoute(route, game_view);
+}
+
 std::vector<ParallaxThemeUsage> FindParallaxThemeUsages(const std::vector<Level>& levels,
                                                         const std::string& theme_id) {
   std::vector<ParallaxThemeUsage> usages;

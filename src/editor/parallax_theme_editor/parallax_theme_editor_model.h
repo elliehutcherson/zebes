@@ -21,6 +21,7 @@ class ParallaxThemeEditorModel {
   void BeginNew();
   void Open(const ParallaxTheme& theme);
   void Close();
+  absl::Status DiscardChanges();
 
   bool has_draft() const { return draft_.has_value(); }
   bool is_new() const { return has_draft() && draft_->id.empty(); }
