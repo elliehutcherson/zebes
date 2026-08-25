@@ -13,7 +13,7 @@ phase has decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
-| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 3 generated background artwork is accepted; Milestone 4 cave-kit production is next |
+| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — the generated-artwork vertical slice is accepted; Milestone 5 zone fades are the next engineering work, while final cave-kit curation remains a non-blocking content pass |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -180,13 +180,19 @@ preview-safe Theme Editor with explicit texture application and in-place draft
 discard. The evidence is recorded in
 [`cave-parallax-content-gate.md`](cave-parallax-content-gate.md).
 
-**Environment artwork next — Milestone 4 cave kit.** The Milestone 3 live gate
-is accepted: a Codex candidate was retained, processed, committed, reopened,
-renamed without changing its IDs, and assigned to the six-element M3 Gate Cave
-Theme. Provider failure and compensated persistence remain covered at their
-platform-neutral boundaries. The pre-pilot Near candidates remain test content
-and must be palette-normalized or replaced while producing the final cave kit;
-do not fold that art-polish work back into generation infrastructure.
+**Environment artwork vertical slice — accepted.** The Milestone 3 live gate
+retained, processed, committed, reopened, renamed, and assigned a Codex
+candidate without changing its IDs. Together with the accepted imported,
+composed-Near, level-layer, zone-assignment, and route-scrubbing gates, that
+completes the end-to-end engineering slice. Provider failure and compensated
+persistence remain covered at their platform-neutral boundaries.
+
+**Environment artwork next engineering work — Milestone 5 zone fades.** Final
+cave-kit palette, silhouette, prop, and composition curation remains useful
+production content work, but it is not missing engine infrastructure and does
+not block fades. The pre-pilot Near candidates remain test content and should
+be palette-normalized or replaced during that independent content pass; do not
+fold art polish back into generation infrastructure.
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved
@@ -281,9 +287,10 @@ composition, and retained background recipes are implemented and accepted.
 Milestone 3 shares generation-request and candidate-review ownership between
 Prop and Parallax Artwork and exposes generated parallax candidates through
 the same retained-source path; its automated and live human gates are accepted.
-Milestone 4 turns those workflows into the first production cave kit;
-Milestone 5 then implements zone fades. The document is also the source of
-truth for migration, validation, and the human authoring workflow.
+Milestone 4 curates those workflows into the first production cave kit as an
+independent content pass; Milestone 5 zone fades are the next engine work. The
+document is also the source of truth for migration, validation, and the human
+authoring workflow.
 
 **`ParallaxZone::fade_length`** — authored, serialized, exposed in the editor,
 and ignored. It is not currently checked by `ValidateLevel`, despite an earlier

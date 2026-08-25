@@ -3,12 +3,14 @@
 **Status: Milestones 0, 1, 1.5, 1.6, 2, and 3 are accepted. Imported and
 generated background artwork now share retained source, deterministic
 processing, compensated bundle lifecycle, and the accepted Parallax Artwork
-and Theme Editor workflow. Milestone 4, the first production cave kit, is
-next.**
+and Theme Editor workflow. Those gates complete the engineering vertical
+slice. Milestone 4 is a non-blocking production-content pass; Milestone 5 zone
+fades are the next engine feature.**
 Written 2026-08-22 for the first cave vertical slice, revised the same day to
 make standalone parallax-theme ownership the highest-priority implementation
 milestone, updated 2026-08-23 after accepting composed parallax layers, and
-updated 2026-08-24 after accepting the live generated-background gate.
+updated 2026-08-24 after accepting the live generated-background gate, then
+2026-08-25 to separate the completed engineering slice from content curation.
 Update milestone states here as work lands; use [`roadmap.md`](roadmap.md) only
 for the higher-level sequence.
 
@@ -1040,6 +1042,11 @@ the SDL/ImGui test harness. This closes Milestone 3; remaining palette,
 silhouette, seam, and composition polish belongs to Milestone 4.
 
 ### Milestone 4 — theme workflow and first cave kit
+
+**Status: non-blocking content pass.** The accepted gates through Milestone 3
+prove the complete authoring and persistence workflow. This milestone curates
+that evidence into richer production content; it is not unfinished generation
+or editor infrastructure and does not block Milestone 5.
 
 - Produce the accepted Far Fill and Far Formations plus a small Near Formation
   element set.
