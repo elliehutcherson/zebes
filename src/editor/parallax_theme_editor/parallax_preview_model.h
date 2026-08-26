@@ -7,12 +7,15 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "objects/camera.h"
 #include "objects/game_view.h"
 #include "objects/level.h"
 #include "objects/parallax_theme.h"
 #include "objects/vec.h"
 
 namespace zebes {
+
+inline constexpr CameraZoomRange kParallaxAuthoringZoomRange{.minimum = 0.5, .maximum = 2.0};
 
 // Capacity errors describe a draft that is unsafe to preview, not a failure of
 // the editor itself. The editor must keep its controls available for recovery.

@@ -12,9 +12,9 @@
 #include "editor/canvas/canvas.h"
 #include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
-#include "editor/image_generation/image_generation_request_controller.h"
 #include "editor/parallax_artwork_editor/parallax_artwork_editor_model.h"
 #include "editor/preview_texture_sink.h"
+#include "generation/image_generation_request_controller.h"
 #include "objects/camera.h"
 
 namespace zebes {

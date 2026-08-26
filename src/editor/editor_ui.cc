@@ -13,9 +13,6 @@
 #include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
 #include "editor/gui_interface.h"
-#include "editor/image_generation/credential_source.h"
-#include "editor/image_generation/image_generation_service.h"
-#include "editor/image_generation/openai_image_client.h"
 #include "editor/imgui_scoped.h"
 #include "editor/level_editor/level_editor.h"
 #include "editor/parallax_artwork_editor/parallax_artwork_editor.h"
@@ -24,6 +21,9 @@
 #include "editor/sprite_editor/sprite_editor.h"
 #include "editor/texture_editor/texture_editor.h"
 #include "editor/tileset_editor/tileset_editor.h"
+#include "generation/credential_source.h"
+#include "generation/image_generation_service.h"
+#include "generation/openai_image_client.h"
 #include "imgui.h"
 
 namespace zebes {

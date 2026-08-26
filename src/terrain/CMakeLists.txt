@@ -69,6 +69,12 @@ add_library(terrain_generator
   terrain_generator.cc
 )
 
+add_library(terrain_review_scene terrain_review_scene.cc)
+target_link_libraries(terrain_review_scene
+  PUBLIC image_io terrain_generator terrain_style absl::statusor
+  PRIVATE status_macros absl::status absl::strings
+)
+
 target_link_libraries(terrain_generator
   PUBLIC
   blob47_compose

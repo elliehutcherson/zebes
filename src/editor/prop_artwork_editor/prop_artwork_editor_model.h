@@ -12,9 +12,9 @@
 #include "artwork/regenerate_prop_asset.h"
 #include "artwork/source_artwork.h"
 #include "common/image_io.h"
-#include "editor/image_generation/artwork_generation_prompts.h"
-#include "editor/image_generation/image_generation.h"
 #include "editor/prop_artwork_editor/prop_artwork_context.h"
+#include "generation/artwork_generation_prompts.h"
+#include "generation/image_generation.h"
 #include "terrain/terrain_recipe.h"
 
 namespace zebes {

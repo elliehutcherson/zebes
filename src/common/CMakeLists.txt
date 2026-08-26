@@ -112,6 +112,18 @@ target_link_libraries(image_digest
   absl::status
 )
 
+add_library(atomic_directory_publisher atomic_directory_publisher.cc)
+target_link_libraries(atomic_directory_publisher
+  PUBLIC
+  absl::any_invocable
+  absl::status
+  PRIVATE
+  common
+  status_macros
+  absl::cleanup
+  absl::strings
+)
+
 add_library(utc_timestamp utc_timestamp.cc)
 target_link_libraries(utc_timestamp PUBLIC absl::time)
 

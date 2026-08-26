@@ -5,8 +5,8 @@
 
 #include "absl/strings/str_cat.h"
 #include "editor/gui_interface.h"
-#include "editor/image_generation/image_generation_request_controller.h"
 #include "editor/imgui_scoped.h"
+#include "generation/image_generation_request_controller.h"
 
 namespace zebes {
 

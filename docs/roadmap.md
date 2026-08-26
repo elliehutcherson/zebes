@@ -192,7 +192,15 @@ cave-kit palette, silhouette, prop, and composition curation remains useful
 production content work, but it is not missing engine infrastructure and does
 not block fades. The pre-pilot Near candidates remain test content and should
 be palette-normalized or replaced during that independent content pass; do not
-fold art polish back into generation infrastructure.
+fold art polish back into generation infrastructure. That pass now has a
+first-party headless generation and review loop: the shared `AssetWorkspace`
+loads the same catalogs as the editor; `generate_assets` publishes atomic,
+strict new-asset candidates through OpenAI, Codex, or a credential-free fake;
+and `curate_assets` emits deterministic evidence for parallax artwork/themes,
+props, sprites, terrain, and tilesets. Generated pixels retain a new source and
+commit through the existing compensated creation transaction. Existing assets
+remain settings-only recipe regeneration with unchanged source identity and
+digest. See [`headless-curation.md`](headless-curation.md).
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved

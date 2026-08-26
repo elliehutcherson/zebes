@@ -9,10 +9,10 @@
 #include "artwork/source_artwork.h"
 #include "editor/confirm_prompt.h"
 #include "editor/gui_interface.h"
-#include "editor/image_generation/image_generation.h"
 #include "editor/image_generation/image_generation_lifecycle_panel.h"
-#include "editor/image_generation/image_generation_request_controller.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor_model.h"
+#include "generation/image_generation.h"
+#include "generation/image_generation_request_controller.h"
 #include "terrain/terrain_recipe.h"
 
 namespace zebes {

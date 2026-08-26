@@ -16,7 +16,7 @@ target_link_libraries(
 add_executable(render_slope_matrix render_slope_matrix.cc)
 target_link_libraries(
   render_slope_matrix
-  PRIVATE terrain_generator terrain_style image_io tileset status_macros absl::log
+  PRIVATE terrain_review_scene terrain_style image_io status_macros absl::log
           absl::log_initialize absl::status absl::statusor absl::strings
 )
 
@@ -45,3 +45,48 @@ target_link_libraries(process_generated_artwork
   absl::status
   absl::statusor
 )
+
+add_executable(curate_assets curate_assets.cc)
+target_link_libraries(curate_assets
+  PRIVATE
+  asset_workspace
+  curation_candidate_commit
+  curation_registry
+  curation_review
+  headless_texture_store
+  parallax_artwork_reviewer
+  parallax_theme_reviewer
+  prop_reviewer
+  sprite_reviewer
+  terrain_reviewer
+  tileset_reviewer
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::statusor
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+add_dependencies(curate_assets copy_assets)
+
+add_executable(generate_assets generate_assets.cc)
+target_link_libraries(generate_assets
+  PRIVATE
+  asset_workspace
+  fake_image_generation_client
+  headless_asset_generation
+  headless_texture_store
+  image_generation_service
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::statusor
+  absl::strings
+)
+add_dependencies(generate_assets copy_assets)

@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "editor/gui_interface.h"
-#include "editor/image_generation/image_generation.h"
-#include "editor/image_generation/image_generation_request_controller.h"
+#include "generation/image_generation.h"
+#include "generation/image_generation_request_controller.h"
 
 namespace zebes {
 

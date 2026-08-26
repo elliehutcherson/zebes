@@ -270,89 +270,6 @@ target_link_libraries(prop_artwork_editor_test
 target_include_directories(prop_artwork_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(prop_artwork_editor_test)
 
-add_executable(openai_image_client_test openai_image_client_test.cc)
-target_link_libraries(openai_image_client_test
-  PRIVATE
-  image_io
-  macros
-  openai_image_client
-  status_macros
-  nlohmann_json::nlohmann_json
-  gtest_main
-)
-target_include_directories(openai_image_client_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(openai_image_client_test)
-
-add_executable(codex_app_server_transport_test codex_app_server_transport_test.cc)
-target_link_libraries(codex_app_server_transport_test
-  PRIVATE
-  codex_app_server_transport
-  macros
-  absl::cleanup
-  absl::status
-  absl::time
-  gtest_main
-)
-target_include_directories(codex_app_server_transport_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(codex_app_server_transport_test)
-
-add_executable(codex_app_server_protocol_test codex_app_server_protocol_test.cc)
-target_link_libraries(codex_app_server_protocol_test
-  PRIVATE
-  codex_app_server_protocol
-  macros
-  absl::status
-  nlohmann_json::nlohmann_json
-  gtest_main
-)
-target_include_directories(codex_app_server_protocol_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(codex_app_server_protocol_test)
-
-add_executable(codex_image_client_test codex_image_client_test.cc)
-target_link_libraries(codex_image_client_test
-  PRIVATE
-  codex_app_server_transport
-  codex_image_client
-  image_generation
-  image_io
-  macros
-  status_macros
-  absl::status
-  absl::statusor
-  nlohmann_json::nlohmann_json
-  gtest_main
-)
-target_include_directories(codex_image_client_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(codex_image_client_test)
-
-add_executable(image_generation_engine_test image_generation_engine_test.cc)
-target_link_libraries(image_generation_engine_test
-  PRIVATE
-  blocking_callback_thread
-  engine_runner
-  image_generation
-  image_generation_engine
-  macros
-  status_macros
-  gtest_main
-)
-target_include_directories(image_generation_engine_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(image_generation_engine_test)
-
-add_executable(image_generation_request_controller_test
-  image_generation_request_controller_test.cc
-)
-target_link_libraries(image_generation_request_controller_test
-  PRIVATE
-  image_generation_request_controller
-  macros
-  absl::status
-  absl::statusor
-  gtest_main
-)
-target_include_directories(image_generation_request_controller_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(image_generation_request_controller_test)
-
 add_executable(source_artwork_retention_test source_artwork_retention_test.cc)
 target_link_libraries(source_artwork_retention_test
   PRIVATE
@@ -363,34 +280,6 @@ target_link_libraries(source_artwork_retention_test
 )
 target_include_directories(source_artwork_retention_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(source_artwork_retention_test)
-
-add_executable(image_generation_service_test image_generation_service_test.cc)
-target_link_libraries(image_generation_service_test
-  PRIVATE
-  image_generation
-  image_generation_engine
-  image_generation_service
-  macros
-  status_macros
-  absl::status
-  absl::statusor
-  absl::strings
-  absl::time
-  gtest_main
-)
-target_include_directories(image_generation_service_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(image_generation_service_test)
-
-add_executable(image_generation_test image_generation_test.cc)
-target_link_libraries(image_generation_test
-  gtest_main
-  macros
-  curl_http_transport
-  http_transport
-  image_generation
-)
-target_include_directories(image_generation_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(image_generation_test)
 
 # --- Tileset Panel Test ---
 add_executable(tileset_panel_test tileset_panel_test.cc)

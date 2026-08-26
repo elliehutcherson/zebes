@@ -10,8 +10,6 @@
 #include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
 #include "editor/gui_interface.h"
-#include "editor/image_generation/image_generation_request_controller.h"
-#include "editor/image_generation/image_generation_service.h"
 #include "editor/level_editor/level_editor.h"
 #include "editor/parallax_artwork_editor/parallax_artwork_editor.h"
 #include "editor/parallax_theme_editor/parallax_theme_editor.h"
@@ -21,6 +19,8 @@
 #include "editor/terrain_editor/terrain_editor.h"
 #include "editor/texture_editor/texture_editor.h"
 #include "editor/tileset_editor/tileset_editor.h"
+#include "generation/image_generation_request_controller.h"
+#include "generation/image_generation_service.h"
 
 namespace zebes {
 

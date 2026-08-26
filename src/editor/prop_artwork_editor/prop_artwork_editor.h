@@ -14,13 +14,13 @@
 #include "common/background_task.h"
 #include "editor/canvas/canvas.h"
 #include "editor/gui_interface.h"
-#include "editor/image_generation/image_generation_request_controller.h"
 #include "editor/pointer_drag.h"
 #include "editor/preview_texture_sink.h"
 #include "editor/prop_artwork_editor/prop_artwork_context.h"
 #include "editor/prop_artwork_editor/prop_artwork_controls_panel.h"
 #include "editor/prop_artwork_editor/prop_artwork_editor_model.h"
 #include "editor/prop_artwork_editor/prop_artwork_output_panel.h"
+#include "generation/image_generation_request_controller.h"
 #include "objects/camera.h"
 
 namespace zebes {

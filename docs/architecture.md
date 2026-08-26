@@ -238,6 +238,19 @@ Zebes `Camera`, layer settings, and texture dimensions. The ImGui/SDL view only
 resolves the native texture and emits the tiles described by that layout. This
 keeps first-frame, viewport, zoom, and repetition behavior headlessly testable.
 
+Headless curation uses the same boundary at the process level. `AssetWorkspace`
+is the common composition root for every authored manager and `Api`; the editor
+supplies `SdlTextureStore`, while `curate_assets` supplies
+`HeadlessTextureStore`. Domain-specific `CurationReviewer` adapters share a
+bounded nearest-neighbour RGBA compositor and atomic review-bundle publisher.
+The parallax adapters reuse `ParallaxLayout`, camera-route, seam, repetition,
+and coverage logic; prop, sprite, terrain, and tileset adapters resolve their
+complete API-owned graphs. `generate_assets` uses the same workspace and shared
+atomic publisher to produce strict creation candidates. Their staged pixels are
+retained only inside the compensated new-asset transaction after review. See
+[`headless-curation.md`](headless-curation.md) for the command and extension
+contract.
+
 Level viewport authoring rules live in the platform-neutral `ViewportModel`
 module. Entity picking and construction, stable ID allocation, tile mutation,
 and grid snapping do not depend on ImGui, SDL, or `Api`. `ViewportTab` resolves
@@ -732,7 +745,11 @@ this scene position. A platform-neutral `PointerDragController` owns the
 no-jump grab offset for both this interaction and Level Editor entity dragging;
 the callers retain picking, constraints, object identity, and persistence.
 
-Remote image generation uses editor-owned, platform-neutral request contracts.
+Remote image generation uses generation-owned, platform-neutral request
+contracts under `src/generation/`. Only the lifecycle panel remains under
+`src/editor/image_generation/`; the provider contracts, service, engine,
+transports, prompts, and clients have no editor dependency and are shared by
+the interactive editor and `generate_assets`.
 `ImageGenerationClient` validates requested capabilities before an adapter can
 start work and returns an RAII request that is polled without blocking and
 cancels unfinished work on destruction. Provider adapters receive credentials
@@ -776,9 +793,11 @@ asynchronous DNS feature so a first poll cannot block on name resolution.
 thing that starts or stops it. It owns the transport, the credential source,
 the adapter, the engine, its `EngineRunner`, and the `BlockingCallbackThread`
 the runner blocks on, in that order, so each outlives what borrows it;
-destruction stops the runner before joining. `EditorUi` independently composes
-Codex and OpenAI services, then owns one shared registry of provider-neutral
-names, availability, and engine references. Each generated-artwork surface
+destruction stops the runner before joining. A process composition root owns
+the service: `EditorUi` independently composes Codex and OpenAI services, while
+`generate_assets` composes the provider selected for one operation, including
+the deterministic credential-free fake. The editor owns one shared registry of
+provider-neutral names, availability, and engine references. Each generated-artwork surface
 owns an `ImageGenerationRequestController` that borrows this registry and owns
 that surface's provider selection, single in-flight request, request ID,
 cancellation, candidate navigation, and retry-safe accept/discard state. Prop
@@ -796,13 +815,15 @@ presets, and background role/repetition fragments are named constants in
 `artwork_generation_prompts.h`; policy text is not hidden in widget code or
 model member initializers.
 
-Imported and generated images share one compensated retained-source
-transaction. `RetainSourceArtwork` writes through `Api`, reloads the canonical
-definition, and invokes a domain acceptance callback; failure to reload or
-accept deletes the new source. `RetainGeneratedSourceArtwork` only maps stable
-generation provenance into that transaction. Prop and Parallax editors retain
-their distinct model-selection rules without duplicating persistence and
-cleanup logic. Provenance timestamps use the shared UTC formatter.
+Imported and generated images share one compensated retained-source transaction
+beside the API boundary. `RetainSourceArtwork` writes through `Api`, reloads the
+canonical definition, and invokes a domain acceptance callback; failure to
+reload or accept deletes the new source. The editor's
+`RetainGeneratedSourceArtwork` adapter only maps its review state into stable
+generation provenance. Headless creation candidates call the same transaction,
+with `Api::CreateGeneratedProp` or `Api::CreateGeneratedParallaxArtwork` as the
+acceptance callback, so a failed bundle creation removes the otherwise orphaned
+source. Provenance timestamps use the shared UTC formatter.
 
 Provider construction and authentication are optional capabilities, not editor
 invariants. A provider that cannot be composed is disabled immediately; a

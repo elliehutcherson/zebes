@@ -4,7 +4,7 @@
 
 #include "SDL.h"
 #include "absl/status/status.h"
-#include "api/api.h"
+#include "api/asset_workspace.h"
 #include "common/config.h"
 #include "common/imgui_wrapper.h"
 #include "common/sdl_wrapper.h"
@@ -13,17 +13,6 @@
 #include "engine/input_manager.h"
 #include "platform/sdl/sdl_input_source.h"
 #include "platform/sdl/sdl_texture_store.h"
-#include "resources/blueprint_manager.h"
-#include "resources/collider_manager.h"
-#include "resources/level_manager.h"
-#include "resources/parallax_artwork_recipe_manager.h"
-#include "resources/parallax_theme_manager.h"
-#include "resources/prop_recipe_manager.h"
-#include "resources/source_artwork_manager.h"
-#include "resources/sprite_manager.h"
-#include "resources/terrain_recipe_manager.h"
-#include "resources/texture_manager.h"
-#include "resources/tileset_manager.h"
 
 namespace zebes {
 
@@ -38,8 +27,8 @@ namespace zebes {
 // assets missing.
 //
 // Shutdown() releases ImGui and SDL and must run before the engine is
-// destroyed. Member declaration order is destruction order, and the UI and API
-// are declared after the managers they point into.
+// destroyed. Members are destroyed in reverse declaration order, so the UI is
+// declared after the asset workspace it points into.
 class EditorEngine {
  public:
   static absl::StatusOr<std::unique_ptr<EditorEngine>> Create();
@@ -65,27 +54,16 @@ class EditorEngine {
 
   void RenderFrame();
 
-  // Declaration order is destruction order. Everything below borrows from
-  // something above it, so this sequence is load-bearing, not stylistic.
+  // Reverse declaration order is destruction order. Everything below borrows
+  // from something above it, so this sequence is load-bearing, not stylistic.
   std::unique_ptr<SdlWrapper> sdl_;
 
   EngineConfig config_;
   std::unique_ptr<SdlTextureStore> texture_resources_;
-  std::unique_ptr<TextureManager> texture_manager_;
-  std::unique_ptr<SpriteManager> sprite_manager_;
-  std::unique_ptr<ColliderManager> collider_manager_;
-  std::unique_ptr<BlueprintManager> blueprint_manager_;
-  std::unique_ptr<LevelManager> level_manager_;
-  std::unique_ptr<ParallaxThemeManager> parallax_theme_manager_;
-  std::unique_ptr<TilesetManager> tileset_manager_;
-  std::unique_ptr<TerrainRecipeManager> terrain_recipe_manager_;
-  std::unique_ptr<SourceArtworkManager> source_artwork_manager_;
-  std::unique_ptr<PropRecipeManager> prop_recipe_manager_;
-  std::unique_ptr<ParallaxArtworkRecipeManager> parallax_artwork_recipe_manager_;
+  std::unique_ptr<AssetWorkspace> assets_;
   std::unique_ptr<ImGuiWrapper> imgui_wrapper_;
   std::unique_ptr<SdlInputSource> sdl_input_source_;
   std::unique_ptr<InputManager> input_manager_;
-  std::unique_ptr<Api> api_;
 
   std::unique_ptr<Gui> gui_;
   std::unique_ptr<EditorUi> ui_;

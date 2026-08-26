@@ -1,0 +1,44 @@
+add_executable(curation_raster_test raster_canvas_test.cc)
+target_link_libraries(curation_raster_test curation_raster macros gtest_main)
+gtest_discover_tests(curation_raster_test)
+
+add_executable(curation_review_test review_test.cc)
+target_link_libraries(curation_review_test
+  api curation_candidate_commit curation_registry curation_review image_io macros gtest_main
+  nlohmann_json::nlohmann_json)
+gtest_discover_tests(curation_review_test)
+
+add_executable(parallax_theme_reviewer_test parallax_theme_reviewer_test.cc)
+target_link_libraries(parallax_theme_reviewer_test
+  parallax_theme_reviewer api macros gtest_main gmock)
+gtest_discover_tests(parallax_theme_reviewer_test)
+
+add_executable(parallax_artwork_reviewer_test parallax_artwork_reviewer_test.cc)
+target_link_libraries(parallax_artwork_reviewer_test
+  parallax_artwork_reviewer generated_asset_candidate image_digest image_io api macros gtest_main
+  gmock)
+gtest_discover_tests(parallax_artwork_reviewer_test)
+
+add_executable(prop_reviewer_test prop_reviewer_test.cc)
+target_link_libraries(prop_reviewer_test
+  prop_reviewer generated_asset_candidate image_digest image_io terrain_palette terrain_style api
+  macros gtest_main gmock)
+gtest_discover_tests(prop_reviewer_test)
+
+add_executable(tileset_reviewer_test tileset_reviewer_test.cc)
+target_link_libraries(tileset_reviewer_test tileset_reviewer api macros gtest_main gmock)
+gtest_discover_tests(tileset_reviewer_test)
+
+add_executable(sprite_reviewer_test sprite_reviewer_test.cc)
+target_link_libraries(sprite_reviewer_test sprite_reviewer api macros gtest_main gmock)
+gtest_discover_tests(sprite_reviewer_test)
+
+add_executable(terrain_reviewer_test terrain_reviewer_test.cc)
+target_link_libraries(terrain_reviewer_test
+  terrain_reviewer terrain_style api macros gtest_main gmock)
+gtest_discover_tests(terrain_reviewer_test)
+
+add_executable(headless_texture_store_test headless_texture_store_test.cc)
+target_link_libraries(headless_texture_store_test
+  headless_texture_store image_io macros gtest_main)
+gtest_discover_tests(headless_texture_store_test)

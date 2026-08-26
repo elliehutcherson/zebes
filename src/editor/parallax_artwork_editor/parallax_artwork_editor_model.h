@@ -12,7 +12,7 @@
 #include "artwork/regenerate_parallax_artwork_asset.h"
 #include "artwork/source_artwork.h"
 #include "common/image_io.h"
-#include "editor/image_generation/artwork_generation_prompts.h"
+#include "generation/artwork_generation_prompts.h"
 #include "terrain/terrain_recipe.h"
 
 namespace zebes {

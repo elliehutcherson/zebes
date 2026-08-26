@@ -19,7 +19,6 @@
 namespace zebes {
 namespace {
 
-constexpr CameraZoomRange kAuthoringZoomRange{.minimum = 0.5, .maximum = 2.0};
 constexpr float kNavigatorWidth = 280.0f;
 constexpr float kInspectorWidth = 360.0f;
 constexpr float kDiagnosticsHeight = 220.0f;
@@ -709,8 +708,9 @@ absl::Status ParallaxThemeEditor::RenderViewport(ParallaxTheme& draft,
   if (gui_->Button("1x")) preview_zoom_ = 1.0f;
   gui_->SameLine();
   if (gui_->Button("2x")) preview_zoom_ = 2.0f;
-  gui_->SliderFloat("Camera Zoom", &preview_zoom_, static_cast<float>(kAuthoringZoomRange.minimum),
-                    static_cast<float>(kAuthoringZoomRange.maximum));
+  gui_->SliderFloat("Camera Zoom", &preview_zoom_,
+                    static_cast<float>(kParallaxAuthoringZoomRange.minimum),
+                    static_cast<float>(kParallaxAuthoringZoomRange.maximum));
   gui_->SliderFloat("Travel X", &travel_x_, 0.0f, 1.0f);
   gui_->SliderFloat("Travel Y", &travel_y_, 0.0f, 1.0f);
 
@@ -771,7 +771,8 @@ absl::Status ParallaxThemeEditor::RenderViewport(ParallaxTheme& draft,
   auto canvas_end = absl::MakeCleanup([this] { preview_canvas_.End(); });
   preview_canvas_.HandleInput();
 
-  const float navigated_zoom = static_cast<float>(kAuthoringZoomRange.Clamp(preview_camera_.zoom));
+  const float navigated_zoom =
+      static_cast<float>(kParallaxAuthoringZoomRange.Clamp(preview_camera_.zoom));
   const absl::StatusOr<CameraCenterRoute> navigated_route = ResolveCameraCenterRoute(
       context.route, api_->GetConfig()->game_view, navigated_zoom, context.world);
   if (navigated_route.ok()) {
@@ -964,9 +965,9 @@ absl::Status ParallaxThemeEditor::RenderDiagnostics(const ParallaxTheme& draft,
   const std::vector<ParallaxElementSize>& element_sizes = *resolved_sizes;
   ASSIGN_OR_RETURN(const WorldRect composition_bounds,
                    CalculateParallaxCompositionBounds(layer, element_sizes));
-  const absl::StatusOr<CameraCoverageDiagnostics> coverage =
-      AnalyzeCameraCoverage(layer, composition_bounds, context.route.min, context.route.max,
-                            api_->GetConfig()->game_view, kAuthoringZoomRange, context.world);
+  const absl::StatusOr<CameraCoverageDiagnostics> coverage = AnalyzeCameraCoverage(
+      layer, composition_bounds, context.route.min, context.route.max, api_->GetConfig()->game_view,
+      kParallaxAuthoringZoomRange, context.world);
   if (!coverage.ok()) {
     const std::string message(coverage.status().message());
     gui_->TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "%s", message.c_str());
