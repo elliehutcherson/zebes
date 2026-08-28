@@ -36,6 +36,11 @@ struct RgbaImage {
 absl::Status WritePng(const std::string& path, int width, int height,
                       absl::Span<const uint8_t> pixels);
 
+// Encodes one RGBA image as PNG bytes without creating a temporary file. This
+// is the binary boundary used by provider adapters that upload reference
+// artwork.
+absl::StatusOr<std::vector<uint8_t>> EncodePng(const RgbaImage& image);
+
 // Reads a PNG into tightly packed RGBA8, converting whatever channel count the
 // file carries.
 //

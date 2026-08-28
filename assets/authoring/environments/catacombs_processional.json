@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "theme": {
+    "name": "Catacombs - Processional Gallery",
+    "layers": [
+      {
+        "name": "Catacombs Far Fill",
+        "scroll_factor": [0.03, 0.0],
+        "offset": [0.0, 0.0],
+        "repeat_period": [960.0, 540.0],
+        "elements": [
+          {
+            "name": "Continuous Ossuary Masonry",
+            "artwork_recipe_name": "Catacombs Far Fill",
+            "position": [0.0, 0.0],
+            "scale": 1.0
+          }
+        ]
+      },
+      {
+        "name": "Catacombs Far Formations",
+        "scroll_factor": [0.10, 0.0],
+        "offset": [0.0, 0.0],
+        "repeat_period": [1920.0, 0.0],
+        "elements": [
+          {
+            "name": "Broken Arcade",
+            "artwork_recipe_name": "Catacombs Far Arcade",
+            "position": [0.0, 0.0],
+            "scale": 1.0
+          },
+          {
+            "name": "Vaulted Ossuary",
+            "artwork_recipe_name": "Catacombs Far Vault",
+            "position": [960.0, 0.0],
+            "scale": 1.0
+          }
+        ]
+      },
+      {
+        "name": "Catacombs Near Formations",
+        "scroll_factor": [0.26, 0.0],
+        "offset": [0.0, 0.0],
+        "repeat_period": [3456.0, 0.0],
+        "elements": [
+          {
+            "name": "Structural Shell",
+            "artwork_recipe_name": "Catacombs Near Structural Shell",
+            "position": [0.0, 0.0],
+            "scale": 1.0
+          },
+          {
+            "name": "Webbed Ceiling",
+            "artwork_recipe_name": "Catacombs Near Webbed Ceiling",
+            "position": [864.0, 0.0],
+            "scale": 1.0
+          },
+          {
+            "name": "Skull Pillars",
+            "artwork_recipe_name": "Catacombs Near Skull Pillars",
+            "position": [1728.0, 0.0],
+            "scale": 1.0
+          },
+          {
+            "name": "Ossuary Ridge",
+            "artwork_recipe_name": "Catacombs Near Ossuary Ridge",
+            "position": [2592.0, 32.0],
+            "scale": 1.0
+          }
+        ]
+      }
+    ]
+  },
+  "level": {
+    "name": "Catacombs Processional",
+    "tileset_name": "lucinda_cave",
+    "terrain_name": "lucinda_cave",
+    "tile_render_size": [32, 32],
+    "grid_size": [512, 40],
+    "spawn_pixels": [256.0, 512.0],
+    "world_layers": ["Back Decor", "GamePlay", "Front Decor"],
+    "gameplay_layer": "GamePlay",
+    "zones": [
+      {
+        "name": "Processional Gallery",
+        "theme_name": "Catacombs - Processional Gallery",
+        "min_pixels": [0.0, 0.0],
+        "max_pixels": [16384.0, 1280.0],
+        "fade_pixels": [0.0, 0.0]
+      }
+    ],
+    "terrain_rectangles": [
+      {"x": 0, "y": 10, "width": 512, "height": 3, "solid": true},
+      {"x": 0, "y": 28, "width": 512, "height": 2, "solid": true},
+      {"x": 0, "y": 27, "width": 512, "height": 1, "solid": true},
+      {"x": 0, "y": 13, "width": 2, "height": 15, "solid": true},
+      {"x": 510, "y": 13, "width": 2, "height": 15, "solid": true},
+      {"x": 78, "y": 27, "width": 10, "height": 1, "solid": false},
+      {"x": 176, "y": 27, "width": 10, "height": 1, "solid": false},
+      {"x": 272, "y": 27, "width": 10, "height": 1, "solid": false},
+      {"x": 368, "y": 27, "width": 10, "height": 1, "solid": false},
+      {"x": 448, "y": 27, "width": 10, "height": 1, "solid": false},
+      {"x": 40, "y": 26, "width": 20, "height": 1, "solid": true},
+      {"x": 92, "y": 25, "width": 16, "height": 2, "solid": true},
+      {"x": 150, "y": 26, "width": 18, "height": 1, "solid": true},
+      {"x": 214, "y": 25, "width": 16, "height": 2, "solid": true},
+      {"x": 286, "y": 26, "width": 18, "height": 1, "solid": true},
+      {"x": 348, "y": 25, "width": 16, "height": 2, "solid": true},
+      {"x": 418, "y": 26, "width": 18, "height": 1, "solid": true},
+      {"x": 468, "y": 25, "width": 20, "height": 2, "solid": true},
+      {"x": 68, "y": 13, "width": 10, "height": 2, "solid": true},
+      {"x": 180, "y": 13, "width": 10, "height": 2, "solid": true},
+      {"x": 292, "y": 13, "width": 10, "height": 2, "solid": true},
+      {"x": 404, "y": 13, "width": 10, "height": 2, "solid": true},
+      {"x": 116, "y": 13, "width": 3, "height": 3, "solid": true},
+      {"x": 116, "y": 24, "width": 3, "height": 3, "solid": true},
+      {"x": 242, "y": 13, "width": 3, "height": 3, "solid": true},
+      {"x": 242, "y": 24, "width": 3, "height": 3, "solid": true},
+      {"x": 374, "y": 13, "width": 3, "height": 3, "solid": true},
+      {"x": 374, "y": 24, "width": 3, "height": 3, "solid": true}
+    ]
+  }
+}

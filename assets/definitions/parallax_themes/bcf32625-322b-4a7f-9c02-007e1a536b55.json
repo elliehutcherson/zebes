@@ -1,0 +1,96 @@
+{
+  "id": "bcf32625-322b-4a7f-9c02-007e1a536b55",
+  "layers": [
+    {
+      "elements": [
+        {
+          "id": 0,
+          "name": "Continuous Ossuary Masonry",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "86f4a851-dad0-4e9d-b4e1-f352a03d5578"
+        }
+      ],
+      "name": "Catacombs Far Fill",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_period_x": 960.0,
+      "repeat_period_y": 540.0,
+      "scroll_factor_x": 0.03,
+      "scroll_factor_y": 0.0
+    },
+    {
+      "elements": [
+        {
+          "id": 0,
+          "name": "Broken Arcade",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "3d5b3cd4-9574-4d00-b879-3125e13d0156"
+        },
+        {
+          "id": 1,
+          "name": "Vaulted Ossuary",
+          "position_x": 960.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "755172e5-b425-469b-a4ac-7dd9f54cf4ed"
+        }
+      ],
+      "name": "Catacombs Far Formations",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_period_x": 1920.0,
+      "repeat_period_y": 0.0,
+      "scroll_factor_x": 0.1,
+      "scroll_factor_y": 0.0
+    },
+    {
+      "elements": [
+        {
+          "id": 0,
+          "name": "Structural Shell",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "d50080be-0444-4965-9841-dd11528b4928"
+        },
+        {
+          "id": 1,
+          "name": "Webbed Ceiling",
+          "position_x": 864.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "1126b84f-acf0-45f3-8493-ec549861619b"
+        },
+        {
+          "id": 2,
+          "name": "Skull Pillars",
+          "position_x": 1728.0,
+          "position_y": 0.0,
+          "scale": 1.0,
+          "texture_id": "ffaeb425-6a78-45d2-a43f-3655b1c0a6fe"
+        },
+        {
+          "id": 3,
+          "name": "Ossuary Ridge",
+          "position_x": 2592.0,
+          "position_y": 32.0,
+          "scale": 1.0,
+          "texture_id": "7307c5a4-fab7-4cce-8c8c-74dd84b40d0e"
+        }
+      ],
+      "name": "Catacombs Near Formations",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_period_x": 3456.0,
+      "repeat_period_y": 0.0,
+      "scroll_factor_x": 0.26,
+      "scroll_factor_y": 0.0
+    }
+  ],
+  "name": "Catacombs - Processional Gallery",
+  "schema_version": 2
+}

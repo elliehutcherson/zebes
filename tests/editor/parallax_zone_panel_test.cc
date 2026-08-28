@@ -289,7 +289,36 @@ TEST_F(ParallaxZonePanelTest, EditThemeEmitsStableIdRequest) {
   EXPECT_EQ(request->theme_id, "theme-1");
 }
 
-TEST_F(ParallaxZonePanelTest, UnsupportedFadeCanBeResetWithoutImplyingItRenders) {
+TEST_F(ParallaxZonePanelTest, FadeControlsEditAuthoredWorldPixelDistances) {
+  level_.zones.push_back({
+      .id = 0,
+      .name = "Zone 0",
+      .theme_id = "theme-1",
+      .min_point = {0, 0},
+      .max_point = {100, 100},
+  });
+  selection_.type = SelectionState::Type::kZone;
+  selection_.zone_id = 0;
+  EXPECT_CALL(gui_, InputDouble(_, _, _, _, _, _)).WillRepeatedly(Return(false));
+  EXPECT_CALL(gui_, InputDouble(StrEq("##zone_fade_x"), _, 1.0, 16.0, StrEq("%.0f"), 0))
+      .WillOnce(
+          Invoke([](const char*, double* value, double, double, const char*, ImGuiInputTextFlags) {
+            *value = 20.0;
+            return true;
+          }));
+  EXPECT_CALL(gui_, InputDouble(StrEq("##zone_fade_y"), _, 1.0, 16.0, StrEq("%.0f"), 0))
+      .WillOnce(
+          Invoke([](const char*, double* value, double, double, const char*, ImGuiInputTextFlags) {
+            *value = 15.0;
+            return true;
+          }));
+
+  ASSERT_OK(RenderDetails());
+
+  EXPECT_EQ(level_.zones[0].fade_length, (Vec{20, 15}));
+}
+
+TEST_F(ParallaxZonePanelTest, AuthoredFadesCanBeResetToZero) {
   level_.zones.push_back({
       .id = 0,
       .name = "Zone 0",

@@ -1,0 +1,18 @@
+{
+  "content_digest": "134bd174ef3eddf8d4c05b8119f40f3d72d650e140e766557fb6121dfb5413af",
+  "height": 941,
+  "id": "52098912-57bc-44b3-afa2-6018c98438b3",
+  "name": "Catacombs Near Structural Shell source",
+  "provenance": {
+    "generated_at_utc": "2026-08-27T23:07:25Z",
+    "kind": "generated",
+    "model": "builtin-imagegen",
+    "provider": "openai",
+    "provider_request_id": null,
+    "revised_prompt": null,
+    "submitted_prompt": "Edit this exact retained source image in place as a production-quality pixel-art parallax foreground/near formation for a spooky catacombs cave. Remove only the hard vertical cutoffs at the left and right edges: taper both lateral ends into irregular broken masonry, dangling roots/webs, and transparent negative space, with the outer approximately 7 percent on each side a completely uniform #FF00FF matte gutter and no subject pixels touching either lateral edge. Preserve the central gothic structural shell, arches, skull niches, hanging chain, cobwebs, blue-violet palette, pixel-art scale, top-anchored ceiling silhouette, composition, and source dimensions. Do not add text, frames, borders, gradients, antialiasing, or new scenery. The result must composite naturally over another near formation with no visible vertical seam."
+  },
+  "schema_version": 2,
+  "source_path": "source_art/52098912-57bc-44b3-afa2-6018c98438b3.png",
+  "width": 1672
+}

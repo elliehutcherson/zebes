@@ -3,6 +3,7 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "api/api.h"
+#include "api/asset_root_lock.h"
 #include "common/status_macros.h"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
@@ -38,6 +39,14 @@ absl::StatusOr<std::unique_ptr<AssetWorkspace>> AssetWorkspace::Create(Options o
 }
 
 absl::Status AssetWorkspace::Init(const Options& options) {
+  if (options.access == Access::kReadWrite) {
+    ASSIGN_OR_RETURN(catalog_lock_, AssetRootLock::AcquireExclusive(options.asset_root,
+                                                                    options.write_lock_timeout));
+  } else {
+    ASSIGN_OR_RETURN(catalog_lock_,
+                     AssetRootLock::AcquireShared(options.asset_root, options.write_lock_timeout));
+  }
+
   ASSIGN_OR_RETURN(texture_manager_,
                    TextureManager::Create(options.texture_resources, options.asset_root));
   RETURN_IF_ERROR(texture_manager_->LoadAllTextures());
@@ -89,6 +98,7 @@ absl::Status AssetWorkspace::Init(const Options& options) {
                        .prop_recipe_manager = prop_recipe_manager_.get(),
                        .parallax_artwork_recipe_manager = parallax_artwork_recipe_manager_.get(),
                    }));
+  if (options.access == Access::kReadOnly) catalog_lock_.reset();
   return absl::OkStatus();
 }
 

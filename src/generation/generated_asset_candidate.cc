@@ -147,6 +147,13 @@ absl::Status ValidateEnvelope(const nlohmann::json& json, std::string_view expec
   return absl::OkStatus();
 }
 
+bool HasOperation(const nlohmann::json& json, std::string_view expected) {
+  if (!json.is_object() || !json.contains("operation") || !json.at("operation").is_string()) {
+    return false;
+  }
+  return json.at("operation").get<std::string>() == expected;
+}
+
 absl::Status ValidateCommon(std::string_view asset_id, std::string_view name,
                             const GeneratedAssetSourceCandidate& source,
                             std::string_view recipe_id) {
@@ -162,7 +169,11 @@ absl::Status ValidateCommon(std::string_view asset_id, std::string_view name,
 }  // namespace
 
 bool IsGeneratedAssetCreationCandidate(const nlohmann::json& json) {
-  return json.is_object() && json.contains("operation");
+  return HasOperation(json, "create");
+}
+
+bool IsGeneratedAssetRedrawCandidate(const nlohmann::json& json) {
+  return HasOperation(json, "redraw");
 }
 
 absl::Status ValidateGeneratedAssetSourceCandidate(const GeneratedAssetSourceCandidate& candidate) {
@@ -320,6 +331,61 @@ GeneratedParallaxArtworkCreationCandidateFromJson(const nlohmann::json& json) {
   if (candidate.ids.texture_id.empty()) {
     return absl::InvalidArgumentError("generated parallax texture ID must be non-empty");
   }
+  return candidate;
+}
+
+nlohmann::json GeneratedParallaxArtworkRedrawCandidateToJson(
+    const GeneratedParallaxArtworkRedrawCandidate& candidate) {
+  return {
+      {"schema_version", kGeneratedAssetCandidateSchemaVersion},
+      {"operation", "redraw"},
+      {"kind", "parallax-artwork"},
+      {"asset_id", candidate.asset_id},
+      {"expected_source_rgba_sha256", candidate.expected_source_digest},
+      {"expected_final_rgba_sha256", candidate.expected_final_pixel_digest},
+      {"source", SourceToJson(candidate.source)},
+  };
+}
+
+absl::StatusOr<GeneratedParallaxArtworkRedrawCandidate>
+GeneratedParallaxArtworkRedrawCandidateFromJson(const nlohmann::json& json) {
+  constexpr std::string_view kContext = "generated parallax artwork redraw candidate";
+  RETURN_IF_ERROR(
+      RequireExactObject(json,
+                         {"schema_version", "operation", "kind", "asset_id",
+                          "expected_source_rgba_sha256", "expected_final_rgba_sha256", "source"},
+                         kContext));
+  ASSIGN_OR_RETURN(const int schema, Required<int>(json, "schema_version", kContext));
+  if (schema != kGeneratedAssetCandidateSchemaVersion) {
+    return absl::FailedPreconditionError(absl::StrCat(kContext, " schema version ", schema,
+                                                      " is not supported version ",
+                                                      kGeneratedAssetCandidateSchemaVersion));
+  }
+  ASSIGN_OR_RETURN(const std::string operation, Required<std::string>(json, "operation", kContext));
+  if (operation != "redraw") {
+    return absl::InvalidArgumentError(absl::StrCat(kContext, " operation must be 'redraw'"));
+  }
+  ASSIGN_OR_RETURN(const std::string kind, Required<std::string>(json, "kind", kContext));
+  if (kind != "parallax-artwork") {
+    return absl::InvalidArgumentError(absl::StrCat(kContext, " kind must be 'parallax-artwork'"));
+  }
+
+  GeneratedParallaxArtworkRedrawCandidate candidate;
+  ASSIGN_OR_RETURN(candidate.asset_id, Required<std::string>(json, "asset_id", kContext));
+  if (candidate.asset_id.empty()) {
+    return absl::InvalidArgumentError("generated redraw candidate asset ID is empty");
+  }
+  ASSIGN_OR_RETURN(candidate.expected_source_digest,
+                   Required<std::string>(json, "expected_source_rgba_sha256", kContext));
+  ASSIGN_OR_RETURN(candidate.expected_final_pixel_digest,
+                   Required<std::string>(json, "expected_final_rgba_sha256", kContext));
+  if (!IsLowercaseSha256Digest(candidate.expected_source_digest) ||
+      !IsLowercaseSha256Digest(candidate.expected_final_pixel_digest)) {
+    return absl::InvalidArgumentError(
+        "generated redraw candidate expected digests must be lowercase SHA-256 values");
+  }
+  ASSIGN_OR_RETURN(const nlohmann::json source, Required<nlohmann::json>(json, "source", kContext));
+  ASSIGN_OR_RETURN(candidate.source, SourceFromJson(source));
   return candidate;
 }
 

@@ -16,6 +16,11 @@ namespace zebes {
 namespace {
 
 RgbaImage FakePixels(const ImageGenerationSpec& spec) {
+  if (spec.reference_image.has_value()) {
+    RgbaImage image = *spec.reference_image;
+    image.pixels.front() ^= 1;
+    return image;
+  }
   const int greatest = std::max(spec.target_aspect.width, spec.target_aspect.height);
   const int width = std::max(32, 128 * spec.target_aspect.width / greatest);
   const int height = std::max(32, 128 * spec.target_aspect.height / greatest);
@@ -69,6 +74,7 @@ class FakeClient final : public ImageGenerationClient {
     return {
         .maximum_candidates = 1,
         .supports_transparency = true,
+        .supports_reference_image = true,
     };
   }
 

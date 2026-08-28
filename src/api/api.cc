@@ -871,4 +871,95 @@ absl::Status Api::RegenerateGeneratedParallaxArtwork(
   return absl::OkStatus();
 }
 
+absl::Status Api::RedrawGeneratedParallaxArtwork(const PreparedParallaxArtworkRedraw& prepared) {
+  RETURN_IF_ERROR(ValidatePreparedParallaxArtworkRedraw(prepared));
+
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  std::vector<AssetReference> other_source_users;
+  for (const AssetReference& referrer :
+       FindSourceArtworkReferrers(catalog.View(), prepared.source_snapshot.id)) {
+    if (referrer.kind == AssetKind::kParallaxArtworkRecipe &&
+        referrer.id == prepared.recipe_snapshot.id) {
+      continue;
+    }
+    other_source_users.push_back(referrer);
+  }
+  RETURN_IF_ERROR(RefuseIfReferenced(
+      absl::StrCat("retained source redraw '", prepared.source_snapshot.name, "'"),
+      other_source_users,
+      "A redraw cannot silently make another generated bundle stale; give this recipe an "
+      "unshared source first."));
+
+  ASSIGN_OR_RETURN(SourceArtwork * current_source,
+                   source_artwork_manager_->GetArtwork(prepared.source_snapshot.id));
+  if (SourceArtworkToJson(*current_source) != SourceArtworkToJson(prepared.source_snapshot)) {
+    return absl::FailedPreconditionError(
+        "source artwork changed while its redraw was being reviewed; retry");
+  }
+  ASSIGN_OR_RETURN(const RgbaImage current_source_pixels,
+                   source_artwork_manager_->ReadArtworkPixels(current_source->id));
+  ASSIGN_OR_RETURN(const std::string current_source_digest, RgbaImageDigest(current_source_pixels));
+  if (current_source_digest != prepared.source_snapshot.content_digest) {
+    return absl::FailedPreconditionError(
+        "source artwork pixels changed while its redraw was being reviewed; retry");
+  }
+
+  ASSIGN_OR_RETURN(ParallaxArtworkRecipe * current_recipe,
+                   parallax_artwork_recipe_manager_->GetRecipe(prepared.recipe_snapshot.id));
+  if (ParallaxArtworkRecipeToJson(*current_recipe) !=
+      ParallaxArtworkRecipeToJson(prepared.recipe_snapshot)) {
+    return absl::FailedPreconditionError(
+        "parallax artwork recipe changed while its redraw was being reviewed; retry");
+  }
+
+  ASSIGN_OR_RETURN(Texture * current_texture,
+                   texture_manager_->GetTexture(prepared.texture_snapshot.id));
+  if (current_texture->id != prepared.texture_snapshot.id ||
+      current_texture->name != prepared.texture_snapshot.name ||
+      current_texture->path != prepared.texture_snapshot.path) {
+    return absl::FailedPreconditionError(
+        "generated texture definition changed while its redraw was being reviewed");
+  }
+  ASSIGN_OR_RETURN(const RgbaImage current_texture_pixels,
+                   texture_manager_->ReadTexturePixels(current_texture->id));
+  ASSIGN_OR_RETURN(const std::string current_texture_digest,
+                   RgbaImageDigest(current_texture_pixels));
+  if (current_texture_digest != prepared.texture_pixel_digest) {
+    return absl::FailedPreconditionError(
+        "generated texture pixels changed while its redraw was being reviewed");
+  }
+  if (prepared.updated_recipe.terrain_recipe_id.has_value()) {
+    RETURN_IF_ERROR(
+        terrain_recipe_manager_->GetRecipe(*prepared.updated_recipe.terrain_recipe_id).status());
+  }
+
+  RETURN_IF_ERROR(source_artwork_manager_->ReplaceArtwork(
+      prepared.source_snapshot, prepared.updated_source, prepared.updated_source_pixels));
+  const absl::Status recipe_status =
+      parallax_artwork_recipe_manager_->SaveRecipe(prepared.updated_recipe);
+  if (!recipe_status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add(
+        "restore retained source",
+        source_artwork_manager_->ReplaceArtwork(prepared.updated_source, prepared.source_snapshot,
+                                                prepared.source_pixels_snapshot));
+    return compensation.Report(recipe_status);
+  }
+
+  const RgbaImage& image = prepared.artwork.finished;
+  const absl::Status texture_status = texture_manager_->ReplaceTexturePixels(
+      prepared.texture_snapshot.id, image.width, image.height, image.pixels);
+  if (!texture_status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore recipe",
+                     parallax_artwork_recipe_manager_->SaveRecipe(prepared.recipe_snapshot));
+    compensation.Add(
+        "restore retained source",
+        source_artwork_manager_->ReplaceArtwork(prepared.updated_source, prepared.source_snapshot,
+                                                prepared.source_pixels_snapshot));
+    return compensation.Report(texture_status);
+  }
+  return absl::OkStatus();
+}
+
 }  // namespace zebes

@@ -3,6 +3,17 @@ add_library(api STATIC
   api.h
 )
 
+add_library(asset_root_lock asset_root_lock.cc)
+target_link_libraries(asset_root_lock
+  PUBLIC
+  absl::statusor
+  absl::time
+  PRIVATE
+  absl::cleanup
+  absl::status
+  absl::strings
+)
+
 add_library(asset_workspace asset_workspace.cc)
 target_link_libraries(asset_workspace
   PUBLIC
@@ -10,6 +21,7 @@ target_link_libraries(asset_workspace
   config
   texture_resource_store
   PRIVATE
+  asset_root_lock
   blueprint_manager
   collider_manager
   level_manager
@@ -46,6 +58,7 @@ target_link_libraries(api
   prepare_parallax_artwork_asset
   regenerate_prop_asset
   regenerate_parallax_artwork_asset
+  redraw_parallax_artwork_asset
   image_digest
   absl::status
   absl::statusor

@@ -6,7 +6,6 @@
 #include "absl/status/statusor.h"
 #include "editor/level_editor/viewport_model.h"
 #include "objects/camera.h"
-#include "objects/level.h"
 #include "objects/parallax_theme.h"
 
 namespace zebes {
@@ -54,14 +53,6 @@ absl::StatusOr<WorldRect> CalculateParallaxCompositionBounds(
 absl::StatusOr<std::vector<ParallaxElementBounds>> CalculateParallaxElementBounds(
     const ParallaxLayer& layer, const std::vector<ParallaxElementSize>& element_sizes);
 
-// Stable result of resolving the environment at a world-space reference
-// point. Later zones have priority when bounds overlap, matching their existing
-// draw order.
-struct ActiveParallaxZone {
-  int zone_id = -1;
-  std::string theme_id;
-};
-
 // Camera state that centers and fits a world-space rectangle.
 struct CameraFrame {
   Vec position;
@@ -69,13 +60,6 @@ struct CameraFrame {
 };
 
 VisibleWorldBounds CalculateVisibleWorldBounds(const Camera& camera);
-
-const ParallaxZone* FindParallaxZoneById(const std::vector<ParallaxZone>& zones, int zone_id);
-
-// Resolves one active zone using half-open bounds: min is inclusive and max is
-// exclusive. Viewport size and zoom do not affect the result.
-std::optional<ActiveParallaxZone> ResolveActiveParallaxZone(const std::vector<ParallaxZone>& zones,
-                                                            Vec reference_point);
 
 // Calculates a camera view that fits bounds with proportional screen padding.
 std::optional<CameraFrame> CalculateCameraFrame(VisibleWorldBounds bounds, int viewport_width,

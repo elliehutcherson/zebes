@@ -171,6 +171,111 @@ absl::StatusOr<std::string> SourceArtworkManager::CreateArtwork(std::string name
   return id;
 }
 
+absl::Status SourceArtworkManager::ReplaceArtwork(const SourceArtwork& expected,
+                                                  const SourceArtwork& replacement,
+                                                  const RgbaImage& replacement_pixels) {
+  RETURN_IF_ERROR(EnsureDirectories());
+  auto found = artwork_.find(expected.id);
+  if (found == artwork_.end()) {
+    return absl::NotFoundError(absl::StrCat("source artwork ", expected.id, " is not loaded"));
+  }
+  if (SourceArtworkToJson(*found->second) != SourceArtworkToJson(expected)) {
+    return absl::FailedPreconditionError("source artwork changed before it could be replaced");
+  }
+  RETURN_IF_ERROR(ReadArtworkPixels(expected.id).status());
+
+  RETURN_IF_ERROR(ValidateSourceArtwork(replacement));
+  if (!IsPathSafeResourceId(replacement.id) ||
+      replacement.source_path != RelativeImagePath(replacement.id)) {
+    return absl::InvalidArgumentError(
+        "replacement source artwork must keep its ID-backed source_art path");
+  }
+  if (replacement.id != expected.id || replacement.name != expected.name ||
+      replacement.source_path != expected.source_path) {
+    return absl::InvalidArgumentError(
+        "replacing source artwork cannot change its ID, name, or source path");
+  }
+  RETURN_IF_ERROR(ValidateSourceArtworkPixels(replacement_pixels, limits_));
+  if (replacement.width != replacement_pixels.width ||
+      replacement.height != replacement_pixels.height) {
+    return absl::InvalidArgumentError(
+        "replacement source artwork dimensions do not match its pixels");
+  }
+  ASSIGN_OR_RETURN(const std::string replacement_digest, RgbaImageDigest(replacement_pixels));
+  if (replacement.content_digest != replacement_digest) {
+    return absl::InvalidArgumentError(
+        "replacement source artwork digest does not match its pixels");
+  }
+
+  const std::string image_path = ImagePath(expected.id);
+  const std::string definition_path = DefinitionPath(expected.id);
+  const std::string temporary_image = absl::StrCat(image_path, ".replacing");
+  const std::string backup_image = absl::StrCat(image_path, ".replaced");
+  if (std::filesystem::exists(temporary_image) || std::filesystem::exists(backup_image)) {
+    return absl::FailedPreconditionError(
+        "source artwork has an unfinished replacement; resolve it before retrying");
+  }
+
+  RETURN_IF_ERROR(WritePng(temporary_image, replacement_pixels.width, replacement_pixels.height,
+                           replacement_pixels.pixels));
+  absl::Cleanup remove_temporary = [&temporary_image] {
+    std::error_code ignored;
+    std::filesystem::remove(temporary_image, ignored);
+  };
+
+  std::error_code error;
+  std::filesystem::rename(image_path, backup_image, error);
+  if (error) {
+    return absl::InternalError(
+        absl::StrCat("could not stage retained source replacement: ", error.message()));
+  }
+
+  const auto restore_prior_image = [&image_path, &backup_image]() -> absl::Status {
+    std::error_code remove_error;
+    std::filesystem::remove(image_path, remove_error);
+    if (remove_error) {
+      return absl::InternalError(absl::StrCat("could not discard failed replacement source image: ",
+                                              remove_error.message()));
+    }
+    std::error_code restore_error;
+    std::filesystem::rename(backup_image, image_path, restore_error);
+    if (restore_error) {
+      return absl::InternalError(
+          absl::StrCat("could not restore prior source image: ", restore_error.message()));
+    }
+    return absl::OkStatus();
+  };
+
+  std::filesystem::rename(temporary_image, image_path, error);
+  if (error) {
+    const std::string publish_error = error.message();
+    const absl::Status restore_status = restore_prior_image();
+    if (!restore_status.ok()) {
+      return absl::InternalError(
+          absl::StrCat("could not publish replacement source artwork image: ", publish_error, "; ",
+                       restore_status.message()));
+    }
+    return absl::InternalError(
+        absl::StrCat("could not publish replacement source artwork image: ", publish_error));
+  }
+  std::move(remove_temporary).Cancel();
+
+  const absl::Status definition_status =
+      WriteTextFileAtomically(definition_path, SourceArtworkToJson(replacement).dump(2));
+  if (!definition_status.ok()) {
+    const absl::Status restore_status = restore_prior_image();
+    if (!restore_status.ok()) {
+      return absl::Status(definition_status.code(), absl::StrCat(definition_status.message(), "; ",
+                                                                 restore_status.message()));
+    }
+    return definition_status;
+  }
+
+  *found->second = replacement;
+  std::filesystem::remove(backup_image, error);
+  return absl::OkStatus();
+}
+
 absl::StatusOr<SourceArtwork*> SourceArtworkManager::GetArtwork(const std::string& id) {
   auto found = artwork_.find(id);
   if (found == artwork_.end()) {

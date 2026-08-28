@@ -56,7 +56,7 @@ add_library(parallax_layout
   parallax_layout.cc
 )
 target_link_libraries(parallax_layout
-  PUBLIC level parallax_theme
+  PUBLIC parallax_theme
 )
 
 add_library(camera_guide

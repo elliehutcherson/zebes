@@ -1,0 +1,18 @@
+{
+  "content_digest": "1dc6174624bc33447aa1f24a3f40f8e1fd415d61c5943e8d1f0d10c07a156936",
+  "height": 941,
+  "id": "6011c6f4-2835-4010-9ead-e8fe5a23d519",
+  "name": "Catacombs Far Vault source",
+  "provenance": {
+    "generated_at_utc": "2026-08-27T01:28:46Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": null,
+    "revised_prompt": "Transparent 16:9 far-formation overlay for a side-view 16-bit science-fiction cave platformer: one distant vaulted ossuary of eroded ribs, shallow crypt alcoves, slim side pillars, sparse tiny skull motifs, a broad open middle tunnel, compatible asymmetric edge density, crisp stepped pixel clusters in a limited plum/indigo/slate/ochre palette, isolated over a perfectly uniform pure #FF00FF matte that appears nowhere in the art; no characters, creatures, spiders, text, UI, gore, torches, candles, gradients, matte variation, blur, photorealism, 3D rendering, giant skulls, picture frame, or repeated motif.",
+    "submitted_prompt": "Spooky 16-bit distant vaulted ossuary overlay: eroded ribs, crypt alcoves, slim pillars, tiny skull motifs, and a uniform #FF00FF removal matte."
+  },
+  "schema_version": 2,
+  "source_path": "source_art/6011c6f4-2835-4010-9ead-e8fe5a23d519.png",
+  "width": 1672
+}

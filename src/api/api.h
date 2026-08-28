@@ -6,6 +6,7 @@
 #include "artwork/prepare_parallax_artwork_asset.h"
 #include "artwork/prepare_prop_asset.h"
 #include "artwork/prop_recipe.h"
+#include "artwork/redraw_parallax_artwork_asset.h"
 #include "artwork/regenerate_parallax_artwork_asset.h"
 #include "artwork/regenerate_prop_asset.h"
 #include "artwork/source_artwork.h"
@@ -201,6 +202,10 @@ class Api {
   virtual absl::Status DeleteGeneratedParallaxArtwork(const std::string& recipe_id);
   virtual absl::Status RegenerateGeneratedParallaxArtwork(
       const PreparedParallaxArtworkRegeneration& prepared);
+  // Replaces retained source pixels and rebuilds their generated texture as
+  // one compensated transaction while preserving every resource ID.
+  virtual absl::Status RedrawGeneratedParallaxArtwork(
+      const PreparedParallaxArtworkRedraw& prepared);
 
  protected:
   // Allow default construction for mocks

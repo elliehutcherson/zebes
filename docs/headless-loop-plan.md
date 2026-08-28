@@ -9,10 +9,11 @@ with a `HeadlessTextureStore` in place of SDL, and `curate_assets` publishes
 atomic review bundles through the `CurationReviewer` registry
 (`src/curation/registry.h`). Do not redesign any of that.
 
-What is missing is coverage: an AI agent can *review* assets headlessly but
-cannot yet run the full **generate → review → commit → re-review** loop. This
-plan closes that loop in four phases. Each phase leaves the tool working end to
-end; land them in order.
+**Status: the production generate → review → commit → re-review loop is
+complete.** Source redraw, complete environment builds, and concurrent-agent
+catalog locking were added during the production Catacombs pass. The only
+unchecked item below is an optional project skill wrapper; the documented CLIs
+remain the supported automation contract and do not depend on that wrapper.
 
 ## Design decisions
 
@@ -88,7 +89,8 @@ without opening the editor.
       panel) to `src/generation/`. CMake targets, includes, and
       `docs/architecture.md` updated. No behavior change; existing tests move
       with the code.
-- [x] **`scripts/generate_assets.cc`.** Flags: `--kind`, `--recipe-id` (or
+- [x] **`scripts/generate_assets.cc`.** Flags: `--operation`, `--kind`,
+      `--recipe_id` or unique `--recipe_name` (or
       prompt inputs per kind), `--provider={openai,codex,fake}`, `--output`
       (must not exist; never replaced). Flow: build prompt →
       `ImageGenerationService` → `src/artwork/generated_artwork_postprocessor`

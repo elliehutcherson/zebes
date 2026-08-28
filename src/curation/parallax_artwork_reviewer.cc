@@ -12,6 +12,7 @@
 #include "api/source_artwork_retention.h"
 #include "artwork/parallax_artwork_recipe.h"
 #include "artwork/prepare_parallax_artwork_asset.h"
+#include "artwork/redraw_parallax_artwork_asset.h"
 #include "artwork/regenerate_parallax_artwork_asset.h"
 #include "artwork/repetition_review.h"
 #include "common/image_digest.h"
@@ -62,6 +63,38 @@ absl::StatusOr<PreparedParallaxArtworkRegeneration> PrepareCandidate(
                                             });
 }
 
+absl::StatusOr<PreparedParallaxArtworkRedraw> PrepareRedrawCandidate(
+    Api& api, const CurationReviewRequest& request,
+    const GeneratedParallaxArtworkRedrawCandidate& candidate) {
+  if (candidate.asset_id != request.asset_id) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("generated parallax artwork redraw ID '", candidate.asset_id,
+                     "' does not match selected ID '", request.asset_id, "'"));
+  }
+  ASSIGN_OR_RETURN(ParallaxArtworkRecipe * loaded_recipe,
+                   api.GetParallaxArtworkRecipe(candidate.asset_id));
+  if (loaded_recipe == nullptr) {
+    return absl::FailedPreconditionError("parallax artwork recipe lookup returned null");
+  }
+  const ParallaxArtworkRecipe recipe = *loaded_recipe;
+  ASSIGN_OR_RETURN(SourceArtwork * loaded_source, api.GetSourceArtwork(recipe.source_artwork_id));
+  ASSIGN_OR_RETURN(Texture * loaded_texture, api.GetTexture(recipe.texture_id));
+  if (loaded_source == nullptr || loaded_texture == nullptr) {
+    return absl::FailedPreconditionError("parallax artwork redraw input lookup returned null");
+  }
+  if (loaded_source->content_digest != candidate.expected_source_digest ||
+      recipe.final_pixel_digest != candidate.expected_final_pixel_digest) {
+    return absl::FailedPreconditionError(
+        "parallax artwork changed after this redraw candidate was created");
+  }
+  ASSIGN_OR_RETURN(RgbaImage source_pixels, api.ReadSourceArtworkPixels(loaded_source->id));
+  ASSIGN_OR_RETURN(RgbaImage replacement_pixels,
+                   ReadGeneratedAssetSourceCandidate(request.candidate_root, candidate.source));
+  ASSIGN_OR_RETURN(RgbaImage texture_pixels, api.ReadTexturePixels(loaded_texture->id));
+  return PrepareParallaxArtworkRedraw(*loaded_source, source_pixels, candidate.source.provenance,
+                                      replacement_pixels, recipe, *loaded_texture, texture_pixels);
+}
+
 SourceArtwork PreviewSource(const GeneratedParallaxArtworkCreationCandidate& candidate) {
   return SourceArtwork{
       .id = absl::StrCat(candidate.asset_id, "-source-preview"),
@@ -94,6 +127,33 @@ nlohmann::json EdgeDifferenceToJson(const OpposingEdgeDifference& difference) {
   };
 }
 
+struct LateralEdgeOccupancy {
+  int gutter_pixels = 0;
+  double left = 0.0;
+  double right = 0.0;
+};
+
+LateralEdgeOccupancy MeasureLateralEdgeOccupancy(const RgbaImage& image) {
+  const int gutter = std::max(1, std::min(64, image.width / 12));
+  size_t left_visible = 0;
+  size_t right_visible = 0;
+  for (int y = 0; y < image.height; ++y) {
+    for (int x = 0; x < gutter; ++x) {
+      const size_t left_alpha = (static_cast<size_t>(y) * image.width + x) * 4 + 3;
+      const size_t right_alpha =
+          (static_cast<size_t>(y) * image.width + image.width - 1 - x) * 4 + 3;
+      if (image.pixels[left_alpha] != 0) ++left_visible;
+      if (image.pixels[right_alpha] != 0) ++right_visible;
+    }
+  }
+  const double sample_count = static_cast<double>(gutter) * image.height;
+  return {
+      .gutter_pixels = gutter,
+      .left = left_visible / sample_count,
+      .right = right_visible / sample_count,
+  };
+}
+
 absl::StatusOr<RgbaImage> RenderDetail(const RgbaImage& texture) {
   const int width = std::clamp(texture.width, 640, 1280);
   const int height = std::clamp(texture.height, 360, 720);
@@ -123,6 +183,7 @@ absl::StatusOr<CurationReview> BuildReview(const ParallaxArtworkRecipe& recipe,
         "parallax artwork texture does not match its recipe dimensions or digest");
   }
   ASSIGN_OR_RETURN(const RepetitionDiagnostics repetition, AnalyzeRepetition(texture));
+  const LateralEdgeOccupancy occupancy = MeasureLateralEdgeOccupancy(texture);
   ASSIGN_OR_RETURN(RgbaImage detail, RenderDetail(texture));
 
   CurationReview review{
@@ -138,6 +199,10 @@ absl::StatusOr<CurationReview> BuildReview(const ParallaxArtworkRecipe& recipe,
               {"repetition",
                {{"horizontal", EdgeDifferenceToJson(repetition.horizontal)},
                 {"vertical", EdgeDifferenceToJson(repetition.vertical)}}},
+              {"lateral_edge_occupancy",
+               {{"gutter_pixels", occupancy.gutter_pixels},
+                {"left", occupancy.left},
+                {"right", occupancy.right}}},
           },
       .artifacts =
           {
@@ -182,9 +247,12 @@ absl::StatusOr<CurationReview> BuildReview(const ParallaxArtworkRecipe& recipe,
   if (requested_candidate.has_value()) {
     review.metadata["requested_recipe"] = *requested_candidate;
     const bool creation = IsGeneratedAssetCreationCandidate(*requested_candidate);
-    const bool exact = creation || *requested_candidate == ParallaxArtworkRecipeToJson(recipe);
+    const bool redraw = IsGeneratedAssetRedrawCandidate(*requested_candidate);
+    const bool exact =
+        creation || redraw || *requested_candidate == ParallaxArtworkRecipeToJson(recipe);
     review.metadata["candidate_matches_deterministic_output"] = exact;
-    review.metadata["candidate_operation"] = creation ? "create" : "regenerate";
+    review.metadata["candidate_operation"] =
+        creation ? "create" : (redraw ? "redraw" : "regenerate");
     if (!exact) {
       review.findings.push_back({
           .severity = CurationFindingSeverity::kWarning,
@@ -194,6 +262,20 @@ absl::StatusOr<CurationReview> BuildReview(const ParallaxArtworkRecipe& recipe,
                      "commit will refuse it",
       });
     }
+  }
+  const bool exact_horizontal_seam =
+      repetition.horizontal.exact_pixel_matches == repetition.horizontal.pixels_compared &&
+      repetition.horizontal.maximum_channel_difference == 0;
+  if (recipe.pipeline.alpha_role == ParallaxArtworkAlphaRole::kTransparentOverlay &&
+      !exact_horizontal_seam && (occupancy.left > 0.1 || occupancy.right > 0.1)) {
+    review.findings.push_back({
+        .severity = CurationFindingSeverity::kWarning,
+        .code = "hard-horizontal-edge",
+        .subject = recipe.name,
+        .message =
+            "visible pixels occupy more than 10% of a lateral review gutter; taper the formation "
+            "into transparency or use it only where the edge is guaranteed to remain hidden",
+    });
   }
   review.findings.push_back({
       .severity = CurationFindingSeverity::kInfo,
@@ -238,6 +320,13 @@ absl::StatusOr<CurationReview> ParallaxArtworkReviewer::ReviewCandidate(
         PrepareParallaxArtworkAsset(PreviewSource(candidate), pixels, CreationRequest(candidate)));
     return BuildReview(prepared.recipe, prepared.artwork.finished, candidate_json);
   }
+  if (IsGeneratedAssetRedrawCandidate(candidate_json)) {
+    ASSIGN_OR_RETURN(const GeneratedParallaxArtworkRedrawCandidate candidate,
+                     GeneratedParallaxArtworkRedrawCandidateFromJson(candidate_json));
+    ASSIGN_OR_RETURN(PreparedParallaxArtworkRedraw prepared,
+                     PrepareRedrawCandidate(api, request, candidate));
+    return BuildReview(prepared.updated_recipe, prepared.artwork.finished, candidate_json);
+  }
   ASSIGN_OR_RETURN(const ParallaxArtworkRecipe candidate, ParseCandidate(request, candidate_json));
   ASSIGN_OR_RETURN(PreparedParallaxArtworkRegeneration prepared, PrepareCandidate(api, candidate));
   return BuildReview(prepared.updated_recipe, prepared.artwork.finished, candidate_json);
@@ -266,6 +355,13 @@ absl::Status ParallaxArtworkReviewer::CommitCandidate(Api& api,
                  return api.CreateGeneratedParallaxArtwork(prepared).status();
                })
         .status();
+  }
+  if (IsGeneratedAssetRedrawCandidate(candidate_json)) {
+    ASSIGN_OR_RETURN(const GeneratedParallaxArtworkRedrawCandidate candidate,
+                     GeneratedParallaxArtworkRedrawCandidateFromJson(candidate_json));
+    ASSIGN_OR_RETURN(PreparedParallaxArtworkRedraw prepared,
+                     PrepareRedrawCandidate(api, request, candidate));
+    return api.RedrawGeneratedParallaxArtwork(prepared);
   }
   ASSIGN_OR_RETURN(const ParallaxArtworkRecipe candidate, ParseCandidate(request, candidate_json));
   ASSIGN_OR_RETURN(PreparedParallaxArtworkRegeneration prepared, PrepareCandidate(api, candidate));

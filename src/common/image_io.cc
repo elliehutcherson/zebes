@@ -15,12 +15,19 @@
 #include "stb_image_write.h"
 
 namespace zebes {
+namespace {
 
-absl::Status WritePng(const std::string& path, int width, int height,
-                      absl::Span<const uint8_t> pixels) {
+void AppendEncodedBytes(void* context, void* data, int size) {
+  auto* output = static_cast<std::vector<uint8_t>*>(context);
+  const auto* bytes = static_cast<const uint8_t*>(data);
+  output->insert(output->end(), bytes, bytes + size);
+}
+
+absl::Status ValidateRgbaPixels(int width, int height, absl::Span<const uint8_t> pixels,
+                                std::string_view operation) {
   if (width <= 0 || height <= 0) {
     return absl::InvalidArgumentError(
-        absl::StrCat("cannot write a ", width, "x", height, " image"));
+        absl::StrCat("cannot ", operation, " a ", width, "x", height, " image"));
   }
   const size_t expected = static_cast<size_t>(width) * height * 4;
   if (pixels.size() != expected) {
@@ -28,6 +35,15 @@ absl::Status WritePng(const std::string& path, int width, int height,
                                                    "x", height, " RGBA image, got ",
                                                    pixels.size()));
   }
+  return absl::OkStatus();
+}
+
+}  // namespace
+
+absl::Status WritePng(const std::string& path, int width, int height,
+                      absl::Span<const uint8_t> pixels) {
+  const absl::Status valid = ValidateRgbaPixels(width, height, pixels, "write");
+  if (!valid.ok()) return valid;
 
   const std::filesystem::path target(path);
   if (target.has_parent_path()) {
@@ -43,6 +59,18 @@ absl::Status WritePng(const std::string& path, int width, int height,
     return absl::InternalError(absl::StrCat("failed to write PNG: ", path));
   }
   return absl::OkStatus();
+}
+
+absl::StatusOr<std::vector<uint8_t>> EncodePng(const RgbaImage& image) {
+  const absl::Status valid = ValidateRgbaPixels(image.width, image.height, image.pixels, "encode");
+  if (!valid.ok()) return valid;
+  std::vector<uint8_t> output;
+  if (stbi_write_png_to_func(AppendEncodedBytes, &output, image.width, image.height, 4,
+                             image.pixels.data(), image.width * 4) == 0 ||
+      output.empty()) {
+    return absl::InternalError("failed to encode PNG");
+  }
+  return output;
 }
 
 absl::StatusOr<RgbaImage> ReadPng(const std::string& path) {

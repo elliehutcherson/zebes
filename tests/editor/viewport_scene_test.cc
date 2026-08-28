@@ -300,6 +300,28 @@ TEST(ViewportSceneParallaxTest, BindsTexturesInAuthoredLayerAndElementOrder) {
   EXPECT_EQ(batch->layers[2].elements[0].texture, forest);
 }
 
+TEST(ViewportSceneParallaxTest, PreservesValidOpacityAndRejectsInvalidOpacity) {
+  int texture_owner = 0;
+  const TextureHandle texture = TextureHandleAccess::Create(1, &texture_owner);
+  const ParallaxTheme theme{
+      .layers = {ParallaxLayerWithTexture("Fill", "fill", {0.5, 0.5})},
+  };
+  const Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
+  const std::map<std::string, TextureHandle> textures{{"fill", texture}};
+
+  ASSERT_OK_AND_ASSIGN(const ParallaxRenderBatch batch,
+                       ComposeParallaxRenderBatch(theme, camera, textures, {.opacity = 0.375}));
+
+  EXPECT_DOUBLE_EQ(batch.opacity, 0.375);
+  EXPECT_EQ(ComposeParallaxRenderBatch(theme, camera, textures, {.opacity = -0.1}).status().code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(ComposeParallaxRenderBatch(theme, camera, textures,
+                                       {.opacity = std::numeric_limits<double>::infinity()})
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
 TEST(ViewportSceneParallaxTest, RejectsMissingTexturesAndInvalidGeometry) {
   Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
   ParallaxTheme theme{

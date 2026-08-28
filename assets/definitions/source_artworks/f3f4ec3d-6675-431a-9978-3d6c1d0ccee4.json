@@ -1,0 +1,18 @@
+{
+  "content_digest": "90af3f7585814ee8aca4225e9f410522f7e793f7ce2a73b887bdb2e461dd9c41",
+  "height": 941,
+  "id": "f3f4ec3d-6675-431a-9978-3d6c1d0ccee4",
+  "name": "Catacombs Far Arcade source",
+  "provenance": {
+    "generated_at_utc": "2026-08-27T01:28:46Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": null,
+    "revised_prompt": "Transparent 16:9 far-formation overlay for a side-view 16-bit science-fiction cave platformer: one distant low catacomb arcade of broken pillars, burial arches, sparse tiny skull niches, large silhouette gaps, open upper center, compatible low stone shapes at both horizontal edges, crisp stepped pixel clusters in a limited plum/indigo/slate/ochre palette, isolated over a perfectly uniform pure #FF00FF matte that appears nowhere in the art; no characters, creatures, text, UI, gore, torches, candles, gradients, matte variation, blur, photorealism, 3D rendering, giant skulls, opaque wall, or mirrored symmetry.",
+    "submitted_prompt": "Spooky 16-bit distant catacomb arcade overlay: broken pillars, burial arches, tiny skull niches, and a uniform #FF00FF removal matte."
+  },
+  "schema_version": 2,
+  "source_path": "source_art/f3f4ec3d-6675-431a-9978-3d6c1d0ccee4.png",
+  "width": 1672
+}

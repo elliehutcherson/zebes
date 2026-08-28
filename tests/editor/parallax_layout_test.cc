@@ -197,47 +197,6 @@ TEST(ParallaxLayoutTest, CompositionBoundsIncludePositionAndScale) {
   EXPECT_DOUBLE_EQ(bounds.max.y, 50);
 }
 
-TEST(ParallaxLayoutTest, ActiveZoneUsesReferencePointInsteadOfViewportOverlap) {
-  std::vector<ParallaxZone> zones{{
-      .id = 7,
-      .theme_id = "theme-3",
-      .min_point = {0, 1024},
-      .max_point = {8192, 2048},
-  }};
-
-  EXPECT_FALSE(ResolveActiveParallaxZone(zones, {400, 300}).has_value());
-
-  std::optional<ActiveParallaxZone> active = ResolveActiveParallaxZone(zones, {400, 1200});
-  ASSERT_TRUE(active.has_value());
-  EXPECT_EQ(active->zone_id, 7);
-  EXPECT_EQ(active->theme_id, "theme-3");
-}
-
-TEST(ParallaxLayoutTest, ActiveZoneUsesHalfOpenBounds) {
-  std::vector<ParallaxZone> zones{
-      {.id = 1, .theme_id = "theme-10", .min_point = {0, 0}, .max_point = {100, 100}},
-      {.id = 2, .theme_id = "theme-20", .min_point = {100, 0}, .max_point = {200, 100}},
-  };
-
-  std::optional<ActiveParallaxZone> active = ResolveActiveParallaxZone(zones, {100, 50});
-
-  ASSERT_TRUE(active.has_value());
-  EXPECT_EQ(active->zone_id, 2);
-}
-
-TEST(ParallaxLayoutTest, LaterOverlappingZoneHasPriority) {
-  std::vector<ParallaxZone> zones{
-      {.id = 1, .theme_id = "theme-10", .min_point = {0, 0}, .max_point = {200, 200}},
-      {.id = 2, .theme_id = "theme-20", .min_point = {50, 50}, .max_point = {150, 150}},
-  };
-
-  std::optional<ActiveParallaxZone> active = ResolveActiveParallaxZone(zones, {100, 100});
-
-  ASSERT_TRUE(active.has_value());
-  EXPECT_EQ(active->zone_id, 2);
-  EXPECT_EQ(active->theme_id, "theme-20");
-}
-
 TEST(ParallaxLayoutTest, CameraFrameCentersAndFitsBoundsWithPadding) {
   std::optional<CameraFrame> frame =
       CalculateCameraFrame({.min = {100, 200}, .max = {500, 400}}, 1000, 800, 0.1);
@@ -273,9 +232,6 @@ TEST(ParallaxLayoutTest, ConstrainedFrameKeepsLongHorizontalZoneCenterInsideWorl
   EXPECT_GE(visible.min.y, world.min.y);
   EXPECT_LE(visible.max.x, world.max.x);
   EXPECT_LE(visible.max.y, world.max.y);
-
-  ParallaxZone active_zone{.id = 1, .min_point = zone.min, .max_point = zone.max};
-  ASSERT_TRUE(ResolveActiveParallaxZone({active_zone}, frame->position).has_value());
 }
 
 TEST(ParallaxLayoutTest, ConstrainedFrameKeepsTallVerticalZoneCenterInsideWorld) {
@@ -298,9 +254,6 @@ TEST(ParallaxLayoutTest, ConstrainedFrameKeepsTallVerticalZoneCenterInsideWorld)
   EXPECT_GE(visible.min.y, world.min.y);
   EXPECT_LE(visible.max.x, world.max.x);
   EXPECT_LE(visible.max.y, world.max.y);
-
-  ParallaxZone active_zone{.id = 2, .min_point = zone.min, .max_point = zone.max};
-  ASSERT_TRUE(ResolveActiveParallaxZone({active_zone}, frame->position).has_value());
 }
 
 TEST(ParallaxLayoutTest, ConstrainedFrameRejectsInvalidWorldBounds) {

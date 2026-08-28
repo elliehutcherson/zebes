@@ -1,0 +1,18 @@
+{
+  "content_digest": "1754ee87ea31cd9557c6d6bd7804a303a97a83e1adfda2079880c6b2f9556a69",
+  "height": 941,
+  "id": "a2941698-719a-4380-be13-3d9a925c2349",
+  "name": "Catacombs Near Webbed Ceiling source",
+  "provenance": {
+    "generated_at_utc": "2026-08-28T00:39:58Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": null,
+    "revised_prompt": null,
+    "submitted_prompt": "Edit IMAGE 1 only. IMAGE 1 is the target Catacombs Near Webbed Ceiling source artwork. IMAGE 2 is the immediate LEFT-neighbor continuity reference, Catacombs Near Structural Shell. IMAGE 3 is the immediate RIGHT-neighbor continuity reference, Catacombs Near Skull Pillars. Create a production-quality replacement for IMAGE 1 as a reusable 16:9 side-view pixel-art parallax overlay. Preserve its identity: an asymmetric crumbling catacomb ceiling vault with gothic arch ribs, hanging stone, skull reliefs, and layered spider webs, with the lower majority open. Preserve the approximate composition and visual weight of the target, but make it belong to the exact same environment as both references. Match both references cool indigo, midnight blue, slate, bone-gray highlight palette; remove the warmer brown/gold cast. Match their stone-block scale, pixel density, top-down cool lighting, contrast, and gothic masonry vocabulary. On the LEFT 10 percent gutter, taper the ceiling into irregular broken blocks, thin web strands, and small isolated fragments that can overlap IMAGE 2. Do not place an opaque vertical boundary. On the RIGHT 10 percent gutter, replace the current tall cutoff wall with broken arch ribs, recessed gaps, wispy cobweb ends, and a few separated rubble fragments that can overlap IMAGE 3. No straight vertical silhouette and no content touching the right border as one continuous mass. Keep a coherent ceiling datum across the upper band so the target visually continues from IMAGE 2, and echo the column-cap and rib shapes of IMAGE 3 near the right transition without copying its pillars. Make edge features sparse and feathered through silhouette, not blur or transparency gradients. Output only the revised target artwork, not a contact sheet and not the reference images. Keep the 16:9 canvas and the target native pixel-art character. Use a perfectly uniform pure #FF00FF background matte everywhere outside the artwork. This magenta must appear nowhere inside the artwork. Crisp hard-edged pixels, no antialiasing, no blur, no smooth gradients, no photorealism, no 3D rendering. No characters, creatures, visible spiders, text, UI, watermark, frame, torches, candles, gore, giant skull, or mirrored symmetry."
+  },
+  "schema_version": 2,
+  "source_path": "source_art/a2941698-719a-4380-be13-3d9a925c2349.png",
+  "width": 1672
+}

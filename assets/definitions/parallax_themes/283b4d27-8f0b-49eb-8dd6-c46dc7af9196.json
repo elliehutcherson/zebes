@@ -1,0 +1,96 @@
+{
+  "schema_version": 2,
+  "id": "283b4d27-8f0b-49eb-8dd6-c46dc7af9196",
+  "name": "Catacombs - Webbed Gallery",
+  "layers": [
+    {
+      "name": "Catacombs Far Fill",
+      "scroll_factor_x": 0.04,
+      "scroll_factor_y": 0.03,
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_period_x": 960.0,
+      "repeat_period_y": 540.0,
+      "elements": [
+        {
+          "id": 0,
+          "name": "Catacombs Far Fill",
+          "texture_id": "86f4a851-dad0-4e9d-b4e1-f352a03d5578",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Catacombs Far Formations",
+      "scroll_factor_x": 0.16,
+      "scroll_factor_y": 0.08,
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_period_x": 1920.0,
+      "repeat_period_y": 540.0,
+      "elements": [
+        {
+          "id": 0,
+          "name": "Broken Arcade",
+          "texture_id": "3d5b3cd4-9574-4d00-b879-3125e13d0156",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0
+        },
+        {
+          "id": 1,
+          "name": "Vaulted Ossuary",
+          "texture_id": "755172e5-b425-469b-a4ac-7dd9f54cf4ed",
+          "position_x": 960.0,
+          "position_y": 0.0,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Catacombs Near Formations",
+      "scroll_factor_x": 0.45,
+      "scroll_factor_y": 0.22,
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "repeat_period_x": 3840.0,
+      "repeat_period_y": 540.0,
+      "elements": [
+        {
+          "id": 0,
+          "name": "Webbed Gate",
+          "texture_id": "1f5f514c-596b-4385-8256-cbec30d3e779",
+          "position_x": 0.0,
+          "position_y": 0.0,
+          "scale": 1.0
+        },
+        {
+          "id": 1,
+          "name": "Ossuary Ridge",
+          "texture_id": "7307c5a4-fab7-4cce-8c8c-74dd84b40d0e",
+          "position_x": 960.0,
+          "position_y": 0.0,
+          "scale": 1.0
+        },
+        {
+          "id": 2,
+          "name": "Skull Pillars",
+          "texture_id": "ffaeb425-6a78-45d2-a43f-3655b1c0a6fe",
+          "position_x": 1920.0,
+          "position_y": 0.0,
+          "scale": 1.0
+        },
+        {
+          "id": 3,
+          "name": "Webbed Ceiling",
+          "texture_id": "1126b84f-acf0-45f3-8493-ec549861619b",
+          "position_x": 2880.0,
+          "position_y": 0.0,
+          "scale": 1.0
+        }
+      ]
+    }
+  ]
+}

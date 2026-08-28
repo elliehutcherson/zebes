@@ -114,6 +114,8 @@ class MockApi : public Api {
   MOCK_METHOD(absl::Status, DeleteGeneratedParallaxArtwork, (const std::string&), (override));
   MOCK_METHOD(absl::Status, RegenerateGeneratedParallaxArtwork,
               (const PreparedParallaxArtworkRegeneration&), (override));
+  MOCK_METHOD(absl::Status, RedrawGeneratedParallaxArtwork, (const PreparedParallaxArtworkRedraw&),
+              (override));
 
   // Routes every recipe call to a real manager, for tests that care whether a
   // recipe actually round-trips to disk rather than that a call was made.

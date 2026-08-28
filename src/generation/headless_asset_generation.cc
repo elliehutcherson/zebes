@@ -34,6 +34,7 @@ constexpr absl::Duration kGenerationTimeout = absl::Minutes(10);
 constexpr char kCandidateFilename[] = "candidate.json";
 constexpr char kOriginalFilename[] = "generated-source.png";
 constexpr char kProcessedFilename[] = "processed-source.png";
+constexpr char kReferenceFilename[] = "reference-source.png";
 constexpr char kManifestFilename[] = "manifest.json";
 
 struct CandidatePlan {
@@ -69,6 +70,15 @@ std::string ParallaxInstructions(const ParallaxArtworkRecipe& recipe,
                                : kNonRepeatingHorizontalGenerationGuidance;
   return absl::StrCat(kDefaultParallaxGenerationInstructions, "\n\n", role, "\n",
                       kDefaultBackgroundPaletteGuidance, "\n", repetition);
+}
+
+std::string ParallaxRedrawInstructions(const ParallaxArtworkRecipe& recipe,
+                                       const ImageGenerationCapabilities& capabilities) {
+  return absl::StrCat(
+      ParallaxInstructions(recipe, capabilities),
+      "\n\nEdit the supplied reference image. Preserve its subject identity, palette, pixel-art "
+      "language, lighting, scale, and layer role. Change only what the subject request asks for; "
+      "do not replace it with an unrelated composition.");
 }
 
 absl::StatusOr<CandidatePlan> BuildPlan(Api& api, ImageGenerationService& service,
@@ -286,6 +296,139 @@ absl::StatusOr<HeadlessAssetGenerationResult> GenerateAssetCandidateBundle(
       }));
   return HeadlessAssetGenerationResult{
       .asset_id = plan.asset_id,
+      .candidate_path = (std::filesystem::path(request.output_path) / kCandidateFilename).string(),
+      .manifest_path = (std::filesystem::path(request.output_path) / kManifestFilename).string(),
+  };
+}
+
+absl::Status ValidateHeadlessAssetRedrawRequest(const HeadlessAssetRedrawRequest& request) {
+  if (request.asset_id.empty() || request.prompt.empty() || request.output_path.empty()) {
+    return absl::InvalidArgumentError(
+        "headless redraw asset ID, prompt, and output must be non-empty");
+  }
+  return ValidateNewDirectoryDestination(request.output_path);
+}
+
+absl::StatusOr<HeadlessAssetGenerationResult> GenerateAssetRedrawCandidateBundle(
+    Api& api, ImageGenerationService& service, const HeadlessAssetRedrawRequest& request) {
+  RETURN_IF_ERROR(ValidateHeadlessAssetRedrawRequest(request));
+  const ImageGenerationCapabilities capabilities = service.engine().Capabilities();
+  if (!capabilities.supports_reference_image) {
+    return absl::FailedPreconditionError(
+        "selected image provider does not support reference-image redraws");
+  }
+
+  ASSIGN_OR_RETURN(ParallaxArtworkRecipe * loaded_recipe,
+                   api.GetParallaxArtworkRecipe(request.asset_id));
+  if (loaded_recipe == nullptr) {
+    return absl::FailedPreconditionError("parallax artwork recipe lookup returned null");
+  }
+  const ParallaxArtworkRecipe recipe = *loaded_recipe;
+  RETURN_IF_ERROR(ValidateParallaxArtworkRecipe(recipe));
+  ASSIGN_OR_RETURN(SourceArtwork * loaded_source, api.GetSourceArtwork(recipe.source_artwork_id));
+  if (loaded_source == nullptr) {
+    return absl::FailedPreconditionError("parallax artwork source lookup returned null");
+  }
+  const SourceArtwork source = *loaded_source;
+  ASSIGN_OR_RETURN(RgbaImage reference, api.ReadSourceArtworkPixels(source.id));
+  ASSIGN_OR_RETURN(const std::string reference_digest, RgbaImageDigest(reference));
+  if (source.width != reference.width || source.height != reference.height ||
+      source.content_digest != reference_digest) {
+    return absl::FailedPreconditionError(
+        "retained source pixels do not match their source artwork definition");
+  }
+  ASSIGN_OR_RETURN(RgbaImage texture, api.ReadTexturePixels(recipe.texture_id));
+  ASSIGN_OR_RETURN(const std::string texture_digest, RgbaImageDigest(texture));
+  if (recipe.final_pixel_digest != texture_digest) {
+    return absl::FailedPreconditionError(
+        "generated parallax pixels do not match their recipe definition");
+  }
+
+  ImageGenerationSpec spec{
+      .prompt = request.prompt,
+      .instructions = ParallaxRedrawInstructions(recipe, capabilities),
+      .requested_candidates = 1,
+      .target_aspect = {.width = recipe.pipeline.target_width,
+                        .height = recipe.pipeline.target_height},
+      .transparency = recipe.pipeline.alpha_role == ParallaxArtworkAlphaRole::kTransparentOverlay &&
+                              capabilities.supports_transparency
+                          ? ImageTransparencyPreference::kPreferTransparent
+                          : ImageTransparencyPreference::kNoPreference,
+      .reference_image = reference,
+  };
+  ASSIGN_OR_RETURN(ImageGenerationResult generated, AwaitGeneration(service, std::move(spec)));
+  RETURN_IF_ERROR(ValidateImageGenerationResult(generated));
+  if (generated.candidates.size() != 1) {
+    return absl::FailedPreconditionError("headless redraw requires exactly one provider candidate");
+  }
+  ImageGenerationCandidate provider_candidate = std::move(generated.candidates.front());
+  ASSIGN_OR_RETURN(GeneratedArtworkPostprocessResult processed,
+                   PostprocessGeneratedArtwork(provider_candidate.image, std::vector<RgbaColor>{},
+                                               PreservationConfig(provider_candidate.image)));
+  ASSIGN_OR_RETURN(const std::string original_digest, RgbaImageDigest(provider_candidate.image));
+  ASSIGN_OR_RETURN(const std::string processed_digest, RgbaImageDigest(processed.finished));
+  const GeneratedParallaxArtworkRedrawCandidate candidate{
+      .asset_id = recipe.id,
+      .expected_source_digest = reference_digest,
+      .expected_final_pixel_digest = texture_digest,
+      .source =
+          {
+              .relative_path = kProcessedFilename,
+              .width = processed.finished.width,
+              .height = processed.finished.height,
+              .content_digest = processed_digest,
+              .provenance =
+                  {
+                      .provider = generated.provider,
+                      .model = generated.model,
+                      .submitted_prompt = generated.submitted_prompt,
+                      .revised_prompt = provider_candidate.revised_prompt,
+                      .provider_request_id = generated.provider_request_id,
+                      .generated_at_utc = CurrentUtcTimestamp(),
+                  },
+          },
+  };
+  const nlohmann::json candidate_json = GeneratedParallaxArtworkRedrawCandidateToJson(candidate);
+  RETURN_IF_ERROR(GeneratedParallaxArtworkRedrawCandidateFromJson(candidate_json).status());
+  const nlohmann::json manifest{
+      {"schema_version", 1},
+      {"bundle", "generated-asset-redraw-candidate"},
+      {"kind", "parallax-artwork"},
+      {"asset_id", recipe.id},
+      {"candidate", kCandidateFilename},
+      {"base", {{"source_rgba_sha256", reference_digest}, {"final_rgba_sha256", texture_digest}}},
+      {"artifacts",
+       {{{"id", "reference-source"},
+         {"path", kReferenceFilename},
+         {"rgba_sha256", reference_digest},
+         {"width", reference.width},
+         {"height", reference.height}},
+        {{"id", "generated-source"},
+         {"path", kOriginalFilename},
+         {"rgba_sha256", original_digest},
+         {"width", provider_candidate.image.width},
+         {"height", provider_candidate.image.height}},
+        {{"id", "processed-source"},
+         {"path", kProcessedFilename},
+         {"rgba_sha256", processed_digest},
+         {"width", processed.finished.width},
+         {"height", processed.finished.height}}}},
+  };
+
+  RETURN_IF_ERROR(PublishNewDirectoryAtomically(
+      request.output_path, [&](const std::filesystem::path& staging) -> absl::Status {
+        RETURN_IF_ERROR(WritePng((staging / kReferenceFilename).string(), reference.width,
+                                 reference.height, reference.pixels));
+        RETURN_IF_ERROR(WritePng((staging / kOriginalFilename).string(),
+                                 provider_candidate.image.width, provider_candidate.image.height,
+                                 provider_candidate.image.pixels));
+        RETURN_IF_ERROR(WritePng((staging / kProcessedFilename).string(), processed.finished.width,
+                                 processed.finished.height, processed.finished.pixels));
+        RETURN_IF_ERROR(WriteJson(staging / kCandidateFilename, candidate_json));
+        return WriteJson(staging / kManifestFilename, manifest);
+      }));
+  return HeadlessAssetGenerationResult{
+      .asset_id = recipe.id,
       .candidate_path = (std::filesystem::path(request.output_path) / kCandidateFilename).string(),
       .manifest_path = (std::filesystem::path(request.output_path) / kManifestFilename).string(),
   };

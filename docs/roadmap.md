@@ -13,7 +13,7 @@ phase has decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
-| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — the generated-artwork vertical slice is accepted; Milestone 5 zone fades are the next engineering work, while final cave-kit curation remains a non-blocking content pass |
+| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 5 zone fades are accepted; the horizontal Catacombs baseline is usable, while vertical-space content and the broader cave prop/decal pass remain |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -187,20 +187,39 @@ composed-Near, level-layer, zone-assignment, and route-scrubbing gates, that
 completes the end-to-end engineering slice. Provider failure and compensated
 persistence remain covered at their platform-neutral boundaries.
 
-**Environment artwork next engineering work — Milestone 5 zone fades.** Final
-cave-kit palette, silhouette, prop, and composition curation remains useful
-production content work, but it is not missing engine infrastructure and does
-not block fades. The pre-pilot Near candidates remain test content and should
-be palette-normalized or replaced during that independent content pass; do not
-fold art polish back into generation infrastructure. That pass now has a
+**Environment artwork zone fades — accepted.** The platform-neutral resolver,
+strict unsupported-geometry validation, explicit renderer opacity, editor
+authoring, preview composition, and weight readout are implemented. The live
+`Cave` review accepted the asymmetric Webbed Gallery → Ossuary Descent blend at
+their saved boundary and confirmed that Selected Zone isolates either theme.
+The exact geometry and weights are recorded in
+[`zone-fades-plan.md`](zone-fades-plan.md).
+
+**Production Catacombs baseline — usable horizontal pass.** Catacombs
+Processional is the versioned production horizontal level and theme. Its Near
+strip uses four 960-pixel formations with 96-pixel neighbour and wrap overlaps;
+Webbed Ceiling, Skull Pillars, and Ossuary Ridge were redrawn against their
+actual adjacent sources while preserving all managed IDs. Complete-theme route
+reviews at 0.5×, 1×, and 2× support the accepted visual pass. The broader cave
+prop/decal kit, vertical-space composition, and zoomed-out finite-layer coverage
+warnings remain independent content work rather than reasons to weaken the
+generation pipeline. This pass has a
 first-party headless generation and review loop: the shared `AssetWorkspace`
 loads the same catalogs as the editor; `generate_assets` publishes atomic,
 strict new-asset candidates through OpenAI, Codex, or a credential-free fake;
 and `curate_assets` emits deterministic evidence for parallax artwork/themes,
 props, sprites, terrain, and tilesets. Generated pixels retain a new source and
 commit through the existing compensated creation transaction. Existing assets
-remain settings-only recipe regeneration with unchanged source identity and
-digest. See [`headless-curation.md`](headless-curation.md).
+support settings-only recipe regeneration and a guarded parallax source-redraw
+candidate. Redraw preserves source, recipe, and texture identities while
+advancing source provenance and both pixel digests together; transparent
+formations also report lateral-gutter occupancy and warn on hard exposed
+edges. Provider-backed redraw now uses the retained reference image directly
+and refuses stale candidates. Complete environments are authored through a
+versioned name-resolved specification and generic builder; asset-root shared/
+exclusive locks make catalog loads and commits safe across concurrent agents.
+The production Catacombs Processional spec replaces its one-off C++ authoring
+program. See [`headless-curation.md`](headless-curation.md).
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved
@@ -295,17 +314,19 @@ composition, and retained background recipes are implemented and accepted.
 Milestone 3 shares generation-request and candidate-review ownership between
 Prop and Parallax Artwork and exposes generated parallax candidates through
 the same retained-source path; its automated and live human gates are accepted.
-Milestone 4 curates those workflows into the first production cave kit as an
-independent content pass; Milestone 5 zone fades are the next engine work. The
+Milestone 4 now includes the usable horizontal Catacombs Processional baseline
+and continues as an independent vertical-space and prop/decal content pass.
+Milestone 5 zone fades pass both their automated and live visual gates. The
 document is also the source of truth for migration, validation, and the human
 authoring workflow.
 
-**`ParallaxZone::fade_length`** — authored, serialized, exposed in the editor,
-and ignored. It is not currently checked by `ValidateLevel`, despite an earlier
-version of this roadmap calling it validated. `ResolveActiveParallaxZone`
-returns one zone by a half-open bounds test, so every transition is a hard cut.
-The supported two-theme fade contract, validation, and implementation sequence
-now live in [`environment-artwork-plan.md`](environment-artwork-plan.md).
+**`ParallaxZone::fade_length`** — authored, serialized, editable, intrinsically
+and cross-zone validated, and rendered through the two-theme compositor.
+`ResolveParallaxEnvironment` preserves the half-open active zone while
+returning a stable primary/secondary pair and weight across supported exact
+shared edges. The supported two-theme fade contract lives in
+[`environment-artwork-plan.md`](environment-artwork-plan.md); its detailed
+implementation sequence is [`zone-fades-plan.md`](zone-fades-plan.md).
 
 **Smaller, already recorded:**
 

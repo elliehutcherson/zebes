@@ -21,6 +21,9 @@ imgui.ini
 # Scratch directories that tests create and populate at run time
 test_data/
 
+# Cross-process authoring locks contain per-machine process metadata.
+.zebes/
+
 # Claude Code's per-machine permission allowlist. The rest of .claude/ is
 # checked in; this file accumulates absolute paths from whoever ran the tool.
 .claude/settings.local.json

@@ -251,6 +251,20 @@ retained only inside the compensated new-asset transaction after review. See
 [`headless-curation.md`](headless-curation.md) for the command and extension
 contract.
 
+`AssetWorkspace` also owns the cross-process catalog snapshot boundary. A
+reader holds a shared asset-root lock while all managers load and releases it
+after `Api` validation; a writer acquires the exclusive form before loading and
+holds it until every borrowing manager is destroyed. This lets generation and
+review agents run concurrently while preventing a writer from committing an
+in-memory catalog that became stale while it waited.
+
+Complete level/theme authoring uses the versioned `EnvironmentBuildSpec` and
+generic `build_environment` composition root. Specifications resolve unique
+resource names to manager-owned IDs, assign only local ordered IDs, and upsert
+themes and levels without exposing GUID allocation to scripts. The production
+Catacombs spec under `assets/authoring/environments/` is the source of truth;
+there is no environment-specific C++ executable.
+
 Level viewport authoring rules live in the platform-neutral `ViewportModel`
 module. Entity picking and construction, stable ID allocation, tile mutation,
 and grid snapping do not depend on ImGui, SDL, or `Api`. `ViewportTab` resolves
@@ -364,22 +378,28 @@ encoding belongs to the level domain because it is serialized and validated;
 terrain neighbourhood queries receive one layer explicitly and never connect
 cells across depth slices.
 
-Parallax-zone activation is also a pure editor/runtime rule: resolve one zone
-from a world-space reference point, currently the camera center, resolve its
-theme resource ID through the catalog, and then render that immutable theme
-snapshot. Viewport intersection and zoom must not change the active environment.
-Zone outlines are editor gizmos and are rendered independently. Zone selections
-use stable zone IDs; selecting or explicitly framing a zone may move the editor
-camera without changing activation semantics.
+Parallax-zone activation and fading are pure level-domain rules. From a
+world-space reference point, currently the camera center,
+`ResolveParallaxEnvironment` preserves the existing half-open active-zone ID
+and returns either its theme or one stable left-to-right/top-to-bottom pair
+with a normalized fade weight. Exact shared edges define fade seams; later
+authored area overlaps retain priority, while intersecting fade bands and
+bands passing through a third-zone overlap fail validation. Viewport
+intersection and zoom do not change the result. Zone outlines are editor
+gizmos rendered independently. Zone selections use stable IDs; selecting or
+explicitly framing a zone may move the editor camera without changing
+activation semantics.
 
-For the active parallax theme, the composition boundary resolves the zone's
-theme resource and each unique authored element texture ID once per frame, then
-`ViewportScene` binds them to a `ParallaxRenderBatch`. `ViewportRenderer` alone
-converts those handles, queries native texture dimensions, calculates the
-already headlessly tested composition layout, culls element instances, and
-emits repeat cells in authored order. A missing theme resource, texture
-definition, runtime handle, invalid repeat period, or excessive visible
-instance count fails the render pass.
+For the resolved parallax environment, the viewport resolves one or two
+immutable theme snapshots and each unique authored element texture ID once per
+frame, then `ViewportScene` binds each theme to a `ParallaxRenderBatch` with
+platform-neutral opacity. The stable primary batch draws first and an optional
+secondary batch overlays it at the resolved weight. `ViewportRenderer` alone
+converts handles and opacity to native texture/tint values, queries dimensions,
+calculates the already headlessly tested composition layout, culls instances,
+and emits repeat cells in authored order. A missing theme resource, texture
+definition, runtime handle, invalid opacity or repeat period, or excessive
+visible instance count fails the render pass.
 Incomplete layer drafts live only in Theme Editor and are never published to
 the resource catalog.
 
@@ -687,6 +707,11 @@ nearest-neighbour resize, palette, alpha, and repetition-review primitives but
 does not enter the prop subject-isolation or anchoring workflow. Creation
 publishes the Texture before the recipe and compensates on failure;
 regeneration replaces only recipe-owned texture pixels after snapshot checks.
+Parallax source redraw is a separate review-and-commit path: it accepts a
+staged PNG plus generation provenance, then replaces the retained source,
+recipe digest, and managed Texture in one compensated transaction while
+preserving every ID and resource path. Direct writes to `source_art/` remain
+invalid because they bypass the source digest and leave derived pixels stale.
 Renaming updates the recipe and managed Texture display names through one API
 operation with compensation, while recipe, Texture, source, and path identity
 remain stable; an existing name mismatch fails before writing.
@@ -805,6 +830,12 @@ and Parallax editors retain separate prompts and deterministic processing
 models. The services and registry are declared before the editors, so each
 controller abandons its in-flight request while the selected engine still
 runs. Editors never see a transport or credential.
+
+Reference-image redraw is the same generation boundary with an existing
+retained source in `ImageGenerationSpec`. The OpenAI adapter serializes that
+source as an in-memory PNG multipart image-edit request. Redraw candidates carry
+optimistic source and derived-texture digests; curation refuses a candidate if
+either current definition no longer matches its captured base.
 
 Generation presentation is split at the same boundary. The shared lifecycle
 panel renders provider selection, cancellation, candidate navigation,

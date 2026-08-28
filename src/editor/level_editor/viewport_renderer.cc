@@ -54,7 +54,6 @@ absl::Status ViewportRenderer::RenderEntities(std::span<const EntityRenderItem> 
   if (draw_list == nullptr) {
     return absl::FailedPreconditionError("viewport canvas has no active draw list");
   }
-
   std::map<SDL_Texture*, NativeTextureInfo> texture_info;
   for (const EntityRenderItem& item : items) {
     if (!item.bounds.IsValid()) {
@@ -211,10 +210,15 @@ absl::Status ViewportRenderer::RenderTiles(const TileRenderBatch& batch) const {
 }
 
 absl::Status ViewportRenderer::RenderParallax(const ParallaxRenderBatch& batch) const {
+  if (!std::isfinite(batch.opacity) || batch.opacity < 0.0 || batch.opacity > 1.0) {
+    return absl::InvalidArgumentError("parallax opacity must be between zero and one");
+  }
   ImDrawList* draw_list = canvas_.GetDrawList();
   if (draw_list == nullptr) {
     return absl::FailedPreconditionError("viewport canvas has no active draw list");
   }
+  const ImU32 tint =
+      IM_COL32(255, 255, 255, static_cast<uint8_t>(std::lround(batch.opacity * 255.0)));
 
   std::map<SDL_Texture*, NativeTextureInfo> texture_info;
   for (const ParallaxRenderItem& item : batch.layers) {
@@ -247,9 +251,9 @@ absl::Status ViewportRenderer::RenderParallax(const ParallaxRenderBatch& batch) 
       if (texture == native_textures.end()) {
         return absl::FailedPreconditionError("parallax layout references an unbound element");
       }
-      draw_list->AddImage(reinterpret_cast<ImTextureID>(texture->second),
-                          canvas_.WorldToScreen(element.bounds.min),
-                          canvas_.WorldToScreen(element.bounds.max));
+      draw_list->AddImage(
+          reinterpret_cast<ImTextureID>(texture->second), canvas_.WorldToScreen(element.bounds.min),
+          canvas_.WorldToScreen(element.bounds.max), ImVec2(0, 0), ImVec2(1, 1), tint);
     }
   }
   return absl::OkStatus();

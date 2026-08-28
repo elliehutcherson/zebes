@@ -113,5 +113,60 @@ TEST_F(HeadlessAssetGenerationTest, FakeProviderPublishesACompleteStrictCandidat
   EXPECT_TRUE(absl::IsAlreadyExists(status));
 }
 
+TEST_F(HeadlessAssetGenerationTest, FakeProviderPublishesAStaleProtectedRedrawBundle) {
+  ASSERT_OK_AND_ASSIGN(ParallaxArtworkRecipe recipe, TemplateRecipe());
+  RgbaImage source_pixels{
+      .width = 8,
+      .height = 8,
+      .pixels = std::vector<uint8_t>(8 * 8 * 4, 255),
+  };
+  ASSERT_OK_AND_ASSIGN(const std::string digest, RgbaImageDigest(source_pixels));
+  recipe.final_pixel_digest = digest;
+  SourceArtwork source{
+      .id = recipe.source_artwork_id,
+      .name = "Template source",
+      .source_path = "source_artwork/template-source.png",
+      .provenance =
+          ImportedArtworkProvenance{
+              .original_filename = "template.png",
+              .imported_at_utc = "2026-08-27T12:00:00Z",
+          },
+      .width = source_pixels.width,
+      .height = source_pixels.height,
+      .content_digest = digest,
+  };
+  MockApi api;
+  EXPECT_CALL(api, GetParallaxArtworkRecipe(recipe.id)).WillOnce(Return(&recipe));
+  EXPECT_CALL(api, GetSourceArtwork(source.id)).WillOnce(Return(&source));
+  EXPECT_CALL(api, ReadSourceArtworkPixels(source.id)).WillOnce(Return(source_pixels));
+  EXPECT_CALL(api, ReadTexturePixels(recipe.texture_id)).WillOnce(Return(source_pixels));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
+                       ImageGenerationService::Create(CreateFakeImageGenerationClient()));
+  const std::filesystem::path output = root_ / "redraw";
+
+  ASSERT_OK_AND_ASSIGN(HeadlessAssetGenerationResult result,
+                       GenerateAssetRedrawCandidateBundle(api, *service,
+                                                          {
+                                                              .asset_id = recipe.id,
+                                                              .prompt = "soften both side edges",
+                                                              .output_path = output.string(),
+                                                          }));
+
+  EXPECT_EQ(result.asset_id, recipe.id);
+  EXPECT_TRUE(std::filesystem::is_regular_file(output / "reference-source.png"));
+  EXPECT_TRUE(std::filesystem::is_regular_file(output / "generated-source.png"));
+  EXPECT_TRUE(std::filesystem::is_regular_file(output / "processed-source.png"));
+  std::ifstream candidate_stream(result.candidate_path);
+  nlohmann::json candidate_json;
+  candidate_stream >> candidate_json;
+  ASSERT_OK_AND_ASSIGN(GeneratedParallaxArtworkRedrawCandidate candidate,
+                       GeneratedParallaxArtworkRedrawCandidateFromJson(candidate_json));
+  EXPECT_EQ(candidate.asset_id, recipe.id);
+  EXPECT_EQ(candidate.expected_source_digest, digest);
+  EXPECT_EQ(candidate.expected_final_pixel_digest, digest);
+  EXPECT_EQ(candidate.source.provenance.provider, "fake");
+  ASSERT_OK(ReadGeneratedAssetSourceCandidate(output, candidate.source).status());
+}
+
 }  // namespace
 }  // namespace zebes

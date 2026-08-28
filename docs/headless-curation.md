@@ -1,15 +1,17 @@
 # Headless asset curation
 
-`generate_assets` and `curate_assets` are the first-party, windowless asset
-loop. They load the same complete `AssetWorkspace` as the interactive editor,
+`generate_assets`, `stage_asset_redraw`, `build_environment`, and
+`curate_assets` are the first-party, windowless asset loop. The commands load
+the same complete `AssetWorkspace` as the interactive editor,
 but supply a headless texture-resource adapter instead of SDL. There is no
 second JSON loader, no ImGui click automation, and no alternate interpretation
 of asset references.
 
 `curate_assets` registers these visual kinds:
 
-- `parallax-artwork` renders native, enlarged, and configured repetition
-  evidence and supports both creation and recipe-regeneration candidates;
+- `parallax-artwork` renders native, enlarged, configured repetition, and
+  lateral-edge evidence and supports creation, source-redraw, and
+  recipe-regeneration candidates;
 - `parallax-theme` produces complete-theme route samples, isolated layers,
   repeat-seam frames, coverage findings, and measured wrap separation;
 - `prop` resolves the recipe-owned Texture/Sprite/Blueprint graph and renders
@@ -24,7 +26,7 @@ of asset references.
 Build the commands:
 
 ```bash
-cmake --build build/dev --target generate_assets curate_assets
+cmake --build build/dev --target generate_assets stage_asset_redraw build_environment curate_assets
 ```
 
 List the registered kinds:
@@ -71,7 +73,8 @@ operation therefore leaves the pre-commit evidence intact.
 
 ## Full generate, review, commit, re-review loop
 
-Generation creates a new asset. `--recipe_id` names an existing recipe whose
+Generation creates a new asset. `--recipe_id` or `--recipe_name` selects one
+existing recipe whose
 terrain link, resolved style, and deterministic pipeline settings are copied as
 a template; it does not authorize rebinding that existing asset to new pixels.
 `--provider=fake` is deterministic and requires no credentials, so this is also
@@ -112,6 +115,82 @@ generation provenance, then invokes the compensated
 `Api::CreateGeneratedProp` transaction. Parallax artwork uses the same sequence
 with `--kind=parallax-artwork` and a parallax-artwork recipe template.
 
+## Redrawing retained source without breaking references
+
+Do not overwrite a retained PNG in `assets/source_art` directly. That bypasses
+its content digest and leaves the derived runtime texture stale. Generate an
+edit directly from the retained source by unique recipe name:
+
+```bash
+build/dev/bin/generate_assets \
+  --asset_root="$PWD/assets" \
+  --operation=redraw \
+  --kind=parallax-artwork \
+  --recipe_name="Catacombs Near Structural Shell" \
+  --prompt="taper both lateral edges into transparent irregular silhouettes" \
+  --provider=openai \
+  --output=/tmp/shell-redraw
+```
+
+The provider must advertise reference-image editing. The OpenAI adapter sends
+the retained pixels to the image-edit endpoint; the deterministic fake provider
+supports the same contract for tests. Codex currently fails preflight for this
+operation rather than guessing at an undocumented image-attachment protocol.
+
+To use pixels produced by an external bitmap editor or generator, import them
+through the same candidate schema:
+
+```bash
+build/dev/bin/stage_asset_redraw \
+  --asset_root="$PWD/assets" \
+  --kind=parallax-artwork \
+  --id=3e0c2e51-e4d5-49c4-b8fa-ab51d815372e \
+  --input=/tmp/redrawn-shell.png \
+  --provider=imagegen \
+  --model=builtin \
+  --prompt="taper both lateral edges into transparent gutters" \
+  --output=/tmp/shell-redraw
+
+build/dev/bin/curate_assets \
+  --asset_root="$PWD/assets" \
+  --kind=parallax-artwork \
+  --id=3e0c2e51-e4d5-49c4-b8fa-ab51d815372e \
+  --candidate=/tmp/shell-redraw/candidate.json \
+  --output=/tmp/shell-redraw-review
+
+build/dev/bin/curate_assets \
+  --asset_root="$PWD/assets" \
+  --kind=parallax-artwork \
+  --id=3e0c2e51-e4d5-49c4-b8fa-ab51d815372e \
+  --candidate=/tmp/shell-redraw/candidate.json \
+  --commit \
+  --output=/tmp/shell-redraw-commit
+```
+
+For a seam-aware redraw, provide the generator with the retained target first,
+then the immediate left and right retained sources in composition order. Name
+those roles and recipe names in the submitted prompt so the saved provenance
+records which neighbours supplied continuity context. If one neighbour is the
+wraparound element, say so explicitly. The prompt should also state the overlap
+gutter from the environment specification and require irregular transparent
+silhouettes instead of a straight canvas-edge cutoff.
+
+Artwork and layout solve different parts of the seam. Stage and review the
+neighbour-conditioned pixels through the commands above, preserve the existing
+IDs at commit, then declare the gutter overlap in the environment specification.
+Rebuild the environment and review the complete `parallax-theme`; an isolated
+artwork repeat cannot demonstrate that adjacent, non-identical formations flow
+together. `catacombs_processional.json`, for example, uses a 96-pixel overlap
+between its 960-pixel Near canvases and carries the same overlap through the
+wrap period.
+
+Both routes snapshot the current retained-source and derived-texture digests in
+the candidate. Review and commit reject it if another agent changes either
+asset before promotion. The commit preserves the source, recipe, and texture
+IDs. It advances retained source provenance and digest, rebuilds the runtime
+texture with the existing pipeline settings, and compensates all earlier writes
+if a later write fails.
+
 Existing assets take a different path. A complete schema-current recipe
 candidate may change only mutable recipe settings. The reviewer deterministically
 rebuilds the output and commit calls `Api::RegenerateGeneratedProp` or
@@ -146,6 +225,36 @@ When editing settings, first review the proposed recipe. The review manifest's
 pixel digest. Promote that exact object to the final candidate before commit;
 commit refuses stale digests, changed IDs, changed source identity, unknown
 fields, and older schemas.
+
+## Building a complete environment
+
+Environment definitions live under `assets/authoring/environments/`. They refer
+to artwork recipes, tilesets, terrains, themes, and layers by unique names; no
+catalog GUID is authored by hand. Array order supplies local element, layer,
+and zone IDs. The generic builder creates manager-owned resource IDs on the
+first run and preserves them on later runs:
+
+```bash
+build/dev/bin/build_environment \
+  --asset_root="$PWD/assets" \
+  --spec="$PWD/assets/authoring/environments/catacombs_processional.json"
+```
+
+The versioned schema describes the parallax composition, world dimensions,
+zones, and ordered solid/empty terrain rectangles. The Catacombs Processional
+spec replaces the retired Catacombs-specific C++ authoring program and is also
+loaded by a shipped parser test.
+
+## Concurrent agents and catalog snapshots
+
+Every `AssetWorkspace` participates in an asset-root advisory lock. Readers
+take a shared lock only while loading the complete catalog, then release it and
+work concurrently from an in-memory snapshot. Writers take an exclusive lock
+before loading and retain it through their full transaction. A contending
+writer waits up to 30 seconds, then fails with the owning process ID and root;
+it never commits a stale catalog snapshot. Candidate and review output
+directories use create-only atomic publication, so agents must give each run a
+distinct output directory.
 
 ## Review bundle contract
 

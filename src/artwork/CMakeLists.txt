@@ -91,6 +91,23 @@ target_link_libraries(regenerate_parallax_artwork_asset
   status_macros
 )
 
+add_library(redraw_parallax_artwork_asset redraw_parallax_artwork_asset.cc)
+target_link_libraries(redraw_parallax_artwork_asset
+  PUBLIC
+  parallax_artwork_pipeline
+  parallax_artwork_recipe
+  source_artwork
+  texture
+  image_io
+  absl::status
+  absl::statusor
+  PRIVATE
+  prepare_parallax_artwork_asset
+  image_digest
+  status_macros
+  nlohmann_json::nlohmann_json
+)
+
 target_link_libraries(prop_artwork
   PUBLIC
   image_io

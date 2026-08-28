@@ -40,6 +40,7 @@ absl::Status EditorEngine::Init() {
                                 .config = &config_,
                                 .texture_resources = texture_resources_.get(),
                                 .asset_root = config_.paths.assets(),
+                                .access = AssetWorkspace::Access::kReadWrite,
                             }));
 
   imgui_wrapper_ = ImGuiWrapper::Create();

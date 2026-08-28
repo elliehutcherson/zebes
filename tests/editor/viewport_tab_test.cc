@@ -37,9 +37,21 @@ class ViewportTabTestPeer {
     tab.ReconcileParallaxPreviewMode(options);
   }
 
-  static absl::StatusOr<std::optional<ActiveParallaxZone>> RenderParallaxBackground(
+  static absl::StatusOr<std::optional<ResolvedParallaxEnvironment>> RenderParallaxBackground(
       ViewportTab& tab, const Level& level, const ViewportRenderOptions& options) {
     return tab.RenderParallaxBackground(level, options);
+  }
+
+  static absl::StatusOr<ViewportTab::ParallaxBackgroundFrame> PrepareParallaxBackground(
+      ViewportTab& tab, const Level& level, const ViewportRenderOptions& options) {
+    return tab.PrepareParallaxBackground(level, options);
+  }
+
+  static void SetCamera(ViewportTab& tab, Camera camera) { tab.camera_ = camera; }
+
+  static std::string ParallaxEnvironmentStatus(
+      const Level& level, const std::optional<ResolvedParallaxEnvironment>& environment) {
+    return ViewportTab::ParallaxEnvironmentStatus(level, environment);
   }
 
   static absl::Status RenderTerrainGhost(ViewportTab& tab, const ViewportRenderOptions& options,
@@ -58,6 +70,7 @@ class ViewportTabTestPeer {
 namespace {
 
 using ::testing::NiceMock;
+using ::testing::Return;
 
 // PickEntity tests
 
@@ -361,11 +374,11 @@ TEST(ViewportTabTest, OffPreviewSkipsThemeResolution) {
   });
   ViewportTabTestPeer::SetParallaxPreviewMode(tab, ParallaxPreviewMode::kOff);
 
-  ASSERT_OK_AND_ASSIGN(std::optional<ActiveParallaxZone> active,
+  ASSERT_OK_AND_ASSIGN(std::optional<ResolvedParallaxEnvironment> active,
                        ViewportTabTestPeer::RenderParallaxBackground(tab, level, {}));
 
   ASSERT_TRUE(active.has_value());
-  EXPECT_EQ(active->zone_id, 4);
+  EXPECT_EQ(active->active_zone_id, 4);
 }
 
 TEST(ViewportTabTest, ActiveZoneWithoutAssignedThemeDoesNotFailPreview) {
@@ -384,7 +397,126 @@ TEST(ViewportTabTest, ActiveZoneWithoutAssignedThemeDoesNotFailPreview) {
 
   ASSERT_OK(active);
   ASSERT_TRUE(active->has_value());
-  EXPECT_EQ(active->value().zone_id, 4);
+  EXPECT_EQ(active->value().active_zone_id, 4);
+}
+
+TEST(ViewportTabTest, ActiveZonePreviewPreparesTwoStableBatchesAndDeduplicatesTextures) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  ViewportTabTestPeer::SetCamera(
+      tab, {.position = {100, 50}, .zoom = 1, .viewport_width = 800, .viewport_height = 600});
+  Level level;
+  level.zones = {
+      {.id = 1,
+       .name = "Left",
+       .theme_id = "theme-left",
+       .min_point = {0, 0},
+       .max_point = {100, 100},
+       .fade_length = {20, 0}},
+      {.id = 2,
+       .name = "Right",
+       .theme_id = "theme-right",
+       .min_point = {100, 0},
+       .max_point = {200, 100},
+       .fade_length = {20, 0}},
+  };
+  const std::vector<ParallaxTheme> themes{
+      {.id = "theme-left",
+       .name = "Left",
+       .layers = {{.name = "Left Fill",
+                   .elements = {{.id = 0, .name = "Fill", .texture_id = "shared"}}}}},
+      {.id = "theme-right",
+       .name = "Right",
+       .layers = {{.name = "Right Fill",
+                   .elements = {{.id = 0, .name = "Fill", .texture_id = "shared"}}}}},
+  };
+  int texture_owner = 0;
+  const TextureHandle texture = TextureHandleAccess::Create(1, &texture_owner);
+  EXPECT_CALL(api, GetTextureHandle("shared")).WillOnce(Return(texture));
+
+  ASSERT_OK_AND_ASSIGN(const auto frame, ViewportTabTestPeer::PrepareParallaxBackground(
+                                             tab, level, {.parallax_themes = &themes}));
+
+  ASSERT_TRUE(frame.environment.has_value());
+  EXPECT_EQ(frame.environment->active_zone_id, 2);
+  ASSERT_EQ(frame.batches.size(), 2);
+  EXPECT_DOUBLE_EQ(frame.batches[0].opacity, 1.0);
+  EXPECT_EQ(frame.batches[0].layers[0].layer.name, "Left Fill");
+  EXPECT_DOUBLE_EQ(frame.batches[1].opacity, 0.5);
+  EXPECT_EQ(frame.batches[1].layers[0].layer.name, "Right Fill");
+}
+
+TEST(ViewportTabTest, SelectedZonePreviewRemainsUnblendedInsideActiveFade) {
+  NiceMock<MockApi> api;
+  NiceMock<MockGui> gui;
+  ViewportTab tab(api, &gui);
+  ViewportTabTestPeer::SetCamera(
+      tab, {.position = {100, 50}, .zoom = 1, .viewport_width = 800, .viewport_height = 600});
+  ViewportTabTestPeer::SetParallaxPreviewMode(tab, ParallaxPreviewMode::kSelectedZone);
+  Level level;
+  level.zones = {
+      {.id = 1,
+       .name = "Left",
+       .theme_id = "theme-left",
+       .min_point = {0, 0},
+       .max_point = {100, 100},
+       .fade_length = {20, 0}},
+      {.id = 2,
+       .name = "Right",
+       .theme_id = "theme-right",
+       .min_point = {100, 0},
+       .max_point = {200, 100},
+       .fade_length = {20, 0}},
+  };
+  const std::vector<ParallaxTheme> themes{
+      {.id = "theme-left",
+       .name = "Left",
+       .layers = {{.name = "Left Fill",
+                   .elements = {{.id = 0, .name = "Fill", .texture_id = "left"}}}}},
+      {.id = "theme-right",
+       .name = "Right",
+       .layers = {{.name = "Right Fill",
+                   .elements = {{.id = 0, .name = "Fill", .texture_id = "right"}}}}},
+  };
+  int texture_owner = 0;
+  const TextureHandle texture = TextureHandleAccess::Create(1, &texture_owner);
+  EXPECT_CALL(api, GetTextureHandle("left")).WillOnce(Return(texture));
+  EXPECT_CALL(api, GetTextureHandle("right")).Times(0);
+
+  ASSERT_OK_AND_ASSIGN(const auto frame,
+                       ViewportTabTestPeer::PrepareParallaxBackground(
+                           tab, level, {.selected_zone_id = 1, .parallax_themes = &themes}));
+
+  ASSERT_TRUE(frame.environment.has_value());
+  EXPECT_EQ(frame.environment->active_zone_id, 2);
+  ASSERT_EQ(frame.batches.size(), 1);
+  EXPECT_EQ(frame.batches[0].layers[0].layer.name, "Left Fill");
+  EXPECT_DOUBLE_EQ(frame.batches[0].opacity, 1.0);
+}
+
+TEST(ViewportTabTest, OneSidedFadeBoundaryReadoutKeepsActivationAndZeroWeightDistinct) {
+  const Level level{
+      .zones =
+          {
+              {.id = 1,
+               .name = "Left",
+               .theme_id = "theme-left",
+               .min_point = {0, 0},
+               .max_point = {100, 100}},
+              {.id = 2,
+               .name = "Right",
+               .theme_id = "theme-right",
+               .min_point = {100, 0},
+               .max_point = {200, 100},
+               .fade_length = {20, 0}},
+          },
+  };
+  ASSERT_OK_AND_ASSIGN(const std::optional<ResolvedParallaxEnvironment> environment,
+                       ResolveParallaxEnvironment(level.zones, {100, 50}));
+
+  EXPECT_EQ(ViewportTabTestPeer::ParallaxEnvironmentStatus(level, environment),
+            "Right | Fade: Left -> Right 0%");
 }
 
 // Blueprint origin snapping tests

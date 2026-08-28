@@ -26,6 +26,14 @@ class SourceArtworkManager {
   virtual absl::StatusOr<std::string> CreateArtwork(std::string name,
                                                     SourceArtworkProvenance provenance,
                                                     const RgbaImage& image);
+  // Replaces retained pixels and provenance without changing the identity or
+  // path referenced by generated-asset recipes. `expected` is an optimistic
+  // concurrency snapshot; stale callers are refused before anything is
+  // written. The operation either publishes both the PNG and definition or
+  // restores the prior pair.
+  virtual absl::Status ReplaceArtwork(const SourceArtwork& expected,
+                                      const SourceArtwork& replacement,
+                                      const RgbaImage& replacement_pixels);
   virtual absl::StatusOr<SourceArtwork*> GetArtwork(const std::string& id);
   virtual std::vector<SourceArtwork> GetAllArtwork() const;
   virtual absl::StatusOr<RgbaImage> ReadArtworkPixels(const std::string& id) const;

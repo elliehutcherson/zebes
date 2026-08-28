@@ -41,10 +41,24 @@ struct GeneratedParallaxArtworkCreationCandidate {
   ParallaxArtworkAssetIds ids;
 };
 
+// A redraw changes the retained pixels of an existing generated parallax
+// bundle. The current recipe supplies the immutable IDs and processing
+// settings; the candidate supplies only the new, reviewable source envelope.
+struct GeneratedParallaxArtworkRedrawCandidate {
+  std::string asset_id;
+  // Optimistic-concurrency tokens captured before generation begins. A
+  // reviewed candidate cannot overwrite a source or derived texture that was
+  // updated while an agent was working.
+  std::string expected_source_digest;
+  std::string expected_final_pixel_digest;
+  GeneratedAssetSourceCandidate source;
+};
+
 // Creation candidates are deliberately distinct from recipe candidates. The
 // marker selects the new-source/new-bundle transaction; an existing recipe
 // object continues to select settings-only regeneration.
 bool IsGeneratedAssetCreationCandidate(const nlohmann::json& json);
+bool IsGeneratedAssetRedrawCandidate(const nlohmann::json& json);
 
 absl::Status ValidateGeneratedAssetSourceCandidate(const GeneratedAssetSourceCandidate& candidate);
 absl::StatusOr<RgbaImage> ReadGeneratedAssetSourceCandidate(
@@ -59,5 +73,10 @@ nlohmann::json GeneratedParallaxArtworkCreationCandidateToJson(
     const GeneratedParallaxArtworkCreationCandidate& candidate);
 absl::StatusOr<GeneratedParallaxArtworkCreationCandidate>
 GeneratedParallaxArtworkCreationCandidateFromJson(const nlohmann::json& json);
+
+nlohmann::json GeneratedParallaxArtworkRedrawCandidateToJson(
+    const GeneratedParallaxArtworkRedrawCandidate& candidate);
+absl::StatusOr<GeneratedParallaxArtworkRedrawCandidate>
+GeneratedParallaxArtworkRedrawCandidateFromJson(const nlohmann::json& json);
 
 }  // namespace zebes

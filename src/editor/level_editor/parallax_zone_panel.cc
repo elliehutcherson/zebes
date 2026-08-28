@@ -241,18 +241,18 @@ absl::Status ParallaxZonePanel::RenderDetails(Level& level, SelectionState& sele
     }
   }
 
-  RenderInspectorSection(*gui_, "TRANSITION", "Reserved for future two-theme blending.");
+  RenderInspectorSection(*gui_, "TRANSITION",
+                         "Blend with zones that share an exact horizontal or vertical edge.");
   gui_->TextWrapped(
-      "Zone fades are not rendered yet. Values are preserved but cannot be edited "
-      "until the two-theme compositor is implemented.");
+      "Fade X and Fade Y are inward distances in world pixels. Both zones' distances combine "
+      "across a shared edge; unsupported overlapping fade bands prevent Save.");
   {
-    ScopedDisabled disabled = gui_->CreateScopedDisabled();
     InspectorPropertyGrid grid(*gui_, "ZoneTransition");
-    if (grid.BeginRow("Fade X (px)", "Not rendered yet.")) {
-      gui_->InputDouble("##zone_fade_x", &zone.fade_length.x, 0.0, 0.0, "%.0f");
+    if (grid.BeginRow("Fade X (px)", "Inward distance used at shared vertical edges.")) {
+      gui_->InputDouble("##zone_fade_x", &zone.fade_length.x, 1.0, 16.0, "%.0f");
     }
-    if (grid.BeginRow("Fade Y (px)", "Not rendered yet.")) {
-      gui_->InputDouble("##zone_fade_y", &zone.fade_length.y, 0.0, 0.0, "%.0f");
+    if (grid.BeginRow("Fade Y (px)", "Inward distance used at shared horizontal edges.")) {
+      gui_->InputDouble("##zone_fade_y", &zone.fade_length.y, 1.0, 16.0, "%.0f");
     }
   }
   if ((zone.fade_length.x != 0.0 || zone.fade_length.y != 0.0) &&

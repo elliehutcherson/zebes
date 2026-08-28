@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
@@ -135,9 +136,14 @@ class ViewportTab {
   // What composing the scene leaves behind for the later phases: the zone the
   // status bar names, and the sprite lookup interaction reuses for picking.
   struct SceneFrame {
-    std::optional<ActiveParallaxZone> active_zone;
+    std::optional<ResolvedParallaxEnvironment> environment;
     SpriteLookup entity_sprites;
     std::vector<EntityRenderItem> entity_overlays;
+  };
+
+  struct ParallaxBackgroundFrame {
+    std::optional<ResolvedParallaxEnvironment> environment;
+    std::vector<ParallaxRenderBatch> batches;
   };
 
   // What the placement preview settles for the interaction phase. The preview
@@ -188,6 +194,11 @@ class ViewportTab {
   void RenderStatusBar(const Level& level, const ViewportRenderOptions& options,
                        const SceneFrame& scene, Vec mouse_world, float zoom);
 
+  // Formats half-open activation and an optional stable fade pair without
+  // depending on variadic GUI calls, so boundary readout remains testable.
+  static std::string ParallaxEnvironmentStatus(
+      const Level& level, const std::optional<ResolvedParallaxEnvironment>& environment);
+
   // Composes and renders a semi-transparent placement preview at world_pos.
   absl::Status RenderPlacementGhost(Vec world_pos, const ResolvedSprite& resolved,
                                     BlueprintPlacementMode placement_mode);
@@ -201,8 +212,14 @@ class ViewportTab {
   // created only if the user actually painted it.
   absl::Status RenderLooseTerrainGhost(const RgbaImage& artwork, const Level& level, Vec world_pos);
 
-  // Resolves and renders the requested environment, returning the actual active zone.
-  absl::StatusOr<std::optional<ActiveParallaxZone>> RenderParallaxBackground(
+  // Resolves immutable themes and managed textures into one or two batches
+  // without issuing native draw work.
+  absl::StatusOr<ParallaxBackgroundFrame> PrepareParallaxBackground(
+      const Level& level, const ViewportRenderOptions& options);
+
+  // Resolves and renders the requested environment, returning the actual
+  // platform-neutral environment for status and gizmos.
+  absl::StatusOr<std::optional<ResolvedParallaxEnvironment>> RenderParallaxBackground(
       const Level& level, const ViewportRenderOptions& options);
 
   // Falls back to active-zone rendering when the requested selection no longer exists.

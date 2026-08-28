@@ -1,0 +1,18 @@
+{
+  "content_digest": "1e4af8fc4919a3babbebfce105d4388d7a0f31f6ab5f42dccc44332558cb64f5",
+  "height": 941,
+  "id": "97783ad9-6778-4074-a5ad-f9792aecbb60",
+  "name": "Catacombs Near Webbed Gate source",
+  "provenance": {
+    "generated_at_utc": "2026-08-27T01:28:46Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": null,
+    "revised_prompt": "Transparent 16:9 near-background formation for a side-view 16-bit science-fiction cave platformer: one asymmetric monumental catacomb gate with two cracked stone pillars, a broken ribbed arch, small skull niches, thick triangular corner webs, and at least 55 percent open center, crisp stepped pixel clusters in a limited plum/indigo/slate/ochre/bone palette, isolated over a perfectly uniform pure #FF00FF matte that appears nowhere in the art; no characters, creatures, visible spiders, text, UI, gore, torches, candles, gradients, matte variation, blur, photorealism, 3D rendering, giant skull, central obstruction, or mirrored symmetry.",
+    "submitted_prompt": "Spooky 16-bit near catacomb gate overlay: cracked pillars, broken ribbed arch, skull niches, spider webs, and a uniform #FF00FF removal matte."
+  },
+  "schema_version": 2,
+  "source_path": "source_art/97783ad9-6778-4074-a5ad-f9792aecbb60.png",
+  "width": 1672
+}

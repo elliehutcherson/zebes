@@ -155,7 +155,7 @@ TEST(OpenAiImageClientTest, ReportsCapabilitiesThatMatchTheModel) {
   // spec through that the provider then refuses.
   EXPECT_FALSE(capabilities.supports_transparency);
   EXPECT_FALSE(capabilities.supports_negative_prompt);
-  EXPECT_FALSE(capabilities.supports_reference_image);
+  EXPECT_TRUE(capabilities.supports_reference_image);
 }
 
 TEST(OpenAiImageClientTest, RefusesTransparencyBeforeReachingTheProvider) {
@@ -200,6 +200,30 @@ TEST(OpenAiImageClientTest, BuildsTheGenerationsRequest) {
   EXPECT_EQ(payload.at("prompt"), "Create one isolated prop.\n\nSubject request:\na mossy boulder");
   EXPECT_EQ(payload.at("n"), 3);
   EXPECT_EQ(payload.at("output_format"), "png");
+}
+
+TEST(OpenAiImageClientTest, BuildsAMultipartEditRequestForAReferenceImage) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(JsonResponse(200, SuccessBody(1))));
+  ImageGenerationSpec spec = SpecFor("soften both lateral edges");
+  spec.instructions = "Preserve the subject and edit the supplied source.";
+  spec.reference_image = RgbaImage{
+      .width = 2,
+      .height = 2,
+      .pixels = std::vector<uint8_t>(2 * 2 * 4, 127),
+  };
+
+  ASSERT_OK(fixture.client->Start(std::move(spec)).status());
+
+  const HttpRequest& request = fixture.transport->last_request();
+  EXPECT_EQ(request.url, "https://api.openai.com/v1/images/edits");
+  ASSERT_EQ(request.headers.size(), 1);
+  EXPECT_NE(request.headers.front().value.find("multipart/form-data; boundary="),
+            std::string::npos);
+  const std::string body(request.body.begin(), request.body.end());
+  EXPECT_NE(body.find("name=\"model\"\r\n\r\ngpt-image-2"), std::string::npos);
+  EXPECT_NE(body.find("name=\"prompt\"\r\n\r\nPreserve the subject"), std::string::npos);
+  EXPECT_NE(body.find("name=\"image\"; filename=\"reference.png\""), std::string::npos);
+  EXPECT_NE(body.find("\x89PNG\r\n\x1a\n"), std::string::npos);
 }
 
 TEST(OpenAiImageClientTest, DecodesCandidatesWithStableProvenance) {

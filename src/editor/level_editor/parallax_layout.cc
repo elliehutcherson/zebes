@@ -108,26 +108,6 @@ VisibleWorldBounds CalculateVisibleWorldBounds(const Camera& camera) {
   };
 }
 
-const ParallaxZone* FindParallaxZoneById(const std::vector<ParallaxZone>& zones, int zone_id) {
-  auto it = std::find_if(zones.begin(), zones.end(),
-                         [zone_id](const ParallaxZone& zone) { return zone.id == zone_id; });
-  return it == zones.end() ? nullptr : &*it;
-}
-
-std::optional<ActiveParallaxZone> ResolveActiveParallaxZone(const std::vector<ParallaxZone>& zones,
-                                                            Vec reference_point) {
-  for (auto it = zones.rbegin(); it != zones.rend(); ++it) {
-    if (reference_point.x >= it->min_point.x && reference_point.x < it->max_point.x &&
-        reference_point.y >= it->min_point.y && reference_point.y < it->max_point.y) {
-      return ActiveParallaxZone{
-          .zone_id = it->id,
-          .theme_id = it->theme_id,
-      };
-    }
-  }
-  return std::nullopt;
-}
-
 std::optional<CameraFrame> CalculateCameraFrame(VisibleWorldBounds bounds, int viewport_width,
                                                 int viewport_height, double padding_fraction) {
   const double bounds_width = bounds.max.x - bounds.min.x;

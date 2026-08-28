@@ -76,6 +76,8 @@ absl::Status Run() {
                        .config = &config,
                        .texture_resources = &texture_resources,
                        .asset_root = asset_root,
+                       .access = commit ? AssetWorkspace::Access::kReadWrite
+                                        : AssetWorkspace::Access::kReadOnly,
                    }));
   CurationReviewRequest request{.asset_id = asset_id};
   CurationReview review;

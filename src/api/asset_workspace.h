@@ -4,10 +4,12 @@
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "absl/time/time.h"
 
 namespace zebes {
 
 class Api;
+class AssetRootLock;
 class BlueprintManager;
 class ColliderManager;
 class EngineConfig;
@@ -29,10 +31,17 @@ class TilesetManager;
 // including fail-fast loading, cross-resource API validation, and persistence.
 class AssetWorkspace {
  public:
+  enum class Access {
+    kReadOnly,
+    kReadWrite,
+  };
+
   struct Options {
     EngineConfig* config = nullptr;
     TextureResourceStore* texture_resources = nullptr;
     std::string asset_root;
+    Access access = Access::kReadOnly;
+    absl::Duration write_lock_timeout = absl::Seconds(30);
   };
 
   static absl::StatusOr<std::unique_ptr<AssetWorkspace>> Create(Options options);
@@ -50,8 +59,9 @@ class AssetWorkspace {
 
   absl::Status Init(const Options& options);
 
-  // Reverse declaration order is destruction order. Api borrows every manager,
-  // and managers that resolve textures borrow TextureManager.
+  // Reverse declaration order is destruction order. The lock is acquired
+  // before catalogs load and released after every manager is gone.
+  std::unique_ptr<AssetRootLock> catalog_lock_;
   std::unique_ptr<TextureManager> texture_manager_;
   std::unique_ptr<SpriteManager> sprite_manager_;
   std::unique_ptr<ColliderManager> collider_manager_;

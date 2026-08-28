@@ -15,6 +15,7 @@ namespace zebes {
 // provider change is a compile error instead of a silently ignored key.
 struct OpenAiImageConfig {
   std::string endpoint = "https://api.openai.com/v1/images/generations";
+  std::string edit_endpoint = "https://api.openai.com/v1/images/edits";
   std::string model = "gpt-image-2";
 
   // The environment variable holding the key, never the key itself.

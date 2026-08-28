@@ -158,12 +158,17 @@ struct ParallaxRenderItem {
 struct ParallaxRenderBatch {
   // Camera used to calculate parallax origins and visible repetitions.
   Camera camera;
+  // Whole-theme presentation opacity in the inclusive range [0, 1]. Native
+  // tint representation remains the renderer adapter's responsibility.
+  double opacity = 1.0;
   // Theme layers in their authored back-to-front order.
   std::vector<ParallaxRenderItem> layers;
 };
 
 // Selects all theme layers or isolates one authored layer for preview.
 struct ParallaxRenderOptions {
+  // Whole-theme presentation opacity in the inclusive range [0, 1].
+  double opacity = 1.0;
   // Authored layer index to isolate; empty renders the complete theme.
   std::optional<int> layer_index;
   // Stable element ID to isolate within layer_index.

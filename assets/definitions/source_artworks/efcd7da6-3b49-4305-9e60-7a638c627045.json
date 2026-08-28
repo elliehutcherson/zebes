@@ -1,0 +1,18 @@
+{
+  "content_digest": "7d74aec38093d6f110655bb9ac46e7bab997b7cc80ab1feb41680381079e510b",
+  "height": 941,
+  "id": "efcd7da6-3b49-4305-9e60-7a638c627045",
+  "name": "Catacombs Far Fill source",
+  "provenance": {
+    "generated_at_utc": "2026-08-27T01:28:46Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": null,
+    "revised_prompt": "Opaque full-frame 16:9 far-fill plate for a side-view 16-bit science-fiction cave platformer: spooky catacomb masonry receding into near-black depth, subtle burial niches and tiny skull silhouettes, low contrast, quiet center, repeat-friendly horizontal edge density, crisp stepped pixel clusters, limited plum/indigo/slate/ochre/lavender palette, no transparency, characters, creatures, text, UI, gore, torches, candles, gradients, blur, photorealism, 3D rendering, giant skulls, vignette, or hard seam.",
+    "submitted_prompt": "Spooky 16-bit catacomb far-fill plate: dark masonry, burial niches, tiny skull silhouettes, and repeat-friendly edge density."
+  },
+  "schema_version": 2,
+  "source_path": "source_art/efcd7da6-3b49-4305-9e60-7a638c627045.png",
+  "width": 1672
+}

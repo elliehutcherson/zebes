@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "api_mock.h"
@@ -113,6 +114,13 @@ void ExpectCandidateInputs(MockApi& api, CandidateGraph& graph) {
   EXPECT_CALL(api, ReadTexturePixels(graph.texture.id)).WillOnce(Return(graph.texture_pixels));
 }
 
+bool HasFinding(const CurationReview& review, std::string_view code) {
+  for (const CurationFinding& finding : review.findings) {
+    if (finding.code == code) return true;
+  }
+  return false;
+}
+
 TEST(ParallaxArtworkReviewerTest, ReviewsPersistedNativeDetailAndRepeatEvidence) {
   ASSERT_OK_AND_ASSIGN(CandidateGraph graph, MakeCandidateGraph());
   MockApi api;
@@ -127,6 +135,28 @@ TEST(ParallaxArtworkReviewerTest, ReviewsPersistedNativeDetailAndRepeatEvidence)
   ASSERT_EQ(review.artifacts.size(), 3);
   EXPECT_EQ(review.artifacts.at(2).id, "repeat-x");
   EXPECT_EQ(review.metadata.at("recipe").at("id"), graph.recipe.id);
+}
+
+TEST(ParallaxArtworkReviewerTest, WarnsWhenATransparentFormationHasAHardLateralEdge) {
+  ASSERT_OK_AND_ASSIGN(CandidateGraph graph, MakeCandidateGraph());
+  graph.recipe.pipeline.alpha_role = ParallaxArtworkAlphaRole::kTransparentOverlay;
+  for (int y = 0; y < graph.texture_pixels.height; ++y) {
+    const size_t right_alpha =
+        (static_cast<size_t>(y) * graph.texture_pixels.width + graph.texture_pixels.width - 1) * 4 +
+        3;
+    graph.texture_pixels.pixels[right_alpha] = 0;
+  }
+  ASSERT_OK_AND_ASSIGN(graph.recipe.final_pixel_digest, RgbaImageDigest(graph.texture_pixels));
+  MockApi api;
+  EXPECT_CALL(api, GetParallaxArtworkRecipe(graph.recipe.id)).WillOnce(Return(&graph.recipe));
+  EXPECT_CALL(api, GetTexture(graph.texture.id)).WillOnce(Return(&graph.texture));
+  EXPECT_CALL(api, ReadTexturePixels(graph.texture.id)).WillOnce(Return(graph.texture_pixels));
+
+  ParallaxArtworkReviewer reviewer;
+  ASSERT_OK_AND_ASSIGN(CurationReview review, reviewer.Review(api, {.asset_id = graph.recipe.id}));
+
+  EXPECT_TRUE(HasFinding(review, "hard-horizontal-edge"));
+  EXPECT_GT(review.metadata.at("lateral_edge_occupancy").at("left").get<double>(), 0.9);
 }
 
 TEST(ParallaxArtworkReviewerTest, ReviewsAndCommitsAnExactRecipeCandidate) {
@@ -212,6 +242,72 @@ TEST(ParallaxArtworkReviewerTest, ReviewsAndCommitsGeneratedPixelsAsANewAsset) {
       });
   EXPECT_CALL(commit_api, DeleteSourceArtwork).Times(0);
   EXPECT_OK(reviewer.CommitCandidate(commit_api, request, candidate_json));
+
+  std::error_code ignored;
+  std::filesystem::remove_all(root, ignored);
+}
+
+TEST(ParallaxArtworkReviewerTest, ReviewsAndCommitsARetainedSourceRedraw) {
+  ASSERT_OK_AND_ASSIGN(CandidateGraph graph, MakeCandidateGraph());
+  RgbaImage replacement = graph.source_pixels;
+  replacement.pixels[0] = 7;
+  const std::filesystem::path root =
+      std::filesystem::temp_directory_path() /
+      std::filesystem::path("zebes-parallax-redraw-candidate-" + GenerateGuid());
+  ASSERT_TRUE(std::filesystem::create_directories(root));
+  ASSERT_OK(WritePng((root / "redrawn-source.png").string(), replacement.width, replacement.height,
+                     replacement.pixels));
+  ASSERT_OK_AND_ASSIGN(const std::string digest, RgbaImageDigest(replacement));
+  const GeneratedParallaxArtworkRedrawCandidate candidate{
+      .asset_id = graph.recipe.id,
+      .expected_source_digest = graph.source.content_digest,
+      .expected_final_pixel_digest = graph.recipe.final_pixel_digest,
+      .source =
+          {
+              .relative_path = "redrawn-source.png",
+              .width = replacement.width,
+              .height = replacement.height,
+              .content_digest = digest,
+              .provenance =
+                  {
+                      .provider = "imagegen",
+                      .model = "builtin",
+                      .submitted_prompt = "taper the lateral edges",
+                      .generated_at_utc = "2026-08-27T22:00:00Z",
+                  },
+          },
+  };
+  const nlohmann::json candidate_json = GeneratedParallaxArtworkRedrawCandidateToJson(candidate);
+  const CurationReviewRequest request{
+      .asset_id = candidate.asset_id,
+      .candidate_root = root.string(),
+  };
+  ParallaxArtworkReviewer reviewer;
+
+  MockApi review_api;
+  ExpectCandidateInputs(review_api, graph);
+  ASSERT_OK_AND_ASSIGN(CurationReview review,
+                       reviewer.ReviewCandidate(review_api, request, candidate_json));
+  EXPECT_EQ(review.metadata.at("candidate_operation"), "redraw");
+  EXPECT_TRUE(review.metadata.at("candidate_matches_deterministic_output"));
+
+  MockApi commit_api;
+  ExpectCandidateInputs(commit_api, graph);
+  EXPECT_CALL(commit_api, RedrawGeneratedParallaxArtwork)
+      .WillOnce([](const PreparedParallaxArtworkRedraw& prepared) {
+        return ValidatePreparedParallaxArtworkRedraw(prepared);
+      });
+  EXPECT_OK(reviewer.CommitCandidate(commit_api, request, candidate_json));
+
+  CandidateGraph changed = graph;
+  changed.source.content_digest = std::string(64, '0');
+  MockApi stale_api;
+  EXPECT_CALL(stale_api, GetParallaxArtworkRecipe(changed.recipe.id))
+      .WillOnce(Return(&changed.recipe));
+  EXPECT_CALL(stale_api, GetSourceArtwork(changed.source.id)).WillOnce(Return(&changed.source));
+  EXPECT_CALL(stale_api, GetTexture(changed.texture.id)).WillOnce(Return(&changed.texture));
+  EXPECT_TRUE(absl::IsFailedPrecondition(
+      reviewer.ReviewCandidate(stale_api, request, candidate_json).status()));
 
   std::error_code ignored;
   std::filesystem::remove_all(root, ignored);

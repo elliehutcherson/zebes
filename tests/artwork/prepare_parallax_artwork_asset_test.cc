@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "artwork/redraw_parallax_artwork_asset.h"
 #include "artwork/regenerate_parallax_artwork_asset.h"
 #include "common/image_digest.h"
 #include "common/status_macros.h"
@@ -113,6 +114,59 @@ TEST(PrepareParallaxArtworkAssetTest, RegenerationRefusesExternallyChangedTextur
           .status();
 
   EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+}
+
+TEST(PrepareParallaxArtworkAssetTest, RedrawPreservesIdsAndAdvancesBothPixelDigests) {
+  const RgbaImage pixels = SourcePixels();
+  ASSERT_OK_AND_ASSIGN(const SourceArtwork source, RetainedSource(pixels));
+  ASSERT_OK_AND_ASSIGN(const PreparedParallaxArtworkAsset original,
+                       PrepareParallaxArtworkAsset(source, pixels, Request()));
+  RgbaImage replacement = pixels;
+  replacement.pixels[0] = 17;
+
+  ASSERT_OK_AND_ASSIGN(
+      const PreparedParallaxArtworkRedraw redraw,
+      PrepareParallaxArtworkRedraw(source, pixels,
+                                   GeneratedArtworkProvenance{
+                                       .provider = "imagegen",
+                                       .model = "builtin",
+                                       .submitted_prompt = "redraw the lateral edges",
+                                       .generated_at_utc = "2026-08-27T22:00:00Z",
+                                   },
+                                   replacement, original.recipe, original.texture,
+                                   original.artwork.finished));
+
+  EXPECT_EQ(redraw.updated_source.id, source.id);
+  EXPECT_EQ(redraw.updated_source.source_path, source.source_path);
+  EXPECT_NE(redraw.updated_source.content_digest, source.content_digest);
+  EXPECT_EQ(redraw.updated_recipe.id, original.recipe.id);
+  EXPECT_EQ(redraw.updated_recipe.texture_id, original.recipe.texture_id);
+  EXPECT_NE(redraw.updated_recipe.final_pixel_digest, original.recipe.final_pixel_digest);
+  EXPECT_OK(ValidatePreparedParallaxArtworkRedraw(redraw));
+}
+
+TEST(PrepareParallaxArtworkAssetTest, RedrawValidationRefusesRecipeSettingChanges) {
+  const RgbaImage pixels = SourcePixels();
+  ASSERT_OK_AND_ASSIGN(const SourceArtwork source, RetainedSource(pixels));
+  ASSERT_OK_AND_ASSIGN(const PreparedParallaxArtworkAsset original,
+                       PrepareParallaxArtworkAsset(source, pixels, Request()));
+  RgbaImage replacement = pixels;
+  replacement.pixels[0] = 17;
+  ASSERT_OK_AND_ASSIGN(
+      PreparedParallaxArtworkRedraw redraw,
+      PrepareParallaxArtworkRedraw(source, pixels,
+                                   GeneratedArtworkProvenance{
+                                       .provider = "imagegen",
+                                       .model = "builtin",
+                                       .submitted_prompt = "redraw the lateral edges",
+                                       .generated_at_utc = "2026-08-27T22:00:00Z",
+                                   },
+                                   replacement, original.recipe, original.texture,
+                                   original.artwork.finished));
+  redraw.updated_recipe.pipeline.review_repeat_x = true;
+
+  EXPECT_EQ(ValidatePreparedParallaxArtworkRedraw(redraw).code(),
+            absl::StatusCode::kInvalidArgument);
 }
 
 TEST(PrepareParallaxArtworkAssetTest, ValidationRejectsChangedOutputIdentity) {

@@ -1,0 +1,18 @@
+{
+  "content_digest": "8cb285f467aa0824e497cfc2ee599d92b4309e4812c7e31358dcc0668fea500c",
+  "height": 941,
+  "id": "5f82202d-af6e-472f-8ff9-241976371613",
+  "name": "Catacombs Near Skull Pillars source",
+  "provenance": {
+    "generated_at_utc": "2026-08-28T00:48:17Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": null,
+    "revised_prompt": null,
+    "submitted_prompt": "Edit IMAGE 1 only. IMAGE 1 is the target Catacombs Near Skull Pillars source artwork. IMAGE 2 is its immediate LEFT neighbor, the revised Catacombs Near Webbed Ceiling. IMAGE 3 is its immediate RIGHT neighbor, the revised Catacombs Near Ossuary Ridge. IMAGE 4 is Catacombs Near Structural Shell and is an additional architectural and palette reference. Create a production-quality replacement for IMAGE 1 as a reusable 16:9 side-view pixel-art parallax overlay. Preserve its identity and gameplay readability: three asymmetrical ruined gothic columns with carved skull capitals, one leaning and cracked, connected by layered cobwebs, all firmly grounded on broken catacomb plinths and rubble. Keep meaningful negative space between the columns and keep the upper-right area mostly open. Replace the warm purple, brown, and gold treatment with the cool indigo, midnight blue, slate, desaturated blue-gray, and restrained bone-gray highlights of IMAGES 2 through 4. Match their stone-block scale, crisp pixel density, cool top-down lighting, dark ambient contrast, and gothic masonry vocabulary. The column bases must grow from the same low foundation datum and rubble language as IMAGE 3, with small foundation stones extending across more of the lower canvas instead of the group ending abruptly. In the LEFT 10 percent gutter, use sparse web strands, a broken cap fragment, and stepped rubble that can overlap the hanging web and masonry fragments of IMAGE 2. No opaque vertical boundary. In the RIGHT 10 percent gutter, taper low plinth stones, rubble, and one or two web strands into the ridge of IMAGE 3. Keep the upper-right open and do not create a wall. Use irregular stepped silhouettes at both edges with no straight vertical cutoff, no rectangular border, and no abrupt color or lighting change. Design both gutters for approximately 96 pixels of overlap with neighboring pieces. Keep the three pillars distributed through roughly the left and central 75 percent of the canvas, varied in height and angle, without crowding the full width. Output only the revised target artwork, not a contact sheet and not the reference images. Keep the 16:9 canvas and native pixel-art character. Use a perfectly uniform pure #FF00FF background matte everywhere outside the artwork. This magenta must appear nowhere inside the artwork. Crisp hard-edged pixels, no antialiasing, no blur, no smooth gradients, no photorealism, no 3D rendering. No characters, creatures, visible spiders, text, UI, watermark, frame, torches, candles, gore, giant skull, or mirrored symmetry."
+  },
+  "schema_version": 2,
+  "source_path": "source_art/5f82202d-af6e-472f-8ff9-241976371613.png",
+  "width": 1672
+}

@@ -309,6 +309,9 @@ absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
     const ParallaxTheme& theme, const Camera& camera,
     const std::map<std::string, TextureHandle>& textures, const ParallaxRenderOptions& options) {
   RETURN_IF_ERROR(ValidateCamera(camera));
+  if (!std::isfinite(options.opacity) || options.opacity < 0.0 || options.opacity > 1.0) {
+    return absl::InvalidArgumentError("parallax opacity must be between zero and one");
+  }
   if (options.layer_index.has_value() &&
       (*options.layer_index < 0 || *options.layer_index >= static_cast<int>(theme.layers.size()))) {
     return absl::InvalidArgumentError("parallax preview layer index is out of range");
@@ -317,7 +320,7 @@ absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
     return absl::InvalidArgumentError("parallax element preview requires an isolated layer");
   }
 
-  ParallaxRenderBatch batch{.camera = camera};
+  ParallaxRenderBatch batch{.camera = camera, .opacity = options.opacity};
   batch.layers.reserve(options.layer_index.has_value() ? 1 : theme.layers.size());
   for (int index = 0; index < static_cast<int>(theme.layers.size()); ++index) {
     if (options.layer_index.has_value() && index != *options.layer_index) continue;

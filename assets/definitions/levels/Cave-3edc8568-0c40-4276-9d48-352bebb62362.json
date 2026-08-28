@@ -2353,15 +2353,26 @@
     "width": 65536.0,
     "zones": [
         {
-            "fade_x": 0.0,
+            "fade_x": 512.0,
             "fade_y": 0.0,
             "id": 0,
-            "max_x": 65536.0,
+            "max_x": 4096.0,
             "max_y": 1024.0,
             "min_x": 0.0,
             "min_y": 0.0,
-            "name": "Cave",
-            "theme_id": "93fc14e1-265b-420d-afe6-81706f0f08c5"
+            "name": "Webbed Gallery",
+            "theme_id": "283b4d27-8f0b-49eb-8dd6-c46dc7af9196"
+        },
+        {
+            "fade_x": 128.0,
+            "fade_y": 0.0,
+            "id": 1,
+            "max_x": 65536.0,
+            "max_y": 1024.0,
+            "min_x": 4096.0,
+            "min_y": 0.0,
+            "name": "Ossuary Descent",
+            "theme_id": "f240eab3-5ea1-4f44-8637-1d939fd4fc19"
         }
     ]
 }

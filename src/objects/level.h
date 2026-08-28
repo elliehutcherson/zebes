@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,29 @@ struct ParallaxZone {
   Vec fade_length;  // x = horizontal fade width, y = vertical fade height
 
   bool operator==(const ParallaxZone& other) const = default;
+};
+
+// One theme participating in the environment at a world-space reference
+// point. The zone ID remains available for editor status and future runtime
+// diagnostics without making either consumer retain a ParallaxZone pointer.
+struct ResolvedParallaxTheme {
+  int zone_id = -1;
+  std::string theme_id;
+
+  bool operator==(const ResolvedParallaxTheme& other) const = default;
+};
+
+// Platform-neutral result of resolving one hard-cut zone or one supported
+// two-theme fade. active_zone_id preserves authored half-open containment;
+// primary and secondary preserve stable left-to-right or top-to-bottom render
+// order across a seam. secondary_weight is normalized to [0, 1].
+struct ResolvedParallaxEnvironment {
+  int active_zone_id = -1;
+  ResolvedParallaxTheme primary;
+  std::optional<ResolvedParallaxTheme> secondary;
+  double secondary_weight = 0.0;
+
+  bool operator==(const ResolvedParallaxEnvironment& other) const = default;
 };
 
 // Identifies one 32x32 TileChunk in WorldLayer::tile_chunks. Chunk-key
@@ -120,6 +144,15 @@ Entity* FindEntity(Level& level, uint64_t entity_id);
 const Entity* FindEntity(const Level& level, uint64_t entity_id);
 WorldLayer* FindEntityLayer(Level& level, uint64_t entity_id);
 const WorldLayer* FindEntityLayer(const Level& level, uint64_t entity_id);
+
+const ParallaxZone* FindParallaxZoneById(const std::vector<ParallaxZone>& zones, int zone_id);
+
+// Resolves the active zone at reference_point using half-open bounds and, when
+// the point lies in one validated shared-edge band, its stable two-theme fade.
+// No containing zone is a normal empty result. Invalid or ambiguous geometry
+// is an error rather than an arbitrary render choice.
+absl::StatusOr<std::optional<ResolvedParallaxEnvironment>> ResolveParallaxEnvironment(
+    const std::vector<ParallaxZone>& zones, Vec reference_point);
 
 absl::StatusOr<int> NextAvailableWorldLayerId(const Level& level);
 absl::StatusOr<uint64_t> NextAvailableEntityId(const Level& level);

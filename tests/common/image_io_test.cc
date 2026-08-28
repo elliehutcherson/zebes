@@ -103,6 +103,21 @@ TEST(ImageIoTest, DecodesEncodedBytesToTheSamePixels) {
   EXPECT_EQ(image.pixels, Checkerboard(8, 6));
 }
 
+TEST(ImageIoTest, EncodesPngBytesWithoutAFile) {
+  const RgbaImage original{
+      .width = 8,
+      .height = 6,
+      .pixels = Checkerboard(8, 6),
+  };
+
+  ASSERT_OK_AND_ASSIGN(const std::vector<uint8_t> encoded, EncodePng(original));
+  ASSERT_OK_AND_ASSIGN(const RgbaImage decoded, DecodeImage(encoded, 1 << 20));
+
+  EXPECT_EQ(decoded.width, original.width);
+  EXPECT_EQ(decoded.height, original.height);
+  EXPECT_EQ(decoded.pixels, original.pixels);
+}
+
 TEST(ImageIoTest, ReportsUndecodableBytesAsDataLoss) {
   const std::string text = "this is not a PNG";
   const std::vector<uint8_t> bytes(text.begin(), text.end());

@@ -4,13 +4,16 @@
 generated background artwork now share retained source, deterministic
 processing, compensated bundle lifecycle, and the accepted Parallax Artwork
 and Theme Editor workflow. Those gates complete the engineering vertical
-slice. Milestone 4 is a non-blocking production-content pass; Milestone 5 zone
-fades are the next engine feature.**
+slice. Milestone 4 has an accepted usable horizontal Catacombs baseline and
+continues as a non-blocking vertical-space and prop/decal content pass;
+Milestone 5 zone fades pass both their automated and live visual gates.**
 Written 2026-08-22 for the first cave vertical slice, revised the same day to
 make standalone parallax-theme ownership the highest-priority implementation
 milestone, updated 2026-08-23 after accepting composed parallax layers, and
 updated 2026-08-24 after accepting the live generated-background gate, then
-2026-08-25 to separate the completed engineering slice from content curation.
+2026-08-25 to separate the completed engineering slice from content curation,
+and 2026-08-27 after accepting zone fades and the usable horizontal Catacombs
+baseline.
 Update milestone states here as work lands; use [`roadmap.md`](roadmap.md) only
 for the higher-level sequence.
 
@@ -358,8 +361,9 @@ Duplicate display names remain valid at the domain level because names are not
 identity; the catalog/editor must disambiguate them with IDs and may warn.
 
 The UI must clamp or refuse invalid typed values before save where practical,
-but domain validation remains authoritative. The roadmap now records the
-current state accurately: `fade_length` is not validated today.
+but domain validation remains authoritative. Intrinsic fade bounds are now
+validated; cross-zone adjacency and unsupported-corner validation belong to
+Milestone 5.
 
 ### 6.2 Hard recipe and bundle errors
 
@@ -608,8 +612,8 @@ reference plate and a visual check proves it.
 ## 9. Zone fading and rendering
 
 Zone fades are independent of background generation and do not block a
-single-theme first level. Implement them after imported and generated theme
-assembly works.
+single-theme first level. Their accepted automated and live implementation
+followed the imported and generated theme-assembly workflow.
 
 The first fade contract supports blending at most two themes across one shared
 horizontal or vertical zone edge:
@@ -624,10 +628,11 @@ horizontal or vertical zone edge:
   four themes are rejected by the environment-readiness validator until the
   compositor explicitly supports that case.
 
-Replace the one-zone result with a platform-neutral result containing primary
-theme, optional secondary theme, and a normalized blend weight. The viewport
-resolves both texture sets and the renderer draws them with explicit batch
-opacity. Native tint/alpha values remain inside the renderer adapter.
+The one-zone result is replaced by a platform-neutral result containing the
+half-open active zone, primary theme, optional secondary theme, and normalized
+blend weight. The viewport resolves both texture sets and the renderer draws
+them with explicit batch opacity. Native tint/alpha values remain inside the
+renderer adapter.
 
 Headless tests must pin weights on both sides of an edge, unequal inward fade
 widths, half-open boundary behavior, missing neighbors, overlap priority, and
@@ -1043,10 +1048,19 @@ silhouette, seam, and composition polish belongs to Milestone 4.
 
 ### Milestone 4 — theme workflow and first cave kit
 
-**Status: non-blocking content pass.** The accepted gates through Milestone 3
-prove the complete authoring and persistence workflow. This milestone curates
-that evidence into richer production content; it is not unfinished generation
-or editor infrastructure and does not block Milestone 5.
+**Status: usable horizontal baseline accepted; broader content pass remains.**
+The accepted gates through Milestone 3 prove the complete authoring and
+persistence workflow. Catacombs Processional now provides the production
+horizontal level: one Far Fill, two Far Formations, four Near Formations, and a
+continuous terrain envelope. Its 960-pixel Near canvases advance by 864 pixels
+and repeat every 3456 pixels, producing a deliberate 96-pixel overlap at every
+adjacent and wrap seam. Neighbour-conditioned redraws brought Webbed Ceiling,
+Skull Pillars, and Ossuary Ridge into the Structural Shell palette and masonry
+language without changing source, recipe, or Texture IDs.
+
+The remaining vertical-space treatment, prop/decal kit, and zoomed-out
+finite-layer coverage warnings are content follow-up, not unfinished generation
+or editor infrastructure, and do not block Milestone 5.
 
 - Produce the accepted Far Fill and Far Formations plus a small Near Formation
   element set.
@@ -1062,13 +1076,28 @@ reduces depth without breaking gameplay readability.
 
 ### Milestone 5 — zone fades
 
-- Implement the two-theme resolver and renderer opacity path.
-- Validate supported adjacency and reject ambiguous multi-theme corners.
-- Enable fade authoring controls and give the viewport a transition preview.
-- Exercise two adjacent cave environment zones in both travel directions.
+Detailed implementation sequence and settled weight semantics:
+[`zone-fades-plan.md`](zone-fades-plan.md).
+
+- **Implemented.** Add the two-theme resolver and renderer opacity path.
+- **Implemented.** Validate supported adjacency and reject ambiguous
+  multi-theme corners.
+- **Implemented.** Enable fade authoring controls and give the viewport a
+  transition preview and weight readout.
+- **Accepted.** Exercise two adjacent cave environment zones through the saved
+  asymmetric transition and visually confirm Active Zone blending and Selected
+  Zone isolation.
 
 Acceptance: the camera crosses the shared edge without a hard cut, with the
 same weights in editor preview and the future runtime composition boundary.
+
+Accepted 2026-08-27 in `Cave`: Webbed Gallery and Ossuary Descent share X
+`4096`, with inward widths `512` and `128`. The resulting interval is X
+`[3584, 4224]`; camera centers at X `3584`, `3904`, `4096`, and `4224` produce
+secondary weights `0%`, `50%`, `80%`, and `100%`. The live review confirmed
+the visible blend at the boundary and isolated-theme Selected Zone behavior;
+automated tests cover reverse travel, the half-open edge, zero widths,
+persistence, invalid geometry, and render opacity.
 
 ### Milestone 6 — operational cleanup
 

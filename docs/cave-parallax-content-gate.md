@@ -27,12 +27,16 @@ Milestone 2.
 |---|---|
 | Logical game viewport | 960 × 540 world units (`assets/config.json`) |
 | Diagnostic zoom range | 0.5–2.0; accepted authoring range, not a runtime-camera contract |
-| Saved world and route | `65536×1280` level; zone `0` retains the intentional `65536×1024` route |
+| Saved world and route at acceptance | `65536×1280` level; zone `0` spanned the intentional `65536×1024` route |
 | Terrain style | `lucinda_cave` terrain recipe and tileset |
 | Existing prop | `Cave Crystal`, grounded and non-colliding |
 | Theme order | Far Fill → Far Formations → Near Formations |
 | World order | Back Decor → Gameplay → Front Decor |
-| Zone fades | Zero; rendering is deferred until Milestone 5 |
+| Zone fades at acceptance | Zero; rendering was deferred until Milestone 5 |
+
+This table records the historical gate state. The saved Cave level now hosts
+the Milestone 5 live fade review, so its current zones and themes intentionally
+differ from the snapshot below.
 
 Use a short temporary level or a disposable copy of a level. Do not turn the
 gate into the production first level: its purpose is to expose workflow,

@@ -14,6 +14,8 @@ class SourceArtworkManagerMock : public SourceArtworkManager {
   MOCK_METHOD(absl::Status, LoadAllArtwork, (), (override));
   MOCK_METHOD(absl::StatusOr<std::string>, CreateArtwork,
               (std::string, SourceArtworkProvenance, const RgbaImage&), (override));
+  MOCK_METHOD(absl::Status, ReplaceArtwork,
+              (const SourceArtwork&, const SourceArtwork&, const RgbaImage&), (override));
   MOCK_METHOD(absl::StatusOr<SourceArtwork*>, GetArtwork, (const std::string&), (override));
   MOCK_METHOD(std::vector<SourceArtwork>, GetAllArtwork, (), (const, override));
   MOCK_METHOD(absl::StatusOr<RgbaImage>, ReadArtworkPixels, (const std::string&),

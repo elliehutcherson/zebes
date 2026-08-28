@@ -1,0 +1,18 @@
+{
+  "content_digest": "9ee03069606916a6df9614e361e84a46a9bb3cf1705acf6fdb611857c1e2da0c",
+  "height": 941,
+  "id": "e1ca1b8b-6da2-404e-b433-2daea1651446",
+  "name": "Catacombs Near Ossuary Ridge source",
+  "provenance": {
+    "generated_at_utc": "2026-08-28T00:45:25Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": null,
+    "revised_prompt": null,
+    "submitted_prompt": "Edit IMAGE 1 only. IMAGE 1 is the target Catacombs Near Ossuary Ridge source artwork and is the continuous low near-fill formation. IMAGE 2 is its immediate LEFT neighbor, Catacombs Near Skull Pillars. IMAGE 3 is its immediate RIGHT neighbor across the repeating strip boundary, Catacombs Near Structural Shell. IMAGE 4 is the revised Catacombs Near Webbed Ceiling and is the authoritative palette, pixel-density, lighting, and finish reference. Create a production-quality replacement for IMAGE 1 as a reusable 16:9 side-view pixel-art parallax overlay. Preserve its role and identity: a low, continuous catacomb foundation and ossuary rubble ridge with broken column stumps, carved masonry, scattered skulls, bone piles, webbing, and uneven stone debris. Keep roughly the upper 60 percent open so it never reads as a wall. Replace the warm purple, brown, and gold treatment with the cool indigo, midnight blue, slate, desaturated blue-gray, and restrained bone-gray highlights of IMAGES 3 and 4. Match their stone-block scale, crisp pixel density, cool top-down lighting, dark ambient contrast, and gothic masonry vocabulary. Preserve a continuous low foundation datum across the canvas, but vary its silhouette naturally with rubble and broken plinths. In the LEFT 12 percent gutter, echo the stepped pillar bases and web attachment geometry of IMAGE 2 so the fill appears to grow from beneath those pillars. Use the geometry of IMAGE 2, but use the cool palette of IMAGES 3 and 4. In the RIGHT 12 percent gutter, transition into the broken foundation stones, wall-foot rubble, and masonry scale of IMAGE 3 for a seamless wrap. Both extreme edges must continue at compatible ground height while using irregular stepped stones and sparse fragments; no straight vertical cutoff, no rectangular border, no abrupt color or lighting change. Design the edge gutters for approximately 96 pixels of overlap with neighboring pieces. Output only the revised target artwork, not a contact sheet and not the reference images. Keep the 16:9 canvas and native pixel-art character. Use a perfectly uniform pure #FF00FF background matte everywhere outside the artwork. This magenta must appear nowhere inside the artwork. Crisp hard-edged pixels, no antialiasing, no blur, no smooth gradients, no photorealism, no 3D rendering. No characters, creatures, visible spiders, text, UI, watermark, frame, torches, candles, gore, giant skull, or mirrored symmetry."
+  },
+  "schema_version": 2,
+  "source_path": "source_art/e1ca1b8b-6da2-404e-b433-2daea1651446.png",
+  "width": 1672
+}

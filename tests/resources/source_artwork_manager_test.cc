@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "artwork/source_artwork.h"
+#include "common/image_digest.h"
 #include "common/image_io.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -84,6 +85,79 @@ TEST_F(SourceArtworkManagerTest, GeneratedProvenanceWritesExplicitNulls) {
   stream >> json;
   EXPECT_TRUE(json.at("provenance").at("revised_prompt").is_null());
   EXPECT_TRUE(json.at("provenance").at("provider_request_id").is_null());
+}
+
+TEST_F(SourceArtworkManagerTest, ReplacesPixelsAndProvenanceWithoutChangingIdentity) {
+  ASSERT_OK_AND_ASSIGN(
+      const std::string id,
+      manager_->CreateArtwork("Tree source",
+                              ImportedArtworkProvenance{.original_filename = "oak.png",
+                                                        .imported_at_utc = "2026-08-16T15:04:05Z"},
+                              TestImage()));
+  ASSERT_OK_AND_ASSIGN(SourceArtwork * current, manager_->GetArtwork(id));
+  const SourceArtwork snapshot = *current;
+  const RgbaImage replacement_pixels{
+      .width = 3,
+      .height = 1,
+      .pixels = {1, 2, 3, 255, 4, 5, 6, 128, 7, 8, 9, 0},
+  };
+  ASSERT_OK_AND_ASSIGN(const std::string digest, RgbaImageDigest(replacement_pixels));
+  SourceArtwork replacement = snapshot;
+  replacement.provenance = GeneratedArtworkProvenance{
+      .provider = "imagegen",
+      .model = "builtin",
+      .submitted_prompt = "redraw the edges",
+      .generated_at_utc = "2026-08-27T22:00:00Z",
+  };
+  replacement.width = replacement_pixels.width;
+  replacement.height = replacement_pixels.height;
+  replacement.content_digest = digest;
+
+  ASSERT_OK(manager_->ReplaceArtwork(snapshot, replacement, replacement_pixels));
+  ASSERT_OK_AND_ASSIGN(SourceArtwork * updated, manager_->GetArtwork(id));
+  EXPECT_EQ(updated->id, snapshot.id);
+  EXPECT_EQ(updated->name, snapshot.name);
+  EXPECT_EQ(updated->source_path, snapshot.source_path);
+  EXPECT_EQ(updated->content_digest, digest);
+  ASSERT_OK_AND_ASSIGN(const RgbaImage decoded, manager_->ReadArtworkPixels(id));
+  EXPECT_EQ(decoded.pixels, replacement_pixels.pixels);
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<SourceArtworkManager> reloaded,
+                       SourceArtworkManager::Create(path_.string()));
+  ASSERT_OK(reloaded->LoadAllArtwork());
+  ASSERT_OK_AND_ASSIGN(SourceArtwork * reloaded_artwork, reloaded->GetArtwork(id));
+  EXPECT_EQ(SourceArtworkToJson(*reloaded_artwork), SourceArtworkToJson(replacement));
+}
+
+TEST_F(SourceArtworkManagerTest, RefusesAStaleReplacementBeforeWriting) {
+  ASSERT_OK_AND_ASSIGN(
+      const std::string id,
+      manager_->CreateArtwork("Tree source",
+                              ImportedArtworkProvenance{.original_filename = "oak.png",
+                                                        .imported_at_utc = "2026-08-16T15:04:05Z"},
+                              TestImage()));
+  ASSERT_OK_AND_ASSIGN(SourceArtwork * current, manager_->GetArtwork(id));
+  SourceArtwork stale = *current;
+  stale.content_digest = std::string(64, '0');
+  const absl::Status status = manager_->ReplaceArtwork(stale, *current, TestImage());
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  ASSERT_OK_AND_ASSIGN(const RgbaImage decoded, manager_->ReadArtworkPixels(id));
+  EXPECT_EQ(decoded.pixels, TestImage().pixels);
+}
+
+TEST_F(SourceArtworkManagerTest, RefusesReplacementIdentityChanges) {
+  ASSERT_OK_AND_ASSIGN(
+      const std::string id,
+      manager_->CreateArtwork("Tree source",
+                              ImportedArtworkProvenance{.original_filename = "oak.png",
+                                                        .imported_at_utc = "2026-08-16T15:04:05Z"},
+                              TestImage()));
+  ASSERT_OK_AND_ASSIGN(SourceArtwork * current, manager_->GetArtwork(id));
+  const SourceArtwork snapshot = *current;
+  SourceArtwork replacement = snapshot;
+  replacement.name = "Different tree";
+  const absl::Status status = manager_->ReplaceArtwork(snapshot, replacement, TestImage());
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
 }
 
 TEST_F(SourceArtworkManagerTest, RejectsPixelsChangedAfterAcceptance) {

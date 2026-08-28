@@ -90,3 +90,41 @@ target_link_libraries(generate_assets
   absl::strings
 )
 add_dependencies(generate_assets copy_assets)
+
+add_executable(stage_asset_redraw stage_asset_redraw.cc)
+target_link_libraries(stage_asset_redraw
+  PRIVATE
+  asset_workspace
+  atomic_directory_publisher
+  generated_asset_candidate
+  image_digest
+  image_io
+  headless_texture_store
+  status_macros
+  utc_timestamp
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::statusor
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
+add_executable(build_environment build_environment.cc)
+target_link_libraries(build_environment
+  PRIVATE
+  asset_workspace
+  environment_builder
+  headless_texture_store
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::statusor
+  absl::strings
+)
+add_dependencies(build_environment copy_assets)

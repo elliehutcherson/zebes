@@ -198,7 +198,7 @@ absl::StatusOr<ViewportTab::RenderedScene> ViewportTab::RenderScene(
     Vec mouse_world, bool mouse_in_level) {
   RenderedScene rendered;
   rendered.placement.interaction_world = mouse_world;
-  ASSIGN_OR_RETURN(rendered.scene.active_zone, RenderParallaxBackground(level, options));
+  ASSIGN_OR_RETURN(rendered.scene.environment, RenderParallaxBackground(level, options));
 
   canvas_.DrawGrid();
   RenderLevelBounds(level);
@@ -257,8 +257,8 @@ absl::StatusOr<ViewportTab::RenderedScene> ViewportTab::RenderScene(
   ASSIGN_OR_RETURN(
       std::vector<ZoneGizmoItem> zone_items,
       ComposeZoneGizmoItems(level.zones, camera_, options.selected_zone_id,
-                            rendered.scene.active_zone.has_value()
-                                ? std::optional<int>(rendered.scene.active_zone->zone_id)
+                            rendered.scene.environment.has_value()
+                                ? std::optional<int>(rendered.scene.environment->active_zone_id)
                                 : std::nullopt));
   renderer_.RenderZoneGizmos(zone_items);
   return rendered;
@@ -356,16 +356,10 @@ absl::Status ViewportTab::UpdateInteraction(Level& level, const ViewportRenderOp
 
 void ViewportTab::RenderStatusBar(const Level& level, const ViewportRenderOptions& options,
                                   const SceneFrame& scene, Vec mouse_world, float zoom) {
-  const char* active_zone_name = "None";
-  if (scene.active_zone.has_value()) {
-    if (const ParallaxZone* zone = FindParallaxZoneById(level.zones, scene.active_zone->zone_id);
-        zone != nullptr) {
-      active_zone_name = zone->name.c_str();
-    }
-  }
+  const std::string environment_status = ParallaxEnvironmentStatus(level, scene.environment);
 
   gui_->Text("Cam: (%.0f, %.0f) | Zoom: %.2f | Mouse: (%.0f, %.0f) | Zone: %s", camera_.position.x,
-             camera_.position.y, zoom, mouse_world.x, mouse_world.y, active_zone_name);
+             camera_.position.y, zoom, mouse_world.x, mouse_world.y, environment_status.c_str());
 
   gui_->SameLine();
   if (gui_->Button("Reset View")) {
@@ -374,6 +368,23 @@ void ViewportTab::RenderStatusBar(const Level& level, const ViewportRenderOption
   gui_->SameLine();
   gui_->Checkbox("Camera Guide", &show_camera_guide_);
   RenderParallaxPreviewControls(options);
+}
+
+std::string ViewportTab::ParallaxEnvironmentStatus(
+    const Level& level, const std::optional<ResolvedParallaxEnvironment>& environment) {
+  if (!environment.has_value()) return "None";
+
+  const ParallaxZone* active = FindParallaxZoneById(level.zones, environment->active_zone_id);
+  const std::string active_name = active != nullptr ? active->name : "Unknown";
+  if (!environment->secondary.has_value()) return active_name;
+
+  const ParallaxZone* primary = FindParallaxZoneById(level.zones, environment->primary.zone_id);
+  const ParallaxZone* secondary =
+      FindParallaxZoneById(level.zones, environment->secondary->zone_id);
+  const std::string primary_name = primary != nullptr ? primary->name : "Unknown";
+  const std::string secondary_name = secondary != nullptr ? secondary->name : "Unknown";
+  return absl::StrFormat("%s | Fade: %s -> %s %.0f%%", active_name, primary_name, secondary_name,
+                         environment->secondary_weight * 100.0);
 }
 
 absl::Status ViewportTab::Render(const ViewportRenderOptions& options) {
@@ -518,54 +529,86 @@ absl::Status ViewportTab::RenderPlacementGhost(Vec world_pos, const ResolvedSpri
   return renderer_.RenderEntities(std::span<const EntityRenderItem>(&item, 1));
 }
 
-absl::StatusOr<std::optional<ActiveParallaxZone>> ViewportTab::RenderParallaxBackground(
+absl::StatusOr<ViewportTab::ParallaxBackgroundFrame> ViewportTab::PrepareParallaxBackground(
     const Level& level, const ViewportRenderOptions& options) {
-  std::optional<ActiveParallaxZone> active =
-      ResolveActiveParallaxZone(level.zones, camera_.position);
+  ParallaxBackgroundFrame frame;
+  ASSIGN_OR_RETURN(frame.environment, ResolveParallaxEnvironment(level.zones, camera_.position));
 
-  std::optional<std::string> theme_id;
+  std::vector<std::pair<std::string, double>> render_themes;
   switch (parallax_preview_mode_) {
     case ParallaxPreviewMode::kOff:
       break;
     case ParallaxPreviewMode::kActiveZone:
-      if (active.has_value()) theme_id = active->theme_id;
+      if (frame.environment.has_value()) {
+        render_themes.emplace_back(frame.environment->primary.theme_id, 1.0);
+        if (frame.environment->secondary.has_value()) {
+          render_themes.emplace_back(frame.environment->secondary->theme_id,
+                                     frame.environment->secondary_weight);
+        }
+      }
       break;
     case ParallaxPreviewMode::kSelectedZone:
       if (options.selected_zone_id.has_value()) {
         const ParallaxZone* selected = FindParallaxZoneById(level.zones, *options.selected_zone_id);
-        if (selected != nullptr) theme_id = selected->theme_id;
+        if (selected != nullptr) render_themes.emplace_back(selected->theme_id, 1.0);
       }
       break;
   }
-  if (!theme_id.has_value()) return active;
-  if (theme_id->empty()) return active;
+  render_themes.erase(
+      std::remove_if(render_themes.begin(), render_themes.end(),
+                     [](const auto& item) { return item.first.empty() || item.second == 0.0; }),
+      render_themes.end());
+  if (render_themes.empty()) return frame;
 
   if (options.parallax_themes == nullptr) {
     return absl::FailedPreconditionError("parallax theme catalog is unavailable");
   }
-  auto theme_it = std::find_if(options.parallax_themes->begin(), options.parallax_themes->end(),
-                               [&](const ParallaxTheme& theme) { return theme.id == *theme_id; });
-  if (theme_it == options.parallax_themes->end()) {
-    return absl::FailedPreconditionError("parallax preview references a missing theme");
+
+  std::vector<const ParallaxTheme*> themes;
+  themes.reserve(render_themes.size());
+  for (const auto& render_theme : render_themes) {
+    const std::string& theme_id = render_theme.first;
+    auto theme =
+        std::find_if(options.parallax_themes->begin(), options.parallax_themes->end(),
+                     [&](const ParallaxTheme& candidate) { return candidate.id == theme_id; });
+    if (theme == options.parallax_themes->end()) {
+      return absl::FailedPreconditionError("parallax preview references a missing theme");
+    }
+    themes.push_back(&*theme);
   }
 
   std::map<std::string, TextureHandle> textures;
-  for (const ParallaxLayer& layer : theme_it->layers) {
-    for (const ParallaxElement& element : layer.elements) {
-      if (element.texture_id.empty() || textures.contains(element.texture_id)) continue;
+  for (const ParallaxTheme* theme : themes) {
+    for (const ParallaxLayer& layer : theme->layers) {
+      for (const ParallaxElement& element : layer.elements) {
+        if (element.texture_id.empty() || textures.contains(element.texture_id)) continue;
 
-      ASSIGN_OR_RETURN(TextureHandle handle, api_.GetTextureHandle(element.texture_id));
-      if (!handle) {
-        return absl::FailedPreconditionError("parallax element texture is unavailable");
+        ASSIGN_OR_RETURN(TextureHandle handle, api_.GetTextureHandle(element.texture_id));
+        if (!handle) {
+          return absl::FailedPreconditionError("parallax element texture is unavailable");
+        }
+        textures.emplace(element.texture_id, handle);
       }
-      textures.emplace(element.texture_id, handle);
     }
   }
 
-  ASSIGN_OR_RETURN(ParallaxRenderBatch batch,
-                   ComposeParallaxRenderBatch(*theme_it, camera_, textures));
-  RETURN_IF_ERROR(renderer_.RenderParallax(batch));
-  return active;
+  frame.batches.reserve(themes.size());
+  for (size_t index = 0; index < themes.size(); ++index) {
+    ASSIGN_OR_RETURN(ParallaxRenderBatch batch,
+                     ComposeParallaxRenderBatch(*themes[index], camera_, textures,
+                                                {.opacity = render_themes[index].second}));
+    frame.batches.push_back(std::move(batch));
+  }
+  return frame;
+}
+
+absl::StatusOr<std::optional<ResolvedParallaxEnvironment>> ViewportTab::RenderParallaxBackground(
+    const Level& level, const ViewportRenderOptions& options) {
+  ASSIGN_OR_RETURN(ParallaxBackgroundFrame frame, PrepareParallaxBackground(level, options));
+  for (const ParallaxRenderBatch& batch : frame.batches) {
+    RETURN_IF_ERROR(renderer_.RenderParallax(batch));
+  }
+  return frame.environment;
 }
 
 void ViewportTab::ReconcileParallaxPreviewMode(const ViewportRenderOptions& options) {

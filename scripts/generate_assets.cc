@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
@@ -20,8 +21,11 @@
 #include "platform/headless/headless_texture_store.h"
 
 ABSL_FLAG(std::string, asset_root, "assets", "Root containing config.json and asset catalogs");
+ABSL_FLAG(std::string, operation, "create", "Candidate operation: create or redraw");
 ABSL_FLAG(std::string, kind, "", "New asset kind: prop or parallax-artwork");
 ABSL_FLAG(std::string, recipe_id, "", "Existing recipe whose domain settings are the template");
+ABSL_FLAG(std::string, recipe_name, "",
+          "Unique existing recipe name; use instead of copying a recipe ID");
 ABSL_FLAG(std::string, name, "", "Name for the new generated asset");
 ABSL_FLAG(std::string, prompt, "", "Provider subject prompt");
 ABSL_FLAG(std::string, provider, "fake", "Image provider: openai, codex, or fake");
@@ -39,17 +43,46 @@ absl::StatusOr<std::unique_ptr<ImageGenerationService>> CreateService(const std:
   return absl::InvalidArgumentError("--provider must be openai, codex, or fake");
 }
 
+template <typename Recipe>
+absl::StatusOr<std::string> ResolveUniqueRecipeName(const std::vector<Recipe>& recipes,
+                                                    const std::string& name) {
+  std::string match;
+  for (const Recipe& recipe : recipes) {
+    if (recipe.name != name) continue;
+    if (!match.empty()) {
+      return absl::FailedPreconditionError(absl::StrCat("recipe name is not unique: ", name));
+    }
+    match = recipe.id;
+  }
+  if (match.empty()) return absl::NotFoundError(absl::StrCat("recipe not found: ", name));
+  return match;
+}
+
+absl::StatusOr<std::string> ResolveRecipe(Api& api, const std::string& kind) {
+  const std::string id = absl::GetFlag(FLAGS_recipe_id);
+  const std::string name = absl::GetFlag(FLAGS_recipe_name);
+  if (id.empty() == name.empty()) {
+    return absl::InvalidArgumentError("set exactly one of --recipe_id or --recipe_name");
+  }
+  if (!id.empty()) return id;
+  if (kind == "prop") return ResolveUniqueRecipeName(api.GetAllPropRecipes(), name);
+  if (kind == "parallax-artwork") {
+    return ResolveUniqueRecipeName(api.GetAllParallaxArtworkRecipes(), name);
+  }
+  return absl::InvalidArgumentError("--kind must be prop or parallax-artwork");
+}
+
 absl::Status Run() {
   const std::string asset_root = absl::GetFlag(FLAGS_asset_root);
   if (asset_root.empty()) return absl::InvalidArgumentError("--asset_root must be non-empty");
-  const HeadlessAssetGenerationRequest request{
-      .kind = absl::GetFlag(FLAGS_kind),
-      .template_recipe_id = absl::GetFlag(FLAGS_recipe_id),
-      .name = absl::GetFlag(FLAGS_name),
-      .prompt = absl::GetFlag(FLAGS_prompt),
-      .output_path = absl::GetFlag(FLAGS_output),
-  };
-  RETURN_IF_ERROR(ValidateHeadlessAssetGenerationRequest(request));
+  const std::string operation = absl::GetFlag(FLAGS_operation);
+  const std::string kind = absl::GetFlag(FLAGS_kind);
+  if (operation != "create" && operation != "redraw") {
+    return absl::InvalidArgumentError("--operation must be create or redraw");
+  }
+  if (operation == "redraw" && kind != "parallax-artwork") {
+    return absl::InvalidArgumentError("redraw currently supports only --kind=parallax-artwork");
+  }
   ASSIGN_OR_RETURN(EngineConfig config,
                    EngineConfig::Load(absl::StrCat(asset_root, "/config.json")));
   HeadlessTextureStore texture_resources;
@@ -59,11 +92,30 @@ absl::Status Run() {
                        .texture_resources = &texture_resources,
                        .asset_root = asset_root,
                    }));
+  ASSIGN_OR_RETURN(const std::string recipe_id, ResolveRecipe(assets->api(), kind));
   ASSIGN_OR_RETURN(std::unique_ptr<ImageGenerationService> service,
                    CreateService(absl::GetFlag(FLAGS_provider)));
-  ASSIGN_OR_RETURN(HeadlessAssetGenerationResult result,
-                   GenerateAssetCandidateBundle(assets->api(), *service, request));
-  LOG(INFO) << "Published generated " << absl::GetFlag(FLAGS_kind) << " candidate "
+  HeadlessAssetGenerationResult result;
+  if (operation == "redraw") {
+    ASSIGN_OR_RETURN(
+        result, GenerateAssetRedrawCandidateBundle(assets->api(), *service,
+                                                   {
+                                                       .asset_id = recipe_id,
+                                                       .prompt = absl::GetFlag(FLAGS_prompt),
+                                                       .output_path = absl::GetFlag(FLAGS_output),
+                                                   }));
+  } else {
+    const HeadlessAssetGenerationRequest request{
+        .kind = kind,
+        .template_recipe_id = recipe_id,
+        .name = absl::GetFlag(FLAGS_name),
+        .prompt = absl::GetFlag(FLAGS_prompt),
+        .output_path = absl::GetFlag(FLAGS_output),
+    };
+    RETURN_IF_ERROR(ValidateHeadlessAssetGenerationRequest(request));
+    ASSIGN_OR_RETURN(result, GenerateAssetCandidateBundle(assets->api(), *service, request));
+  }
+  LOG(INFO) << "Published generated " << operation << " " << kind << " candidate "
             << result.asset_id << " at " << absl::GetFlag(FLAGS_output);
   std::cout << result.manifest_path << '\n';
   return absl::OkStatus();

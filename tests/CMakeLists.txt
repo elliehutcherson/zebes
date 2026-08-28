@@ -90,6 +90,10 @@ target_link_libraries(api_validation_test
 )
 gtest_discover_tests(api_validation_test) # <--- REGISTERS THE TEST
 
+add_executable(asset_root_lock_test api/asset_root_lock_test.cc)
+target_link_libraries(asset_root_lock_test asset_root_lock macros gtest_main gmock)
+gtest_discover_tests(asset_root_lock_test)
+
 add_executable(input_manager_test input_manager_test.cc)
 target_link_libraries(input_manager_test input_manager macros gtest_main gmock)
 gtest_discover_tests(input_manager_test)
@@ -206,3 +210,4 @@ add_subdirectory(curation)
 add_subdirectory(generation)
 add_subdirectory(terrain)
 add_subdirectory(tools)
+add_subdirectory(authoring)

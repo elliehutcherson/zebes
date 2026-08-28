@@ -39,6 +39,7 @@ add_executable(prepare_parallax_artwork_asset_test prepare_parallax_artwork_asse
 target_link_libraries(prepare_parallax_artwork_asset_test
   prepare_parallax_artwork_asset
   regenerate_parallax_artwork_asset
+  redraw_parallax_artwork_asset
   image_digest
   gtest_main
   macros

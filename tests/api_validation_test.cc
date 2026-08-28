@@ -1214,5 +1214,109 @@ TEST_F(GeneratedParallaxArtworkRegenerationTest, PixelFailureRestoresRecipeSnaps
   EXPECT_THAT(std::string(status.message()), HasSubstr("pixel replacement failed"));
 }
 
+class GeneratedParallaxArtworkRedrawTest : public GeneratedParallaxArtworkCommitTest {
+ protected:
+  void SetUp() override {
+    GeneratedParallaxArtworkCommitTest::SetUp();
+    source_pixels_ = {
+        .width = 1,
+        .height = 1,
+        .pixels = {10, 20, 30, 255},
+    };
+    replacement_pixels_ = {
+        .width = 1,
+        .height = 1,
+        .pixels = {30, 20, 10, 255},
+    };
+    ASSERT_OK_AND_ASSIGN(
+        redraw_, PrepareParallaxArtworkRedraw(prepared_.source, source_pixels_,
+                                              GeneratedArtworkProvenance{
+                                                  .provider = "imagegen",
+                                                  .model = "builtin",
+                                                  .submitted_prompt = "redraw both lateral edges",
+                                                  .generated_at_utc = "2026-08-27T22:00:00Z",
+                                              },
+                                              replacement_pixels_, prepared_.recipe,
+                                              prepared_.texture, prepared_.artwork.finished));
+    ON_CALL(source_artwork_manager_, GetArtwork("background-source"))
+        .WillByDefault(Return(&redraw_.source_snapshot));
+    ON_CALL(source_artwork_manager_, ReadArtworkPixels("background-source"))
+        .WillByDefault(Return(source_pixels_));
+    ON_CALL(parallax_artwork_recipe_manager_, GetRecipe("background-recipe"))
+        .WillByDefault(Return(&redraw_.recipe_snapshot));
+    ON_CALL(texture_manager_, GetTexture("background-texture"))
+        .WillByDefault(Return(&redraw_.texture_snapshot));
+    ON_CALL(texture_manager_, ReadTexturePixels("background-texture"))
+        .WillByDefault(Return(prepared_.artwork.finished));
+  }
+
+  RgbaImage source_pixels_;
+  RgbaImage replacement_pixels_;
+  PreparedParallaxArtworkRedraw redraw_;
+};
+
+TEST_F(GeneratedParallaxArtworkRedrawTest, ReplacesSourceThenRecipeThenTexture) {
+  InSequence sequence;
+  EXPECT_CALL(source_artwork_manager_, ReplaceArtwork(_, _, _)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels("background-texture", 1, 1, _))
+      .WillOnce(Return(absl::OkStatus()));
+
+  EXPECT_OK(api_->RedrawGeneratedParallaxArtwork(redraw_));
+}
+
+TEST_F(GeneratedParallaxArtworkRedrawTest, StaleSourceRefusesEveryWrite) {
+  SourceArtwork changed = redraw_.source_snapshot;
+  changed.name = "Changed while reviewing";
+  ON_CALL(source_artwork_manager_, GetArtwork("background-source")).WillByDefault(Return(&changed));
+  EXPECT_CALL(source_artwork_manager_, ReplaceArtwork(_, _, _)).Times(0);
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).Times(0);
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  EXPECT_EQ(api_->RedrawGeneratedParallaxArtwork(redraw_).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST_F(GeneratedParallaxArtworkRedrawTest, SharedSourceRefusesEveryWrite) {
+  ON_CALL(prop_recipe_manager_, GetAllRecipes())
+      .WillByDefault(Return(std::vector<PropRecipe>{PropRecipe{
+          .id = "other-recipe",
+          .name = "Other generated asset",
+          .source_artwork_id = redraw_.source_snapshot.id,
+      }}));
+  EXPECT_CALL(source_artwork_manager_, ReplaceArtwork(_, _, _)).Times(0);
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).Times(0);
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  const absl::Status status = api_->RedrawGeneratedParallaxArtwork(redraw_);
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("another generated bundle stale"));
+}
+
+TEST_F(GeneratedParallaxArtworkRedrawTest, RecipeFailureRestoresSource) {
+  InSequence sequence;
+  EXPECT_CALL(source_artwork_manager_, ReplaceArtwork(_, _, _)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_))
+      .WillOnce(Return(absl::InternalError("recipe write failed")));
+  EXPECT_CALL(source_artwork_manager_, ReplaceArtwork(_, _, _)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _)).Times(0);
+
+  const absl::Status status = api_->RedrawGeneratedParallaxArtwork(redraw_);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("recipe write failed"));
+}
+
+TEST_F(GeneratedParallaxArtworkRedrawTest, TextureFailureRestoresRecipeAndSource) {
+  InSequence sequence;
+  EXPECT_CALL(source_artwork_manager_, ReplaceArtwork(_, _, _)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(texture_manager_, ReplaceTexturePixels(_, _, _, _))
+      .WillOnce(Return(absl::InternalError("pixel replacement failed")));
+  EXPECT_CALL(parallax_artwork_recipe_manager_, SaveRecipe(_)).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(source_artwork_manager_, ReplaceArtwork(_, _, _)).WillOnce(Return(absl::OkStatus()));
+
+  const absl::Status status = api_->RedrawGeneratedParallaxArtwork(redraw_);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("pixel replacement failed"));
+}
+
 }  // namespace
 }  // namespace zebes
