@@ -4,9 +4,9 @@
 generated background artwork now share retained source, deterministic
 processing, compensated bundle lifecycle, and the accepted Parallax Artwork
 and Theme Editor workflow. Those gates complete the engineering vertical
-slice. Milestone 4 has an accepted horizontal Catacombs baseline and complete
-finite-formation coverage through 0.5×; it continues as a non-blocking
-prop/decal content pass;
+slice. Milestone 4 has an accepted horizontal Catacombs baseline, complete
+finite-formation coverage through 0.5×, and an initial scale-aware distributed
+prop/decal pass; further silhouette variation remains non-blocking content work;
 Milestone 5 zone fades pass both their automated and live visual gates.**
 Written 2026-08-22 for the first cave vertical slice, revised the same day to
 make standalone parallax-theme ownership the highest-priority implementation
@@ -14,7 +14,8 @@ milestone, updated 2026-08-23 after accepting composed parallax layers, and
 updated 2026-08-24 after accepting the live generated-background gate, then
 2026-08-25 to separate the completed engineering slice from content curation,
 and 2026-08-27 after accepting zone fades and the usable horizontal Catacombs
-baseline, then 2026-08-28 after accepting 0.5× formation coverage.
+baseline, then 2026-08-28 after accepting 0.5× formation coverage and the first
+player-scaled distributed prop pass.
 Update milestone states here as work lands; use [`roadmap.md`](roadmap.md) only
 for the higher-level sequence.
 
@@ -1082,12 +1083,18 @@ and the final 343-artifact integrated review reports no objective findings at
 0.5×, 1×, or 2×. Visual review rejected the first single-variation layout for
 obvious stamp cadence before accepting the A/B composition.
 
-The same review found all three placed props inside the first 2,048 pixels of
-the 16,384-pixel route and both Catacombs-specific silhouettes to be tall
-pedestals. The remaining kit needs low/wide floor debris, hanging or wall
-accents, and deliberately spaced foreground framing before the route reads as
-production content. That prop/decal work is content follow-up, not unfinished
-generation or editor infrastructure, and does not block Milestone 5.
+The same review initially found all three placed props inside the first 2,048
+pixels of the 16,384-pixel route and both Catacombs-specific silhouettes to be
+tall pedestals. The first scale-aware follow-up adds a Mouse Player Placeholder
+at the opening, four low/wide Collapsed Offerings placements, three ceiling
+Chain Friezes, and three sparse Foreground Funeral Shrouds. Back Decor now spans
+x=640 through x=14,912 and Front Decor spans x=1,472 through x=14,272. The final
+343-artifact review reports no objective findings. Visual review rejected a
+bright hanging draft that read as a collectible, a grounded rib draft that
+read as a collider-free hazard, and larger cloth drafts that were opaque or
+failed deterministic ceiling-contact validation. Additional variants and more
+visually assertive but still noninteractive foreground forms remain content
+polish, not unfinished generation or editor infrastructure.
 
 - Produce the accepted Far Fill and Far Formations plus a small Near Formation
   element set.
@@ -1194,6 +1201,15 @@ three Near Formation variants:
    apply only to this level; otherwise edit the shared resource intentionally.
 
 ### D. Create and place props
+
+Player-scale contract: one tile is 32 pixels. The authored player collision
+envelope is at most one tile wide and two tiles tall, centered on the grounded
+origin: x in `[-16, 16]` and y in `[-64, 0]`. Animation artwork may extend
+beyond that envelope for running, turning, flipping, attacking, tails,
+clothing, or equipment; collision remains inside the fixed 1×2 boundary. Use
+the Mouse Player Placeholder as the current visual reference when judging prop,
+formation, opening, and foreground scale. It is a static authoring placeholder,
+not a player controller or final animation set.
 
 1. Create/import props through Prop Artwork. Use grounded, ceiling, or free
    attachment according to the prop itself; visual depth is chosen later.

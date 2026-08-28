@@ -112,6 +112,38 @@ absl::StatusOr<CandidatePlan> BuildPlan(Api& api, const ImageGenerationCapabilit
       return absl::FailedPreconditionError("prop template recipe lookup returned null");
     }
     RETURN_IF_ERROR(ValidatePropRecipe(*recipe));
+    PropRecipe template_recipe = *recipe;
+    if (request.prop_canvas_tiles_wide.has_value()) {
+      template_recipe.pipeline.composition.canvas_tiles_wide = *request.prop_canvas_tiles_wide;
+      template_recipe.pipeline.composition.canvas_tiles_high = *request.prop_canvas_tiles_high;
+    }
+    if (request.prop_attachment_mode.has_value()) {
+      template_recipe.pipeline.composition.attachment = {
+          .mode = *request.prop_attachment_mode,
+      };
+    }
+    RETURN_IF_ERROR(
+        ValidatePropArtworkPipelineConfig(template_recipe.pipeline, template_recipe.style));
+    const int output_width =
+        template_recipe.style.tile_size * template_recipe.pipeline.composition.canvas_tiles_wide;
+    const int output_height =
+        template_recipe.style.tile_size * template_recipe.pipeline.composition.canvas_tiles_high;
+    template_recipe.expected_frame = {
+        .index = 0,
+        .texture_x = 0,
+        .texture_y = 0,
+        .texture_w = output_width,
+        .texture_h = output_height,
+        .render_w = output_width,
+        .render_h = output_height,
+        .frames_per_cycle = 0,
+        .offset_x = -output_width / 2,
+        .offset_y =
+            template_recipe.pipeline.composition.attachment.mode == PropAttachmentMode::kCeiling
+                ? 0
+                : -(output_height - 1),
+    };
+    RETURN_IF_ERROR(ValidatePropRecipe(template_recipe));
     const PropAssetIds ids{
         .texture_id = GenerateGuid(),
         .sprite_id = GenerateGuid(),
@@ -122,7 +154,7 @@ absl::StatusOr<CandidatePlan> BuildPlan(Api& api, const ImageGenerationCapabilit
         .asset_id = ids.recipe_id,
         .name = request.name,
         .source = placeholder_source,
-        .template_recipe = *recipe,
+        .template_recipe = template_recipe,
         .ids = ids,
     };
     return CandidatePlan{
@@ -134,8 +166,8 @@ absl::StatusOr<CandidatePlan> BuildPlan(Api& api, const ImageGenerationCapabilit
                 .requested_candidates = 1,
                 .target_aspect =
                     {
-                        .width = recipe->pipeline.composition.canvas_tiles_wide,
-                        .height = recipe->pipeline.composition.canvas_tiles_high,
+                        .width = template_recipe.pipeline.composition.canvas_tiles_wide,
+                        .height = template_recipe.pipeline.composition.canvas_tiles_high,
                     },
                 .transparency = capabilities.supports_transparency
                                     ? ImageTransparencyPreference::kPreferTransparent
@@ -302,6 +334,25 @@ absl::Status ValidateHeadlessAssetGenerationRequest(const HeadlessAssetGeneratio
     return absl::InvalidArgumentError(
         "headless generation recipe ID, name, prompt, and output must be non-empty");
   }
+  const bool has_prop_width = request.prop_canvas_tiles_wide.has_value();
+  const bool has_prop_height = request.prop_canvas_tiles_high.has_value();
+  const bool has_prop_overrides =
+      has_prop_width || has_prop_height || request.prop_attachment_mode.has_value();
+  if (request.kind != "prop" && has_prop_overrides) {
+    return absl::InvalidArgumentError("prop composition overrides require kind 'prop'");
+  }
+  if (has_prop_width != has_prop_height) {
+    return absl::InvalidArgumentError(
+        "prop canvas width and height overrides must be provided together");
+  }
+  if (has_prop_width &&
+      (*request.prop_canvas_tiles_wide <= 0 || *request.prop_canvas_tiles_high <= 0)) {
+    return absl::InvalidArgumentError("prop canvas dimensions must be positive");
+  }
+  if (request.prop_attachment_mode == PropAttachmentMode::kFree) {
+    return absl::InvalidArgumentError(
+        "headless generation does not support a free attachment without an explicit anchor");
+  }
   return ValidateNewDirectoryDestination(request.output_path);
 }
 
@@ -334,6 +385,9 @@ absl::Status ValidateHeadlessAssetStagingRequest(const HeadlessAssetStagingReque
       .name = request.name,
       .prompt = request.prompt,
       .output_path = request.output_path,
+      .prop_canvas_tiles_wide = request.prop_canvas_tiles_wide,
+      .prop_canvas_tiles_high = request.prop_canvas_tiles_high,
+      .prop_attachment_mode = request.prop_attachment_mode,
   }));
   if (request.provider.empty() || request.model.empty()) {
     return absl::InvalidArgumentError("headless staging provider and model must be non-empty");
@@ -353,6 +407,9 @@ absl::StatusOr<HeadlessAssetGenerationResult> StageAssetCandidateBundle(
       .name = request.name,
       .prompt = request.prompt,
       .output_path = request.output_path,
+      .prop_canvas_tiles_wide = request.prop_canvas_tiles_wide,
+      .prop_canvas_tiles_high = request.prop_canvas_tiles_high,
+      .prop_attachment_mode = request.prop_attachment_mode,
   };
   ASSIGN_OR_RETURN(CandidatePlan plan,
                    BuildPlan(api, ImageGenerationCapabilities{}, generation_request));

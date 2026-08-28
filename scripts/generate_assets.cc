@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,12 @@ ABSL_FLAG(std::string, name, "", "Name for the new generated asset");
 ABSL_FLAG(std::string, prompt, "", "Provider subject prompt");
 ABSL_FLAG(std::string, provider, "fake", "Image provider: openai, codex, or fake");
 ABSL_FLAG(std::string, output, "", "New directory in which to publish the candidate bundle");
+ABSL_FLAG(int, prop_canvas_tiles_wide, 0,
+          "Prop output width in tiles; set with --prop_canvas_tiles_high, or zero to inherit");
+ABSL_FLAG(int, prop_canvas_tiles_high, 0,
+          "Prop output height in tiles; set with --prop_canvas_tiles_wide, or zero to inherit");
+ABSL_FLAG(std::string, prop_attachment, "inherit",
+          "Prop attachment override: inherit, grounded, or ceiling");
 
 namespace zebes {
 namespace {
@@ -41,6 +48,13 @@ absl::StatusOr<std::unique_ptr<ImageGenerationService>> CreateService(const std:
   if (provider == "openai") return ImageGenerationService::CreateOpenAi(OpenAiImageConfig{});
   if (provider == "codex") return ImageGenerationService::CreateCodex(CodexImageConfig{});
   return absl::InvalidArgumentError("--provider must be openai, codex, or fake");
+}
+
+absl::StatusOr<std::optional<PropAttachmentMode>> ParsePropAttachment(const std::string& value) {
+  if (value == "inherit") return std::nullopt;
+  if (value == "grounded") return PropAttachmentMode::kGrounded;
+  if (value == "ceiling") return PropAttachmentMode::kCeiling;
+  return absl::InvalidArgumentError("--prop_attachment must be inherit, grounded, or ceiling");
 }
 
 template <typename Recipe>
@@ -77,11 +91,19 @@ absl::Status Run() {
   if (asset_root.empty()) return absl::InvalidArgumentError("--asset_root must be non-empty");
   const std::string operation = absl::GetFlag(FLAGS_operation);
   const std::string kind = absl::GetFlag(FLAGS_kind);
+  const int prop_canvas_tiles_wide = absl::GetFlag(FLAGS_prop_canvas_tiles_wide);
+  const int prop_canvas_tiles_high = absl::GetFlag(FLAGS_prop_canvas_tiles_high);
+  ASSIGN_OR_RETURN(const std::optional<PropAttachmentMode> prop_attachment_mode,
+                   ParsePropAttachment(absl::GetFlag(FLAGS_prop_attachment)));
   if (operation != "create" && operation != "redraw") {
     return absl::InvalidArgumentError("--operation must be create or redraw");
   }
   if (operation == "redraw" && kind != "parallax-artwork") {
     return absl::InvalidArgumentError("redraw currently supports only --kind=parallax-artwork");
+  }
+  if (operation == "redraw" && (prop_canvas_tiles_wide != 0 || prop_canvas_tiles_high != 0 ||
+                                prop_attachment_mode.has_value())) {
+    return absl::InvalidArgumentError("prop composition overrides do not apply to redraw");
   }
   ASSIGN_OR_RETURN(EngineConfig config,
                    EngineConfig::Load(absl::StrCat(asset_root, "/config.json")));
@@ -111,6 +133,11 @@ absl::Status Run() {
         .name = absl::GetFlag(FLAGS_name),
         .prompt = absl::GetFlag(FLAGS_prompt),
         .output_path = absl::GetFlag(FLAGS_output),
+        .prop_canvas_tiles_wide =
+            prop_canvas_tiles_wide == 0 ? std::nullopt : std::optional(prop_canvas_tiles_wide),
+        .prop_canvas_tiles_high =
+            prop_canvas_tiles_high == 0 ? std::nullopt : std::optional(prop_canvas_tiles_high),
+        .prop_attachment_mode = prop_attachment_mode,
     };
     RETURN_IF_ERROR(ValidateHeadlessAssetGenerationRequest(request));
     ASSIGN_OR_RETURN(result, GenerateAssetCandidateBundle(assets->api(), *service, request));

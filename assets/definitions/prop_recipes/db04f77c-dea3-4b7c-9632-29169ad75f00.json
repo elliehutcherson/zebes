@@ -1,0 +1,219 @@
+{
+  "blueprint_id": "e677ac5d-0100-4cbd-928d-0f97b3118232",
+  "expected_frame": {
+    "frames_per_cycle": 0,
+    "index": 0,
+    "offset_x": -48,
+    "offset_y": -30,
+    "render_h": 32,
+    "render_w": 96,
+    "texture_h": 32,
+    "texture_w": 96,
+    "texture_x": 0,
+    "texture_y": 0
+  },
+  "final_pixel_digest": "187394bdb22378147a7ce384ae22ce0767ce0fdb73da67cc03ded6719cae27f8",
+  "id": "db04f77c-dea3-4b7c-9632-29169ad75f00",
+  "name": "Catacombs Collapsed Offerings",
+  "pipeline": {
+    "cleanup": {
+      "alpha_threshold": 128,
+      "contact_tolerance": 3,
+      "minimum_component_area": 2
+    },
+    "composition": {
+      "attachment": {
+        "free_anchor": null,
+        "mode": "grounded"
+      },
+      "canvas_tiles_high": 1,
+      "canvas_tiles_wide": 3,
+      "padding_fraction": 0.05999999865889549
+    },
+    "edge": {
+      "alpha_threshold": 128,
+      "width": 1
+    },
+    "isolation": {
+      "alpha_threshold": 16,
+      "background_distance": 36.0,
+      "competing_subject_ratio": 0.20000000298023224,
+      "enclosed_background_distance": 8.0,
+      "minimum_subject_area": 64
+    },
+    "source_limits": {
+      "maximum_bytes": 67108864,
+      "maximum_height": 4096,
+      "maximum_pixels": 16777216,
+      "maximum_width": 4096
+    }
+  },
+  "pipeline_version": 2,
+  "schema_version": 2,
+  "source_artwork_id": "c6491ad6-14a5-41e3-bdac-4f5a58ca8d2d",
+  "sprite_id": "2a0813c0-f954-453f-a416-ef39e9fc9ac2",
+  "style": {
+    "palette": [
+      [
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        37,
+        35,
+        50,
+        255
+      ],
+      [
+        170,
+        193,
+        199,
+        255
+      ],
+      [
+        125,
+        142,
+        166,
+        255
+      ],
+      [
+        81,
+        80,
+        126,
+        255
+      ],
+      [
+        7,
+        0,
+        13,
+        255
+      ],
+      [
+        16,
+        27,
+        76,
+        255
+      ],
+      [
+        10,
+        16,
+        59,
+        255
+      ],
+      [
+        26,
+        43,
+        96,
+        255
+      ],
+      [
+        9,
+        16,
+        59,
+        255
+      ],
+      [
+        31,
+        67,
+        104,
+        255
+      ],
+      [
+        11,
+        7,
+        51,
+        255
+      ],
+      [
+        149,
+        171,
+        184,
+        255
+      ],
+      [
+        99,
+        108,
+        144,
+        255
+      ],
+      [
+        22,
+        35,
+        88,
+        255
+      ],
+      [
+        136,
+        155,
+        174,
+        255
+      ],
+      [
+        90,
+        94,
+        136,
+        255
+      ],
+      [
+        154,
+        216,
+        232,
+        255
+      ],
+      [
+        154,
+        202,
+        232,
+        255
+      ],
+      [
+        154,
+        187,
+        233,
+        255
+      ],
+      [
+        154,
+        173,
+        233,
+        255
+      ],
+      [
+        155,
+        159,
+        233,
+        255
+      ],
+      [
+        165,
+        155,
+        233,
+        255
+      ],
+      [
+        180,
+        155,
+        234,
+        255
+      ],
+      [
+        195,
+        155,
+        234,
+        255
+      ],
+      [
+        31,
+        31,
+        60,
+        255
+      ]
+    ],
+    "pixel_block_size": 1,
+    "tile_size": 32
+  },
+  "terrain_recipe_id": "00a2a23d-47fa-4468-b101-9431671f643d",
+  "texture_id": "336b023a-9dbd-4e32-86e4-9473786368e6"
+}

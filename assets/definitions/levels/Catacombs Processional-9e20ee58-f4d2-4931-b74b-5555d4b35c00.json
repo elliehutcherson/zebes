@@ -43,6 +43,146 @@
                         "x": 640.0,
                         "y": 864.0
                     }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "e677ac5d-0100-4cbd-928d-0f97b3118232",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 5,
+                    "sort_order": 20,
+                    "sprite_id": "2a0813c0-f954-453f-a416-ef39e9fc9ac2",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 2944.0,
+                        "y": 864.0
+                    }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "e677ac5d-0100-4cbd-928d-0f97b3118232",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 6,
+                    "sort_order": 20,
+                    "sprite_id": "2a0813c0-f954-453f-a416-ef39e9fc9ac2",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 6848.0,
+                        "y": 864.0
+                    }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "e677ac5d-0100-4cbd-928d-0f97b3118232",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 7,
+                    "sort_order": 20,
+                    "sprite_id": "2a0813c0-f954-453f-a416-ef39e9fc9ac2",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 10944.0,
+                        "y": 864.0
+                    }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "e677ac5d-0100-4cbd-928d-0f97b3118232",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 8,
+                    "sort_order": 20,
+                    "sprite_id": "2a0813c0-f954-453f-a416-ef39e9fc9ac2",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 14912.0,
+                        "y": 864.0
+                    }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "3041eff4-f599-4ef2-bf1a-ecd54365d821",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 9,
+                    "sort_order": 30,
+                    "sprite_id": "193a9103-644a-4f72-9a09-f269d76de31d",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 4384.0,
+                        "y": 416.0
+                    }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "3041eff4-f599-4ef2-bf1a-ecd54365d821",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 10,
+                    "sort_order": 30,
+                    "sprite_id": "193a9103-644a-4f72-9a09-f269d76de31d",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 8800.0,
+                        "y": 416.0
+                    }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "3041eff4-f599-4ef2-bf1a-ecd54365d821",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 11,
+                    "sort_order": 30,
+                    "sprite_id": "193a9103-644a-4f72-9a09-f269d76de31d",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 13248.0,
+                        "y": 416.0
+                    }
                 }
             ],
             "id": 0,
@@ -50,7 +190,28 @@
             "tile_chunks": []
         },
         {
-            "entities": [],
+            "entities": [
+                {
+                    "active": true,
+                    "blueprint_id": "8be038c0-fd4e-4dc5-9def-2a34946c5c4d",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "2ef185c9-3a26-4729-8373-416e36ed67c7",
+                    "id": 4,
+                    "sort_order": 0,
+                    "sprite_id": "4a0a154a-ed7e-4bac-bf96-309e1ebda3e2",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 256.0,
+                        "y": 864.0
+                    }
+                }
+            ],
             "id": 1,
             "name": "GamePlay",
             "tile_chunks": [
@@ -16540,6 +16701,66 @@
                         "rotation": 0.0,
                         "x": 1472.0,
                         "y": 832.0
+                    }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "fb4a0070-7af2-4183-b67f-2ecf27d098cc",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 12,
+                    "sort_order": 10,
+                    "sprite_id": "ccc36e75-3f6f-47a5-94b7-d53751f65f9c",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 5696.0,
+                        "y": 416.0
+                    }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "fb4a0070-7af2-4183-b67f-2ecf27d098cc",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 13,
+                    "sort_order": 10,
+                    "sprite_id": "ccc36e75-3f6f-47a5-94b7-d53751f65f9c",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 10048.0,
+                        "y": 416.0
+                    }
+                },
+                {
+                    "active": true,
+                    "blueprint_id": "fb4a0070-7af2-4183-b67f-2ecf27d098cc",
+                    "blueprint_state_index": 0,
+                    "body": {
+                        "drag_x": 0.0,
+                        "drag_y": 0.0,
+                        "is_static": false,
+                        "mass": 0.0
+                    },
+                    "collider_id": "",
+                    "id": 14,
+                    "sort_order": 10,
+                    "sprite_id": "ccc36e75-3f6f-47a5-94b7-d53751f65f9c",
+                    "transform": {
+                        "rotation": 0.0,
+                        "x": 14272.0,
+                        "y": 416.0
                     }
                 }
             ],

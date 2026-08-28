@@ -312,7 +312,8 @@ Catacombs Processional publishes a complete bundle without SDL or ImGui.
 
 Run this only after Phase 3 publishes the baseline evidence.
 
-Steps 1-5 are complete. Step 6 is the next content pass.
+Steps 1-6 are complete for the first distributed content pass. Additional
+silhouette variants remain normal content polish.
 
 1. Review the persisted Catacombs level and retain the bundle outside the asset
    tree as the before-state.
@@ -334,6 +335,16 @@ Steps 1-5 are complete. Step 6 is the next content pass.
    wall accents, and foreground framing. Distribute them deliberately over the
    complete 16,384-pixel route instead of adding another tall pedestal near the
    spawn.
+
+The first Step 6 result uses a static Mouse Player Placeholder with an exact
+32×64 collider as the scale reference, plus four low/wide floor scatters, three
+ceiling friezes, and three sparse foreground shrouds. The persisted layer
+evidence now reports nine Back Decor entities spanning x=640–14,912, one
+Gameplay player placeholder at x=256, and four Front Decor entities spanning
+x=1,472–14,272. Its 343-artifact review has no objective findings. Production
+visual review intentionally rejected brighter hanging artwork that resembled a
+pickup, grounded ribs that resembled a collider-free hazard, and opaque or
+invalid larger drapery candidates.
 
 Prefer companion lower artwork over scaling the current upper formations:
 scaling would change their accepted landmark size and horizontal rhythm.

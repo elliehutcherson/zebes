@@ -1,0 +1,19 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "offset_x": -16,
+            "offset_y": -60,
+            "render_h": 64,
+            "render_w": 32,
+            "texture_h": 64,
+            "texture_w": 32,
+            "texture_x": 0,
+            "texture_y": 0
+        }
+    ],
+    "id": "4a0a154a-ed7e-4bac-bf96-309e1ebda3e2",
+    "name": "Mouse Player Placeholder",
+    "texture_id": "7e1b7bda-aef6-4718-89b0-c440a83be734"
+}

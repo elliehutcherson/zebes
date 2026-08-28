@@ -1,0 +1,12 @@
+{
+    "id": "fb4a0070-7af2-4183-b67f-2ecf27d098cc",
+    "name": "Catacombs Foreground Funeral Shroud",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Default",
+            "placement_mode": "ceiling",
+            "sprite_id": "ccc36e75-3f6f-47a5-94b7-d53751f65f9c"
+        }
+    ]
+}

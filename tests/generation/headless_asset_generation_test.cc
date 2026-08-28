@@ -219,6 +219,55 @@ TEST_F(HeadlessAssetGenerationTest, PropGenerationUsesTheTemplateCanvasAspect) {
   EXPECT_EQ(candidate.template_recipe.pipeline.composition.canvas_tiles_high, 2);
 }
 
+TEST_F(HeadlessAssetGenerationTest, PropGenerationAppliesCanvasAndAttachmentOverrides) {
+  ASSERT_OK_AND_ASSIGN(PropRecipe recipe, PropTemplateRecipe());
+  MockApi api;
+  EXPECT_CALL(api, GetPropRecipe(recipe.id)).WillOnce(Return(&recipe));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
+                       ImageGenerationService::Create(CreateFakeImageGenerationClient()));
+
+  ASSERT_OK_AND_ASSIGN(
+      HeadlessAssetGenerationResult result,
+      GenerateAssetCandidateBundle(api, *service,
+                                   {
+                                       .kind = "prop",
+                                       .template_recipe_id = recipe.id,
+                                       .name = "Wide Ceiling Roots",
+                                       .prompt = "hanging cave roots",
+                                       .output_path = (root_ / "wide").string(),
+                                       .prop_canvas_tiles_wide = 3,
+                                       .prop_canvas_tiles_high = 1,
+                                       .prop_attachment_mode = PropAttachmentMode::kCeiling,
+                                   }));
+
+  std::ifstream candidate_stream(result.candidate_path);
+  nlohmann::json candidate_json;
+  candidate_stream >> candidate_json;
+  ASSERT_OK_AND_ASSIGN(GeneratedPropCreationCandidate candidate,
+                       GeneratedPropCreationCandidateFromJson(candidate_json));
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.canvas_tiles_wide, 3);
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.canvas_tiles_high, 1);
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.attachment.mode,
+            PropAttachmentMode::kCeiling);
+  EXPECT_EQ(candidate.template_recipe.expected_frame.texture_w, 96);
+  EXPECT_EQ(candidate.template_recipe.expected_frame.texture_h, 32);
+  EXPECT_EQ(candidate.template_recipe.expected_frame.offset_y, 0);
+}
+
+TEST_F(HeadlessAssetGenerationTest, RejectsPartialPropCanvasOverrideBeforeRecipeLookup) {
+  const absl::Status status = ValidateHeadlessAssetGenerationRequest({
+      .kind = "prop",
+      .template_recipe_id = "recipe",
+      .name = "Partial Canvas",
+      .prompt = "broken stones",
+      .output_path = (root_ / "partial").string(),
+      .prop_canvas_tiles_wide = 3,
+  });
+
+  EXPECT_TRUE(absl::IsInvalidArgument(status));
+  EXPECT_THAT(status.message(), ::testing::HasSubstr("provided together"));
+}
+
 TEST_F(HeadlessAssetGenerationTest, MatteGenerationNamesTheTemplateRecipesExactColor) {
   ASSERT_OK_AND_ASSIGN(ParallaxArtworkRecipe recipe, TemplateRecipe());
   recipe.pipeline.alpha_role = ParallaxArtworkAlphaRole::kTransparentOverlay;
@@ -326,6 +375,43 @@ TEST_F(HeadlessAssetGenerationTest, StagedSourcePublishesTheSameStrictCreationBu
   EXPECT_EQ(retained.width, source.width);
   EXPECT_EQ(retained.height, source.height);
   EXPECT_EQ(retained.pixels, source.pixels);
+}
+
+TEST_F(HeadlessAssetGenerationTest, StagedPropAppliesCanvasAndAttachmentOverrides) {
+  ASSERT_OK_AND_ASSIGN(PropRecipe recipe, PropTemplateRecipe());
+  MockApi api;
+  EXPECT_CALL(api, GetPropRecipe(recipe.id)).WillOnce(Return(&recipe));
+  RgbaImage pixels{
+      .width = 16,
+      .height = 16,
+      .pixels = std::vector<uint8_t>(16 * 16 * 4, 255),
+  };
+
+  ASSERT_OK_AND_ASSIGN(
+      HeadlessAssetGenerationResult result,
+      StageAssetCandidateBundle(api, pixels,
+                                {
+                                    .kind = "prop",
+                                    .template_recipe_id = recipe.id,
+                                    .name = "Staged Foreground Drapery",
+                                    .prompt = "sparse torn drapery",
+                                    .provider = "external",
+                                    .model = "artist-v1",
+                                    .output_path = (root_ / "staged-wide").string(),
+                                    .prop_canvas_tiles_wide = 3,
+                                    .prop_canvas_tiles_high = 5,
+                                    .prop_attachment_mode = PropAttachmentMode::kCeiling,
+                                }));
+
+  std::ifstream candidate_stream(result.candidate_path);
+  nlohmann::json candidate_json;
+  candidate_stream >> candidate_json;
+  ASSERT_OK_AND_ASSIGN(GeneratedPropCreationCandidate candidate,
+                       GeneratedPropCreationCandidateFromJson(candidate_json));
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.canvas_tiles_wide, 3);
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.canvas_tiles_high, 5);
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.attachment.mode,
+            PropAttachmentMode::kCeiling);
 }
 
 TEST_F(HeadlessAssetGenerationTest, StagingRejectsAnInvalidInputImageBeforeRecipeLookup) {

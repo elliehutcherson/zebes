@@ -1,9 +1,11 @@
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "artwork/compose_prop.h"
 #include "common/image_io.h"
 #include "generation/image_generation_service.h"
 
@@ -15,6 +17,9 @@ struct HeadlessAssetGenerationRequest {
   std::string name;
   std::string prompt;
   std::string output_path;
+  std::optional<int> prop_canvas_tiles_wide;
+  std::optional<int> prop_canvas_tiles_high;
+  std::optional<PropAttachmentMode> prop_attachment_mode;
 };
 
 struct HeadlessAssetGenerationResult {
@@ -31,6 +36,9 @@ struct HeadlessAssetStagingRequest {
   std::string provider;
   std::string model;
   std::string output_path;
+  std::optional<int> prop_canvas_tiles_wide;
+  std::optional<int> prop_canvas_tiles_high;
+  std::optional<PropAttachmentMode> prop_attachment_mode;
 };
 
 struct HeadlessAssetRedrawRequest {

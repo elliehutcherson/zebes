@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/flags/flag.h"
@@ -24,9 +25,22 @@ ABSL_FLAG(std::string, provider, "", "Provider that produced the source image");
 ABSL_FLAG(std::string, model, "", "Model that produced the source image");
 ABSL_FLAG(std::string, prompt, "", "Exact prompt submitted for the source image");
 ABSL_FLAG(std::string, output, "", "New directory in which to publish the candidate bundle");
+ABSL_FLAG(int, prop_canvas_tiles_wide, 0,
+          "Prop output width in tiles; set with --prop_canvas_tiles_high, or zero to inherit");
+ABSL_FLAG(int, prop_canvas_tiles_high, 0,
+          "Prop output height in tiles; set with --prop_canvas_tiles_wide, or zero to inherit");
+ABSL_FLAG(std::string, prop_attachment, "inherit",
+          "Prop attachment override: inherit, grounded, or ceiling");
 
 namespace zebes {
 namespace {
+
+absl::StatusOr<std::optional<PropAttachmentMode>> ParsePropAttachment(const std::string& value) {
+  if (value == "inherit") return std::nullopt;
+  if (value == "grounded") return PropAttachmentMode::kGrounded;
+  if (value == "ceiling") return PropAttachmentMode::kCeiling;
+  return absl::InvalidArgumentError("--prop_attachment must be inherit, grounded, or ceiling");
+}
 
 absl::Status Run() {
   const std::string asset_root = absl::GetFlag(FLAGS_asset_root);
@@ -34,6 +48,10 @@ absl::Status Run() {
   if (asset_root.empty() || input.empty()) {
     return absl::InvalidArgumentError("--asset_root and --input must be non-empty");
   }
+  const int prop_canvas_tiles_wide = absl::GetFlag(FLAGS_prop_canvas_tiles_wide);
+  const int prop_canvas_tiles_high = absl::GetFlag(FLAGS_prop_canvas_tiles_high);
+  ASSIGN_OR_RETURN(const std::optional<PropAttachmentMode> prop_attachment_mode,
+                   ParsePropAttachment(absl::GetFlag(FLAGS_prop_attachment)));
   const HeadlessAssetStagingRequest request{
       .kind = absl::GetFlag(FLAGS_kind),
       .template_recipe_id = absl::GetFlag(FLAGS_recipe_id),
@@ -42,6 +60,11 @@ absl::Status Run() {
       .provider = absl::GetFlag(FLAGS_provider),
       .model = absl::GetFlag(FLAGS_model),
       .output_path = absl::GetFlag(FLAGS_output),
+      .prop_canvas_tiles_wide =
+          prop_canvas_tiles_wide == 0 ? std::nullopt : std::optional(prop_canvas_tiles_wide),
+      .prop_canvas_tiles_high =
+          prop_canvas_tiles_high == 0 ? std::nullopt : std::optional(prop_canvas_tiles_high),
+      .prop_attachment_mode = prop_attachment_mode,
   };
   RETURN_IF_ERROR(ValidateHeadlessAssetStagingRequest(request));
   ASSIGN_OR_RETURN(const RgbaImage image, ReadPng(input));

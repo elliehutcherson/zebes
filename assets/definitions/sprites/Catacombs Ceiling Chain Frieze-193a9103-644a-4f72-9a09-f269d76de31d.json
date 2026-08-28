@@ -1,0 +1,19 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "offset_x": -48,
+            "offset_y": -2,
+            "render_h": 32,
+            "render_w": 96,
+            "texture_h": 32,
+            "texture_w": 96,
+            "texture_x": 0,
+            "texture_y": 0
+        }
+    ],
+    "id": "193a9103-644a-4f72-9a09-f269d76de31d",
+    "name": "Catacombs Ceiling Chain Frieze",
+    "texture_id": "47ea204f-8421-4420-8bb4-524b2c92d6df"
+}

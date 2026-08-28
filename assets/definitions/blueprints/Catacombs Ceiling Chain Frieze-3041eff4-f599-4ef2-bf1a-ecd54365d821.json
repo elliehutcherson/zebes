@@ -1,0 +1,12 @@
+{
+    "id": "3041eff4-f599-4ef2-bf1a-ecd54365d821",
+    "name": "Catacombs Ceiling Chain Frieze",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Default",
+            "placement_mode": "ceiling",
+            "sprite_id": "193a9103-644a-4f72-9a09-f269d76de31d"
+        }
+    ]
+}

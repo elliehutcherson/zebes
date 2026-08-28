@@ -179,7 +179,7 @@ TEST(EnvironmentBuilderTest, LoadsTheProductionCatacombsWithoutCatalogIds) {
   EXPECT_EQ(spec.level.rows, 40);
   EXPECT_EQ(spec.level.tileset_name, "lucinda_cave");
   EXPECT_EQ(spec.level.terrain_name, "lucinda_cave");
-  ASSERT_EQ(spec.level.entities.size(), 3);
+  ASSERT_EQ(spec.level.entities.size(), 14);
   EXPECT_EQ(spec.level.entities[0].id, 1);
   EXPECT_EQ(spec.level.entities[0].blueprint_name, "Cave Crystal");
   EXPECT_EQ(spec.level.entities[0].layer_name, "Back Decor");
@@ -193,6 +193,15 @@ TEST(EnvironmentBuilderTest, LoadsTheProductionCatacombsWithoutCatalogIds) {
   EXPECT_EQ(spec.level.entities[2].layer_name, "Front Decor");
   EXPECT_EQ(spec.level.entities[2].position.x, 1472.0f);
   EXPECT_EQ(spec.level.entities[2].position.y, 832.0f);
+  EXPECT_EQ(spec.level.entities[3].id, 4);
+  EXPECT_EQ(spec.level.entities[3].blueprint_name, "Mouse Player Placeholder");
+  EXPECT_EQ(spec.level.entities[3].layer_name, "GamePlay");
+  EXPECT_EQ(spec.level.entities[3].position.x, 256.0f);
+  EXPECT_EQ(spec.level.entities[3].position.y, 864.0f);
+  EXPECT_EQ(spec.level.entities[4].blueprint_name, "Catacombs Collapsed Offerings");
+  EXPECT_EQ(spec.level.entities[8].blueprint_name, "Catacombs Ceiling Chain Frieze");
+  EXPECT_EQ(spec.level.entities[11].blueprint_name, "Catacombs Foreground Funeral Shroud");
+  EXPECT_EQ(spec.level.entities.back().position.x, 14272.0f);
 }
 
 TEST(EnvironmentBuilderTest, RejectsUnknownFieldsInsteadOfSilentlyIgnoringThem) {

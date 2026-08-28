@@ -13,7 +13,7 @@ phase has decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
-| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 5 zone fades and Catacombs formation coverage through 0.5× are accepted; the broader cave prop/decal pass remains |
+| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 5 zone fades, Catacombs formation coverage through 0.5×, and the first player-scaled distributed prop pass are accepted; more prop/decal variants remain |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -229,14 +229,18 @@ production placement. A Funeral Brazier now exercises the complete
 `generate_assets --provider=codex` path with template-derived portrait
 composition and supplies the first Front Decor placement.
 
-The 2026-08-28 production route review keeps the broader prop/decal content gate
-open. Its initial bundle exposed two finite-layer coverage gaps at 0.5×. The
+The 2026-08-28 production route review keeps the broader prop/decal variation
+gate open. Its initial bundle exposed two finite-layer coverage gaps at 0.5×. The
 follow-up lower-companion pass resolved both findings and retained all supported
 zooms; its 343-artifact bundle reports no objective findings. Visual review
 rejected a one-image-per-layer draft because of obvious stamp cadence, then
-accepted distinct A/B companions in both Far and Near layers. The three prop
-placements remain confined to the first 2,048 pixels of a 16,384-pixel route,
-and the two Catacombs-specific props repeat the same tall-pedestal silhouette.
+accepted distinct A/B companions in both Far and Near layers. A subsequent
+scale-aware content pass establishes a static Mouse Player Placeholder with an
+exact 32×64 collider, adds low/wide floor debris, ceiling friezes, and sparse
+foreground shrouds, and distributes decor through x=14,912 of the 16,384-pixel
+route. The generation and staging commands now support validated prop canvas
+and grounded/ceiling overrides instead of forcing every new asset through the
+old 1×2 portrait template shape.
 The persisted integrated-level reviewer now reproduces production parallax,
 tile, and entity composition without SDL or ImGui, sampling authored-content
 tracks at 0.5×, 1×, and 2× and publishing native frames, per-track contact
@@ -244,10 +248,11 @@ sheets, isolated passes, a layout map, and objective findings. Large bundles
 stream through atomic staging instead of retaining every decoded frame; the
 Catacombs bundle peaks at about 174.5 MiB while preserving the same 343
 artifact digests. Its first
-persisted Catacombs bundles expose both the resolved formation coverage and the
-remaining prop distribution directly. The next content step is low/wide,
-hanging/wall, and foreground prop silhouettes distributed beyond the opening
-segment. See
+persisted Catacombs bundles expose the resolved formation coverage and current
+prop distribution directly. The final pass still reports no objective findings.
+The next content step is additional low/wide, wall, and foreground silhouette
+variation plus terrain-material polish; avoid increasing density merely to fill
+the route. See
 [`headless-level-review-plan.md`](headless-level-review-plan.md) and
 [`headless-curation.md`](headless-curation.md).
 

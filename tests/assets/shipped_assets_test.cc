@@ -13,8 +13,10 @@
 // definition of every kind here is that something -- otherwise the first report
 // would come from whoever opened the editor next.
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
@@ -262,6 +264,46 @@ TEST(ShippedAssetsTest, EveryShippedColliderLoads) {
   const absl::Status loaded = (*manager)->LoadAllColliders();
   EXPECT_OK(loaded);
   EXPECT_EQ((*manager)->GetAllColliders().size(), DefinitionFileCount("colliders"));
+}
+
+TEST(ShippedAssetsTest, MousePlayerColliderStaysInsideOneByTwoTileEnvelope) {
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<BlueprintManager> blueprints,
+                       BlueprintManager::Create(kAssetsRoot));
+  ASSERT_OK(blueprints->LoadAllBlueprints());
+  const std::vector<Blueprint> all_blueprints = blueprints->GetAllBlueprints();
+  const auto blueprint =
+      std::find_if(all_blueprints.begin(), all_blueprints.end(),
+                   [](const Blueprint& item) { return item.name == "Mouse Player Placeholder"; });
+  ASSERT_NE(blueprint, all_blueprints.end());
+  ASSERT_EQ(blueprint->states.size(), 1);
+  ASSERT_FALSE(blueprint->states.front().collider_id.empty());
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ColliderManager> colliders,
+                       ColliderManager::Create(kAssetsRoot));
+  ASSERT_OK(colliders->LoadAllColliders());
+  ASSERT_OK_AND_ASSIGN(Collider * collider,
+                       colliders->GetCollider(blueprint->states.front().collider_id));
+  ASSERT_NE(collider, nullptr);
+  ASSERT_EQ(collider->polygons.size(), 1);
+  ASSERT_FALSE(collider->polygons.front().empty());
+
+  double min_x = std::numeric_limits<double>::max();
+  double max_x = std::numeric_limits<double>::lowest();
+  double min_y = std::numeric_limits<double>::max();
+  double max_y = std::numeric_limits<double>::lowest();
+  for (const Vec& point : collider->polygons.front()) {
+    min_x = std::min(min_x, point.x);
+    max_x = std::max(max_x, point.x);
+    min_y = std::min(min_y, point.y);
+    max_y = std::max(max_y, point.y);
+  }
+
+  EXPECT_GE(min_x, -16.0f);
+  EXPECT_LE(max_x, 16.0f);
+  EXPECT_GE(min_y, -64.0f);
+  EXPECT_LE(max_y, 0.0f);
+  EXPECT_EQ(max_x - min_x, 32.0f);
+  EXPECT_EQ(max_y - min_y, 64.0f);
 }
 
 // Every image in assets/textures/ must have a definition naming it.
