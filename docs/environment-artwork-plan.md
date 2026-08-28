@@ -1058,6 +1058,31 @@ adjacent and wrap seam. Neighbour-conditioned redraws brought Webbed Ceiling,
 Skull Pillars, and Ossuary Ridge into the Structural Shell palette and masonry
 language without changing source, recipe, or Texture IDs.
 
+The versioned environment specification now owns world-space entity placement
+by world-layer, Blueprint, and Blueprint-state name with stable local entity
+IDs. Rebuilding materializes the same Sprite and Collider references as Level
+Editor placement and emits tile chunks in deterministic ID order. A Back Decor
+Cave Crystal first proved the placement path. The generated Catacombs Ossuary
+Reliquary now proves externally generated source staging, deterministic prop
+review, compensated bundle creation, and production placement without claiming
+the broader prop/decal kit is complete. The Catacombs Funeral Brazier then
+proved one-pass provider-backed creation through `generate_assets
+--provider=codex`, including template-derived portrait composition, and is
+placed as the first sparse Front Decor element.
+
+A production route review on 2026-08-28 confirmed that the horizontal artwork
+seams remain coherent at 1× and 2×, but rejected the level as complete at the
+declared 0.5× minimum zoom. Both 540-pixel formation bands shrink into the
+upper half of the view and expose a hard horizontal transition to the repeated
+Far Fill. Either raise the supported minimum zoom to 1×, or preferably author
+enough vertical formation coverage for the 0.5× world-space viewport; vertical
+repetition of the existing architectural silhouettes would make the scene less
+credible. The same review found all three placed props inside the first 2,048
+pixels of the 16,384-pixel route and both Catacombs-specific silhouettes to be
+tall pedestals. The remaining kit needs low/wide floor debris, hanging or wall
+accents, and deliberately spaced foreground framing before the route reads as
+production content.
+
 The remaining vertical-space treatment, prop/decal kit, and zoomed-out
 finite-layer coverage warnings are content follow-up, not unfinished generation
 or editor infrastructure, and do not block Milestone 5.

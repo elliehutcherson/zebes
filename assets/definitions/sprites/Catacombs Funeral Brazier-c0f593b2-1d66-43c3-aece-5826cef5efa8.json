@@ -1,0 +1,19 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "offset_x": -16,
+            "offset_y": -60,
+            "render_h": 64,
+            "render_w": 32,
+            "texture_h": 64,
+            "texture_w": 32,
+            "texture_x": 0,
+            "texture_y": 0
+        }
+    ],
+    "id": "c0f593b2-1d66-43c3-aece-5826cef5efa8",
+    "name": "Catacombs Funeral Brazier",
+    "texture_id": "fefd8127-ec34-49f8-8c11-287d900071d5"
+}

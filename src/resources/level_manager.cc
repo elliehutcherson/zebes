@@ -1,5 +1,6 @@
 #include "resources/level_manager.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -28,10 +29,17 @@ void ToJson(nlohmann::json& j, const WorldLayer& layer) {
   j["name"] = layer.name;
 
   std::vector<nlohmann::json> chunks_json;
-  for (const auto& [id, chunk] : layer.tile_chunks) {
+  std::vector<int64_t> chunk_ids;
+  chunk_ids.reserve(layer.tile_chunks.size());
+  for (const auto& [id, unused] : layer.tile_chunks) {
+    static_cast<void>(unused);
+    chunk_ids.push_back(id);
+  }
+  std::sort(chunk_ids.begin(), chunk_ids.end());
+  for (const int64_t id : chunk_ids) {
     nlohmann::json chunk_j;
     chunk_j["chunk_id"] = id;
-    ToJson(chunk_j, chunk);
+    ToJson(chunk_j, layer.tile_chunks.at(id));
     chunks_json.push_back(std::move(chunk_j));
   }
   j["tile_chunks"] = std::move(chunks_json);
@@ -156,7 +164,7 @@ absl::StatusOr<WorldLayer> WorldLayerFromJson(const nlohmann::json& j) {
   return layer;
 }
 
-nlohmann::json ToJson(const Level& level) {
+nlohmann::json SerializeLevel(const Level& level) {
   nlohmann::json j;
   j["id"] = level.id;
   j["name"] = level.name;
@@ -241,6 +249,8 @@ absl::StatusOr<Level> GetLevelFromJson(const nlohmann::json& j) {
 
 }  // namespace
 
+nlohmann::json LevelToJson(const Level& level) { return SerializeLevel(level); }
+
 absl::StatusOr<std::unique_ptr<LevelManager>> LevelManager::Create(std::string root_path) {
   return std::unique_ptr<LevelManager>(new LevelManager(root_path));
 }
@@ -314,7 +324,7 @@ absl::Status LevelManager::SaveLevel(const Level& level) {
     }
   }
 
-  nlohmann::json json = ToJson(level);
+  nlohmann::json json = LevelToJson(level);
 
   // A rename changes the filename, so the old file has to go or the catalog
   // loads the level twice under two names.

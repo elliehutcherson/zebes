@@ -81,7 +81,7 @@ std::string ParallaxRedrawInstructions(const ParallaxArtworkRecipe& recipe,
       "do not replace it with an unrelated composition.");
 }
 
-absl::StatusOr<CandidatePlan> BuildPlan(Api& api, ImageGenerationService& service,
+absl::StatusOr<CandidatePlan> BuildPlan(Api& api, const ImageGenerationCapabilities& capabilities,
                                         const HeadlessAssetGenerationRequest& request) {
   const GeneratedArtworkProvenance placeholder_provenance{
       .provider = "pending",
@@ -122,8 +122,12 @@ absl::StatusOr<CandidatePlan> BuildPlan(Api& api, ImageGenerationService& servic
                 .prompt = request.prompt,
                 .instructions = kDefaultPropGenerationInstructions,
                 .requested_candidates = 1,
-                .target_aspect = {.width = 1, .height = 1},
-                .transparency = service.engine().Capabilities().supports_transparency
+                .target_aspect =
+                    {
+                        .width = recipe->pipeline.composition.canvas_tiles_wide,
+                        .height = recipe->pipeline.composition.canvas_tiles_high,
+                    },
+                .transparency = capabilities.supports_transparency
                                     ? ImageTransparencyPreference::kPreferTransparent
                                     : ImageTransparencyPreference::kNoPreference,
             },
@@ -153,13 +157,13 @@ absl::StatusOr<CandidatePlan> BuildPlan(Api& api, ImageGenerationService& servic
       .spec =
           {
               .prompt = request.prompt,
-              .instructions = ParallaxInstructions(*recipe, service.engine().Capabilities()),
+              .instructions = ParallaxInstructions(*recipe, capabilities),
               .requested_candidates = 1,
               .target_aspect = {.width = recipe->pipeline.target_width,
                                 .height = recipe->pipeline.target_height},
               .transparency =
                   recipe->pipeline.alpha_role == ParallaxArtworkAlphaRole::kTransparentOverlay &&
-                          service.engine().Capabilities().supports_transparency
+                          capabilities.supports_transparency
                       ? ImageTransparencyPreference::kPreferTransparent
                       : ImageTransparencyPreference::kNoPreference,
           },
@@ -212,6 +216,63 @@ absl::StatusOr<nlohmann::json> FinalizeCandidate(const HeadlessAssetGenerationRe
   return GeneratedParallaxArtworkCreationCandidateToJson(candidate);
 }
 
+absl::StatusOr<HeadlessAssetGenerationResult> PublishCreationCandidateBundle(
+    const HeadlessAssetGenerationRequest& request, const CandidatePlan& plan,
+    const RgbaImage& original, GeneratedArtworkProvenance provenance) {
+  ASSIGN_OR_RETURN(GeneratedArtworkPostprocessResult processed,
+                   PostprocessGeneratedArtwork(original, std::vector<RgbaColor>{},
+                                               PreservationConfig(original)));
+  ASSIGN_OR_RETURN(const std::string original_digest, RgbaImageDigest(original));
+  ASSIGN_OR_RETURN(const std::string processed_digest, RgbaImageDigest(processed.finished));
+  const GeneratedAssetSourceCandidate source{
+      .relative_path = kProcessedFilename,
+      .width = processed.finished.width,
+      .height = processed.finished.height,
+      .content_digest = processed_digest,
+      .provenance = std::move(provenance),
+  };
+  ASSIGN_OR_RETURN(nlohmann::json candidate, FinalizeCandidate(request, plan, source));
+  const nlohmann::json manifest{
+      {"schema_version", 1},
+      {"bundle", "generated-asset-candidate"},
+      {"kind", request.kind},
+      {"asset_id", plan.asset_id},
+      {"template_recipe_id", request.template_recipe_id},
+      {"candidate", kCandidateFilename},
+      {"artifacts",
+       {{{"id", "generated-source"},
+         {"path", kOriginalFilename},
+         {"rgba_sha256", original_digest},
+         {"width", original.width},
+         {"height", original.height}},
+        {{"id", "processed-source"},
+         {"path", kProcessedFilename},
+         {"rgba_sha256", processed_digest},
+         {"width", processed.finished.width},
+         {"height", processed.finished.height}}}},
+      {"postprocess",
+       {{"background_policy", "preserve"},
+        {"palette_policy", "preserve"},
+        {"alpha_policy", "preserve"},
+        {"visible_pixels", processed.diagnostics.visible_pixels}}},
+  };
+
+  RETURN_IF_ERROR(PublishNewDirectoryAtomically(
+      request.output_path, [&](const std::filesystem::path& staging) -> absl::Status {
+        RETURN_IF_ERROR(WritePng((staging / kOriginalFilename).string(), original.width,
+                                 original.height, original.pixels));
+        RETURN_IF_ERROR(WritePng((staging / kProcessedFilename).string(), processed.finished.width,
+                                 processed.finished.height, processed.finished.pixels));
+        RETURN_IF_ERROR(WriteJson(staging / kCandidateFilename, candidate));
+        return WriteJson(staging / kManifestFilename, manifest);
+      }));
+  return HeadlessAssetGenerationResult{
+      .asset_id = plan.asset_id,
+      .candidate_path = (std::filesystem::path(request.output_path) / kCandidateFilename).string(),
+      .manifest_path = (std::filesystem::path(request.output_path) / kManifestFilename).string(),
+  };
+}
+
 }  // namespace
 
 absl::Status ValidateHeadlessAssetGenerationRequest(const HeadlessAssetGenerationRequest& request) {
@@ -230,7 +291,7 @@ absl::Status ValidateHeadlessAssetGenerationRequest(const HeadlessAssetGeneratio
 absl::StatusOr<HeadlessAssetGenerationResult> GenerateAssetCandidateBundle(
     Api& api, ImageGenerationService& service, const HeadlessAssetGenerationRequest& request) {
   RETURN_IF_ERROR(ValidateHeadlessAssetGenerationRequest(request));
-  ASSIGN_OR_RETURN(CandidatePlan plan, BuildPlan(api, service, request));
+  ASSIGN_OR_RETURN(CandidatePlan plan, BuildPlan(api, service.engine().Capabilities(), request));
   ASSIGN_OR_RETURN(ImageGenerationResult generated, AwaitGeneration(service, std::move(plan.spec)));
   RETURN_IF_ERROR(ValidateImageGenerationResult(generated));
   if (generated.candidates.size() != 1) {
@@ -238,67 +299,53 @@ absl::StatusOr<HeadlessAssetGenerationResult> GenerateAssetCandidateBundle(
         "headless generation requires exactly one provider candidate");
   }
   ImageGenerationCandidate provider_candidate = std::move(generated.candidates.front());
-  ASSIGN_OR_RETURN(GeneratedArtworkPostprocessResult processed,
-                   PostprocessGeneratedArtwork(provider_candidate.image, std::vector<RgbaColor>{},
-                                               PreservationConfig(provider_candidate.image)));
-  ASSIGN_OR_RETURN(const std::string original_digest, RgbaImageDigest(provider_candidate.image));
-  ASSIGN_OR_RETURN(const std::string processed_digest, RgbaImageDigest(processed.finished));
-  const GeneratedAssetSourceCandidate source{
-      .relative_path = kProcessedFilename,
-      .width = processed.finished.width,
-      .height = processed.finished.height,
-      .content_digest = processed_digest,
-      .provenance =
-          {
-              .provider = generated.provider,
-              .model = generated.model,
-              .submitted_prompt = generated.submitted_prompt,
-              .revised_prompt = provider_candidate.revised_prompt,
-              .provider_request_id = generated.provider_request_id,
-              .generated_at_utc = CurrentUtcTimestamp(),
-          },
-  };
-  ASSIGN_OR_RETURN(nlohmann::json candidate, FinalizeCandidate(request, plan, source));
-  const nlohmann::json manifest{
-      {"schema_version", 1},
-      {"bundle", "generated-asset-candidate"},
-      {"kind", request.kind},
-      {"asset_id", plan.asset_id},
-      {"template_recipe_id", request.template_recipe_id},
-      {"candidate", kCandidateFilename},
-      {"artifacts",
-       {{{"id", "generated-source"},
-         {"path", kOriginalFilename},
-         {"rgba_sha256", original_digest},
-         {"width", provider_candidate.image.width},
-         {"height", provider_candidate.image.height}},
-        {{"id", "processed-source"},
-         {"path", kProcessedFilename},
-         {"rgba_sha256", processed_digest},
-         {"width", processed.finished.width},
-         {"height", processed.finished.height}}}},
-      {"postprocess",
-       {{"background_policy", "preserve"},
-        {"palette_policy", "preserve"},
-        {"alpha_policy", "preserve"},
-        {"visible_pixels", processed.diagnostics.visible_pixels}}},
-  };
+  return PublishCreationCandidateBundle(request, plan, provider_candidate.image,
+                                        {
+                                            .provider = generated.provider,
+                                            .model = generated.model,
+                                            .submitted_prompt = generated.submitted_prompt,
+                                            .revised_prompt = provider_candidate.revised_prompt,
+                                            .provider_request_id = generated.provider_request_id,
+                                            .generated_at_utc = CurrentUtcTimestamp(),
+                                        });
+}
 
-  RETURN_IF_ERROR(PublishNewDirectoryAtomically(
-      request.output_path, [&](const std::filesystem::path& staging) -> absl::Status {
-        RETURN_IF_ERROR(WritePng((staging / kOriginalFilename).string(),
-                                 provider_candidate.image.width, provider_candidate.image.height,
-                                 provider_candidate.image.pixels));
-        RETURN_IF_ERROR(WritePng((staging / kProcessedFilename).string(), processed.finished.width,
-                                 processed.finished.height, processed.finished.pixels));
-        RETURN_IF_ERROR(WriteJson(staging / kCandidateFilename, candidate));
-        return WriteJson(staging / kManifestFilename, manifest);
-      }));
-  return HeadlessAssetGenerationResult{
-      .asset_id = plan.asset_id,
-      .candidate_path = (std::filesystem::path(request.output_path) / kCandidateFilename).string(),
-      .manifest_path = (std::filesystem::path(request.output_path) / kManifestFilename).string(),
+absl::Status ValidateHeadlessAssetStagingRequest(const HeadlessAssetStagingRequest& request) {
+  RETURN_IF_ERROR(ValidateHeadlessAssetGenerationRequest({
+      .kind = request.kind,
+      .template_recipe_id = request.template_recipe_id,
+      .name = request.name,
+      .prompt = request.prompt,
+      .output_path = request.output_path,
+  }));
+  if (request.provider.empty() || request.model.empty()) {
+    return absl::InvalidArgumentError("headless staging provider and model must be non-empty");
+  }
+  return absl::OkStatus();
+}
+
+absl::StatusOr<HeadlessAssetGenerationResult> StageAssetCandidateBundle(
+    Api& api, const RgbaImage& image, const HeadlessAssetStagingRequest& request) {
+  RETURN_IF_ERROR(ValidateHeadlessAssetStagingRequest(request));
+  if (!image.IsValid()) {
+    return absl::InvalidArgumentError("headless staging input image is invalid");
+  }
+  const HeadlessAssetGenerationRequest generation_request{
+      .kind = request.kind,
+      .template_recipe_id = request.template_recipe_id,
+      .name = request.name,
+      .prompt = request.prompt,
+      .output_path = request.output_path,
   };
+  ASSIGN_OR_RETURN(CandidatePlan plan,
+                   BuildPlan(api, ImageGenerationCapabilities{}, generation_request));
+  return PublishCreationCandidateBundle(generation_request, plan, image,
+                                        {
+                                            .provider = request.provider,
+                                            .model = request.model,
+                                            .submitted_prompt = request.prompt,
+                                            .generated_at_utc = CurrentUtcTimestamp(),
+                                        });
 }
 
 absl::Status ValidateHeadlessAssetRedrawRequest(const HeadlessAssetRedrawRequest& request) {

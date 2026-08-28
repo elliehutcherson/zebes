@@ -9,6 +9,7 @@
 #include "engine/texture_handle.h"
 #include "objects/blueprint.h"
 #include "objects/entity.h"
+#include "objects/entity_factory.h"
 #include "objects/level.h"
 #include "objects/sprite.h"
 #include "objects/tileset.h"
@@ -66,11 +67,6 @@ ResolvedSprite FindSprite(const SpriteLookup& sprites, const std::string& sprite
 // A spatial index can replace the linear scan if profiling shows level size requires it.
 absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, Vec world_pos,
                                     const SpriteLookup& sprites);
-
-// Builds persistent entity state from a blueprint selection. Runtime resource
-// pointers remain null until the caller resolves them through Api.
-Entity CreateEntityFromBlueprint(const Blueprint& blueprint, int state_index, Vec world_pos,
-                                 uint64_t id);
 
 // Converts a world position to the containing tile-grid coordinate. Rejects
 // invalid cell dimensions, non-finite positions, and coordinates that cannot

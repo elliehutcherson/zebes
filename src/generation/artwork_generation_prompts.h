@@ -8,11 +8,11 @@
 namespace zebes {
 
 inline constexpr char kDefaultPropGenerationInstructions[] =
-    "Create one isolated game prop centered on a square canvas. Show the complete subject "
-    "without cropping. The subject must be free of any depicted environment: use a transparent "
-    "background when supported, otherwise use one flat solid-color background that clearly "
-    "contrasts with the subject. Do not add scenery, a floor or ground plane, cast shadows, "
-    "text, a border, a frame, or additional objects.";
+    "Create one isolated game prop centered on the requested composition canvas. Show the "
+    "complete subject without cropping. The subject must be free of any depicted environment: "
+    "use a transparent background when supported, otherwise use one flat solid-color background "
+    "that clearly contrasts with the subject. Do not add scenery, a floor or ground plane, cast "
+    "shadows, text, a border, a frame, or additional objects.";
 
 inline constexpr char kDefaultParallaxGenerationInstructions[] =
     "Create one camera-relative parallax background layer for a side-view exploration game. "

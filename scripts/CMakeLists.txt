@@ -54,6 +54,7 @@ target_link_libraries(curate_assets
   curation_registry
   curation_review
   headless_texture_store
+  level_reviewer
   parallax_artwork_reviewer
   parallax_theme_reviewer
   prop_reviewer
@@ -90,6 +91,23 @@ target_link_libraries(generate_assets
   absl::strings
 )
 add_dependencies(generate_assets copy_assets)
+
+add_executable(stage_asset_creation stage_asset_creation.cc)
+target_link_libraries(stage_asset_creation
+  PRIVATE
+  asset_workspace
+  headless_asset_generation
+  headless_texture_store
+  image_io
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::strings
+)
+add_dependencies(stage_asset_creation copy_assets)
 
 add_executable(stage_asset_redraw stage_asset_redraw.cc)
 target_link_libraries(stage_asset_redraw

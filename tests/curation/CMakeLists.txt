@@ -8,6 +8,15 @@ target_link_libraries(curation_review_test
   nlohmann_json::nlohmann_json)
 gtest_discover_tests(curation_review_test)
 
+add_executable(level_review_route_test level_review_route_test.cc)
+target_link_libraries(level_review_route_test level_review_route macros gtest_main)
+gtest_discover_tests(level_review_route_test)
+
+add_executable(level_reviewer_test level_reviewer_test.cc)
+target_link_libraries(level_reviewer_test
+  level_reviewer headless_texture_store image_digest api macros gtest_main gmock)
+gtest_discover_tests(level_reviewer_test)
+
 add_executable(parallax_theme_reviewer_test parallax_theme_reviewer_test.cc)
 target_link_libraries(parallax_theme_reviewer_test
   parallax_theme_reviewer api macros gtest_main gmock)

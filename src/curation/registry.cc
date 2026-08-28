@@ -7,6 +7,17 @@
 
 namespace zebes {
 
+absl::StatusOr<size_t> CurationReviewer::PublishReview(Api& api,
+                                                       const CurationReviewRequest& request,
+                                                       const std::string& output_path) const {
+  absl::StatusOr<CurationReview> review = Review(api, request);
+  if (!review.ok()) return review.status();
+  const size_t artifact_count = review->artifacts.size();
+  const absl::Status publish_status = PublishCurationReview(*review, output_path);
+  if (!publish_status.ok()) return publish_status;
+  return artifact_count;
+}
+
 absl::StatusOr<CurationReview> CurationReviewer::ReviewCandidate(
     Api& api, const CurationReviewRequest& request, const nlohmann::json& candidate) const {
   (void)api;
@@ -57,6 +68,19 @@ absl::StatusOr<CurationReview> CurationRegistry::Review(
         absl::StrCat("no curation reviewer registered for kind '", kind, "'"));
   }
   return reviewer->second->Review(api, request);
+}
+
+absl::StatusOr<size_t> CurationRegistry::PublishReview(Api& api, std::string_view kind,
+                                                       const CurationReviewRequest& request,
+                                                       const std::string& output_path) const {
+  const absl::Status request_status = ValidateRequest(request);
+  if (!request_status.ok()) return request_status;
+  const auto reviewer = reviewers_.find(kind);
+  if (reviewer == reviewers_.end()) {
+    return absl::NotFoundError(
+        absl::StrCat("no curation reviewer registered for kind '", kind, "'"));
+  }
+  return reviewer->second->PublishReview(api, request, output_path);
 }
 
 absl::StatusOr<CurationReview> CurationRegistry::ReviewCandidate(

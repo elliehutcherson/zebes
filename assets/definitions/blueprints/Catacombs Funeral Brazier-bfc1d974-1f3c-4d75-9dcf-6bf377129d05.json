@@ -1,0 +1,12 @@
+{
+    "id": "bfc1d974-1f3c-4d75-9dcf-6bf377129d05",
+    "name": "Catacombs Funeral Brazier",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Default",
+            "placement_mode": "grounded",
+            "sprite_id": "c0f593b2-1d66-43c3-aece-5826cef5efa8"
+        }
+    ]
+}

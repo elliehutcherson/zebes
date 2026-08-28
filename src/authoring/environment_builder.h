@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -12,7 +13,7 @@ namespace zebes {
 
 class Api;
 
-inline constexpr int kEnvironmentBuildSpecSchemaVersion = 1;
+inline constexpr int kEnvironmentBuildSpecSchemaVersion = 2;
 
 struct EnvironmentElementSpec {
   std::string name;
@@ -50,6 +51,16 @@ struct EnvironmentTerrainRectangle {
   bool solid = true;
 };
 
+struct EnvironmentEntitySpec {
+  uint64_t id = 0;
+  std::string layer_name;
+  std::string blueprint_name;
+  std::string state_name;
+  bool active = true;
+  Vec position;
+  int sort_order = 0;
+};
+
 struct EnvironmentLevelSpec {
   std::string name;
   std::string tileset_name;
@@ -62,6 +73,7 @@ struct EnvironmentLevelSpec {
   std::vector<std::string> world_layers;
   std::string gameplay_layer;
   std::vector<EnvironmentZoneSpec> zones;
+  std::vector<EnvironmentEntitySpec> entities;
   std::vector<EnvironmentTerrainRectangle> terrain_rectangles;
 };
 

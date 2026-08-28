@@ -219,7 +219,32 @@ and refuses stale candidates. Complete environments are authored through a
 versioned name-resolved specification and generic builder; asset-root shared/
 exclusive locks make catalog loads and commits safe across concurrent agents.
 The production Catacombs Processional spec replaces its one-off C++ authoring
-program. See [`headless-curation.md`](headless-curation.md).
+program and now owns strict, name-resolved Blueprint placements with stable
+local entity IDs. A Back Decor Cave Crystal proves the idempotent path, and the
+first generated Catacombs-specific piece, an Ossuary Reliquary, now exercises
+external-image staging, deterministic prop review, compensated creation, and
+production placement. A Funeral Brazier now exercises the complete
+`generate_assets --provider=codex` path with template-derived portrait
+composition and supplies the first Front Decor placement.
+
+The 2026-08-28 production route review keeps the broader content gate open. At
+0.5×, both formation layers cover only the upper half of the viewport and leave
+a hard horizontal transition to the visibly repeated Far Fill. The three prop
+placements are also confined to the first 2,048 pixels of a 16,384-pixel route,
+and the two Catacombs-specific props repeat the same tall-pedestal silhouette.
+The persisted integrated-level reviewer now reproduces production parallax,
+tile, and entity composition without SDL or ImGui, sampling authored-content
+tracks at 0.5×, 1×, and 2× and publishing native frames, per-track contact
+sheets, isolated passes, a layout map, and objective findings. Large bundles
+stream through atomic staging instead of retaining every decoded frame; the
+Catacombs bundle peaks at about 174.5 MiB while preserving the same 343
+artifact digests. Its first
+persisted Catacombs bundle confirms the two formation coverage warnings and
+shows the prop distribution directly. The next content step is measured
+lower-formation companions, followed by low/wide, hanging/wall, and foreground
+prop silhouettes distributed beyond the opening segment. See
+[`headless-level-review-plan.md`](headless-level-review-plan.md) and
+[`headless-curation.md`](headless-curation.md).
 
 **Prop artwork from a generated image** — [`prop-artwork.md`](prop-artwork.md).
 Milestone 0 is accepted after boulder/cave and tree/meadow checks. Full resolved

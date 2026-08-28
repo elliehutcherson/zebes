@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
+#include <limits>
 #include <optional>
 #include <set>
 #include <string>
@@ -19,6 +20,7 @@
 #include "editor/level_editor/derived_terrain_session.h"
 #include "editor/level_editor/terrain_brush.h"
 #include "nlohmann/json.hpp"
+#include "objects/entity_factory.h"
 #include "objects/level.h"
 #include "objects/parallax_theme.h"
 #include "objects/tileset.h"
@@ -147,12 +149,29 @@ absl::StatusOr<EnvironmentTerrainRectangle> RectangleFromJson(const nlohmann::js
   return rectangle;
 }
 
+absl::StatusOr<EnvironmentEntitySpec> EntityFromJson(const nlohmann::json& json) {
+  constexpr std::string_view kContext = "environment entity";
+  RETURN_IF_ERROR(RequireExactObject(json,
+                                     {"id", "layer_name", "blueprint_name", "state_name", "active",
+                                      "position_pixels", "sort_order"},
+                                     kContext));
+  EnvironmentEntitySpec entity;
+  ASSIGN_OR_RETURN(entity.id, Required<uint64_t>(json, "id", kContext));
+  ASSIGN_OR_RETURN(entity.layer_name, Required<std::string>(json, "layer_name", kContext));
+  ASSIGN_OR_RETURN(entity.blueprint_name, Required<std::string>(json, "blueprint_name", kContext));
+  ASSIGN_OR_RETURN(entity.state_name, Required<std::string>(json, "state_name", kContext));
+  ASSIGN_OR_RETURN(entity.active, Required<bool>(json, "active", kContext));
+  ASSIGN_OR_RETURN(entity.position, VecFromJson(json.at("position_pixels"), "entity position"));
+  ASSIGN_OR_RETURN(entity.sort_order, Required<int>(json, "sort_order", kContext));
+  return entity;
+}
+
 absl::StatusOr<EnvironmentLevelSpec> LevelFromJson(const nlohmann::json& json) {
   constexpr std::string_view kContext = "environment level";
   RETURN_IF_ERROR(RequireExactObject(
       json,
       {"name", "tileset_name", "terrain_name", "tile_render_size", "grid_size", "spawn_pixels",
-       "world_layers", "gameplay_layer", "zones", "terrain_rectangles"},
+       "world_layers", "gameplay_layer", "zones", "entities", "terrain_rectangles"},
       kContext));
   EnvironmentLevelSpec level;
   ASSIGN_OR_RETURN(level.name, Required<std::string>(json, "name", kContext));
@@ -174,14 +193,21 @@ absl::StatusOr<EnvironmentLevelSpec> LevelFromJson(const nlohmann::json& json) {
                    Required<std::vector<std::string>>(json, "world_layers", kContext));
   ASSIGN_OR_RETURN(level.gameplay_layer, Required<std::string>(json, "gameplay_layer", kContext));
   ASSIGN_OR_RETURN(const nlohmann::json zones, Required<nlohmann::json>(json, "zones", kContext));
+  ASSIGN_OR_RETURN(const nlohmann::json entities,
+                   Required<nlohmann::json>(json, "entities", kContext));
   ASSIGN_OR_RETURN(const nlohmann::json rectangles,
                    Required<nlohmann::json>(json, "terrain_rectangles", kContext));
-  if (!zones.is_array() || !rectangles.is_array()) {
-    return absl::InvalidArgumentError("environment zones and terrain rectangles must be arrays");
+  if (!zones.is_array() || !entities.is_array() || !rectangles.is_array()) {
+    return absl::InvalidArgumentError(
+        "environment zones, entities, and terrain rectangles must be arrays");
   }
   for (const nlohmann::json& item : zones) {
     ASSIGN_OR_RETURN(EnvironmentZoneSpec zone, ZoneFromJson(item));
     level.zones.push_back(std::move(zone));
+  }
+  for (const nlohmann::json& item : entities) {
+    ASSIGN_OR_RETURN(EnvironmentEntitySpec entity, EntityFromJson(item));
+    level.entities.push_back(std::move(entity));
   }
   for (const nlohmann::json& item : rectangles) {
     ASSIGN_OR_RETURN(EnvironmentTerrainRectangle rectangle, RectangleFromJson(item));
@@ -226,6 +252,26 @@ absl::Status ValidateSpec(const EnvironmentBuildSpec& spec) {
   if (!layer_names.contains(spec.level.gameplay_layer)) {
     return absl::InvalidArgumentError("environment gameplay layer is not in world_layers");
   }
+  std::set<uint64_t> entity_ids;
+  const double level_width = static_cast<double>(spec.level.columns) * spec.level.tile_render_width;
+  const double level_height = static_cast<double>(spec.level.rows) * spec.level.tile_render_height;
+  for (const EnvironmentEntitySpec& entity : spec.level.entities) {
+    if (entity.id == 0 || !entity_ids.insert(entity.id).second) {
+      return absl::InvalidArgumentError("environment entity IDs must be unique and non-zero");
+    }
+    if (!layer_names.contains(entity.layer_name)) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("environment entity layer is not in world_layers: ", entity.layer_name));
+    }
+    if (entity.blueprint_name.empty() || entity.state_name.empty()) {
+      return absl::InvalidArgumentError(
+          "environment entity blueprint and state names must be non-empty");
+    }
+    if (entity.position.x < 0.0 || entity.position.y < 0.0 || entity.position.x > level_width ||
+        entity.position.y > level_height) {
+      return absl::InvalidArgumentError("environment entity position is outside the level");
+    }
+  }
   for (const EnvironmentTerrainRectangle& rectangle : spec.level.terrain_rectangles) {
     if (rectangle.x < 0 || rectangle.y < 0 || rectangle.width <= 0 || rectangle.height <= 0 ||
         rectangle.x + rectangle.width > spec.level.columns ||
@@ -264,6 +310,76 @@ absl::StatusOr<std::string> ResolveArtworkTexture(const std::vector<ParallaxArtw
         absl::StrCat("parallax artwork recipe has no texture: ", name));
   }
   return recipe->texture_id;
+}
+
+absl::StatusOr<int> ResolveBlueprintState(const Blueprint& blueprint, std::string_view name) {
+  std::optional<int> index;
+  for (size_t candidate = 0; candidate < blueprint.states.size(); ++candidate) {
+    if (blueprint.states[candidate].name != name) continue;
+    if (index.has_value()) {
+      return absl::FailedPreconditionError(absl::StrCat("more than one state in blueprint '",
+                                                        blueprint.name, "' is named '", name, "'"));
+    }
+    if (candidate > static_cast<size_t>(std::numeric_limits<int>::max())) {
+      return absl::ResourceExhaustedError(
+          absl::StrCat("blueprint has too many states: ", blueprint.name));
+    }
+    index = static_cast<int>(candidate);
+  }
+  if (!index.has_value()) {
+    return absl::NotFoundError(
+        absl::StrCat("blueprint state not found: ", blueprint.name, " / ", name));
+  }
+  return *index;
+}
+
+struct ResolvedEnvironmentEntity {
+  EnvironmentEntitySpec placement;
+  Blueprint blueprint;
+  int state_index = 0;
+};
+
+absl::StatusOr<std::vector<ResolvedEnvironmentEntity>> ResolveEntityPlacements(
+    Api& api, const EnvironmentLevelSpec& spec) {
+  const std::vector<Blueprint> blueprints = api.GetAllBlueprints();
+  std::vector<ResolvedEnvironmentEntity> resolved;
+  resolved.reserve(spec.entities.size());
+  for (const EnvironmentEntitySpec& placement : spec.entities) {
+    ASSIGN_OR_RETURN(std::optional<Blueprint> blueprint,
+                     FindUniqueByName(blueprints, placement.blueprint_name, "blueprint"));
+    if (!blueprint.has_value()) {
+      return absl::NotFoundError(
+          absl::StrCat("environment entity blueprint not found: ", placement.blueprint_name));
+    }
+    ASSIGN_OR_RETURN(const int state_index,
+                     ResolveBlueprintState(*blueprint, placement.state_name));
+    resolved.push_back({
+        .placement = placement,
+        .blueprint = std::move(*blueprint),
+        .state_index = state_index,
+    });
+  }
+  return resolved;
+}
+
+absl::Status PlaceEntities(const std::vector<ResolvedEnvironmentEntity>& placements, Level& level) {
+  for (const ResolvedEnvironmentEntity& resolved : placements) {
+    const EnvironmentEntitySpec& placement = resolved.placement;
+    const auto layer = std::find_if(level.layers.begin(), level.layers.end(),
+                                    [&placement](const WorldLayer& candidate) {
+                                      return candidate.name == placement.layer_name;
+                                    });
+    if (layer == level.layers.end()) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("validated environment entity layer is missing: ", placement.layer_name));
+    }
+    Entity entity = CreateEntityFromBlueprint(resolved.blueprint, resolved.state_index,
+                                              placement.position, placement.id);
+    entity.active = placement.active;
+    entity.sort_order = placement.sort_order;
+    RETURN_IF_ERROR(level.AddEntity(layer->id, std::move(entity)));
+  }
+  return absl::OkStatus();
 }
 
 absl::StatusOr<ParallaxTheme> ResolveTheme(Api& api, const EnvironmentThemeSpec& spec) {
@@ -394,8 +510,9 @@ absl::StatusOr<std::string> ResolveZoneThemeId(std::string_view name,
   return theme->id;
 }
 
-absl::StatusOr<std::string> BuildAndUpsertLevel(Api& api, const EnvironmentBuildSpec& spec,
-                                                std::string_view built_theme_id) {
+absl::StatusOr<std::string> BuildAndUpsertLevel(
+    Api& api, const EnvironmentBuildSpec& spec, std::string_view built_theme_id,
+    const std::vector<ResolvedEnvironmentEntity>& entities) {
   ASSIGN_OR_RETURN(Tileset * tileset, ResolveTileset(api, spec.level));
   const std::vector<ParallaxTheme> themes = api.GetAllParallaxThemes();
   Level level{
@@ -428,6 +545,7 @@ absl::StatusOr<std::string> BuildAndUpsertLevel(Api& api, const EnvironmentBuild
         .fade_length = zone.fade_length,
     });
   }
+  RETURN_IF_ERROR(PlaceEntities(entities, level));
   Level validation = level;
   validation.id = "environment-build-preview";
   RETURN_IF_ERROR(ValidateLevel(validation));
@@ -477,9 +595,11 @@ absl::StatusOr<EnvironmentBuildSpec> ReadEnvironmentBuildSpec(const std::filesys
 absl::StatusOr<EnvironmentBuildResult> BuildEnvironment(Api& api,
                                                         const EnvironmentBuildSpec& spec) {
   RETURN_IF_ERROR(ValidateSpec(spec));
+  ASSIGN_OR_RETURN(const std::vector<ResolvedEnvironmentEntity> entities,
+                   ResolveEntityPlacements(api, spec.level));
   ASSIGN_OR_RETURN(ParallaxTheme theme, ResolveTheme(api, spec.theme));
   ASSIGN_OR_RETURN(const std::string theme_id, UpsertTheme(api, std::move(theme)));
-  ASSIGN_OR_RETURN(const std::string level_id, BuildAndUpsertLevel(api, spec, theme_id));
+  ASSIGN_OR_RETURN(const std::string level_id, BuildAndUpsertLevel(api, spec, theme_id, entities));
   return EnvironmentBuildResult{.theme_id = theme_id, .level_id = level_id};
 }
 

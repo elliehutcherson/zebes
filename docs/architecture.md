@@ -245,9 +245,19 @@ supplies `SdlTextureStore`, while `curate_assets` supplies
 bounded nearest-neighbour RGBA compositor and atomic review-bundle publisher.
 The parallax adapters reuse `ParallaxLayout`, camera-route, seam, repetition,
 and coverage logic; prop, sprite, terrain, and tileset adapters resolve their
-complete API-owned graphs. `generate_assets` uses the same workspace and shared
-atomic publisher to produce strict creation candidates. Their staged pixels are
-retained only inside the compensated new-asset transaction after review. See
+complete API-owned graphs. The level adapter resolves one persisted `Level` and
+reuses the same environment resolver, parallax layout, tile batch, entity item,
+camera transform, and world-layer order as Level Editor. Its PNG route frames,
+contact sheets, isolated passes, and layout map contain no editor presentation
+state and never parse the environment-build specification. Large review sets
+flow through the generic streamed publication sink: each PNG is validated,
+digested, and encoded inside the private atomic staging directory, its decoded
+pixels are then released, and `manifest.json` is written before the one final
+rename. Small reviewers retain the simpler in-memory `Review()` path.
+`generate_assets`
+uses the same workspace and shared atomic publisher to produce strict creation
+candidates. Their staged pixels are retained only inside the compensated
+new-asset transaction after review. See
 [`headless-curation.md`](headless-curation.md) for the command and extension
 contract.
 
@@ -260,15 +270,20 @@ in-memory catalog that became stale while it waited.
 
 Complete level/theme authoring uses the versioned `EnvironmentBuildSpec` and
 generic `build_environment` composition root. Specifications resolve unique
-resource names to manager-owned IDs, assign only local ordered IDs, and upsert
-themes and levels without exposing GUID allocation to scripts. The production
-Catacombs spec under `assets/authoring/environments/` is the source of truth;
-there is no environment-specific C++ executable.
+resource names to manager-owned IDs, assign only local IDs, and upsert themes
+and levels without exposing GUID allocation to scripts. Placed entities name
+their world layer, Blueprint, and Blueprint state while carrying a stable local
+entity ID; the builder and Level Editor share the same domain entity factory so
+their Sprite and Collider snapshots cannot diverge. Level serialization orders
+sparse tile chunks by chunk ID, keeping repeated headless builds byte-stable.
+The production Catacombs spec under `assets/authoring/environments/` is the
+source of truth; there is no environment-specific C++ executable.
 
 Level viewport authoring rules live in the platform-neutral `ViewportModel`
-module. Entity picking and construction, stable ID allocation, tile mutation,
-and grid snapping do not depend on ImGui, SDL, or `Api`. `ViewportTab` resolves
-resources, draws the results, and translates UI gestures into those operations.
+module. Entity picking, stable ID allocation, tile mutation, and grid snapping
+do not depend on ImGui, SDL, or `Api`; Blueprint-to-Entity construction lives
+one layer lower in `objects/entity_factory`. `ViewportTab` resolves resources,
+draws the results, and translates UI gestures into those operations.
 
 Authoring modes are mutually exclusive and ordered terrain, tile, blueprint.
 Each write is deduplicated by cell and operation for the duration of a drag, so

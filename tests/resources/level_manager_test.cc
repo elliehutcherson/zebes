@@ -4,9 +4,11 @@
 #include <fstream>
 #include <memory>
 
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
+#include "nlohmann/json.hpp"
 
 namespace zebes {
 namespace {
@@ -122,6 +124,30 @@ TEST_F(LevelManagerTest, WorldLayerOrderAndOwnershipSurviveRoundTrip) {
   EXPECT_EQ(loaded->layers[1].name, "Foreground");
   EXPECT_EQ(loaded->layers[1].tile_chunks.at(0).tiles[0], 9);
   EXPECT_TRUE(loaded->layers[1].entities.contains(8));
+}
+
+TEST_F(LevelManagerTest, SerializesTileChunksInStableIdOrder) {
+  Level level{
+      .name = "Stable Chunks",
+      .width = 2048,
+      .height = 2048,
+  };
+  level.layers.front().tile_chunks[ChunkKey(1, 1)].tiles[0] = 3;
+  level.layers.front().tile_chunks[ChunkKey(0, 1)].tiles[0] = 2;
+  level.layers.front().tile_chunks[ChunkKey(1, 0)].tiles[0] = 1;
+
+  ASSERT_OK_AND_ASSIGN(const std::string id, manager_->CreateLevel(std::move(level)));
+  std::ifstream stream(std::filesystem::path("test_data/level_manager_test/definitions/levels") /
+                       absl::StrCat("Stable Chunks-", id, ".json"));
+  ASSERT_TRUE(stream.is_open());
+  nlohmann::json json;
+  stream >> json;
+
+  const nlohmann::json& chunks = json.at("layers").at(0).at("tile_chunks");
+  ASSERT_EQ(chunks.size(), 3);
+  EXPECT_EQ(chunks.at(0).at("chunk_id"), ChunkKey(1, 0));
+  EXPECT_EQ(chunks.at(1).at("chunk_id"), ChunkKey(0, 1));
+  EXPECT_EQ(chunks.at(2).at("chunk_id"), ChunkKey(1, 1));
 }
 
 TEST_F(LevelManagerTest, DeleteLevel) {

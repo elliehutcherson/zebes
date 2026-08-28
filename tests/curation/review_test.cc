@@ -140,6 +140,50 @@ TEST(CurationReviewTest, RejectsTraversalAndDuplicateArtifactsBeforeWriting) {
   EXPECT_FALSE(ValidateCurationReview(review).ok());
 }
 
+TEST(CurationReviewTest, StreamsArtifactsThroughTheAtomicPublicationBoundary) {
+  TemporaryReviewDirectory temporary;
+  const std::filesystem::path output = temporary.path() / "streamed";
+
+  ASSERT_OK_AND_ASSIGN(
+      const size_t artifact_count,
+      PublishCurationReviewStreamed(
+          output.string(), [](CurationArtifactSink& sink, CurationReview& review) -> absl::Status {
+            review = MakeReview();
+            CurationArtifact artifact = std::move(review.artifacts.front());
+            review.artifacts.clear();
+            return sink.Add(artifact);
+          }));
+
+  EXPECT_EQ(artifact_count, 1);
+  EXPECT_TRUE(std::filesystem::exists(output / "views/main.png"));
+  std::ifstream stream(output / "manifest.json");
+  ASSERT_TRUE(stream.is_open());
+  const nlohmann::json manifest = nlohmann::json::parse(stream);
+  EXPECT_EQ(manifest.at("artifacts").at(0).at("id"), "main");
+  EXPECT_EQ(manifest.at("findings").at(0).at("code"), "checked");
+}
+
+TEST(CurationReviewTest, RemovesStreamedStagingWhenALaterArtifactIsInvalid) {
+  TemporaryReviewDirectory temporary;
+  const std::filesystem::path output = temporary.path() / "streamed";
+
+  const absl::Status status =
+      PublishCurationReviewStreamed(
+          output.string(),
+          [](CurationArtifactSink& sink, CurationReview& review) -> absl::Status {
+            review = MakeReview();
+            CurationArtifact artifact = std::move(review.artifacts.front());
+            review.artifacts.clear();
+            const absl::Status first = sink.Add(artifact);
+            if (!first.ok()) return first;
+            return sink.Add(artifact);
+          })
+          .status();
+
+  EXPECT_TRUE(absl::IsInvalidArgument(status));
+  EXPECT_FALSE(std::filesystem::exists(output));
+}
+
 TEST(CurationRegistryTest, DispatchesByStableKindAndRejectsDuplicateRegistration) {
   CurationRegistry registry;
   ASSERT_OK(registry.Add(std::make_unique<TestReviewer>("example")));
@@ -154,6 +198,13 @@ TEST(CurationRegistryTest, DispatchesByStableKindAndRejectsDuplicateRegistration
   EXPECT_TRUE(absl::IsUnimplemented(
       registry.ReviewCandidate(api, "example", {.asset_id = "selected"}, nlohmann::json::object())
           .status()));
+
+  TemporaryReviewDirectory temporary;
+  ASSERT_OK_AND_ASSIGN(const size_t artifact_count,
+                       registry.PublishReview(api, "example", {.asset_id = "selected"},
+                                              (temporary.path() / "published").string()));
+  EXPECT_EQ(artifact_count, 1);
+  EXPECT_TRUE(std::filesystem::exists(temporary.path() / "published/manifest.json"));
 }
 
 TEST(CurationCandidateCommitTest, LeavesReviewedEvidenceWhenTheTransactionFails) {

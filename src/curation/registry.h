@@ -21,6 +21,12 @@ class CurationReviewer {
   virtual absl::StatusOr<CurationReview> Review(Api& api,
                                                 const CurationReviewRequest& request) const = 0;
 
+  // The default path builds an in-memory review and publishes it. Reviewers
+  // with large evidence sets may override this to stream artifacts through the
+  // atomic publication sink while preserving the same bundle contract.
+  virtual absl::StatusOr<size_t> PublishReview(Api& api, const CurationReviewRequest& request,
+                                               const std::string& output_path) const;
+
   // Candidate documents are kind-owned. The generic command can review and
   // explicitly commit one, while an adapter refuses formats that cannot be
   // persisted safely as a single definition (for example, a generated prop
@@ -41,6 +47,9 @@ class CurationRegistry {
 
   absl::StatusOr<CurationReview> Review(Api& api, std::string_view kind,
                                         const CurationReviewRequest& request) const;
+  absl::StatusOr<size_t> PublishReview(Api& api, std::string_view kind,
+                                       const CurationReviewRequest& request,
+                                       const std::string& output_path) const;
 
   absl::StatusOr<CurationReview> ReviewCandidate(Api& api, std::string_view kind,
                                                  const CurationReviewRequest& request,

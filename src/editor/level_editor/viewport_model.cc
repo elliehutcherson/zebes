@@ -68,19 +68,6 @@ absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, 
   return picked;
 }
 
-Entity CreateEntityFromBlueprint(const Blueprint& blueprint, int state_index, Vec world_pos,
-                                 uint64_t id) {
-  Entity entity;
-  entity.id = id;
-  entity.blueprint_id = blueprint.id;
-  entity.blueprint_state_index = state_index;
-  entity.transform.position = world_pos;
-  // The blueprint state is the authored source of the asset reference, so the
-  // entity records the ID rather than a resolved pointer.
-  entity.sprite_id = blueprint.sprite_id(state_index).value_or("");
-  return entity;
-}
-
 absl::StatusOr<TileCoordinate> WorldToTileCoordinate(Vec world_position, int tile_render_width,
                                                      int tile_render_height) {
   if (tile_render_width <= 0 || tile_render_height <= 0) {

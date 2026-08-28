@@ -62,6 +62,15 @@ target_link_libraries(entity INTERFACE
   transform
 )
 
+add_library(entity_factory entity_factory.cc)
+target_include_directories(entity_factory PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(entity_factory
+  PUBLIC
+  blueprint
+  entity
+  vec
+)
+
 add_library(level level.cc)
 target_include_directories(level PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(level

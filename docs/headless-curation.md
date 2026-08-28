@@ -1,7 +1,8 @@
 # Headless asset curation
 
-`generate_assets`, `stage_asset_redraw`, `build_environment`, and
-`curate_assets` are the first-party, windowless asset loop. The commands load
+`generate_assets`, `stage_asset_creation`, `stage_asset_redraw`,
+`build_environment`, and `curate_assets` are the first-party, windowless asset
+loop. The commands load
 the same complete `AssetWorkspace` as the interactive editor,
 but supply a headless texture-resource adapter instead of SDL. There is no
 second JSON loader, no ImGui click automation, and no alternate interpretation
@@ -9,6 +10,9 @@ of asset references.
 
 `curate_assets` registers these visual kinds:
 
+- `level` renders persisted integrated parallax, tile, and entity composition
+  over deterministic 0.5x, 1x, and 2x routes, with contact sheets, isolated
+  depth passes, a layout map, and measured coverage/distribution evidence;
 - `parallax-artwork` renders native, enlarged, configured repetition, and
   lateral-edge evidence and supports creation, source-redraw, and
   recipe-regeneration candidates;
@@ -26,7 +30,8 @@ of asset references.
 Build the commands:
 
 ```bash
-cmake --build build/dev --target generate_assets stage_asset_redraw build_environment curate_assets
+cmake --build build/dev --target generate_assets stage_asset_creation stage_asset_redraw \
+  build_environment curate_assets
 ```
 
 List the registered kinds:
@@ -37,6 +42,14 @@ build/dev/bin/curate_assets --list_kinds
 
 Review an existing asset. `--output` must name a directory that does not yet
 exist; the command never replaces an earlier review.
+
+```bash
+build/dev/bin/curate_assets \
+  --asset_root="$PWD/assets" \
+  --kind=level \
+  --id=9e20ee58-f4d2-4931-b74b-5555d4b35c00 \
+  --output=/tmp/catacombs-level-review
+```
 
 ```bash
 build/dev/bin/curate_assets \
@@ -77,6 +90,9 @@ Generation creates a new asset. `--recipe_id` or `--recipe_name` selects one
 existing recipe whose
 terrain link, resolved style, and deterministic pipeline settings are copied as
 a template; it does not authorize rebinding that existing asset to new pixels.
+Prop generation also derives its requested composition aspect from that
+template's tile canvas; a 1-by-2 recipe asks the provider for a portrait source
+rather than an unrelated square.
 `--provider=fake` is deterministic and requires no credentials, so this is also
 the clean-checkout acceptance path.
 
@@ -114,6 +130,29 @@ state afterward. Its commit first retains the reviewed processed source with
 generation provenance, then invokes the compensated
 `Api::CreateGeneratedProp` transaction. Parallax artwork uses the same sequence
 with `--kind=parallax-artwork` and a parallax-artwork recipe template.
+
+Artwork produced by an external generator enters that same creation path
+through `stage_asset_creation`; do not copy it into `assets/source_art` or
+manually assemble its Texture/Sprite/Blueprint graph:
+
+```bash
+build/dev/bin/stage_asset_creation \
+  --asset_root="$PWD/assets" \
+  --kind=prop \
+  --recipe_id=62ab6a6f-e007-4a53-9ff1-a41da985557c \
+  --name="Catacombs Ossuary Reliquary" \
+  --input=/tmp/ossuary-reliquary.png \
+  --provider=imagegen \
+  --model=builtin \
+  --prompt="one narrow grounded ossuary reliquary" \
+  --output=/tmp/ossuary-reliquary-generated
+```
+
+The command verifies and retains the imported RGBA pixels, records their exact
+provenance, creates fresh output IDs, and publishes the same strict candidate
+and manifest shape as `generate_assets`. Recipe-specific background isolation,
+palette mapping, sizing, anchoring, review, and compensated commit remain owned
+by `curate_assets`.
 
 ## Redrawing retained source without breaking references
 
@@ -229,10 +268,11 @@ fields, and older schemas.
 ## Building a complete environment
 
 Environment definitions live under `assets/authoring/environments/`. They refer
-to artwork recipes, tilesets, terrains, themes, and layers by unique names; no
-catalog GUID is authored by hand. Array order supplies local element, layer,
-and zone IDs. The generic builder creates manager-owned resource IDs on the
-first run and preserves them on later runs:
+to artwork recipes, tilesets, terrains, themes, world layers, Blueprints, and
+Blueprint states by unique names; no catalog GUID is authored by hand. Array
+order supplies local element, layer, and zone IDs, while entity placements carry
+explicit stable local IDs. The generic builder creates manager-owned resource
+IDs on the first run and preserves them on later runs:
 
 ```bash
 build/dev/bin/build_environment \
@@ -241,9 +281,12 @@ build/dev/bin/build_environment \
 ```
 
 The versioned schema describes the parallax composition, world dimensions,
-zones, and ordered solid/empty terrain rectangles. The Catacombs Processional
-spec replaces the retired Catacombs-specific C++ authoring program and is also
-loaded by a shipped parser test.
+zones, placed entities, and ordered solid/empty terrain rectangles. Entity
+placement materializes the named Blueprint state into the same persistent
+Sprite and Collider references as interactive Level Editor placement. Unknown
+or ambiguous resource and state names fail the build. The Catacombs
+Processional spec replaces the retired Catacombs-specific C++ authoring program
+and is also loaded by a shipped parser test.
 
 ## Concurrent agents and catalog snapshots
 
@@ -275,6 +318,12 @@ Findings are evidence, not automatic taste decisions. A geometric gap is a
 warning; exact edge contact cannot prove that transparent pixels form a good
 visual seam. Final content promotion still requires visual acceptance.
 
+For `level`, review the zoom contact sheets first, then open questionable
+native frames and their matched isolated passes. The layout map and entity-span
+metrics expose distribution; the rendered evidence remains authoritative for
+silhouette variety, repetition cadence, occlusion, negative space, and gameplay
+readability. The command does not emit video or make an aesthetic verdict.
+
 ## Adding another curated asset kind
 
 The extension boundary is `CurationReviewer` in `src/curation/registry.h`:
@@ -283,11 +332,16 @@ The extension boundary is `CurationReviewer` in `src/curation/registry.h`:
    pixels through `Api`, and keep layout calculations platform-neutral.
 2. Return `CurationReview` artifacts rendered with the shared RGBA compositor.
    Do not introduce SDL, ImGui, or hand-written catalog parsing.
-3. Override `ReviewCandidate()` and `CommitCandidate()` only when the proposed
+3. Override `PublishReview()` when a production review can contain enough
+   decoded images to make in-memory publication material. Emit through the
+   shared artifact sink so validation, pixel limits, digests, manifest shape,
+   failure cleanup, and the final atomic rename remain generic. The level
+   reviewer uses this path and accumulates only one route contact sheet.
+4. Override `ReviewCandidate()` and `CommitCandidate()` only when the proposed
    document can be validated and persisted atomically at that boundary. Bundle
    assets call their existing compensated creation or regeneration transaction;
    they are never persisted as a loose collection of definitions.
-4. Register the reviewer in `scripts/curate_assets.cc` and add focused tests for
+5. Register the reviewer in `scripts/curate_assets.cc` and add focused tests for
    its domain invariants.
 
 The generic registry, safety limits, atomic publication, manifest format, image

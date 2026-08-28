@@ -7,9 +7,14 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "nlohmann/json_fwd.hpp"
 #include "objects/level.h"
 
 namespace zebes {
+
+// Canonical persisted representation. Review tools use this rather than
+// maintaining a second summary of authored level state.
+nlohmann::json LevelToJson(const Level& level);
 
 // Loads and saves level definitions.
 //

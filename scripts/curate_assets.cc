@@ -15,6 +15,7 @@
 #include "common/config.h"
 #include "common/status_macros.h"
 #include "curation/candidate_commit.h"
+#include "curation/level_reviewer.h"
 #include "curation/parallax_artwork_reviewer.h"
 #include "curation/parallax_theme_reviewer.h"
 #include "curation/prop_reviewer.h"
@@ -27,7 +28,7 @@
 #include "platform/headless/headless_texture_store.h"
 
 ABSL_FLAG(std::string, asset_root, "assets", "Root containing config.json and asset catalogs");
-ABSL_FLAG(std::string, kind, "", "Asset kind to review: parallax-theme or prop");
+ABSL_FLAG(std::string, kind, "", "Registered visual asset kind to review");
 ABSL_FLAG(std::string, id, "", "Stable ID of the asset to review");
 ABSL_FLAG(std::string, output, "", "New directory in which to publish the review bundle");
 ABSL_FLAG(std::string, candidate, "", "Optional kind-owned JSON candidate to review");
@@ -38,6 +39,7 @@ namespace zebes {
 namespace {
 
 absl::Status RegisterReviewers(CurationRegistry& registry) {
+  RETURN_IF_ERROR(registry.Add(std::make_unique<LevelReviewer>()));
   RETURN_IF_ERROR(registry.Add(std::make_unique<ParallaxArtworkReviewer>()));
   RETURN_IF_ERROR(registry.Add(std::make_unique<ParallaxThemeReviewer>()));
   RETURN_IF_ERROR(registry.Add(std::make_unique<PropReviewer>()));
@@ -71,19 +73,23 @@ absl::Status Run() {
   ASSIGN_OR_RETURN(EngineConfig config,
                    EngineConfig::Load(absl::StrCat(asset_root, "/config.json")));
   HeadlessTextureStore texture_resources;
-  ASSIGN_OR_RETURN(std::unique_ptr<AssetWorkspace> assets,
-                   AssetWorkspace::Create({
-                       .config = &config,
-                       .texture_resources = &texture_resources,
-                       .asset_root = asset_root,
-                       .access = commit ? AssetWorkspace::Access::kReadWrite
-                                        : AssetWorkspace::Access::kReadOnly,
-                   }));
+  ASSIGN_OR_RETURN(
+      std::unique_ptr<AssetWorkspace> assets,
+      AssetWorkspace::Create({
+          .config = &config,
+          .texture_resources = &texture_resources,
+          .asset_root = asset_root,
+          .access = commit ? AssetWorkspace::Access::kReadWrite : AssetWorkspace::Access::kReadOnly,
+      }));
   CurationReviewRequest request{.asset_id = asset_id};
-  CurationReview review;
   nlohmann::json candidate;
   if (candidate_path.empty()) {
-    ASSIGN_OR_RETURN(review, registry.Review(assets->api(), kind, request));
+    ASSIGN_OR_RETURN(const size_t artifact_count,
+                     registry.PublishReview(assets->api(), kind, request, output));
+    LOG(INFO) << "Published " << artifact_count << " review artifacts for " << kind << " "
+              << asset_id << " at " << output;
+    std::cout << output << "/manifest.json\n";
+    return absl::OkStatus();
   } else {
     std::filesystem::path candidate_file(candidate_path);
     request.candidate_root = candidate_file.has_parent_path()
@@ -107,11 +113,12 @@ absl::Status Run() {
       std::cout << committed_output << "/manifest.json\n";
       return absl::OkStatus();
     }
-    ASSIGN_OR_RETURN(review, registry.ReviewCandidate(assets->api(), kind, request, candidate));
+    ASSIGN_OR_RETURN(CurationReview review,
+                     registry.ReviewCandidate(assets->api(), kind, request, candidate));
+    RETURN_IF_ERROR(PublishCurationReview(review, output));
+    LOG(INFO) << "Published " << review.artifacts.size() << " review artifacts for " << kind << " "
+              << asset_id << " at " << output;
   }
-  RETURN_IF_ERROR(PublishCurationReview(review, output));
-  LOG(INFO) << "Published " << review.artifacts.size() << " review artifacts for " << kind << " "
-            << asset_id << " at " << output;
   std::cout << output << "/manifest.json\n";
   return absl::OkStatus();
 }

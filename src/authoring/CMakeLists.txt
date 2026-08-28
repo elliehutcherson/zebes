@@ -10,6 +10,7 @@ target_link_libraries(environment_builder
   absl::statusor
   PRIVATE
   derived_terrain_session
+  entity_factory
   terrain_brush
   status_macros
   absl::strings

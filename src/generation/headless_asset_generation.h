@@ -4,6 +4,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
+#include "common/image_io.h"
 #include "generation/image_generation_service.h"
 
 namespace zebes {
@@ -22,6 +23,16 @@ struct HeadlessAssetGenerationResult {
   std::string manifest_path;
 };
 
+struct HeadlessAssetStagingRequest {
+  std::string kind;
+  std::string template_recipe_id;
+  std::string name;
+  std::string prompt;
+  std::string provider;
+  std::string model;
+  std::string output_path;
+};
+
 struct HeadlessAssetRedrawRequest {
   std::string asset_id;
   std::string prompt;
@@ -37,6 +48,14 @@ absl::Status ValidateHeadlessAssetGenerationRequest(const HeadlessAssetGeneratio
 // supplies domain settings only; the output always receives fresh IDs.
 absl::StatusOr<HeadlessAssetGenerationResult> GenerateAssetCandidateBundle(
     Api& api, ImageGenerationService& service, const HeadlessAssetGenerationRequest& request);
+
+absl::Status ValidateHeadlessAssetStagingRequest(const HeadlessAssetStagingRequest& request);
+
+// Imports one already-generated image into the same strict creation bundle
+// used by provider-backed generation. The image remains a retained source;
+// recipe-specific isolation, palette mapping, and sizing happen during review.
+absl::StatusOr<HeadlessAssetGenerationResult> StageAssetCandidateBundle(
+    Api& api, const RgbaImage& image, const HeadlessAssetStagingRequest& request);
 
 absl::Status ValidateHeadlessAssetRedrawRequest(const HeadlessAssetRedrawRequest& request);
 

@@ -76,6 +76,7 @@ add_library(viewport_model
 target_link_libraries(viewport_model
   PUBLIC
   blueprint
+  entity_factory
   level
   sprite
   tileset

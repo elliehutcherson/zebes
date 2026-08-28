@@ -1,0 +1,12 @@
+{
+    "id": "af11cb57-f0c2-4340-b4d9-fc3a3f8e0b90",
+    "name": "Catacombs Ossuary Reliquary",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Default",
+            "placement_mode": "grounded",
+            "sprite_id": "df2ec3c4-93ac-4303-83d7-ac113d1dc58f"
+        }
+    ]
+}

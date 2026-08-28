@@ -1,0 +1,18 @@
+{
+  "content_digest": "e999789c65cd6eacdbc908e013dcfca5a616bed8e98c3928d8a0a50798be33ce",
+  "height": 1774,
+  "id": "245cd975-8d08-4dbe-bf02-ac2fc9a0d66d",
+  "name": "Catacombs Ossuary Reliquary source",
+  "provenance": {
+    "generated_at_utc": "2026-08-28T02:06:52Z",
+    "kind": "generated",
+    "model": "imagegen-tool",
+    "provider": "codex-imagegen",
+    "provider_request_id": null,
+    "revised_prompt": null,
+    "submitted_prompt": "Use case: stylized-concept\nAsset type: isolated production prop artwork for a side-view 2D platformer\n\nReference roles:\n- Image 1 is a style and palette reference for Catacombs masonry only; do not copy its composition.\n- Image 2 is a style, palette, and bone-rendering reference only; do not copy its composition.\n\nPrimary request:\nCreate exactly one narrow, freestanding ossuary reliquary marker for a catacomb floor. It should be a worn, tall stone pedestal with one embedded skull or small bone niche, a chipped capstone, and a compact grounded base. The whole prop must have a strong readable silhouette at small gameplay scale and fit approximately a 1:2 width-to-height bounding box.\n\nStyle:\nCrisp hand-authored pixel art matching the references: dark navy and indigo stone, desaturated blue-purple midtones, restrained pale blue bone highlights, chunky deliberate clusters, no antialiasing or painterly blur.\n\nComposition and camera:\nFull object visible, centered, orthographic/front-facing with only slight three-quarter depth. Generous transparent padding on every side. The base touches the bottom of the object bounds. No cropped pixels.\n\nLighting:\nCold subterranean light from upper left, subtle and consistent with the references.\n\nHard constraints:\nGenuinely transparent background. One object only. No floor plane, wall, arch, surrounding scenery, fog, cast shadow beyond the base, text, UI, watermark, duplicate object, or decorative border."
+  },
+  "schema_version": 2,
+  "source_path": "source_art/245cd975-8d08-4dbe-bf02-ac2fc9a0d66d.png",
+  "width": 887
+}

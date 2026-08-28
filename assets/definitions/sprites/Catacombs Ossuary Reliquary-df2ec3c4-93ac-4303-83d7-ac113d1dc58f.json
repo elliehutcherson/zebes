@@ -1,0 +1,19 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "offset_x": -16,
+            "offset_y": -60,
+            "render_h": 64,
+            "render_w": 32,
+            "texture_h": 64,
+            "texture_w": 32,
+            "texture_x": 0,
+            "texture_y": 0
+        }
+    ],
+    "id": "df2ec3c4-93ac-4303-83d7-ac113d1dc58f",
+    "name": "Catacombs Ossuary Reliquary",
+    "texture_id": "69d72be6-567c-4528-8f96-bc1afbcb1380"
+}

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "theme": {
     "name": "Catacombs - Processional Gallery",
     "layers": [
@@ -87,6 +87,35 @@
         "min_pixels": [0.0, 0.0],
         "max_pixels": [16384.0, 1280.0],
         "fade_pixels": [0.0, 0.0]
+      }
+    ],
+    "entities": [
+      {
+        "id": 1,
+        "layer_name": "Back Decor",
+        "blueprint_name": "Cave Crystal",
+        "state_name": "Default",
+        "active": true,
+        "position_pixels": [2048.0, 864.0],
+        "sort_order": 0
+      },
+      {
+        "id": 2,
+        "layer_name": "Back Decor",
+        "blueprint_name": "Catacombs Ossuary Reliquary",
+        "state_name": "Default",
+        "active": true,
+        "position_pixels": [640.0, 864.0],
+        "sort_order": 10
+      },
+      {
+        "id": 3,
+        "layer_name": "Front Decor",
+        "blueprint_name": "Catacombs Funeral Brazier",
+        "state_name": "Default",
+        "active": true,
+        "position_pixels": [1472.0, 832.0],
+        "sort_order": 0
       }
     ],
     "terrain_rectangles": [

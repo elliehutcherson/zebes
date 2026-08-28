@@ -143,7 +143,10 @@ TEST(PickEntityTest, EqualDrawOrderPicksTheHighestId) {
 // CreateEntityFromBlueprint tests
 
 TEST(CreateEntityFromBlueprintTest, SetsFields) {
-  Blueprint bp{.id = "blueprint-abc", .states = {Blueprint::State{.name = "Idle"}}};
+  Blueprint bp{
+      .id = "blueprint-abc",
+      .states = {Blueprint::State{.name = "Idle", .collider_id = "collider-abc"}},
+  };
 
   Entity e = CreateEntityFromBlueprint(bp, /*state_index=*/0, {256, 512}, /*id=*/42);
 
@@ -153,7 +156,7 @@ TEST(CreateEntityFromBlueprintTest, SetsFields) {
   EXPECT_EQ(e.transform.position.x, 256);
   EXPECT_EQ(e.transform.position.y, 512);
   EXPECT_TRUE(e.sprite_id.empty());
-  EXPECT_TRUE(e.collider_id.empty());
+  EXPECT_EQ(e.collider_id, "collider-abc");
 }
 
 TEST(CreateEntityFromBlueprintTest, StateIndexPreserved) {

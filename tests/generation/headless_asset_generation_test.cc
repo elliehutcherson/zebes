@@ -8,6 +8,7 @@
 
 #include "api_mock.h"
 #include "artwork/parallax_artwork_recipe.h"
+#include "artwork/prop_recipe.h"
 #include "common/image_digest.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
@@ -67,6 +68,42 @@ absl::StatusOr<ParallaxArtworkRecipe> TemplateRecipe() {
   return recipe;
 }
 
+absl::StatusOr<PropRecipe> PropTemplateRecipe() {
+  ResolvedTerrainPalette palette;
+  palette.colors.front() = {.r = 0, .g = 0, .b = 0, .a = 0};
+  for (size_t index = 1; index < palette.colors.size(); ++index) {
+    const uint8_t channel = static_cast<uint8_t>(index * 7);
+    palette.colors[index] = {.r = channel, .g = channel, .b = channel, .a = 255};
+  }
+  PropRecipe recipe{
+      .id = "prop-template-recipe",
+      .name = "Prop Template",
+      .source_artwork_id = "prop-template-source",
+      .style = {.tile_size = 32, .pixel_block_size = 1, .palette = palette},
+      .texture_id = "prop-template-texture",
+      .sprite_id = "prop-template-sprite",
+      .blueprint_id = "prop-template-blueprint",
+      .expected_frame =
+          {
+              .index = 0,
+              .texture_x = 0,
+              .texture_y = 0,
+              .texture_w = 32,
+              .texture_h = 64,
+              .render_w = 32,
+              .render_h = 64,
+              .frames_per_cycle = 0,
+              .offset_x = -16,
+              .offset_y = -63,
+          },
+      .final_pixel_digest = std::string(64, '0'),
+  };
+  recipe.pipeline.composition.canvas_tiles_wide = 1;
+  recipe.pipeline.composition.canvas_tiles_high = 2;
+  RETURN_IF_ERROR(ValidatePropRecipe(recipe));
+  return recipe;
+}
+
 TEST_F(HeadlessAssetGenerationTest, FakeProviderPublishesACompleteStrictCandidateBundle) {
   ASSERT_OK_AND_ASSIGN(ParallaxArtworkRecipe recipe, TemplateRecipe());
   MockApi api;
@@ -111,6 +148,101 @@ TEST_F(HeadlessAssetGenerationTest, FakeProviderPublishesACompleteStrictCandidat
                                   .status();
 
   EXPECT_TRUE(absl::IsAlreadyExists(status));
+}
+
+TEST_F(HeadlessAssetGenerationTest, PropGenerationUsesTheTemplateCanvasAspect) {
+  ASSERT_OK_AND_ASSIGN(PropRecipe recipe, PropTemplateRecipe());
+  MockApi api;
+  EXPECT_CALL(api, GetPropRecipe(recipe.id)).WillOnce(Return(&recipe));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
+                       ImageGenerationService::Create(CreateFakeImageGenerationClient()));
+  const std::filesystem::path output = root_ / "prop-candidate";
+
+  ASSERT_OK_AND_ASSIGN(HeadlessAssetGenerationResult result,
+                       GenerateAssetCandidateBundle(api, *service,
+                                                    {
+                                                        .kind = "prop",
+                                                        .template_recipe_id = recipe.id,
+                                                        .name = "Tall Prop",
+                                                        .prompt = "one tall isolated prop",
+                                                        .output_path = output.string(),
+                                                    }));
+
+  std::ifstream candidate_stream(result.candidate_path);
+  nlohmann::json candidate_json;
+  candidate_stream >> candidate_json;
+  ASSERT_OK_AND_ASSIGN(GeneratedPropCreationCandidate candidate,
+                       GeneratedPropCreationCandidateFromJson(candidate_json));
+  EXPECT_EQ(candidate.source.width, 64);
+  EXPECT_EQ(candidate.source.height, 128);
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.canvas_tiles_wide, 1);
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.canvas_tiles_high, 2);
+}
+
+TEST_F(HeadlessAssetGenerationTest, StagedSourcePublishesTheSameStrictCreationBundle) {
+  ASSERT_OK_AND_ASSIGN(ParallaxArtworkRecipe recipe, TemplateRecipe());
+  MockApi api;
+  EXPECT_CALL(api, GetParallaxArtworkRecipe(recipe.id)).WillOnce(Return(&recipe));
+  RgbaImage source{
+      .width = 3,
+      .height = 2,
+      .pixels =
+          {
+              1,  2,  3,  255, 4,  5,  6,  255, 7,  8,  9,  255,
+              10, 11, 12, 255, 13, 14, 15, 255, 16, 17, 18, 255,
+          },
+  };
+  const std::filesystem::path output = root_ / "staged";
+
+  ASSERT_OK_AND_ASSIGN(HeadlessAssetGenerationResult result,
+                       StageAssetCandidateBundle(api, source,
+                                                 {
+                                                     .kind = "parallax-artwork",
+                                                     .template_recipe_id = recipe.id,
+                                                     .name = "Imported Cave Background",
+                                                     .prompt = "a deep imported cave",
+                                                     .provider = "codex-imagegen",
+                                                     .model = "gpt-image",
+                                                     .output_path = output.string(),
+                                                 }));
+
+  EXPECT_TRUE(std::filesystem::is_regular_file(result.manifest_path));
+  EXPECT_TRUE(std::filesystem::is_regular_file(result.candidate_path));
+  EXPECT_TRUE(std::filesystem::is_regular_file(output / "generated-source.png"));
+  EXPECT_TRUE(std::filesystem::is_regular_file(output / "processed-source.png"));
+  std::ifstream candidate_stream(result.candidate_path);
+  nlohmann::json candidate_json;
+  candidate_stream >> candidate_json;
+  ASSERT_OK_AND_ASSIGN(GeneratedParallaxArtworkCreationCandidate candidate,
+                       GeneratedParallaxArtworkCreationCandidateFromJson(candidate_json));
+  EXPECT_EQ(candidate.asset_id, result.asset_id);
+  EXPECT_EQ(candidate.source.provenance.provider, "codex-imagegen");
+  EXPECT_EQ(candidate.source.provenance.model, "gpt-image");
+  ASSERT_OK_AND_ASSIGN(RgbaImage retained,
+                       ReadGeneratedAssetSourceCandidate(output, candidate.source));
+  EXPECT_EQ(retained.width, source.width);
+  EXPECT_EQ(retained.height, source.height);
+  EXPECT_EQ(retained.pixels, source.pixels);
+}
+
+TEST_F(HeadlessAssetGenerationTest, StagingRejectsAnInvalidInputImageBeforeRecipeLookup) {
+  MockApi api;
+
+  const absl::Status status =
+      StageAssetCandidateBundle(api, RgbaImage{},
+                                {
+                                    .kind = "prop",
+                                    .template_recipe_id = "template-recipe",
+                                    .name = "Invalid Prop",
+                                    .prompt = "an invalid prop",
+                                    .provider = "codex-imagegen",
+                                    .model = "gpt-image",
+                                    .output_path = (root_ / "invalid").string(),
+                                })
+          .status();
+
+  EXPECT_TRUE(absl::IsInvalidArgument(status));
+  EXPECT_THAT(status.message(), ::testing::HasSubstr("input image is invalid"));
 }
 
 TEST_F(HeadlessAssetGenerationTest, FakeProviderPublishesAStaleProtectedRedrawBundle) {
