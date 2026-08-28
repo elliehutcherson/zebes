@@ -24,6 +24,22 @@
       "elements": [
         {
           "id": 0,
+          "name": "Lower Foundations A",
+          "position_x": 0.0,
+          "position_y": 460.0,
+          "scale": 1.3333333730697632,
+          "texture_id": "370b679a-a882-4912-9f9f-e33288d257db"
+        },
+        {
+          "id": 1,
+          "name": "Lower Foundations B",
+          "position_x": 960.0,
+          "position_y": 460.0,
+          "scale": 1.3333333730697632,
+          "texture_id": "7c58805d-054b-4a1e-b717-6f6499ca2272"
+        },
+        {
+          "id": 2,
           "name": "Broken Arcade",
           "position_x": 0.0,
           "position_y": 0.0,
@@ -31,7 +47,7 @@
           "texture_id": "3d5b3cd4-9574-4d00-b879-3125e13d0156"
         },
         {
-          "id": 1,
+          "id": 3,
           "name": "Vaulted Ossuary",
           "position_x": 960.0,
           "position_y": 0.0,
@@ -51,6 +67,38 @@
       "elements": [
         {
           "id": 0,
+          "name": "Lower Rubble A",
+          "position_x": 0.0,
+          "position_y": 460.0,
+          "scale": 1.3333333730697632,
+          "texture_id": "e8440348-b1f0-4a5e-881b-c33664bd2470"
+        },
+        {
+          "id": 1,
+          "name": "Lower Rubble B",
+          "position_x": 864.0,
+          "position_y": 460.0,
+          "scale": 1.3333333730697632,
+          "texture_id": "6ada17be-eff4-42b5-b342-c88602dbd43c"
+        },
+        {
+          "id": 2,
+          "name": "Lower Rubble C",
+          "position_x": 1728.0,
+          "position_y": 460.0,
+          "scale": 1.3333333730697632,
+          "texture_id": "e8440348-b1f0-4a5e-881b-c33664bd2470"
+        },
+        {
+          "id": 3,
+          "name": "Lower Rubble D",
+          "position_x": 2592.0,
+          "position_y": 460.0,
+          "scale": 1.3333333730697632,
+          "texture_id": "6ada17be-eff4-42b5-b342-c88602dbd43c"
+        },
+        {
+          "id": 4,
           "name": "Structural Shell",
           "position_x": 0.0,
           "position_y": 0.0,
@@ -58,7 +106,7 @@
           "texture_id": "d50080be-0444-4965-9841-dd11528b4928"
         },
         {
-          "id": 1,
+          "id": 5,
           "name": "Webbed Ceiling",
           "position_x": 864.0,
           "position_y": 0.0,
@@ -66,7 +114,7 @@
           "texture_id": "1126b84f-acf0-45f3-8493-ec549861619b"
         },
         {
-          "id": 2,
+          "id": 6,
           "name": "Skull Pillars",
           "position_x": 1728.0,
           "position_y": 0.0,
@@ -74,7 +122,7 @@
           "texture_id": "ffaeb425-6a78-45d2-a43f-3655b1c0a6fe"
         },
         {
-          "id": 3,
+          "id": 7,
           "name": "Ossuary Ridge",
           "position_x": 2592.0,
           "position_y": 32.0,

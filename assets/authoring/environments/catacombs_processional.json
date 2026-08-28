@@ -24,6 +24,18 @@
         "repeat_period": [1920.0, 0.0],
         "elements": [
           {
+            "name": "Lower Foundations A",
+            "artwork_recipe_name": "Catacombs Far Lower Foundations",
+            "position": [0.0, 460.0],
+            "scale": 1.3333334
+          },
+          {
+            "name": "Lower Foundations B",
+            "artwork_recipe_name": "Catacombs Far Lower Foundations B",
+            "position": [960.0, 460.0],
+            "scale": 1.3333334
+          },
+          {
             "name": "Broken Arcade",
             "artwork_recipe_name": "Catacombs Far Arcade",
             "position": [0.0, 0.0],
@@ -43,6 +55,30 @@
         "offset": [0.0, 0.0],
         "repeat_period": [3456.0, 0.0],
         "elements": [
+          {
+            "name": "Lower Rubble A",
+            "artwork_recipe_name": "Catacombs Near Lower Rubble",
+            "position": [0.0, 460.0],
+            "scale": 1.3333334
+          },
+          {
+            "name": "Lower Rubble B",
+            "artwork_recipe_name": "Catacombs Near Lower Rubble B",
+            "position": [864.0, 460.0],
+            "scale": 1.3333334
+          },
+          {
+            "name": "Lower Rubble C",
+            "artwork_recipe_name": "Catacombs Near Lower Rubble",
+            "position": [1728.0, 460.0],
+            "scale": 1.3333334
+          },
+          {
+            "name": "Lower Rubble D",
+            "artwork_recipe_name": "Catacombs Near Lower Rubble B",
+            "position": [2592.0, 460.0],
+            "scale": 1.3333334
+          },
           {
             "name": "Structural Shell",
             "artwork_recipe_name": "Catacombs Near Structural Shell",

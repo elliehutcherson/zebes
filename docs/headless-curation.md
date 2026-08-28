@@ -93,6 +93,12 @@ a template; it does not authorize rebinding that existing asset to new pixels.
 Prop generation also derives its requested composition aspect from that
 template's tile canvas; a 1-by-2 recipe asks the provider for a portrait source
 rather than an unrelated square.
+When a parallax template requires a transparent overlay but the selected
+provider cannot emit transparent pixels, generation names the recipe's exact
+solid-matte RGBA value in the provider instructions. The template must use
+solid-matte extraction; generation fails before the provider call when it has
+no deterministic way to recover transparency. Providers must not substitute a
+different chroma-key color.
 `--provider=fake` is deterministic and requires no credentials, so this is also
 the clean-checkout acceptance path.
 

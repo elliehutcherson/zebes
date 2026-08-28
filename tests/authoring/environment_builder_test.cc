@@ -165,8 +165,16 @@ TEST(EnvironmentBuilderTest, LoadsTheProductionCatacombsWithoutCatalogIds) {
 
   EXPECT_EQ(spec.theme.layers.size(), 3);
   EXPECT_EQ(spec.theme.layers[0].elements.size(), 1);
-  EXPECT_EQ(spec.theme.layers[1].elements.size(), 2);
-  EXPECT_EQ(spec.theme.layers[2].elements.size(), 4);
+  ASSERT_EQ(spec.theme.layers[1].elements.size(), 4);
+  EXPECT_EQ(spec.theme.layers[1].elements[0].artwork_recipe_name,
+            "Catacombs Far Lower Foundations");
+  EXPECT_EQ(spec.theme.layers[1].elements[1].artwork_recipe_name,
+            "Catacombs Far Lower Foundations B");
+  ASSERT_EQ(spec.theme.layers[2].elements.size(), 8);
+  EXPECT_EQ(spec.theme.layers[2].elements[0].artwork_recipe_name, "Catacombs Near Lower Rubble");
+  EXPECT_EQ(spec.theme.layers[2].elements[1].artwork_recipe_name, "Catacombs Near Lower Rubble B");
+  EXPECT_EQ(spec.theme.layers[2].elements[2].artwork_recipe_name, "Catacombs Near Lower Rubble");
+  EXPECT_EQ(spec.theme.layers[2].elements[3].artwork_recipe_name, "Catacombs Near Lower Rubble B");
   EXPECT_EQ(spec.level.columns, 512);
   EXPECT_EQ(spec.level.rows, 40);
   EXPECT_EQ(spec.level.tileset_name, "lucinda_cave");

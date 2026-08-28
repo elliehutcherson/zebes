@@ -3,7 +3,9 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "api_mock.h"
@@ -37,6 +39,44 @@ class HeadlessAssetGenerationTest : public ::testing::Test {
   }
 
   std::filesystem::path root_;
+};
+
+class InstructionEchoOperation final : public ImageGenerationOperation {
+ public:
+  explicit InstructionEchoOperation(ImageGenerationSpec spec) : spec_(std::move(spec)) {}
+
+  absl::StatusOr<std::optional<ImageGenerationResult>> Poll() override {
+    if (finished_) return std::nullopt;
+    finished_ = true;
+    return std::optional<ImageGenerationResult>(ImageGenerationResult{
+        .provider = "instruction-echo",
+        .model = "instruction-echo-v1",
+        .submitted_prompt = spec_.prompt,
+        .candidates = {{
+            .image = {.width = 16, .height = 9, .pixels = std::vector<uint8_t>(16 * 9 * 4, 255)},
+            .revised_prompt = spec_.instructions,
+        }},
+    });
+  }
+
+  void Cancel() noexcept override { finished_ = true; }
+
+ private:
+  ImageGenerationSpec spec_;
+  bool finished_ = false;
+};
+
+class InstructionEchoClient final : public ImageGenerationClient {
+ public:
+  ImageGenerationCapabilities Capabilities() const override {
+    return {.maximum_candidates = 1, .supports_transparency = false};
+  }
+
+ protected:
+  absl::StatusOr<ImageGenerationRequest> StartValidated(ImageGenerationSpec spec) override {
+    return ImageGenerationRequest::Create(
+        std::make_unique<InstructionEchoOperation>(std::move(spec)));
+  }
 };
 
 absl::StatusOr<ParallaxArtworkRecipe> TemplateRecipe() {
@@ -177,6 +217,69 @@ TEST_F(HeadlessAssetGenerationTest, PropGenerationUsesTheTemplateCanvasAspect) {
   EXPECT_EQ(candidate.source.height, 128);
   EXPECT_EQ(candidate.template_recipe.pipeline.composition.canvas_tiles_wide, 1);
   EXPECT_EQ(candidate.template_recipe.pipeline.composition.canvas_tiles_high, 2);
+}
+
+TEST_F(HeadlessAssetGenerationTest, MatteGenerationNamesTheTemplateRecipesExactColor) {
+  ASSERT_OK_AND_ASSIGN(ParallaxArtworkRecipe recipe, TemplateRecipe());
+  recipe.pipeline.alpha_role = ParallaxArtworkAlphaRole::kTransparentOverlay;
+  recipe.pipeline.overlay_extraction = ParallaxArtworkOverlayExtraction::kRemoveSolidMatte;
+  recipe.pipeline.overlay_alpha_policy = ParallaxArtworkOverlayAlphaPolicy::kBinary;
+  recipe.pipeline.matte_color = {.r = 12, .g = 34, .b = 56, .a = 255};
+  recipe.style.palette = {{.r = 7, .g = 8, .b = 9, .a = 255}};
+  ASSERT_OK(ValidateParallaxArtworkRecipe(recipe));
+  MockApi api;
+  EXPECT_CALL(api, GetParallaxArtworkRecipe(recipe.id)).WillOnce(Return(&recipe));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
+                       ImageGenerationService::Create(std::make_unique<InstructionEchoClient>()));
+
+  ASSERT_OK_AND_ASSIGN(HeadlessAssetGenerationResult result,
+                       GenerateAssetCandidateBundle(api, *service,
+                                                    {
+                                                        .kind = "parallax-artwork",
+                                                        .template_recipe_id = recipe.id,
+                                                        .name = "Matte Cave Overlay",
+                                                        .prompt = "a low cave formation",
+                                                        .output_path = (root_ / "matte").string(),
+                                                    }));
+
+  std::ifstream candidate_stream(result.candidate_path);
+  nlohmann::json candidate_json;
+  candidate_stream >> candidate_json;
+  ASSERT_OK_AND_ASSIGN(GeneratedParallaxArtworkCreationCandidate candidate,
+                       GeneratedParallaxArtworkCreationCandidateFromJson(candidate_json));
+  ASSERT_TRUE(candidate.source.provenance.revised_prompt.has_value());
+  EXPECT_THAT(*candidate.source.provenance.revised_prompt, ::testing::HasSubstr("#0C2238"));
+  EXPECT_THAT(*candidate.source.provenance.revised_prompt,
+              ::testing::HasSubstr("do not substitute another chroma-key color"));
+}
+
+TEST_F(HeadlessAssetGenerationTest,
+       ProviderWithoutTransparencyRejectsOverlayRecipeWithoutMatteExtraction) {
+  ASSERT_OK_AND_ASSIGN(ParallaxArtworkRecipe recipe, TemplateRecipe());
+  recipe.pipeline.alpha_role = ParallaxArtworkAlphaRole::kTransparentOverlay;
+  recipe.pipeline.overlay_extraction = ParallaxArtworkOverlayExtraction::kPreserveAlpha;
+  recipe.pipeline.overlay_alpha_policy = ParallaxArtworkOverlayAlphaPolicy::kPreserve;
+  ASSERT_OK(ValidateParallaxArtworkRecipe(recipe));
+  MockApi api;
+  EXPECT_CALL(api, GetParallaxArtworkRecipe(recipe.id)).WillOnce(Return(&recipe));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
+                       ImageGenerationService::Create(std::make_unique<InstructionEchoClient>()));
+
+  const absl::Status status =
+      GenerateAssetCandidateBundle(api, *service,
+                                   {
+                                       .kind = "parallax-artwork",
+                                       .template_recipe_id = recipe.id,
+                                       .name = "Unsupported Alpha Overlay",
+                                       .prompt = "a translucent cave formation",
+                                       .output_path = (root_ / "alpha").string(),
+                                   })
+          .status();
+
+  EXPECT_TRUE(absl::IsFailedPrecondition(status));
+  EXPECT_THAT(status.message(),
+              ::testing::HasSubstr("template recipe cannot remove a solid matte"));
+  EXPECT_FALSE(std::filesystem::exists(root_ / "alpha"));
 }
 
 TEST_F(HeadlessAssetGenerationTest, StagedSourcePublishesTheSameStrictCreationBundle) {

@@ -13,7 +13,7 @@ phase has decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
-| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 5 zone fades are accepted; the horizontal Catacombs baseline is usable, while vertical-space content and the broader cave prop/decal pass remain |
+| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 5 zone fades and Catacombs formation coverage through 0.5× are accepted; the broader cave prop/decal pass remains |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -195,15 +195,17 @@ their saved boundary and confirmed that Selected Zone isolates either theme.
 The exact geometry and weights are recorded in
 [`zone-fades-plan.md`](zone-fades-plan.md).
 
-**Production Catacombs baseline — usable horizontal pass.** Catacombs
-Processional is the versioned production horizontal level and theme. Its Near
+**Production Catacombs baseline — horizontal and 0.5x formation coverage
+accepted.** Catacombs Processional is the versioned production level and theme. Its Near
 strip uses four 960-pixel formations with 96-pixel neighbour and wrap overlaps;
 Webbed Ceiling, Skull Pillars, and Ossuary Ridge were redrawn against their
 actual adjacent sources while preserving all managed IDs. Complete-theme route
-reviews at 0.5×, 1×, and 2× support the accepted visual pass. The broader cave
-prop/decal kit, vertical-space composition, and zoomed-out finite-layer coverage
-warnings remain independent content work rather than reasons to weaken the
-generation pipeline. This pass has a
+reviews at 0.5×, 1×, and 2× support the accepted horizontal pass. Alternating
+Far lower-foundation and Near lower-wall/rubble companions now extend both
+finite formation layers through the complete 0.5× viewport without changing
+the accepted upper composition at 1× and 2×. The broader cave prop/decal kit
+remains independent content work rather than a reason to weaken the generation
+pipeline. This pass has a
 first-party headless generation and review loop: the shared `AssetWorkspace`
 loads the same catalogs as the editor; `generate_assets` publishes atomic,
 strict new-asset candidates through OpenAI, Codex, or a credential-free fake;
@@ -227,10 +229,13 @@ production placement. A Funeral Brazier now exercises the complete
 `generate_assets --provider=codex` path with template-derived portrait
 composition and supplies the first Front Decor placement.
 
-The 2026-08-28 production route review keeps the broader content gate open. At
-0.5×, both formation layers cover only the upper half of the viewport and leave
-a hard horizontal transition to the visibly repeated Far Fill. The three prop
-placements are also confined to the first 2,048 pixels of a 16,384-pixel route,
+The 2026-08-28 production route review keeps the broader prop/decal content gate
+open. Its initial bundle exposed two finite-layer coverage gaps at 0.5×. The
+follow-up lower-companion pass resolved both findings and retained all supported
+zooms; its 343-artifact bundle reports no objective findings. Visual review
+rejected a one-image-per-layer draft because of obvious stamp cadence, then
+accepted distinct A/B companions in both Far and Near layers. The three prop
+placements remain confined to the first 2,048 pixels of a 16,384-pixel route,
 and the two Catacombs-specific props repeat the same tall-pedestal silhouette.
 The persisted integrated-level reviewer now reproduces production parallax,
 tile, and entity composition without SDL or ImGui, sampling authored-content
@@ -239,10 +244,10 @@ sheets, isolated passes, a layout map, and objective findings. Large bundles
 stream through atomic staging instead of retaining every decoded frame; the
 Catacombs bundle peaks at about 174.5 MiB while preserving the same 343
 artifact digests. Its first
-persisted Catacombs bundle confirms the two formation coverage warnings and
-shows the prop distribution directly. The next content step is measured
-lower-formation companions, followed by low/wide, hanging/wall, and foreground
-prop silhouettes distributed beyond the opening segment. See
+persisted Catacombs bundles expose both the resolved formation coverage and the
+remaining prop distribution directly. The next content step is low/wide,
+hanging/wall, and foreground prop silhouettes distributed beyond the opening
+segment. See
 [`headless-level-review-plan.md`](headless-level-review-plan.md) and
 [`headless-curation.md`](headless-curation.md).
 

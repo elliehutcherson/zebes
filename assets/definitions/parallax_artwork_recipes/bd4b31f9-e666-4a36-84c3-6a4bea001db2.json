@@ -1,0 +1,193 @@
+{
+  "expected_height": 540,
+  "expected_width": 960,
+  "final_pixel_digest": "89f1310b410abb8e060daf893bb972997ffae6aa9ac1c5ef23b9e0644d10d262",
+  "id": "bd4b31f9-e666-4a36-84c3-6a4bea001db2",
+  "name": "Catacombs Near Lower Rubble",
+  "pipeline": {
+    "alpha_role": "transparent_overlay",
+    "binary_alpha_threshold": 128,
+    "frame_policy": "fit_inside",
+    "matte_color": [
+      255,
+      0,
+      255,
+      255
+    ],
+    "matte_opaque_distance": 190.0,
+    "matte_transparent_distance": 24.0,
+    "overlay_alpha_policy": "binary",
+    "overlay_extraction": "remove_solid_matte",
+    "review_repeat_x": true,
+    "review_repeat_y": true,
+    "source_limits": {
+      "maximum_bytes": 67108864,
+      "maximum_height": 4096,
+      "maximum_pixels": 16777216,
+      "maximum_width": 4096
+    },
+    "target_height": 540,
+    "target_width": 960
+  },
+  "pipeline_version": 1,
+  "schema_version": 1,
+  "source_artwork_id": "74de324a-bb45-4c22-9824-778d79a5c467",
+  "style": {
+    "palette": [
+      [
+        37,
+        35,
+        50,
+        255
+      ],
+      [
+        170,
+        193,
+        199,
+        255
+      ],
+      [
+        125,
+        142,
+        166,
+        255
+      ],
+      [
+        81,
+        80,
+        126,
+        255
+      ],
+      [
+        7,
+        0,
+        13,
+        255
+      ],
+      [
+        16,
+        27,
+        76,
+        255
+      ],
+      [
+        10,
+        16,
+        59,
+        255
+      ],
+      [
+        26,
+        43,
+        96,
+        255
+      ],
+      [
+        9,
+        16,
+        59,
+        255
+      ],
+      [
+        31,
+        67,
+        104,
+        255
+      ],
+      [
+        11,
+        7,
+        51,
+        255
+      ],
+      [
+        149,
+        171,
+        184,
+        255
+      ],
+      [
+        99,
+        108,
+        144,
+        255
+      ],
+      [
+        22,
+        35,
+        88,
+        255
+      ],
+      [
+        136,
+        155,
+        174,
+        255
+      ],
+      [
+        90,
+        94,
+        136,
+        255
+      ],
+      [
+        154,
+        216,
+        232,
+        255
+      ],
+      [
+        154,
+        202,
+        232,
+        255
+      ],
+      [
+        154,
+        187,
+        233,
+        255
+      ],
+      [
+        154,
+        173,
+        233,
+        255
+      ],
+      [
+        155,
+        159,
+        233,
+        255
+      ],
+      [
+        165,
+        155,
+        233,
+        255
+      ],
+      [
+        180,
+        155,
+        234,
+        255
+      ],
+      [
+        195,
+        155,
+        234,
+        255
+      ],
+      [
+        31,
+        31,
+        60,
+        255
+      ]
+    ],
+    "pixel_block_size": 1,
+    "quantize_to_palette": true
+  },
+  "terrain_recipe_id": "00a2a23d-47fa-4468-b101-9431671f643d",
+  "texture_id": "e8440348-b1f0-4a5e-881b-c33664bd2470"
+}

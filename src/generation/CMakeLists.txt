@@ -197,6 +197,7 @@ target_link_libraries(headless_asset_generation
   status_macros
   utc_timestamp
   absl::status
+  absl::str_format
   absl::strings
   absl::time
   nlohmann_json::nlohmann_json

@@ -4,8 +4,9 @@
 generated background artwork now share retained source, deterministic
 processing, compensated bundle lifecycle, and the accepted Parallax Artwork
 and Theme Editor workflow. Those gates complete the engineering vertical
-slice. Milestone 4 has an accepted usable horizontal Catacombs baseline and
-continues as a non-blocking vertical-space and prop/decal content pass;
+slice. Milestone 4 has an accepted horizontal Catacombs baseline and complete
+finite-formation coverage through 0.5×; it continues as a non-blocking
+prop/decal content pass;
 Milestone 5 zone fades pass both their automated and live visual gates.**
 Written 2026-08-22 for the first cave vertical slice, revised the same day to
 make standalone parallax-theme ownership the highest-priority implementation
@@ -13,7 +14,7 @@ milestone, updated 2026-08-23 after accepting composed parallax layers, and
 updated 2026-08-24 after accepting the live generated-background gate, then
 2026-08-25 to separate the completed engineering slice from content curation,
 and 2026-08-27 after accepting zone fades and the usable horizontal Catacombs
-baseline.
+baseline, then 2026-08-28 after accepting 0.5× formation coverage.
 Update milestone states here as work lands; use [`roadmap.md`](roadmap.md) only
 for the higher-level sequence.
 
@@ -1071,21 +1072,22 @@ proved one-pass provider-backed creation through `generate_assets
 placed as the first sparse Front Decor element.
 
 A production route review on 2026-08-28 confirmed that the horizontal artwork
-seams remain coherent at 1× and 2×, but rejected the level as complete at the
-declared 0.5× minimum zoom. Both 540-pixel formation bands shrink into the
-upper half of the view and expose a hard horizontal transition to the repeated
-Far Fill. Either raise the supported minimum zoom to 1×, or preferably author
-enough vertical formation coverage for the 0.5× world-space viewport; vertical
-repetition of the existing architectural silhouettes would make the scene less
-credible. The same review found all three placed props inside the first 2,048
-pixels of the 16,384-pixel route and both Catacombs-specific silhouettes to be
-tall pedestals. The remaining kit needs low/wide floor debris, hanging or wall
-accents, and deliberately spaced foreground framing before the route reads as
-production content.
+seams remain coherent at 1× and 2×, but initially rejected the level at the
+declared 0.5× minimum zoom. The accepted follow-up adds two alternating Far
+lower-foundation companions and two alternating Near lower-wall/rubble
+companions. They cover the measured lower world-space extent without scaling or
+vertically repeating the accepted upper architectural silhouettes. Two
+deterministic environment rebuilds produced identical theme and level outputs,
+and the final 343-artifact integrated review reports no objective findings at
+0.5×, 1×, or 2×. Visual review rejected the first single-variation layout for
+obvious stamp cadence before accepting the A/B composition.
 
-The remaining vertical-space treatment, prop/decal kit, and zoomed-out
-finite-layer coverage warnings are content follow-up, not unfinished generation
-or editor infrastructure, and do not block Milestone 5.
+The same review found all three placed props inside the first 2,048 pixels of
+the 16,384-pixel route and both Catacombs-specific silhouettes to be tall
+pedestals. The remaining kit needs low/wide floor debris, hanging or wall
+accents, and deliberately spaced foreground framing before the route reads as
+production content. That prop/decal work is content follow-up, not unfinished
+generation or editor infrastructure, and does not block Milestone 5.
 
 - Produce the accepted Far Fill and Far Formations plus a small Near Formation
   element set.

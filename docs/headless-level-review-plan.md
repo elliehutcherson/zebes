@@ -6,17 +6,25 @@ Catacombs production work in
 [`environment-artwork-plan.md`](environment-artwork-plan.md); it does not
 replace either document.
 
-**Status: implemented through Phase 3.** The registered reviewer, deterministic
-route planner, integrated raster path, contact sheets, isolated passes, layout
-map, and manifest evidence are available. Its first persisted Catacombs review
-is the baseline for the 0.5x vertical-coverage pass. The 2026-08-28 validation
-published 210 samples over six zoom-specific content tracks as 343 PNG
-artifacts in a 40 MB bundle. It reported the Far and Near formation coverage
-gaps without misclassifying the tile-filled Gameplay layer as empty. Streamed
-atomic publication preserves all 343 artifact IDs, metadata records, and RGBA
-digests while keeping the measured peak resident set at 182,964,224 bytes
-(about 174.5 MiB), rather than retaining the bundle's 694 MiB of decoded RGBA
-payloads at once.
+**Status: implemented through Phase 3; first 0.5x content pass accepted.** The
+registered reviewer, deterministic route planner, integrated raster path,
+contact sheets, isolated passes, layout map, and manifest evidence are
+available. The first persisted Catacombs review established the baseline for
+the vertical-coverage pass. The 2026-08-28 validation published 210 samples
+over six zoom-specific content tracks as 343 PNG artifacts in a 40 MB bundle.
+It reported the Far and Near formation coverage gaps without misclassifying
+the tile-filled Gameplay layer as empty. Streamed atomic publication preserves
+all 343 artifact IDs, metadata records, and RGBA digests while keeping the
+measured peak resident set at 182,964,224 bytes (about 174.5 MiB), rather than
+retaining the bundle's 694 MiB of decoded RGBA payloads at once.
+
+The follow-up pass added alternating Far lower-foundation and Near
+lower-wall/rubble companions, rebuilt the environment byte-stably, and
+published the same 343-artifact review with no objective findings. The complete
+0.5x route now reaches the viewport bottom in both finite formation layers;
+representative 1x and 2x frames preserve the accepted upper composition. A
+single lower companion per layer was rejected during visual review because its
+stamp cadence was obvious, so each layer uses two distinct variations.
 
 ## Outcome
 
@@ -39,7 +47,7 @@ The reviewer produces no movie. PNGs and the manifest are the complete review
 contract: they are lossless, directly inspectable, frame-addressable,
 content-digested, and covered by the existing atomic publication boundary.
 
-## Current production problem
+## Baseline production problem
 
 `parallax-theme` review proves theme composition but cannot show the theme with
 world-layer tiles and entities. The live Level Editor can show the integrated
@@ -53,6 +61,9 @@ theme therefore exposes a hard horizontal change to the repeated Far Fill in
 the lower portion of the frame. The current route also places all three props
 inside the first 2,048 pixels of a 16,384-pixel level, and its two
 Catacombs-specific props share a tall pedestal silhouette.
+
+The accepted lower-companion pass resolves the formation coverage problem. The
+sparse prop distribution and silhouette variety remain open content work.
 
 The integrated reviewer must make those facts visible before more content is
 committed. It must not convert aesthetic observations into automatic pass/fail
@@ -300,6 +311,8 @@ Catacombs Processional publishes a complete bundle without SDL or ImGui.
 ## Catacombs 0.5x content pass
 
 Run this only after Phase 3 publishes the baseline evidence.
+
+Steps 1-5 are complete. Step 6 is the next content pass.
 
 1. Review the persisted Catacombs level and retain the bundle outside the asset
    tree as the before-state.

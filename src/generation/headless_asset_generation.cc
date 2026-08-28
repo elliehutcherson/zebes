@@ -10,6 +10,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "artwork/generated_artwork_postprocessor.h"
@@ -63,7 +64,16 @@ std::string ParallaxInstructions(const ParallaxArtworkRecipe& recipe,
   } else if (capabilities.supports_transparency) {
     role = kTransparentOverlayGenerationGuidance;
   } else {
-    role = kMatteOverlayGenerationGuidance;
+    role = absl::StrFormat(
+        "%s Use exactly the recipe matte color #%02X%02X%02X (RGBA %d, %d, %d, %d) for "
+        "every background pixel; do not substitute another chroma-key color.",
+        kMatteOverlayGenerationGuidance, static_cast<int>(recipe.pipeline.matte_color.r),
+        static_cast<int>(recipe.pipeline.matte_color.g),
+        static_cast<int>(recipe.pipeline.matte_color.b),
+        static_cast<int>(recipe.pipeline.matte_color.r),
+        static_cast<int>(recipe.pipeline.matte_color.g),
+        static_cast<int>(recipe.pipeline.matte_color.b),
+        static_cast<int>(recipe.pipeline.matte_color.a));
   }
   const char* repetition = recipe.pipeline.review_repeat_x
                                ? kSeamlessHorizontalGenerationGuidance
@@ -141,6 +151,13 @@ absl::StatusOr<CandidatePlan> BuildPlan(Api& api, const ImageGenerationCapabilit
     return absl::FailedPreconditionError("parallax template recipe lookup returned null");
   }
   RETURN_IF_ERROR(ValidateParallaxArtworkRecipe(*recipe));
+  if (recipe->pipeline.alpha_role == ParallaxArtworkAlphaRole::kTransparentOverlay &&
+      !capabilities.supports_transparency &&
+      recipe->pipeline.overlay_extraction != ParallaxArtworkOverlayExtraction::kRemoveSolidMatte) {
+    return absl::FailedPreconditionError(
+        "image provider cannot supply transparency and the template recipe cannot remove a "
+        "solid matte");
+  }
   const ParallaxArtworkAssetIds ids{
       .texture_id = GenerateGuid(),
       .recipe_id = GenerateGuid(),
