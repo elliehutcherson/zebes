@@ -120,6 +120,7 @@ absl::StatusOr<CandidatePlan> BuildPlan(Api& api, const ImageGenerationCapabilit
     if (request.prop_attachment_mode.has_value()) {
       template_recipe.pipeline.composition.attachment = {
           .mode = *request.prop_attachment_mode,
+          .free_anchor = request.prop_free_anchor,
       };
     }
     RETURN_IF_ERROR(
@@ -137,9 +138,14 @@ absl::StatusOr<CandidatePlan> BuildPlan(Api& api, const ImageGenerationCapabilit
         .render_w = output_width,
         .render_h = output_height,
         .frames_per_cycle = 0,
-        .offset_x = -output_width / 2,
+        .offset_x =
+            template_recipe.pipeline.composition.attachment.mode == PropAttachmentMode::kFree
+                ? -template_recipe.pipeline.composition.attachment.free_anchor->x
+                : -output_width / 2,
         .offset_y =
-            template_recipe.pipeline.composition.attachment.mode == PropAttachmentMode::kCeiling
+            template_recipe.pipeline.composition.attachment.mode == PropAttachmentMode::kFree
+                ? -template_recipe.pipeline.composition.attachment.free_anchor->y
+            : template_recipe.pipeline.composition.attachment.mode == PropAttachmentMode::kCeiling
                 ? 0
                 : -(output_height - 1),
     };
@@ -336,8 +342,9 @@ absl::Status ValidateHeadlessAssetGenerationRequest(const HeadlessAssetGeneratio
   }
   const bool has_prop_width = request.prop_canvas_tiles_wide.has_value();
   const bool has_prop_height = request.prop_canvas_tiles_high.has_value();
-  const bool has_prop_overrides =
-      has_prop_width || has_prop_height || request.prop_attachment_mode.has_value();
+  const bool has_prop_overrides = has_prop_width || has_prop_height ||
+                                  request.prop_attachment_mode.has_value() ||
+                                  request.prop_free_anchor.has_value();
   if (request.kind != "prop" && has_prop_overrides) {
     return absl::InvalidArgumentError("prop composition overrides require kind 'prop'");
   }
@@ -349,9 +356,13 @@ absl::Status ValidateHeadlessAssetGenerationRequest(const HeadlessAssetGeneratio
       (*request.prop_canvas_tiles_wide <= 0 || *request.prop_canvas_tiles_high <= 0)) {
     return absl::InvalidArgumentError("prop canvas dimensions must be positive");
   }
-  if (request.prop_attachment_mode == PropAttachmentMode::kFree) {
-    return absl::InvalidArgumentError(
-        "headless generation does not support a free attachment without an explicit anchor");
+  if (request.prop_attachment_mode == PropAttachmentMode::kFree &&
+      !request.prop_free_anchor.has_value()) {
+    return absl::InvalidArgumentError("free prop attachment requires an explicit anchor");
+  }
+  if (request.prop_free_anchor.has_value() &&
+      request.prop_attachment_mode != PropAttachmentMode::kFree) {
+    return absl::InvalidArgumentError("free prop anchor requires attachment mode 'free'");
   }
   return ValidateNewDirectoryDestination(request.output_path);
 }
@@ -388,6 +399,7 @@ absl::Status ValidateHeadlessAssetStagingRequest(const HeadlessAssetStagingReque
       .prop_canvas_tiles_wide = request.prop_canvas_tiles_wide,
       .prop_canvas_tiles_high = request.prop_canvas_tiles_high,
       .prop_attachment_mode = request.prop_attachment_mode,
+      .prop_free_anchor = request.prop_free_anchor,
   }));
   if (request.provider.empty() || request.model.empty()) {
     return absl::InvalidArgumentError("headless staging provider and model must be non-empty");
@@ -410,6 +422,7 @@ absl::StatusOr<HeadlessAssetGenerationResult> StageAssetCandidateBundle(
       .prop_canvas_tiles_wide = request.prop_canvas_tiles_wide,
       .prop_canvas_tiles_high = request.prop_canvas_tiles_high,
       .prop_attachment_mode = request.prop_attachment_mode,
+      .prop_free_anchor = request.prop_free_anchor,
   };
   ASSIGN_OR_RETURN(CandidatePlan plan,
                    BuildPlan(api, ImageGenerationCapabilities{}, generation_request));

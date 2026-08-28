@@ -49,6 +49,31 @@ class RunTestExecutablesTest(unittest.TestCase):
             ],
         }
 
+    def pre_test_case(
+        self, name: str, executable: Path, *, extra_arguments: str = ""
+    ) -> dict:
+        return {
+            "name": name,
+            "command": [
+                str(self.root / "cmake"),
+                "-D",
+                f"TEST_EXECUTABLE={executable}",
+                "-D",
+                "TEST_EXECUTOR=",
+                "-D",
+                f"TEST_FILTER={name}",
+                "-D",
+                "TEST_XML_OUTPUT=",
+                "-D",
+                f"TEST_EXTRA_ARGS={extra_arguments}",
+                "-P",
+                "/cmake/Modules/GoogleTest/LaunchTest.cmake",
+            ],
+            "properties": [
+                {"name": "WORKING_DIRECTORY", "value": str(self.working)}
+            ],
+        }
+
     def test_groups_discovered_cases_and_runs_each_binary_once(self):
         first = self.write_executable("first_test")
         second = self.write_executable("second_test")
@@ -75,6 +100,25 @@ class RunTestExecutablesTest(unittest.TestCase):
             ["first_test", "second_test"],
         )
         self.assertEqual(grouped[0].test_names, ["First.One", "First.Two"])
+
+    def test_groups_pre_test_launch_commands_and_runs_each_binary_once(self):
+        executable = self.write_executable("pre_test")
+        document = {
+            "tests": [
+                self.pre_test_case("Suite.One", executable),
+                self.pre_test_case("Suite.Two", executable),
+            ]
+        }
+
+        grouped = run_test_executables.group_test_executables(document)
+        with contextlib.redirect_stdout(io.StringIO()):
+            status = run_test_executables.run_executables(grouped)
+
+        self.assertEqual(status, 0)
+        self.assertEqual(
+            self.run_log.read_text(encoding="utf-8").splitlines(), ["pre_test"]
+        )
+        self.assertEqual(grouped[0].test_names, ["Suite.One", "Suite.Two"])
 
     def test_failure_runs_remaining_binaries_and_prints_complete_output(self):
         first = self.write_executable("first_test", status=7)
@@ -103,6 +147,21 @@ class RunTestExecutablesTest(unittest.TestCase):
 
         with self.assertRaisesRegex(
             run_test_executables.TestRunnerError, "custom arguments"
+        ):
+            run_test_executables.group_test_executables(document)
+
+    def test_refuses_pre_test_semantics_it_cannot_preserve(self):
+        executable = self.write_executable("custom_pre_test")
+        document = {
+            "tests": [
+                self.pre_test_case(
+                    "Suite.Custom", executable, extra_arguments="--required-custom-argument"
+                )
+            ]
+        }
+
+        with self.assertRaisesRegex(
+            run_test_executables.TestRunnerError, "unsupported TEST_EXTRA_ARGS"
         ):
             run_test_executables.group_test_executables(document)
 

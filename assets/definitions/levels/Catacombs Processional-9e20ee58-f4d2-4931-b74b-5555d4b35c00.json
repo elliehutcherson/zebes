@@ -66,7 +66,7 @@
                 },
                 {
                     "active": true,
-                    "blueprint_id": "e677ac5d-0100-4cbd-928d-0f97b3118232",
+                    "blueprint_id": "079e893c-07f3-4982-aace-5ecb5c28f302",
                     "blueprint_state_index": 0,
                     "body": {
                         "drag_x": 0.0,
@@ -77,7 +77,7 @@
                     "collider_id": "",
                     "id": 6,
                     "sort_order": 20,
-                    "sprite_id": "2a0813c0-f954-453f-a416-ef39e9fc9ac2",
+                    "sprite_id": "76a34a04-889c-432c-8c79-ef9b68eb48c6",
                     "transform": {
                         "rotation": 0.0,
                         "x": 6848.0,
@@ -106,7 +106,7 @@
                 },
                 {
                     "active": true,
-                    "blueprint_id": "e677ac5d-0100-4cbd-928d-0f97b3118232",
+                    "blueprint_id": "079e893c-07f3-4982-aace-5ecb5c28f302",
                     "blueprint_state_index": 0,
                     "body": {
                         "drag_x": 0.0,
@@ -117,7 +117,7 @@
                     "collider_id": "",
                     "id": 8,
                     "sort_order": 20,
-                    "sprite_id": "2a0813c0-f954-453f-a416-ef39e9fc9ac2",
+                    "sprite_id": "76a34a04-889c-432c-8c79-ef9b68eb48c6",
                     "transform": {
                         "rotation": 0.0,
                         "x": 14912.0,
@@ -16725,7 +16725,7 @@
                 },
                 {
                     "active": true,
-                    "blueprint_id": "fb4a0070-7af2-4183-b67f-2ecf27d098cc",
+                    "blueprint_id": "277eeb9c-127d-424d-b50f-d3668c7463e5",
                     "blueprint_state_index": 0,
                     "body": {
                         "drag_x": 0.0,
@@ -16736,7 +16736,7 @@
                     "collider_id": "",
                     "id": 13,
                     "sort_order": 10,
-                    "sprite_id": "ccc36e75-3f6f-47a5-94b7-d53751f65f9c",
+                    "sprite_id": "4d20e9a0-4199-4268-884b-66699a21773c",
                     "transform": {
                         "rotation": 0.0,
                         "x": 10048.0,

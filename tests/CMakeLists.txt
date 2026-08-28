@@ -6,6 +6,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
 include(GoogleTest)
 find_package(Threads REQUIRED)
 
+# CMake 4.4.0's POST_BUILD discovery omits the test target when choosing its
+# temporary JSON filename. Parallel links in one directory can therefore
+# remove or parse the same file concurrently. PRE_TEST discovery is serialized
+# by CTest and avoids making a successful parallel build depend on discovery.
+set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
+
 # Override output directory specifically for tests (as you had before)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
 

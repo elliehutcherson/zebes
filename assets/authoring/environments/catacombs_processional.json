@@ -174,7 +174,7 @@
       {
         "id": 6,
         "layer_name": "Back Decor",
-        "blueprint_name": "Catacombs Collapsed Offerings",
+        "blueprint_name": "Catacombs Fallen Votive Tablets",
         "state_name": "Default",
         "active": true,
         "position_pixels": [6848.0, 864.0],
@@ -192,7 +192,7 @@
       {
         "id": 8,
         "layer_name": "Back Decor",
-        "blueprint_name": "Catacombs Collapsed Offerings",
+        "blueprint_name": "Catacombs Fallen Votive Tablets",
         "state_name": "Default",
         "active": true,
         "position_pixels": [14912.0, 864.0],
@@ -237,7 +237,7 @@
       {
         "id": 13,
         "layer_name": "Front Decor",
-        "blueprint_name": "Catacombs Foreground Funeral Shroud",
+        "blueprint_name": "Catacombs Foreground Tattered Valance",
         "state_name": "Default",
         "active": true,
         "position_pixels": [10048.0, 416.0],

@@ -1,0 +1,19 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "offset_x": -32,
+            "offset_y": -6,
+            "render_h": 96,
+            "render_w": 64,
+            "texture_h": 96,
+            "texture_w": 64,
+            "texture_x": 0,
+            "texture_y": 0
+        }
+    ],
+    "id": "4d20e9a0-4199-4268-884b-66699a21773c",
+    "name": "Catacombs Foreground Tattered Valance",
+    "texture_id": "0db6dbb7-9a0b-43a3-b37e-b32e79400359"
+}

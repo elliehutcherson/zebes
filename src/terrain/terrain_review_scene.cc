@@ -22,7 +22,7 @@ struct JoinCase {
 };
 
 const std::vector<JoinCase>& MatrixCases() {
-  static const std::vector<JoinCase> cases = {
+  static const std::vector<JoinCase> kCases = {
       {"ramp into ground", {"../#", "####"}},
       {"ramp ending at air", {"../.", "###."}},
       {"peak: two ramps meet", {"./\\.", "####"}},
@@ -32,7 +32,7 @@ const std::vector<JoinCase>& MatrixCases() {
       {"gentle ramp ending at air", {".ab..", "####."}},
       {"steep ramp into ground", {"..t#", "..u#", "####"}},
   };
-  return cases;
+  return kCases;
 }
 
 absl::StatusOr<TileShape> ShapeFromChar(char character) {

@@ -1,0 +1,12 @@
+{
+    "id": "277eeb9c-127d-424d-b50f-d3668c7463e5",
+    "name": "Catacombs Foreground Tattered Valance",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Default",
+            "placement_mode": "ceiling",
+            "sprite_id": "4d20e9a0-4199-4268-884b-66699a21773c"
+        }
+    ]
+}

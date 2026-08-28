@@ -6,7 +6,8 @@ Catacombs production work in
 [`environment-artwork-plan.md`](environment-artwork-plan.md); it does not
 replace either document.
 
-**Status: implemented through Phase 3; first 0.5x content pass accepted.** The
+**Status: implemented through Phase 3; 0.5x coverage and two distributed prop
+passes accepted.** The
 registered reviewer, deterministic route planner, integrated raster path,
 contact sheets, isolated passes, layout map, and manifest evidence are
 available. The first persisted Catacombs review established the baseline for
@@ -25,6 +26,14 @@ published the same 343-artifact review with no objective findings. The complete
 representative 1x and 2x frames preserve the accepted upper composition. A
 single lower companion per layer was rejected during visual review because its
 stamp cadence was obvious, so each layer uses two distinct variations.
+
+The later scale-aware prop passes use an exact 32×64 Mouse Player Placeholder
+as their size reference. The second pass replaces two of four repeated floor
+scatters with low Fallen Votive Tablets and one of three foreground shrouds with
+an asymmetric Tattered Valance. Entity count, layer count, and collision remain
+unchanged. Its deterministic rebuild and final 343-artifact review again report
+no objective findings. Two wall-plaque drafts were rejected because their pale
+central shapes read as an interactable at gameplay scale; neither is shipped.
 
 ## Outcome
 
@@ -312,8 +321,8 @@ Catacombs Processional publishes a complete bundle without SDL or ImGui.
 
 Run this only after Phase 3 publishes the baseline evidence.
 
-Steps 1-6 are complete for the first distributed content pass. Additional
-silhouette variants remain normal content polish.
+Steps 1-6 are complete for two distributed content passes. Additional wall
+silhouette and terrain-material variants remain normal content polish.
 
 1. Review the persisted Catacombs level and retain the bundle outside the asset
    tree as the before-state.
@@ -338,13 +347,17 @@ silhouette variants remain normal content polish.
 
 The first Step 6 result uses a static Mouse Player Placeholder with an exact
 32×64 collider as the scale reference, plus four low/wide floor scatters, three
-ceiling friezes, and three sparse foreground shrouds. The persisted layer
-evidence now reports nine Back Decor entities spanning x=640–14,912, one
-Gameplay player placeholder at x=256, and four Front Decor entities spanning
-x=1,472–14,272. Its 343-artifact review has no objective findings. Production
-visual review intentionally rejected brighter hanging artwork that resembled a
-pickup, grounded ribs that resembled a collider-free hazard, and opaque or
-invalid larger drapery candidates.
+ceiling friezes, and three sparse foreground shrouds. The second result keeps
+those counts but establishes floor and foreground A/B silhouettes: Fallen
+Votive Tablets replace the repeated floor scatter at x=6,848 and x=14,912, and
+a Tattered Valance replaces the shroud at x=10,048. The persisted layer
+evidence reports nine Back Decor entities spanning x=640–14,912, one Gameplay
+player placeholder at x=256, and four Front Decor entities spanning
+x=1,472–14,272. The final deterministic rebuild and 343-artifact review have no
+objective findings. Production visual review intentionally rejected brighter
+hanging artwork that resembled a pickup, grounded ribs that resembled a
+collider-free hazard, opaque or invalid larger drapery candidates, and two
+free-positioned plaques that resembled interactables.
 
 Prefer companion lower artwork over scaling the current upper formations:
 scaling would change their accepted landmark size and horizontal rhythm.

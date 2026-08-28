@@ -66,8 +66,9 @@ absl::StatusOr<RgbaImage> CropTile(const Tileset& tileset, const Tile& tile,
 absl::StatusOr<CurationReview> TerrainReviewer::Review(Api& api,
                                                        const CurationReviewRequest& request) const {
   ASSIGN_OR_RETURN(TerrainRecipe * recipe, api.GetTerrainRecipe(request.asset_id));
-  if (recipe == nullptr)
+  if (recipe == nullptr) {
     return absl::FailedPreconditionError("terrain recipe lookup returned null");
+  }
   ASSIGN_OR_RETURN(Tileset * tileset, api.GetTileset(recipe->tileset_id));
   if (tileset == nullptr || tileset->id != recipe->tileset_id) {
     return absl::FailedPreconditionError("terrain recipe tileset lookup returned invalid data");

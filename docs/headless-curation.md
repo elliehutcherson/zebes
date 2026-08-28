@@ -94,13 +94,17 @@ Prop generation derives its composition aspect from the template's tile canvas
 by default; a 1-by-2 recipe asks the provider for a portrait source rather than
 an unrelated square. New creations may override that composition explicitly
 with paired `--prop_canvas_tiles_wide` and `--prop_canvas_tiles_high` flags and
-may select `--prop_attachment=grounded` or `ceiling`. The override changes only
-the candidate's validated composition and provider aspect; terrain palette,
-isolation, cleanup, and other deterministic settings still come from the
-template. `stage_asset_creation` accepts the same flags so an externally
+may select `--prop_attachment=grounded`, `ceiling`, or `free`. Free placement
+also requires paired `--prop_free_anchor_x` and `--prop_free_anchor_y` pixel
+coordinates inside the final canvas. The anchor becomes the Blueprint origin,
+and the generated Sprite offset is its exact negation. The override changes
+only the candidate's validated composition and provider aspect; terrain
+palette, isolation, cleanup, and other deterministic settings still come from
+the template. `stage_asset_creation` accepts the same flags so an externally
 generated source follows the identical candidate contract. Partial dimensions,
-non-positive dimensions, free attachment without an explicit anchor, and prop
-flags on non-prop generation fail before provider work.
+non-positive dimensions, incomplete or out-of-canvas free anchors, free anchors
+on another attachment mode, and prop flags on non-prop generation fail before
+provider work.
 When a parallax template requires a transparent overlay but the selected
 provider cannot emit transparent pixels, generation names the recipe's exact
 solid-matte RGBA value in the provider instructions. The template must use
@@ -154,6 +158,29 @@ build/dev/bin/generate_assets \
   --prop_attachment=grounded \
   --output=/tmp/collapsed-offerings
 ```
+
+A wall-positioned candidate uses the same managed path but authors its origin
+explicitly. For a 64×64 output, the centered form is:
+
+```bash
+build/dev/bin/generate_assets \
+  --asset_root="$PWD/assets" \
+  --kind=prop \
+  --recipe_name="Catacombs Ceiling Chain Frieze" \
+  --name="Catacombs Wall Accent" \
+  --prompt="one inert asymmetrical patch of funerary wall masonry" \
+  --provider=codex \
+  --prop_canvas_tiles_wide=2 \
+  --prop_canvas_tiles_high=2 \
+  --prop_attachment=free \
+  --prop_free_anchor_x=32 \
+  --prop_free_anchor_y=32 \
+  --output=/tmp/catacombs-wall-accent
+```
+
+Free placement controls geometry, not gameplay meaning. A decorative wall
+accent still has no collider, and integrated review must reject silhouettes
+that resemble a switch, pickup, door, or hazard.
 
 The last command publishes `/tmp/cave-pod-commit/manifest.json` before the
 mutation and `/tmp/cave-pod-commit-committed/manifest.json` from persisted

@@ -3,10 +3,12 @@
 
 GoogleTest discovery gives CTest excellent case-level reporting, but a full
 local gate pays for a fresh process for every discovered case. This runner uses
-CTest's JSON manifest as the source of truth, groups those cases by executable,
-and runs each binary once from the same working directory. It deliberately runs
-serially: several resource-manager suites use fixed test directories, and the
-SDL/ImGui integration tests must not compete for the host display.
+CTest's JSON manifest as the source of truth, unwraps either direct discovery
+commands or CMake's PRE_TEST LaunchTest command, groups those cases by
+executable, and runs each binary once from the same working directory. It
+deliberately runs serially: several resource-manager suites use fixed test
+directories, and the SDL/ImGui integration tests must not compete for the host
+display.
 """
 
 from __future__ import annotations
@@ -60,6 +62,79 @@ def _is_supported_case_command(arguments: list[str]) -> bool:
     )
 
 
+def _pre_test_executable(test_name: str, command: list[str]) -> Path | None:
+    if Path(command[0]).name != "cmake":
+        return None
+
+    arguments = command[1:]
+    if (
+        len(arguments) < 3
+        or arguments[-2] != "-P"
+        or Path(arguments[-1]).name != "LaunchTest.cmake"
+    ):
+        return None
+
+    definition_arguments = arguments[:-2]
+    if len(definition_arguments) % 2 != 0:
+        raise TestRunnerError(
+            f"CTest PRE_TEST command for '{test_name}' has malformed definitions"
+        )
+
+    definitions: dict[str, str] = {}
+    for index in range(0, len(definition_arguments), 2):
+        if definition_arguments[index] != "-D":
+            raise TestRunnerError(
+                f"CTest PRE_TEST command for '{test_name}' has unsupported arguments"
+            )
+        assignment = definition_arguments[index + 1]
+        if "=" not in assignment:
+            raise TestRunnerError(
+                f"CTest PRE_TEST command for '{test_name}' has a malformed definition"
+            )
+        key, value = assignment.split("=", 1)
+        if key in definitions:
+            raise TestRunnerError(
+                f"CTest PRE_TEST command for '{test_name}' repeats definition '{key}'"
+            )
+        definitions[key] = value
+
+    required = {
+        "TEST_EXECUTABLE",
+        "TEST_EXECUTOR",
+        "TEST_EXTRA_ARGS",
+        "TEST_FILTER",
+        "TEST_XML_OUTPUT",
+    }
+    if definitions.keys() != required:
+        raise TestRunnerError(
+            f"CTest PRE_TEST command for '{test_name}' has unsupported definitions"
+        )
+    if not definitions["TEST_EXECUTABLE"] or not definitions["TEST_FILTER"]:
+        raise TestRunnerError(
+            f"CTest PRE_TEST command for '{test_name}' is missing its executable or filter"
+        )
+    for key in ("TEST_EXECUTOR", "TEST_EXTRA_ARGS", "TEST_XML_OUTPUT"):
+        if definitions[key]:
+            raise TestRunnerError(
+                f"CTest PRE_TEST command for '{test_name}' has unsupported {key} semantics"
+            )
+    return Path(definitions["TEST_EXECUTABLE"])
+
+
+def _case_executable(test_name: str, command: list[str]) -> Path:
+    if _is_supported_case_command(command[1:]):
+        return Path(command[0])
+
+    pre_test_executable = _pre_test_executable(test_name, command)
+    if pre_test_executable is not None:
+        return pre_test_executable
+
+    raise TestRunnerError(
+        f"CTest test '{test_name}' has custom arguments and cannot be grouped: "
+        + " ".join(command[1:])
+    )
+
+
 def group_test_executables(document: dict) -> list[TestExecutable]:
     """Groups a CTest JSON document without guessing about custom commands."""
     tests = document.get("tests")
@@ -76,12 +151,6 @@ def group_test_executables(document: dict) -> list[TestExecutable]:
             isinstance(argument, str) for argument in command
         ):
             raise TestRunnerError(f"CTest test '{name}' has an invalid command")
-        if not _is_supported_case_command(command[1:]):
-            raise TestRunnerError(
-                f"CTest test '{name}' has custom arguments and cannot be grouped: "
-                + " ".join(command[1:])
-            )
-
         property_names = {
             item.get("name") for item in test.get("properties", []) if isinstance(item, dict)
         }
@@ -92,7 +161,7 @@ def group_test_executables(document: dict) -> list[TestExecutable]:
                 + ", ".join(unsupported)
             )
 
-        executable = Path(command[0]).resolve()
+        executable = _case_executable(name, command).resolve()
         working_value = _property(test, "WORKING_DIRECTORY")
         if not isinstance(working_value, str) or not working_value:
             raise TestRunnerError(f"CTest test '{name}' has no working directory")

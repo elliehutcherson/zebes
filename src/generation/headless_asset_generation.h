@@ -20,6 +20,7 @@ struct HeadlessAssetGenerationRequest {
   std::optional<int> prop_canvas_tiles_wide;
   std::optional<int> prop_canvas_tiles_high;
   std::optional<PropAttachmentMode> prop_attachment_mode;
+  std::optional<PropFreeAnchor> prop_free_anchor;
 };
 
 struct HeadlessAssetGenerationResult {
@@ -39,6 +40,7 @@ struct HeadlessAssetStagingRequest {
   std::optional<int> prop_canvas_tiles_wide;
   std::optional<int> prop_canvas_tiles_high;
   std::optional<PropAttachmentMode> prop_attachment_mode;
+  std::optional<PropFreeAnchor> prop_free_anchor;
 };
 
 struct HeadlessAssetRedrawRequest {

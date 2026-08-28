@@ -29,11 +29,11 @@ Level HorizontalLevel() {
 
 TEST(LevelReviewRouteTest, PlansOverlappingHorizontalRoutesAtSupportedZooms) {
   const Level level = HorizontalLevel();
-  constexpr GameViewSize game_view{.width = 960, .height = 540};
-  constexpr std::array<double, 3> zooms = {0.5, 1.0, 2.0};
+  constexpr GameViewSize kGameView{.width = 960, .height = 540};
+  constexpr std::array<double, 3> kZooms = {0.5, 1.0, 2.0};
 
   ASSERT_OK_AND_ASSIGN(const std::vector<LevelReviewRoute> routes,
-                       PlanLevelReviewRoutes(level, game_view, zooms));
+                       PlanLevelReviewRoutes(level, kGameView, kZooms));
 
   ASSERT_EQ(routes.size(), 3);
   EXPECT_EQ(routes[0].id, "zone-007-track-00");
@@ -69,23 +69,23 @@ TEST(LevelReviewRouteTest, AddsOnlyTheTracksNeededToCoverSeparatedWorldContent) 
       }},
   };
   level.layers.front().entities.emplace(1, Entity{.id = 1, .transform = {.position = {100, 600}}});
-  constexpr GameViewSize game_view{.width = 640, .height = 360};
-  constexpr std::array<double, 1> zooms = {2.0};
+  constexpr GameViewSize kGameView{.width = 640, .height = 360};
+  constexpr std::array<double, 1> kZooms = {2.0};
 
   ASSERT_OK_AND_ASSIGN(const std::vector<LevelReviewRoute> routes,
-                       PlanLevelReviewRoutes(level, game_view, zooms));
+                       PlanLevelReviewRoutes(level, kGameView, kZooms));
 
   ASSERT_EQ(routes.size(), 2);
   EXPECT_EQ(routes[0].track_index, 0);
   EXPECT_EQ(routes[1].track_index, 1);
-  EXPECT_LE(routes[0].centers.min.y - game_view.height / (2.0 * zooms[0]), 200);
-  EXPECT_GE(routes[0].centers.min.y + game_view.height / (2.0 * zooms[0]), 200);
-  EXPECT_LE(routes[1].centers.min.y - game_view.height / (2.0 * zooms[0]), 600);
-  EXPECT_GE(routes[1].centers.min.y + game_view.height / (2.0 * zooms[0]), 600);
+  EXPECT_LE(routes[0].centers.min.y - kGameView.height / (2.0 * kZooms[0]), 200);
+  EXPECT_GE(routes[0].centers.min.y + kGameView.height / (2.0 * kZooms[0]), 200);
+  EXPECT_LE(routes[1].centers.min.y - kGameView.height / (2.0 * kZooms[0]), 600);
+  EXPECT_GE(routes[1].centers.min.y + kGameView.height / (2.0 * kZooms[0]), 600);
   for (size_t index = 1; index < routes[1].samples.size(); ++index) {
     EXPECT_LE(
         routes[1].samples[index].camera.position.x - routes[1].samples[index - 1].camera.position.x,
-        game_view.width / zooms[0]);
+        kGameView.width / kZooms[0]);
   }
 }
 
@@ -104,11 +104,11 @@ TEST(LevelReviewRouteTest, UsesVerticalCenterlineForTallZones) {
           .max_point = {640, 1920},
       }},
   };
-  constexpr GameViewSize game_view{.width = 320, .height = 240};
-  constexpr std::array<double, 1> zooms = {1.0};
+  constexpr GameViewSize kGameView{.width = 320, .height = 240};
+  constexpr std::array<double, 1> kZooms = {1.0};
 
   ASSERT_OK_AND_ASSIGN(const std::vector<LevelReviewRoute> routes,
-                       PlanLevelReviewRoutes(level, game_view, zooms));
+                       PlanLevelReviewRoutes(level, kGameView, kZooms));
 
   ASSERT_EQ(routes.size(), 1);
   EXPECT_FALSE(routes.front().horizontal);
@@ -140,11 +140,11 @@ TEST(LevelReviewRouteTest, AddsFadeEvidenceAtAnAdjacentZoneBoundary) {
                .fade_length = {20, 0}},
           },
   };
-  constexpr GameViewSize game_view{.width = 320, .height = 160};
-  constexpr std::array<double, 1> zooms = {1.0};
+  constexpr GameViewSize kGameView{.width = 320, .height = 160};
+  constexpr std::array<double, 1> kZooms = {1.0};
 
   ASSERT_OK_AND_ASSIGN(const std::vector<LevelReviewRoute> routes,
-                       PlanLevelReviewRoutes(level, game_view, zooms));
+                       PlanLevelReviewRoutes(level, kGameView, kZooms));
 
   ASSERT_EQ(routes.size(), 2);
   bool found_fade_middle = false;
@@ -165,10 +165,10 @@ TEST(LevelReviewRouteTest, RejectsAViewportThatCannotFitInsideTheLevel) {
   level.height = 320;
   level.spawn_point = {256, 160};
   level.zones.front().max_point = {640, 320};
-  constexpr GameViewSize game_view{.width = 960, .height = 540};
-  constexpr std::array<double, 1> zooms = {0.5};
+  constexpr GameViewSize kGameView{.width = 960, .height = 540};
+  constexpr std::array<double, 1> kZooms = {0.5};
 
-  EXPECT_EQ(PlanLevelReviewRoutes(level, game_view, zooms).status().code(),
+  EXPECT_EQ(PlanLevelReviewRoutes(level, kGameView, kZooms).status().code(),
             absl::StatusCode::kFailedPrecondition);
 }
 

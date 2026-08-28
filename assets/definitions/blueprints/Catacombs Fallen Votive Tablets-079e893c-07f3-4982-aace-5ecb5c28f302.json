@@ -1,0 +1,12 @@
+{
+    "id": "079e893c-07f3-4982-aace-5ecb5c28f302",
+    "name": "Catacombs Fallen Votive Tablets",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Default",
+            "placement_mode": "grounded",
+            "sprite_id": "76a34a04-889c-432c-8c79-ef9b68eb48c6"
+        }
+    ]
+}

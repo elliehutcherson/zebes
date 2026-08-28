@@ -268,6 +268,97 @@ TEST_F(HeadlessAssetGenerationTest, RejectsPartialPropCanvasOverrideBeforeRecipe
   EXPECT_THAT(status.message(), ::testing::HasSubstr("provided together"));
 }
 
+TEST_F(HeadlessAssetGenerationTest, PropGenerationAppliesExplicitFreeAnchor) {
+  ASSERT_OK_AND_ASSIGN(PropRecipe recipe, PropTemplateRecipe());
+  MockApi api;
+  EXPECT_CALL(api, GetPropRecipe(recipe.id)).WillOnce(Return(&recipe));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
+                       ImageGenerationService::Create(CreateFakeImageGenerationClient()));
+
+  ASSERT_OK_AND_ASSIGN(
+      HeadlessAssetGenerationResult result,
+      GenerateAssetCandidateBundle(api, *service,
+                                   {
+                                       .kind = "prop",
+                                       .template_recipe_id = recipe.id,
+                                       .name = "Wall Plaque",
+                                       .prompt = "cracked funerary wall plaque",
+                                       .output_path = (root_ / "free-anchor").string(),
+                                       .prop_canvas_tiles_wide = 2,
+                                       .prop_canvas_tiles_high = 2,
+                                       .prop_attachment_mode = PropAttachmentMode::kFree,
+                                       .prop_free_anchor = PropFreeAnchor{.x = 32, .y = 24},
+                                   }));
+
+  std::ifstream candidate_stream(result.candidate_path);
+  nlohmann::json candidate_json;
+  candidate_stream >> candidate_json;
+  ASSERT_OK_AND_ASSIGN(GeneratedPropCreationCandidate candidate,
+                       GeneratedPropCreationCandidateFromJson(candidate_json));
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.attachment.mode,
+            PropAttachmentMode::kFree);
+  ASSERT_TRUE(candidate.template_recipe.pipeline.composition.attachment.free_anchor.has_value());
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.attachment.free_anchor->x, 32);
+  EXPECT_EQ(candidate.template_recipe.pipeline.composition.attachment.free_anchor->y, 24);
+  EXPECT_EQ(candidate.template_recipe.expected_frame.offset_x, -32);
+  EXPECT_EQ(candidate.template_recipe.expected_frame.offset_y, -24);
+}
+
+TEST_F(HeadlessAssetGenerationTest, RejectsFreeAnchorOutsideOverriddenCanvas) {
+  ASSERT_OK_AND_ASSIGN(PropRecipe recipe, PropTemplateRecipe());
+  MockApi api;
+  EXPECT_CALL(api, GetPropRecipe(recipe.id)).WillOnce(Return(&recipe));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
+                       ImageGenerationService::Create(CreateFakeImageGenerationClient()));
+
+  const absl::Status status =
+      GenerateAssetCandidateBundle(api, *service,
+                                   {
+                                       .kind = "prop",
+                                       .template_recipe_id = recipe.id,
+                                       .name = "Misanchored Wall Prop",
+                                       .prompt = "cracked wall plaque",
+                                       .output_path = (root_ / "outside-free-anchor").string(),
+                                       .prop_canvas_tiles_wide = 2,
+                                       .prop_canvas_tiles_high = 2,
+                                       .prop_attachment_mode = PropAttachmentMode::kFree,
+                                       .prop_free_anchor = PropFreeAnchor{.x = 64, .y = 24},
+                                   })
+          .status();
+
+  EXPECT_TRUE(absl::IsInvalidArgument(status));
+  EXPECT_THAT(status.message(), ::testing::HasSubstr("inside the prop canvas"));
+}
+
+TEST_F(HeadlessAssetGenerationTest, RejectsFreeAttachmentWithoutAnchor) {
+  const absl::Status status = ValidateHeadlessAssetGenerationRequest({
+      .kind = "prop",
+      .template_recipe_id = "recipe",
+      .name = "Unanchored Wall Prop",
+      .prompt = "cracked wall plaque",
+      .output_path = (root_ / "unanchored").string(),
+      .prop_attachment_mode = PropAttachmentMode::kFree,
+  });
+
+  EXPECT_TRUE(absl::IsInvalidArgument(status));
+  EXPECT_THAT(status.message(), ::testing::HasSubstr("requires an explicit anchor"));
+}
+
+TEST_F(HeadlessAssetGenerationTest, RejectsFreeAnchorForNonFreeAttachment) {
+  const absl::Status status = ValidateHeadlessAssetGenerationRequest({
+      .kind = "prop",
+      .template_recipe_id = "recipe",
+      .name = "Misanchored Floor Prop",
+      .prompt = "broken stones",
+      .output_path = (root_ / "misanchored").string(),
+      .prop_attachment_mode = PropAttachmentMode::kGrounded,
+      .prop_free_anchor = PropFreeAnchor{.x = 8, .y = 8},
+  });
+
+  EXPECT_TRUE(absl::IsInvalidArgument(status));
+  EXPECT_THAT(status.message(), ::testing::HasSubstr("requires attachment mode 'free'"));
+}
+
 TEST_F(HeadlessAssetGenerationTest, MatteGenerationNamesTheTemplateRecipesExactColor) {
   ASSERT_OK_AND_ASSIGN(ParallaxArtworkRecipe recipe, TemplateRecipe());
   recipe.pipeline.alpha_role = ParallaxArtworkAlphaRole::kTransparentOverlay;

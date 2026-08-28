@@ -423,8 +423,9 @@ absl::StatusOr<WorldRenderStats> CompositeWorldLayer(RgbaImage& canvas,
       const int y = static_cast<int>(std::floor(minimum.y));
       const int width = static_cast<int>(std::ceil(maximum.x)) - x;
       const int height = static_cast<int>(std::ceil(maximum.y)) - y;
-      if (width > 0 && height > 0)
+      if (width > 0 && height > 0) {
         RETURN_IF_ERROR(FillRgbaRect(canvas, x, y, width, height, kPlaceholder));
+      }
     }
     stats.entity_ids.push_back(item.entity_id);
   }

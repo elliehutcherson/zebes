@@ -30,7 +30,11 @@ ABSL_FLAG(int, prop_canvas_tiles_wide, 0,
 ABSL_FLAG(int, prop_canvas_tiles_high, 0,
           "Prop output height in tiles; set with --prop_canvas_tiles_wide, or zero to inherit");
 ABSL_FLAG(std::string, prop_attachment, "inherit",
-          "Prop attachment override: inherit, grounded, or ceiling");
+          "Prop attachment override: inherit, grounded, ceiling, or free");
+ABSL_FLAG(int, prop_free_anchor_x, -1,
+          "Free prop anchor X in output pixels; set with --prop_free_anchor_y");
+ABSL_FLAG(int, prop_free_anchor_y, -1,
+          "Free prop anchor Y in output pixels; set with --prop_free_anchor_x");
 
 namespace zebes {
 namespace {
@@ -39,7 +43,18 @@ absl::StatusOr<std::optional<PropAttachmentMode>> ParsePropAttachment(const std:
   if (value == "inherit") return std::nullopt;
   if (value == "grounded") return PropAttachmentMode::kGrounded;
   if (value == "ceiling") return PropAttachmentMode::kCeiling;
-  return absl::InvalidArgumentError("--prop_attachment must be inherit, grounded, or ceiling");
+  if (value == "free") return PropAttachmentMode::kFree;
+  return absl::InvalidArgumentError(
+      "--prop_attachment must be inherit, grounded, ceiling, or free");
+}
+
+absl::StatusOr<std::optional<PropFreeAnchor>> ParsePropFreeAnchor(int x, int y) {
+  if (x == -1 && y == -1) return std::nullopt;
+  if (x < 0 || y < 0) {
+    return absl::InvalidArgumentError(
+        "--prop_free_anchor_x and --prop_free_anchor_y must be non-negative and provided together");
+  }
+  return PropFreeAnchor{.x = x, .y = y};
 }
 
 absl::Status Run() {
@@ -52,6 +67,9 @@ absl::Status Run() {
   const int prop_canvas_tiles_high = absl::GetFlag(FLAGS_prop_canvas_tiles_high);
   ASSIGN_OR_RETURN(const std::optional<PropAttachmentMode> prop_attachment_mode,
                    ParsePropAttachment(absl::GetFlag(FLAGS_prop_attachment)));
+  ASSIGN_OR_RETURN(const std::optional<PropFreeAnchor> prop_free_anchor,
+                   ParsePropFreeAnchor(absl::GetFlag(FLAGS_prop_free_anchor_x),
+                                       absl::GetFlag(FLAGS_prop_free_anchor_y)));
   const HeadlessAssetStagingRequest request{
       .kind = absl::GetFlag(FLAGS_kind),
       .template_recipe_id = absl::GetFlag(FLAGS_recipe_id),
@@ -65,6 +83,7 @@ absl::Status Run() {
       .prop_canvas_tiles_high =
           prop_canvas_tiles_high == 0 ? std::nullopt : std::optional(prop_canvas_tiles_high),
       .prop_attachment_mode = prop_attachment_mode,
+      .prop_free_anchor = prop_free_anchor,
   };
   RETURN_IF_ERROR(ValidateHeadlessAssetStagingRequest(request));
   ASSIGN_OR_RETURN(const RgbaImage image, ReadPng(input));

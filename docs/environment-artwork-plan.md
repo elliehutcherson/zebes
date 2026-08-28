@@ -1086,15 +1086,19 @@ obvious stamp cadence before accepting the A/B composition.
 The same review initially found all three placed props inside the first 2,048
 pixels of the 16,384-pixel route and both Catacombs-specific silhouettes to be
 tall pedestals. The first scale-aware follow-up adds a Mouse Player Placeholder
-at the opening, four low/wide Collapsed Offerings placements, three ceiling
-Chain Friezes, and three sparse Foreground Funeral Shrouds. Back Decor now spans
-x=640 through x=14,912 and Front Decor spans x=1,472 through x=14,272. The final
-343-artifact review reports no objective findings. Visual review rejected a
+at the opening, four low/wide floor-scatter placements, three ceiling Chain
+Friezes, and three sparse foreground hangings. A second A/B pass replaces the
+floor scatter at x=6,848 and x=14,912 with Fallen Votive Tablets and the
+foreground shroud at x=10,048 with a Tattered Valance; it does not add density
+or collision. Back Decor still spans x=640 through x=14,912 and Front Decor
+spans x=1,472 through x=14,272. The final deterministic rebuild and
+343-artifact review report no objective findings. Visual review rejected a
 bright hanging draft that read as a collectible, a grounded rib draft that
-read as a collider-free hazard, and larger cloth drafts that were opaque or
-failed deterministic ceiling-contact validation. Additional variants and more
-visually assertive but still noninteractive foreground forms remain content
-polish, not unfinished generation or editor infrastructure.
+read as a collider-free hazard, larger cloth drafts that were opaque or failed
+deterministic ceiling-contact validation, and two free-positioned wall plaques
+whose pale centers read as interactables. A less focal wall treatment and
+terrain-material polish remain content work, not unfinished generation or
+editor infrastructure.
 
 - Produce the accepted Far Fill and Far Formations plus a small Near Formation
   element set.
@@ -1274,7 +1278,8 @@ final handoff.
   of this artwork plan.
 - Foreground parallax, per-layer blend modes, tint, opacity, and autoscroll.
 - Automatic colliders or automatic background/foreground layer assignment.
-- Wall-specific prop attachment; free placement remains the initial workflow.
+- Wall-specific semantic placement; explicit free-anchor placement remains the
+  initial geometry workflow.
 - Generated animation sets and multi-part prop bundles.
 - Automatic AI decomposition of one composite scene into coherent depth
   planes.

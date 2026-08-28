@@ -238,9 +238,13 @@ accepted distinct A/B companions in both Far and Near layers. A subsequent
 scale-aware content pass establishes a static Mouse Player Placeholder with an
 exact 32×64 collider, adds low/wide floor debris, ceiling friezes, and sparse
 foreground shrouds, and distributes decor through x=14,912 of the 16,384-pixel
-route. The generation and staging commands now support validated prop canvas
-and grounded/ceiling overrides instead of forcing every new asset through the
-old 1×2 portrait template shape.
+route. A second A/B pass replaces two repeated floor scatters with Fallen
+Votive Tablets and one repeated foreground shroud with a Tattered Valance while
+keeping entity and collider counts fixed. Production review rejects two wall
+plaque drafts because they resemble interactables at gameplay scale. The
+generation and staging commands now support validated prop canvas and
+grounded, ceiling, or explicit free-anchor overrides instead of forcing every
+new asset through the old 1×2 portrait template shape.
 The persisted integrated-level reviewer now reproduces production parallax,
 tile, and entity composition without SDL or ImGui, sampling authored-content
 tracks at 0.5×, 1×, and 2× and publishing native frames, per-track contact
@@ -249,10 +253,10 @@ stream through atomic staging instead of retaining every decoded frame; the
 Catacombs bundle peaks at about 174.5 MiB while preserving the same 343
 artifact digests. Its first
 persisted Catacombs bundles expose the resolved formation coverage and current
-prop distribution directly. The final pass still reports no objective findings.
-The next content step is additional low/wide, wall, and foreground silhouette
-variation plus terrain-material polish; avoid increasing density merely to fill
-the route. See
+prop distribution directly. The final A/B pass still reports no objective
+findings. The next content step is a less focal wall treatment and
+terrain-material polish; avoid increasing density merely to fill the route.
+See
 [`headless-level-review-plan.md`](headless-level-review-plan.md) and
 [`headless-curation.md`](headless-curation.md).
 
