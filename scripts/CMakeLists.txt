@@ -146,3 +146,20 @@ target_link_libraries(build_environment
   absl::strings
 )
 add_dependencies(build_environment copy_assets)
+
+add_executable(build_terrain build_terrain.cc)
+target_link_libraries(build_terrain
+  PRIVATE
+  asset_workspace
+  headless_texture_store
+  terrain_builder
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::statusor
+  absl::strings
+)
+add_dependencies(build_terrain copy_assets)

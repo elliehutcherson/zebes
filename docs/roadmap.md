@@ -254,8 +254,16 @@ Catacombs bundle peaks at about 174.5 MiB while preserving the same 343
 artifact digests. Its first
 persisted Catacombs bundles expose the resolved formation coverage and current
 prop distribution directly. The final A/B pass still reports no objective
-findings. The next content step is a less focal wall treatment and
-terrain-material polish; avoid increasing density merely to fill the route.
+findings. Catacombs Processional now also owns an independent, deterministic
+`Catacombs Masonry` terrain bundle instead of borrowing `lucinda_cave`; Cave and
+Donut Plains retain that shared material unchanged. The first masonry draft was
+rejected because its collision mass read as a flat editor mask at 0.5×. The
+accepted revision adds restrained three-phase stone relief and a clearer rim
+without the cave material's bright repeated crystals. Its 425-artifact terrain
+review and rebuilt 343-artifact level review report no findings, repeat builds
+are byte-identical, and normalized level geometry and collision shapes match
+the prior level exactly. The next content step is a less focal wall treatment;
+avoid increasing density merely to fill the route.
 See
 [`headless-level-review-plan.md`](headless-level-review-plan.md) and
 [`headless-curation.md`](headless-curation.md).

@@ -359,6 +359,19 @@ hanging artwork that resembled a pickup, grounded ribs that resembled a
 collider-free hazard, opaque or invalid larger drapery candidates, and two
 free-positioned plaques that resembled interactables.
 
+The terrain follow-up gives this level an independent Catacombs Masonry
+Texture/Tileset/TerrainRecipe bundle and leaves the shared `lucinda_cave`
+bundle untouched. The first candidate removed the bright crystal cadence but
+was rejected because its solid regions read as a flat editor mask at 0.5×. The
+accepted candidate adds restrained three-phase cobble relief and enough rim
+contrast to preserve collision readability without competing with the detailed
+background. Its terrain review contains 425 artifacts and the rebuilt level
+review contains 343; both report no objective findings. A second terrain and
+environment build preserved every managed ID and produced byte-identical
+outputs. A normalized comparison of the rebuilt level against the prior
+tileset proves that dimensions, spawn, zones, entities, tile occupancy, and
+collision shapes are unchanged.
+
 Prefer companion lower artwork over scaling the current upper formations:
 scaling would change their accepted landmark size and horizontal rhythm.
 Vertically repeating arches, pillars, or ceiling silhouettes is also rejected

@@ -592,6 +592,15 @@ Recipe parsing is strict within a schema version, so adding a generator field
 requires an explicit persistence decision instead of silently substituting a
 new default when old work is reopened.
 
+Headless terrain authoring uses a separate versioned `TerrainBuildSpec` under
+`assets/authoring/terrains/`. `terrain_builder` shares the persisted recipe's
+single explicit `TerrainGenConfig` conversion, validates the complete document,
+and resolves an existing bundle by unique recipe name. `build_terrain` creates
+through the same prepared/committed transaction as Terrain Editor or regenerates
+through its ID-preserving replacement boundary. It refuses duplicate names,
+mismatched spec/material names, renamed ownership links, and topology changes
+rather than creating a partially related bundle.
+
 Recipe schema v3 stores top, side and underside depths plus edge-detail family,
 amount, length, clump size, lean and highlight. Its explicit v1 migration
 converts the former surface depth and underside bias into the three samples of

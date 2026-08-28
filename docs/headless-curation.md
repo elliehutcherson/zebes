@@ -1,8 +1,8 @@
 # Headless asset curation
 
 `generate_assets`, `stage_asset_creation`, `stage_asset_redraw`,
-`build_environment`, and `curate_assets` are the first-party, windowless asset
-loop. The commands load
+`build_terrain`, `build_environment`, and `curate_assets` are the first-party,
+windowless asset loop. The commands load
 the same complete `AssetWorkspace` as the interactive editor,
 but supply a headless texture-resource adapter instead of SDL. There is no
 second JSON loader, no ImGui click automation, and no alternate interpretation
@@ -31,7 +31,7 @@ Build the commands:
 
 ```bash
 cmake --build build/dev --target generate_assets stage_asset_creation stage_asset_redraw \
-  build_environment curate_assets
+  build_terrain build_environment curate_assets
 ```
 
 List the registered kinds:
@@ -322,6 +322,27 @@ When editing settings, first review the proposed recipe. The review manifest's
 pixel digest. Promote that exact object to the final candidate before commit;
 commit refuses stale digests, changed IDs, changed source identity, unknown
 fields, and older schemas.
+
+## Building deterministic terrain
+
+Terrain definitions live under `assets/authoring/terrains/`. A versioned build
+spec carries the complete generator configuration and one display name; the
+top-level and material names must agree. The generic builder creates a managed
+Texture/Tileset/TerrainRecipe bundle when that unique recipe name is absent and
+regenerates the existing bundle in place on later runs:
+
+```bash
+build/dev/bin/build_terrain \
+  --asset_root="$PWD/assets" \
+  --spec="$PWD/assets/authoring/terrains/catacombs_masonry.json"
+```
+
+Regeneration reuses the editor's production terrain transaction. It preserves
+the recipe, tileset, texture, terrain, and tile IDs; tile-size or repeat-period
+changes fail because they alter atlas topology. Unknown fields, duplicate
+recipe names, mismatched spec/material names, missing ownership links, and
+ambiguously renamed bundles fail before pixel replacement. The production
+Catacombs spec is loaded by a parser test and rebuilds byte-identically.
 
 ## Building a complete environment
 

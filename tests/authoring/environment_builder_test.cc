@@ -177,8 +177,8 @@ TEST(EnvironmentBuilderTest, LoadsTheProductionCatacombsWithoutCatalogIds) {
   EXPECT_EQ(spec.theme.layers[2].elements[3].artwork_recipe_name, "Catacombs Near Lower Rubble B");
   EXPECT_EQ(spec.level.columns, 512);
   EXPECT_EQ(spec.level.rows, 40);
-  EXPECT_EQ(spec.level.tileset_name, "lucinda_cave");
-  EXPECT_EQ(spec.level.terrain_name, "lucinda_cave");
+  EXPECT_EQ(spec.level.tileset_name, "Catacombs Masonry");
+  EXPECT_EQ(spec.level.terrain_name, "Catacombs Masonry");
   ASSERT_EQ(spec.level.entities.size(), 14);
   EXPECT_EQ(spec.level.entities[0].id, 1);
   EXPECT_EQ(spec.level.entities[0].blueprint_name, "Cave Crystal");

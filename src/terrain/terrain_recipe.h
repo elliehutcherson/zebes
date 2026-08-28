@@ -29,6 +29,12 @@ struct TerrainRecipe {
 inline constexpr int kOldestTerrainRecipeSchemaVersion = 3;
 inline constexpr int kTerrainRecipeSchemaVersion = 3;
 
+// The config conversion is shared with deterministic terrain-build
+// specifications. Keeping one parser prevents headless authoring and persisted
+// recipes from assigning different meanings to the same generator settings.
+nlohmann::json TerrainGenConfigToJson(const TerrainGenConfig& config);
+absl::StatusOr<TerrainGenConfig> TerrainGenConfigFromJson(const nlohmann::json& json);
+
 // JSON conversion is explicit rather than reflection-based so renaming a C++
 // member cannot silently change the on-disk format. Parsing is strict: a
 // missing field is corruption rather than permission to substitute today's

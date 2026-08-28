@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "name": "Catacombs Masonry",
+  "config": {
+    "tile_size": 32,
+    "supersample": 4,
+    "variant_period": 3,
+    "pixel_profile": 1,
+    "surface": {
+      "top_depth": 7.0,
+      "side_depth": 5.0,
+      "underside_depth": 3.0,
+      "ruffle_amplitude": 0.8,
+      "ruffle_density": 1.5,
+      "ruffle_sharpness": 0.75,
+      "ruffle_octaves": 1,
+      "outline_depth": 1,
+      "highlight_depth": 2,
+      "shade_depth": 2,
+      "contact_depth": 2,
+      "wall_depth": 6,
+      "wall_darkness": 0.85,
+      "texture_size": 4.0,
+      "texture_amount": 0.45,
+      "edge_detail": {
+        "family": 0,
+        "amount": 0.0,
+        "length": 3,
+        "clump_size": 5,
+        "lean": 0.0,
+        "highlight": 0.0
+      }
+    },
+    "interior": {
+      "base": {
+        "style": 3,
+        "mottle_density": 2.0,
+        "mottle_coverage": 0.28,
+        "feature_size": 10.0,
+        "relief": 0.55
+      },
+      "pattern": {
+        "family": 2,
+        "density": 1,
+        "spacing": 15,
+        "margin": 3,
+        "contrast": 0.38,
+        "scale": 1,
+        "accent_mode": 0
+      },
+      "details": {
+        "family": 0,
+        "density": 0,
+        "spacing": 16,
+        "margin": 3,
+        "scale": 1,
+        "accent_mode": 0
+      }
+    },
+    "seed": 284719,
+    "material": {
+      "name": "Catacombs Masonry",
+      "surface": 6713498,
+      "substrate": 1779802,
+      "outline": 526876,
+      "accent_primary": 8029357,
+      "accent_secondary": 3234434,
+      "hue_shift": 0.03,
+      "contrast": 0.95,
+      "surface_style": 0
+    }
+  }
+}

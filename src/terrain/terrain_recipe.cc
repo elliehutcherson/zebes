@@ -186,6 +186,14 @@ absl::StatusOr<TerrainGenConfig> ConfigFromJson(const nlohmann::json& json) {
 
 }  // namespace
 
+nlohmann::json TerrainGenConfigToJson(const TerrainGenConfig& config) {
+  return ConfigToJson(config);
+}
+
+absl::StatusOr<TerrainGenConfig> TerrainGenConfigFromJson(const nlohmann::json& json) {
+  return ConfigFromJson(json);
+}
+
 nlohmann::json TerrainRecipeToJson(const TerrainRecipe& recipe) {
   nlohmann::json json = {
       {"schema_version", kTerrainRecipeSchemaVersion},
@@ -194,7 +202,7 @@ nlohmann::json TerrainRecipeToJson(const TerrainRecipe& recipe) {
       {"tileset_id", recipe.tileset_id},
       {"texture_id", recipe.texture_id},
       {"terrain_id", recipe.terrain_id},
-      {"config", ConfigToJson(recipe.config)},
+      {"config", TerrainGenConfigToJson(recipe.config)},
   };
   if (recipe.source_preset.has_value()) json["source_preset"] = *recipe.source_preset;
   return json;
@@ -219,7 +227,7 @@ absl::StatusOr<TerrainRecipe> TerrainRecipeFromJson(const nlohmann::json& json) 
     recipe.source_preset = std::move(source_preset);
   }
   ASSIGN_OR_RETURN(const nlohmann::json config, Required<nlohmann::json>(json, "config"));
-  ASSIGN_OR_RETURN(recipe.config, ConfigFromJson(config));
+  ASSIGN_OR_RETURN(recipe.config, TerrainGenConfigFromJson(config));
 
   if (recipe.id.empty() || recipe.name.empty() || recipe.tileset_id.empty() ||
       recipe.texture_id.empty() || recipe.terrain_id <= 0) {

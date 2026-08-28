@@ -16,3 +16,18 @@ target_link_libraries(environment_builder
   absl::strings
   nlohmann_json::nlohmann_json
 )
+
+add_library(terrain_builder terrain_builder.cc)
+target_link_libraries(terrain_builder
+  PUBLIC
+  api
+  terrain_creation
+  terrain_recipe
+  terrain_style
+  absl::status
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::strings
+  nlohmann_json::nlohmann_json
+)

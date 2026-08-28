@@ -109,8 +109,8 @@
   },
   "level": {
     "name": "Catacombs Processional",
-    "tileset_name": "lucinda_cave",
-    "terrain_name": "lucinda_cave",
+    "tileset_name": "Catacombs Masonry",
+    "terrain_name": "Catacombs Masonry",
     "tile_render_size": [32, 32],
     "grid_size": [512, 40],
     "spawn_pixels": [256.0, 512.0],

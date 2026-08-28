@@ -1096,9 +1096,12 @@ spans x=1,472 through x=14,272. The final deterministic rebuild and
 bright hanging draft that read as a collectible, a grounded rib draft that
 read as a collider-free hazard, larger cloth drafts that were opaque or failed
 deterministic ceiling-contact validation, and two free-positioned wall plaques
-whose pale centers read as interactables. A less focal wall treatment and
-terrain-material polish remain content work, not unfinished generation or
-editor infrastructure.
+whose pale centers read as interactables. Catacombs Processional now uses its
+own deterministic Catacombs Masonry material while the shared `lucinda_cave`
+terrain remains unchanged for Cave and Donut Plains. Production review rejected
+the first too-flat masonry pass at 0.5×, then accepted restrained cobble relief
+and a clearer collision rim across 0.5×, 1×, and 2×. A less focal wall treatment
+remains content work, not unfinished generation or editor infrastructure.
 
 - Produce the accepted Far Fill and Far Formations plus a small Near Formation
   element set.

@@ -1,0 +1,77 @@
+{
+  "config": {
+    "interior": {
+      "base": {
+        "feature_size": 10.0,
+        "mottle_coverage": 0.2800000011920929,
+        "mottle_density": 2.0,
+        "relief": 0.550000011920929,
+        "style": 3
+      },
+      "details": {
+        "accent_mode": 0,
+        "density": 0,
+        "family": 0,
+        "margin": 3,
+        "scale": 1,
+        "spacing": 16
+      },
+      "pattern": {
+        "accent_mode": 0,
+        "contrast": 0.3799999952316284,
+        "density": 1,
+        "family": 2,
+        "margin": 3,
+        "scale": 1,
+        "spacing": 15
+      }
+    },
+    "material": {
+      "accent_primary": 8029357,
+      "accent_secondary": 3234434,
+      "contrast": 0.949999988079071,
+      "hue_shift": 0.029999999329447746,
+      "name": "Catacombs Masonry",
+      "outline": 526876,
+      "substrate": 1779802,
+      "surface": 6713498,
+      "surface_style": 0
+    },
+    "pixel_profile": 1,
+    "seed": 284719,
+    "supersample": 4,
+    "surface": {
+      "contact_depth": 2,
+      "edge_detail": {
+        "amount": 0.0,
+        "clump_size": 5,
+        "family": 0,
+        "highlight": 0.0,
+        "lean": 0.0,
+        "length": 3
+      },
+      "highlight_depth": 2,
+      "outline_depth": 1,
+      "ruffle_amplitude": 0.800000011920929,
+      "ruffle_density": 1.5,
+      "ruffle_octaves": 1,
+      "ruffle_sharpness": 0.75,
+      "shade_depth": 2,
+      "side_depth": 5.0,
+      "texture_amount": 0.44999998807907104,
+      "texture_size": 4.0,
+      "top_depth": 7.0,
+      "underside_depth": 3.0,
+      "wall_darkness": 0.8500000238418579,
+      "wall_depth": 6
+    },
+    "tile_size": 32,
+    "variant_period": 3
+  },
+  "id": "5a05e789-0434-43e2-9ab4-f19e786cb395",
+  "name": "Catacombs Masonry",
+  "schema_version": 3,
+  "terrain_id": 1,
+  "texture_id": "836456bf-fa42-413e-9a45-eeea57e7e3f0",
+  "tileset_id": "4af05cc3-fcf1-48bb-946d-a8b1bfc17ecd"
+}
