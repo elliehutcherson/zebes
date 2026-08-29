@@ -158,7 +158,9 @@ snapshots without initializing a window or ImGui context.
 `GameRuntime` is the M1 composition root beside `EditorEngine`. Its boot phase
 loads config, creates SDL and the runtime texture store, opens a read-only
 `AssetWorkspace` runtime profile, and resolves the shipped level's complete
-render graph into a frozen `GameLevelAssets` value. All file access and GPU
+graph into a frozen `LoadedLevelAssets` value. `LoadedLevelContent` contains
+only copied authored definitions; `LevelRenderResources` contains the texture
+handles needed to render them. All file access and GPU
 resource creation finishes before `Run` begins.
 
 The main-thread loop polls SDL input, performs one bounded non-blocking

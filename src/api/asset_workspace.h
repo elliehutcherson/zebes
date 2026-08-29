@@ -6,24 +6,18 @@
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
+#include "api/api.h"
+#include "api/asset_root_lock.h"
+#include "common/config.h"
+#include "resources/blueprint_manager.h"
+#include "resources/loaded_level_assets.h"
+#include "resources/parallax_artwork_recipe_manager.h"
+#include "resources/prop_recipe_manager.h"
+#include "resources/source_artwork_manager.h"
+#include "resources/terrain_recipe_manager.h"
+#include "resources/texture_resource_store.h"
 
 namespace zebes {
-
-class Api;
-class AssetRootLock;
-class BlueprintManager;
-class ColliderManager;
-class EngineConfig;
-class LevelManager;
-class ParallaxArtworkRecipeManager;
-class ParallaxThemeManager;
-class PropRecipeManager;
-class SourceArtworkManager;
-class SpriteManager;
-class TerrainRecipeManager;
-class TextureManager;
-class TextureResourceStore;
-class TilesetManager;
 
 // Platform-neutral composition root for authored asset catalogs.
 //
@@ -65,6 +59,10 @@ class AssetWorkspace {
 
   Api& api() { return *api_; }
   const Api& api() const { return *api_; }
+
+  // Resolves one immutable runtime graph from the catalogs owned by this
+  // workspace. The workspace must outlive the returned texture handles.
+  absl::StatusOr<LoadedLevelAssets> LoadLevelAssets(std::string_view level_id);
 
  private:
   AssetWorkspace() = default;

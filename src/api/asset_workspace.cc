@@ -7,7 +7,9 @@
 #include "common/status_macros.h"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
+#include "resources/level_asset_loader.h"
 #include "resources/level_manager.h"
+#include "resources/loaded_level_assets.h"
 #include "resources/parallax_artwork_recipe_manager.h"
 #include "resources/parallax_theme_manager.h"
 #include "resources/prop_recipe_manager.h"
@@ -70,6 +72,19 @@ std::string_view AssetWorkspace::LoadProfileId(LoadProfile profile) {
       return "runtime";
   }
   return "invalid";
+}
+
+absl::StatusOr<LoadedLevelAssets> AssetWorkspace::LoadLevelAssets(std::string_view level_id) {
+  return ResolveLevelAssets(
+      {
+          .levels = *level_manager_,
+          .tilesets = *tileset_manager_,
+          .sprites = *sprite_manager_,
+          .colliders = *collider_manager_,
+          .parallax_themes = *parallax_theme_manager_,
+          .textures = *texture_manager_,
+      },
+      level_id);
 }
 
 absl::StatusOr<std::unique_ptr<AssetWorkspace>> AssetWorkspace::Create(Options options) {

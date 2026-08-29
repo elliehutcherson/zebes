@@ -19,12 +19,14 @@ target_link_libraries(asset_workspace
   PUBLIC
   api
   config
+  loaded_level_assets
   texture_resource_store
   PRIVATE
   asset_root_lock
   blueprint_manager
   collider_manager
   level_manager
+  level_asset_loader
   parallax_artwork_recipe_manager
   parallax_theme_manager
   prop_recipe_manager

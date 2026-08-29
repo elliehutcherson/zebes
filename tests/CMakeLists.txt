@@ -176,6 +176,15 @@ target_compile_definitions(game_level_assets_test
   PRIVATE ZEBES_TEST_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
 gtest_discover_tests(game_level_assets_test)
 
+add_executable(loaded_level_assets_unit_test resources/loaded_level_assets_test.cc)
+target_link_libraries(loaded_level_assets_unit_test
+  level_asset_loader
+  macros
+  gmock
+  gtest_main
+)
+gtest_discover_tests(loaded_level_assets_unit_test)
+
 # --- Level Manager ---
 add_executable(level_manager_test resources/level_manager_test.cc)
 target_link_libraries(level_manager_test level_manager macros gtest_main gmock)

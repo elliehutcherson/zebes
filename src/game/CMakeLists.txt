@@ -59,27 +59,10 @@ target_link_libraries(free_fly_simulation
   status_macros
 )
 
-add_library(game_level_assets game_level_assets.cc)
-target_link_libraries(game_level_assets
-  PUBLIC
-  collider
-  level
-  parallax_theme
-  sprite
-  texture_handle
-  tileset
-  absl::statusor
-  PRIVATE
-  api
-  status_macros
-  absl::status
-  absl::strings
-)
-
 add_library(game_scene game_scene.cc)
 target_link_libraries(game_scene
   PUBLIC
-  game_level_assets
+  loaded_level_assets
   scene_composition
   PRIVATE
   level
@@ -100,7 +83,7 @@ target_link_libraries(game_runtime
   asset_workspace
   config
   free_fly_simulation
-  game_level_assets
+  loaded_level_assets
   game_scene
   input_manager
   sdl_game_renderer

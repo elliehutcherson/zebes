@@ -15,7 +15,6 @@
 #include "engine/input_manager.h"
 #include "game/free_fly_simulation.h"
 #include "game/game_engine.h"
-#include "game/game_level_assets.h"
 #include "game/game_scene.h"
 #include "objects/camera.h"
 #include "platform/sdl/sdl_game_renderer.h"
@@ -61,12 +60,12 @@ absl::Status GameRuntime::Init() {
                                    .access = AssetWorkspace::Access::kReadOnly,
                                    .load_profile = AssetWorkspace::LoadProfile::kRuntime,
                                }));
-  ASSIGN_OR_RETURN(level_assets_, LoadGameLevelAssets(workspace_->api(), kInitialLevelId));
+  ASSIGN_OR_RETURN(level_assets_, workspace_->LoadLevelAssets(kInitialLevelId));
 
   input_source_ = std::make_unique<SdlInputSource>(*sdl_);
   ASSIGN_OR_RETURN(input_manager_, InputManager::Create({.input_source = input_source_.get()}));
 
-  const Level& level = level_assets_->level;
+  const Level& level = level_assets_->content.level;
   ASSIGN_OR_RETURN(std::unique_ptr<FreeFlySimulation> simulation,
                    FreeFlySimulation::Create({
                        .input_manager = input_manager_.get(),

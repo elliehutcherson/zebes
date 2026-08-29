@@ -154,3 +154,31 @@ target_link_libraries(asset_references
   PRIVATE
   absl::strings
 )
+
+add_library(loaded_level_assets INTERFACE loaded_level_assets.h)
+target_link_libraries(loaded_level_assets
+  INTERFACE
+  collider
+  level
+  parallax_theme
+  sprite
+  texture_handle
+  tileset
+)
+
+add_library(level_asset_loader level_asset_loader.cc)
+target_link_libraries(level_asset_loader
+  PUBLIC
+  loaded_level_assets
+  collider_manager
+  level_manager
+  parallax_theme_manager
+  sprite_manager
+  texture_manager
+  tileset_manager
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::status
+  absl::strings
+)

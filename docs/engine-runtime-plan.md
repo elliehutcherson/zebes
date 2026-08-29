@@ -116,7 +116,7 @@ triple buffer; do not start there.
 **D5 — Assets are immutable by invariant after load; no lock ever guards
 them.** Loading a level resolves the complete referenced asset graph —
 tileset, atlas pixels, sprites paired with handles, parallax themes — into one
-frozen `GameLevelAssets` value. M1 owns that value uniquely in `GameRuntime`;
+frozen `LoadedLevelAssets` value. M1 owns that value uniquely in `GameRuntime`;
 the M4 snapshot handoff will share it as `shared_ptr<const>` without changing
 the definitions. The asset engine submits file reads and decoding to the
 bounded I/O executor and consumes notified completions; the main thread
@@ -193,7 +193,7 @@ core.
 
 Implemented: the runtime uses the explicit read-only `AssetWorkspace` runtime
 profile. Boot synchronously creates GPU textures and copies the complete
-referenced render graph into `GameLevelAssets` before `Run`; the loop performs
+referenced render graph into `LoadedLevelAssets` before `Run`; the loop performs
 no asset or config I/O. `SdlInputSource` accepts an optional native-event
 observer, so the editor can forward events to ImGui while the game binary has
 no ImGui dependency.

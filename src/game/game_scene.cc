@@ -10,18 +10,18 @@
 #include "common/status_macros.h"
 #include "engine/scene_composition.h"
 #include "engine/scene_types.h"
-#include "game/game_level_assets.h"
 #include "objects/level.h"
 #include "objects/parallax_theme.h"
+#include "resources/loaded_level_assets.h"
 
 namespace zebes {
 namespace {
 
-absl::StatusOr<SpriteLookup> BuildSpriteLookup(const GameLevelAssets& assets) {
+absl::StatusOr<SpriteLookup> BuildSpriteLookup(const LoadedLevelAssets& assets) {
   SpriteLookup lookup;
-  for (const auto& [sprite_id, sprite] : assets.sprites) {
-    auto texture = assets.sprite_textures.find(sprite_id);
-    if (texture == assets.sprite_textures.end() || !texture->second) {
+  for (const auto& [sprite_id, sprite] : assets.content.sprites) {
+    auto texture = assets.rendering.sprite_textures.find(sprite_id);
+    if (texture == assets.rendering.sprite_textures.end() || !texture->second) {
       return absl::FailedPreconditionError(
           absl::StrCat("loaded sprite has no texture handle: ", sprite_id));
     }
@@ -30,49 +30,52 @@ absl::StatusOr<SpriteLookup> BuildSpriteLookup(const GameLevelAssets& assets) {
   return lookup;
 }
 
-absl::Status AppendParallaxBatch(const GameLevelAssets& assets, const Camera& camera,
-                                 const std::string& theme_id, double opacity,
-                                 GameSceneFrame& frame) {
-  auto theme = assets.parallax_themes.find(theme_id);
-  if (theme == assets.parallax_themes.end()) {
+absl::StatusOr<SceneParallaxRenderBatch> ComposeParallaxBatch(const LoadedLevelAssets& assets,
+                                                              const Camera& camera,
+                                                              const std::string& theme_id,
+                                                              double opacity) {
+  auto theme = assets.content.parallax_themes.find(theme_id);
+  if (theme == assets.content.parallax_themes.end()) {
     return absl::FailedPreconditionError(
         absl::StrCat("resolved runtime parallax theme is unavailable: ", theme_id));
   }
-  ASSIGN_OR_RETURN(SceneParallaxRenderBatch batch,
-                   ComposeSceneParallaxRenderBatch(theme->second, camera, assets.parallax_textures,
-                                                   {.opacity = opacity}));
-  frame.parallax.push_back(std::move(batch));
-  return absl::OkStatus();
+  return ComposeSceneParallaxRenderBatch(theme->second, camera, assets.rendering.parallax_textures,
+                                         {.opacity = opacity});
 }
 
 }  // namespace
 
-absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(const GameLevelAssets& assets,
+absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(const LoadedLevelAssets& assets,
                                                      const Camera& camera) {
   RETURN_IF_ERROR(ValidateSceneCamera(camera));
   ASSIGN_OR_RETURN(const SpriteLookup sprites, BuildSpriteLookup(assets));
 
   GameSceneFrame frame{.camera = camera};
   ASSIGN_OR_RETURN(frame.environment,
-                   ResolveParallaxEnvironment(assets.level.zones, camera.position));
+                   ResolveParallaxEnvironment(assets.content.level.zones, camera.position));
   if (frame.environment.has_value()) {
-    RETURN_IF_ERROR(
-        AppendParallaxBatch(assets, camera, frame.environment->primary.theme_id, 1.0, frame));
+    ASSIGN_OR_RETURN(
+        SceneParallaxRenderBatch primary,
+        ComposeParallaxBatch(assets, camera, frame.environment->primary.theme_id, 1.0));
+    frame.parallax.push_back(std::move(primary));
     if (frame.environment->secondary.has_value() && frame.environment->secondary_weight > 0.0) {
-      RETURN_IF_ERROR(AppendParallaxBatch(assets, camera, frame.environment->secondary->theme_id,
-                                          frame.environment->secondary_weight, frame));
+      ASSIGN_OR_RETURN(SceneParallaxRenderBatch secondary,
+                       ComposeParallaxBatch(assets, camera, frame.environment->secondary->theme_id,
+                                            frame.environment->secondary_weight));
+      frame.parallax.push_back(std::move(secondary));
     }
   }
 
-  frame.world_layers.reserve(assets.level.layers.size());
-  for (const WorldLayer& layer : assets.level.layers) {
-    ASSIGN_OR_RETURN(SceneTileRenderBatch tiles, ComposeSceneLevelTileRenderBatch({
-                                                     .level = assets.level,
-                                                     .layer = layer,
-                                                     .tileset = assets.tileset,
-                                                     .atlas_texture = assets.tileset_texture,
-                                                     .camera = camera,
-                                                 }));
+  frame.world_layers.reserve(assets.content.level.layers.size());
+  for (const WorldLayer& layer : assets.content.level.layers) {
+    ASSIGN_OR_RETURN(SceneTileRenderBatch tiles,
+                     ComposeSceneLevelTileRenderBatch({
+                         .level = assets.content.level,
+                         .layer = layer,
+                         .tileset = assets.content.tileset,
+                         .atlas_texture = assets.rendering.tileset_atlas,
+                         .camera = camera,
+                     }));
     ASSIGN_OR_RETURN(std::vector<SceneEntityRenderItem> entities,
                      ComposeSceneEntityRenderItems(layer.entities, sprites));
     frame.world_layers.push_back({

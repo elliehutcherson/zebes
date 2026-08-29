@@ -1,5 +1,3 @@
-#include "game/game_level_assets.h"
-
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -17,6 +15,7 @@
 #include "objects/entity.h"
 #include "objects/level.h"
 #include "platform/headless/headless_texture_store.h"
+#include "resources/loaded_level_assets.h"
 
 namespace zebes {
 namespace {
@@ -34,15 +33,15 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
                            .asset_root = kAssetsRoot,
                            .load_profile = AssetWorkspace::LoadProfile::kRuntime,
                        }));
-  ASSERT_OK_AND_ASSIGN(GameLevelAssets assets,
-                       LoadGameLevelAssets(workspace->api(), kCatacombsProcessionalId));
+  ASSERT_OK_AND_ASSIGN(LoadedLevelAssets assets,
+                       workspace->LoadLevelAssets(kCatacombsProcessionalId));
 
-  EXPECT_EQ(assets.level.name, "Catacombs Processional");
-  EXPECT_TRUE(assets.tileset_texture);
-  EXPECT_FALSE(assets.sprites.empty());
-  EXPECT_EQ(assets.sprites.size(), assets.sprite_textures.size());
+  EXPECT_EQ(assets.content.level.name, "Catacombs Processional");
+  EXPECT_TRUE(assets.rendering.tileset_atlas);
+  EXPECT_FALSE(assets.content.sprites.empty());
+  EXPECT_EQ(assets.content.sprites.size(), assets.rendering.sprite_textures.size());
   const Entity* mouse_player = nullptr;
-  for (const WorldLayer& layer : assets.level.layers) {
+  for (const WorldLayer& layer : assets.content.level.layers) {
     for (const auto& entry : layer.entities) {
       const Entity& entity = entry.second;
       if (entity.blueprint_id != kMousePlayerPlaceholderBlueprintId) continue;
@@ -51,22 +50,22 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
     }
   }
   ASSERT_NE(mouse_player, nullptr);
-  const auto mouse_collider = assets.colliders.find(mouse_player->collider_id);
-  ASSERT_NE(mouse_collider, assets.colliders.end());
+  const auto mouse_collider = assets.content.colliders.find(mouse_player->collider_id);
+  ASSERT_NE(mouse_collider, assets.content.colliders.end());
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
                        RuntimeWorld::Create({
-                           .level = assets.level,
+                           .level = assets.content.level,
                            .player_blueprint_id = std::string(kMousePlayerPlaceholderBlueprintId),
                            .player_collider = mouse_collider->second,
                        }));
   EXPECT_EQ(world->player_entity_id(), 4);
   EXPECT_EQ(world->player_local_collider(),
             (AxisAlignedBox{.min = {-16.0, -64.0}, .max = {16.0, 0.0}}));
-  EXPECT_FALSE(assets.parallax_themes.empty());
-  EXPECT_FALSE(assets.parallax_textures.empty());
+  EXPECT_FALSE(assets.content.parallax_themes.empty());
+  EXPECT_FALSE(assets.rendering.parallax_textures.empty());
 
   const Camera camera{
-      .position = assets.level.spawn_point,
+      .position = assets.content.level.spawn_point,
       .zoom = 1.0,
       .viewport_width = 960,
       .viewport_height = 540,
@@ -75,7 +74,7 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
 
   ASSERT_TRUE(frame.environment.has_value());
   EXPECT_EQ(frame.parallax.size(), 1);
-  EXPECT_EQ(frame.world_layers.size(), assets.level.layers.size());
+  EXPECT_EQ(frame.world_layers.size(), assets.content.level.layers.size());
   size_t tile_count = 0;
   size_t entity_count = 0;
   for (const GameWorldLayerFrame& layer : frame.world_layers) {
@@ -85,7 +84,7 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
   EXPECT_GT(tile_count, 0);
   EXPECT_GT(entity_count, 0);
 
-  EXPECT_TRUE(absl::IsNotFound(LoadGameLevelAssets(workspace->api(), "missing-level").status()));
+  EXPECT_TRUE(absl::IsNotFound(workspace->LoadLevelAssets("missing-level").status()));
 }
 
 }  // namespace

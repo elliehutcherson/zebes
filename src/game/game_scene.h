@@ -5,8 +5,8 @@
 
 #include "absl/status/statusor.h"
 #include "engine/scene_composition.h"
-#include "game/game_level_assets.h"
 #include "objects/camera.h"
+#include "resources/loaded_level_assets.h"
 
 namespace zebes {
 
@@ -25,7 +25,7 @@ struct GameSceneFrame {
   std::vector<GameWorldLayerFrame> world_layers;
 };
 
-absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(const GameLevelAssets& assets,
+absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(const LoadedLevelAssets& assets,
                                                      const Camera& camera);
 
 }  // namespace zebes

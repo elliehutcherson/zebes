@@ -7,7 +7,7 @@
 #include "absl/status/statusor.h"
 #include "common/config.h"
 #include "game/game_engine.h"
-#include "game/game_level_assets.h"
+#include "resources/loaded_level_assets.h"
 
 namespace zebes {
 
@@ -51,7 +51,7 @@ class GameRuntime {
   std::unique_ptr<SdlWrapper> sdl_;
   std::unique_ptr<SdlTextureStore> texture_store_;
   std::unique_ptr<AssetWorkspace> workspace_;
-  std::optional<GameLevelAssets> level_assets_;
+  std::optional<LoadedLevelAssets> level_assets_;
   std::unique_ptr<SdlInputSource> input_source_;
   std::unique_ptr<InputManager> input_manager_;
   FreeFlySimulation* simulation_ = nullptr;
