@@ -381,6 +381,22 @@ TEST_F(GeneratedTerrainTest, RefusesWhenASpriteAlsoUsesTheArtwork) {
   EXPECT_THAT(std::string(status.message()), HasSubstr("Crystal"));
 }
 
+TEST_F(GeneratedTerrainTest, PreflightRefusesWhenAPropUsesTheRecipe) {
+  CatalogueHoldsTheBundle();
+  ON_CALL(prop_recipe_manager_, GetAllRecipes())
+      .WillByDefault(Return(std::vector<PropRecipe>{PropRecipe{
+          .id = "prop",
+          .name = "Cave rubble",
+          .terrain_recipe_id = "rc",
+      }}));
+  EXPECT_CALL(terrain_recipe_manager_, DeleteRecipe(_)).Times(0);
+
+  const absl::Status status = api_->CheckGeneratedTerrainDeletable("rc");
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("Cave rubble"));
+}
+
 // The members reference each other by construction. Counting those as blockers
 // would make every bundle undeletable.
 TEST_F(GeneratedTerrainTest, TheBundlesOwnReferencesDoNotBlockIt) {

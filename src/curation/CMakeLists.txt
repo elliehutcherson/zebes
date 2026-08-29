@@ -22,6 +22,17 @@ target_link_libraries(curation_candidate_commit
   PRIVATE atomic_directory_publisher status_macros absl::status
 )
 
+add_library(generated_asset_quarantine generated_asset_quarantine.cc)
+target_link_libraries(generated_asset_quarantine
+  PUBLIC api absl::status absl::statusor
+  PRIVATE
+  atomic_directory_publisher
+  resource_utils
+  status_macros
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
 add_library(level_review_route level_review_route.cc)
 target_link_libraries(level_review_route
   PUBLIC level parallax_preview_model absl::statusor absl::span

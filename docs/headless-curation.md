@@ -1,8 +1,8 @@
 # Headless asset curation
 
 `generate_assets`, `stage_asset_creation`, `stage_asset_redraw`,
-`build_terrain`, `build_environment`, and `curate_assets` are the first-party,
-windowless asset loop. The commands load
+`build_terrain`, `build_environment`, `curate_assets`, and `quarantine_assets`
+are the first-party, windowless asset loop. The commands load
 the same complete `AssetWorkspace` as the interactive editor,
 but supply a headless texture-resource adapter instead of SDL. There is no
 second JSON loader, no ImGui click automation, and no alternate interpretation
@@ -31,7 +31,7 @@ Build the commands:
 
 ```bash
 cmake --build build/dev --target generate_assets stage_asset_creation stage_asset_redraw \
-  build_terrain build_environment curate_assets
+  build_terrain build_environment curate_assets quarantine_assets
 ```
 
 List the registered kinds:
@@ -158,6 +158,31 @@ candidate, use focused integrated evidence before promotion, and stop to
 revisit the asset type when two candidates fail for the same structural
 reason. Promote only after the focused 0.5×, 1×, and 2× frames pass; run the
 complete level route once after the accepted content is persisted.
+
+## Quarantining rejected generated assets
+
+Quarantine removes only complete recipe-owned graphs. It first performs the
+same outside-reference scan as the production bundle-delete API, publishes an
+immutable recovery snapshot atomically, and only then removes the live graph
+while holding the asset-root write lock. Referenced outputs are refused without
+publishing anything. If live removal fails, the command returns an error and
+names the already-complete recovery directory.
+
+The recovery bundle preserves asset-root-relative paths below `assets/` and
+records every file in `manifest.json`. An unshared retained source is removed
+with its graph; a source shared by another recipe remains live and is recorded
+as `retained_shared_dependency`. The output must be new and outside the live
+asset root.
+
+```bash
+build/dev/bin/quarantine_assets \
+  --asset_root="$PWD/assets" \
+  --kind=prop \
+  --recipe_id=62ab6a6f-e007-4a53-9ff1-a41da985557c \
+  --output=/tmp/rejected-cave-prop
+```
+
+Supported kinds are `terrain`, `prop`, and `parallax-artwork`.
 
 ## Full generate, review, commit, re-review loop
 

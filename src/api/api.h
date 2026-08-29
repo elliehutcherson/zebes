@@ -131,6 +131,10 @@ class Api {
   virtual absl::StatusOr<std::string> CreateTerrainRecipe(TerrainRecipe recipe);
   virtual absl::Status SaveTerrainRecipe(const TerrainRecipe& recipe);
   virtual absl::Status DeleteTerrainRecipe(const std::string& recipe_id);
+  // Performs the complete outside-reference scan used by bundle deletion
+  // without changing the asset graph. Destructive tooling uses this before it
+  // publishes recovery evidence.
+  virtual absl::Status CheckGeneratedTerrainDeletable(const std::string& recipe_id);
   // Removes a generated terrain whole: its recipe, the tileset it produced, and
   // the artwork behind that tileset.
   //
@@ -173,6 +177,8 @@ class Api {
   // Failures compensate already-created members in reverse order.
   virtual absl::StatusOr<std::string> CreateGeneratedProp(const PreparedPropAsset& prepared);
 
+  virtual absl::Status CheckGeneratedPropDeletable(const std::string& recipe_id);
+
   // Removes the recipe-owned runtime bundle after proving that no level or
   // unrelated definition still references an output. Unshared retained source
   // artwork is removed last; shared source artwork remains available.
@@ -199,6 +205,7 @@ class Api {
   // operation so editor catalogues cannot disagree about the same output.
   virtual absl::Status RenameGeneratedParallaxArtwork(const std::string& recipe_id,
                                                       const std::string& name);
+  virtual absl::Status CheckGeneratedParallaxArtworkDeletable(const std::string& recipe_id);
   virtual absl::Status DeleteGeneratedParallaxArtwork(const std::string& recipe_id);
   virtual absl::Status RegenerateGeneratedParallaxArtwork(
       const PreparedParallaxArtworkRegeneration& prepared);
@@ -246,6 +253,12 @@ class Api {
   // could not read: a catalogue with silent holes would let a scan approve
   // deleting something the unreadable definition still references.
   CatalogSnapshot SnapshotCatalog();
+  absl::Status CheckGeneratedTerrainDeletable(const TerrainRecipe& recipe,
+                                              const CatalogSnapshot& catalog) const;
+  absl::Status CheckGeneratedPropDeletable(const PropRecipe& recipe,
+                                           const CatalogSnapshot& catalog) const;
+  absl::Status CheckGeneratedParallaxArtworkDeletable(const ParallaxArtworkRecipe& recipe,
+                                                      const CatalogSnapshot& catalog) const;
 
   EngineConfig& config_;
   TextureManager* texture_manager_;

@@ -74,6 +74,7 @@ class MockApi : public Api {
   MOCK_METHOD(absl::StatusOr<std::string>, CreateTerrainRecipe, (TerrainRecipe), (override));
   MOCK_METHOD(absl::Status, SaveTerrainRecipe, (const TerrainRecipe&), (override));
   MOCK_METHOD(absl::Status, DeleteTerrainRecipe, (const std::string&), (override));
+  MOCK_METHOD(absl::Status, CheckGeneratedTerrainDeletable, (const std::string&), (override));
   MOCK_METHOD(absl::Status, DeleteGeneratedTerrain, (const std::string&), (override));
   MOCK_METHOD(std::vector<TerrainRecipe>, GetAllTerrainRecipes, (), (const, override));
   MOCK_METHOD(absl::StatusOr<TerrainRecipe*>, GetTerrainRecipe, (const std::string&), (override));
@@ -96,6 +97,7 @@ class MockApi : public Api {
   MOCK_METHOD(std::vector<PropRecipe>, GetAllPropRecipes, (), (const, override));
   MOCK_METHOD(absl::StatusOr<std::string>, CreateGeneratedProp, (const PreparedPropAsset&),
               (override));
+  MOCK_METHOD(absl::Status, CheckGeneratedPropDeletable, (const std::string&), (override));
   MOCK_METHOD(absl::Status, DeleteGeneratedProp, (const std::string&), (override));
   MOCK_METHOD(absl::Status, RegenerateGeneratedProp, (const PreparedPropRegeneration&), (override));
 
@@ -111,6 +113,8 @@ class MockApi : public Api {
               (const PreparedParallaxArtworkAsset&), (override));
   MOCK_METHOD(absl::Status, RenameGeneratedParallaxArtwork,
               (const std::string&, const std::string&), (override));
+  MOCK_METHOD(absl::Status, CheckGeneratedParallaxArtworkDeletable, (const std::string&),
+              (override));
   MOCK_METHOD(absl::Status, DeleteGeneratedParallaxArtwork, (const std::string&), (override));
   MOCK_METHOD(absl::Status, RegenerateGeneratedParallaxArtwork,
               (const PreparedParallaxArtworkRegeneration&), (override));

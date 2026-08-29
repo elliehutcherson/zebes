@@ -217,7 +217,10 @@ support settings-only recipe regeneration and a guarded parallax source-redraw
 candidate. Redraw preserves source, recipe, and texture identities while
 advancing source provenance and both pixel digests together; transparent
 formations also report lateral-gutter occupancy and warn on hard exposed
-edges. Provider-backed redraw now uses the retained reference image directly
+edges. Rejected generated terrain, Prop, and Parallax Artwork graphs can now be
+retired through a reference-validated quarantine command that publishes a
+complete recovery snapshot before checked removal. Provider-backed redraw now
+uses the retained reference image directly
 and refuses stale candidates. Complete environments are authored through a
 versioned name-resolved specification and generic builder; asset-root shared/
 exclusive locks make catalog loads and commits safe across concurrent agents.

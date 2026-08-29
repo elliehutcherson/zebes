@@ -341,9 +341,11 @@ Remaining speed work keeps the same quality boundary:
       reduced workspace loading from 15.4 seconds to 1.5 seconds and total
       publication from 26.3 seconds to 12.6 seconds. Complete and profiled
       bundles were byte-identical; the default final gate remains complete.
-- Add a reference-validated quarantine command for rejected generated graphs;
-  it must refuse referenced assets and move the complete owned graph to a
-  recoverable directory rather than deleting files piecemeal.
+- [x] Add a reference-validated quarantine command for rejected generated
+      graphs. `quarantine_assets` supports terrain, Prop, and Parallax Artwork;
+      it refuses external references, atomically publishes the complete graph
+      plus manifest to a recoverable directory, and only then invokes the
+      existing checked bundle deletion while the asset-root write lock is held.
 
 ## Catacombs 0.5x content pass
 

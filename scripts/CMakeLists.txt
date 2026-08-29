@@ -93,6 +93,22 @@ target_link_libraries(generate_assets
 )
 add_dependencies(generate_assets copy_assets)
 
+add_executable(quarantine_assets quarantine_assets.cc)
+target_link_libraries(quarantine_assets
+  PRIVATE
+  asset_workspace
+  generated_asset_quarantine
+  headless_texture_store
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::strings
+)
+add_dependencies(quarantine_assets copy_assets)
+
 add_executable(stage_asset_creation stage_asset_creation.cc)
 target_link_libraries(stage_asset_creation
   PRIVATE

@@ -386,13 +386,17 @@ absl::Status Api::DeleteTerrainRecipe(const std::string& recipe_id) {
   return terrain_recipe_manager_->DeleteRecipe(recipe_id);
 }
 
-absl::Status Api::DeleteGeneratedTerrain(const std::string& recipe_id) {
+absl::Status Api::CheckGeneratedTerrainDeletable(const std::string& recipe_id) {
   ASSIGN_OR_RETURN(const TerrainRecipe* recipe, terrain_recipe_manager_->GetRecipe(recipe_id));
-  // Copied, because deleting the recipe invalidates the pointer well before the
-  // tileset and texture have been dealt with.
-  const std::string name = recipe->name;
-  const std::string tileset_id = recipe->tileset_id;
-  const std::string texture_id = recipe->texture_id;
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  return CheckGeneratedTerrainDeletable(*recipe, catalog);
+}
+
+absl::Status Api::CheckGeneratedTerrainDeletable(const TerrainRecipe& recipe,
+                                                 const CatalogSnapshot& catalog) const {
+  const std::string& name = recipe.name;
+  const std::string tileset_id = recipe.tileset_id;
+  const std::string texture_id = recipe.texture_id;
 
   // Pre-flight, because the sequence below cannot be unwound. Deleting the
   // recipe and then discovering a level is bound to the tileset would leave
@@ -401,18 +405,30 @@ absl::Status Api::DeleteGeneratedTerrain(const std::string& recipe_id) {
   // A bundle member referencing another is not an outside reference: the recipe
   // naming the tileset, and the recipe and tileset naming the artwork, are what
   // make these three one thing.
-  const CatalogSnapshot catalog = SnapshotCatalog();
   std::vector<AssetReference> outside;
+  for (const AssetReference& referrer : FindTerrainRecipeReferrers(catalog.View(), recipe.id)) {
+    outside.push_back(referrer);
+  }
   for (const AssetReference& referrer : FindTilesetReferrers(catalog.View(), tileset_id)) {
-    if (referrer.kind == AssetKind::kTerrainRecipe && referrer.id == recipe_id) continue;
+    if (referrer.kind == AssetKind::kTerrainRecipe && referrer.id == recipe.id) continue;
     outside.push_back(referrer);
   }
   for (const AssetReference& referrer : FindTextureReferrers(catalog.View(), texture_id)) {
-    if (referrer.kind == AssetKind::kTerrainRecipe && referrer.id == recipe_id) continue;
+    if (referrer.kind == AssetKind::kTerrainRecipe && referrer.id == recipe.id) continue;
     if (referrer.kind == AssetKind::kTileset && referrer.id == tileset_id) continue;
     outside.push_back(referrer);
   }
-  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("terrain '", name, "'"), outside));
+  return RefuseIfReferenced(absl::StrCat("terrain '", name, "'"), outside);
+}
+
+absl::Status Api::DeleteGeneratedTerrain(const std::string& recipe_id) {
+  ASSIGN_OR_RETURN(const TerrainRecipe* recipe, terrain_recipe_manager_->GetRecipe(recipe_id));
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(CheckGeneratedTerrainDeletable(*recipe, catalog));
+  // Copied, because deleting the recipe invalidates the pointer well before the
+  // tileset and texture have been dealt with.
+  const std::string tileset_id = recipe->tileset_id;
+  const std::string texture_id = recipe->texture_id;
 
   // Recipe, then tileset, then artwork. That order is what lets each member go
   // through its own checked delete rather than around it: the recipe is gone
@@ -571,11 +587,14 @@ absl::StatusOr<std::string> Api::CreateGeneratedProp(const PreparedPropAsset& pr
   return prepared.recipe.id;
 }
 
-absl::Status Api::DeleteGeneratedProp(const std::string& recipe_id) {
+absl::Status Api::CheckGeneratedPropDeletable(const std::string& recipe_id) {
   ASSIGN_OR_RETURN(const PropRecipe* loaded, prop_recipe_manager_->GetRecipe(recipe_id));
-  const PropRecipe recipe = *loaded;
-
   const CatalogSnapshot catalog = SnapshotCatalog();
+  return CheckGeneratedPropDeletable(*loaded, catalog);
+}
+
+absl::Status Api::CheckGeneratedPropDeletable(const PropRecipe& recipe,
+                                              const CatalogSnapshot& catalog) const {
   std::vector<AssetReference> outside;
   for (const AssetReference& referrer :
        FindBlueprintReferrers(catalog.View(), recipe.blueprint_id)) {
@@ -592,7 +611,15 @@ absl::Status Api::DeleteGeneratedProp(const std::string& recipe_id) {
     if (referrer.kind == AssetKind::kSprite && referrer.id == recipe.sprite_id) continue;
     outside.push_back(referrer);
   }
-  RETURN_IF_ERROR(RefuseIfReferenced(absl::StrCat("generated prop '", recipe.name, "'"), outside));
+  return RefuseIfReferenced(absl::StrCat("generated prop '", recipe.name, "'"), outside);
+}
+
+absl::Status Api::DeleteGeneratedProp(const std::string& recipe_id) {
+  ASSIGN_OR_RETURN(const PropRecipe* loaded, prop_recipe_manager_->GetRecipe(recipe_id));
+  const PropRecipe recipe = *loaded;
+
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(CheckGeneratedPropDeletable(recipe, catalog));
 
   bool source_is_shared = false;
   for (const AssetReference& referrer :
@@ -784,19 +811,31 @@ absl::Status Api::RenameGeneratedParallaxArtwork(const std::string& recipe_id,
   return absl::OkStatus();
 }
 
+absl::Status Api::CheckGeneratedParallaxArtworkDeletable(const std::string& recipe_id) {
+  ASSIGN_OR_RETURN(const ParallaxArtworkRecipe* loaded,
+                   parallax_artwork_recipe_manager_->GetRecipe(recipe_id));
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  return CheckGeneratedParallaxArtworkDeletable(*loaded, catalog);
+}
+
+absl::Status Api::CheckGeneratedParallaxArtworkDeletable(const ParallaxArtworkRecipe& recipe,
+                                                         const CatalogSnapshot& catalog) const {
+  std::vector<AssetReference> outside;
+  for (const AssetReference& referrer : FindTextureReferrers(catalog.View(), recipe.texture_id)) {
+    if (referrer.kind == AssetKind::kParallaxArtworkRecipe && referrer.id == recipe.id) continue;
+    outside.push_back(referrer);
+  }
+  return RefuseIfReferenced(absl::StrCat("generated parallax artwork '", recipe.name, "'"),
+                            outside);
+}
+
 absl::Status Api::DeleteGeneratedParallaxArtwork(const std::string& recipe_id) {
   ASSIGN_OR_RETURN(const ParallaxArtworkRecipe* loaded,
                    parallax_artwork_recipe_manager_->GetRecipe(recipe_id));
   const ParallaxArtworkRecipe recipe = *loaded;
 
   const CatalogSnapshot catalog = SnapshotCatalog();
-  std::vector<AssetReference> outside;
-  for (const AssetReference& referrer : FindTextureReferrers(catalog.View(), recipe.texture_id)) {
-    if (referrer.kind == AssetKind::kParallaxArtworkRecipe && referrer.id == recipe.id) continue;
-    outside.push_back(referrer);
-  }
-  RETURN_IF_ERROR(
-      RefuseIfReferenced(absl::StrCat("generated parallax artwork '", recipe.name, "'"), outside));
+  RETURN_IF_ERROR(CheckGeneratedParallaxArtworkDeletable(recipe, catalog));
 
   bool source_is_shared = false;
   for (const AssetReference& referrer :

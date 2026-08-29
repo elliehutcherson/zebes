@@ -8,6 +8,16 @@ target_link_libraries(curation_review_test
   nlohmann_json::nlohmann_json)
 gtest_discover_tests(curation_review_test)
 
+add_executable(generated_asset_quarantine_test generated_asset_quarantine_test.cc)
+target_link_libraries(generated_asset_quarantine_test
+  generated_asset_quarantine
+  macros
+  gtest_main
+  gmock
+  nlohmann_json::nlohmann_json
+)
+gtest_discover_tests(generated_asset_quarantine_test)
+
 add_executable(level_review_route_test level_review_route_test.cc)
 target_link_libraries(level_review_route_test level_review_route macros gtest_main)
 gtest_discover_tests(level_review_route_test)
