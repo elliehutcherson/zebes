@@ -1,5 +1,6 @@
 #include "resources/level_asset_loader.h"
 
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -135,7 +136,16 @@ absl::Status LoadEntityBlueprints(const LevelAssetLoaderOptions& resources,
             "entity ", entity_id, " does not match its selected blueprint state assets"));
       }
 
+      std::set<std::string> state_keys;
       for (const Blueprint::State& state : blueprint->states) {
+        if (!IsValidBlueprintStateKey(state.key)) {
+          return absl::FailedPreconditionError(
+              absl::StrCat("blueprint ", blueprint->id, " has an invalid state key"));
+        }
+        if (!state_keys.insert(state.key).second) {
+          return absl::FailedPreconditionError(
+              absl::StrCat("blueprint ", blueprint->id, " repeats state key '", state.key, "'"));
+        }
         if (state.name.empty()) {
           return absl::FailedPreconditionError(
               absl::StrCat("blueprint ", blueprint->id, " has a state without a name"));
@@ -144,7 +154,7 @@ absl::Status LoadEntityBlueprints(const LevelAssetLoaderOptions& resources,
           return absl::FailedPreconditionError(
               absl::StrCat("blueprint ", blueprint->id, " has an invalid placement mode"));
         }
-        const std::string owner = absl::StrCat("blueprint ", blueprint->id, " state ", state.name);
+        const std::string owner = absl::StrCat("blueprint ", blueprint->id, " state ", state.key);
         RETURN_IF_ERROR(LoadSpriteReference(resources, assets, state.sprite_id, owner));
         RETURN_IF_ERROR(LoadColliderReference(resources, assets, state.collider_id, owner));
       }

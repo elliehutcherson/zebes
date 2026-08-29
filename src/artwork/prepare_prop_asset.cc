@@ -192,6 +192,7 @@ absl::StatusOr<PreparedPropAsset> PreparePropAsset(const SourceArtwork& source,
               .id = request.ids.blueprint_id,
               .name = request.name,
               .states = {Blueprint::State{
+                  .key = "default",
                   .name = "Default",
                   .collider_id = "",
                   .sprite_id = request.ids.sprite_id,

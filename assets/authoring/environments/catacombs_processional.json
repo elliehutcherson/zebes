@@ -156,8 +156,8 @@
       {
         "id": 4,
         "layer_name": "GamePlay",
-        "blueprint_name": "Mouse Player Placeholder",
-        "state_name": "Default",
+        "blueprint_name": "Player Animation Proof",
+        "state_name": "Idle Right",
         "active": true,
         "position_pixels": [256.0, 864.0],
         "sort_order": 0

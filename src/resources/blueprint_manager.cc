@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -16,6 +17,34 @@ namespace zebes {
 namespace {
 
 constexpr char kDefinitionsPath[] = "definitions/blueprints";
+
+absl::Status ValidateBlueprint(const Blueprint& blueprint) {
+  if (blueprint.id.empty()) {
+    return absl::InvalidArgumentError("Blueprint must have an ID to be saved.");
+  }
+  if (blueprint.name.empty()) {
+    return absl::InvalidArgumentError("Blueprint must have a name to be saved.");
+  }
+
+  std::set<std::string> state_keys;
+  for (const Blueprint::State& state : blueprint.states) {
+    if (!IsValidBlueprintStateKey(state.key)) {
+      return absl::InvalidArgumentError(
+          "All blueprint states must have a lowercase alphanumeric key with optional hyphens.");
+    }
+    if (!state_keys.insert(state.key).second) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Blueprint state key must be unique: ", state.key));
+    }
+    if (state.name.empty()) {
+      return absl::InvalidArgumentError("All blueprint states must have a name.");
+    }
+    if (!IsValidBlueprintPlacementMode(state.placement_mode)) {
+      return absl::InvalidArgumentError("All blueprint states must have a valid placement mode.");
+    }
+  }
+  return absl::OkStatus();
+}
 
 absl::StatusOr<BlueprintPlacementMode> BlueprintPlacementModeFromId(
     const std::string& placement_mode) {
@@ -37,6 +66,7 @@ void ToJson(nlohmann::json& j, const Blueprint& blueprint) {
   std::vector<nlohmann::json> states_json;
   for (const auto& state : blueprint.states) {
     states_json.push_back({
+        {"key", state.key},
         {"name", state.name},
         {"collider_id", state.collider_id},
         {"sprite_id", state.sprite_id},
@@ -53,6 +83,7 @@ absl::StatusOr<Blueprint> GetBlueprintFromJson(const nlohmann::json& j) {
     j.at("name").get_to(blueprint.name);
     for (const auto& state_json : j.at("states")) {
       Blueprint::State state;
+      state_json.at("key").get_to(state.key);
       state_json.at("name").get_to(state.name);
       state_json.at("collider_id").get_to(state.collider_id);
       state_json.at("sprite_id").get_to(state.sprite_id);
@@ -65,6 +96,7 @@ absl::StatusOr<Blueprint> GetBlueprintFromJson(const nlohmann::json& j) {
     return absl::InternalError(absl::StrCat("JSON parsing error for Blueprint: ", e.what()));
   }
 
+  RETURN_IF_ERROR(ValidateBlueprint(blueprint));
   return blueprint;
 }
 
@@ -127,6 +159,7 @@ absl::Status BlueprintManager::CreateBlueprintWithId(Blueprint blueprint) {
 }
 
 absl::Status BlueprintManager::PreflightBlueprintWithId(const Blueprint& blueprint) {
+  RETURN_IF_ERROR(ValidateBlueprint(blueprint));
   if (!IsPathSafeResourceId(blueprint.id) || !IsSafeResourceName(blueprint.name)) {
     return absl::InvalidArgumentError("prepared blueprint needs a path-safe ID and name");
   }
@@ -141,23 +174,7 @@ absl::Status BlueprintManager::PreflightBlueprintWithId(const Blueprint& bluepri
 }
 
 absl::Status BlueprintManager::SaveBlueprint(Blueprint blueprint) {
-  if (blueprint.id.empty()) {
-    return absl::InvalidArgumentError("Blueprint must have an ID to be saved.");
-  }
-  if (blueprint.name.empty()) {
-    return absl::InvalidArgumentError("Blueprint must have a name to be saved.");
-  }
-
-  // VALIDATION: Ensure keys in maps are valid indices for states
-  // VALIDATION: Ensure states have names?
-  for (const auto& state : blueprint.states) {
-    if (state.name.empty()) {
-      return absl::InvalidArgumentError("All blueprint states must have a name.");
-    }
-    if (!IsValidBlueprintPlacementMode(state.placement_mode)) {
-      return absl::InvalidArgumentError("All blueprint states must have a valid placement mode.");
-    }
-  }
+  RETURN_IF_ERROR(ValidateBlueprint(blueprint));
 
   nlohmann::json json;
   ToJson(json, blueprint);

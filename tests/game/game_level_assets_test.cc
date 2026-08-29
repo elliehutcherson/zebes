@@ -46,7 +46,7 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
   for (const WorldLayer& layer : assets.content.level.layers) {
     for (const auto& entry : layer.entities) {
       const Entity& entity = entry.second;
-      if (entity.blueprint_id != kMousePlayerPlaceholderBlueprintId) continue;
+      if (entity.blueprint_id != kPlayerBlueprintId) continue;
       ASSERT_EQ(mouse_player, nullptr) << "shipped level contains multiple mouse players";
       mouse_player = &entity;
     }
@@ -60,7 +60,7 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
                            .tileset = assets.content.tileset,
                            .blueprints = assets.content.blueprints,
                            .sprites = assets.content.sprites,
-                           .player_blueprint_id = std::string(kMousePlayerPlaceholderBlueprintId),
+                           .player_blueprint_id = std::string(kPlayerBlueprintId),
                            .player_collider = mouse_collider->second,
                        }));
   EXPECT_EQ(world->player_entity_id(), 4);

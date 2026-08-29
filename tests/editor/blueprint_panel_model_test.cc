@@ -63,6 +63,8 @@ TEST(BlueprintPanelModelTest, StateOperationsValidateIndices) {
   ASSERT_OK(model.AddState());
   ASSERT_OK(model.AddState());
   ASSERT_EQ(model.active_blueprint()->states.size(), 2);
+  EXPECT_EQ(model.active_blueprint()->states[0].key, "new-state");
+  EXPECT_EQ(model.active_blueprint()->states[1].key, "new-state-2");
   EXPECT_EQ(model.active_blueprint()->states[0].name, "new state");
   EXPECT_EQ(model.active_blueprint()->states[0].placement_mode, BlueprintPlacementMode::kGrounded);
   EXPECT_OK(model.ValidateStateIndex(1));

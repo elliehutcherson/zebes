@@ -112,8 +112,12 @@ TEST_F(LoadedLevelAssetsTest, ResolvesEveryStateAssetForPlacedBlueprints) {
   Tileset tileset{.id = "tileset", .texture_id = "atlas"};
   Blueprint blueprint{
       .id = "blueprint",
-      .states = {{.name = "idle", .sprite_id = "sprite-a", .collider_id = "collider-a"},
-                 {.name = "active", .sprite_id = "sprite-b", .collider_id = "collider-b"}}};
+      .states = {
+          {.key = "idle", .name = "idle", .sprite_id = "sprite-a", .collider_id = "collider-a"},
+          {.key = "active",
+           .name = "active",
+           .sprite_id = "sprite-b",
+           .collider_id = "collider-b"}}};
   Sprite sprite_a{.id = "sprite-a", .texture_id = "texture-a"};
   Sprite sprite_b{.id = "sprite-b", .texture_id = "texture-b"};
   Collider collider_a{.id = "collider-a"};
@@ -151,7 +155,10 @@ TEST_F(LoadedLevelAssetsTest, RejectsEntityThatDoesNotMatchItsSelectedBlueprintS
   Tileset tileset{.id = "tileset", .texture_id = "atlas"};
   Blueprint blueprint{
       .id = "blueprint",
-      .states = {{.name = "idle", .sprite_id = "state-sprite", .collider_id = "state-collider"}},
+      .states = {{.key = "idle",
+                  .name = "idle",
+                  .sprite_id = "state-sprite",
+                  .collider_id = "state-collider"}},
   };
   Sprite entity_sprite{.id = "entity-sprite", .texture_id = "entity-texture"};
   Collider entity_collider{.id = "entity-collider"};
@@ -194,7 +201,8 @@ TEST_F(LoadedLevelAssetsTest, RejectsMissingAssetReferencedByBlueprintState) {
   Tileset tileset{.id = "tileset", .texture_id = "atlas"};
   Blueprint blueprint{
       .id = "blueprint",
-      .states = {{.name = "idle"}, {.name = "active", .sprite_id = "missing-sprite"}},
+      .states = {{.key = "idle", .name = "idle"},
+                 {.key = "active", .name = "active", .sprite_id = "missing-sprite"}},
   };
 
   EXPECT_CALL(levels_, GetLevel("level")).WillOnce(Return(&level));
@@ -213,7 +221,7 @@ TEST_F(LoadedLevelAssetsTest, RejectsAnOutOfRangeAuthoredBlueprintState) {
   level.layers.front().entities.emplace(
       7, Entity{.id = 7, .blueprint_id = "blueprint", .blueprint_state_index = 1});
   Tileset tileset{.id = "tileset", .texture_id = "atlas"};
-  Blueprint blueprint{.id = "blueprint", .states = {{.name = "idle"}}};
+  Blueprint blueprint{.id = "blueprint", .states = {{.key = "idle", .name = "idle"}}};
 
   EXPECT_CALL(levels_, GetLevel("level")).WillOnce(Return(&level));
   EXPECT_CALL(tilesets_, GetTileset("tileset")).WillOnce(Return(&tileset));

@@ -151,7 +151,7 @@ class MigrateDefinitionsTest(unittest.TestCase):
         path.write_text(json.dumps(document), encoding="utf-8")
         return path
 
-    def test_blueprint_states_gain_explicit_grounded_placement(self):
+    def test_blueprint_states_gain_stable_keys_and_explicit_grounded_placement(self):
         path = self.write_blueprint(
             "crystal.json",
             {
@@ -169,7 +169,32 @@ class MigrateDefinitionsTest(unittest.TestCase):
 
         self.assertEqual(changed, [path])
         document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(document["states"][0]["key"], "idle")
         self.assertEqual(document["states"][0]["placement_mode"], "grounded")
+        self.assertEqual(
+            migrate_definitions.migrate_directory(
+                self.root, "blueprints", dry_run=False
+            ),
+            [],
+        )
+
+    def test_blueprint_state_key_migration_refuses_ambiguous_names(self):
+        self.write_blueprint(
+            "ambiguous.json",
+            {
+                "id": "ambiguous",
+                "name": "Ambiguous",
+                "states": [
+                    {"name": "Idle Left", "collider_id": "", "sprite_id": "a"},
+                    {"name": "idle-left", "collider_id": "", "sprite_id": "b"},
+                ],
+            },
+        )
+
+        with self.assertRaisesRegex(ValueError, "invalid or duplicated"):
+            migrate_definitions.migrate_directory(
+                self.root, "blueprints", dry_run=False
+            )
 
     def test_embedded_parallax_themes_are_extracted_deterministically(self):
         path = self.write_level(
@@ -376,6 +401,7 @@ class MigrateDefinitionsTest(unittest.TestCase):
                 "name": "Lamp",
                 "states": [
                     {
+                        "key": "idle",
                         "name": "Idle",
                         "collider_id": "",
                         "sprite_id": "sprite",

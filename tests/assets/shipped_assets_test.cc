@@ -300,23 +300,42 @@ TEST(ShippedAssetsTest, EveryShippedBlueprintStateReferenceResolves) {
   }
 }
 
-TEST(ShippedAssetsTest, MousePlayerColliderStaysInsideOneByTwoTileEnvelope) {
+TEST(ShippedAssetsTest, PlayerAnimationProofKeepsOneColliderInsideOneByTwoTileEnvelope) {
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<BlueprintManager> blueprints,
                        BlueprintManager::Create(kAssetsRoot));
   ASSERT_OK(blueprints->LoadAllBlueprints());
   const std::vector<Blueprint> all_blueprints = blueprints->GetAllBlueprints();
   const auto blueprint =
       std::find_if(all_blueprints.begin(), all_blueprints.end(),
-                   [](const Blueprint& item) { return item.name == "Mouse Player Placeholder"; });
+                   [](const Blueprint& item) { return item.name == "Player Animation Proof"; });
   ASSERT_NE(blueprint, all_blueprints.end());
-  ASSERT_EQ(blueprint->states.size(), 1);
-  ASSERT_FALSE(blueprint->states.front().collider_id.empty());
+  ASSERT_EQ(blueprint->states.size(), 6);
+  absl::flat_hash_set<std::string> expected_state_keys = {
+      "idle-left", "idle-right", "run-left", "run-right", "airborne-left", "airborne-right",
+  };
+  const std::string& collider_id = blueprint->states.front().collider_id;
+  ASSERT_FALSE(collider_id.empty());
+
+  FakeTextureResourceStore texture_store;
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<TextureManager> textures,
+                       TextureManager::Create(&texture_store, kAssetsRoot));
+  ASSERT_OK(textures->LoadAllTextures());
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<SpriteManager> sprites,
+                       SpriteManager::Create(textures.get(), kAssetsRoot));
+  ASSERT_OK(sprites->LoadAllSprites());
+
+  for (const Blueprint::State& state : blueprint->states) {
+    EXPECT_EQ(expected_state_keys.erase(state.key), 1u) << state.key;
+    EXPECT_EQ(state.collider_id, collider_id);
+    ASSERT_OK_AND_ASSIGN(Sprite * sprite, sprites->GetSprite(state.sprite_id));
+    EXPECT_GT(sprite->frames.size(), 1u) << state.key;
+  }
+  EXPECT_TRUE(expected_state_keys.empty());
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<ColliderManager> colliders,
                        ColliderManager::Create(kAssetsRoot));
   ASSERT_OK(colliders->LoadAllColliders());
-  ASSERT_OK_AND_ASSIGN(Collider * collider,
-                       colliders->GetCollider(blueprint->states.front().collider_id));
+  ASSERT_OK_AND_ASSIGN(Collider * collider, colliders->GetCollider(collider_id));
   ASSERT_NE(collider, nullptr);
   ASSERT_EQ(collider->polygons.size(), 1);
   ASSERT_FALSE(collider->polygons.front().empty());

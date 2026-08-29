@@ -37,6 +37,10 @@ constexpr bool IsValidBlueprintPlacementMode(BlueprintPlacementMode mode) {
 
 struct Blueprint {
   struct State {
+    // Stable authored identity within one Blueprint. Gameplay may assign
+    // meaning to a key; display names and vector positions remain editable
+    // presentation details.
+    std::string key;
     std::string name;
     std::string collider_id;
     std::string sprite_id;
@@ -52,6 +56,13 @@ struct Blueprint {
   bool operator==(const Blueprint& other) const = default;
 
   std::string name_id() const { return absl::StrCat(name, "-", id); }
+
+  std::optional<int> state_index(std::string_view key) const {
+    for (int index = 0; index < static_cast<int>(states.size()); ++index) {
+      if (states[index].key == key) return index;
+    }
+    return std::nullopt;
+  }
 
   std::optional<std::string> collider_id(int index) const {
     if (index < 0 || index >= states.size()) {
@@ -75,5 +86,17 @@ struct Blueprint {
     return state.sprite_id;
   }
 };
+
+constexpr bool IsValidBlueprintStateKey(std::string_view key) {
+  if (key.empty()) return false;
+  const auto is_alphanumeric = [](char value) {
+    return (value >= 'a' && value <= 'z') || (value >= '0' && value <= '9');
+  };
+  if (!is_alphanumeric(key.front()) || !is_alphanumeric(key.back())) return false;
+  for (char value : key) {
+    if (!is_alphanumeric(value) && value != '-') return false;
+  }
+  return true;
+}
 
 }  // namespace zebes

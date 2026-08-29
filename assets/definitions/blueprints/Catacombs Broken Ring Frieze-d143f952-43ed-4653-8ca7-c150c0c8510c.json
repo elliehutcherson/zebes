@@ -4,6 +4,7 @@
     "states": [
         {
             "collider_id": "",
+            "key": "default",
             "name": "Default",
             "placement_mode": "ceiling",
             "sprite_id": "780ff51d-e878-47f3-99d6-15f500336f4a"

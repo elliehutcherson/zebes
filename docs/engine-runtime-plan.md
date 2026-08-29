@@ -1,7 +1,7 @@
 # Game runtime plan
 
-**Status: Milestones 1 and 2 are complete. The Milestone 3 playback/state-
-selection implementation slice is in place, but its live gate remains open.
+**Status: Milestones 1 and 2 are complete. The Milestone 3 implementation is
+complete, but its live visual gate remains open.
 `run_game` boots the shipped Catacombs level, advances the fixed-tick player
 through continuous sparse-tile collision, follows the player camera, and
 presents runtime transforms through the shared scene and SDL host. The live M2
@@ -44,9 +44,10 @@ The platform-neutral `SimulationPacer`, fixed-step `GameEngine`, M1 simulation,
 runtime scene aggregate, SDL game presentation path, swept collision response,
 and motion integration now exist. The runtime also has an immutable loaded-level
 blueprint graph, fixed-tick animation cursors, explicit blueprint-state
-selection, and runtime sprite/frame presentation overrides. Runtime asset
-streaming and level transitions do not exist yet. There is not yet a semantic
-player animation state machine or a live multi-frame player asset.
+selection, semantic Blueprint state keys, player idle/run/airborne selection,
+and runtime sprite/frame presentation overrides. Catacombs uses a six-state
+multi-frame proof asset. Runtime asset streaming and level transitions do not
+exist yet; the M3 implementation still awaits its live visual acceptance gate.
 
 ## Design decisions
 
@@ -262,11 +263,12 @@ composition, leaving serialized entities and the copied authored level intact.
 
 Headless coverage exercises frame durations, looping, empty and changing frame
 lists, multi-state selection, reset behavior, invalid transitions, runtime
-presentation, and shipped blueprint references. This is an implemented M3
-slice, not full M3 acceptance: the shipped Mouse Player Placeholder still has
-one state and one frame, and no semantic player animation state machine or live
-multi-frame player asset exists yet. The M3 gate therefore remains “animated
-entities in the running level” plus the existing headless playback evidence.
+presentation, shipped blueprint references, semantic-key migration, and the
+six-state player policy. Catacombs now instantiates the Player Animation Proof,
+which reuses existing multi-frame sprites for `idle-*`, `run-*`, and
+`airborne-*` states while retaining one exact collider. The implementation and
+automated M3 gates are complete; full acceptance still requires confirming the
+visible transitions in the running level.
 
 ### Milestone 2 movement and collision implementation plan
 
@@ -433,16 +435,15 @@ or projectile simulation. Its reusable result is the continuous convex sweep;
 future object categories add spatial indexes only when their collision behavior
 exists and can be measured.
 
-**M3 — Animation playback and blueprint-state behavior — implementation slice
-in progress.** Frame timers, per-entity playback state, copied blueprint
-definitions, all state-referenced assets, and runtime sprite/frame selection
-are implemented and covered headlessly. Gate remains animated entities in the
-running level; the shipped player currently has one state and one frame, with
-no semantic player animation state machine or live multi-frame player asset.
+**M3 — Animation playback and blueprint-state behavior — implementation
+complete; live acceptance pending.** Frame timers, per-entity playback state,
+copied blueprint definitions, all state-referenced assets, semantic state keys,
+player state selection, and runtime sprite/frame selection are implemented and
+covered headlessly. Catacombs ships a six-state multi-frame proof. The remaining
+gate is confirming its visible transitions in the running level.
 
-**Post-M3 — Animation artwork pipeline.** Establish stable semantic Blueprint
-state keys during the M3 closeout, then run the animation-generation feasibility
-gate and build the deterministic frame-set processing, retained-source recipe,
+**Post-M3 — Animation artwork pipeline.** Run the animation-generation
+feasibility gate, then build the deterministic frame-set processing, retained-source recipe,
 transactional asset bundle, headless curation, and provider/editor workflow.
 The first production player set must be processable, reviewable, regenerable
 byte-stably, and visibly accepted in Catacombs before M4 begins. See

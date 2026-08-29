@@ -1,5 +1,6 @@
 #include "editor/blueprint_editor/blueprint_panel_model.h"
 
+#include <string>
 #include <utility>
 
 #include "absl/status/status.h"
@@ -94,7 +95,11 @@ absl::Status BlueprintPanelModel::AddState() {
   if (!active_blueprint_.has_value()) {
     return absl::FailedPreconditionError("No blueprint is being edited");
   }
-  active_blueprint_->states.push_back({.name = "new state"});
+  std::string key = "new-state";
+  for (int suffix = 2; active_blueprint_->state_index(key).has_value(); ++suffix) {
+    key = "new-state-" + std::to_string(suffix);
+  }
+  active_blueprint_->states.push_back({.key = std::move(key), .name = "new state"});
   return absl::OkStatus();
 }
 

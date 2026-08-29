@@ -54,7 +54,7 @@ absl::StatusOr<Collider> ResolvePlayerCollider(const LoadedLevelContent& content
   for (const WorldLayer& layer : content.level.layers) {
     for (const auto& entry : layer.entities) {
       const Entity& entity = entry.second;
-      if (entity.blueprint_id != kMousePlayerPlaceholderBlueprintId) continue;
+      if (entity.blueprint_id != kPlayerBlueprintId) continue;
       if (player != nullptr) {
         return absl::FailedPreconditionError("Game runtime level contains multiple players");
       }
@@ -106,7 +106,7 @@ absl::Status GameRuntime::Init() {
                        .tileset = level_assets_->content.tileset,
                        .blueprints = level_assets_->content.blueprints,
                        .sprites = level_assets_->content.sprites,
-                       .player_blueprint_id = std::string(kMousePlayerPlaceholderBlueprintId),
+                       .player_blueprint_id = std::string(kPlayerBlueprintId),
                        .player_collider = player_collider,
                    }));
   ASSIGN_OR_RETURN(std::unique_ptr<PlayerSimulation> simulation,

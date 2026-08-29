@@ -25,10 +25,14 @@
 
 namespace zebes {
 
-// Stable authored identity used by M2 until the game has a general player-role
-// definition. Names, layer placement, and instance IDs are not identities.
-inline constexpr std::string_view kMousePlayerPlaceholderBlueprintId =
-    "8be038c0-fd4e-4dc5-9def-2a34946c5c4d";
+// Stable authored identity used by the current local-player contract. Names,
+// layer placement, and instance IDs are not identities.
+inline constexpr std::string_view kPlayerBlueprintId = "1be81945-b011-4342-9109-a10c4040078c";
+
+enum class PlayerFacing : int8_t {
+  kLeft = -1,
+  kRight = 1,
+};
 
 // Tick-owned state for an entity controlled as the local player. The previous
 // raw snapshot is kept here, rather than in a render-frame input manager, so a
@@ -37,6 +41,7 @@ struct PlayerControllerState {
   PlayerInputIntent intent;
   InputSnapshot previous_input;
   bool grounded = false;
+  PlayerFacing facing = PlayerFacing::kRight;
 };
 
 // M2 gameplay constants. They stay outside EngineConfig until runtime
@@ -102,11 +107,12 @@ class RuntimeWorld {
   absl::Status StepPlayer(const InputSnapshot& input, double delta_seconds,
                           const PlayerMovementConfig& config);
 
-  // Selects one authored Blueprint state without mutating the serialized
-  // Entity. Playback resets only when the selected state actually changes.
-  // Until entity collision response exists, a player state transition must
-  // retain the established M2 collider.
-  absl::Status SetEntityBlueprintState(uint64_t entity_id, int state_index);
+  // Validates or selects one stable authored Blueprint state key without
+  // mutating the serialized Entity. Playback resets only when the selected
+  // state actually changes. Until entity collision response exists, a player
+  // state transition must retain the established M2 collider.
+  absl::Status ValidateEntityBlueprintState(uint64_t entity_id, std::string_view state_key) const;
+  absl::Status SetEntityBlueprintState(uint64_t entity_id, std::string_view state_key);
 
   // Advances every active sprite cursor by one fixed simulation tick. Runtime
   // construction and state selection establish all invariants, so this cannot
@@ -120,12 +126,14 @@ class RuntimeWorld {
     std::map<std::string, Sprite> sprites;
     uint64_t player_entity_id = 0;
     int player_layer_id = -1;
+    std::string player_collider_id;
     AxisAlignedBox player_local_collider;
     Body player_body;
     TileCollisionLookup collision_tiles;
     absl::flat_hash_map<uint64_t, Transform> transforms;
     absl::flat_hash_map<uint64_t, Motion> motions;
     absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers;
+    absl::flat_hash_map<uint64_t, std::string> blueprint_ids;
     absl::flat_hash_map<uint64_t, int> blueprint_state_indices;
     absl::flat_hash_map<uint64_t, std::string> sprite_ids;
     absl::flat_hash_map<uint64_t, int> frame_indices;
@@ -134,17 +142,22 @@ class RuntimeWorld {
 
   explicit RuntimeWorld(InitialState state);
 
+  absl::StatusOr<int> ResolveEntityBlueprintStateIndex(uint64_t entity_id,
+                                                       std::string_view state_key) const;
+
   Level level_;
   const std::map<std::string, Blueprint> blueprints_;
   const std::map<std::string, Sprite> sprites_;
   uint64_t player_entity_id_ = 0;
   int player_layer_id_ = -1;
+  std::string player_collider_id_;
   AxisAlignedBox player_local_collider_;
   Body player_body_;
   TileCollisionLookup collision_tiles_;
   absl::flat_hash_map<uint64_t, Transform> transforms_;
   absl::flat_hash_map<uint64_t, Motion> motions_;
   absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers_;
+  absl::flat_hash_map<uint64_t, std::string> blueprint_ids_;
   absl::flat_hash_map<uint64_t, int> blueprint_state_indices_;
   absl::flat_hash_map<uint64_t, std::string> sprite_ids_;
   absl::flat_hash_map<uint64_t, int> frame_indices_;

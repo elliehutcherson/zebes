@@ -190,9 +190,10 @@ overwrites collider work or silently invokes a remote provider.
 
 ## Implementation milestones
 
-1. **M3 semantic/live proof.** Add stable Blueprint state keys with migration,
-   implement the player policy, author a minimal real-format multi-frame proof,
-   and accept visible transitions in Catacombs.
+1. **M3 semantic/live proof — implementation complete; live acceptance
+   pending.** Stable Blueprint state keys, migration, the player policy, and a
+   minimal real-format multi-frame proof are implemented. Accept the visible
+   transitions in Catacombs.
 2. **Generation feasibility.** Run the bounded generated-sheet/imported-sheet
    comparison and record the accepted source and frame geometry contract.
 3. **Pure frame-set processing.** Implement extraction through deterministic

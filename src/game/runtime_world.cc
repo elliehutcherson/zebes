@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -55,6 +56,23 @@ absl::Status ValidateOccupiedTileIds(const Level& level, const TileCollisionLook
         return absl::FailedPreconditionError(
             absl::StrCat("Runtime level references unknown tile ID ", tile_id, " at (", tile_x,
                          ", ", tile_y, ")"));
+      }
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateBlueprintStateKeys(const std::map<std::string, Blueprint>& blueprints) {
+  for (const auto& [blueprint_id, blueprint] : blueprints) {
+    std::set<std::string> state_keys;
+    for (const Blueprint::State& state : blueprint.states) {
+      if (!IsValidBlueprintStateKey(state.key)) {
+        return absl::FailedPreconditionError(absl::StrCat(
+            "Runtime blueprint ", blueprint_id, " has invalid state key '", state.key, "'"));
+      }
+      if (!state_keys.insert(state.key).second) {
+        return absl::FailedPreconditionError(absl::StrCat("Runtime blueprint ", blueprint_id,
+                                                          " repeats state key '", state.key, "'"));
       }
     }
   }
@@ -195,12 +213,14 @@ absl::StatusOr<std::unique_ptr<RuntimeWorld>> RuntimeWorld::Create(Options optio
                    ValidatePlayerCollider(options.player_collider));
   ASSIGN_OR_RETURN(TileCollisionLookup collision_tiles, BuildTileCollisionLookup(options.tileset));
   RETURN_IF_ERROR(ValidateOccupiedTileIds(options.level, collision_tiles));
+  RETURN_IF_ERROR(ValidateBlueprintStateKeys(options.blueprints));
 
   const Entity* player = nullptr;
   int player_layer_id = -1;
   size_t player_count = 0;
   absl::flat_hash_map<uint64_t, Transform> transforms;
   absl::flat_hash_map<uint64_t, Motion> motions;
+  absl::flat_hash_map<uint64_t, std::string> blueprint_ids;
   absl::flat_hash_map<uint64_t, int> blueprint_state_indices;
   absl::flat_hash_map<uint64_t, std::string> sprite_ids;
   absl::flat_hash_map<uint64_t, int> frame_indices;
@@ -219,6 +239,7 @@ absl::StatusOr<std::unique_ptr<RuntimeWorld>> RuntimeWorld::Create(Options optio
       transforms.emplace(entity_id, entity.transform);
       if (!entity.body.is_static) motions.emplace(entity_id, Motion{});
       if (!entity.blueprint_id.empty()) {
+        blueprint_ids.emplace(entity_id, entity.blueprint_id);
         blueprint_state_indices.emplace(entity_id, entity.blueprint_state_index);
       }
 
@@ -281,12 +302,14 @@ absl::StatusOr<std::unique_ptr<RuntimeWorld>> RuntimeWorld::Create(Options optio
       .sprites = std::move(options.sprites),
       .player_entity_id = player_entity_id,
       .player_layer_id = player_layer_id,
+      .player_collider_id = options.player_collider.id,
       .player_local_collider = player_collider,
       .player_body = player_body,
       .collision_tiles = std::move(collision_tiles),
       .transforms = std::move(transforms),
       .motions = std::move(motions),
       .player_controllers = std::move(player_controllers),
+      .blueprint_ids = std::move(blueprint_ids),
       .blueprint_state_indices = std::move(blueprint_state_indices),
       .sprite_ids = std::move(sprite_ids),
       .frame_indices = std::move(frame_indices),
@@ -300,12 +323,14 @@ RuntimeWorld::RuntimeWorld(InitialState state)
       sprites_(std::move(state.sprites)),
       player_entity_id_(state.player_entity_id),
       player_layer_id_(state.player_layer_id),
+      player_collider_id_(std::move(state.player_collider_id)),
       player_local_collider_(state.player_local_collider),
       player_body_(state.player_body),
       collision_tiles_(std::move(state.collision_tiles)),
       transforms_(std::move(state.transforms)),
       motions_(std::move(state.motions)),
       player_controllers_(std::move(state.player_controllers)),
+      blueprint_ids_(std::move(state.blueprint_ids)),
       blueprint_state_indices_(std::move(state.blueprint_state_indices)),
       sprite_ids_(std::move(state.sprite_ids)),
       frame_indices_(std::move(state.frame_indices)),
@@ -374,6 +399,11 @@ absl::Status RuntimeWorld::StepPlayer(const InputSnapshot& input, double delta_s
   Motion next_motion = motion_entry->second;
   PlayerControllerState next_controller = controller_entry->second;
   next_controller.intent = BuildPlayerInputIntent(input, next_controller.previous_input);
+  if (next_controller.intent.horizontal_axis < 0) {
+    next_controller.facing = PlayerFacing::kLeft;
+  } else if (next_controller.intent.horizontal_axis > 0) {
+    next_controller.facing = PlayerFacing::kRight;
+  }
 
   const double horizontal_target =
       next_controller.intent.horizontal_axis * config.maximum_horizontal_speed;
@@ -436,27 +466,29 @@ absl::Status RuntimeWorld::StepPlayer(const InputSnapshot& input, double delta_s
   return absl::OkStatus();
 }
 
-absl::Status RuntimeWorld::SetEntityBlueprintState(uint64_t entity_id, int state_index) {
-  const Entity* entity = FindEntity(level_, entity_id);
-  if (entity == nullptr || !entity->active || !transforms_.contains(entity_id)) {
+absl::StatusOr<int> RuntimeWorld::ResolveEntityBlueprintStateIndex(
+    uint64_t entity_id, std::string_view state_key) const {
+  if (!transforms_.contains(entity_id)) {
     return absl::NotFoundError(
         absl::StrCat("Runtime cannot select a blueprint state for entity ", entity_id));
   }
-  if (entity->blueprint_id.empty()) {
+  const auto blueprint_id = blueprint_ids_.find(entity_id);
+  if (blueprint_id == blueprint_ids_.end()) {
     return absl::FailedPreconditionError(
         absl::StrCat("Runtime entity ", entity_id, " has no blueprint"));
   }
-  const auto blueprint = blueprints_.find(entity->blueprint_id);
+  const auto blueprint = blueprints_.find(blueprint_id->second);
   if (blueprint == blueprints_.end()) {
     return absl::FailedPreconditionError(
         absl::StrCat("Runtime entity ", entity_id, " blueprint is unavailable"));
   }
-  if (state_index < 0 || state_index >= static_cast<int>(blueprint->second.states.size())) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Runtime entity ", entity_id, " blueprint state index is out of range"));
+  const std::optional<int> state_index = blueprint->second.state_index(state_key);
+  if (!state_index.has_value()) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Runtime entity ", entity_id, " blueprint has no state key '", state_key, "'"));
   }
 
-  const Blueprint::State& state = blueprint->second.states[state_index];
+  const Blueprint::State& state = blueprint->second.states[*state_index];
   if (!state.sprite_id.empty()) {
     const auto sprite = sprites_.find(state.sprite_id);
     if (sprite == sprites_.end() || sprite->second.id != state.sprite_id) {
@@ -464,10 +496,22 @@ absl::Status RuntimeWorld::SetEntityBlueprintState(uint64_t entity_id, int state
           "Runtime blueprint state references unavailable sprite '", state.sprite_id, "'"));
     }
   }
-  if (entity_id == player_entity_id_ && state.collider_id != entity->collider_id) {
+  if (entity_id == player_entity_id_ && state.collider_id != player_collider_id_) {
     return absl::FailedPreconditionError(
         "Runtime player blueprint state changes cannot replace the M2 collider");
   }
+  return *state_index;
+}
+
+absl::Status RuntimeWorld::ValidateEntityBlueprintState(uint64_t entity_id,
+                                                        std::string_view state_key) const {
+  return ResolveEntityBlueprintStateIndex(entity_id, state_key).status();
+}
+
+absl::Status RuntimeWorld::SetEntityBlueprintState(uint64_t entity_id, std::string_view state_key) {
+  ASSIGN_OR_RETURN(const int state_index, ResolveEntityBlueprintStateIndex(entity_id, state_key));
+  const std::string& blueprint_id = blueprint_ids_.at(entity_id);
+  const Blueprint::State& state = blueprints_.at(blueprint_id).states[state_index];
 
   auto selected_state = blueprint_state_indices_.find(entity_id);
   if (selected_state == blueprint_state_indices_.end()) {

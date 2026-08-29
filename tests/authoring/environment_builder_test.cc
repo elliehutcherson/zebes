@@ -194,7 +194,8 @@ TEST(EnvironmentBuilderTest, LoadsTheProductionCatacombsWithoutCatalogIds) {
   EXPECT_EQ(spec.level.entities[2].position.x, 1472.0f);
   EXPECT_EQ(spec.level.entities[2].position.y, 832.0f);
   EXPECT_EQ(spec.level.entities[3].id, 4);
-  EXPECT_EQ(spec.level.entities[3].blueprint_name, "Mouse Player Placeholder");
+  EXPECT_EQ(spec.level.entities[3].blueprint_name, "Player Animation Proof");
+  EXPECT_EQ(spec.level.entities[3].state_name, "Idle Right");
   EXPECT_EQ(spec.level.entities[3].layer_name, "GamePlay");
   EXPECT_EQ(spec.level.entities[3].position.x, 256.0f);
   EXPECT_EQ(spec.level.entities[3].position.y, 864.0f);

@@ -52,19 +52,56 @@ absl::StatusOr<std::unique_ptr<RuntimeWorld>> TestWorld() {
                                                        .transform = {.position = {48, 96}},
                                                        .blueprint_id = "player",
                                                        .collider_id = "collider",
-                                                       .sprite_id = "player-sprite"});
+                                                       .sprite_id = "idle-right"});
   if (!added.ok()) return added;
   for (int x = 0; x < 20; ++x) PutTile(level.layers.front(), x, 3);
   return RuntimeWorld::Create({
       .level = std::move(level),
       .tileset = {.id = "tileset", .tiles = {{.id = 1, .shape = TileShape::kFullBlock}}},
-      .blueprints = {{"player", Blueprint{.id = "player",
-                                          .states = {{.name = "Default",
-                                                      .collider_id = "collider",
-                                                      .sprite_id = "player-sprite"}}}}},
-      .sprites = {{"player-sprite",
-                   Sprite{.id = "player-sprite",
-                          .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}}}},
+      .blueprints = {{"player",
+                      Blueprint{
+                          .id = "player",
+                          .states =
+                              {
+                                  {.key = "idle-right",
+                                   .name = "Idle right",
+                                   .collider_id = "collider",
+                                   .sprite_id = "idle-right"},
+                                  {.key = "idle-left",
+                                   .name = "Idle left",
+                                   .collider_id = "collider",
+                                   .sprite_id = "idle-left"},
+                                  {.key = "run-right",
+                                   .name = "Run right",
+                                   .collider_id = "collider",
+                                   .sprite_id = "run-right"},
+                                  {.key = "run-left",
+                                   .name = "Run left",
+                                   .collider_id = "collider",
+                                   .sprite_id = "run-left"},
+                                  {.key = "airborne-right",
+                                   .name = "Airborne right",
+                                   .collider_id = "collider",
+                                   .sprite_id = "airborne-right"},
+                                  {.key = "airborne-left",
+                                   .name = "Airborne left",
+                                   .collider_id = "collider",
+                                   .sprite_id = "airborne-left"},
+                              },
+                      }}},
+      .sprites =
+          {{"idle-right", Sprite{.id = "idle-right",
+                                 .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}}},
+           {"idle-left", Sprite{.id = "idle-left",
+                                .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}}},
+           {"run-right", Sprite{.id = "run-right",
+                                .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}}},
+           {"run-left",
+            Sprite{.id = "run-left", .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}}},
+           {"airborne-right", Sprite{.id = "airborne-right",
+                                     .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}}},
+           {"airborne-left", Sprite{.id = "airborne-left",
+                                    .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}}}},
       .player_blueprint_id = "player",
       .player_collider =
           {
@@ -99,8 +136,36 @@ TEST(PlayerSimulationTest, AdvancesPlayerAndFollowsCommittedTransform) {
   ASSERT_NE(player, nullptr);
   EXPECT_GT(player->position.x, 48.0);
   EXPECT_EQ(simulation->camera().position, player->position);
+  EXPECT_EQ(*simulation->world().FindBlueprintStateIndex(7), 2);
+  EXPECT_EQ(simulation->world().sprite_ids().at(7), "run-right");
   EXPECT_EQ(simulation->world().frame_indices().at(7), 1);
   EXPECT_EQ(FindEntity(simulation->world().level(), 7)->transform.position, (Vec{48, 96}));
+}
+
+TEST(PlayerSimulationTest, SelectsSemanticAnimationFromMovementAndRememberedFacing) {
+  FixedInputManager input;
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world, TestWorld());
+  ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<PlayerSimulation> simulation,
+      PlayerSimulation::Create(
+          {.input_manager = &input, .world = std::move(world), .camera = TestCamera()}));
+  EXPECT_EQ(*simulation->world().FindBlueprintStateIndex(7), 0);
+
+  input.snapshot.SetKeyDown(Key::kA);
+  ASSERT_OK(simulation->Step(absl::Seconds(1.0 / 60.0)));
+  EXPECT_EQ(*simulation->world().FindBlueprintStateIndex(7), 3);
+  EXPECT_EQ(simulation->world().sprite_ids().at(7), "run-left");
+
+  input.snapshot.SetKeyDown(Key::kSpace);
+  ASSERT_OK(simulation->Step(absl::Seconds(1.0 / 60.0)));
+  EXPECT_EQ(*simulation->world().FindBlueprintStateIndex(7), 5);
+  EXPECT_EQ(simulation->world().sprite_ids().at(7), "airborne-left");
+
+  input.snapshot.SetKeyDown(Key::kA, false);
+  input.snapshot.SetKeyDown(Key::kD);
+  ASSERT_OK(simulation->Step(absl::Seconds(1.0 / 60.0)));
+  EXPECT_EQ(*simulation->world().FindBlueprintStateIndex(7), 4);
+  EXPECT_EQ(simulation->world().sprite_ids().at(7), "airborne-right");
 }
 
 TEST(PlayerSimulationTest, RejectsInvalidDependenciesAndDuration) {

@@ -38,7 +38,7 @@ TEST(BlueprintStatePanelCreateTest, RequiresGui) {
 }
 
 TEST_F(BlueprintStatePanelTest, PlacementModeIsEditable) {
-  Blueprint blueprint{.states = {{.name = "Default"}}};
+  Blueprint blueprint{.states = {{.key = "default", .name = "Default"}}};
   panel_->SetState(blueprint, 0);
   ON_CALL(gui_, BeginCombo(StrEq("Placement"), StrEq("Grounded"), _)).WillByDefault(Return(true));
   ON_CALL(gui_, Selectable(StrEq("Ceiling"), false, _, _)).WillByDefault(Return(true));

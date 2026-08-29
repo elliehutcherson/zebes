@@ -4,6 +4,7 @@
     "states": [
         {
             "collider_id": "",
+            "key": "default",
             "name": "Default",
             "placement_mode": "grounded",
             "sprite_id": "2a0813c0-f954-453f-a416-ef39e9fc9ac2"

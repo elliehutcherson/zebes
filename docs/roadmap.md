@@ -456,22 +456,23 @@ policy, phased implementation, and gates live in the
 [Milestone 2 movement plan](engine-runtime-plan.md#milestone-2-movement-and-collision-implementation-plan);
 [`handoff.md`](handoff.md) remains the concise resume point.
 
-**Milestone 3 — implementation slice in progress.** The runtime now retains
+**Milestone 3 — implementation complete; live acceptance pending.** The runtime now retains
 copied blueprints in the loaded-level graph and resolves every sprite and
 collider referenced by every state before boot. `RuntimeWorld` owns per-entity
 blueprint-state selection and animation cursors; `PlayerSimulation` advances
 them once per fixed tick; and scene composition presents runtime-selected
 sprite IDs and frame indices without mutating authored entities. Headless
 playback, state-reset, invalid-transition, shipped-reference, and runtime
-presentation tests pass. The live acceptance gate remains open: the shipped
-Mouse Player Placeholder still has one state and one frame, and no semantic
-player animation state machine or live multi-frame player asset exists yet.
-Close that gate with stable semantic state keys and a deliberately small
-real-format playback proof. Then build the animation artwork pipeline before
-starting M4: first prove coherent frame-set generation against an imported
-baseline, then add deterministic shared processing, retained-source recipes,
-transactional Texture/Sprite/Blueprint-state output, headless review, and the
-first production player set. The sequence and failure gate are specified in
+presentation tests pass. Blueprint states now have required, migrated semantic
+keys, and the player selects six idle/run/airborne and left/right states from
+runtime motion and remembered facing. Catacombs ships a deliberately small
+multi-frame Player Animation Proof that preserves one exact collider across all
+states. The remaining M3 gate is live visual confirmation of those transitions.
+Then build the animation artwork pipeline before starting M4: first prove
+coherent frame-set generation against an imported baseline, then add
+deterministic shared processing, retained-source recipes, transactional
+Texture/Sprite/Blueprint-state output, headless review, and the first production
+player set. The sequence and failure gate are specified in
 [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md).
 
 ---

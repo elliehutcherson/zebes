@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import struct
 import sys
 import uuid
@@ -30,14 +31,34 @@ from pathlib import Path
 SPRITE_FRAME_DEFAULTS = {"offset_x": 0, "offset_y": 0}
 
 
+def blueprint_state_key(name: str) -> str:
+    """Derives a stable ASCII authoring key from one legacy display name."""
+    key = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    if not key:
+        raise ValueError("Cannot derive a blueprint state key from its display name")
+    return key
+
+
 def migrate_blueprint(document: dict) -> bool:
-    """Makes the former implicit grounded placement mode explicit."""
+    """Makes Blueprint state identity and placement behavior explicit."""
     changed = False
+    state_keys: set[str] = set()
     for state in document.get("states", []):
-        if "placement_mode" in state:
-            continue
-        state["placement_mode"] = "grounded"
-        changed = True
+        if "key" not in state:
+            name = state.get("name")
+            if not isinstance(name, str):
+                raise ValueError("Cannot migrate a blueprint state without a display name")
+            state["key"] = blueprint_state_key(name)
+            changed = True
+
+        key = state["key"]
+        if not isinstance(key, str) or not key or key in state_keys:
+            raise ValueError(f"Blueprint state key is invalid or duplicated: {key!r}")
+        state_keys.add(key)
+
+        if "placement_mode" not in state:
+            state["placement_mode"] = "grounded"
+            changed = True
     return changed
 
 

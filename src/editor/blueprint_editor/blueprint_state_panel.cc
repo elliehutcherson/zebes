@@ -71,6 +71,7 @@ void BlueprintStatePanel::Render() {
   }
 
   Blueprint::State& state = blueprint_->states[index_];
+  gui_->InputText("Key", &state.key);
   gui_->InputText("Name", &state.name);
 
   if (ScopedCombo combo =

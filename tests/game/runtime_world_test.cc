@@ -80,7 +80,7 @@ RuntimeWorld::Options WorldOptions(Level level) {
   const Blueprint player_blueprint{
       .id = kPlayerBlueprintId,
       .name = "Player",
-      .states = {{.name = "Default", .collider_id = kPlayerColliderId}},
+      .states = {{.key = "default", .name = "Default", .collider_id = kPlayerColliderId}},
   };
   return {
       .level = std::move(level),
@@ -131,8 +131,8 @@ TEST(RuntimeWorldTest, AdvancesAnimationAndResetsPlaybackWhenBlueprintStateChang
   const Level authored = level;
   RuntimeWorld::Options options = WorldOptions(std::move(level));
   options.blueprints.at(kPlayerBlueprintId).states = {
-      {.name = "Idle", .collider_id = kPlayerColliderId, .sprite_id = "idle"},
-      {.name = "Moving", .collider_id = kPlayerColliderId, .sprite_id = "moving"},
+      {.key = "idle", .name = "Idle", .collider_id = kPlayerColliderId, .sprite_id = "idle"},
+      {.key = "moving", .name = "Moving", .collider_id = kPlayerColliderId, .sprite_id = "moving"},
   };
   options.sprites = {
       {"idle", Sprite{.id = "idle", .frames = {{.frames_per_cycle = 2}, {.frames_per_cycle = 2}}}},
@@ -152,13 +152,13 @@ TEST(RuntimeWorldTest, AdvancesAnimationAndResetsPlaybackWhenBlueprintStateChang
   world->AdvanceAnimations();
   EXPECT_EQ(world->frame_indices().at(7), 1);
 
-  ASSERT_OK(world->SetEntityBlueprintState(7, 1));
+  ASSERT_OK(world->SetEntityBlueprintState(7, "moving"));
   EXPECT_EQ(*world->FindBlueprintStateIndex(7), 1);
   EXPECT_EQ(world->sprite_ids().at(7), "moving");
   EXPECT_EQ(world->frame_indices().at(7), 0);
   world->AdvanceAnimations();
   EXPECT_EQ(world->frame_indices().at(7), 1);
-  ASSERT_OK(world->SetEntityBlueprintState(7, 1));
+  ASSERT_OK(world->SetEntityBlueprintState(7, "moving"));
   world->AdvanceAnimations();
   EXPECT_EQ(world->frame_indices().at(7), 0);
 
@@ -170,18 +170,36 @@ TEST(RuntimeWorldTest, BlueprintStateSelectionValidatesBeforeMutation) {
   ASSERT_OK(level.AddEntity(0, PlayerEntity()));
   RuntimeWorld::Options options = WorldOptions(std::move(level));
   options.blueprints.at(kPlayerBlueprintId)
-      .states.push_back(
-          {.name = "Different Collider", .collider_id = "other", .sprite_id = "other"});
+      .states.push_back({.key = "different-collider",
+                         .name = "Different Collider",
+                         .collider_id = "other",
+                         .sprite_id = "other"});
   options.sprites.emplace("other", Sprite{.id = "other", .frames = {{.frames_per_cycle = 1}}});
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
                        RuntimeWorld::Create(std::move(options)));
 
-  EXPECT_TRUE(absl::IsInvalidArgument(world->SetEntityBlueprintState(7, -1)));
-  EXPECT_TRUE(absl::IsFailedPrecondition(world->SetEntityBlueprintState(7, 1)));
-  EXPECT_TRUE(absl::IsNotFound(world->SetEntityBlueprintState(999, 0)));
+  EXPECT_TRUE(absl::IsInvalidArgument(world->SetEntityBlueprintState(7, "missing")));
+  EXPECT_TRUE(absl::IsFailedPrecondition(world->SetEntityBlueprintState(7, "different-collider")));
+  EXPECT_TRUE(absl::IsNotFound(world->SetEntityBlueprintState(999, "default")));
   EXPECT_EQ(*world->FindBlueprintStateIndex(7), 0);
   EXPECT_EQ(world->sprite_ids().at(7), "");
   EXPECT_FALSE(world->frame_indices().contains(7));
+}
+
+TEST(RuntimeWorldTest, RejectsInvalidOrDuplicateBlueprintStateKeysAtBoot) {
+  Level level = TestLevel();
+  ASSERT_OK(level.AddEntity(0, PlayerEntity()));
+
+  RuntimeWorld::Options invalid = WorldOptions(level);
+  invalid.blueprints.at(kPlayerBlueprintId).states.front().key = "Invalid Key";
+  EXPECT_EQ(RuntimeWorld::Create(std::move(invalid)).status().code(),
+            absl::StatusCode::kFailedPrecondition);
+
+  RuntimeWorld::Options duplicate = WorldOptions(std::move(level));
+  duplicate.blueprints.at(kPlayerBlueprintId)
+      .states.push_back({.key = "default", .name = "Duplicate", .collider_id = kPlayerColliderId});
+  EXPECT_EQ(RuntimeWorld::Create(std::move(duplicate)).status().code(),
+            absl::StatusCode::kFailedPrecondition);
 }
 
 TEST(RuntimeWorldTest, ConsumesJumpEdgeOnceAcrossCatchUpTicks) {

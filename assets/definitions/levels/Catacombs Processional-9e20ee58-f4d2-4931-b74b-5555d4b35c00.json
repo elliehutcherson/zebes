@@ -193,7 +193,7 @@
             "entities": [
                 {
                     "active": true,
-                    "blueprint_id": "8be038c0-fd4e-4dc5-9def-2a34946c5c4d",
+                    "blueprint_id": "1be81945-b011-4342-9109-a10c4040078c",
                     "blueprint_state_index": 0,
                     "body": {
                         "drag_x": 0.0,
@@ -204,7 +204,7 @@
                     "collider_id": "2ef185c9-3a26-4729-8373-416e36ed67c7",
                     "id": 4,
                     "sort_order": 0,
-                    "sprite_id": "4a0a154a-ed7e-4bac-bf96-309e1ebda3e2",
+                    "sprite_id": "65bd6ae3-5aa9-4ef9-8669-81d99c7c297a",
                     "transform": {
                         "rotation": 0.0,
                         "x": 256.0,

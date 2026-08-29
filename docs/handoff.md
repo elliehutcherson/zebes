@@ -21,6 +21,10 @@ Two tracks intentionally proceed in parallel:
   against a sparse local tile query, resolves simultaneous and one-way contacts,
   follows the player camera, and renders runtime transforms without mutating the
   authored level. The live Catacombs movement review was accepted on 2026-08-29.
+  Milestone 3 now has stable semantic Blueprint state keys, player idle/run/
+  airborne selection with remembered facing, and a six-state multi-frame proof
+  asset in Catacombs. Its automated gate passes; only the live visual acceptance
+  remains open.
 
 The most recent runtime cleanup is split into three reviewable commits:
 
@@ -44,13 +48,17 @@ all state-referenced sprites, textures, and colliders before boot. Headless
 tests cover multi-frame timing, state changes, reset behavior, invalid
 transitions, and the complete render-composition path.
 
-The current Mouse Player Placeholder still has one state and one frame, and no
-production gameplay path calls `SetEntityBlueprintState`. Do not infer semantic
-behavior from display names or numeric state order. Finish the live M3 gate by
-adding stable Blueprint state keys with a migration, authoring an explicit
-multi-frame runtime entity/player contract, and adding the corresponding
-state-selection policy, then verify visible frame changes in the running
-Catacombs level.
+Blueprint states now have required, migrated, unique semantic keys. The player
+policy selects `idle-*`, `run-*`, and `airborne-*` states from grounded state,
+horizontal velocity, and remembered facing; runtime selection uses those keys
+rather than display names or numeric state order. The Catacombs player is the
+six-state Player Animation Proof, which reuses existing multi-frame artwork
+while retaining one exact 32x64 collider across every state.
+
+Finish the live M3 gate by running Catacombs and confirming visible idle, run,
+airborne, and left/right transitions without collision-bound changes. Once
+accepted, record M3 complete and move directly to the animation artwork
+feasibility gate below.
 
 The likely shared files are `src/game/game_runtime.*`, `src/game/game_scene.*`,
 and their tests. Coordinate those before running asset work that changes the

@@ -1,0 +1,31 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 4,
+            "index": 0,
+            "offset_x": -23,
+            "offset_y": -80,
+            "render_h": 80,
+            "render_w": 46,
+            "texture_h": 40,
+            "texture_w": 23,
+            "texture_x": 0,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 1,
+            "offset_x": -24,
+            "offset_y": -82,
+            "render_h": 82,
+            "render_w": 48,
+            "texture_h": 41,
+            "texture_w": 24,
+            "texture_x": 23,
+            "texture_y": 0
+        }
+    ],
+    "id": "b94e66f3-11b6-43b8-94e1-818a863c4bae",
+    "name": "Player Airborne Left Proof",
+    "texture_id": "ec794926-7aa3-41e3-822e-c22e7e1b0388"
+}

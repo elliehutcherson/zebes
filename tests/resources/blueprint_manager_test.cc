@@ -38,9 +38,9 @@ TEST_F(BlueprintManagerTest, CreateAndGetBlueprint) {
   Blueprint blueprint;
   // blueprint.id = "test-blueprint"; // ID is now generated
   blueprint.name = "MyBlueprint";
-  blueprint.states = {{.name = "idle", .collider_id = "idle-collider"},
-                      {.name = "run", .sprite_id = "run-sprite"},
-                      {.name = "jump", .collider_id = "jump-collider"}};
+  blueprint.states = {{.key = "idle", .name = "idle", .collider_id = "idle-collider"},
+                      {.key = "run", .name = "run", .sprite_id = "run-sprite"},
+                      {.key = "jump", .name = "jump", .collider_id = "jump-collider"}};
 
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateBlueprint(blueprint));
   // CHECK ID
@@ -66,7 +66,8 @@ TEST_F(BlueprintManagerTest, CreateBlueprintWithIdKeepsThePreparedIdentity) {
   Blueprint blueprint{
       .id = "prepared-blueprint-1",
       .name = "Cave boulder",
-      .states = {Blueprint::State{.name = "Default", .sprite_id = "prepared-sprite-1"}},
+      .states = {Blueprint::State{
+          .key = "default", .name = "Default", .sprite_id = "prepared-sprite-1"}},
   };
 
   ASSERT_OK(manager_->CreateBlueprintWithId(blueprint));
@@ -80,7 +81,7 @@ TEST_F(BlueprintManagerTest, CreateBlueprintWithIdKeepsThePreparedIdentity) {
 TEST_F(BlueprintManagerTest, SavingKeepsPointersHandedOutBeforeIt) {
   Blueprint blueprint;
   blueprint.name = "Stable";
-  blueprint.states = {{.name = "idle"}};
+  blueprint.states = {{.key = "idle", .name = "idle"}};
   ASSERT_OK_AND_ASSIGN(std::string id, manager_->CreateBlueprint(blueprint));
   ASSERT_OK_AND_ASSIGN(Blueprint * held, manager_->GetBlueprint(id));
 
@@ -97,7 +98,7 @@ TEST_F(BlueprintManagerTest, SaveBlueprintFileFormat) {
   Blueprint blueprint;
   blueprint.id = "file-format-test";
   blueprint.name = "FileFormatTest";
-  blueprint.states = {{.name = "idle"}};
+  blueprint.states = {{.key = "idle", .name = "idle"}};
 
   ASSERT_OK(manager_->SaveBlueprint(blueprint));
 
@@ -109,7 +110,7 @@ TEST_F(BlueprintManagerTest, ValidationLogic) {
   Blueprint blueprint;
   blueprint.id = "validation-test";
   blueprint.name = "ValidationTest";
-  blueprint.states = {{.name = ""}};  // Empty name is invalid
+  blueprint.states = {{.key = "valid", .name = ""}};  // Empty name is invalid
 
   auto status = manager_->SaveBlueprint(blueprint);
   EXPECT_FALSE(status.ok());
@@ -127,7 +128,7 @@ TEST_F(BlueprintManagerTest, LoadRejectsStateWithoutPlacementMode) {
   std::ofstream(test_dir_ + "/definitions/blueprints/missing-placement.json") << R"({
   "id": "missing-placement",
   "name": "Missing placement",
-  "states": [{"name": "Default", "collider_id": "", "sprite_id": "sprite"}]
+  "states": [{"key": "default", "name": "Default", "collider_id": "", "sprite_id": "sprite"}]
 })";
 
   const absl::Status status = manager_->LoadAllBlueprints();
@@ -140,6 +141,7 @@ TEST_F(BlueprintManagerTest, LoadRejectsUnknownPlacementMode) {
   "id": "unknown-placement",
   "name": "Unknown placement",
   "states": [{
+    "key": "default",
     "name": "Default",
     "collider_id": "",
     "sprite_id": "sprite",
@@ -150,6 +152,35 @@ TEST_F(BlueprintManagerTest, LoadRejectsUnknownPlacementMode) {
   const absl::Status status = manager_->LoadAllBlueprints();
   EXPECT_EQ(status.code(), absl::StatusCode::kDataLoss);
   EXPECT_NE(status.message().find("unknown blueprint placement mode"), std::string_view::npos);
+}
+
+TEST_F(BlueprintManagerTest, RejectsMissingInvalidAndDuplicateStateKeys) {
+  std::ofstream(test_dir_ + "/definitions/blueprints/missing-key.json") << R"({
+  "id": "missing-key",
+  "name": "Missing key",
+  "states": [{
+    "name": "Default",
+    "collider_id": "",
+    "sprite_id": "sprite",
+    "placement_mode": "grounded"
+  }]
+})";
+  absl::Status status = manager_->LoadAllBlueprints();
+  EXPECT_EQ(status.code(), absl::StatusCode::kDataLoss);
+  EXPECT_NE(status.message().find("key"), std::string_view::npos);
+
+  Blueprint invalid{
+      .id = "invalid",
+      .name = "Invalid",
+      .states = {{.key = "Idle Right", .name = "Idle"}},
+  };
+  EXPECT_EQ(manager_->SaveBlueprint(invalid).code(), absl::StatusCode::kInvalidArgument);
+
+  invalid.states = {
+      {.key = "idle", .name = "Idle"},
+      {.key = "idle", .name = "Also idle"},
+  };
+  EXPECT_EQ(manager_->SaveBlueprint(invalid).code(), absl::StatusCode::kInvalidArgument);
 }
 
 TEST_F(BlueprintManagerTest, DeleteBlueprint) {
