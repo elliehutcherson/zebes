@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
-#include <limits>
 #include <optional>
 #include <set>
 #include <string>
@@ -320,7 +319,7 @@ absl::StatusOr<int> ResolveBlueprintState(const Blueprint& blueprint, std::strin
       return absl::FailedPreconditionError(absl::StrCat("more than one state in blueprint '",
                                                         blueprint.name, "' is named '", name, "'"));
     }
-    if (candidate > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    if (!std::in_range<int>(candidate)) {
       return absl::ResourceExhaustedError(
           absl::StrCat("blueprint has too many states: ", blueprint.name));
     }

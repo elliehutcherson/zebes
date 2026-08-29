@@ -11,16 +11,18 @@
 namespace zebes {
 namespace {
 
-TEST(TextureEditorModelTest, SortsTextureListByName) {
+TEST(TextureEditorModelTest, SortsTextureListByNameThenId) {
   TextureEditorModel model;
   model.SetTextures({
       {.id = "z", .name = "Zebes", .path = "z.png"},
+      {.id = "b", .name = "Aether", .path = "b.png"},
       {.id = "a", .name = "Aether", .path = "a.png"},
   });
 
-  ASSERT_EQ(model.textures().size(), 2);
+  ASSERT_EQ(model.textures().size(), 3);
   EXPECT_EQ(model.textures()[0].id, "a");
-  EXPECT_EQ(model.textures()[1].id, "z");
+  EXPECT_EQ(model.textures()[1].id, "b");
+  EXPECT_EQ(model.textures()[2].id, "z");
 }
 
 TEST(TextureEditorModelTest, BeginNewTextureResetsSelectionAndBuildsCreateRequest) {

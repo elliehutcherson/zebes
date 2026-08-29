@@ -1,5 +1,6 @@
 #pragma once
 
+#include <compare>
 #include <string>
 
 namespace zebes {
@@ -10,10 +11,8 @@ struct AssetCatalogKey {
   std::string display_name;
   std::string id;
 
-  friend bool operator<(const AssetCatalogKey& lhs, const AssetCatalogKey& rhs) {
-    if (lhs.display_name != rhs.display_name) return lhs.display_name < rhs.display_name;
-    return lhs.id < rhs.id;
-  }
+  friend bool operator==(const AssetCatalogKey&, const AssetCatalogKey&) = default;
+  friend std::strong_ordering operator<=>(const AssetCatalogKey&, const AssetCatalogKey&) = default;
 };
 
 }  // namespace zebes

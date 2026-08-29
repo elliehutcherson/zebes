@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <vector>
+
 #include "macros.h"
 
 namespace zebes {
@@ -18,13 +19,15 @@ Sprite MakeSprite(std::string id, std::string name, int frame_count = 0) {
 
 TEST(SpritePanelModelTest, SortsSpritesAndAttachesSelection) {
   SpritePanelModel model;
-  model.SetSprites({MakeSprite("z", "Zebes"), MakeSprite("a", "Aether")});
+  model.SetSprites(
+      {MakeSprite("z", "Zebes"), MakeSprite("b", "Aether"), MakeSprite("a", "Aether")});
 
-  ASSERT_EQ(model.sprites().size(), 2);
+  ASSERT_EQ(model.sprites().size(), 3);
   EXPECT_EQ(model.sprites()[0].id, "a");
-  EXPECT_EQ(model.sprites()[1].id, "z");
+  EXPECT_EQ(model.sprites()[1].id, "b");
+  EXPECT_EQ(model.sprites()[2].id, "z");
 
-  model.SelectSpriteIndex(1);
+  model.SelectSpriteIndex(2);
   ASSERT_OK(model.AttachSelectedSprite());
   ASSERT_NE(model.editing_sprite(), nullptr);
   EXPECT_EQ(model.editing_sprite()->id, "z");

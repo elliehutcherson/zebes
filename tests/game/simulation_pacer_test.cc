@@ -1,7 +1,7 @@
 #include "game/simulation_pacer.h"
 
 #include <cstddef>
-#include <limits>
+#include <cstdint>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -23,10 +23,10 @@ SimulationPacerConfig TestConfig() {
   };
 }
 
-absl::StatusOr<size_t> CountSteps(absl::Duration render_cadence, size_t frame_count) {
+absl::StatusOr<int64_t> CountSteps(absl::Duration render_cadence, size_t frame_count) {
   ASSIGN_OR_RETURN(SimulationPacer pacer,
                    SimulationPacer::Create(TestConfig(), SimulationPacingMode::kRealtime));
-  size_t step_count = 0;
+  int64_t step_count = 0;
   for (size_t frame = 0; frame < frame_count; ++frame) {
     ASSIGN_OR_RETURN(const SimulationPacingResult result, pacer.Advance(render_cadence));
     step_count += result.step_count;
@@ -61,8 +61,8 @@ TEST(SimulationPacerTest, RealtimeCadenceReturnsDueStepsDeadlineAndInterpolation
 }
 
 TEST(SimulationPacerTest, SimulationRateIsIndependentOfRenderCadence) {
-  ASSERT_OK_AND_ASSIGN(const size_t fast_render_steps, CountSteps(absl::Milliseconds(5), 20));
-  ASSERT_OK_AND_ASSIGN(const size_t slow_render_steps, CountSteps(absl::Milliseconds(20), 5));
+  ASSERT_OK_AND_ASSIGN(const int64_t fast_render_steps, CountSteps(absl::Milliseconds(5), 20));
+  ASSERT_OK_AND_ASSIGN(const int64_t slow_render_steps, CountSteps(absl::Milliseconds(20), 5));
 
   EXPECT_EQ(fast_render_steps, 10);
   EXPECT_EQ(slow_render_steps, 10);
@@ -129,7 +129,7 @@ TEST(SimulationPacerTest, RejectsInvalidConfiguration) {
             absl::StatusCode::kInvalidArgument);
 
   config = TestConfig();
-  config.max_steps_per_run = std::numeric_limits<size_t>::max();
+  config.max_steps_per_run = -1;
   EXPECT_EQ(SimulationPacer::Create(config, SimulationPacingMode::kRealtime).status().code(),
             absl::StatusCode::kInvalidArgument);
 

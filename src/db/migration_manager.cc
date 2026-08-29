@@ -114,8 +114,7 @@ absl::StatusOr<int> MigrationManager::Migrate(sqlite3* db, const std::string& db
   LOG(INFO) << "Found " << migrations.size() << " migrations to apply.";
 
   // Applied in version order; a migration assumes every earlier one has run.
-  std::sort(migrations.begin(), migrations.end(),
-            [](const MigrationFile& a, const MigrationFile& b) { return a.version < b.version; });
+  std::ranges::sort(migrations, {}, &MigrationFile::version);
 
   int count = 0;
   for (const MigrationFile& m : migrations) {

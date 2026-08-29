@@ -1,5 +1,6 @@
 #pragma once
 
+#include <compare>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -67,9 +68,10 @@ struct TileChunkCoordinate {
   int x = 0;
   int y = 0;
 
-  constexpr bool operator<(const TileChunkCoordinate& other) const {
-    if (y != other.y) return y < other.y;
-    return x < other.x;
+  constexpr bool operator==(const TileChunkCoordinate&) const = default;
+  constexpr std::strong_ordering operator<=>(const TileChunkCoordinate& other) const {
+    if (const std::strong_ordering row_order = y <=> other.y; row_order != 0) return row_order;
+    return x <=> other.x;
   }
 };
 

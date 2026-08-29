@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
+#include <utility>
 
 #include "absl/status/status.h"
 
@@ -61,16 +61,20 @@ absl::StatusOr<RgbaImage> BuildRepetitionPreview(const RgbaImage& image, int cop
   }
   const int64_t width = static_cast<int64_t>(image.width) * copies_x;
   const int64_t height = static_cast<int64_t>(image.height) * copies_y;
-  const int64_t pixels = width * height;
-  if (width > std::numeric_limits<int>::max() || height > std::numeric_limits<int>::max() ||
-      pixels <= 0 || static_cast<uint64_t>(pixels) > maximum_pixels) {
+  if (!std::in_range<int>(width) || !std::in_range<int>(height)) {
     return absl::ResourceExhaustedError("repetition preview exceeds its pixel limit");
   }
+  const size_t pixel_width = static_cast<size_t>(width);
+  const size_t pixel_height = static_cast<size_t>(height);
+  if (pixel_width > maximum_pixels / pixel_height) {
+    return absl::ResourceExhaustedError("repetition preview exceeds its pixel limit");
+  }
+  const size_t pixels = pixel_width * pixel_height;
 
   RgbaImage preview{
       .width = static_cast<int>(width),
       .height = static_cast<int>(height),
-      .pixels = std::vector<uint8_t>(static_cast<size_t>(pixels) * 4),
+      .pixels = std::vector<uint8_t>(pixels * 4),
   };
   const size_t source_row_bytes = static_cast<size_t>(image.width) * 4;
   for (int copy_y = 0; copy_y < copies_y; ++copy_y) {

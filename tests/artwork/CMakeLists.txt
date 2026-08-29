@@ -26,6 +26,15 @@ target_link_libraries(parallax_artwork_pipeline_test
 target_include_directories(parallax_artwork_pipeline_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(parallax_artwork_pipeline_test)
 
+add_executable(repetition_review_test repetition_review_test.cc)
+target_link_libraries(repetition_review_test
+  repetition_review
+  gtest_main
+  macros
+)
+target_include_directories(repetition_review_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(repetition_review_test)
+
 add_executable(parallax_artwork_recipe_test parallax_artwork_recipe_test.cc)
 target_link_libraries(parallax_artwork_recipe_test
   parallax_artwork_recipe

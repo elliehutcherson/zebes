@@ -10,6 +10,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/named_asset_order.h"
 #include "common/resource_identity.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
@@ -142,11 +143,7 @@ std::vector<ParallaxArtworkRecipe> ParallaxArtworkRecipeManager::GetAllRecipes()
     static_cast<void>(id);
     result.push_back(*recipe);
   }
-  std::sort(result.begin(), result.end(),
-            [](const ParallaxArtworkRecipe& left, const ParallaxArtworkRecipe& right) {
-              if (left.name != right.name) return left.name < right.name;
-              return left.id < right.id;
-            });
+  std::ranges::sort(result, NamedAssetLess{});
   return result;
 }
 

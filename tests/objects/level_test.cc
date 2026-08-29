@@ -88,6 +88,12 @@ TEST(LevelTest, ValidationRejectsInvalidChunkCoordinatesAndTilesOutsideBounds) {
   EXPECT_EQ(ValidateLevel(level).code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST(LevelTest, TileChunkCoordinatesUseRowMajorOrder) {
+  EXPECT_LT((TileChunkCoordinate{.x = 99, .y = 1}), (TileChunkCoordinate{.x = -99, .y = 2}));
+  EXPECT_LT((TileChunkCoordinate{.x = 1, .y = 3}), (TileChunkCoordinate{.x = 2, .y = 3}));
+  EXPECT_EQ((TileChunkCoordinate{.x = 4, .y = 5}), (TileChunkCoordinate{.x = 4, .y = 5}));
+}
+
 TEST(LevelTest, ValidationRejectsMalformedZoneThemeIds) {
   Level level = ValidLevel();
   level.zones.push_back({

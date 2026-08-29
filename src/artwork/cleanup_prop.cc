@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <queue>
 #include <vector>
 
@@ -50,10 +51,8 @@ std::vector<Component> FindComponents(const RgbaImage& image) {
     }
     components.push_back(std::move(component));
   }
-  std::sort(components.begin(), components.end(),
-            [](const Component& left, const Component& right) {
-              return left.pixels.size() > right.pixels.size();
-            });
+  std::ranges::sort(components, std::greater{},
+                    [](const Component& component) { return component.pixels.size(); });
   return components;
 }
 

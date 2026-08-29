@@ -1129,7 +1129,9 @@ Named asset catalogs use the shared `AssetCatalogKey`, ordered by display name
 and then stable asset ID. This preserves duplicate names while providing
 deterministic UI iteration without sorting every frame. Selection is stored by
 stable asset or tile ID rather than by a vector position that can change after
-refreshing or editing.
+refreshing or editing. Vector-returning resource catalogs and transient picker
+lists use the same name-then-ID policy through `NamedAssetLess`, so duplicate
+display names do not make their order depend on hash-map or input iteration.
 
 ## Testing boundaries
 

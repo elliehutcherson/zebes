@@ -4,12 +4,12 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "common/named_asset_order.h"
 
 namespace zebes {
 
 void SpritePanelModel::SetSprites(std::vector<Sprite> sprites) {
-  std::sort(sprites.begin(), sprites.end(),
-            [](const Sprite& a, const Sprite& b) { return a.name < b.name; });
+  std::ranges::sort(sprites, NamedAssetLess{});
   sprites_ = std::move(sprites);
 
   if (selected_sprite_index_ >= static_cast<int>(sprites_.size())) {

@@ -5,12 +5,12 @@
 
 #include "absl/status/status.h"
 #include "common/common.h"
+#include "common/named_asset_order.h"
 
 namespace zebes {
 
 void TextureEditorModel::SetTextures(std::vector<Texture> textures) {
-  std::sort(textures.begin(), textures.end(),
-            [](const Texture& a, const Texture& b) { return a.name < b.name; });
+  std::ranges::sort(textures, NamedAssetLess{});
   textures_ = std::move(textures);
 }
 

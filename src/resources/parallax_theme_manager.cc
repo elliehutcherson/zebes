@@ -7,6 +7,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/named_asset_order.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
@@ -101,11 +102,7 @@ std::vector<ParallaxTheme> ParallaxThemeManager::GetAllThemes() const {
   std::vector<ParallaxTheme> themes;
   themes.reserve(themes_.size());
   for (const auto& [id, theme] : themes_) themes.push_back(*theme);
-  std::sort(themes.begin(), themes.end(),
-            [](const ParallaxTheme& left, const ParallaxTheme& right) {
-              if (left.name != right.name) return left.name < right.name;
-              return left.id < right.id;
-            });
+  std::ranges::sort(themes, NamedAssetLess{});
   return themes;
 }
 

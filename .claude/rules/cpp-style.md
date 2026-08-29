@@ -47,6 +47,19 @@ over their STL equivalents.
 - No `else` after a branch that returns.
 - More than two levels of indentation means extract a private helper.
 
+## Comparison and numeric boundaries
+
+- Define `operator<=>` only when a type has one natural, domain-wide ordering.
+  Keep presentation and algorithm-specific order explicit at the sort call;
+  prefer a ranges projection over a one-field comparison lambda.
+- Floating-point aggregates do not get a defaulted `operator<=>`: NaN makes
+  their ordering partial. Validate finite values at boundaries that require an
+  ordered key.
+- Use `std::in_range<T>` before integral narrowing. Keep
+  `std::numeric_limits` where the limit itself is meaningful, such as overflow
+  arithmetic, exhaustion, infinity, or an intentional boundary test. Do not
+  hide it behind a generic maximum-value alias.
+
 ## Headers
 
 - Include what the file uses. Do not rely on transitive includes.

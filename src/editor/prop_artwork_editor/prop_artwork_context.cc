@@ -4,7 +4,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <optional>
 #include <utility>
 
@@ -228,9 +227,7 @@ absl::StatusOr<PropArtworkContextPreview> BuildPropArtworkContextPreview(
   const int64_t preview_width = static_cast<int64_t>(content_right) - content_left + 2LL * margin;
   const int64_t preview_height = static_cast<int64_t>(content_bottom) - content_top + 2LL * margin;
   if (preview_width <= 0 || preview_height <= 0 || preview_width > kMaximumPreviewDimension ||
-      preview_height > kMaximumPreviewDimension ||
-      preview_width > std::numeric_limits<int>::max() ||
-      preview_height > std::numeric_limits<int>::max()) {
+      preview_height > kMaximumPreviewDimension) {
     return absl::ResourceExhaustedError("context preview dimensions exceed safe limits");
   }
 

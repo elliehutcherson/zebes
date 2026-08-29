@@ -1,7 +1,7 @@
 #include "common/image_io.h"
 
 #include <filesystem>
-#include <limits>
+#include <utility>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/strings/str_cat.h"
@@ -103,7 +103,7 @@ absl::StatusOr<RgbaImage> DecodeImage(absl::Span<const uint8_t> bytes, int64_t m
     return absl::InvalidArgumentError("image decode pixel limit must be positive");
   }
   if (bytes.empty()) return absl::DataLossError("image bytes are empty");
-  if (bytes.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+  if (!std::in_range<int>(bytes.size())) {
     return absl::OutOfRangeError("image bytes exceed the decoder's supported size");
   }
 

@@ -3,7 +3,6 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
-#include <limits>
 #include <string>
 #include <utility>
 
@@ -31,7 +30,7 @@ absl::StatusOr<T> Required(const nlohmann::json& json, const char* key) {
 template <typename Enum>
 absl::StatusOr<Enum> RequiredEnum(const nlohmann::json& json, const char* key) {
   ASSIGN_OR_RETURN(const int value, Required<int>(json, key));
-  if (value < 0 || value > std::numeric_limits<uint8_t>::max()) {
+  if (!std::in_range<uint8_t>(value)) {
     return absl::InvalidArgumentError(
         absl::StrCat("terrain recipe field '", key, "' has unknown value ", value));
   }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstddef>
+#include <cstdint>
 #include <optional>
 
 #include "absl/status/statusor.h"
@@ -15,12 +15,12 @@ enum class SimulationPacingMode {
 
 struct SimulationPacerConfig {
   absl::Duration step_duration = absl::Seconds(1) / 60;
-  size_t max_steps_per_run = 4;
+  int64_t max_steps_per_run = 4;
   absl::Duration max_accumulated_lag = absl::Milliseconds(250);
 };
 
 struct SimulationPacingResult {
-  size_t step_count = 0;
+  int64_t step_count = 0;
   absl::Duration step_duration = absl::ZeroDuration();
 
   // The fractional progress toward the next simulation step. Whole-step debt

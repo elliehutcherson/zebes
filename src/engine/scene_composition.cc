@@ -109,10 +109,7 @@ absl::StatusOr<std::vector<SceneEntityRenderItem>> ComposeSceneEntityRenderItems
     items.push_back(std::move(item));
   }
 
-  std::stable_sort(items.begin(), items.end(),
-                   [](const SceneEntityRenderItem& a, const SceneEntityRenderItem& b) {
-                     return a.sort_order < b.sort_order;
-                   });
+  std::ranges::stable_sort(items, {}, &SceneEntityRenderItem::sort_order);
   return items;
 }
 

@@ -8,6 +8,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/named_asset_order.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
 #include "nlohmann/json.hpp"
@@ -121,11 +122,7 @@ std::vector<TerrainRecipe> TerrainRecipeManager::GetAllRecipes() const {
   std::vector<TerrainRecipe> recipes;
   recipes.reserve(recipes_.size());
   for (const auto& [id, recipe] : recipes_) recipes.push_back(*recipe);
-  std::sort(recipes.begin(), recipes.end(),
-            [](const TerrainRecipe& left, const TerrainRecipe& right) {
-              if (left.name != right.name) return left.name < right.name;
-              return left.id < right.id;
-            });
+  std::ranges::sort(recipes, NamedAssetLess{});
   return recipes;
 }
 

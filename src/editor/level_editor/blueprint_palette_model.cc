@@ -7,6 +7,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "common/named_asset_order.h"
 
 namespace zebes {
 
@@ -30,11 +31,7 @@ absl::Status BlueprintPaletteModel::SetBlueprints(std::span<const Blueprint> blu
     entries.push_back({.id = blueprint.id, .name = blueprint.name, .preview = std::move(preview)});
   }
 
-  std::stable_sort(entries.begin(), entries.end(),
-                   [](const BlueprintPaletteEntry& lhs, const BlueprintPaletteEntry& rhs) {
-                     if (lhs.name != rhs.name) return lhs.name < rhs.name;
-                     return lhs.id < rhs.id;
-                   });
+  std::ranges::sort(entries, NamedAssetLess{});
   entries_ = std::move(entries);
   if (selected_blueprint_id_.has_value() && Find(*selected_blueprint_id_) == nullptr) {
     selected_blueprint_id_.reset();

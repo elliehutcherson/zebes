@@ -43,7 +43,7 @@ absl::StatusOr<RunResult> GameEngine::Run() {
   previous_run_ = now;
   ASSIGN_OR_RETURN(const SimulationPacingResult pacing, pacer_.Advance(elapsed));
 
-  for (size_t step = 0; step < pacing.step_count; ++step) {
+  for (int64_t step = 0; step < pacing.step_count; ++step) {
     RETURN_IF_ERROR(simulation_->Step(pacing.step_duration));
     ++timing_state_.completed_step_count;
     timing_state_.simulation_time += pacing.step_duration;

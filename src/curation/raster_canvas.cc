@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
+#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -172,7 +172,7 @@ absl::Status DrawRgbaOutline(RgbaImage& destination, int min_x, int min_y, int m
   }
   const int64_t width = static_cast<int64_t>(max_x) - min_x + 1;
   const int64_t height = static_cast<int64_t>(max_y) - min_y + 1;
-  if (width > std::numeric_limits<int>::max() || height > std::numeric_limits<int>::max()) {
+  if (!std::in_range<int>(width) || !std::in_range<int>(height)) {
     return absl::OutOfRangeError("RGBA outline dimensions exceed the supported range");
   }
   RETURN_IF_ERROR(FillRgbaRect(destination, min_x, min_y, static_cast<int>(width), 1, color));

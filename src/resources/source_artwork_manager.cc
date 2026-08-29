@@ -11,6 +11,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/image_digest.h"
+#include "common/named_asset_order.h"
 #include "common/resource_identity.h"
 #include "common/status_macros.h"
 #include "common/utils.h"
@@ -288,11 +289,7 @@ std::vector<SourceArtwork> SourceArtworkManager::GetAllArtwork() const {
   std::vector<SourceArtwork> result;
   result.reserve(artwork_.size());
   for (const auto& [id, artwork] : artwork_) result.push_back(*artwork);
-  std::sort(result.begin(), result.end(),
-            [](const SourceArtwork& left, const SourceArtwork& right) {
-              if (left.name != right.name) return left.name < right.name;
-              return left.id < right.id;
-            });
+  std::ranges::sort(result, NamedAssetLess{});
   return result;
 }
 

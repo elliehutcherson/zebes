@@ -99,10 +99,7 @@ std::vector<CandidateCoordinate> MergeCandidates(std::vector<CandidateCoordinate
   for (CandidateCoordinate& candidate : candidates) {
     candidate.value = std::clamp(candidate.value, minimum, maximum);
   }
-  std::stable_sort(candidates.begin(), candidates.end(),
-                   [](const CandidateCoordinate& left, const CandidateCoordinate& right) {
-                     return left.value < right.value;
-                   });
+  std::ranges::stable_sort(candidates, {}, &CandidateCoordinate::value);
 
   std::vector<CandidateCoordinate> merged;
   for (CandidateCoordinate& candidate : candidates) {

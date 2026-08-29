@@ -106,7 +106,7 @@ class CurlHttpOperation final : public HttpOperation {
       CurlLong status_code = 0;
       const CURLcode info = curl_easy_getinfo(easy_, CURLINFO_RESPONSE_CODE, &status_code);
       if (info != CURLE_OK) return CurlError(info);
-      if (status_code > std::numeric_limits<int>::max()) {
+      if (!std::in_range<int>(status_code)) {
         return absl::DataLossError("HTTP response status code is out of range");
       }
       response_.status_code = static_cast<int>(status_code);
@@ -142,11 +142,11 @@ class CurlHttpOperation final : public HttpOperation {
   explicit CurlHttpOperation(HttpRequest request) : request_(std::move(request)) {}
 
   absl::Status Initialize() {
-    if (request_.connect_timeout.count() > std::numeric_limits<CurlLong>::max() ||
-        request_.total_timeout.count() > std::numeric_limits<CurlLong>::max()) {
+    if (!std::in_range<CurlLong>(request_.connect_timeout.count()) ||
+        !std::in_range<CurlLong>(request_.total_timeout.count())) {
       return absl::OutOfRangeError("HTTP timeout exceeds libcurl's supported range");
     }
-    if (request_.body.size() > static_cast<size_t>(std::numeric_limits<curl_off_t>::max())) {
+    if (!std::in_range<curl_off_t>(request_.body.size())) {
       return absl::OutOfRangeError("HTTP request body exceeds libcurl's supported range");
     }
 

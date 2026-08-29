@@ -6,8 +6,7 @@
 
 namespace zebes {
 
-absl::StatusOr<RgbaImage> CropRegion(const RgbaImage& source, int x, int y, int width,
-                                     int height) {
+absl::StatusOr<RgbaImage> CropRegion(const RgbaImage& source, int x, int y, int width, int height) {
   if (!source.IsValid()) {
     return absl::InvalidArgumentError("cannot crop a malformed image");
   }
@@ -47,18 +46,16 @@ absl::StatusOr<TerrainContentIndex> TerrainContentIndex::Build(const Tileset& ti
   std::vector<const Tile*> ordered;
   ordered.reserve(tileset.tiles.size());
   for (const Tile& tile : tileset.tiles) ordered.push_back(&tile);
-  std::sort(ordered.begin(), ordered.end(),
-            [](const Tile* left, const Tile* right) { return left->id < right->id; });
+  std::ranges::sort(ordered, {}, [](const Tile* tile) { return tile->id; });
 
   TerrainContentIndex index;
   for (const Tile* tile : ordered) {
-    absl::StatusOr<RgbaImage> region = CropRegion(atlas, tile->source_x, tile->source_y,
-                                                  tileset.tile_width, tileset.tile_height);
+    absl::StatusOr<RgbaImage> region =
+        CropRegion(atlas, tile->source_x, tile->source_y, tileset.tile_width, tileset.tile_height);
     if (!region.ok()) {
-      return absl::InvalidArgumentError(absl::StrCat("tile ", tile->id, " of tileset '",
-                                                     tileset.name,
-                                                     "' is not inside its atlas: ",
-                                                     region.status().message()));
+      return absl::InvalidArgumentError(
+          absl::StrCat("tile ", tile->id, " of tileset '", tileset.name,
+                       "' is not inside its atlas: ", region.status().message()));
     }
     index.tile_by_content_.emplace(std::move(region->pixels), tile->id);
   }
@@ -79,9 +76,8 @@ absl::Status TerrainContentIndex::Insert(const RgbaImage& tile, int tile_id) {
   auto [entry, inserted] = tile_by_content_.emplace(tile.pixels, tile_id);
   if (inserted) return absl::OkStatus();
 
-  return absl::AlreadyExistsError(absl::StrCat("tile ", entry->second,
-                                               " already holds the artwork offered as tile ",
-                                               tile_id));
+  return absl::AlreadyExistsError(
+      absl::StrCat("tile ", entry->second, " already holds the artwork offered as tile ", tile_id));
 }
 
 }  // namespace zebes

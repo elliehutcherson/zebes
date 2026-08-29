@@ -1,5 +1,6 @@
 #include "terrain/terrain_detect.h"
 
+#include <compare>
 #include <map>
 #include <optional>
 #include <set>
@@ -21,9 +22,10 @@ struct AtlasCoordinate {
   int column = 0;
   int row = 0;
 
-  bool operator<(const AtlasCoordinate& other) const {
-    if (row != other.row) return row < other.row;
-    return column < other.column;
+  constexpr bool operator==(const AtlasCoordinate&) const = default;
+  constexpr std::strong_ordering operator<=>(const AtlasCoordinate& other) const {
+    if (const std::strong_ordering row_order = row <=> other.row; row_order != 0) return row_order;
+    return column <=> other.column;
   }
 };
 
@@ -128,14 +130,13 @@ absl::Status ValidateManifestCoverage(const std::vector<ManifestEntry>& entries)
   for (const ManifestEntry& entry : entries) {
     variants.insert(entry.variant);
     if (!Blob47IndexForMask(entry.mask).has_value()) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("terrain manifest contains non-normalized mask ",
-                       static_cast<int>(entry.mask)));
+      return absl::InvalidArgumentError(absl::StrCat(
+          "terrain manifest contains non-normalized mask ", static_cast<int>(entry.mask)));
     }
     if (!seen.insert({entry.variant, entry.mask}).second) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("terrain manifest repeats mask ", static_cast<int>(entry.mask),
-                       " in variant ", entry.variant));
+      return absl::InvalidArgumentError(absl::StrCat("terrain manifest repeats mask ",
+                                                     static_cast<int>(entry.mask), " in variant ",
+                                                     entry.variant));
     }
   }
 
@@ -204,7 +205,8 @@ std::string SuggestName(const Tileset& tileset, const std::vector<int>& tile_ids
     prefix.resize(shared);
   }
 
-  while (!prefix.empty() && (prefix.back() == '_' || prefix.back() == '-' || prefix.back() == ' ')) {
+  while (!prefix.empty() &&
+         (prefix.back() == '_' || prefix.back() == '-' || prefix.back() == ' ')) {
     prefix.pop_back();
   }
   if (prefix.empty()) return "Terrain";
@@ -270,8 +272,8 @@ absl::StatusOr<TerrainCandidate> BuildTerrainCandidate(const Blob47Atlas& atlas,
       TerrainCellKey key;
       key.shape = TileShape::kFullBlock;
       for (int bit = 0; bit < kNeighborCount; ++bit) {
-        key.neighbors[bit] = (composed.mask & (1 << bit)) != 0 ? TileShape::kFullBlock
-                                                               : TileShape::kNone;
+        key.neighbors[bit] =
+            (composed.mask & (1 << bit)) != 0 ? TileShape::kFullBlock : TileShape::kNone;
       }
       key.phase = composed.variant;
       candidate.terrain.derived_tiles.push_back(
@@ -279,8 +281,7 @@ absl::StatusOr<TerrainCandidate> BuildTerrainCandidate(const Blob47Atlas& atlas,
     }
   } else {
     for (auto& [mask, variants] : variants_by_mask) {
-      candidate.terrain.rules.push_back(
-          TerrainRule{.mask = mask, .variants = std::move(variants)});
+      candidate.terrain.rules.push_back(TerrainRule{.mask = mask, .variants = std::move(variants)});
     }
   }
 
