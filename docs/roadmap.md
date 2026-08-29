@@ -262,8 +262,14 @@ accepted revision adds restrained three-phase stone relief and a clearer rim
 without the cave material's bright repeated crystals. Its 425-artifact terrain
 review and rebuilt 343-artifact level review report no findings, repeat builds
 are byte-identical, and normalized level geometry and collision shapes match
-the prior level exactly. The next content step is a less focal wall treatment;
-avoid increasing density merely to fill the route.
+the prior level exactly. A subsequent managed `generate_assets` pass explored
+subdued wall weathering. Production review rejected both focal relief drafts
+and the quieter damp-stain variants: the former read as pasted slabs, while
+world-space Back Decor stains drifted across the parallax masonry and crossed
+bright arches at some camera positions and zooms. None ships. Any future wall
+aging must be baked into the relevant parallax artwork or rendered in a
+parallax layer with the same scroll factor as its supporting wall; avoid
+increasing density merely to fill the route.
 See
 [`headless-level-review-plan.md`](headless-level-review-plan.md) and
 [`headless-curation.md`](headless-curation.md).

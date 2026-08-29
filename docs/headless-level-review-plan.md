@@ -372,6 +372,17 @@ outputs. A normalized comparison of the rebuilt level against the prior
 tileset proves that dimensions, spawn, zones, entities, tile occupancy, and
 collision shapes are unchanged.
 
+The subsequent wall-treatment pass also demonstrates why integrated review is
+a production gate rather than a presentation aid. Two relief candidates were
+rejected as floating slabs. Narrow damp-course and leached-mortar assets passed
+their isolated prop reviews and looked unobtrusive in the 0.5× and 1× contact
+sheets, but the 2× route exposed a coordinate-space error: as the wall
+parallaxed beneath the world-space Back Decor entities, a stain that aligned to
+dark mortar in one frame crossed a pale arch in another and resembled a thin
+ledge. The four trial placements and both managed asset graphs were removed;
+the shipped level remains at 14 entities with unchanged collision. Surface-bound
+weathering must be authored into the parallax plane it decorates.
+
 Prefer companion lower artwork over scaling the current upper formations:
 scaling would change their accepted landmark size and horizontal rhythm.
 Vertically repeating arches, pillars, or ceiling silhouettes is also rejected

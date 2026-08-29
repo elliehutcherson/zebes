@@ -1100,8 +1100,13 @@ whose pale centers read as interactables. Catacombs Processional now uses its
 own deterministic Catacombs Masonry material while the shared `lucinda_cave`
 terrain remains unchanged for Cave and Donut Plains. Production review rejected
 the first too-flat masonry pass at 0.5×, then accepted restrained cobble relief
-and a clearer collision rim across 0.5×, 1×, and 2×. A less focal wall treatment
-remains content work, not unfinished generation or editor infrastructure.
+and a clearer collision rim across 0.5×, 1×, and 2×. A follow-up managed asset
+pass rejected two focal reliefs as pasted slabs and two subdued stains after
+integrated review showed that world-space Back Decor cannot stay attached to a
+parallax wall across camera positions and zooms. None of those wall treatments
+ships. Further wall aging belongs in the source parallax artwork or a layer
+that shares the wall's scroll factor, and should only be added when the route
+review exposes a concrete coverage need.
 
 - Produce the accepted Far Fill and Far Formations plus a small Near Formation
   element set.
