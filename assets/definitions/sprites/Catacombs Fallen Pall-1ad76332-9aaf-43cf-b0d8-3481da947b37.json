@@ -1,0 +1,19 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "offset_x": -48,
+            "offset_y": -30,
+            "render_h": 32,
+            "render_w": 96,
+            "texture_h": 32,
+            "texture_w": 96,
+            "texture_x": 0,
+            "texture_y": 0
+        }
+    ],
+    "id": "1ad76332-9aaf-43cf-b0d8-3481da947b37",
+    "name": "Catacombs Fallen Pall",
+    "texture_id": "8fb21c81-acaf-467c-b363-81f364555513"
+}

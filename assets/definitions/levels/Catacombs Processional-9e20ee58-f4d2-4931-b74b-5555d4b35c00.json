@@ -86,7 +86,7 @@
                 },
                 {
                     "active": true,
-                    "blueprint_id": "e677ac5d-0100-4cbd-928d-0f97b3118232",
+                    "blueprint_id": "9f9074b5-832f-468e-b910-ef443b73fc81",
                     "blueprint_state_index": 0,
                     "body": {
                         "drag_x": 0.0,
@@ -97,7 +97,7 @@
                     "collider_id": "",
                     "id": 7,
                     "sort_order": 20,
-                    "sprite_id": "2a0813c0-f954-453f-a416-ef39e9fc9ac2",
+                    "sprite_id": "1ad76332-9aaf-43cf-b0d8-3481da947b37",
                     "transform": {
                         "rotation": 0.0,
                         "x": 10944.0,

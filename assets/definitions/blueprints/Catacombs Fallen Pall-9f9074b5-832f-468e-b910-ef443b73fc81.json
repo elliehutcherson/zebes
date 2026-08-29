@@ -1,0 +1,12 @@
+{
+    "id": "9f9074b5-832f-468e-b910-ef443b73fc81",
+    "name": "Catacombs Fallen Pall",
+    "states": [
+        {
+            "collider_id": "",
+            "name": "Default",
+            "placement_mode": "grounded",
+            "sprite_id": "1ad76332-9aaf-43cf-b0d8-3481da947b37"
+        }
+    ]
+}

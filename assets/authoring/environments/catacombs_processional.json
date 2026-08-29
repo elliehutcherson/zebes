@@ -183,7 +183,7 @@
       {
         "id": 7,
         "layer_name": "Back Decor",
-        "blueprint_name": "Catacombs Collapsed Offerings",
+        "blueprint_name": "Catacombs Fallen Pall",
         "state_name": "Default",
         "active": true,
         "position_pixels": [10944.0, 864.0],

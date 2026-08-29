@@ -1,0 +1,18 @@
+{
+  "content_digest": "f359bd22965a15fd57b9cc27438bbc7abeccc40c6da57a272e766f7f305122d1",
+  "height": 887,
+  "id": "fec7b864-8bd6-46b9-8ab5-c66ad68656bb",
+  "name": "Catacombs Fallen Pall source",
+  "provenance": {
+    "generated_at_utc": "2026-08-29T15:16:11Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": "01a04e16-f50d-7e92-a4f5-a67ac56352f8",
+    "revised_prompt": "Use case: stylized-concept\nAsset type: isolated side-view pixel-art game prop; non-collidable background debris; final deterministic runtime reduction and quantization to exactly 96 x 32 pixels\nPrimary request: One connected fallen funerary pall made from heavy torn cloth, rumpled into exactly two broad overlapping folds, with one end slightly raised and the other end trailing flat.\nScene/backdrop: No depicted environment. Genuine transparent background with preserved alpha.\nSubject: A single continuous low cloth prop, complete and fully visible, centered in a wide 3:1 composition. Asymmetrical, grounded-looking silhouette, but with no floor, ground plane, or cast shadow. The cloth is one connected piece, not separate scraps. It should read clearly at gameplay scale relative to a 32 px wide by 64 px tall player hitbox.\nStyle/medium: Modern pixel-art game asset. Deliberate pixel clusters, crisp hard-edged shapes, selective minimal anti-aliasing, compact shading, broad value groups, strong readable silhouette. Design details large enough to survive reduction to 96 x 32. No painterly rendering, no photorealism, no concept-art brushwork, no soft gradients, no subpixel texture.\nComposition/framing: Exact visual target aspect ratio 3:1, very wide and low. Entire subject shown with generous transparent clearance on all sides, nothing cropped. One slightly raised end, two broad overlapping folds across the body, opposite end trailing flat.\nColor palette: Cool charcoal-violet midtones, restrained pale blue-gray seam detail, deep dark underside. Limited cohesive pixel-art palette with clear plane separation.\nMaterials/textures: Heavy, worn, torn funerary cloth. Broad readable fabric planes and a few purposeful chunky edge irregularities; keep all torn areas attached to the main cloth.\nConstraints: Generate exactly one isolated prop only. Transparent background. No text, watermark, border, frame, scenery, floor, ground plane, platform, cast shadow, or extra objects.\nAvoid: bones, plaques, urns, candles, platforms, hazards, symbols, disconnected scraps, detached threads, loose fibers separated from the cloth, multiple objects, cropped subject, soft gradients, hand-painted or photorealistic treatment.",
+    "submitted_prompt": "one connected fallen funerary pall of heavy torn cloth, rumpled into two broad overlapping folds with one end slightly raised and the other trailing flat; use cool charcoal-violet midtones, a restrained pale blue-gray seam, and a dark underside to make the cloth planes readable; asymmetrical, grounded, low, non-collidable background debris; no bones, plaques, urns, candles, platforms, hazards, symbols, disconnected scraps, detached threads, or cast shadow"
+  },
+  "schema_version": 2,
+  "source_path": "source_art/fec7b864-8bd6-46b9-8ab5-c66ad68656bb.png",
+  "width": 1774
+}

@@ -200,6 +200,8 @@ TEST(EnvironmentBuilderTest, LoadsTheProductionCatacombsWithoutCatalogIds) {
   EXPECT_EQ(spec.level.entities[3].position.y, 864.0f);
   EXPECT_EQ(spec.level.entities[4].blueprint_name, "Catacombs Collapsed Offerings");
   EXPECT_EQ(spec.level.entities[5].blueprint_name, "Catacombs Fallen Votive Tablets");
+  EXPECT_EQ(spec.level.entities[6].blueprint_name, "Catacombs Fallen Pall");
+  EXPECT_EQ(spec.level.entities[7].blueprint_name, "Catacombs Fallen Votive Tablets");
   EXPECT_EQ(spec.level.entities[8].blueprint_name, "Catacombs Ceiling Chain Frieze");
   EXPECT_EQ(spec.level.entities[9].blueprint_name, "Catacombs Ceiling Chain Frieze");
   EXPECT_EQ(spec.level.entities[11].blueprint_name, "Catacombs Foreground Funeral Shroud");
