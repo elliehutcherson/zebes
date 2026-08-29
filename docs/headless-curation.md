@@ -262,6 +262,11 @@ build/dev/bin/generate_assets \
   --output=/tmp/collapsed-offerings
 ```
 
+For props, the managed request also carries the template's exact runtime canvas,
+pixel-art production constraints, and the standard one-tile-wide by two-tile-tall
+player hitbox scale. The subject prompt should describe the prop rather than
+repeating those production constraints.
+
 A wall-positioned candidate uses the same managed path but authors its origin
 explicitly. For a 64×64 output, the centered form is:
 

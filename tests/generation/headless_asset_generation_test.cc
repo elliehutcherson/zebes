@@ -254,6 +254,42 @@ TEST_F(HeadlessAssetGenerationTest, PropGenerationAppliesCanvasAndAttachmentOver
   EXPECT_EQ(candidate.template_recipe.expected_frame.offset_y, 0);
 }
 
+TEST_F(HeadlessAssetGenerationTest, PropGenerationNamesPixelArtRuntimeAndPlayerScale) {
+  ASSERT_OK_AND_ASSIGN(PropRecipe recipe, PropTemplateRecipe());
+  MockApi api;
+  EXPECT_CALL(api, GetPropRecipe(recipe.id)).WillOnce(Return(&recipe));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
+                       ImageGenerationService::Create(std::make_unique<InstructionEchoClient>()));
+
+  ASSERT_OK_AND_ASSIGN(
+      HeadlessAssetGenerationResult result,
+      GenerateAssetCandidateBundle(api, *service,
+                                   {
+                                       .kind = "prop",
+                                       .template_recipe_id = recipe.id,
+                                       .name = "Wide Floor Prop",
+                                       .prompt = "one low funerary prop",
+                                       .output_path = (root_ / "pixel-art-instructions").string(),
+                                       .prop_canvas_tiles_wide = 3,
+                                       .prop_canvas_tiles_high = 1,
+                                   }));
+
+  std::ifstream candidate_stream(result.candidate_path);
+  nlohmann::json candidate_json;
+  candidate_stream >> candidate_json;
+  ASSERT_OK_AND_ASSIGN(GeneratedPropCreationCandidate candidate,
+                       GeneratedPropCreationCandidateFromJson(candidate_json));
+  ASSERT_TRUE(candidate.source.provenance.revised_prompt.has_value());
+  EXPECT_THAT(*candidate.source.provenance.revised_prompt,
+              ::testing::HasSubstr("exact 96 x 32 pixel runtime texture"));
+  EXPECT_THAT(*candidate.source.provenance.revised_prompt,
+              ::testing::HasSubstr("player hitbox is 32 pixels wide by 64 pixels tall"));
+  EXPECT_THAT(*candidate.source.provenance.revised_prompt,
+              ::testing::HasSubstr("Modern pixel-art game asset"));
+  EXPECT_THAT(*candidate.source.provenance.revised_prompt,
+              ::testing::HasSubstr("Do not reinterpret the request as hand-painted"));
+}
+
 TEST_F(HeadlessAssetGenerationTest, RejectsPartialPropCanvasOverrideBeforeRecipeLookup) {
   const absl::Status status = ValidateHeadlessAssetGenerationRequest({
       .kind = "prop",

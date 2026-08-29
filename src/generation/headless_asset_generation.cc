@@ -91,6 +91,20 @@ std::string ParallaxRedrawInstructions(const ParallaxArtworkRecipe& recipe,
       "do not replace it with an unrelated composition.");
 }
 
+std::string PropInstructions(const PropRecipe& recipe) {
+  const int output_width = recipe.style.tile_size * recipe.pipeline.composition.canvas_tiles_wide;
+  const int output_height = recipe.style.tile_size * recipe.pipeline.composition.canvas_tiles_high;
+  return absl::StrFormat(
+      "%s\n\nProduction target:\n%s The deterministic asset pipeline will reduce and "
+      "quantize the source to an exact %d x %d pixel runtime texture. Design for that final "
+      "size with broad value groups, crisp hard-edged shapes, and details large enough to "
+      "survive reduction. Do not reinterpret the request as hand-painted, photorealistic, or "
+      "concept art, and avoid soft gradients and subpixel texture. This is a side-view game: "
+      "for scale, the player hitbox is %d pixels wide by %d pixels tall.",
+      kDefaultPropGenerationInstructions, kModernPixelArtStyleGuidance, output_width, output_height,
+      recipe.style.tile_size, recipe.style.tile_size * 2);
+}
+
 absl::StatusOr<CandidatePlan> BuildPlan(Api& api, const ImageGenerationCapabilities& capabilities,
                                         const HeadlessAssetGenerationRequest& request) {
   const GeneratedArtworkProvenance placeholder_provenance{
@@ -168,7 +182,7 @@ absl::StatusOr<CandidatePlan> BuildPlan(Api& api, const ImageGenerationCapabilit
         .spec =
             {
                 .prompt = request.prompt,
-                .instructions = kDefaultPropGenerationInstructions,
+                .instructions = PropInstructions(template_recipe),
                 .requested_candidates = 1,
                 .target_aspect =
                     {
