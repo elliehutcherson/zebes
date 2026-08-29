@@ -97,6 +97,17 @@ TEST(TileCollisionTest, SeparatesABoxContainedByATile) {
   EXPECT_FALSE(separated.has_value());
 }
 
+TEST(TileCollisionTest, AcceptsEveryDefinedTileShape) {
+  for (int shape_value = static_cast<int>(TileShape::kFullBlock);
+       shape_value <= static_cast<int>(TileShape::kSteepSlopeCeilingTallLeftTop); ++shape_value) {
+    const TileShape shape = static_cast<TileShape>(shape_value);
+    ASSERT_OK_AND_ASSIGN(const std::optional<TileCollisionContact> contact,
+                         IntersectBoxWithTileShape({.min = {-1.0, -1.0}, .max = {33.0, 33.0}},
+                                                   shape, {.x = 0.0, .y = 0.0}, kTileSize));
+    EXPECT_TRUE(contact.has_value()) << kTileShapeIdentifiers[shape_value];
+  }
+}
+
 TEST(TileCollisionTest, RejectsInvalidGeometryAndShape) {
   EXPECT_EQ(IntersectBoxWithTileShape({.min = {1.0, 0.0}, .max = {1.0, 2.0}}, TileShape::kFullBlock,
                                       {.x = 0.0, .y = 0.0}, kTileSize)

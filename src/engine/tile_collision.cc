@@ -4,9 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <limits>
 #include <optional>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -17,6 +15,20 @@
 
 namespace zebes {
 namespace {
+
+constexpr size_t kMaxTileShapePointCount = 4;
+constexpr size_t kBoxAxisCount = 2;
+constexpr size_t kMaxCollisionAxisCount = kBoxAxisCount + kMaxTileShapePointCount;
+
+struct WorldPolygon {
+  std::array<Vec, kMaxTileShapePointCount> points;
+  size_t count = 0;
+};
+
+struct CollisionAxisList {
+  std::array<Vec, kMaxCollisionAxisCount> axes;
+  size_t count = 0;
+};
 
 bool IsFinite(Vec value) { return std::isfinite(value.x) && std::isfinite(value.y); }
 
@@ -55,15 +67,28 @@ Projection ProjectPolygon(absl::Span<const Vec> polygon, Vec axis) {
   return projection;
 }
 
-std::vector<Vec> CollisionAxes(absl::Span<const Vec> polygon) {
-  std::vector<Vec> axes = {{1.0, 0.0}, {0.0, 1.0}};
-  axes.reserve(axes.size() + polygon.size());
+CollisionAxisList CollisionAxes(absl::Span<const Vec> polygon) {
+  CollisionAxisList axes;
+  axes.axes[axes.count++] = {1.0, 0.0};
+  axes.axes[axes.count++] = {0.0, 1.0};
   for (size_t index = 0; index < polygon.size(); ++index) {
     const Vec edge = Subtract(polygon[(index + 1) % polygon.size()], polygon[index]);
     const double length = std::hypot(edge.x, edge.y);
-    axes.push_back({.x = -edge.y / length, .y = edge.x / length});
+    axes.axes[axes.count++] = {.x = -edge.y / length, .y = edge.x / length};
   }
   return axes;
+}
+
+WorldPolygon ScaleTilePolygon(absl::Span<const TilePoint> normalized_polygon, Vec tile_origin,
+                              Vec tile_size) {
+  WorldPolygon polygon;
+  for (const TilePoint point : normalized_polygon) {
+    polygon.points[polygon.count++] = {
+        .x = tile_origin.x + static_cast<double>(point.x) * tile_size.x,
+        .y = tile_origin.y + static_cast<double>(point.y) * tile_size.y,
+    };
+  }
+  return polygon;
 }
 
 TileCollisionContact MinimumAxisSeparation(Projection box, Projection polygon, Vec axis) {
@@ -108,20 +133,17 @@ absl::StatusOr<std::optional<TileCollisionContact>> IntersectBoxWithTileShape(Ax
   if (normalized_polygon.empty()) {
     return absl::InvalidArgumentError("Collision tile shape has no geometry");
   }
-
-  std::vector<Vec> polygon;
-  polygon.reserve(normalized_polygon.size());
-  for (const TilePoint point : normalized_polygon) {
-    polygon.push_back({
-        .x = tile_origin.x + static_cast<double>(point.x) * tile_size.x,
-        .y = tile_origin.y + static_cast<double>(point.y) * tile_size.y,
-    });
+  if (normalized_polygon.size() > kMaxTileShapePointCount) {
+    return absl::InternalError("Collision tile shape exceeds the fixed polygon capacity");
   }
 
-  TileCollisionContact contact;
-  contact.penetration = std::numeric_limits<double>::infinity();
+  const WorldPolygon world_polygon = ScaleTilePolygon(normalized_polygon, tile_origin, tile_size);
+  const absl::Span<const Vec> polygon(world_polygon.points.data(), world_polygon.count);
+  const CollisionAxisList collision_axes = CollisionAxes(polygon);
+  const absl::Span<const Vec> axes(collision_axes.axes.data(), collision_axes.count);
+  std::optional<TileCollisionContact> contact;
 
-  for (Vec axis : CollisionAxes(polygon)) {
+  for (const Vec axis : axes) {
     const Projection box_projection = ProjectBox(box, axis);
     const Projection polygon_projection = ProjectPolygon(polygon, axis);
     if (box_projection.max <= polygon_projection.min ||
@@ -130,7 +152,9 @@ absl::StatusOr<std::optional<TileCollisionContact>> IntersectBoxWithTileShape(Ax
     }
     const TileCollisionContact candidate =
         MinimumAxisSeparation(box_projection, polygon_projection, axis);
-    if (candidate.penetration < contact.penetration) contact = candidate;
+    if (!contact.has_value() || candidate.penetration < contact->penetration) {
+      contact = candidate;
+    }
   }
 
   return contact;
