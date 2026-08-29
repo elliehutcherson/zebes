@@ -134,6 +134,10 @@ add_executable(scene_composition_test engine/scene_composition_test.cc)
 target_link_libraries(scene_composition_test scene_composition macros gtest_main)
 gtest_discover_tests(scene_composition_test)
 
+add_executable(tile_collision_test engine/tile_collision_test.cc)
+target_link_libraries(tile_collision_test tile_collision macros gtest_main)
+gtest_discover_tests(tile_collision_test)
+
 add_executable(parallax_layout_test engine/parallax_layout_test.cc)
 target_link_libraries(parallax_layout_test parallax_layout gtest_main)
 gtest_discover_tests(parallax_layout_test)
@@ -151,12 +155,21 @@ target_link_libraries(free_fly_simulation_test
   free_fly_simulation macros gtest_main gmock)
 gtest_discover_tests(free_fly_simulation_test)
 
+add_executable(player_input_test game/player_input_test.cc)
+target_link_libraries(player_input_test player_input gtest_main)
+gtest_discover_tests(player_input_test)
+
+add_executable(runtime_world_test game/runtime_world_test.cc)
+target_link_libraries(runtime_world_test runtime_world macros gtest_main)
+gtest_discover_tests(runtime_world_test)
+
 add_executable(game_level_assets_test game/game_level_assets_test.cc)
 target_link_libraries(game_level_assets_test
   asset_workspace
   game_scene
   headless_texture_store
   macros
+  runtime_world
   gtest_main
 )
 target_compile_definitions(game_level_assets_test

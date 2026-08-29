@@ -20,6 +20,30 @@ target_link_libraries(game_engine
   absl::time
 )
 
+add_library(player_input player_input.cc)
+target_link_libraries(player_input
+  PUBLIC
+  input_types
+)
+
+add_library(runtime_world runtime_world.cc)
+target_link_libraries(runtime_world
+  PUBLIC
+  collider
+  input_types
+  level
+  player_input
+  tile_collision
+  transform
+  absl::flat_hash_map
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::check
+  absl::status
+  absl::strings
+)
+
 add_library(free_fly_simulation free_fly_simulation.cc)
 target_link_libraries(free_fly_simulation
   PUBLIC
@@ -37,6 +61,7 @@ target_link_libraries(free_fly_simulation
 add_library(game_level_assets game_level_assets.cc)
 target_link_libraries(game_level_assets
   PUBLIC
+  collider
   level
   parallax_theme
   sprite

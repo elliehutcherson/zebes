@@ -2,14 +2,20 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
+#include <string_view>
 
 #include "absl/status/status.h"
 #include "api/asset_workspace.h"
 #include "common/config.h"
 #include "game/game_scene.h"
+#include "game/runtime_world.h"
 #include "gtest/gtest.h"
 #include "macros.h"
 #include "objects/camera.h"
+#include "objects/collider.h"
+#include "objects/entity.h"
+#include "objects/level.h"
 #include "platform/headless/headless_texture_store.h"
 
 namespace zebes {
@@ -35,6 +41,27 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
   EXPECT_TRUE(assets.tileset_texture);
   EXPECT_FALSE(assets.sprites.empty());
   EXPECT_EQ(assets.sprites.size(), assets.sprite_textures.size());
+  const Entity* mouse_player = nullptr;
+  for (const WorldLayer& layer : assets.level.layers) {
+    for (const auto& entry : layer.entities) {
+      const Entity& entity = entry.second;
+      if (entity.blueprint_id != kMousePlayerPlaceholderBlueprintId) continue;
+      ASSERT_EQ(mouse_player, nullptr) << "shipped level contains multiple mouse players";
+      mouse_player = &entity;
+    }
+  }
+  ASSERT_NE(mouse_player, nullptr);
+  const auto mouse_collider = assets.colliders.find(mouse_player->collider_id);
+  ASSERT_NE(mouse_collider, assets.colliders.end());
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
+                       RuntimeWorld::Create({
+                           .level = assets.level,
+                           .player_blueprint_id = std::string(kMousePlayerPlaceholderBlueprintId),
+                           .player_collider = mouse_collider->second,
+                       }));
+  EXPECT_EQ(world->player_entity_id(), 4);
+  EXPECT_EQ(world->player_local_collider(),
+            (AxisAlignedBox{.min = {-16.0, -64.0}, .max = {16.0, 0.0}}));
   EXPECT_FALSE(assets.parallax_themes.empty());
   EXPECT_FALSE(assets.parallax_textures.empty());
 

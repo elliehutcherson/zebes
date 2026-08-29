@@ -44,6 +44,17 @@ target_link_libraries(scene_composition
   absl::strings
 )
 
+add_library(tile_collision tile_collision.cc)
+target_link_libraries(tile_collision
+  PUBLIC
+  tile_shape_geometry
+  tileset
+  vec
+  absl::statusor
+  PRIVATE
+  absl::status
+)
+
 add_library(input_manager input_manager.cc)
 target_link_libraries(input_manager
   PUBLIC input_types

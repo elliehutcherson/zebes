@@ -9,6 +9,7 @@
 #include "api/api.h"
 #include "common/status_macros.h"
 #include "engine/texture_handle.h"
+#include "objects/collider.h"
 #include "objects/entity.h"
 #include "objects/level.h"
 #include "objects/parallax_theme.h"
@@ -48,6 +49,25 @@ absl::Status LoadEntitySprites(Api& api, GameLevelAssets& assets) {
           RequireTextureHandle(api, sprite->texture_id, absl::StrCat("sprite ", sprite->id)));
       assets.sprites.emplace(sprite->id, *sprite);
       assets.sprite_textures.emplace(sprite->id, texture);
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status LoadEntityColliders(Api& api, GameLevelAssets& assets) {
+  for (const WorldLayer& layer : assets.level.layers) {
+    for (const auto& [entity_id, entity] : layer.entities) {
+      if (entity.collider_id.empty() || assets.colliders.contains(entity.collider_id)) continue;
+      ASSIGN_OR_RETURN(Collider * collider, api.GetCollider(entity.collider_id));
+      if (collider == nullptr) {
+        return absl::FailedPreconditionError(
+            absl::StrCat("entity ", entity_id, " collider resolved to null"));
+      }
+      if (collider->id != entity.collider_id) {
+        return absl::FailedPreconditionError(
+            absl::StrCat("entity ", entity_id, " resolved the wrong collider definition"));
+      }
+      assets.colliders.emplace(collider->id, *collider);
     }
   }
   return absl::OkStatus();
@@ -108,6 +128,7 @@ absl::StatusOr<GameLevelAssets> LoadGameLevelAssets(Api& api, std::string_view l
       .tileset_texture = tileset_texture,
   };
   RETURN_IF_ERROR(LoadEntitySprites(api, assets));
+  RETURN_IF_ERROR(LoadEntityColliders(api, assets));
   RETURN_IF_ERROR(LoadParallaxThemes(api, assets));
   return assets;
 }

@@ -2,8 +2,8 @@
 
 **Status: Milestone 1 implemented. `run_game` boots the shipped Catacombs level,
 drives a fixed-step free-fly simulation, and presents the shared scene through
-SDL. Milestone 2 is next; the runtime and asset/content tracks proceed in
-parallel.**
+SDL. Milestone 2 foundations now exist; player movement integration remains.
+The runtime and asset/content tracks proceed in parallel.**
 
 Design for the Zebes game runtime: the executable that loads a shipped level
 and plays it. The editor, curation, and generation stacks are out of scope
@@ -205,6 +205,16 @@ The Mouse Player Placeholder with its exact 32×64 collider is the test body.
 Gate: run and jump through Catacombs with correct slope traversal; headless
 simulation tests for ground, wall, slope, and ceiling contacts, each failure
 path included.
+
+First checkpoint implemented: `RuntimeWorld` preserves the authored `Level`
+beside entity-ID-keyed runtime transforms, motion, and controller state; raw
+input snapshots derive held movement and a fixed-tick-consumed jump edge; boot
+copies referenced collider definitions; and a platform-neutral static
+AABB-versus-`TileShape` SAT query covers block and slope contacts using
+`tile_shape_geometry`. The remaining M2 solver must sweep through only the
+player's world layer, enforce one-way policy, resolve contacts deterministically
+without tunneling, integrate motion, and drive the follow camera. The static
+overlap query is a primitive for that solver, not the solver itself.
 
 **M3 — Animation playback and blueprint-state behavior.** Frame timers and
 playback state in `RuntimeWorld`, following the `editor/animator.h` ownership
