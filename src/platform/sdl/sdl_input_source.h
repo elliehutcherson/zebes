@@ -2,11 +2,10 @@
 
 #include "SDL_events.h"
 #include "absl/functional/any_invocable.h"
+#include "common/sdl_wrapper.h"
 #include "engine/input_types.h"
 
 namespace zebes {
-
-class SdlWrapper;
 
 // SDL adapter that translates native events and keyboard state into an
 // engine-owned snapshot. An optional observer lets another platform adapter,

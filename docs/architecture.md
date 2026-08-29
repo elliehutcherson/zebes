@@ -155,20 +155,24 @@ snapshots without initializing a window or ImGui context.
 
 ## Game runtime ownership
 
-`GameRuntime` is the M1 composition root beside `EditorEngine`. Its boot phase
-loads config, creates SDL and the runtime texture store, opens a read-only
-`AssetWorkspace` runtime profile, and resolves the shipped level's complete
-graph into a frozen `LoadedLevelAssets` value. `LoadedLevelContent` contains
-only copied authored definitions; `LevelRenderResources` contains the texture
-handles needed to render them. All file access and GPU
-resource creation finishes before `Run` begins.
+The standalone game's process composition root loads config and creates an
+RAII `SdlGameHost`. The host owns SDL initialization, the window and renderer,
+input source, and runtime texture store. It injects only `InputSource`,
+`TextureResourceStore`, and `GameRenderer` into the platform-neutral
+`GameRuntime`. Runtime boot opens a read-only `AssetWorkspace` profile and
+resolves the shipped level's complete graph into a frozen
+`LoadedLevelAssets` value. `LoadedLevelContent` contains only copied authored
+definitions; `LevelRenderResources` contains the texture handles needed to
+render them. All file access and GPU resource creation finishes before `Run`
+begins.
 
 The main-thread loop polls SDL input, performs one bounded non-blocking
 `GameEngine::Run`, composes a platform-neutral `GameSceneFrame`, and hands it
-to `SdlGameRenderer` for presentation. The renderer alone resolves opaque
-texture handles to `SDL_Texture`; ImGui is not linked into the game path.
-Destruction reverses ownership: renderer and simulation first, then frozen
-level handles and workspace, then `SdlTextureStore`, `SdlWrapper`, and SDL.
+to the injected renderer. `SdlGameRenderer` alone resolves opaque texture
+handles to `SDL_Texture`; ImGui is not linked into the game path. Destruction
+reverses ownership: `GameRuntime` releases simulation, frozen handles, and its
+workspace before `SdlGameHost` releases the renderer, input, texture store,
+window, and finally the SDL subsystem.
 
 `AssetWorkspace::LoadProfile::kRuntime` is explicitly read-only. It loads
 runtime catalogs (textures, sprites, colliders, blueprints, levels, parallax

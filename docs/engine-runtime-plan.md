@@ -169,23 +169,24 @@ asset thread (EngineRunner)        audio thread
 ```
 
 Shutdown follows the documented order: stop producers, stop and join each
-runner, destroy each engine, which destroys its notification set. The
-composition root (`GameRuntime`) declares members so that the store and SDL
-wrapper outlive every engine that borrows handles from them.
+runner, destroy each engine, which destroys its notification set. The process
+composition root declares `SdlGameHost` before `GameRuntime`, so the injected
+store, renderer, and input source outlive every engine that borrows them.
 
 ## Milestones
 
 Each milestone ends runnable and gated; none depends on a later one.
 
-**M1 — `run_game` walks a level.** New `src/game/` composition root
-(`GameRuntime`) beside `EditorEngine`: load `Catacombs Processional` through
-the existing managers during an explicit boot phase, freeze `LevelAssets`,
-render parallax + tiles + entities through the shared scene core (D7) into an
-SDL renderer at `EngineConfig::game_view`, fixed-timestep `GameEngine` driven
-inline with real-time and unpaced pacing policies (D3), free-fly camera on
-`CameraController` fed by `SdlInputSource`. Boot may load synchronously before
-the running loop exists; runtime streaming and transitions must use the D2 I/O
-executor rather than blocking an engine.
+**M1 — `run_game` walks a level.** New platform-neutral `GameRuntime` beside
+`EditorEngine`: load `Catacombs Processional` through the existing managers
+during an explicit boot phase, freeze `LoadedLevelAssets`, render parallax +
+tiles + entities through the shared scene core (D7), fixed-timestep
+`GameEngine` driven inline with real-time and unpaced pacing policies (D3),
+and a free-fly camera on `CameraController`. The standalone process creates an
+`SdlGameHost` and injects its renderer, input source, and texture store through
+Zebes interfaces. Boot may load synchronously before the running loop exists;
+runtime streaming and transitions must use the D2 I/O executor rather than
+blocking an engine.
 Gate: fly the camera through the shipped level in the game binary; headless
 tests for real-time pacing, bounded overload, unpaced stepping, and the shared
 scene core; the existing editor viewport tests still pass against the factored

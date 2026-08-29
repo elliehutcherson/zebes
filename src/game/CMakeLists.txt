@@ -73,31 +73,36 @@ target_link_libraries(game_scene
   absl::strings
 )
 
+add_library(game_renderer INTERFACE game_renderer.h)
+target_link_libraries(game_renderer
+  INTERFACE
+  game_scene
+  absl::status
+)
+
 add_library(game_runtime game_runtime.cc)
 target_link_libraries(game_runtime
   PUBLIC
-  game_engine
-  absl::status
-  absl::statusor
-  PRIVATE
   asset_workspace
   config
   free_fly_simulation
-  loaded_level_assets
-  game_scene
+  game_engine
+  game_renderer
   input_manager
-  sdl_game_renderer
-  sdl_input_source
-  sdl_texture_store
-  sdl_wrapper
+  input_types
+  loaded_level_assets
+  texture_resource_store
+  absl::status
+  absl::statusor
+  PRIVATE
+  game_scene
   status_macros
-  SDL2-static
-  absl::strings
 )
 
 add_executable(run_game main.cc)
 target_link_libraries(run_game
   game_runtime
+  sdl_game_host
   status_macros
   absl::flags
   absl::flags_parse

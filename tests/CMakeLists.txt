@@ -176,6 +176,17 @@ target_compile_definitions(game_level_assets_test
   PRIVATE ZEBES_TEST_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
 gtest_discover_tests(game_level_assets_test)
 
+add_executable(game_runtime_test game/game_runtime_test.cc)
+target_link_libraries(game_runtime_test
+  game_runtime
+  headless_texture_store
+  macros
+  gtest_main
+)
+target_compile_definitions(game_runtime_test
+  PRIVATE ZEBES_TEST_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+gtest_discover_tests(game_runtime_test)
+
 add_executable(loaded_level_assets_unit_test resources/loaded_level_assets_test.cc)
 target_link_libraries(loaded_level_assets_unit_test
   level_asset_loader
