@@ -1,3 +1,5 @@
+#include <chrono>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -44,6 +46,12 @@ ABSL_FLAG(int, prop_free_anchor_y, -1,
 
 namespace zebes {
 namespace {
+
+using SteadyClock = std::chrono::steady_clock;
+
+int64_t ElapsedMilliseconds(SteadyClock::time_point start, SteadyClock::time_point end) {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+}
 
 absl::StatusOr<std::unique_ptr<ImageGenerationService>> CreateService(const std::string& provider) {
   if (provider == "fake") {
@@ -102,6 +110,7 @@ absl::StatusOr<std::string> ResolveRecipe(Api& api, const std::string& kind) {
 }
 
 absl::Status Run() {
+  const SteadyClock::time_point command_started = SteadyClock::now();
   const std::string asset_root = absl::GetFlag(FLAGS_asset_root);
   if (asset_root.empty()) return absl::InvalidArgumentError("--asset_root must be non-empty");
   const std::string operation = absl::GetFlag(FLAGS_operation);
@@ -135,6 +144,7 @@ absl::Status Run() {
   ASSIGN_OR_RETURN(const std::string recipe_id, ResolveRecipe(assets->api(), kind));
   ASSIGN_OR_RETURN(std::unique_ptr<ImageGenerationService> service,
                    CreateService(absl::GetFlag(FLAGS_provider)));
+  const SteadyClock::time_point generation_started = SteadyClock::now();
   HeadlessAssetGenerationResult result;
   if (operation == "redraw") {
     ASSIGN_OR_RETURN(
@@ -163,6 +173,11 @@ absl::Status Run() {
   }
   LOG(INFO) << "Published generated " << operation << " " << kind << " candidate "
             << result.asset_id << " at " << absl::GetFlag(FLAGS_output);
+  const SteadyClock::time_point completed = SteadyClock::now();
+  std::cerr << "asset generation timing: setup_and_workspace_ms="
+            << ElapsedMilliseconds(command_started, generation_started)
+            << " generation_and_bundle_ms=" << ElapsedMilliseconds(generation_started, completed)
+            << " total_ms=" << ElapsedMilliseconds(command_started, completed) << '\n';
   std::cout << result.manifest_path << '\n';
   return absl::OkStatus();
 }

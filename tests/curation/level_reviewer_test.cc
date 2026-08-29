@@ -1,6 +1,7 @@
 #include "curation/level_reviewer.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -150,38 +151,41 @@ TEST(LevelReviewerTest, RendersParallaxTilesAndEntitiesInProductionOrder) {
                                                     sprite_pixels.pixels));
 
   MockApi api;
-  EXPECT_CALL(api, GetLevel(level.id)).Times(3).WillRepeatedly(Return(&level));
-  EXPECT_CALL(api, GetTileset(tileset.id)).Times(3).WillRepeatedly(Return(&tileset));
-  EXPECT_CALL(api, GetParallaxTheme(theme.id)).Times(3).WillRepeatedly(Return(&theme));
-  EXPECT_CALL(api, GetSprite(sprite.id)).Times(3).WillRepeatedly(Return(&sprite));
+  EXPECT_CALL(api, GetLevel(level.id)).Times(4).WillRepeatedly(Return(&level));
+  EXPECT_CALL(api, GetTileset(tileset.id)).Times(4).WillRepeatedly(Return(&tileset));
+  EXPECT_CALL(api, GetParallaxTheme(theme.id)).Times(4).WillRepeatedly(Return(&theme));
+  EXPECT_CALL(api, GetSprite(sprite.id)).Times(4).WillRepeatedly(Return(&sprite));
   EXPECT_CALL(api, GetTexture(parallax_texture.id))
-      .Times(3)
+      .Times(4)
       .WillRepeatedly(Return(&parallax_texture));
-  EXPECT_CALL(api, GetTexture(atlas_texture.id)).Times(3).WillRepeatedly(Return(&atlas_texture));
-  EXPECT_CALL(api, GetTexture(sprite_texture.id)).Times(3).WillRepeatedly(Return(&sprite_texture));
+  EXPECT_CALL(api, GetTexture(atlas_texture.id)).Times(4).WillRepeatedly(Return(&atlas_texture));
+  EXPECT_CALL(api, GetTexture(sprite_texture.id)).Times(4).WillRepeatedly(Return(&sprite_texture));
   EXPECT_CALL(api, GetTextureHandle(parallax_texture.id))
-      .Times(3)
+      .Times(4)
       .WillRepeatedly(Return(parallax_handle));
   EXPECT_CALL(api, GetTextureHandle(atlas_texture.id))
-      .Times(3)
+      .Times(4)
       .WillRepeatedly(Return(atlas_handle));
   EXPECT_CALL(api, GetTextureHandle(sprite_texture.id))
-      .Times(3)
+      .Times(4)
       .WillRepeatedly(Return(sprite_handle));
   EXPECT_CALL(api, ReadTexturePixels(parallax_texture.id))
-      .Times(3)
+      .Times(4)
       .WillRepeatedly(Return(parallax_pixels));
   EXPECT_CALL(api, ReadTexturePixels(atlas_texture.id))
-      .Times(3)
+      .Times(4)
       .WillRepeatedly(Return(atlas_pixels));
   EXPECT_CALL(api, ReadTexturePixels(sprite_texture.id))
-      .Times(3)
+      .Times(4)
       .WillRepeatedly(Return(sprite_pixels));
 
   LevelReviewer reviewer;
   ASSERT_OK_AND_ASSIGN(CurationReview review, reviewer.Review(api, {.asset_id = level.id}));
   ASSERT_OK_AND_ASSIGN(CurationReview repeated_review,
                        reviewer.Review(api, {.asset_id = level.id}));
+  ASSERT_OK_AND_ASSIGN(
+      CurationReview focused_review,
+      reviewer.Review(api, {.asset_id = level.id, .focus_entity_id = uint64_t{1}}));
 
   EXPECT_EQ(review.kind, "level");
   EXPECT_EQ(review.metadata.at("route_count"), 4);
@@ -238,6 +242,35 @@ TEST(LevelReviewerTest, RendersParallaxTilesAndEntitiesInProductionOrder) {
     EXPECT_EQ(repeated.metadata, original.metadata);
   }
 
+  EXPECT_EQ(focused_review.metadata.at("review_mode"), "focused-entity");
+  EXPECT_EQ(focused_review.metadata.at("focus").at("entity_id"), 1);
+  EXPECT_EQ(focused_review.metadata.at("focus").at("world_layer_name"), "Gameplay");
+  EXPECT_EQ(focused_review.metadata.at("route_count"), 3);
+  EXPECT_EQ(focused_review.metadata.at("sample_count"), 3);
+  EXPECT_LT(focused_review.artifacts.size(), review.artifacts.size());
+  EXPECT_EQ(std::count_if(focused_review.artifacts.begin(), focused_review.artifacts.end(),
+                          [](const CurationArtifact& artifact) {
+                            return artifact.metadata.value("view", "") == "focused-entity";
+                          }),
+            3);
+  const auto focused_frame =
+      std::find_if(focused_review.artifacts.begin(), focused_review.artifacts.end(),
+                   [](const CurationArtifact& artifact) {
+                     return artifact.metadata.value("view", "") == "focused-entity" &&
+                            artifact.metadata.at("camera").at("zoom") == 1.0;
+                   });
+  ASSERT_NE(focused_frame, focused_review.artifacts.end());
+  EXPECT_EQ(focused_frame->metadata.at("focus").at("screen").at("color"), "#ffdc28");
+  EXPECT_TRUE(
+      focused_frame->metadata.at("focus").at("screen").at("intersects_viewport").get<bool>());
+  const nlohmann::json& focused_screen = focused_frame->metadata.at("focus").at("screen");
+  const int focused_x =
+      static_cast<int>(std::lround(focused_screen.at("bounds").at("min").at("x").get<double>()));
+  const int focused_y =
+      static_cast<int>(std::lround(focused_screen.at("bounds").at("min").at("y").get<double>()));
+  EXPECT_EQ(Pixel(focused_frame->image, focused_x, focused_y).red, 255);
+  EXPECT_EQ(Pixel(focused_frame->image, focused_x, focused_y).green, 220);
+
   TemporaryReviewDirectory temporary;
   const std::filesystem::path output = temporary.path() / "published";
   ASSERT_OK_AND_ASSIGN(const size_t published_artifact_count,
@@ -259,6 +292,68 @@ TEST(LevelReviewerTest, RendersParallaxTilesAndEntitiesInProductionOrder) {
     EXPECT_EQ(published.at("rgba_sha256"), digest);
     EXPECT_EQ(published.at("metadata"), original->metadata);
   }
+}
+
+TEST(LevelReviewerTest, RejectsAnUnknownFocusedEntity) {
+  Level level{
+      .id = "level-id",
+      .name = "Focused Level",
+      .width = 1280,
+      .height = 720,
+      .spawn_point = {320, 360},
+      .layers = {WorldLayer{.id = 0, .name = "Gameplay"}},
+  };
+  MockApi api;
+  EXPECT_CALL(api, GetLevel(level.id)).WillOnce(Return(&level));
+
+  LevelReviewer reviewer;
+  EXPECT_EQ(
+      reviewer.Review(api, {.asset_id = level.id, .focus_entity_id = uint64_t{99}}).status().code(),
+      absl::StatusCode::kNotFound);
+}
+
+TEST(LevelReviewerTest, RejectsInactiveOrDuplicateFocusedEntitiesBeforeLoadingAssets) {
+  Level inactive_level{
+      .id = "inactive-level-id",
+      .name = "Inactive Focused Level",
+      .width = 1280,
+      .height = 720,
+      .spawn_point = {320, 360},
+      .layers = {WorldLayer{.id = 0, .name = "Gameplay"}},
+  };
+  inactive_level.layers.front().entities.emplace(
+      1, Entity{.id = 1, .active = false, .transform = {.position = {640, 360}}});
+  MockApi inactive_api;
+  EXPECT_CALL(inactive_api, GetLevel(inactive_level.id)).WillOnce(Return(&inactive_level));
+
+  LevelReviewer reviewer;
+  EXPECT_EQ(
+      reviewer.Review(inactive_api, {.asset_id = inactive_level.id, .focus_entity_id = uint64_t{1}})
+          .status()
+          .code(),
+      absl::StatusCode::kFailedPrecondition);
+
+  Level duplicate_level{
+      .id = "duplicate-level-id",
+      .name = "Duplicate Focused Level",
+      .width = 1280,
+      .height = 720,
+      .spawn_point = {320, 360},
+      .layers = {WorldLayer{.id = 0, .name = "Gameplay"},
+                 WorldLayer{.id = 1, .name = "Foreground"}},
+  };
+  for (WorldLayer& layer : duplicate_level.layers) {
+    layer.entities.emplace(1, Entity{.id = 1, .transform = {.position = {640, 360}}});
+  }
+  MockApi duplicate_api;
+  EXPECT_CALL(duplicate_api, GetLevel(duplicate_level.id)).WillOnce(Return(&duplicate_level));
+
+  EXPECT_EQ(
+      reviewer
+          .Review(duplicate_api, {.asset_id = duplicate_level.id, .focus_entity_id = uint64_t{1}})
+          .status()
+          .code(),
+      absl::StatusCode::kInvalidArgument);
 }
 
 TEST(LevelReviewerTest, RejectsAMissingReferencedTheme) {

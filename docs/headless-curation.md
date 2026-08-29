@@ -51,6 +51,26 @@ build/dev/bin/curate_assets \
   --output=/tmp/catacombs-level-review
 ```
 
+During placement iteration, focus the level review on one persisted entity.
+This plans one clamped camera at each supported zoom, publishes annotated
+entity frames, contact sheets, isolated parallax/world-layer passes, and a
+focused layout map, and keeps the full-route reviewer unchanged as the final
+acceptance gate:
+
+```bash
+build/dev/bin/curate_assets \
+  --asset_root="$PWD/assets" \
+  --kind=level \
+  --id=9e20ee58-f4d2-4931-b74b-5555d4b35c00 \
+  --focus_entity_id=4 \
+  --output=/tmp/catacombs-player-focus
+```
+
+The command writes workspace-load, review/publication, and total elapsed
+milliseconds to stderr. Timings are deliberately excluded from
+`manifest.json` so unchanged reviews remain byte-deterministic. A missing,
+inactive, duplicate, or out-of-level focus entity fails before rendering.
+
 ```bash
 build/dev/bin/curate_assets \
   --asset_root="$PWD/assets" \
@@ -84,12 +104,22 @@ ID must match. Review artifacts publish before persistence, and a successful
 commit publishes a second review at `<output>-committed`. A failed persistence
 operation therefore leaves the pre-commit evidence intact.
 
+For production content iteration, first identify whether the artwork belongs
+to world, terrain, or a named parallax coordinate space. Generate one
+candidate, use focused integrated evidence before promotion, and stop to
+revisit the asset type when two candidates fail for the same structural
+reason. Promote only after the focused 0.5×, 1×, and 2× frames pass; run the
+complete level route once after the accepted content is persisted.
+
 ## Full generate, review, commit, re-review loop
 
 Generation creates a new asset. `--recipe_id` or `--recipe_name` selects one
-existing recipe whose
-terrain link, resolved style, and deterministic pipeline settings are copied as
-a template; it does not authorize rebinding that existing asset to new pixels.
+existing recipe whose domain settings become the template. `generate_assets`
+reports setup/workspace, provider-and-bundle, and total elapsed milliseconds to
+stderr; like curation timings, these measurements do not enter deterministic
+candidate manifests. The terrain link, resolved style, and deterministic
+pipeline settings are copied as a template; it does not authorize rebinding
+that existing asset to new pixels.
 Prop generation derives its composition aspect from the template's tile canvas
 by default; a 1-by-2 recipe asks the provider for a portrait source rather than
 an unrelated square. New creations may override that composition explicitly

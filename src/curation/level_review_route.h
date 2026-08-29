@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -44,5 +45,12 @@ struct LevelReviewRoute {
 absl::StatusOr<std::vector<LevelReviewRoute>> PlanLevelReviewRoutes(const Level& level,
                                                                     const GameViewSize& game_view,
                                                                     absl::Span<const double> zooms);
+
+// Plans exactly one clamped camera per zoom around a placed entity. Focused
+// routes retain isolated-pass evidence but deliberately omit whole-route
+// coverage sampling; the full planner remains the production acceptance gate.
+absl::StatusOr<std::vector<LevelReviewRoute>> PlanFocusedLevelReviewRoutes(
+    const Level& level, const GameViewSize& game_view, uint64_t entity_id, Vec entity_position,
+    absl::Span<const double> zooms);
 
 }  // namespace zebes

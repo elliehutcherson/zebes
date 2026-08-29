@@ -36,6 +36,48 @@ bool ContainsHalfOpen(double value, double minimum, double maximum) {
   return value >= minimum && value < maximum;
 }
 
+absl::Status ValidateRouteInputs(const Level& level, const GameViewSize& game_view,
+                                 absl::Span<const double> zooms) {
+  RETURN_IF_ERROR(ValidateLevel(level));
+  if (level.width <= 0.0 || level.height <= 0.0 || !game_view.IsValid() || zooms.empty()) {
+    return absl::InvalidArgumentError(
+        "level review routes require positive world, game-view, and zoom inputs");
+  }
+  for (size_t index = 0; index < zooms.size(); ++index) {
+    if (!std::isfinite(zooms[index]) || zooms[index] <= 0.0 ||
+        (index > 0 && zooms[index - 1] >= zooms[index])) {
+      return absl::InvalidArgumentError("level review zooms must be positive and increasing");
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateViewportFits(const Level& level, const GameViewSize& game_view, double zoom) {
+  const double half_width = game_view.width / (2.0 * zoom);
+  const double half_height = game_view.height / (2.0 * zoom);
+  if (half_width * 2.0 <= level.width && half_height * 2.0 <= level.height) {
+    return absl::OkStatus();
+  }
+  const double minimum_zoom =
+      std::max(game_view.width / level.width, game_view.height / level.height);
+  return absl::FailedPreconditionError(absl::StrCat("game view does not fit inside level at zoom ",
+                                                    zoom, "; minimum viable zoom is ",
+                                                    minimum_zoom));
+}
+
+const ParallaxZone* FindZoneAtPoint(const Level& level, Vec point) {
+  for (const ParallaxZone& zone : level.zones) {
+    const bool inside_x =
+        point.x >= zone.min_point.x &&
+        (point.x < zone.max_point.x || (point.x == level.width && zone.max_point.x == level.width));
+    const bool inside_y = point.y >= zone.min_point.y &&
+                          (point.y < zone.max_point.y ||
+                           (point.y == level.height && zone.max_point.y == level.height));
+    if (inside_x && inside_y) return &zone;
+  }
+  return nullptr;
+}
+
 void AddCandidate(std::vector<CandidateCoordinate>& candidates, double value,
                   std::string key_role = {}) {
   CandidateCoordinate candidate{.value = value};
@@ -215,15 +257,9 @@ std::vector<double> PlanSecondaryCenters(const std::vector<double>& probes, doub
 absl::StatusOr<LevelReviewRoute> PlanRoute(const Level& level, const GameViewSize& game_view,
                                            const RouteSource& source, double zoom,
                                            double secondary_center, int track_index) {
+  RETURN_IF_ERROR(ValidateViewportFits(level, game_view, zoom));
   const double half_width = game_view.width / (2.0 * zoom);
   const double half_height = game_view.height / (2.0 * zoom);
-  if (half_width * 2.0 > level.width || half_height * 2.0 > level.height) {
-    const double minimum_zoom =
-        std::max(game_view.width / level.width, game_view.height / level.height);
-    return absl::FailedPreconditionError(
-        absl::StrCat("game view does not fit inside level at zoom ", zoom,
-                     "; minimum viable zoom is ", minimum_zoom));
-  }
 
   const CameraCenterRoute reachable_world{
       .min = {half_width, half_height},
@@ -305,17 +341,7 @@ absl::StatusOr<LevelReviewRoute> PlanRoute(const Level& level, const GameViewSiz
 
 absl::StatusOr<std::vector<LevelReviewRoute>> PlanLevelReviewRoutes(
     const Level& level, const GameViewSize& game_view, absl::Span<const double> zooms) {
-  RETURN_IF_ERROR(ValidateLevel(level));
-  if (level.width <= 0.0 || level.height <= 0.0 || !game_view.IsValid() || zooms.empty()) {
-    return absl::InvalidArgumentError(
-        "level review routes require positive world, game-view, and zoom inputs");
-  }
-  for (size_t index = 0; index < zooms.size(); ++index) {
-    if (!std::isfinite(zooms[index]) || zooms[index] <= 0.0 ||
-        (index > 0 && zooms[index - 1] >= zooms[index])) {
-      return absl::InvalidArgumentError("level review zooms must be positive and increasing");
-    }
-  }
+  RETURN_IF_ERROR(ValidateRouteInputs(level, game_view, zooms));
 
   const std::vector<RouteSource> sources = BuildRouteSources(level);
   std::vector<std::vector<double>> probes_by_source;
@@ -354,6 +380,53 @@ absl::StatusOr<std::vector<LevelReviewRoute>> PlanLevelReviewRoutes(
         routes.push_back(std::move(route));
       }
     }
+  }
+  return routes;
+}
+
+absl::StatusOr<std::vector<LevelReviewRoute>> PlanFocusedLevelReviewRoutes(
+    const Level& level, const GameViewSize& game_view, uint64_t entity_id, Vec entity_position,
+    absl::Span<const double> zooms) {
+  RETURN_IF_ERROR(ValidateRouteInputs(level, game_view, zooms));
+  if (entity_id == Entity::kInvalidId) {
+    return absl::InvalidArgumentError("focused level review entity ID is invalid");
+  }
+  if (!std::isfinite(entity_position.x) || !std::isfinite(entity_position.y) ||
+      entity_position.x < 0.0 || entity_position.x > level.width || entity_position.y < 0.0 ||
+      entity_position.y > level.height) {
+    return absl::InvalidArgumentError("focused level review entity position is outside the level");
+  }
+
+  const ParallaxZone* zone = FindZoneAtPoint(level, entity_position);
+  const std::string route_id = absl::StrCat("entity-", entity_id, "-focus");
+  std::vector<LevelReviewRoute> routes;
+  routes.reserve(zooms.size());
+  for (const double zoom : zooms) {
+    RETURN_IF_ERROR(ValidateViewportFits(level, game_view, zoom));
+    const double half_width = game_view.width / (2.0 * zoom);
+    const double half_height = game_view.height / (2.0 * zoom);
+    const Vec center{
+        std::clamp(entity_position.x, half_width, level.width - half_width),
+        std::clamp(entity_position.y, half_height, level.height - half_height),
+    };
+    routes.push_back({
+        .id = route_id,
+        .zone_id = zone == nullptr ? -1 : zone->id,
+        .zone_name = zone == nullptr ? "Focused entity" : zone->name,
+        .track_index = 0,
+        .horizontal = true,
+        .zoom = zoom,
+        .centers = {.min = center, .max = center},
+        .samples = {{
+            .id = "frame-0000",
+            .progress = 0.0,
+            .camera = {.position = center,
+                       .zoom = zoom,
+                       .viewport_width = game_view.width,
+                       .viewport_height = game_view.height},
+            .key_roles = {"focus"},
+        }},
+    });
   }
   return routes;
 }

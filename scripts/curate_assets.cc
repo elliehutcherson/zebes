@@ -1,3 +1,5 @@
+#include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -25,6 +27,7 @@
 #include "curation/terrain_reviewer.h"
 #include "curation/tileset_reviewer.h"
 #include "nlohmann/json.hpp"
+#include "objects/entity.h"
 #include "platform/headless/headless_texture_store.h"
 
 ABSL_FLAG(std::string, asset_root, "assets", "Root containing config.json and asset catalogs");
@@ -34,9 +37,25 @@ ABSL_FLAG(std::string, output, "", "New directory in which to publish the review
 ABSL_FLAG(std::string, candidate, "", "Optional kind-owned JSON candidate to review");
 ABSL_FLAG(bool, commit, false, "Commit a reviewed candidate through the production API");
 ABSL_FLAG(bool, list_kinds, false, "List registered review kinds and exit");
+ABSL_FLAG(uint64_t, focus_entity_id, 0,
+          "For level reviews, render deterministic cameras focused on this placed entity");
 
 namespace zebes {
 namespace {
+
+using SteadyClock = std::chrono::steady_clock;
+
+int64_t ElapsedMilliseconds(SteadyClock::time_point start, SteadyClock::time_point end) {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+}
+
+void LogTimings(SteadyClock::time_point command_started, SteadyClock::time_point workspace_loaded,
+                SteadyClock::time_point completed) {
+  std::cerr << "curation timing: workspace_load_ms="
+            << ElapsedMilliseconds(command_started, workspace_loaded)
+            << " review_and_publish_ms=" << ElapsedMilliseconds(workspace_loaded, completed)
+            << " total_ms=" << ElapsedMilliseconds(command_started, completed) << '\n';
+}
 
 absl::Status RegisterReviewers(CurationRegistry& registry) {
   RETURN_IF_ERROR(registry.Add(std::make_unique<LevelReviewer>()));
@@ -49,6 +68,7 @@ absl::Status RegisterReviewers(CurationRegistry& registry) {
 }
 
 absl::Status Run() {
+  const SteadyClock::time_point command_started = SteadyClock::now();
   CurationRegistry registry;
   RETURN_IF_ERROR(RegisterReviewers(registry));
   if (absl::GetFlag(FLAGS_list_kinds)) {
@@ -66,8 +86,15 @@ absl::Status Run() {
   }
   const std::string candidate_path = absl::GetFlag(FLAGS_candidate);
   const bool commit = absl::GetFlag(FLAGS_commit);
+  const uint64_t focus_entity_id = absl::GetFlag(FLAGS_focus_entity_id);
   if (commit && candidate_path.empty()) {
     return absl::InvalidArgumentError("--commit requires --candidate");
+  }
+  if (focus_entity_id != Entity::kInvalidId && kind != "level") {
+    return absl::InvalidArgumentError("--focus_entity_id is supported only for --kind=level");
+  }
+  if (focus_entity_id != Entity::kInvalidId && !candidate_path.empty()) {
+    return absl::InvalidArgumentError("--focus_entity_id cannot be combined with --candidate");
   }
 
   ASSIGN_OR_RETURN(EngineConfig config,
@@ -81,13 +108,16 @@ absl::Status Run() {
           .asset_root = asset_root,
           .access = commit ? AssetWorkspace::Access::kReadWrite : AssetWorkspace::Access::kReadOnly,
       }));
+  const SteadyClock::time_point workspace_loaded = SteadyClock::now();
   CurationReviewRequest request{.asset_id = asset_id};
+  if (focus_entity_id != Entity::kInvalidId) request.focus_entity_id = focus_entity_id;
   nlohmann::json candidate;
   if (candidate_path.empty()) {
     ASSIGN_OR_RETURN(const size_t artifact_count,
                      registry.PublishReview(assets->api(), kind, request, output));
     LOG(INFO) << "Published " << artifact_count << " review artifacts for " << kind << " "
               << asset_id << " at " << output;
+    LogTimings(command_started, workspace_loaded, SteadyClock::now());
     std::cout << output << "/manifest.json\n";
     return absl::OkStatus();
   } else {
@@ -110,6 +140,7 @@ absl::Status Run() {
       const std::string committed_output = CommittedCurationOutputPath(output);
       LOG(INFO) << "Committed reviewed " << kind << " candidate " << asset_id;
       LOG(INFO) << "Published post-commit review at " << committed_output;
+      LogTimings(command_started, workspace_loaded, SteadyClock::now());
       std::cout << committed_output << "/manifest.json\n";
       return absl::OkStatus();
     }
@@ -119,6 +150,7 @@ absl::Status Run() {
     LOG(INFO) << "Published " << review.artifacts.size() << " review artifacts for " << kind << " "
               << asset_id << " at " << output;
   }
+  LogTimings(command_started, workspace_loaded, SteadyClock::now());
   std::cout << output << "/manifest.json\n";
   return absl::OkStatus();
 }

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -51,6 +52,10 @@ struct CurationReviewRequest {
   // Directory containing a candidate document's sibling artifacts. Empty for
   // persisted reviews and recipe-only candidates.
   std::string candidate_root;
+  // Limits a persisted level review to deterministic cameras centered on one
+  // placed entity. Other reviewer kinds reject this option at the dispatch
+  // boundary rather than silently ignoring it.
+  std::optional<uint64_t> focus_entity_id;
 };
 
 // Synchronously consumes one artifact. A streamed producer may release or

@@ -38,9 +38,15 @@ absl::Status CurationReviewer::CommitCandidate(Api& api, const CurationReviewReq
 
 namespace {
 
-absl::Status ValidateRequest(const CurationReviewRequest& request) {
+absl::Status ValidateRequest(const CurationReviewRequest& request, std::string_view kind) {
   if (request.asset_id.empty()) {
     return absl::InvalidArgumentError("curation review asset ID is empty");
+  }
+  if (request.focus_entity_id.has_value() && kind != "level") {
+    return absl::InvalidArgumentError("focused entity review is supported only for level assets");
+  }
+  if (request.focus_entity_id.has_value() && *request.focus_entity_id == 0) {
+    return absl::InvalidArgumentError("focused entity review ID is invalid");
   }
   return absl::OkStatus();
 }
@@ -60,7 +66,7 @@ absl::Status CurationRegistry::Add(std::unique_ptr<CurationReviewer> reviewer) {
 
 absl::StatusOr<CurationReview> CurationRegistry::Review(
     Api& api, std::string_view kind, const CurationReviewRequest& request) const {
-  const absl::Status request_status = ValidateRequest(request);
+  const absl::Status request_status = ValidateRequest(request, kind);
   if (!request_status.ok()) return request_status;
   const auto reviewer = reviewers_.find(kind);
   if (reviewer == reviewers_.end()) {
@@ -73,7 +79,7 @@ absl::StatusOr<CurationReview> CurationRegistry::Review(
 absl::StatusOr<size_t> CurationRegistry::PublishReview(Api& api, std::string_view kind,
                                                        const CurationReviewRequest& request,
                                                        const std::string& output_path) const {
-  const absl::Status request_status = ValidateRequest(request);
+  const absl::Status request_status = ValidateRequest(request, kind);
   if (!request_status.ok()) return request_status;
   const auto reviewer = reviewers_.find(kind);
   if (reviewer == reviewers_.end()) {
@@ -86,7 +92,7 @@ absl::StatusOr<size_t> CurationRegistry::PublishReview(Api& api, std::string_vie
 absl::StatusOr<CurationReview> CurationRegistry::ReviewCandidate(
     Api& api, std::string_view kind, const CurationReviewRequest& request,
     const nlohmann::json& candidate) const {
-  const absl::Status request_status = ValidateRequest(request);
+  const absl::Status request_status = ValidateRequest(request, kind);
   if (!request_status.ok()) return request_status;
   const auto reviewer = reviewers_.find(kind);
   if (reviewer == reviewers_.end()) {
@@ -99,7 +105,7 @@ absl::StatusOr<CurationReview> CurationRegistry::ReviewCandidate(
 absl::Status CurationRegistry::CommitCandidate(Api& api, std::string_view kind,
                                                const CurationReviewRequest& request,
                                                const nlohmann::json& candidate) const {
-  const absl::Status request_status = ValidateRequest(request);
+  const absl::Status request_status = ValidateRequest(request, kind);
   if (!request_status.ok()) return request_status;
   const auto reviewer = reviewers_.find(kind);
   if (reviewer == reviewers_.end()) {

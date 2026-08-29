@@ -44,6 +44,7 @@ constexpr RgbaColor8 kCheckerDark{.red = 35, .green = 35, .blue = 45, .alpha = 2
 constexpr RgbaColor8 kPlaceholder{.red = 100, .green = 100, .blue = 200, .alpha = 180};
 constexpr RgbaColor8 kZoneOutline{.red = 230, .green = 185, .blue = 40, .alpha = 255};
 constexpr RgbaColor8 kSpawn{.red = 80, .green = 255, .blue = 120, .alpha = 255};
+constexpr RgbaColor8 kFocus{.red = 255, .green = 220, .blue = 40, .alpha = 255};
 constexpr std::array<RgbaColor8, 3> kRouteColors = {
     RgbaColor8{.red = 70, .green = 210, .blue = 255, .alpha = 255},
     RgbaColor8{.red = 210, .green = 120, .blue = 255, .alpha = 255},
@@ -70,6 +71,15 @@ struct LevelReviewAssets {
   std::map<std::string, LoadedTexture, std::less<>> textures;
   std::map<uint64_t, std::string> texture_ids_by_handle;
   SpriteLookup sprite_lookup;
+};
+
+struct FocusedEntityContext {
+  uint64_t id = Entity::kInvalidId;
+  int layer_id = 0;
+  std::string layer_name;
+  Vec position;
+  WorldRect bounds;
+  const Entity* entity = nullptr;
 };
 
 struct WorldRenderStats {
@@ -263,6 +273,57 @@ absl::StatusOr<LevelReviewAssets> LoadAssets(Api& api, const Level& level) {
     assets.sprite_lookup.emplace(sprite_id, ResolvedSprite{.sprite = &sprite, .texture = handle});
   }
   return assets;
+}
+
+absl::StatusOr<FocusedEntityContext> FindFocusedEntity(const Level& level, uint64_t entity_id) {
+  if (entity_id == Entity::kInvalidId) {
+    return absl::InvalidArgumentError("focused level review entity ID is invalid");
+  }
+  const WorldLayer* matched_layer = nullptr;
+  const Entity* matched_entity = nullptr;
+  for (const WorldLayer& layer : level.layers) {
+    const auto found = layer.entities.find(entity_id);
+    if (found == layer.entities.end()) continue;
+    if (matched_entity != nullptr) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("focused entity ID appears in multiple world layers: ", entity_id));
+    }
+    matched_layer = &layer;
+    matched_entity = &found->second;
+  }
+  if (matched_entity == nullptr || matched_layer == nullptr) {
+    return absl::NotFoundError(absl::StrCat("focused entity was not found: ", entity_id));
+  }
+  if (!matched_entity->active) {
+    return absl::FailedPreconditionError(absl::StrCat("focused entity is inactive: ", entity_id));
+  }
+  return FocusedEntityContext{
+      .id = entity_id,
+      .layer_id = matched_layer->id,
+      .layer_name = matched_layer->name,
+      .position = matched_entity->transform.position,
+      .entity = matched_entity,
+  };
+}
+
+absl::Status ResolveFocusedEntityBounds(const LevelReviewAssets& assets,
+                                        FocusedEntityContext& focus) {
+  if (focus.entity == nullptr) {
+    return absl::InternalError("focused entity context lost its entity definition");
+  }
+  const ResolvedSprite resolved = FindSprite(assets.sprite_lookup, focus.entity->sprite_id);
+  ASSIGN_OR_RETURN(focus.bounds, CalculateEntityBounds(*focus.entity, resolved.sprite));
+  return absl::OkStatus();
+}
+
+nlohmann::json FocusToJson(const FocusedEntityContext& focus) {
+  return {
+      {"entity_id", focus.id},
+      {"world_layer_id", focus.layer_id},
+      {"world_layer_name", focus.layer_name},
+      {"position", VecToJson(focus.position)},
+      {"bounds", {{"min", VecToJson(focus.bounds.min)}, {"max", VecToJson(focus.bounds.max)}}},
+  };
 }
 
 const ParallaxElement* FindElement(const ParallaxLayer& layer, int element_id) {
@@ -617,8 +678,31 @@ absl::Status DrawOutline(RgbaImage& image, int min_x, int min_y, int max_x, int 
   return FillRgbaRect(image, max_x, min_y, 1, height, color);
 }
 
+absl::StatusOr<nlohmann::json> AnnotateFocusedEntity(RgbaImage& image, const Camera& camera,
+                                                     const FocusedEntityContext& focus) {
+  const Vec minimum = camera.WorldToScreen(focus.bounds.min);
+  const Vec maximum = camera.WorldToScreen(focus.bounds.max);
+  const Vec anchor = camera.WorldToScreen(focus.position);
+  const int min_x = static_cast<int>(std::floor(minimum.x));
+  const int min_y = static_cast<int>(std::floor(minimum.y));
+  const int max_x = static_cast<int>(std::ceil(maximum.x)) - 1;
+  const int max_y = static_cast<int>(std::ceil(maximum.y)) - 1;
+  RETURN_IF_ERROR(DrawOutline(image, min_x, min_y, max_x, max_y, kFocus));
+  RETURN_IF_ERROR(DrawCross(image, static_cast<int>(std::lround(anchor.x)),
+                            static_cast<int>(std::lround(anchor.y)), 5, kFocus));
+  return nlohmann::json{
+      {"bounds", {{"min", VecToJson(minimum)}, {"max", VecToJson(maximum)}}},
+      {"anchor", VecToJson(anchor)},
+      {"intersects_viewport", maximum.x > 0.0 && maximum.y > 0.0 &&
+                                  minimum.x < camera.viewport_width &&
+                                  minimum.y < camera.viewport_height},
+      {"color", "#ffdc28"},
+  };
+}
+
 absl::StatusOr<RgbaImage> RenderLayoutMap(const Level& level, const LevelReviewAssets& assets,
-                                          const std::vector<LevelReviewRoute>& routes) {
+                                          const std::vector<LevelReviewRoute>& routes,
+                                          const std::optional<FocusedEntityContext>& focus) {
   const double scale = std::min(static_cast<double>(kLayoutMaximumWidth) / level.width,
                                 static_cast<double>(kLayoutMaximumHeight) / level.height);
   const int width = std::max(1, static_cast<int>(std::ceil(level.width * scale)));
@@ -665,6 +749,14 @@ absl::StatusOr<RgbaImage> RenderLayoutMap(const Level& level, const LevelReviewA
   }
   RETURN_IF_ERROR(DrawCross(image, MapCoordinate(level.spawn_point.x, level.width, width),
                             MapCoordinate(level.spawn_point.y, level.height, height), 4, kSpawn));
+  if (focus.has_value()) {
+    RETURN_IF_ERROR(DrawOutline(image, MapCoordinate(focus->bounds.min.x, level.width, width),
+                                MapCoordinate(focus->bounds.min.y, level.height, height),
+                                MapCoordinate(focus->bounds.max.x, level.width, width),
+                                MapCoordinate(focus->bounds.max.y, level.height, height), kFocus));
+    RETURN_IF_ERROR(DrawCross(image, MapCoordinate(focus->position.x, level.width, width),
+                              MapCoordinate(focus->position.y, level.height, height), 4, kFocus));
+  }
   return image;
 }
 
@@ -751,11 +843,12 @@ nlohmann::json AddEntityEvidence(CurationReview& review, const Level& level) {
 
 absl::Status PreflightArtifactPixels(const std::vector<LevelReviewRoute>& routes,
                                      const LevelReviewAssets& assets, const Level& level,
-                                     const GameViewSize& game_view) {
+                                     const GameViewSize& game_view, bool focused) {
   int64_t native_frames = 0;
   int64_t auxiliary_pixels = 0;
   for (const LevelReviewRoute& route : routes) {
     native_frames += route.samples.size();
+    if (focused) native_frames += route.samples.size();
     const int columns = std::min(kContactColumns, static_cast<int>(route.samples.size()));
     const int rows = static_cast<int>((route.samples.size() + columns - 1) / columns);
     const int thumbnail_height =
@@ -791,11 +884,21 @@ absl::Status PreflightArtifactPixels(const std::vector<LevelReviewRoute>& routes
 }
 
 absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
+                                           const CurationReviewRequest& request,
                                            CurationArtifactSink& artifact_sink) {
   const GameViewSize game_view = api.GetConfig()->game_view;
   if (!game_view.IsValid()) return absl::FailedPreconditionError("game view is invalid");
-  ASSIGN_OR_RETURN(const std::vector<LevelReviewRoute> routes,
-                   PlanLevelReviewRoutes(level, game_view, kReviewZooms));
+  std::optional<FocusedEntityContext> focus;
+  if (request.focus_entity_id.has_value()) {
+    ASSIGN_OR_RETURN(focus, FindFocusedEntity(level, *request.focus_entity_id));
+  }
+  absl::StatusOr<std::vector<LevelReviewRoute>> planned_routes =
+      focus.has_value()
+          ? PlanFocusedLevelReviewRoutes(level, game_view, focus->id, focus->position, kReviewZooms)
+          : PlanLevelReviewRoutes(level, game_view, kReviewZooms);
+  ASSIGN_OR_RETURN(const std::vector<LevelReviewRoute> routes, std::move(planned_routes));
+  ASSIGN_OR_RETURN(LevelReviewAssets assets, LoadAssets(api, level));
+  if (focus.has_value()) RETURN_IF_ERROR(ResolveFocusedEntityBounds(assets, *focus));
 
   CurationReview review{
       .kind = "level",
@@ -808,8 +911,11 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
               {"zooms", kReviewZooms},
           },
   };
-  ASSIGN_OR_RETURN(LevelReviewAssets assets, LoadAssets(api, level));
-  RETURN_IF_ERROR(PreflightArtifactPixels(routes, assets, level, game_view));
+  if (focus.has_value()) {
+    review.metadata["review_mode"] = "focused-entity";
+    review.metadata["focus"] = FocusToJson(*focus);
+  }
+  RETURN_IF_ERROR(PreflightArtifactPixels(routes, assets, level, game_view, focus.has_value()));
   review.metadata["world_layers"] = AddEntityEvidence(review, level);
   RETURN_IF_ERROR(AddCoverageFindings(review, level, assets, game_view));
 
@@ -830,7 +936,29 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
       metadata["render_sequence"] = rendered.render_sequence;
       const std::string artifact_id =
           absl::StrCat("complete-", zoom_id, "-", route.id, "-", sample.id);
-      RETURN_IF_ERROR(AddContactSheetFrame(contact, rendered.image, artifact_id));
+      std::optional<CurationArtifact> focused_artifact;
+      if (focus.has_value()) {
+        RgbaImage focused_image = rendered.image;
+        ASSIGN_OR_RETURN(nlohmann::json screen_evidence,
+                         AnnotateFocusedEntity(focused_image, sample.camera, *focus));
+        nlohmann::json focused_metadata = metadata;
+        focused_metadata["view"] = "focused-entity";
+        focused_metadata["focus"] = FocusToJson(*focus);
+        focused_metadata["focus"]["screen"] = std::move(screen_evidence);
+        const std::string focused_id =
+            absl::StrCat("focused-entity-", zoom_id, "-", route.id, "-", sample.id);
+        RETURN_IF_ERROR(AddContactSheetFrame(contact, focused_image, focused_id));
+        focused_artifact = CurationArtifact{
+            .id = focused_id,
+            .relative_path = absl::StrCat("frames/focused-entity/", zoom_id, "/", route.id, "/",
+                                          sample.id, ".png"),
+            .description = absl::StrCat("Focused entity ", focus->id, " at zoom ", route.zoom),
+            .image = std::move(focused_image),
+            .metadata = std::move(focused_metadata),
+        };
+      } else {
+        RETURN_IF_ERROR(AddContactSheetFrame(contact, rendered.image, artifact_id));
+      }
       RETURN_IF_ERROR(artifact_sink.Add({
           .id = artifact_id,
           .relative_path =
@@ -840,6 +968,9 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
           .image = std::move(rendered.image),
           .metadata = std::move(metadata),
       }));
+      if (focused_artifact.has_value()) {
+        RETURN_IF_ERROR(artifact_sink.Add(*focused_artifact));
+      }
       ++total_samples;
       if (!rendered.environment.has_value()) ++missing_environment_counts[route.id];
 
@@ -882,7 +1013,7 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
           layer_metadata["layer_name"] = theme.layers[layer_index].name;
           layer_metadata["alpha"] = AlphaToJson(alpha);
           const std::string layer_key = absl::StrCat(theme_id, "/", layer_index);
-          if (std::abs(route.zoom - kReviewZooms.front()) < 1e-9) {
+          if (!focus.has_value() && std::abs(route.zoom - kReviewZooms.front()) < 1e-9) {
             maximum_empty_bottom[layer_key] =
                 std::max(maximum_empty_bottom[layer_key], alpha.empty_bottom);
           }
@@ -921,32 +1052,43 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
       return absl::InternalError("contact sheet did not receive every planned route frame");
     }
     const std::string contact_id = absl::StrCat(zoom_id, "-", route.id);
+    nlohmann::json contact_metadata = {
+        {"view", "contact-sheet"},
+        {"route_id", route.id},
+        {"track_index", route.track_index},
+        {"zoom", route.zoom},
+        {"columns", contact.columns},
+        {"ordered_artifact_ids", std::move(contact.ordered_artifact_ids)},
+    };
+    if (focus.has_value()) contact_metadata["focus_entity_id"] = focus->id;
+    const std::string contact_mode = focus.has_value() ? "focused-entity" : "complete";
     RETURN_IF_ERROR(artifact_sink.Add({
         .id = absl::StrCat("contact-sheet-", contact_id),
-        .relative_path = absl::StrCat("contact-sheets/complete-", contact_id, ".png"),
-        .description =
-            absl::StrCat("Complete contact sheet for ", route.id, " at zoom ", route.zoom),
+        .relative_path = absl::StrCat("contact-sheets/", contact_mode, "-", contact_id, ".png"),
+        .description = absl::StrCat(focus.has_value() ? "Focused" : "Complete",
+                                    " contact sheet for ", route.id, " at zoom ", route.zoom),
         .image = std::move(contact.image),
-        .metadata = {{"view", "contact-sheet"},
-                     {"route_id", route.id},
-                     {"track_index", route.track_index},
-                     {"zoom", route.zoom},
-                     {"columns", contact.columns},
-                     {"ordered_artifact_ids", std::move(contact.ordered_artifact_ids)}},
+        .metadata = std::move(contact_metadata),
     }));
   }
 
-  ASSIGN_OR_RETURN(RgbaImage layout, RenderLayoutMap(level, assets, routes));
+  ASSIGN_OR_RETURN(RgbaImage layout, RenderLayoutMap(level, assets, routes, focus));
+  nlohmann::json layout_metadata = {
+      {"view", "layout-map"},
+      {"zone_color", "#e6b928"},
+      {"route_colors", {{"z050", "#46d2ff"}, {"z100", "#d278ff"}, {"z200", "#ffa050"}}},
+      {"spawn_color", "#50ff78"},
+  };
+  if (focus.has_value()) {
+    layout_metadata["focus_entity_id"] = focus->id;
+    layout_metadata["focus_color"] = "#ffdc28";
+  }
   RETURN_IF_ERROR(artifact_sink.Add({
       .id = "layout-map",
       .relative_path = "layout-map.png",
       .description = "Level bounds, zones, review routes, spawn, and entity placement overview",
       .image = std::move(layout),
-      .metadata = {{"view", "layout-map"},
-                   {"zone_color", "#e6b928"},
-                   {"route_colors",
-                    {{"z050", "#46d2ff"}, {"z100", "#d278ff"}, {"z200", "#ffa050"}}},
-                   {"spawn_color", "#50ff78"}},
+      .metadata = std::move(layout_metadata),
   }));
 
   for (const auto& [route_id, count] : missing_environment_counts) {
@@ -987,7 +1129,7 @@ absl::StatusOr<CurationReview> LevelReviewer::Review(Api& api,
                                                      const CurationReviewRequest& request) const {
   ASSIGN_OR_RETURN(Level * level, ResolveReviewLevel(api, request));
   CollectingArtifactSink artifact_sink;
-  ASSIGN_OR_RETURN(CurationReview review, BuildReview(api, *level, artifact_sink));
+  ASSIGN_OR_RETURN(CurationReview review, BuildReview(api, *level, request, artifact_sink));
   review.artifacts = std::move(artifact_sink.artifacts);
   RETURN_IF_ERROR(ValidateCurationReview(review));
   return review;
@@ -998,8 +1140,9 @@ absl::StatusOr<size_t> LevelReviewer::PublishReview(Api& api, const CurationRevi
   ASSIGN_OR_RETURN(Level * level, ResolveReviewLevel(api, request));
   return PublishCurationReviewStreamed(
       output_path,
-      [&api, level](CurationArtifactSink& artifact_sink, CurationReview& review) -> absl::Status {
-        ASSIGN_OR_RETURN(review, BuildReview(api, *level, artifact_sink));
+      [&api, level, request](CurationArtifactSink& artifact_sink,
+                             CurationReview& review) -> absl::Status {
+        ASSIGN_OR_RETURN(review, BuildReview(api, *level, request, artifact_sink));
         return absl::OkStatus();
       });
 }

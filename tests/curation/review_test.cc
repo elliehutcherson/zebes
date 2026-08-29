@@ -1,5 +1,6 @@
 #include "curation/review.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -194,6 +195,9 @@ TEST(CurationRegistryTest, DispatchesByStableKindAndRejectsDuplicateRegistration
                        registry.Review(api, "example", {.asset_id = "selected"}));
   EXPECT_EQ(review.kind, "example");
   EXPECT_EQ(review.asset_id, "selected");
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      registry.Review(api, "example", {.asset_id = "selected", .focus_entity_id = uint64_t{1}})
+          .status()));
   EXPECT_TRUE(absl::IsNotFound(registry.Review(api, "missing", {.asset_id = "selected"}).status()));
   EXPECT_TRUE(absl::IsUnimplemented(
       registry.ReviewCandidate(api, "example", {.asset_id = "selected"}, nlohmann::json::object())

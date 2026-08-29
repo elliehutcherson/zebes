@@ -6,8 +6,8 @@ Catacombs production work in
 [`environment-artwork-plan.md`](environment-artwork-plan.md); it does not
 replace either document.
 
-**Status: implemented through Phase 3; 0.5x coverage and two distributed prop
-passes accepted.** The
+**Status: implemented through Phase 3, including focused entity iteration;
+0.5x coverage and two distributed prop passes accepted.** The
 registered reviewer, deterministic route planner, integrated raster path,
 contact sheets, isolated passes, layout map, and manifest evidence are
 available. The first persisted Catacombs review established the baseline for
@@ -312,10 +312,33 @@ that names the level and resource.
       implementation extracts a new shared scene-composition type.
 - [x] Stream level artifacts through atomic staging and verify that the
       resulting manifest and per-ID RGBA digests match the in-memory contract.
+- [x] Add a focused-entity mode that plans one clamped camera at 0.5×, 1×, and
+      2×, annotates the selected sprite bounds and origin, retains isolated
+      passes, and leaves the full route as the production acceptance gate.
+- [x] Report workspace-load and review/publication wall time outside the
+      deterministic manifest.
 
 Acceptance: two reviews of unchanged persisted assets have the same manifest
 and decoded-RGBA digests. `curate_assets --list_kinds` includes `level`, and
 Catacombs Processional publishes a complete bundle without SDL or ImGui.
+Two focused reviews of the same entity also publish byte-identical manifests
+and PNGs while reducing the production bundle from 343 artifacts to 31 for the
+current three-layer Catacombs composition.
+
+Remaining speed work keeps the same quality boundary:
+
+- Prepare a generated Prop candidate through the shared deterministic prop
+  pipeline, inject its texture/sprite and a transient entity into focused level
+  composition, and publish integrated evidence without registering or
+  persisting the asset graph.
+- Add an explicit referenced-assets workspace profile for exploratory review.
+  The measured Catacombs focused command currently spends about 16–18 seconds
+  loading and validating the complete catalog before its roughly 12-second
+  render/publication stage. The complete final gate must retain full-catalog
+  validation.
+- Add a reference-validated quarantine command for rejected generated graphs;
+  it must refuse referenced assets and move the complete owned graph to a
+  recoverable directory rather than deleting files piecemeal.
 
 ## Catacombs 0.5x content pass
 

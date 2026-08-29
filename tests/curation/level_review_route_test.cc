@@ -172,5 +172,44 @@ TEST(LevelReviewRouteTest, RejectsAViewportThatCannotFitInsideTheLevel) {
             absl::StatusCode::kFailedPrecondition);
 }
 
+TEST(LevelReviewRouteTest, PlansOneClampedFocusedCameraPerZoom) {
+  const Level level = HorizontalLevel();
+  constexpr GameViewSize kGameView{.width = 960, .height = 540};
+  constexpr std::array<double, 3> kZooms = {0.5, 1.0, 2.0};
+
+  ASSERT_OK_AND_ASSIGN(const std::vector<LevelReviewRoute> routes,
+                       PlanFocusedLevelReviewRoutes(level, kGameView, 42, {32, 60}, kZooms));
+
+  ASSERT_EQ(routes.size(), 3);
+  for (size_t index = 0; index < routes.size(); ++index) {
+    const LevelReviewRoute& route = routes[index];
+    EXPECT_EQ(route.id, "entity-42-focus");
+    EXPECT_EQ(route.zone_id, 7);
+    EXPECT_EQ(route.zone_name, "Gallery");
+    EXPECT_DOUBLE_EQ(route.zoom, kZooms[index]);
+    ASSERT_EQ(route.samples.size(), 1);
+    EXPECT_EQ(route.samples.front().id, "frame-0000");
+    EXPECT_EQ(route.samples.front().key_roles, (std::vector<std::string>{"focus"}));
+    EXPECT_EQ(route.centers.min, route.centers.max);
+    EXPECT_EQ(route.samples.front().camera.position, route.centers.min);
+  }
+  EXPECT_EQ(routes[0].centers.min, (Vec{960, 540}));
+  EXPECT_EQ(routes[1].centers.min, (Vec{480, 270}));
+  EXPECT_EQ(routes[2].centers.min, (Vec{240, 135}));
+}
+
+TEST(LevelReviewRouteTest, RejectsAnInvalidFocusedEntity) {
+  const Level level = HorizontalLevel();
+  constexpr GameViewSize kGameView{.width = 960, .height = 540};
+  constexpr std::array<double, 1> kZooms = {1.0};
+
+  EXPECT_EQ(PlanFocusedLevelReviewRoutes(level, kGameView, Entity::kInvalidId, {100, 100}, kZooms)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(PlanFocusedLevelReviewRoutes(level, kGameView, 1, {-1, 100}, kZooms).status().code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
 }  // namespace
 }  // namespace zebes

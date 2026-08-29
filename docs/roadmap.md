@@ -269,7 +269,11 @@ world-space Back Decor stains drifted across the parallax masonry and crossed
 bright arches at some camera positions and zooms. None ships. Any future wall
 aging must be baked into the relevant parallax artwork or rendered in a
 parallax layer with the same scroll factor as its supporting wall; avoid
-increasing density merely to fill the route.
+increasing density merely to fill the route. Focused entity review now provides
+one annotated camera at 0.5×, 1×, and 2× plus isolated passes, reducing current
+Catacombs placement iteration from 343 artifacts to 31 without replacing the
+full-route final gate. Command timing is reported separately so manifests stay
+byte-deterministic.
 See
 [`headless-level-review-plan.md`](headless-level-review-plan.md) and
 [`headless-curation.md`](headless-curation.md).
