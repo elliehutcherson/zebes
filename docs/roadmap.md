@@ -276,7 +276,11 @@ full-route final gate. Command timing is reported separately so manifests stay
 byte-deterministic. Generated Prop candidates can now use that focused route
 before persistence: shared deterministic preparation supplies transient pixels
 to a copied level entity while its position, layer, order, and persisted asset
-graph remain untouched.
+graph remain untouched. An explicit read-only `referenced-level` workspace
+profile removes unrelated retained-source validation from exploratory focused
+reviews, reducing the measured production command from 26.3 seconds to 12.6
+seconds while producing byte-identical evidence; complete loading remains the
+default final gate.
 See
 [`headless-level-review-plan.md`](headless-level-review-plan.md) and
 [`headless-curation.md`](headless-curation.md).

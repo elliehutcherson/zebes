@@ -275,6 +275,15 @@ holds it until every borrowing manager is destroyed. This lets generation and
 review agents run concurrently while preventing a writer from committing an
 in-memory catalog that became stale while it waited.
 
+Complete catalog loading is the default and the only writable profile. Focused
+level curation may explicitly request the read-only `referenced-level` profile:
+Texture, Sprite, Level, Parallax Theme, and Tileset managers retain their normal
+loaders and validation, while unrelated authoring managers are constructed but
+left empty so `Api` keeps one interface without pretending the full catalog was
+validated. The profile cannot commit and cannot review regeneration candidates,
+which require live Source Artwork, Prop Recipe, and Blueprint state. This is a
+composition-root policy, not a second parser or a relaxed manager invariant.
+
 Complete level/theme authoring uses the versioned `EnvironmentBuildSpec` and
 generic `build_environment` composition root. Specifications resolve unique
 resource names to manager-owned IDs, assign only local IDs, and upsert themes

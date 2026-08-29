@@ -100,6 +100,13 @@ add_executable(asset_root_lock_test api/asset_root_lock_test.cc)
 target_link_libraries(asset_root_lock_test asset_root_lock macros gtest_main gmock)
 gtest_discover_tests(asset_root_lock_test)
 
+add_executable(asset_workspace_test api/asset_workspace_test.cc)
+target_link_libraries(asset_workspace_test
+  asset_workspace headless_texture_store macros gtest_main)
+target_compile_definitions(asset_workspace_test
+  PRIVATE ZEBES_TEST_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+gtest_discover_tests(asset_workspace_test)
+
 add_executable(input_manager_test input_manager_test.cc)
 target_link_libraries(input_manager_test input_manager macros gtest_main gmock)
 gtest_discover_tests(input_manager_test)

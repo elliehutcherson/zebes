@@ -333,11 +333,14 @@ Remaining speed work keeps the same quality boundary:
       handles or persisting the asset graph. Candidate preparation, validation,
       and commit now have one shared library boundary used by both Prop and
       Level reviewers.
-- Add an explicit referenced-assets workspace profile for exploratory review.
-  The measured Catacombs focused command currently spends about 16–18 seconds
-  loading and validating the complete catalog before its roughly 12-second
-  render/publication stage. The complete final gate must retain full-catalog
-  validation.
+- [x] Add an explicit `referenced-level` workspace profile for exploratory
+      review. Profiling isolated retained Source Artwork validation at 15.1
+      seconds of the roughly 16-second complete workspace load. The new
+      read-only profile keeps every renderable level catalog loaded but leaves
+      unrelated authoring catalogs empty. On the production Catacombs focus it
+      reduced workspace loading from 15.4 seconds to 1.5 seconds and total
+      publication from 26.3 seconds to 12.6 seconds. Complete and profiled
+      bundles were byte-identical; the default final gate remains complete.
 - Add a reference-validated quarantine command for rejected generated graphs;
   it must refuse referenced assets and move the complete owned graph to a
   recoverable directory rather than deleting files piecemeal.

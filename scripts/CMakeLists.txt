@@ -53,6 +53,7 @@ target_link_libraries(curate_assets
   curation_candidate_commit
   curation_registry
   curation_review
+  generated_asset_candidate
   headless_texture_store
   level_reviewer
   parallax_artwork_reviewer

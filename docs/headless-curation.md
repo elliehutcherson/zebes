@@ -66,10 +66,32 @@ build/dev/bin/curate_assets \
   --output=/tmp/catacombs-player-focus
 ```
 
+Complete catalog validation remains the default. For a read-only exploratory
+pass, opt into the `referenced-level` workspace profile:
+
+```bash
+build/dev/bin/curate_assets \
+  --asset_root="$PWD/assets" \
+  --kind=level \
+  --id=9e20ee58-f4d2-4931-b74b-5555d4b35c00 \
+  --focus_entity_id=4 \
+  --workspace_profile=referenced-level \
+  --output=/tmp/catacombs-player-focus-fast
+```
+
+This profile still loads every Texture, Sprite, Level, Parallax Theme, and
+Tileset definition and validates their runtime artwork. It leaves unrelated
+Collider, Blueprint, Terrain Recipe, retained Source Artwork, Prop Recipe, and
+Parallax Artwork Recipe catalogs empty. It is therefore restricted to focused,
+read-only level reviews and generated Prop creation candidates. Regeneration
+candidates require live authoring inputs and must use `complete`. Always use
+the default complete profile for the final full-route gate.
+
 The command writes workspace-load, review/publication, and total elapsed
-milliseconds to stderr. Timings are deliberately excluded from
-`manifest.json` so unchanged reviews remain byte-deterministic. A missing,
-inactive, duplicate, or out-of-level focus entity fails before rendering.
+milliseconds and the selected workspace profile to stderr. Timings are
+deliberately excluded from `manifest.json` so unchanged reviews remain
+byte-deterministic. A missing, inactive, duplicate, or out-of-level focus
+entity fails before rendering.
 
 A generated Prop candidate can replace that focused entity only for the
 published evidence. The reviewer prepares the candidate through the same
@@ -83,6 +105,7 @@ build/dev/bin/curate_assets \
   --kind=level \
   --id=9e20ee58-f4d2-4931-b74b-5555d4b35c00 \
   --focus_entity_id=9 \
+  --workspace_profile=referenced-level \
   --candidate=/tmp/catacombs-wall-accent/candidate.json \
   --output=/tmp/catacombs-wall-accent-in-level
 ```
@@ -425,13 +448,13 @@ and is also loaded by a shipped parser test.
 ## Concurrent agents and catalog snapshots
 
 Every `AssetWorkspace` participates in an asset-root advisory lock. Readers
-take a shared lock only while loading the complete catalog, then release it and
-work concurrently from an in-memory snapshot. Writers take an exclusive lock
-before loading and retain it through their full transaction. A contending
-writer waits up to 30 seconds, then fails with the owning process ID and root;
-it never commits a stale catalog snapshot. Candidate and review output
-directories use create-only atomic publication, so agents must give each run a
-distinct output directory.
+take a shared lock only while loading their selected catalog profile, then
+release it and work concurrently from an in-memory snapshot. Writers take an
+exclusive lock before loading the complete catalog and retain it through their
+full transaction. A contending writer waits up to 30 seconds, then fails with
+the owning process ID and root; it never commits a stale catalog snapshot.
+Candidate and review output directories use create-only atomic publication, so
+agents must give each run a distinct output directory.
 
 ## Review bundle contract
 

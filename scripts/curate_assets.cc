@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "absl/flags/flag.h"
@@ -28,6 +29,7 @@
 #include "curation/sprite_reviewer.h"
 #include "curation/terrain_reviewer.h"
 #include "curation/tileset_reviewer.h"
+#include "generation/generated_asset_candidate.h"
 #include "nlohmann/json.hpp"
 #include "objects/entity.h"
 #include "platform/headless/headless_texture_store.h"
@@ -42,6 +44,8 @@ ABSL_FLAG(bool, commit, false, "Commit a reviewed candidate through the producti
 ABSL_FLAG(bool, list_kinds, false, "List registered review kinds and exit");
 ABSL_FLAG(uint64_t, focus_entity_id, 0,
           "For level reviews, render deterministic cameras focused on this placed entity");
+ABSL_FLAG(std::string, workspace_profile, "complete",
+          "Workspace loading profile: complete or referenced-level");
 
 namespace zebes {
 namespace {
@@ -53,9 +57,9 @@ int64_t ElapsedMilliseconds(SteadyClock::time_point start, SteadyClock::time_poi
 }
 
 void LogTimings(SteadyClock::time_point command_started, SteadyClock::time_point workspace_loaded,
-                SteadyClock::time_point completed) {
-  std::cerr << "curation timing: workspace_load_ms="
-            << ElapsedMilliseconds(command_started, workspace_loaded)
+                SteadyClock::time_point completed, std::string_view workspace_profile) {
+  std::cerr << "curation timing: workspace_profile=" << workspace_profile
+            << " workspace_load_ms=" << ElapsedMilliseconds(command_started, workspace_loaded)
             << " review_and_publish_ms=" << ElapsedMilliseconds(workspace_loaded, completed)
             << " total_ms=" << ElapsedMilliseconds(command_started, completed) << '\n';
 }
@@ -84,6 +88,28 @@ absl::StatusOr<std::optional<CandidateInput>> ReadCandidateInput(
                                                : std::filesystem::current_path(),
       .document = std::move(document),
   };
+}
+
+absl::StatusOr<AssetWorkspace::LoadProfile> ParseLoadProfile(
+    std::string_view requested, std::string_view kind, uint64_t focus_entity_id, bool commit,
+    const std::optional<CandidateInput>& candidate) {
+  ASSIGN_OR_RETURN(const AssetWorkspace::LoadProfile profile,
+                   AssetWorkspace::ParseLoadProfile(requested));
+  if (profile == AssetWorkspace::LoadProfile::kComplete) return profile;
+  if (kind != "level" || focus_entity_id == Entity::kInvalidId) {
+    return absl::InvalidArgumentError(
+        "the referenced-level workspace profile requires a focused level review");
+  }
+  if (commit) {
+    return absl::InvalidArgumentError(
+        "the referenced-level workspace profile cannot be used for a commit");
+  }
+  if (candidate.has_value() && !IsGeneratedAssetCreationCandidate(candidate->document)) {
+    return absl::InvalidArgumentError(
+        "the referenced-level workspace profile supports persisted levels and generated prop "
+        "creation candidates; use the complete profile for regeneration candidates");
+  }
+  return AssetWorkspace::LoadProfile::kLevelReview;
 }
 
 absl::Status RegisterReviewers(CurationRegistry& registry) {
@@ -130,6 +156,9 @@ absl::Status Run() {
     return absl::InvalidArgumentError("a transient level candidate cannot be committed");
   }
   ASSIGN_OR_RETURN(std::optional<CandidateInput> candidate, ReadCandidateInput(candidate_path));
+  ASSIGN_OR_RETURN(const AssetWorkspace::LoadProfile load_profile,
+                   ParseLoadProfile(absl::GetFlag(FLAGS_workspace_profile), kind, focus_entity_id,
+                                    commit, candidate));
 
   ASSIGN_OR_RETURN(EngineConfig config,
                    EngineConfig::Load(absl::StrCat(asset_root, "/config.json")));
@@ -141,6 +170,7 @@ absl::Status Run() {
           .texture_resources = &texture_resources,
           .asset_root = asset_root,
           .access = commit ? AssetWorkspace::Access::kReadWrite : AssetWorkspace::Access::kReadOnly,
+          .load_profile = load_profile,
       }));
   const SteadyClock::time_point workspace_loaded = SteadyClock::now();
   CurationReviewRequest request{.asset_id = asset_id};
@@ -150,7 +180,8 @@ absl::Status Run() {
                      registry.PublishReview(assets->api(), kind, request, output));
     LOG(INFO) << "Published " << artifact_count << " review artifacts for " << kind << " "
               << asset_id << " at " << output;
-    LogTimings(command_started, workspace_loaded, SteadyClock::now());
+    LogTimings(command_started, workspace_loaded, SteadyClock::now(),
+               AssetWorkspace::LoadProfileId(load_profile));
     std::cout << output << "/manifest.json\n";
     return absl::OkStatus();
   }
@@ -162,7 +193,8 @@ absl::Status Run() {
     const std::string committed_output = CommittedCurationOutputPath(output);
     LOG(INFO) << "Committed reviewed " << kind << " candidate " << asset_id;
     LOG(INFO) << "Published post-commit review at " << committed_output;
-    LogTimings(command_started, workspace_loaded, SteadyClock::now());
+    LogTimings(command_started, workspace_loaded, SteadyClock::now(),
+               AssetWorkspace::LoadProfileId(load_profile));
     std::cout << committed_output << "/manifest.json\n";
     return absl::OkStatus();
   }
@@ -171,7 +203,8 @@ absl::Status Run() {
       registry.PublishCandidateReview(assets->api(), kind, request, candidate->document, output));
   LOG(INFO) << "Published " << artifact_count << " review artifacts for " << kind << " " << asset_id
             << " at " << output;
-  LogTimings(command_started, workspace_loaded, SteadyClock::now());
+  LogTimings(command_started, workspace_loaded, SteadyClock::now(),
+             AssetWorkspace::LoadProfileId(load_profile));
   std::cout << output << "/manifest.json\n";
   return absl::OkStatus();
 }

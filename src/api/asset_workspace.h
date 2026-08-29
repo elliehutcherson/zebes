@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
@@ -24,11 +25,13 @@ class TextureManager;
 class TextureResourceStore;
 class TilesetManager;
 
-// Platform-neutral composition root for the complete authored asset catalog.
+// Platform-neutral composition root for authored asset catalogs.
 //
 // The interactive editor supplies an SDL texture store; headless tools supply
-// a store with no window or GPU. Everything above that adapter is identical,
-// including fail-fast loading, cross-resource API validation, and persistence.
+// a store with no window or GPU. Complete loading remains the default. The
+// explicit level-review profile leaves unrelated authoring catalogs empty so a
+// read-only exploratory renderer does not validate retained source pixels it
+// cannot consume.
 class AssetWorkspace {
  public:
   enum class Access {
@@ -36,11 +39,20 @@ class AssetWorkspace {
     kReadWrite,
   };
 
+  enum class LoadProfile {
+    kComplete,
+    kLevelReview,
+  };
+
+  static absl::StatusOr<LoadProfile> ParseLoadProfile(std::string_view id);
+  static std::string_view LoadProfileId(LoadProfile profile);
+
   struct Options {
     EngineConfig* config = nullptr;
     TextureResourceStore* texture_resources = nullptr;
     std::string asset_root;
     Access access = Access::kReadOnly;
+    LoadProfile load_profile = LoadProfile::kComplete;
     absl::Duration write_lock_timeout = absl::Seconds(30);
   };
 
