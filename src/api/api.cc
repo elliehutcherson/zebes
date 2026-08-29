@@ -393,7 +393,7 @@ absl::Status Api::CheckGeneratedTerrainDeletable(const std::string& recipe_id) {
 }
 
 absl::Status Api::CheckGeneratedTerrainDeletable(const TerrainRecipe& recipe,
-                                                 const CatalogSnapshot& catalog) const {
+                                                 const CatalogSnapshot& catalog) {
   const std::string& name = recipe.name;
   const std::string tileset_id = recipe.tileset_id;
   const std::string texture_id = recipe.texture_id;
@@ -594,7 +594,7 @@ absl::Status Api::CheckGeneratedPropDeletable(const std::string& recipe_id) {
 }
 
 absl::Status Api::CheckGeneratedPropDeletable(const PropRecipe& recipe,
-                                              const CatalogSnapshot& catalog) const {
+                                              const CatalogSnapshot& catalog) {
   std::vector<AssetReference> outside;
   for (const AssetReference& referrer :
        FindBlueprintReferrers(catalog.View(), recipe.blueprint_id)) {
@@ -819,7 +819,7 @@ absl::Status Api::CheckGeneratedParallaxArtworkDeletable(const std::string& reci
 }
 
 absl::Status Api::CheckGeneratedParallaxArtworkDeletable(const ParallaxArtworkRecipe& recipe,
-                                                         const CatalogSnapshot& catalog) const {
+                                                         const CatalogSnapshot& catalog) {
   std::vector<AssetReference> outside;
   for (const AssetReference& referrer : FindTextureReferrers(catalog.View(), recipe.texture_id)) {
     if (referrer.kind == AssetKind::kParallaxArtworkRecipe && referrer.id == recipe.id) continue;

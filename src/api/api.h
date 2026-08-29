@@ -253,12 +253,12 @@ class Api {
   // could not read: a catalogue with silent holes would let a scan approve
   // deleting something the unreadable definition still references.
   CatalogSnapshot SnapshotCatalog();
-  absl::Status CheckGeneratedTerrainDeletable(const TerrainRecipe& recipe,
-                                              const CatalogSnapshot& catalog) const;
-  absl::Status CheckGeneratedPropDeletable(const PropRecipe& recipe,
-                                           const CatalogSnapshot& catalog) const;
-  absl::Status CheckGeneratedParallaxArtworkDeletable(const ParallaxArtworkRecipe& recipe,
-                                                      const CatalogSnapshot& catalog) const;
+  static absl::Status CheckGeneratedTerrainDeletable(const TerrainRecipe& recipe,
+                                                     const CatalogSnapshot& catalog);
+  static absl::Status CheckGeneratedPropDeletable(const PropRecipe& recipe,
+                                                  const CatalogSnapshot& catalog);
+  static absl::Status CheckGeneratedParallaxArtworkDeletable(const ParallaxArtworkRecipe& recipe,
+                                                             const CatalogSnapshot& catalog);
 
   EngineConfig& config_;
   TextureManager* texture_manager_;
