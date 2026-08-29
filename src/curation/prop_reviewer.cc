@@ -4,20 +4,15 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <utility>
 
 #include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
-#include "api/source_artwork_retention.h"
-#include "artwork/prepare_prop_asset.h"
 #include "artwork/prop_recipe.h"
-#include "artwork/regenerate_prop_asset.h"
 #include "common/image_digest.h"
 #include "common/status_macros.h"
+#include "curation/prop_candidate.h"
 #include "curation/raster_canvas.h"
-#include "generation/generated_asset_candidate.h"
 #include "objects/blueprint.h"
 #include "objects/sprite.h"
 
@@ -38,18 +33,6 @@ absl::Status ValidateFrame(const SpriteFrame& frame, const RgbaImage& texture) {
     return absl::FailedPreconditionError("prop sprite frame exceeds its texture or render bounds");
   }
   return absl::OkStatus();
-}
-
-const Blueprint::State* FindPropState(const Blueprint& blueprint, const std::string& sprite_id) {
-  for (const Blueprint::State& state : blueprint.states) {
-    if (state.sprite_id == sprite_id) return &state;
-  }
-  return nullptr;
-}
-
-absl::Status DrawCross(RgbaImage& image, int x, int y, int radius, RgbaColor8 color) {
-  RETURN_IF_ERROR(FillRgbaRect(image, x - radius, y, radius * 2 + 1, 1, color));
-  return FillRgbaRect(image, x, y - radius, 1, radius * 2 + 1, color);
 }
 
 absl::StatusOr<RgbaImage> RenderPlacementContext(const RgbaImage& texture, const SpriteFrame& frame,
@@ -76,7 +59,7 @@ absl::StatusOr<RgbaImage> RenderPlacementContext(const RgbaImage& texture, const
                                         .y = static_cast<double>(origin_y + frame.offset_y),
                                         .width = static_cast<double>(frame.render_w),
                                         .height = static_cast<double>(frame.render_h)}));
-  RETURN_IF_ERROR(DrawCross(image, origin_x, origin_y, 8, kAnchor));
+  RETURN_IF_ERROR(DrawRgbaCross(image, origin_x, origin_y, 8, kAnchor));
   return image;
 }
 
@@ -98,7 +81,7 @@ absl::StatusOr<RgbaImage> RenderPixelDetail(const RgbaImage& texture, const Spri
                                         .y = static_cast<double>(origin_y + frame.offset_y * scale),
                                         .width = static_cast<double>(frame.render_w * scale),
                                         .height = static_cast<double>(frame.render_h * scale)}));
-  RETURN_IF_ERROR(DrawCross(image, origin_x, origin_y, 10, kAnchor));
+  RETURN_IF_ERROR(DrawRgbaCross(image, origin_x, origin_y, 10, kAnchor));
   return image;
 }
 
@@ -116,70 +99,11 @@ bool TouchesTextureEdge(const RgbaImage& image) {
   return false;
 }
 
-absl::StatusOr<PropRecipe> ParseCandidate(const CurationReviewRequest& request,
-                                          const nlohmann::json& candidate) {
-  ASSIGN_OR_RETURN(PropRecipe recipe, PropRecipeFromJson(candidate));
-  if (recipe.id != request.asset_id) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "prop candidate ID '", recipe.id, "' does not match selected ID '", request.asset_id, "'"));
-  }
-  if (PropRecipeToJson(recipe) != candidate) {
-    return absl::InvalidArgumentError(
-        "prop candidate must be one exact schema-current recipe object");
-  }
-  return recipe;
-}
-
-absl::StatusOr<PreparedPropRegeneration> PrepareCandidate(Api& api, const PropRecipe& candidate) {
-  ASSIGN_OR_RETURN(PropRecipe * loaded_recipe, api.GetPropRecipe(candidate.id));
-  if (loaded_recipe == nullptr) {
-    return absl::FailedPreconditionError("prop recipe lookup returned null");
-  }
-  const PropRecipe recipe = *loaded_recipe;
-  ASSIGN_OR_RETURN(SourceArtwork * loaded_source, api.GetSourceArtwork(recipe.source_artwork_id));
-  ASSIGN_OR_RETURN(Texture * loaded_texture, api.GetTexture(recipe.texture_id));
-  ASSIGN_OR_RETURN(Sprite * loaded_sprite, api.GetSprite(recipe.sprite_id));
-  if (loaded_source == nullptr || loaded_texture == nullptr || loaded_sprite == nullptr) {
-    return absl::FailedPreconditionError("prop regeneration input lookup returned null");
-  }
-  ASSIGN_OR_RETURN(RgbaImage source_pixels, api.ReadSourceArtworkPixels(recipe.source_artwork_id));
-  ASSIGN_OR_RETURN(RgbaImage texture_pixels, api.ReadTexturePixels(recipe.texture_id));
-  return PreparePropRegeneration(*loaded_source, source_pixels, recipe, *loaded_texture,
-                                 texture_pixels, *loaded_sprite,
-                                 PropRegenerationSettings{
-                                     .terrain_recipe_id = candidate.terrain_recipe_id,
-                                     .style = candidate.style,
-                                     .pipeline = candidate.pipeline,
-                                 });
-}
-
-SourceArtwork PreviewSource(const GeneratedPropCreationCandidate& candidate) {
-  return SourceArtwork{
-      .id = absl::StrCat(candidate.asset_id, "-source-preview"),
-      .name = absl::StrCat(candidate.name, " source"),
-      .source_path = candidate.source.relative_path,
-      .provenance = candidate.source.provenance,
-      .width = candidate.source.width,
-      .height = candidate.source.height,
-      .content_digest = candidate.source.content_digest,
-  };
-}
-
-PreparePropAssetRequest CreationRequest(const GeneratedPropCreationCandidate& candidate) {
-  return PreparePropAssetRequest{
-      .name = candidate.name,
-      .terrain_recipe_id = candidate.template_recipe.terrain_recipe_id,
-      .style = candidate.template_recipe.style,
-      .pipeline = candidate.template_recipe.pipeline,
-      .ids = candidate.ids,
-  };
-}
-
 absl::StatusOr<CurationReview> BuildReview(const PropRecipe& recipe, const RgbaImage& texture,
                                            const SpriteFrame& frame,
                                            BlueprintPlacementMode placement_mode,
                                            const GameViewSize& game_view,
-                                           std::optional<nlohmann::json> requested_candidate) {
+                                           const PreparedPropCandidate* candidate) {
   RETURN_IF_ERROR(ValidatePropRecipe(recipe));
   RETURN_IF_ERROR(ValidateFrame(frame, texture));
   ASSIGN_OR_RETURN(const std::string digest, RgbaImageDigest(texture));
@@ -199,7 +123,7 @@ absl::StatusOr<CurationReview> BuildReview(const PropRecipe& recipe, const RgbaI
       .metadata =
           {
               {"recipe", PropRecipeToJson(recipe)},
-              {"candidate", requested_candidate.has_value()},
+              {"candidate", candidate != nullptr},
               {"texture_id", recipe.texture_id},
               {"sprite_id", recipe.sprite_id},
               {"blueprint_id", recipe.blueprint_id},
@@ -232,13 +156,13 @@ absl::StatusOr<CurationReview> BuildReview(const PropRecipe& recipe, const RgbaI
               },
           },
   };
-  if (requested_candidate.has_value()) {
-    review.metadata["requested_recipe"] = *requested_candidate;
-    const bool creation = IsGeneratedAssetCreationCandidate(*requested_candidate);
-    const bool exact = creation || *requested_candidate == PropRecipeToJson(recipe);
-    review.metadata["candidate_matches_deterministic_output"] = exact;
-    review.metadata["candidate_operation"] = creation ? "create" : "regenerate";
-    if (!exact) {
+  if (candidate != nullptr) {
+    review.metadata["requested_recipe"] = candidate->requested_candidate;
+    review.metadata["candidate_matches_deterministic_output"] =
+        candidate->matches_deterministic_output;
+    review.metadata["candidate_operation"] = PropCandidateOperationId(candidate->operation);
+    review.metadata["candidate_source_digest"] = candidate->source_content_digest;
+    if (!candidate->matches_deterministic_output) {
       review.findings.push_back({
           .severity = CurationFindingSeverity::kWarning,
           .code = "candidate-recipe-mismatch",
@@ -285,88 +209,26 @@ absl::StatusOr<CurationReview> PropReviewer::Review(Api& api,
       sprite->frames.front() != recipe->expected_frame) {
     return absl::FailedPreconditionError("prop recipe no longer matches its texture and sprite");
   }
-  const Blueprint::State* state = FindPropState(*blueprint, sprite->id);
-  if (state == nullptr || !IsValidBlueprintPlacementMode(state->placement_mode)) {
-    return absl::FailedPreconditionError("prop blueprint has no valid state for its sprite");
-  }
+  ASSIGN_OR_RETURN(const BlueprintPlacementMode placement_mode,
+                   ResolvePropPlacementMode(*blueprint, sprite->id));
 
   ASSIGN_OR_RETURN(RgbaImage texture, api.ReadTexturePixels(texture_definition->id));
-  return BuildReview(*recipe, texture, sprite->frames.front(), state->placement_mode,
-                     api.GetConfig()->game_view, std::nullopt);
+  return BuildReview(*recipe, texture, sprite->frames.front(), placement_mode,
+                     api.GetConfig()->game_view, nullptr);
 }
 
 absl::StatusOr<CurationReview> PropReviewer::ReviewCandidate(
     Api& api, const CurationReviewRequest& request, const nlohmann::json& candidate_json) const {
-  if (IsGeneratedAssetCreationCandidate(candidate_json)) {
-    ASSIGN_OR_RETURN(const GeneratedPropCreationCandidate candidate,
-                     GeneratedPropCreationCandidateFromJson(candidate_json));
-    if (candidate.asset_id != request.asset_id) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("generated prop candidate ID '", candidate.asset_id,
-                       "' does not match selected ID '", request.asset_id, "'"));
-    }
-    ASSIGN_OR_RETURN(RgbaImage pixels,
-                     ReadGeneratedAssetSourceCandidate(request.candidate_root, candidate.source));
-    ASSIGN_OR_RETURN(PreparedPropAsset prepared, PreparePropAsset(PreviewSource(candidate), pixels,
-                                                                  CreationRequest(candidate)));
-    const Blueprint::State* state = FindPropState(prepared.blueprint, prepared.sprite.id);
-    if (state == nullptr || !IsValidBlueprintPlacementMode(state->placement_mode)) {
-      return absl::FailedPreconditionError(
-          "generated prop candidate produced no valid blueprint state");
-    }
-    return BuildReview(prepared.recipe, prepared.artwork.finished.image,
-                       prepared.sprite.frames.front(), state->placement_mode,
-                       api.GetConfig()->game_view, candidate_json);
-  }
-  ASSIGN_OR_RETURN(const PropRecipe candidate, ParseCandidate(request, candidate_json));
-  ASSIGN_OR_RETURN(PreparedPropRegeneration prepared, PrepareCandidate(api, candidate));
-  ASSIGN_OR_RETURN(Blueprint * blueprint, api.GetBlueprint(prepared.updated_recipe.blueprint_id));
-  if (blueprint == nullptr) {
-    return absl::FailedPreconditionError("prop blueprint lookup returned null");
-  }
-  const Blueprint::State* state = FindPropState(*blueprint, prepared.updated_sprite.id);
-  if (state == nullptr || !IsValidBlueprintPlacementMode(state->placement_mode)) {
-    return absl::FailedPreconditionError("prop blueprint has no valid state for its sprite");
-  }
-  return BuildReview(prepared.updated_recipe, prepared.artwork.finished.image,
-                     prepared.updated_sprite.frames.front(), state->placement_mode,
-                     api.GetConfig()->game_view, candidate_json);
+  ASSIGN_OR_RETURN(
+      const PreparedPropCandidate candidate,
+      PreparePropCandidateForReview(api, request.candidate_root, request.asset_id, candidate_json));
+  return BuildReview(candidate.recipe, candidate.texture, candidate.sprite.frames.front(),
+                     candidate.placement_mode, api.GetConfig()->game_view, &candidate);
 }
 
 absl::Status PropReviewer::CommitCandidate(Api& api, const CurationReviewRequest& request,
                                            const nlohmann::json& candidate_json) const {
-  if (IsGeneratedAssetCreationCandidate(candidate_json)) {
-    ASSIGN_OR_RETURN(const GeneratedPropCreationCandidate candidate,
-                     GeneratedPropCreationCandidateFromJson(candidate_json));
-    if (candidate.asset_id != request.asset_id) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("generated prop candidate ID '", candidate.asset_id,
-                       "' does not match selected ID '", request.asset_id, "'"));
-    }
-    ASSIGN_OR_RETURN(RgbaImage pixels,
-                     ReadGeneratedAssetSourceCandidate(request.candidate_root, candidate.source));
-    return RetainSourceArtwork(
-               api, absl::StrCat(candidate.name, " source"), candidate.source.provenance, pixels,
-               [&api, &candidate](const SourceArtwork& source,
-                                  const RgbaImage& retained_pixels) -> absl::Status {
-                 ASSIGN_OR_RETURN(
-                     PreparedPropAsset prepared,
-                     PreparePropAsset(source, retained_pixels, CreationRequest(candidate)));
-                 return api.CreateGeneratedProp(prepared).status();
-               })
-        .status();
-  }
-  ASSIGN_OR_RETURN(const PropRecipe candidate, ParseCandidate(request, candidate_json));
-  ASSIGN_OR_RETURN(PreparedPropRegeneration prepared, PrepareCandidate(api, candidate));
-  if (candidate.final_pixel_digest != prepared.updated_recipe.final_pixel_digest) {
-    return absl::FailedPreconditionError(
-        "prop candidate digest does not match the deterministic regenerated pixels");
-  }
-  if (candidate_json != PropRecipeToJson(prepared.updated_recipe)) {
-    return absl::FailedPreconditionError(
-        "prop candidate changes immutable bundle identity or derived output fields");
-  }
-  return api.RegenerateGeneratedProp(prepared);
+  return CommitPropCandidate(api, request.candidate_root, request.asset_id, candidate_json);
 }
 
 }  // namespace zebes

@@ -18,6 +18,11 @@ class LevelReviewer : public CurationReviewer {
                                         const CurationReviewRequest& request) const override;
   absl::StatusOr<size_t> PublishReview(Api& api, const CurationReviewRequest& request,
                                        const std::string& output_path) const override;
+  absl::StatusOr<CurationReview> ReviewCandidate(Api& api, const CurationReviewRequest& request,
+                                                 const nlohmann::json& candidate) const override;
+  absl::StatusOr<size_t> PublishCandidateReview(Api& api, const CurationReviewRequest& request,
+                                                const nlohmann::json& candidate,
+                                                const std::string& output_path) const override;
 };
 
 }  // namespace zebes

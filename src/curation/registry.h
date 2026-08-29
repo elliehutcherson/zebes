@@ -34,6 +34,13 @@ class CurationReviewer {
   virtual absl::StatusOr<CurationReview> ReviewCandidate(Api& api,
                                                          const CurationReviewRequest& request,
                                                          const nlohmann::json& candidate) const;
+  // Mirrors PublishReview for candidate evidence. The default adapter keeps
+  // small reviewers simple; large reviewers can stream without teaching the
+  // command or commit transaction about their artifact strategy.
+  virtual absl::StatusOr<size_t> PublishCandidateReview(Api& api,
+                                                        const CurationReviewRequest& request,
+                                                        const nlohmann::json& candidate,
+                                                        const std::string& output_path) const;
   virtual absl::Status CommitCandidate(Api& api, const CurationReviewRequest& request,
                                        const nlohmann::json& candidate) const;
 };
@@ -54,6 +61,10 @@ class CurationRegistry {
   absl::StatusOr<CurationReview> ReviewCandidate(Api& api, std::string_view kind,
                                                  const CurationReviewRequest& request,
                                                  const nlohmann::json& candidate) const;
+  absl::StatusOr<size_t> PublishCandidateReview(Api& api, std::string_view kind,
+                                                const CurationReviewRequest& request,
+                                                const nlohmann::json& candidate,
+                                                const std::string& output_path) const;
   absl::Status CommitCandidate(Api& api, std::string_view kind,
                                const CurationReviewRequest& request,
                                const nlohmann::json& candidate) const;

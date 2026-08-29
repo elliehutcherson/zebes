@@ -59,5 +59,19 @@ TEST(CurationRasterTest, RejectsInvalidSourceGeometry) {
                    .ok());
 }
 
+TEST(CurationRasterTest, DrawsSharedClippedAnnotationsAndRejectsReversedBounds) {
+  ASSERT_OK_AND_ASSIGN(RgbaImage image, CreateSolidRgbaImage(5, 5, {}));
+  const RgbaColor8 yellow{.red = 255, .green = 220, .blue = 40};
+
+  ASSERT_OK(DrawRgbaCross(image, 0, 0, 2, yellow));
+  ASSERT_OK(DrawRgbaOutline(image, 2, 2, 4, 4, yellow));
+
+  EXPECT_EQ(Pixel(image, 0, 0).red, 255);
+  EXPECT_EQ(Pixel(image, 2, 0).green, 220);
+  EXPECT_EQ(Pixel(image, 3, 3).red, 0);
+  EXPECT_EQ(Pixel(image, 4, 4).blue, 40);
+  EXPECT_TRUE(absl::IsInvalidArgument(DrawRgbaOutline(image, 3, 2, 2, 4, yellow)));
+}
+
 }  // namespace
 }  // namespace zebes

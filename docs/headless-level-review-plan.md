@@ -327,10 +327,12 @@ current three-layer Catacombs composition.
 
 Remaining speed work keeps the same quality boundary:
 
-- Prepare a generated Prop candidate through the shared deterministic prop
-  pipeline, inject its texture/sprite and a transient entity into focused level
-  composition, and publish integrated evidence without registering or
-  persisting the asset graph.
+- [x] Prepare a generated Prop candidate through the shared deterministic prop
+      pipeline, substitute its texture/Sprite for the selected entity in a
+      copied level, and stream integrated focused evidence without registering
+      handles or persisting the asset graph. Candidate preparation, validation,
+      and commit now have one shared library boundary used by both Prop and
+      Level reviewers.
 - Add an explicit referenced-assets workspace profile for exploratory review.
   The measured Catacombs focused command currently spends about 16–18 seconds
   loading and validating the complete catalog before its roughly 12-second
@@ -451,7 +453,9 @@ not required unless the affected set can no longer be bounded confidently.
 - No second asset loader and no direct catalog JSON parsing.
 - No gameplay simulation or claim that the inferred centerline is a player
   navigation path.
-- No level candidate mutation or commit through the curation registry.
+- No persisted level candidate mutation or level commit through the curation
+  registry. A focused review may substitute prepared Prop pixels in a copied
+  `Level` solely to publish transient evidence.
 - No video output or encoder dependency.
 - No automatic aesthetic verdict or weakening of the 0.5x requirement to make
   the current content pass.

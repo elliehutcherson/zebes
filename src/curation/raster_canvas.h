@@ -13,6 +13,8 @@ struct RgbaColor8 {
   uint8_t green = 0;
   uint8_t blue = 0;
   uint8_t alpha = 255;
+
+  bool operator==(const RgbaColor8& other) const = default;
 };
 
 struct RasterSourceRect {
@@ -44,5 +46,11 @@ absl::Status CompositeRgbaNearest(RgbaImage& destination, const RgbaImage& sourc
 
 absl::Status FillRgbaRect(RgbaImage& destination, int x, int y, int width, int height,
                           RgbaColor8 color);
+
+// Shared annotation primitives use the same clipped fill behavior as other
+// curation raster operations. Coordinates are inclusive for the outline.
+absl::Status DrawRgbaCross(RgbaImage& destination, int x, int y, int radius, RgbaColor8 color);
+absl::Status DrawRgbaOutline(RgbaImage& destination, int min_x, int min_y, int max_x, int max_y,
+                             RgbaColor8 color);
 
 }  // namespace zebes

@@ -71,6 +71,31 @@ milliseconds to stderr. Timings are deliberately excluded from
 `manifest.json` so unchanged reviews remain byte-deterministic. A missing,
 inactive, duplicate, or out-of-level focus entity fails before rendering.
 
+A generated Prop candidate can replace that focused entity only for the
+published evidence. The reviewer prepares the candidate through the same
+deterministic Prop pipeline used by standalone review and commit, copies the
+persisted `Level`, and changes the copied entity's Sprite. Position, layer,
+draw order, and the persisted definition remain unchanged:
+
+```bash
+build/dev/bin/curate_assets \
+  --asset_root="$PWD/assets" \
+  --kind=level \
+  --id=9e20ee58-f4d2-4931-b74b-5555d4b35c00 \
+  --focus_entity_id=9 \
+  --candidate=/tmp/catacombs-wall-accent/candidate.json \
+  --output=/tmp/catacombs-wall-accent-in-level
+```
+
+The manifest records the candidate's source and final pixel digests, its
+placement mode, the persisted Sprite it replaced, and the entity IDs that
+actually rendered transient pixels. The command never registers texture
+handles or writes asset definitions, and rejects `--commit` for `--kind=level`.
+Review and accept a new candidate with `--kind=prop`; use the level form to
+check scale and composition before that persistence boundary. Candidate JSON
+is parsed before the catalog is loaded, so malformed input fails without
+paying the workspace startup cost.
+
 ```bash
 build/dev/bin/curate_assets \
   --asset_root="$PWD/assets" \
@@ -446,10 +471,12 @@ The extension boundary is `CurationReviewer` in `src/curation/registry.h`:
    shared artifact sink so validation, pixel limits, digests, manifest shape,
    failure cleanup, and the final atomic rename remain generic. The level
    reviewer uses this path and accumulates only one route contact sheet.
-4. Override `ReviewCandidate()` and `CommitCandidate()` only when the proposed
-   document can be validated and persisted atomically at that boundary. Bundle
-   assets call their existing compensated creation or regeneration transaction;
-   they are never persisted as a loose collection of definitions.
+4. Override `ReviewCandidate()` for a validated transient proposal and
+   `PublishCandidateReview()` when its evidence also needs streaming. Override
+   `CommitCandidate()` only when the proposed document can be persisted
+   atomically at that boundary. Bundle assets call their existing compensated
+   creation or regeneration transaction; they are never persisted as a loose
+   collection of definitions.
 5. Register the reviewer in `scripts/curate_assets.cc` and add focused tests for
    its domain invariants.
 

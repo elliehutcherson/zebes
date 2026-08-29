@@ -27,6 +27,17 @@ absl::StatusOr<CurationReview> CurationReviewer::ReviewCandidate(
       absl::StrCat("curation candidates are not supported for kind '", kind(), "'"));
 }
 
+absl::StatusOr<size_t> CurationReviewer::PublishCandidateReview(
+    Api& api, const CurationReviewRequest& request, const nlohmann::json& candidate,
+    const std::string& output_path) const {
+  absl::StatusOr<CurationReview> review = ReviewCandidate(api, request, candidate);
+  if (!review.ok()) return review.status();
+  const size_t artifact_count = review->artifacts.size();
+  const absl::Status publish_status = PublishCurationReview(*review, output_path);
+  if (!publish_status.ok()) return publish_status;
+  return artifact_count;
+}
+
 absl::Status CurationReviewer::CommitCandidate(Api& api, const CurationReviewRequest& request,
                                                const nlohmann::json& candidate) const {
   (void)api;
@@ -100,6 +111,19 @@ absl::StatusOr<CurationReview> CurationRegistry::ReviewCandidate(
         absl::StrCat("no curation reviewer registered for kind '", kind, "'"));
   }
   return reviewer->second->ReviewCandidate(api, request, candidate);
+}
+
+absl::StatusOr<size_t> CurationRegistry::PublishCandidateReview(
+    Api& api, std::string_view kind, const CurationReviewRequest& request,
+    const nlohmann::json& candidate, const std::string& output_path) const {
+  const absl::Status request_status = ValidateRequest(request, kind);
+  if (!request_status.ok()) return request_status;
+  const auto reviewer = reviewers_.find(kind);
+  if (reviewer == reviewers_.end()) {
+    return absl::NotFoundError(
+        absl::StrCat("no curation reviewer registered for kind '", kind, "'"));
+  }
+  return reviewer->second->PublishCandidateReview(api, request, candidate, output_path);
 }
 
 absl::Status CurationRegistry::CommitCandidate(Api& api, std::string_view kind,

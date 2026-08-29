@@ -24,12 +24,11 @@ absl::Status CommitCandidateWithEvidence(CurationRegistry& registry, Api& api,
   RETURN_IF_ERROR(ValidateNewDirectoryDestination(reviewed_output_path));
   RETURN_IF_ERROR(ValidateNewDirectoryDestination(committed_output));
 
-  ASSIGN_OR_RETURN(CurationReview reviewed,
-                   registry.ReviewCandidate(api, kind, request, candidate));
-  RETURN_IF_ERROR(PublishCurationReview(reviewed, reviewed_output_path));
+  RETURN_IF_ERROR(
+      registry.PublishCandidateReview(api, kind, request, candidate, reviewed_output_path)
+          .status());
   RETURN_IF_ERROR(registry.CommitCandidate(api, kind, request, candidate));
-  ASSIGN_OR_RETURN(CurationReview persisted, registry.Review(api, kind, request));
-  return PublishCurationReview(persisted, committed_output);
+  return registry.PublishReview(api, kind, request, committed_output).status();
 }
 
 }  // namespace zebes

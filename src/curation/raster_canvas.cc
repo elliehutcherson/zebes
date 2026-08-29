@@ -8,6 +8,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 namespace {
@@ -156,6 +157,28 @@ absl::Status FillRgbaRect(RgbaImage& destination, int x, int y, int width, int h
     }
   }
   return absl::OkStatus();
+}
+
+absl::Status DrawRgbaCross(RgbaImage& destination, int x, int y, int radius, RgbaColor8 color) {
+  if (radius < 0) return absl::InvalidArgumentError("RGBA cross radius must be non-negative");
+  RETURN_IF_ERROR(FillRgbaRect(destination, x - radius, y, radius * 2 + 1, 1, color));
+  return FillRgbaRect(destination, x, y - radius, 1, radius * 2 + 1, color);
+}
+
+absl::Status DrawRgbaOutline(RgbaImage& destination, int min_x, int min_y, int max_x, int max_y,
+                             RgbaColor8 color) {
+  if (max_x < min_x || max_y < min_y) {
+    return absl::InvalidArgumentError("RGBA outline corners are reversed");
+  }
+  const int64_t width = static_cast<int64_t>(max_x) - min_x + 1;
+  const int64_t height = static_cast<int64_t>(max_y) - min_y + 1;
+  if (width > std::numeric_limits<int>::max() || height > std::numeric_limits<int>::max()) {
+    return absl::OutOfRangeError("RGBA outline dimensions exceed the supported range");
+  }
+  RETURN_IF_ERROR(FillRgbaRect(destination, min_x, min_y, static_cast<int>(width), 1, color));
+  RETURN_IF_ERROR(FillRgbaRect(destination, min_x, max_y, static_cast<int>(width), 1, color));
+  RETURN_IF_ERROR(FillRgbaRect(destination, min_x, min_y, 1, static_cast<int>(height), color));
+  return FillRgbaRect(destination, max_x, min_y, 1, static_cast<int>(height), color);
 }
 
 }  // namespace zebes

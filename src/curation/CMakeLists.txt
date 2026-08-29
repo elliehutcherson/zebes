@@ -1,7 +1,7 @@
 add_library(curation_raster raster_canvas.cc)
 target_link_libraries(curation_raster
   PUBLIC image_io absl::status absl::statusor
-  PRIVATE absl::strings
+  PRIVATE status_macros absl::strings
 )
 
 add_library(curation_review review.cc)
@@ -28,6 +28,27 @@ target_link_libraries(level_review_route
   PRIVATE status_macros absl::status absl::strings absl::str_format
 )
 
+add_library(prop_candidate prop_candidate.cc)
+target_link_libraries(prop_candidate
+  PUBLIC
+  api
+  blueprint
+  image_io
+  prop_recipe
+  sprite
+  nlohmann_json::nlohmann_json
+  absl::status
+  absl::statusor
+  PRIVATE
+  generated_asset_candidate
+  image_digest
+  prepare_prop_asset
+  regenerate_prop_asset
+  retained_source_transaction
+  status_macros
+  absl::strings
+)
+
 add_library(level_reviewer level_reviewer.cc)
 target_link_libraries(level_reviewer
   PUBLIC curation_registry
@@ -39,6 +60,7 @@ target_link_libraries(level_reviewer
   parallax_diagnostics
   parallax_layout
   parallax_preview_model
+  prop_candidate
   status_macros
   tileset_manager
   viewport_scene
@@ -89,11 +111,8 @@ target_link_libraries(prop_reviewer
   api
   curation_raster
   image_digest
-  generated_asset_candidate
-  prepare_prop_asset
+  prop_candidate
   prop_recipe
-  regenerate_prop_asset
-  retained_source_transaction
   status_macros
   absl::status
   absl::statusor

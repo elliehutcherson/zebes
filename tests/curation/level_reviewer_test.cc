@@ -7,19 +7,25 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "api_mock.h"
+#include "artwork/prepare_prop_asset.h"
 #include "common/image_digest.h"
+#include "common/status_macros.h"
 #include "common/utils.h"
 #include "curation/raster_canvas.h"
+#include "generation/generated_asset_candidate.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
 #include "nlohmann/json.hpp"
 #include "platform/headless/headless_texture_store.h"
+#include "terrain/terrain_palette.h"
+#include "terrain/terrain_style.h"
 
 namespace zebes {
 namespace {
@@ -66,12 +72,101 @@ const CurationArtifact* FindCompleteFrame(const CurationReview& review, double z
   return nullptr;
 }
 
+const nlohmann::json* FindPublishedCompleteFrame(const nlohmann::json& manifest, double zoom) {
+  for (const nlohmann::json& artifact : manifest.at("artifacts")) {
+    if (artifact.at("metadata").value("view", "") == "complete" &&
+        artifact.at("metadata").at("camera").at("zoom") == zoom) {
+      return &artifact;
+    }
+  }
+  return nullptr;
+}
+
 RgbaColor8 Pixel(const RgbaImage& image, int x, int y) {
   const size_t offset = (static_cast<size_t>(y) * image.width + x) * 4;
   return {.red = image.pixels[offset],
           .green = image.pixels[offset + 1],
           .blue = image.pixels[offset + 2],
           .alpha = image.pixels[offset + 3]};
+}
+
+struct GeneratedPropFixture {
+  nlohmann::json candidate;
+  PreparedPropAsset prepared;
+};
+
+RgbaImage PropSourcePixels() {
+  RgbaImage image = SolidImage(32, 24, {.red = 236, .green = 232, .blue = 228, .alpha = 255});
+  for (int y = 6; y < 19; ++y) {
+    for (int x = 7; x < 25; ++x) {
+      const size_t offset = (static_cast<size_t>(y) * image.width + x) * 4;
+      image.pixels[offset] = 40;
+      image.pixels[offset + 1] = 210;
+      image.pixels[offset + 2] = 240;
+    }
+  }
+  return image;
+}
+
+absl::StatusOr<GeneratedPropFixture> MakeGeneratedPropFixture(
+    const std::filesystem::path& candidate_root) {
+  const RgbaImage source_pixels = PropSourcePixels();
+  ASSIGN_OR_RETURN(const std::string source_digest, RgbaImageDigest(source_pixels));
+  const SourceArtwork source{
+      .id = "template-source-id",
+      .name = "Preview prop source",
+      .source_path = "source_art/template-source-id.png",
+      .provenance =
+          ImportedArtworkProvenance{
+              .original_filename = "preview-prop.png",
+              .imported_at_utc = "2026-08-28T12:00:00Z",
+          },
+      .width = source_pixels.width,
+      .height = source_pixels.height,
+      .content_digest = source_digest,
+  };
+  const TerrainGenConfig terrain;
+  ASSIGN_OR_RETURN(const ResolvedTerrainPalette palette, ResolveTerrainPalette(terrain));
+  PreparePropAssetRequest template_request{
+      .name = "Preview prop template",
+      .style = {.tile_size = 8, .pixel_block_size = 1, .palette = palette},
+      .ids = {.texture_id = "template-texture-id",
+              .sprite_id = "template-sprite-id",
+              .blueprint_id = "template-blueprint-id",
+              .recipe_id = "template-recipe-id"},
+  };
+  template_request.pipeline.isolation.minimum_subject_area = 16;
+  template_request.pipeline.composition = {
+      .canvas_tiles_wide = 2,
+      .canvas_tiles_high = 1,
+      .padding_fraction = 0.05F,
+  };
+  template_request.pipeline.cleanup.contact_tolerance = 2;
+  ASSIGN_OR_RETURN(PreparedPropAsset prepared,
+                   PreparePropAsset(source, source_pixels, template_request));
+  RETURN_IF_ERROR(WritePng((candidate_root / "processed-source.png").string(), source_pixels.width,
+                           source_pixels.height, source_pixels.pixels));
+  const GeneratedPropCreationCandidate candidate{
+      .asset_id = "preview-prop-recipe-id",
+      .name = "Transient preview prop",
+      .source = {.relative_path = "processed-source.png",
+                 .width = source_pixels.width,
+                 .height = source_pixels.height,
+                 .content_digest = source_digest,
+                 .provenance = {.provider = "fake",
+                                .model = "zebes-fake-v1",
+                                .submitted_prompt = "a cyan preview prop",
+                                .generated_at_utc = "2026-08-28T12:00:00Z"}},
+      .template_recipe = prepared.recipe,
+      .ids = {.texture_id = "preview-prop-texture-id",
+              .sprite_id = "preview-prop-sprite-id",
+              .blueprint_id = "preview-prop-blueprint-id",
+              .recipe_id = "preview-prop-recipe-id"},
+  };
+  return GeneratedPropFixture{
+      .candidate = GeneratedPropCreationCandidateToJson(candidate),
+      .prepared = std::move(prepared),
+  };
 }
 
 TEST(LevelReviewerTest, RendersParallaxTilesAndEntitiesInProductionOrder) {
@@ -151,33 +246,36 @@ TEST(LevelReviewerTest, RendersParallaxTilesAndEntitiesInProductionOrder) {
                                                     sprite_pixels.pixels));
 
   MockApi api;
-  EXPECT_CALL(api, GetLevel(level.id)).Times(4).WillRepeatedly(Return(&level));
-  EXPECT_CALL(api, GetTileset(tileset.id)).Times(4).WillRepeatedly(Return(&tileset));
-  EXPECT_CALL(api, GetParallaxTheme(theme.id)).Times(4).WillRepeatedly(Return(&theme));
-  EXPECT_CALL(api, GetSprite(sprite.id)).Times(4).WillRepeatedly(Return(&sprite));
+  EXPECT_CALL(api, GetLevel(level.id)).Times(5).WillRepeatedly(Return(&level));
+  EXPECT_CALL(api, GetTileset(tileset.id)).Times(5).WillRepeatedly(Return(&tileset));
+  EXPECT_CALL(api, GetParallaxTheme(theme.id)).Times(5).WillRepeatedly(Return(&theme));
+  EXPECT_CALL(api, GetSprite(sprite.id)).Times(5).WillRepeatedly(Return(&sprite));
   EXPECT_CALL(api, GetTexture(parallax_texture.id))
-      .Times(4)
+      .Times(5)
       .WillRepeatedly(Return(&parallax_texture));
-  EXPECT_CALL(api, GetTexture(atlas_texture.id)).Times(4).WillRepeatedly(Return(&atlas_texture));
-  EXPECT_CALL(api, GetTexture(sprite_texture.id)).Times(4).WillRepeatedly(Return(&sprite_texture));
+  EXPECT_CALL(api, GetTexture(atlas_texture.id)).Times(5).WillRepeatedly(Return(&atlas_texture));
+  EXPECT_CALL(api, GetTexture(sprite_texture.id)).Times(5).WillRepeatedly(Return(&sprite_texture));
   EXPECT_CALL(api, GetTextureHandle(parallax_texture.id))
-      .Times(4)
+      .Times(5)
       .WillRepeatedly(Return(parallax_handle));
   EXPECT_CALL(api, GetTextureHandle(atlas_texture.id))
-      .Times(4)
+      .Times(5)
       .WillRepeatedly(Return(atlas_handle));
   EXPECT_CALL(api, GetTextureHandle(sprite_texture.id))
-      .Times(4)
+      .Times(5)
       .WillRepeatedly(Return(sprite_handle));
   EXPECT_CALL(api, ReadTexturePixels(parallax_texture.id))
-      .Times(4)
+      .Times(5)
       .WillRepeatedly(Return(parallax_pixels));
   EXPECT_CALL(api, ReadTexturePixels(atlas_texture.id))
-      .Times(4)
+      .Times(5)
       .WillRepeatedly(Return(atlas_pixels));
   EXPECT_CALL(api, ReadTexturePixels(sprite_texture.id))
-      .Times(4)
+      .Times(5)
       .WillRepeatedly(Return(sprite_pixels));
+  EXPECT_CALL(api, UpdateLevel).Times(0);
+  EXPECT_CALL(api, CreateGeneratedProp).Times(0);
+  EXPECT_CALL(api, CreateTextureFromPixels).Times(0);
 
   LevelReviewer reviewer;
   ASSERT_OK_AND_ASSIGN(CurationReview review, reviewer.Review(api, {.asset_id = level.id}));
@@ -186,6 +284,22 @@ TEST(LevelReviewerTest, RendersParallaxTilesAndEntitiesInProductionOrder) {
   ASSERT_OK_AND_ASSIGN(
       CurationReview focused_review,
       reviewer.Review(api, {.asset_id = level.id, .focus_entity_id = uint64_t{1}}));
+  TemporaryReviewDirectory candidate_directory;
+  ASSERT_TRUE(std::filesystem::create_directories(candidate_directory.path()));
+  ASSERT_OK_AND_ASSIGN(const GeneratedPropFixture candidate,
+                       MakeGeneratedPropFixture(candidate_directory.path()));
+  const std::filesystem::path candidate_output = candidate_directory.path() / "published";
+  ASSERT_OK_AND_ASSIGN(
+      const size_t candidate_artifact_count,
+      reviewer.PublishCandidateReview(api,
+                                      {.asset_id = level.id,
+                                       .candidate_root = candidate_directory.path().string(),
+                                       .focus_entity_id = uint64_t{1}},
+                                      candidate.candidate, candidate_output.string()));
+  std::ifstream candidate_manifest_stream(candidate_output / "manifest.json");
+  ASSERT_TRUE(candidate_manifest_stream.is_open());
+  const nlohmann::json candidate_manifest = nlohmann::json::parse(candidate_manifest_stream);
+  const nlohmann::json& candidate_review_metadata = candidate_manifest.at("metadata");
 
   EXPECT_EQ(review.kind, "level");
   EXPECT_EQ(review.metadata.at("route_count"), 4);
@@ -271,6 +385,64 @@ TEST(LevelReviewerTest, RendersParallaxTilesAndEntitiesInProductionOrder) {
   EXPECT_EQ(Pixel(focused_frame->image, focused_x, focused_y).red, 255);
   EXPECT_EQ(Pixel(focused_frame->image, focused_x, focused_y).green, 220);
 
+  EXPECT_EQ(candidate_review_metadata.at("definition"), LevelToJson(level));
+  const nlohmann::json& candidate_metadata =
+      candidate_review_metadata.at("transient_prop_candidate");
+  EXPECT_EQ(candidate_metadata.at("operation"), "create");
+  EXPECT_EQ(candidate_metadata.at("asset_id"), "preview-prop-recipe-id");
+  EXPECT_EQ(candidate_metadata.at("candidate_sprite_id"), "preview-prop-sprite-id");
+  EXPECT_EQ(candidate_metadata.at("final_rgba_sha256"),
+            candidate.prepared.recipe.final_pixel_digest);
+  EXPECT_EQ(candidate_metadata.at("target").at("entity_id"), 1);
+  EXPECT_EQ(candidate_metadata.at("target").at("persisted_sprite_id"), "sprite-id");
+  EXPECT_FALSE(candidate_metadata.at("workspace_mutated").get<bool>());
+  EXPECT_EQ(level.layers.front().entities.at(1).sprite_id, "sprite-id");
+  EXPECT_EQ(candidate_artifact_count, focused_review.artifacts.size());
+  EXPECT_EQ(candidate_manifest.at("artifacts").size(), focused_review.artifacts.size());
+
+  const nlohmann::json* candidate_frame = FindPublishedCompleteFrame(candidate_manifest, 1.0);
+  ASSERT_NE(candidate_frame, nullptr);
+  const nlohmann::json& candidate_frame_metadata = candidate_frame->at("metadata");
+  EXPECT_EQ(candidate_frame_metadata.at("transient_replacement_entity_ids"),
+            nlohmann::json::array({1}));
+  ASSERT_OK_AND_ASSIGN(
+      const RgbaImage candidate_frame_image,
+      ReadPng((candidate_output / candidate_frame->at("path").get<std::string>()).string()));
+  const RgbaImage& expected_candidate = candidate.prepared.artwork.finished.image;
+  int opaque_x = -1;
+  int opaque_y = -1;
+  for (int y = 0; y < expected_candidate.height && opaque_x < 0; ++y) {
+    for (int x = 0; x < expected_candidate.width; ++x) {
+      if (Pixel(expected_candidate, x, y).alpha == 0) continue;
+      opaque_x = x;
+      opaque_y = y;
+      break;
+    }
+  }
+  ASSERT_GE(opaque_x, 0);
+  const SpriteFrame& candidate_frame_definition = candidate.prepared.sprite.frames.front();
+  const nlohmann::json& camera_metadata = candidate_frame_metadata.at("camera");
+  const double camera_x = camera_metadata.at("center").at("x").get<double>();
+  const double camera_y = camera_metadata.at("center").at("y").get<double>();
+  const double viewport_center_x =
+      candidate_review_metadata.at("game_view").at("width").get<double>() / 2.0;
+  const double viewport_center_y =
+      candidate_review_metadata.at("game_view").at("height").get<double>() / 2.0;
+  const int candidate_screen_x = static_cast<int>(
+      std::lround(viewport_center_x + level.layers.front().entities.at(1).transform.position.x -
+                  camera_x + candidate_frame_definition.offset_x + opaque_x));
+  const int candidate_screen_y = static_cast<int>(
+      std::lround(viewport_center_y + level.layers.front().entities.at(1).transform.position.y -
+                  camera_y + candidate_frame_definition.offset_y + opaque_y));
+  EXPECT_EQ(candidate_review_metadata.at("focus").at("bounds").at("min").at("x"),
+            level.layers.front().entities.at(1).transform.position.x +
+                candidate_frame_definition.offset_x);
+  EXPECT_EQ(candidate_review_metadata.at("focus").at("bounds").at("min").at("y"),
+            level.layers.front().entities.at(1).transform.position.y +
+                candidate_frame_definition.offset_y);
+  EXPECT_EQ(Pixel(candidate_frame_image, candidate_screen_x, candidate_screen_y),
+            Pixel(expected_candidate, opaque_x, opaque_y));
+
   TemporaryReviewDirectory temporary;
   const std::filesystem::path output = temporary.path() / "published";
   ASSERT_OK_AND_ASSIGN(const size_t published_artifact_count,
@@ -310,6 +482,23 @@ TEST(LevelReviewerTest, RejectsAnUnknownFocusedEntity) {
   EXPECT_EQ(
       reviewer.Review(api, {.asset_id = level.id, .focus_entity_id = uint64_t{99}}).status().code(),
       absl::StatusCode::kNotFound);
+}
+
+TEST(LevelReviewerTest, RejectsATransientCandidateWithoutAReplacementTarget) {
+  Level level{
+      .id = "level-id",
+      .name = "Transient Candidate Level",
+      .width = 1280,
+      .height = 720,
+      .spawn_point = {320, 360},
+      .layers = {WorldLayer{.id = 0, .name = "Gameplay"}},
+  };
+  MockApi api;
+  EXPECT_CALL(api, GetLevel(level.id)).WillOnce(Return(&level));
+
+  LevelReviewer reviewer;
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      reviewer.ReviewCandidate(api, {.asset_id = level.id}, nlohmann::json::object()).status()));
 }
 
 TEST(LevelReviewerTest, RejectsInactiveOrDuplicateFocusedEntitiesBeforeLoadingAssets) {

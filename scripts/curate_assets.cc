@@ -4,7 +4,9 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
@@ -34,7 +36,8 @@ ABSL_FLAG(std::string, asset_root, "assets", "Root containing config.json and as
 ABSL_FLAG(std::string, kind, "", "Registered visual asset kind to review");
 ABSL_FLAG(std::string, id, "", "Stable ID of the asset to review");
 ABSL_FLAG(std::string, output, "", "New directory in which to publish the review bundle");
-ABSL_FLAG(std::string, candidate, "", "Optional kind-owned JSON candidate to review");
+ABSL_FLAG(std::string, candidate, "",
+          "Optional kind-owned JSON candidate; a focused level review substitutes a prop");
 ABSL_FLAG(bool, commit, false, "Commit a reviewed candidate through the production API");
 ABSL_FLAG(bool, list_kinds, false, "List registered review kinds and exit");
 ABSL_FLAG(uint64_t, focus_entity_id, 0,
@@ -55,6 +58,32 @@ void LogTimings(SteadyClock::time_point command_started, SteadyClock::time_point
             << ElapsedMilliseconds(command_started, workspace_loaded)
             << " review_and_publish_ms=" << ElapsedMilliseconds(workspace_loaded, completed)
             << " total_ms=" << ElapsedMilliseconds(command_started, completed) << '\n';
+}
+
+struct CandidateInput {
+  std::filesystem::path root;
+  nlohmann::json document;
+};
+
+absl::StatusOr<std::optional<CandidateInput>> ReadCandidateInput(
+    const std::string& candidate_path) {
+  if (candidate_path.empty()) return std::nullopt;
+  const std::filesystem::path candidate_file(candidate_path);
+  std::ifstream stream(candidate_file);
+  if (!stream.is_open()) {
+    return absl::NotFoundError(absl::StrCat("could not open candidate: ", candidate_path));
+  }
+  nlohmann::json document;
+  try {
+    stream >> document;
+  } catch (const nlohmann::json::exception& error) {
+    return absl::InvalidArgumentError(absl::StrCat("candidate JSON is invalid: ", error.what()));
+  }
+  return CandidateInput{
+      .root = candidate_file.has_parent_path() ? candidate_file.parent_path()
+                                               : std::filesystem::current_path(),
+      .document = std::move(document),
+  };
 }
 
 absl::Status RegisterReviewers(CurationRegistry& registry) {
@@ -93,9 +122,14 @@ absl::Status Run() {
   if (focus_entity_id != Entity::kInvalidId && kind != "level") {
     return absl::InvalidArgumentError("--focus_entity_id is supported only for --kind=level");
   }
-  if (focus_entity_id != Entity::kInvalidId && !candidate_path.empty()) {
-    return absl::InvalidArgumentError("--focus_entity_id cannot be combined with --candidate");
+  if (kind == "level" && !candidate_path.empty() && focus_entity_id == Entity::kInvalidId) {
+    return absl::InvalidArgumentError(
+        "a level --candidate requires --focus_entity_id as its transient replacement target");
   }
+  if (kind == "level" && !candidate_path.empty() && commit) {
+    return absl::InvalidArgumentError("a transient level candidate cannot be committed");
+  }
+  ASSIGN_OR_RETURN(std::optional<CandidateInput> candidate, ReadCandidateInput(candidate_path));
 
   ASSIGN_OR_RETURN(EngineConfig config,
                    EngineConfig::Load(absl::StrCat(asset_root, "/config.json")));
@@ -111,8 +145,7 @@ absl::Status Run() {
   const SteadyClock::time_point workspace_loaded = SteadyClock::now();
   CurationReviewRequest request{.asset_id = asset_id};
   if (focus_entity_id != Entity::kInvalidId) request.focus_entity_id = focus_entity_id;
-  nlohmann::json candidate;
-  if (candidate_path.empty()) {
+  if (!candidate.has_value()) {
     ASSIGN_OR_RETURN(const size_t artifact_count,
                      registry.PublishReview(assets->api(), kind, request, output));
     LOG(INFO) << "Published " << artifact_count << " review artifacts for " << kind << " "
@@ -120,36 +153,24 @@ absl::Status Run() {
     LogTimings(command_started, workspace_loaded, SteadyClock::now());
     std::cout << output << "/manifest.json\n";
     return absl::OkStatus();
-  } else {
-    std::filesystem::path candidate_file(candidate_path);
-    request.candidate_root = candidate_file.has_parent_path()
-                                 ? candidate_file.parent_path().string()
-                                 : std::filesystem::current_path().string();
-    std::ifstream stream(candidate_path);
-    if (!stream.is_open()) {
-      return absl::NotFoundError(absl::StrCat("could not open candidate: ", candidate_path));
-    }
-    try {
-      stream >> candidate;
-    } catch (const nlohmann::json::exception& error) {
-      return absl::InvalidArgumentError(absl::StrCat("candidate JSON is invalid: ", error.what()));
-    }
-    if (commit) {
-      RETURN_IF_ERROR(
-          CommitCandidateWithEvidence(registry, assets->api(), kind, request, candidate, output));
-      const std::string committed_output = CommittedCurationOutputPath(output);
-      LOG(INFO) << "Committed reviewed " << kind << " candidate " << asset_id;
-      LOG(INFO) << "Published post-commit review at " << committed_output;
-      LogTimings(command_started, workspace_loaded, SteadyClock::now());
-      std::cout << committed_output << "/manifest.json\n";
-      return absl::OkStatus();
-    }
-    ASSIGN_OR_RETURN(CurationReview review,
-                     registry.ReviewCandidate(assets->api(), kind, request, candidate));
-    RETURN_IF_ERROR(PublishCurationReview(review, output));
-    LOG(INFO) << "Published " << review.artifacts.size() << " review artifacts for " << kind << " "
-              << asset_id << " at " << output;
   }
+
+  request.candidate_root = candidate->root.string();
+  if (commit) {
+    RETURN_IF_ERROR(CommitCandidateWithEvidence(registry, assets->api(), kind, request,
+                                                candidate->document, output));
+    const std::string committed_output = CommittedCurationOutputPath(output);
+    LOG(INFO) << "Committed reviewed " << kind << " candidate " << asset_id;
+    LOG(INFO) << "Published post-commit review at " << committed_output;
+    LogTimings(command_started, workspace_loaded, SteadyClock::now());
+    std::cout << committed_output << "/manifest.json\n";
+    return absl::OkStatus();
+  }
+  ASSIGN_OR_RETURN(
+      const size_t artifact_count,
+      registry.PublishCandidateReview(assets->api(), kind, request, candidate->document, output));
+  LOG(INFO) << "Published " << artifact_count << " review artifacts for " << kind << " " << asset_id
+            << " at " << output;
   LogTimings(command_started, workspace_loaded, SteadyClock::now());
   std::cout << output << "/manifest.json\n";
   return absl::OkStatus();

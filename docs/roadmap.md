@@ -273,7 +273,10 @@ increasing density merely to fill the route. Focused entity review now provides
 one annotated camera at 0.5×, 1×, and 2× plus isolated passes, reducing current
 Catacombs placement iteration from 343 artifacts to 31 without replacing the
 full-route final gate. Command timing is reported separately so manifests stay
-byte-deterministic.
+byte-deterministic. Generated Prop candidates can now use that focused route
+before persistence: shared deterministic preparation supplies transient pixels
+to a copied level entity while its position, layer, order, and persisted asset
+graph remain untouched.
 See
 [`headless-level-review-plan.md`](headless-level-review-plan.md) and
 [`headless-curation.md`](headless-curation.md).

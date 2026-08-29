@@ -18,6 +18,7 @@
 #include "absl/strings/str_format.h"
 #include "common/status_macros.h"
 #include "curation/level_review_route.h"
+#include "curation/prop_candidate.h"
 #include "curation/raster_canvas.h"
 #include "editor/level_editor/parallax_layout.h"
 #include "editor/level_editor/viewport_scene.h"
@@ -82,9 +83,22 @@ struct FocusedEntityContext {
   const Entity* entity = nullptr;
 };
 
+struct TransientEntityReplacement {
+  uint64_t entity_id = Entity::kInvalidId;
+  std::string persisted_sprite_id;
+  const PreparedPropCandidate* candidate = nullptr;
+};
+
+struct EntityRaster {
+  const RgbaImage* texture = nullptr;
+  RasterSourceRect source;
+  bool transient_replacement = false;
+};
+
 struct WorldRenderStats {
   size_t tile_count = 0;
   std::vector<uint64_t> entity_ids;
+  std::vector<uint64_t> transient_replacement_entity_ids;
 };
 
 struct RenderedLevelFrame {
@@ -275,6 +289,52 @@ absl::StatusOr<LevelReviewAssets> LoadAssets(Api& api, const Level& level) {
   return assets;
 }
 
+absl::StatusOr<TransientEntityReplacement> ApplyTransientPropCandidate(
+    Level& preview_level, LevelReviewAssets& assets, uint64_t entity_id,
+    const PreparedPropCandidate& candidate) {
+  RETURN_IF_ERROR(ValidatePreparedPropCandidate(candidate));
+  Entity* target = nullptr;
+  for (WorldLayer& layer : preview_level.layers) {
+    auto found = layer.entities.find(entity_id);
+    if (found == layer.entities.end()) continue;
+    if (target != nullptr) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("transient replacement entity appears in multiple layers: ", entity_id));
+    }
+    target = &found->second;
+  }
+  if (target == nullptr) {
+    return absl::NotFoundError(
+        absl::StrCat("transient replacement entity was not found: ", entity_id));
+  }
+
+  const std::string persisted_sprite_id = target->sprite_id;
+  const std::string base_id = absl::StrCat("__curation_transient_prop_", entity_id);
+  std::string preview_sprite_id = base_id;
+  for (size_t suffix = 1; assets.sprites.contains(preview_sprite_id); ++suffix) {
+    preview_sprite_id = absl::StrCat(base_id, "_", suffix);
+  }
+  Sprite preview_sprite = candidate.sprite;
+  preview_sprite.id = preview_sprite_id;
+  preview_sprite.texture_id = absl::StrCat(preview_sprite_id, "_texture");
+  auto [inserted, unique] = assets.sprites.emplace(preview_sprite_id, std::move(preview_sprite));
+  if (!unique) {
+    return absl::InternalError("transient preview sprite ID allocation was not unique");
+  }
+  const auto [unused, lookup_unique] =
+      assets.sprite_lookup.emplace(preview_sprite_id, ResolvedSprite{.sprite = &inserted->second});
+  static_cast<void>(unused);
+  if (!lookup_unique) {
+    return absl::InternalError("transient preview sprite lookup was not unique");
+  }
+  target->sprite_id = preview_sprite_id;
+  return TransientEntityReplacement{
+      .entity_id = entity_id,
+      .persisted_sprite_id = persisted_sprite_id,
+      .candidate = &candidate,
+  };
+}
+
 absl::StatusOr<FocusedEntityContext> FindFocusedEntity(const Level& level, uint64_t entity_id) {
   if (entity_id == Entity::kInvalidId) {
     return absl::InvalidArgumentError("focused level review entity ID is invalid");
@@ -421,10 +481,40 @@ bool IntersectsScreen(const Camera& camera, const WorldRect& bounds) {
          minimum.y < camera.viewport_height;
 }
 
-absl::StatusOr<WorldRenderStats> CompositeWorldLayer(RgbaImage& canvas,
-                                                     const LevelReviewAssets& assets,
-                                                     const Level& level, const WorldLayer& layer,
-                                                     const Camera& camera) {
+absl::StatusOr<std::optional<EntityRaster>> ResolveEntityRaster(
+    const LevelReviewAssets& assets, const EntityRenderItem& item,
+    const TransientEntityReplacement* replacement) {
+  if (replacement != nullptr && item.entity_id == replacement->entity_id) {
+    if (replacement->candidate == nullptr || replacement->candidate->sprite.frames.empty()) {
+      return absl::InternalError("transient entity replacement lost its prepared artwork");
+    }
+    const SpriteFrame& frame = replacement->candidate->sprite.frames.front();
+    return EntityRaster{
+        .texture = &replacement->candidate->texture,
+        .source = {.x = frame.texture_x,
+                   .y = frame.texture_y,
+                   .width = frame.texture_w,
+                   .height = frame.texture_h},
+        .transient_replacement = true,
+    };
+  }
+  if (!item.sprite.has_value()) return std::nullopt;
+  const LoadedTexture* texture = FindTexture(assets, item.sprite->texture);
+  if (texture == nullptr) {
+    return absl::FailedPreconditionError("entity handle has no loaded pixels");
+  }
+  return EntityRaster{
+      .texture = &texture->pixels,
+      .source = {.x = item.sprite->source.x,
+                 .y = item.sprite->source.y,
+                 .width = item.sprite->source.width,
+                 .height = item.sprite->source.height},
+  };
+}
+
+absl::StatusOr<WorldRenderStats> CompositeWorldLayer(
+    RgbaImage& canvas, const LevelReviewAssets& assets, const Level& level, const WorldLayer& layer,
+    const Camera& camera, const TransientEntityReplacement* replacement) {
   WorldRenderStats stats;
   if (assets.tileset.has_value()) {
     TextureHandle atlas_handle;
@@ -465,20 +555,20 @@ absl::StatusOr<WorldRenderStats> CompositeWorldLayer(RgbaImage& canvas,
     if (!IntersectsScreen(camera, item.bounds)) continue;
     const Vec minimum = camera.WorldToScreen(item.bounds.min);
     const Vec maximum = camera.WorldToScreen(item.bounds.max);
-    if (item.sprite.has_value()) {
-      const LoadedTexture* texture = FindTexture(assets, item.sprite->texture);
-      if (texture == nullptr) {
-        return absl::FailedPreconditionError("entity handle has no loaded pixels");
+    ASSIGN_OR_RETURN(const std::optional<EntityRaster> raster,
+                     ResolveEntityRaster(assets, item, replacement));
+    if (raster.has_value()) {
+      if (raster->texture == nullptr) {
+        return absl::InternalError("resolved entity raster has no texture pixels");
       }
-      RETURN_IF_ERROR(CompositeRgbaNearest(canvas, texture->pixels,
-                                           {.x = item.sprite->source.x,
-                                            .y = item.sprite->source.y,
-                                            .width = item.sprite->source.width,
-                                            .height = item.sprite->source.height},
+      RETURN_IF_ERROR(CompositeRgbaNearest(canvas, *raster->texture, raster->source,
                                            {.x = minimum.x,
                                             .y = minimum.y,
                                             .width = maximum.x - minimum.x,
                                             .height = maximum.y - minimum.y}));
+      if (raster->transient_replacement) {
+        stats.transient_replacement_entity_ids.push_back(item.entity_id);
+      }
     } else {
       const int x = static_cast<int>(std::floor(minimum.x));
       const int y = static_cast<int>(std::floor(minimum.y));
@@ -493,9 +583,9 @@ absl::StatusOr<WorldRenderStats> CompositeWorldLayer(RgbaImage& canvas,
   return stats;
 }
 
-absl::StatusOr<RenderedLevelFrame> RenderCompleteFrame(const Level& level,
-                                                       const LevelReviewAssets& assets,
-                                                       const Camera& camera) {
+absl::StatusOr<RenderedLevelFrame> RenderCompleteFrame(
+    const Level& level, const LevelReviewAssets& assets, const Camera& camera,
+    const TransientEntityReplacement* replacement) {
   ASSIGN_OR_RETURN(const std::optional<ResolvedParallaxEnvironment> environment,
                    ResolveParallaxEnvironment(level.zones, camera.position));
   absl::StatusOr<RgbaImage> canvas =
@@ -515,10 +605,14 @@ absl::StatusOr<RenderedLevelFrame> RenderCompleteFrame(const Level& level,
   RETURN_IF_ERROR(CompositeEnvironment(result.image, assets, camera, environment));
   for (const WorldLayer& layer : level.layers) {
     ASSIGN_OR_RETURN(const WorldRenderStats layer_stats,
-                     CompositeWorldLayer(result.image, assets, level, layer, camera));
+                     CompositeWorldLayer(result.image, assets, level, layer, camera, replacement));
     result.world.tile_count += layer_stats.tile_count;
     result.world.entity_ids.insert(result.world.entity_ids.end(), layer_stats.entity_ids.begin(),
                                    layer_stats.entity_ids.end());
+    result.world.transient_replacement_entity_ids.insert(
+        result.world.transient_replacement_entity_ids.end(),
+        layer_stats.transient_replacement_entity_ids.begin(),
+        layer_stats.transient_replacement_entity_ids.end());
     result.render_sequence.push_back(absl::StrCat("world-layer:", layer.id, ":tiles"));
     result.render_sequence.push_back(absl::StrCat("world-layer:", layer.id, ":entities"));
   }
@@ -536,10 +630,11 @@ absl::StatusOr<RgbaImage> RenderParallaxPass(
 }
 
 absl::StatusOr<RgbaImage> RenderWorldLayerPass(const Level& level, const LevelReviewAssets& assets,
-                                               const WorldLayer& layer, const Camera& camera) {
+                                               const WorldLayer& layer, const Camera& camera,
+                                               const TransientEntityReplacement* replacement) {
   ASSIGN_OR_RETURN(RgbaImage canvas, CreateSolidRgbaImage(camera.viewport_width,
                                                           camera.viewport_height, kTransparent));
-  RETURN_IF_ERROR(CompositeWorldLayer(canvas, assets, level, layer, camera).status());
+  RETURN_IF_ERROR(CompositeWorldLayer(canvas, assets, level, layer, camera, replacement).status());
   return canvas;
 }
 
@@ -663,21 +758,6 @@ int MapCoordinate(double value, double world_extent, int image_extent) {
                     image_extent - 1);
 }
 
-absl::Status DrawCross(RgbaImage& image, int x, int y, int radius, RgbaColor8 color) {
-  RETURN_IF_ERROR(FillRgbaRect(image, x - radius, y, radius * 2 + 1, 1, color));
-  return FillRgbaRect(image, x, y - radius, 1, radius * 2 + 1, color);
-}
-
-absl::Status DrawOutline(RgbaImage& image, int min_x, int min_y, int max_x, int max_y,
-                         RgbaColor8 color) {
-  const int width = std::max(1, max_x - min_x + 1);
-  const int height = std::max(1, max_y - min_y + 1);
-  RETURN_IF_ERROR(FillRgbaRect(image, min_x, min_y, width, 1, color));
-  RETURN_IF_ERROR(FillRgbaRect(image, min_x, max_y, width, 1, color));
-  RETURN_IF_ERROR(FillRgbaRect(image, min_x, min_y, 1, height, color));
-  return FillRgbaRect(image, max_x, min_y, 1, height, color);
-}
-
 absl::StatusOr<nlohmann::json> AnnotateFocusedEntity(RgbaImage& image, const Camera& camera,
                                                      const FocusedEntityContext& focus) {
   const Vec minimum = camera.WorldToScreen(focus.bounds.min);
@@ -687,9 +767,9 @@ absl::StatusOr<nlohmann::json> AnnotateFocusedEntity(RgbaImage& image, const Cam
   const int min_y = static_cast<int>(std::floor(minimum.y));
   const int max_x = static_cast<int>(std::ceil(maximum.x)) - 1;
   const int max_y = static_cast<int>(std::ceil(maximum.y)) - 1;
-  RETURN_IF_ERROR(DrawOutline(image, min_x, min_y, max_x, max_y, kFocus));
-  RETURN_IF_ERROR(DrawCross(image, static_cast<int>(std::lround(anchor.x)),
-                            static_cast<int>(std::lround(anchor.y)), 5, kFocus));
+  RETURN_IF_ERROR(DrawRgbaOutline(image, min_x, min_y, max_x, max_y, kFocus));
+  RETURN_IF_ERROR(DrawRgbaCross(image, static_cast<int>(std::lround(anchor.x)),
+                                static_cast<int>(std::lround(anchor.y)), 5, kFocus));
   return nlohmann::json{
       {"bounds", {{"min", VecToJson(minimum)}, {"max", VecToJson(maximum)}}},
       {"anchor", VecToJson(anchor)},
@@ -710,11 +790,11 @@ absl::StatusOr<RgbaImage> RenderLayoutMap(const Level& level, const LevelReviewA
   ASSIGN_OR_RETURN(RgbaImage image, CreateSolidRgbaImage(width, height, kBackground));
 
   for (const ParallaxZone& zone : level.zones) {
-    RETURN_IF_ERROR(DrawOutline(image, MapCoordinate(zone.min_point.x, level.width, width),
-                                MapCoordinate(zone.min_point.y, level.height, height),
-                                MapCoordinate(zone.max_point.x, level.width, width),
-                                MapCoordinate(zone.max_point.y, level.height, height),
-                                kZoneOutline));
+    RETURN_IF_ERROR(DrawRgbaOutline(image, MapCoordinate(zone.min_point.x, level.width, width),
+                                    MapCoordinate(zone.min_point.y, level.height, height),
+                                    MapCoordinate(zone.max_point.x, level.width, width),
+                                    MapCoordinate(zone.max_point.y, level.height, height),
+                                    kZoneOutline));
   }
   for (const LevelReviewRoute& route : routes) {
     auto zoom = std::find(kReviewZooms.begin(), kReviewZooms.end(), route.zoom);
@@ -738,24 +818,27 @@ absl::StatusOr<RgbaImage> RenderLayoutMap(const Level& level, const LevelReviewA
       static_cast<void>(unused);
       const ResolvedSprite resolved = FindSprite(assets.sprite_lookup, entity.sprite_id);
       ASSIGN_OR_RETURN(const WorldRect bounds, CalculateEntityBounds(entity, resolved.sprite));
-      RETURN_IF_ERROR(DrawOutline(image, MapCoordinate(bounds.min.x, level.width, width),
-                                  MapCoordinate(bounds.min.y, level.height, height),
-                                  MapCoordinate(bounds.max.x, level.width, width),
-                                  MapCoordinate(bounds.max.y, level.height, height), color));
-      RETURN_IF_ERROR(
-          DrawCross(image, MapCoordinate(entity.transform.position.x, level.width, width),
-                    MapCoordinate(entity.transform.position.y, level.height, height), 2, color));
+      RETURN_IF_ERROR(DrawRgbaOutline(image, MapCoordinate(bounds.min.x, level.width, width),
+                                      MapCoordinate(bounds.min.y, level.height, height),
+                                      MapCoordinate(bounds.max.x, level.width, width),
+                                      MapCoordinate(bounds.max.y, level.height, height), color));
+      RETURN_IF_ERROR(DrawRgbaCross(
+          image, MapCoordinate(entity.transform.position.x, level.width, width),
+          MapCoordinate(entity.transform.position.y, level.height, height), 2, color));
     }
   }
-  RETURN_IF_ERROR(DrawCross(image, MapCoordinate(level.spawn_point.x, level.width, width),
-                            MapCoordinate(level.spawn_point.y, level.height, height), 4, kSpawn));
+  RETURN_IF_ERROR(DrawRgbaCross(image, MapCoordinate(level.spawn_point.x, level.width, width),
+                                MapCoordinate(level.spawn_point.y, level.height, height), 4,
+                                kSpawn));
   if (focus.has_value()) {
-    RETURN_IF_ERROR(DrawOutline(image, MapCoordinate(focus->bounds.min.x, level.width, width),
-                                MapCoordinate(focus->bounds.min.y, level.height, height),
-                                MapCoordinate(focus->bounds.max.x, level.width, width),
-                                MapCoordinate(focus->bounds.max.y, level.height, height), kFocus));
-    RETURN_IF_ERROR(DrawCross(image, MapCoordinate(focus->position.x, level.width, width),
-                              MapCoordinate(focus->position.y, level.height, height), 4, kFocus));
+    RETURN_IF_ERROR(DrawRgbaOutline(image, MapCoordinate(focus->bounds.min.x, level.width, width),
+                                    MapCoordinate(focus->bounds.min.y, level.height, height),
+                                    MapCoordinate(focus->bounds.max.x, level.width, width),
+                                    MapCoordinate(focus->bounds.max.y, level.height, height),
+                                    kFocus));
+    RETURN_IF_ERROR(DrawRgbaCross(image, MapCoordinate(focus->position.x, level.width, width),
+                                  MapCoordinate(focus->position.y, level.height, height), 4,
+                                  kFocus));
   }
   return image;
 }
@@ -885,9 +968,14 @@ absl::Status PreflightArtifactPixels(const std::vector<LevelReviewRoute>& routes
 
 absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
                                            const CurationReviewRequest& request,
+                                           const PreparedPropCandidate* candidate,
                                            CurationArtifactSink& artifact_sink) {
   const GameViewSize game_view = api.GetConfig()->game_view;
   if (!game_view.IsValid()) return absl::FailedPreconditionError("game view is invalid");
+  if (candidate != nullptr && !request.focus_entity_id.has_value()) {
+    return absl::InvalidArgumentError(
+        "transient prop candidate review requires a focused replacement entity");
+  }
   std::optional<FocusedEntityContext> focus;
   if (request.focus_entity_id.has_value()) {
     ASSIGN_OR_RETURN(focus, FindFocusedEntity(level, *request.focus_entity_id));
@@ -898,7 +986,21 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
           : PlanLevelReviewRoutes(level, game_view, kReviewZooms);
   ASSIGN_OR_RETURN(const std::vector<LevelReviewRoute> routes, std::move(planned_routes));
   ASSIGN_OR_RETURN(LevelReviewAssets assets, LoadAssets(api, level));
+
+  std::optional<Level> preview_level;
+  std::optional<TransientEntityReplacement> replacement;
+  const Level* rendered_level = &level;
+  if (candidate != nullptr) {
+    preview_level = level;
+    ASSIGN_OR_RETURN(
+        replacement,
+        ApplyTransientPropCandidate(*preview_level, assets, *request.focus_entity_id, *candidate));
+    rendered_level = &*preview_level;
+    ASSIGN_OR_RETURN(focus, FindFocusedEntity(*rendered_level, *request.focus_entity_id));
+  }
   if (focus.has_value()) RETURN_IF_ERROR(ResolveFocusedEntityBounds(assets, *focus));
+  const TransientEntityReplacement* replacement_ptr =
+      replacement.has_value() ? &*replacement : nullptr;
 
   CurationReview review{
       .kind = "level",
@@ -915,7 +1017,37 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
     review.metadata["review_mode"] = "focused-entity";
     review.metadata["focus"] = FocusToJson(*focus);
   }
-  RETURN_IF_ERROR(PreflightArtifactPixels(routes, assets, level, game_view, focus.has_value()));
+  if (candidate != nullptr && replacement.has_value() && focus.has_value()) {
+    review.metadata["transient_prop_candidate"] = {
+        {"operation", PropCandidateOperationId(candidate->operation)},
+        {"asset_id", candidate->recipe.id},
+        {"asset_name", candidate->recipe.name},
+        {"source_rgba_sha256", candidate->source_content_digest},
+        {"final_rgba_sha256", candidate->recipe.final_pixel_digest},
+        {"candidate_matches_deterministic_output", candidate->matches_deterministic_output},
+        {"candidate_sprite_id", candidate->sprite.id},
+        {"placement_mode", BlueprintPlacementModeId(candidate->placement_mode)},
+        {"requested_candidate", candidate->requested_candidate},
+        {"target",
+         {{"entity_id", focus->id},
+          {"world_layer_id", focus->layer_id},
+          {"world_layer_name", focus->layer_name},
+          {"position", VecToJson(focus->position)},
+          {"persisted_sprite_id", replacement->persisted_sprite_id}}},
+        {"workspace_mutated", false},
+    };
+    if (!candidate->matches_deterministic_output) {
+      review.findings.push_back({
+          .severity = CurationFindingSeverity::kWarning,
+          .code = "candidate-recipe-mismatch",
+          .subject = candidate->recipe.name,
+          .message = "the requested recipe does not exactly describe the deterministic output; "
+                     "commit will refuse it",
+      });
+    }
+  }
+  RETURN_IF_ERROR(
+      PreflightArtifactPixels(routes, assets, *rendered_level, game_view, focus.has_value()));
   review.metadata["world_layers"] = AddEntityEvidence(review, level);
   RETURN_IF_ERROR(AddCoverageFindings(review, level, assets, game_view));
 
@@ -927,12 +1059,17 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
     ASSIGN_OR_RETURN(ContactSheetAccumulator contact,
                      CreateContactSheet(route.samples.size(), game_view));
     for (const LevelReviewCameraSample& sample : route.samples) {
-      ASSIGN_OR_RETURN(RenderedLevelFrame rendered,
-                       RenderCompleteFrame(level, assets, sample.camera));
+      ASSIGN_OR_RETURN(
+          RenderedLevelFrame rendered,
+          RenderCompleteFrame(*rendered_level, assets, sample.camera, replacement_ptr));
       nlohmann::json metadata = BaseArtifactMetadata(route, sample, rendered.environment);
       metadata["view"] = "complete";
       metadata["visible_tile_count"] = rendered.world.tile_count;
       metadata["visible_entity_ids"] = rendered.world.entity_ids;
+      if (!rendered.world.transient_replacement_entity_ids.empty()) {
+        metadata["transient_replacement_entity_ids"] =
+            rendered.world.transient_replacement_entity_ids;
+      }
       metadata["render_sequence"] = rendered.render_sequence;
       const std::string artifact_id =
           absl::StrCat("complete-", zoom_id, "-", route.id, "-", sample.id);
@@ -1030,9 +1167,10 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
         }
       }
 
-      for (const WorldLayer& layer : level.layers) {
-        ASSIGN_OR_RETURN(RgbaImage layer_image,
-                         RenderWorldLayerPass(level, assets, layer, sample.camera));
+      for (const WorldLayer& layer : rendered_level->layers) {
+        ASSIGN_OR_RETURN(
+            RgbaImage layer_image,
+            RenderWorldLayerPass(*rendered_level, assets, layer, sample.camera, replacement_ptr));
         nlohmann::json layer_metadata = BaseArtifactMetadata(route, sample, rendered.environment);
         layer_metadata["view"] = "world-layer";
         layer_metadata["world_layer_id"] = layer.id;
@@ -1072,7 +1210,7 @@ absl::StatusOr<CurationReview> BuildReview(Api& api, const Level& level,
     }));
   }
 
-  ASSIGN_OR_RETURN(RgbaImage layout, RenderLayoutMap(level, assets, routes, focus));
+  ASSIGN_OR_RETURN(RgbaImage layout, RenderLayoutMap(*rendered_level, assets, routes, focus));
   nlohmann::json layout_metadata = {
       {"view", "layout-map"},
       {"zone_color", "#e6b928"},
@@ -1123,13 +1261,23 @@ absl::StatusOr<Level*> ResolveReviewLevel(Api& api, const CurationReviewRequest&
   return level;
 }
 
+absl::StatusOr<PreparedPropCandidate> PrepareTransientPropCandidate(
+    Api& api, const CurationReviewRequest& request, const nlohmann::json& candidate) {
+  if (!request.focus_entity_id.has_value()) {
+    return absl::InvalidArgumentError(
+        "transient prop candidate review requires a focused replacement entity");
+  }
+  return PreparePropCandidateForReview(api, request.candidate_root, std::nullopt, candidate);
+}
+
 }  // namespace
 
 absl::StatusOr<CurationReview> LevelReviewer::Review(Api& api,
                                                      const CurationReviewRequest& request) const {
   ASSIGN_OR_RETURN(Level * level, ResolveReviewLevel(api, request));
   CollectingArtifactSink artifact_sink;
-  ASSIGN_OR_RETURN(CurationReview review, BuildReview(api, *level, request, artifact_sink));
+  ASSIGN_OR_RETURN(CurationReview review,
+                   BuildReview(api, *level, request, nullptr, artifact_sink));
   review.artifacts = std::move(artifact_sink.artifacts);
   RETURN_IF_ERROR(ValidateCurationReview(review));
   return review;
@@ -1142,7 +1290,36 @@ absl::StatusOr<size_t> LevelReviewer::PublishReview(Api& api, const CurationRevi
       output_path,
       [&api, level, request](CurationArtifactSink& artifact_sink,
                              CurationReview& review) -> absl::Status {
-        ASSIGN_OR_RETURN(review, BuildReview(api, *level, request, artifact_sink));
+        ASSIGN_OR_RETURN(review, BuildReview(api, *level, request, nullptr, artifact_sink));
+        return absl::OkStatus();
+      });
+}
+
+absl::StatusOr<CurationReview> LevelReviewer::ReviewCandidate(
+    Api& api, const CurationReviewRequest& request, const nlohmann::json& candidate_json) const {
+  ASSIGN_OR_RETURN(Level * level, ResolveReviewLevel(api, request));
+  ASSIGN_OR_RETURN(const PreparedPropCandidate candidate,
+                   PrepareTransientPropCandidate(api, request, candidate_json));
+  CollectingArtifactSink artifact_sink;
+  ASSIGN_OR_RETURN(CurationReview review,
+                   BuildReview(api, *level, request, &candidate, artifact_sink));
+  review.artifacts = std::move(artifact_sink.artifacts);
+  RETURN_IF_ERROR(ValidateCurationReview(review));
+  return review;
+}
+
+absl::StatusOr<size_t> LevelReviewer::PublishCandidateReview(Api& api,
+                                                             const CurationReviewRequest& request,
+                                                             const nlohmann::json& candidate_json,
+                                                             const std::string& output_path) const {
+  ASSIGN_OR_RETURN(Level * level, ResolveReviewLevel(api, request));
+  ASSIGN_OR_RETURN(PreparedPropCandidate candidate,
+                   PrepareTransientPropCandidate(api, request, candidate_json));
+  return PublishCurationReviewStreamed(
+      output_path,
+      [&api, level, request, candidate = std::move(candidate)](
+          CurationArtifactSink& artifact_sink, CurationReview& review) -> absl::Status {
+        ASSIGN_OR_RETURN(review, BuildReview(api, *level, request, &candidate, artifact_sink));
         return absl::OkStatus();
       });
 }

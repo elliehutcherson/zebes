@@ -14,7 +14,8 @@ gtest_discover_tests(level_review_route_test)
 
 add_executable(level_reviewer_test level_reviewer_test.cc)
 target_link_libraries(level_reviewer_test
-  level_reviewer headless_texture_store image_digest api macros gtest_main gmock)
+  level_reviewer generated_asset_candidate headless_texture_store image_digest prepare_prop_asset
+  terrain_palette terrain_style api macros gtest_main gmock)
 gtest_discover_tests(level_reviewer_test)
 
 add_executable(parallax_theme_reviewer_test parallax_theme_reviewer_test.cc)

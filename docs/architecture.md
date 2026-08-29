@@ -254,6 +254,13 @@ flow through the generic streamed publication sink: each PNG is validated,
 digested, and encoded inside the private atomic staging directory, its decoded
 pixels are then released, and `manifest.json` is written before the one final
 rename. Small reviewers retain the simpler in-memory `Review()` path.
+Candidate evidence uses the same publication boundary. Prop creation and
+regeneration share one platform-neutral preparation/validation module with
+standalone Prop review and focused Level review; the latter substitutes the
+prepared Sprite and pixels for one entity in a copied `Level`. It preserves
+the entity's position, layer, and order, does not manufacture a texture handle,
+and has no persistence authority. Only the Prop reviewer may cross the existing
+compensated creation or regeneration transaction after review.
 `generate_assets`
 uses the same workspace and shared atomic publisher to produce strict creation
 candidates. Their staged pixels are retained only inside the compensated
