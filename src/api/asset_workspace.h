@@ -29,9 +29,8 @@ class TilesetManager;
 //
 // The interactive editor supplies an SDL texture store; headless tools supply
 // a store with no window or GPU. Complete loading remains the default. The
-// explicit level-review profile leaves unrelated authoring catalogs empty so a
-// read-only exploratory renderer does not validate retained source pixels it
-// cannot consume.
+// explicit read-only profiles leave unrelated authoring catalogs empty so
+// renderers do not validate retained source pixels they cannot consume.
 class AssetWorkspace {
  public:
   enum class Access {
@@ -42,6 +41,7 @@ class AssetWorkspace {
   enum class LoadProfile {
     kComplete,
     kLevelReview,
+    kRuntime,
   };
 
   static absl::StatusOr<LoadProfile> ParseLoadProfile(std::string_view id);

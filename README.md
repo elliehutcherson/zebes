@@ -144,6 +144,21 @@ Configure, build, and launch the development editor with:
 Use `--no-build` to launch an existing build or `--release` to build and run
 the optimized editor.
 
+## Running the Game
+
+Build and launch the Milestone 1 game runtime with:
+
+```bash
+cmake --preset dev
+cmake --build --preset dev --target run_game
+build/dev/bin/run_game
+```
+
+Pass `--unpaced` to advance bounded fixed-step batches as fast as presentation
+allows. Real-time mode is the default. In either mode SDL event polling and
+presentation stay on the main thread, and config and level assets finish
+loading before the runtime loop starts.
+
 ## Credentials
 
 The Prop Artwork tab offers two image-generation providers. Codex (ChatGPT) is

@@ -14,7 +14,7 @@ phase has decided and why. This document only says what has not happened yet.
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
 | 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 5 zone fades, Catacombs formation coverage through 0.5×, and the first player-scaled distributed prop pass are accepted; more prop/decal variants remain |
-| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — the shared runtime-neutral scene core and fixed-step pacing foundation exist; Milestone 1 continues with `run_game` without blocking asset/content work |
+| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestone 1 is runnable: `run_game` boots Catacombs through the read-only runtime profile, advances a fixed-step free-fly simulation, and presents the shared scene through SDL; Milestone 2 player movement and collision are next |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.

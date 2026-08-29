@@ -4,7 +4,6 @@
 #include <utility>
 
 #include "SDL.h"
-#include "common/imgui_wrapper.h"
 #include "common/sdl_wrapper.h"
 
 namespace zebes {
@@ -24,13 +23,14 @@ constexpr std::array<std::pair<Key, SDL_Scancode>, 9> kKeyMappings = {{
 
 }  // namespace
 
-SdlInputSource::SdlInputSource(SdlWrapper& sdl, ImGuiWrapper& imgui) : sdl_(sdl), imgui_(imgui) {}
+SdlInputSource::SdlInputSource(SdlWrapper& sdl, EventObserver event_observer)
+    : sdl_(sdl), event_observer_(std::move(event_observer)) {}
 
 InputSnapshot SdlInputSource::Poll() {
   InputSnapshot snapshot;
   SDL_Event event;
   while (sdl_.PollEvent(&event)) {
-    imgui_.ProcessEvent(&event);
+    if (event_observer_) event_observer_(event);
     if (event.type == SDL_QUIT ||
         (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)) {
       snapshot.quit_requested = true;

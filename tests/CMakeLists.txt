@@ -146,6 +146,23 @@ add_executable(game_engine_test game/game_engine_test.cc)
 target_link_libraries(game_engine_test game_engine macros gtest_main)
 gtest_discover_tests(game_engine_test)
 
+add_executable(free_fly_simulation_test game/free_fly_simulation_test.cc)
+target_link_libraries(free_fly_simulation_test
+  free_fly_simulation macros gtest_main gmock)
+gtest_discover_tests(free_fly_simulation_test)
+
+add_executable(game_level_assets_test game/game_level_assets_test.cc)
+target_link_libraries(game_level_assets_test
+  asset_workspace
+  game_scene
+  headless_texture_store
+  macros
+  gtest_main
+)
+target_compile_definitions(game_level_assets_test
+  PRIVATE ZEBES_TEST_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+gtest_discover_tests(game_level_assets_test)
+
 # --- Level Manager ---
 add_executable(level_manager_test resources/level_manager_test.cc)
 target_link_libraries(level_manager_test level_manager macros gtest_main gmock)

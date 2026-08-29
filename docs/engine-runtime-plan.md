@@ -1,8 +1,9 @@
 # Game runtime plan
 
-**Status: Milestone 1 foundation in progress. The runtime-neutral scene types,
-composition, and parallax layout are shared; the game executable and simulation
-do not exist yet. The runtime and asset/content tracks proceed in parallel.**
+**Status: Milestone 1 implemented. `run_game` boots the shipped Catacombs level,
+drives a fixed-step free-fly simulation, and presents the shared scene through
+SDL. Milestone 2 is next; the runtime and asset/content tracks proceed in
+parallel.**
 
 Design for the Zebes game runtime: the executable that loads a shipped level
 and plays it. The editor, curation, and generation stacks are out of scope
@@ -35,10 +36,10 @@ by ID; `tile_shape_geometry` is the single definition of collision polygons;
 and the editor's `ViewportScene`/`ViewportRenderer` split proves the pattern
 of platform-neutral render batches consumed by a thin native boundary.
 
-The platform-neutral `SimulationPacer` and fixed-step `GameEngine` boundary now
-exist. What does not exist: a game executable, runtime world or
-gameplay simulation loop, collision response, animation playback outside the
-editor, or a game-side render path.
+The platform-neutral `SimulationPacer`, fixed-step `GameEngine`, M1 simulation,
+runtime scene aggregate, and SDL game presentation path now exist. What does
+not exist: a player-controlled runtime world, collision response, animation
+playback outside the editor, runtime asset streaming, or level transitions.
 
 ## Design decisions
 
@@ -114,15 +115,16 @@ triple buffer; do not start there.
 
 **D5 — Assets are immutable by invariant after load; no lock ever guards
 them.** Loading a level resolves the complete referenced asset graph —
-tileset, atlas pixels, sprites paired with handles as `ResolvedSprite`,
-parallax themes — into one frozen `LevelAssets` snapshot shared as
-`shared_ptr<const>`. The asset engine submits file reads and decoding to the
+tileset, atlas pixels, sprites paired with handles, parallax themes — into one
+frozen `GameLevelAssets` value. M1 owns that value uniquely in `GameRuntime`;
+the M4 snapshot handoff will share it as `shared_ptr<const>` without changing
+the definitions. The asset engine submits file reads and decoding to the
 bounded I/O executor and consumes notified completions; the main thread
 performs the GPU upload, honoring D2. A level transition is a message and an
-atomic swap; the old snapshot dies when the last
-`FrameSnapshot` referencing it is retired, which the `shared_ptr` already
-expresses. Texture handles obey the existing store contract: created by the
-runtime's `SdlTextureStore`, never manufactured, never outliving it.
+atomic swap; the old snapshot dies when the last `FrameSnapshot` referencing
+it is retired, which the `shared_ptr` already expresses. Texture handles obey
+the existing store contract: created by the runtime's `SdlTextureStore`, never
+manufactured, never outliving it.
 
 **D6 — Simulation state lives in flat registries keyed by entity ID, not an
 ECS.** `RuntimeWorld` holds the loaded `Level` (untouched authored data)
@@ -138,9 +140,9 @@ geometry, chunk culling, tile and entity item construction, parallax resource
 binding, and parallax layout — now lives under `src/engine/`. Headless curation
 consumes that core directly. Editor-only presentation (selection overlays,
 gizmos, placement ghosts, collision overlays, zone outlines) remains in
-`ViewportScene` as a thin decoration layer. World-layer orchestration is added
-to the core only when `run_game` establishes the runtime-owned aggregate it
-needs. The runtime renderer is a new SDL presentation layer under
+`ViewportScene` as a thin decoration layer. `ComposeGameSceneFrame` now owns
+runtime world-layer orchestration around that shared core. The runtime renderer
+is an SDL presentation layer under
 `src/platform/sdl/`; ImGui does not enter the runtime.
 
 **D8 — Host-specific tuning arrives last and lives in `EngineConfig`.**
@@ -189,6 +191,13 @@ tests for real-time pacing, bounded overload, unpaced stepping, and the shared
 scene core; the existing editor viewport tests still pass against the factored
 core.
 
+Implemented: the runtime uses the explicit read-only `AssetWorkspace` runtime
+profile. Boot synchronously creates GPU textures and copies the complete
+referenced render graph into `GameLevelAssets` before `Run`; the loop performs
+no asset or config I/O. `SdlInputSource` accepts an optional native-event
+observer, so the editor can forward events to ImGui while the game binary has
+no ImGui dependency.
+
 **M2 — A player.** Input → intent → kinematic character controller:
 AABB-versus-`TileShape` collision including slopes via
 `tile_shape_geometry`, `Motion` integration in `RuntimeWorld`, camera follow.
@@ -222,8 +231,5 @@ in `EngineConfig` with validation; measure before exposing anything.
 
 ## Unresolved
 
-- Whether `run_game` composes managers through `AssetWorkspace` with a
-  read-only profile or through a narrower runtime loader. Decided in M1 by
-  whether the workspace's validation set is affordable at game startup.
 - Input vocabulary growth (`Key` currently covers editor needs). Decided in
   M2 when the controller defines its intents.

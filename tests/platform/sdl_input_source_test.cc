@@ -18,8 +18,7 @@ using ::testing::Return;
 
 TEST(SdlInputSourceTest, TranslatesKeyboardStateToEngineKeys) {
   MockSdlWrapper sdl;
-  MockImGuiWrapper imgui;
-  SdlInputSource input_source(sdl, imgui);
+  SdlInputSource input_source(sdl);
   std::vector<uint8_t> keyboard_state(SDL_NUM_SCANCODES, 0);
   keyboard_state[SDL_SCANCODE_W] = 1;
   keyboard_state[SDL_SCANCODE_SPACE] = 1;
@@ -37,7 +36,8 @@ TEST(SdlInputSourceTest, TranslatesKeyboardStateToEngineKeys) {
 TEST(SdlInputSourceTest, ForwardsEventsAndTranslatesWindowClose) {
   MockSdlWrapper sdl;
   MockImGuiWrapper imgui;
-  SdlInputSource input_source(sdl, imgui);
+  SdlInputSource input_source(
+      sdl, [&imgui](const SDL_Event& event) { (void)imgui.ProcessEvent(&event); });
   std::vector<uint8_t> keyboard_state(SDL_NUM_SCANCODES, 0);
 
   EXPECT_CALL(sdl, PollEvent(_))

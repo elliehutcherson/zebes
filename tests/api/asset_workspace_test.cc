@@ -42,7 +42,34 @@ TEST(AssetWorkspaceTest, LevelReviewProfileLoadsRenderableCatalogsOnly) {
   EXPECT_TRUE(api.GetAllParallaxArtworkRecipes().empty());
 }
 
-TEST(AssetWorkspaceTest, LevelReviewProfileRejectsWriteAccessAndUnknownProfiles) {
+TEST(AssetWorkspaceTest, RuntimeProfileLoadsRuntimeCatalogsOnly) {
+  EngineConfig config;
+  HeadlessTextureStore texture_resources;
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<AssetWorkspace> workspace,
+                       AssetWorkspace::Create({
+                           .config = &config,
+                           .texture_resources = &texture_resources,
+                           .asset_root = kAssetsRoot,
+                           .load_profile = AssetWorkspace::LoadProfile::kRuntime,
+                       }));
+
+  Api& api = workspace->api();
+  ASSERT_OK_AND_ASSIGN(const std::vector<Texture> textures, api.GetAllTextures());
+  EXPECT_FALSE(textures.empty());
+  EXPECT_FALSE(api.GetAllSprites().empty());
+  EXPECT_FALSE(api.GetAllColliders().empty());
+  EXPECT_FALSE(api.GetAllBlueprints().empty());
+  EXPECT_FALSE(api.GetAllLevels().empty());
+  EXPECT_FALSE(api.GetAllParallaxThemes().empty());
+  EXPECT_FALSE(api.GetAllTilesets().empty());
+
+  EXPECT_TRUE(api.GetAllTerrainRecipes().empty());
+  EXPECT_TRUE(api.GetAllSourceArtwork().empty());
+  EXPECT_TRUE(api.GetAllPropRecipes().empty());
+  EXPECT_TRUE(api.GetAllParallaxArtworkRecipes().empty());
+}
+
+TEST(AssetWorkspaceTest, ReadOnlyProfilesRejectWriteAccessAndUnknownProfiles) {
   EngineConfig config;
   HeadlessTextureStore texture_resources;
   EXPECT_EQ(AssetWorkspace::Options{}.load_profile, AssetWorkspace::LoadProfile::kComplete);
@@ -54,6 +81,10 @@ TEST(AssetWorkspaceTest, LevelReviewProfileRejectsWriteAccessAndUnknownProfiles)
                        AssetWorkspace::ParseLoadProfile("referenced-level"));
   EXPECT_EQ(parsed, AssetWorkspace::LoadProfile::kLevelReview);
   EXPECT_EQ(AssetWorkspace::LoadProfileId(parsed), "referenced-level");
+  ASSERT_OK_AND_ASSIGN(const AssetWorkspace::LoadProfile runtime,
+                       AssetWorkspace::ParseLoadProfile("runtime"));
+  EXPECT_EQ(runtime, AssetWorkspace::LoadProfile::kRuntime);
+  EXPECT_EQ(AssetWorkspace::LoadProfileId(runtime), "runtime");
   EXPECT_TRUE(absl::IsInvalidArgument(AssetWorkspace::ParseLoadProfile("fast").status()));
   EXPECT_TRUE(absl::IsInvalidArgument(
       AssetWorkspace::Create({
@@ -62,6 +93,15 @@ TEST(AssetWorkspaceTest, LevelReviewProfileRejectsWriteAccessAndUnknownProfiles)
                                  .asset_root = kAssetsRoot,
                                  .access = AssetWorkspace::Access::kReadWrite,
                                  .load_profile = AssetWorkspace::LoadProfile::kLevelReview,
+                             })
+          .status()));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      AssetWorkspace::Create({
+                                 .config = &config,
+                                 .texture_resources = &texture_resources,
+                                 .asset_root = kAssetsRoot,
+                                 .access = AssetWorkspace::Access::kReadWrite,
+                                 .load_profile = AssetWorkspace::LoadProfile::kRuntime,
                              })
           .status()));
   EXPECT_TRUE(absl::IsInvalidArgument(

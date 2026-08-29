@@ -23,8 +23,8 @@ The important rules are:
 - Resource managers depend on platform-neutral interfaces.
 - Platform implementations may depend on external libraries.
 - ImGui belongs in editor/UI code. It should not determine engine data models.
-- The application composition root, currently `EditorEngine`, connects concrete
-  platform implementations to platform-neutral interfaces.
+- Application composition roots (`EditorEngine` and `GameRuntime`) connect
+  concrete platform implementations to platform-neutral interfaces.
 
 ## Texture metadata and runtime resources
 
@@ -144,12 +144,35 @@ handle flow above.
 
 ## Input boundary
 
-Engine input logic consumes `InputSnapshot`, `Key`, and `InputSource`. SDL event
-translation and ImGui event forwarding live in `SdlInputSource`. Camera and
-other engine systems must not inspect `SDL_Event`, SDL scancodes, or ImGui IO.
+Engine input logic consumes `InputSnapshot`, `Key`, and `InputSource`.
+`SdlInputSource` translates SDL state and may notify an injected native-event
+observer; `EditorEngine` uses that observer to forward events to ImGui, while
+`GameRuntime` supplies none. Camera and other engine systems must not inspect
+`SDL_Event`, SDL scancodes, or ImGui IO.
 
 This separation allows engine input behavior to be tested using ordinary fake
 snapshots without initializing a window or ImGui context.
+
+## Game runtime ownership
+
+`GameRuntime` is the M1 composition root beside `EditorEngine`. Its boot phase
+loads config, creates SDL and the runtime texture store, opens a read-only
+`AssetWorkspace` runtime profile, and resolves the shipped level's complete
+render graph into a frozen `GameLevelAssets` value. All file access and GPU
+resource creation finishes before `Run` begins.
+
+The main-thread loop polls SDL input, performs one bounded non-blocking
+`GameEngine::Run`, composes a platform-neutral `GameSceneFrame`, and hands it
+to `SdlGameRenderer` for presentation. The renderer alone resolves opaque
+texture handles to `SDL_Texture`; ImGui is not linked into the game path.
+Destruction reverses ownership: renderer and simulation first, then frozen
+level handles and workspace, then `SdlTextureStore`, `SdlWrapper`, and SDL.
+
+`AssetWorkspace::LoadProfile::kRuntime` is explicitly read-only. It loads
+runtime catalogs (textures, sprites, colliders, blueprints, levels, parallax
+themes, and tilesets) while leaving generation and authoring recipe catalogs
+empty. A missing definition or texture handle in the selected level fails boot
+instead of producing a partially initialized running loop.
 
 ## Camera responsibilities
 

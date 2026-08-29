@@ -46,7 +46,9 @@ absl::Status EditorEngine::Init() {
   imgui_wrapper_ = ImGuiWrapper::Create();
 
   // Translates SDL events into Zebes input types; nothing above sees SDL.
-  sdl_input_source_ = std::make_unique<SdlInputSource>(*sdl_, *imgui_wrapper_);
+  ImGuiWrapper* imgui = imgui_wrapper_.get();
+  sdl_input_source_ = std::make_unique<SdlInputSource>(
+      *sdl_, [imgui](const SDL_Event& event) { (void)imgui->ProcessEvent(&event); });
   ASSIGN_OR_RETURN(input_manager_, InputManager::Create({.input_source = sdl_input_source_.get()}));
 
   gui_ = std::make_unique<Gui>();

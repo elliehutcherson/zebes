@@ -39,6 +39,11 @@ absl::Status ValidateOptions(const AssetWorkspace::Options& options) {
         return absl::InvalidArgumentError("the level-review workspace profile is read-only");
       }
       return absl::OkStatus();
+    case AssetWorkspace::LoadProfile::kRuntime:
+      if (options.access != AssetWorkspace::Access::kReadOnly) {
+        return absl::InvalidArgumentError("the runtime workspace profile is read-only");
+      }
+      return absl::OkStatus();
   }
   return absl::InvalidArgumentError("asset workspace load profile is invalid");
 }
@@ -50,8 +55,9 @@ AssetWorkspace::~AssetWorkspace() = default;
 absl::StatusOr<AssetWorkspace::LoadProfile> AssetWorkspace::ParseLoadProfile(std::string_view id) {
   if (id == "complete") return LoadProfile::kComplete;
   if (id == "referenced-level") return LoadProfile::kLevelReview;
+  if (id == "runtime") return LoadProfile::kRuntime;
   return absl::InvalidArgumentError(
-      "asset workspace load profile must be complete or referenced-level");
+      "asset workspace load profile must be complete, referenced-level, or runtime");
 }
 
 std::string_view AssetWorkspace::LoadProfileId(LoadProfile profile) {
@@ -60,6 +66,8 @@ std::string_view AssetWorkspace::LoadProfileId(LoadProfile profile) {
       return "complete";
     case LoadProfile::kLevelReview:
       return "referenced-level";
+    case LoadProfile::kRuntime:
+      return "runtime";
   }
   return "invalid";
 }
@@ -74,6 +82,7 @@ absl::StatusOr<std::unique_ptr<AssetWorkspace>> AssetWorkspace::Create(Options o
 
 absl::Status AssetWorkspace::Init(const Options& options) {
   const bool complete = options.load_profile == LoadProfile::kComplete;
+  const bool runtime = options.load_profile == LoadProfile::kRuntime;
   if (options.access == Access::kReadWrite) {
     ASSIGN_OR_RETURN(catalog_lock_, AssetRootLock::AcquireExclusive(options.asset_root,
                                                                     options.write_lock_timeout));
@@ -91,10 +100,10 @@ absl::Status AssetWorkspace::Init(const Options& options) {
   RETURN_IF_ERROR(sprite_manager_->LoadAllSprites());
 
   ASSIGN_OR_RETURN(collider_manager_, ColliderManager::Create(options.asset_root));
-  if (complete) RETURN_IF_ERROR(collider_manager_->LoadAllColliders());
+  if (complete || runtime) RETURN_IF_ERROR(collider_manager_->LoadAllColliders());
 
   ASSIGN_OR_RETURN(blueprint_manager_, BlueprintManager::Create(options.asset_root));
-  if (complete) RETURN_IF_ERROR(blueprint_manager_->LoadAllBlueprints());
+  if (complete || runtime) RETURN_IF_ERROR(blueprint_manager_->LoadAllBlueprints());
 
   ASSIGN_OR_RETURN(level_manager_, LevelManager::Create(options.asset_root));
   RETURN_IF_ERROR(level_manager_->LoadAllLevels());
