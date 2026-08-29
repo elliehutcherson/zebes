@@ -46,7 +46,8 @@ absl::StatusOr<SceneParallaxRenderBatch> ComposeParallaxBatch(const LoadedLevelA
 }  // namespace
 
 absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(const LoadedLevelAssets& assets,
-                                                     const Camera& camera) {
+                                                     const Camera& camera,
+                                                     const GameSceneCompositionOptions& options) {
   RETURN_IF_ERROR(ValidateSceneCamera(camera));
   ASSIGN_OR_RETURN(const SpriteLookup sprites, BuildSpriteLookup(assets));
 
@@ -76,8 +77,10 @@ absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(const LoadedLevelAssets& as
                          .atlas_texture = assets.rendering.tileset_atlas,
                          .camera = camera,
                      }));
-    ASSIGN_OR_RETURN(std::vector<SceneEntityRenderItem> entities,
-                     ComposeSceneEntityRenderItems(layer.entities, sprites));
+    ASSIGN_OR_RETURN(
+        std::vector<SceneEntityRenderItem> entities,
+        ComposeSceneEntityRenderItems(layer.entities, sprites,
+                                      {.transform_overrides = options.transform_overrides}));
     frame.world_layers.push_back({
         .layer_id = layer.id,
         .tiles = std::move(tiles),

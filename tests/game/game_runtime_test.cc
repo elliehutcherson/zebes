@@ -1,5 +1,6 @@
 #include "game/game_runtime.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 
@@ -20,7 +21,11 @@ constexpr char kAssetsRoot[] = ZEBES_TEST_ASSETS_DIR;
 
 class QuitAfterOneFrameInput final : public InputSource {
  public:
-  InputSnapshot Poll() override { return {.quit_requested = poll_count_++ > 0}; }
+  InputSnapshot Poll() override {
+    InputSnapshot snapshot{.quit_requested = poll_count_++ > 0};
+    if (!snapshot.quit_requested) snapshot.SetKeyDown(Key::kD);
+    return snapshot;
+  }
 
  private:
   size_t poll_count_ = 0;
@@ -64,6 +69,16 @@ TEST(GameRuntimeTest, BootsAndRunsAFrameThroughPlatformNeutralDependencies) {
   EXPECT_EQ(renderer.last_frame().camera.viewport_width, game_view.width);
   EXPECT_EQ(renderer.last_frame().camera.viewport_height, game_view.height);
   EXPECT_FALSE(renderer.last_frame().world_layers.empty());
+  const auto gameplay =
+      std::ranges::find_if(renderer.last_frame().world_layers,
+                           [](const GameWorldLayerFrame& layer) { return layer.layer_id == 1; });
+  ASSERT_NE(gameplay, renderer.last_frame().world_layers.end());
+  const auto player = std::ranges::find_if(
+      gameplay->entities,
+      [](const SceneEntityRenderItem& entity) { return entity.entity_id == 4; });
+  ASSERT_NE(player, gameplay->entities.end());
+  EXPECT_GT(player->origin.x, 256.0);
+  EXPECT_EQ(renderer.last_frame().camera.position, player->origin);
 }
 
 TEST(GameRuntimeTest, RejectsMissingPlatformDependenciesBeforeLoadingAssets) {

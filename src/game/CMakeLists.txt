@@ -35,6 +35,8 @@ target_link_libraries(runtime_world
   level
   player_input
   tile_collision
+  tile_movement
+  tileset
   transform
   absl::flat_hash_map
   absl::statusor
@@ -59,11 +61,27 @@ target_link_libraries(free_fly_simulation
   status_macros
 )
 
+add_library(player_simulation player_simulation.cc)
+target_link_libraries(player_simulation
+  PUBLIC
+  camera
+  game_engine
+  input_types
+  runtime_world
+  absl::status
+  absl::statusor
+  absl::time
+  PRIVATE
+  scene_types
+  status_macros
+)
+
 add_library(game_scene game_scene.cc)
 target_link_libraries(game_scene
   PUBLIC
   loaded_level_assets
   scene_composition
+  absl::flat_hash_map
   PRIVATE
   level
   scene_types
@@ -85,12 +103,13 @@ target_link_libraries(game_runtime
   PUBLIC
   asset_workspace
   config
-  free_fly_simulation
   game_engine
   game_renderer
   input_manager
   input_types
   loaded_level_assets
+  player_simulation
+  runtime_world
   texture_resource_store
   absl::status
   absl::statusor

@@ -68,15 +68,16 @@ SceneTileRenderItem MakeTileRenderItem(const SceneTileRenderOptions& options) {
 
 absl::StatusOr<SceneEntityRenderItem> ComposeSceneEntityRenderItem(uint64_t entity_id,
                                                                    const Entity& entity,
-                                                                   const ResolvedSprite& resolved) {
+                                                                   const ResolvedSprite& resolved,
+                                                                   const Transform& transform) {
   SceneEntityRenderItem item{
       .entity_id = entity_id,
       .sort_order = entity.sort_order,
-      .origin = entity.transform.position,
+      .origin = transform.position,
   };
 
   const Sprite* sprite = resolved.sprite;
-  ASSIGN_OR_RETURN(item.bounds, CalculateEntityBounds(entity, sprite));
+  ASSIGN_OR_RETURN(item.bounds, CalculateEntityBounds(transform, sprite));
   if (sprite == nullptr || sprite->frames.empty() || !resolved.texture) return item;
 
   const SpriteFrame& frame = sprite->frames.front();
@@ -97,14 +98,20 @@ absl::StatusOr<SceneEntityRenderItem> ComposeSceneEntityRenderItem(uint64_t enti
 }
 
 absl::StatusOr<std::vector<SceneEntityRenderItem>> ComposeSceneEntityRenderItems(
-    const std::map<uint64_t, Entity>& entities, const SpriteLookup& sprites) {
+    const std::map<uint64_t, Entity>& entities, const SpriteLookup& sprites,
+    const SceneEntityRenderOptions& options) {
   std::vector<SceneEntityRenderItem> items;
   items.reserve(entities.size());
   for (const auto& [id, entity] : entities) {
     if (!entity.active) continue;
-    ASSIGN_OR_RETURN(
-        SceneEntityRenderItem item,
-        ComposeSceneEntityRenderItem(id, entity, FindSprite(sprites, entity.sprite_id)));
+    const Transform* transform = &entity.transform;
+    if (options.transform_overrides != nullptr) {
+      const auto override = options.transform_overrides->find(id);
+      if (override != options.transform_overrides->end()) transform = &override->second;
+    }
+    ASSIGN_OR_RETURN(SceneEntityRenderItem item,
+                     ComposeSceneEntityRenderItem(id, entity, FindSprite(sprites, entity.sprite_id),
+                                                  *transform));
     items.push_back(std::move(item));
   }
 

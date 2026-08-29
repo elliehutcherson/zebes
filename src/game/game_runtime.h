@@ -10,9 +10,9 @@
 #include "common/config.h"
 #include "engine/input_manager.h"
 #include "engine/input_types.h"
-#include "game/free_fly_simulation.h"
 #include "game/game_engine.h"
 #include "game/game_renderer.h"
+#include "game/player_simulation.h"
 #include "resources/loaded_level_assets.h"
 #include "resources/texture_resource_store.h"
 
@@ -57,7 +57,7 @@ class GameRuntime {
   std::unique_ptr<AssetWorkspace> workspace_;
   std::optional<LoadedLevelAssets> level_assets_;
   std::unique_ptr<InputManager> input_manager_;
-  FreeFlySimulation* simulation_ = nullptr;
+  PlayerSimulation* simulation_ = nullptr;
   std::unique_ptr<GameEngine> game_engine_;
 };
 

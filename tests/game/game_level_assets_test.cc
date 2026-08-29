@@ -55,6 +55,7 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
                        RuntimeWorld::Create({
                            .level = assets.content.level,
+                           .tileset = assets.content.tileset,
                            .player_blueprint_id = std::string(kMousePlayerPlaceholderBlueprintId),
                            .player_collider = mouse_collider->second,
                        }));

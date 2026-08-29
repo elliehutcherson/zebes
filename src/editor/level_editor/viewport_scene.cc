@@ -73,8 +73,9 @@ absl::StatusOr<EntityRenderItem> ComposeEntityPlacementItem(Vec world_position,
       .id = Entity::kInvalidId,
       .transform = {.position = world_position},
   };
-  ASSIGN_OR_RETURN(SceneEntityRenderItem scene,
-                   ComposeSceneEntityRenderItem(Entity::kInvalidId, entity, resolved));
+  ASSIGN_OR_RETURN(
+      SceneEntityRenderItem scene,
+      ComposeSceneEntityRenderItem(Entity::kInvalidId, entity, resolved, entity.transform));
   EntityRenderItem item = DecorateEntity(std::move(scene), EntityRenderMode::kPlacementGhost, {});
   item.show_origin = true;
   item.placement_mode = placement_mode;

@@ -13,6 +13,7 @@ class MockInputManager : public IInputManager {
   MOCK_METHOD(void, Update, (), (override));
   MOCK_METHOD(bool, IsActionActive, (absl::string_view action_name), (const, override));
   MOCK_METHOD(bool, IsActionJustPressed, (absl::string_view action_name), (const, override));
+  MOCK_METHOD(InputSnapshot, CurrentSnapshot, (), (const, override));
   MOCK_METHOD(bool, QuitRequested, (), (const, override));
 };
 

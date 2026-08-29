@@ -9,6 +9,7 @@
 #include "objects/camera.h"
 #include "objects/entity.h"
 #include "objects/sprite.h"
+#include "objects/transform.h"
 #include "objects/vec.h"
 
 namespace zebes {
@@ -48,6 +49,11 @@ VisibleWorldBounds CalculateVisibleWorldBounds(const Camera& camera);
 // Returns the world-space bounds used consistently for rendering and picking.
 // A null sprite, or one with no frames, uses a centered 32x32 placeholder.
 absl::StatusOr<WorldRect> CalculateEntityBounds(const Entity& entity, const Sprite* sprite);
+
+// Runtime composition supplies a transient transform without copying or
+// mutating the authored Entity. Editor and authoring callers use the overload
+// above when the persisted transform is authoritative.
+absl::StatusOr<WorldRect> CalculateEntityBounds(const Transform& transform, const Sprite* sprite);
 
 // Returns the sprite and texture for an ID. An absent ID yields a default
 // ResolvedSprite, whose null sprite callers already handle as unresolved.

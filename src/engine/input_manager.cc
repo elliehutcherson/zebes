@@ -54,6 +54,8 @@ bool InputManager::IsActionJustPressed(absl::string_view action_name) const {
   return false;
 }
 
+InputSnapshot InputManager::CurrentSnapshot() const { return current_snapshot_; }
+
 bool InputManager::QuitRequested() const { return quit_requested_; }
 
 }  // namespace zebes

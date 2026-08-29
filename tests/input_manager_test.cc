@@ -55,6 +55,7 @@ TEST_F(InputManagerTest, ActionActiveWhenKeyPressed) {
 
   EXPECT_TRUE(input_manager_->IsActionActive("move_right"));
   EXPECT_FALSE(input_manager_->IsActionActive("jump"));
+  EXPECT_TRUE(input_manager_->CurrentSnapshot().IsKeyDown(Key::kRight));
 }
 
 TEST_F(InputManagerTest, ActionJustPressedLogic) {

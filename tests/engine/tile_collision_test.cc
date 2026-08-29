@@ -1,7 +1,9 @@
 #include "engine/tile_collision.h"
 
 #include <cmath>
+#include <limits>
 #include <optional>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
@@ -121,6 +123,130 @@ TEST(TileCollisionTest, RejectsInvalidGeometryAndShape) {
             absl::StatusCode::kInvalidArgument);
   EXPECT_EQ(IntersectBoxWithTileShape({.min = {0.0, 0.0}, .max = {1.0, 2.0}},
                                       static_cast<TileShape>(255), {.x = 0.0, .y = 0.0}, kTileSize)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(TileCollisionTest, SweepsThroughFullBlockWithoutTunneling) {
+  ASSERT_OK_AND_ASSIGN(
+      const std::optional<TileCollisionSweepContact> contact,
+      SweepBoxWithTileShape({.min = {0.0, 8.0}, .max = {8.0, 24.0}}, {.x = 128.0, .y = 0.0},
+                            TileShape::kFullBlock, {.x = 64.0, .y = 0.0}, kTileSize));
+  ASSERT_TRUE(contact.has_value());
+  EXPECT_DOUBLE_EQ(contact->time, 56.0 / 128.0);
+  EXPECT_EQ(contact->normal, (Vec{.x = -1.0, .y = 0.0}));
+}
+
+TEST(TileCollisionTest, SweepsIntoHalfBlockAtExpectedBoundary) {
+  ASSERT_OK_AND_ASSIGN(
+      const std::optional<TileCollisionSweepContact> bottom,
+      SweepBoxWithTileShape({.min = {-32.0, 20.0}, .max = {-16.0, 28.0}}, {.x = 64.0, .y = 0.0},
+                            TileShape::kHalfBlockBottom, {.x = 0.0, .y = 0.0}, kTileSize));
+  ASSERT_TRUE(bottom.has_value());
+  EXPECT_DOUBLE_EQ(bottom->time, 16.0 / 64.0);
+  EXPECT_EQ(bottom->normal, (Vec{.x = -1.0, .y = 0.0}));
+
+  ASSERT_OK_AND_ASSIGN(
+      const std::optional<TileCollisionSweepContact> top,
+      SweepBoxWithTileShape({.min = {-32.0, 4.0}, .max = {-16.0, 12.0}}, {.x = 64.0, .y = 0.0},
+                            TileShape::kHalfBlockTop, {.x = 0.0, .y = 0.0}, kTileSize));
+  ASSERT_TRUE(top.has_value());
+  EXPECT_DOUBLE_EQ(top->time, 16.0 / 64.0);
+  EXPECT_EQ(top->normal, (Vec{.x = -1.0, .y = 0.0}));
+}
+
+TEST(TileCollisionTest, InitialOverlapReportsStaticNormalAtZero) {
+  ASSERT_OK_AND_ASSIGN(
+      const std::optional<TileCollisionSweepContact> contact,
+      SweepBoxWithTileShape({.min = {8.0, 8.0}, .max = {24.0, 24.0}}, {.x = 100.0, .y = 20.0},
+                            TileShape::kFullBlock, {.x = 0.0, .y = 0.0}, kTileSize));
+  ASSERT_TRUE(contact.has_value());
+  EXPECT_DOUBLE_EQ(contact->time, 0.0);
+  EXPECT_EQ(contact->normal, (Vec{.x = -1.0, .y = 0.0}));
+}
+
+TEST(TileCollisionTest, TouchingOnlyCollidesWhenMovingIntoTile) {
+  ASSERT_OK_AND_ASSIGN(
+      const std::optional<TileCollisionSweepContact> into,
+      SweepBoxWithTileShape({.min = {-16.0, 8.0}, .max = {0.0, 24.0}}, {.x = 32.0, .y = 0.0},
+                            TileShape::kFullBlock, {.x = 0.0, .y = 0.0}, kTileSize));
+  ASSERT_TRUE(into.has_value());
+  EXPECT_DOUBLE_EQ(into->time, 0.0);
+  EXPECT_EQ(into->normal, (Vec{.x = -1.0, .y = 0.0}));
+
+  ASSERT_OK_AND_ASSIGN(
+      const std::optional<TileCollisionSweepContact> away,
+      SweepBoxWithTileShape({.min = {-16.0, 8.0}, .max = {0.0, 24.0}}, {.x = -32.0, .y = 0.0},
+                            TileShape::kFullBlock, {.x = 0.0, .y = 0.0}, kTileSize));
+  EXPECT_FALSE(away.has_value());
+
+  ASSERT_OK_AND_ASSIGN(
+      const std::optional<TileCollisionSweepContact> zero,
+      SweepBoxWithTileShape({.min = {-16.0, 8.0}, .max = {0.0, 24.0}}, {.x = 0.0, .y = 0.0},
+                            TileShape::kFullBlock, {.x = 0.0, .y = 0.0}, kTileSize));
+  EXPECT_FALSE(zero.has_value());
+}
+
+TEST(TileCollisionTest, ParallelMotionAlongTouchingSurfaceDoesNotCollide) {
+  ASSERT_OK_AND_ASSIGN(
+      const std::optional<TileCollisionSweepContact> contact,
+      SweepBoxWithTileShape({.min = {8.0, -16.0}, .max = {24.0, 0.0}}, {.x = 32.0, .y = 0.0},
+                            TileShape::kFullBlock, {.x = 0.0, .y = 0.0}, kTileSize));
+  EXPECT_FALSE(contact.has_value());
+}
+
+TEST(TileCollisionTest, SweepsIntoEveryTileShapeFamily) {
+  const std::vector<TileShape> shapes = {
+      TileShape::kFullBlock,
+      TileShape::kHalfBlockBottom,
+      TileShape::kHalfBlockTop,
+      TileShape::kHalfBlockLeft,
+      TileShape::kHalfBlockRight,
+      TileShape::kSlope45FloorTallRight,
+      TileShape::kSlope45FloorTallLeft,
+      TileShape::kSlope45CeilingTallRight,
+      TileShape::kSlope45CeilingTallLeft,
+      TileShape::kGentleSlopeFloorTallRightLower,
+      TileShape::kGentleSlopeFloorTallRightUpper,
+      TileShape::kGentleSlopeFloorTallLeftLower,
+      TileShape::kGentleSlopeFloorTallLeftUpper,
+      TileShape::kGentleSlopeCeilingTallRightLower,
+      TileShape::kGentleSlopeCeilingTallRightUpper,
+      TileShape::kGentleSlopeCeilingTallLeftLower,
+      TileShape::kGentleSlopeCeilingTallLeftUpper,
+      TileShape::kSteepSlopeFloorTallRightBottom,
+      TileShape::kSteepSlopeFloorTallRightTop,
+      TileShape::kSteepSlopeFloorTallLeftBottom,
+      TileShape::kSteepSlopeFloorTallLeftTop,
+      TileShape::kSteepSlopeCeilingTallRightBottom,
+      TileShape::kSteepSlopeCeilingTallRightTop,
+      TileShape::kSteepSlopeCeilingTallLeftBottom,
+      TileShape::kSteepSlopeCeilingTallLeftTop,
+  };
+  for (const TileShape shape : shapes) {
+    ASSERT_OK_AND_ASSIGN(
+        const std::optional<TileCollisionSweepContact> contact,
+        SweepBoxWithTileShape({.min = {-32.0, 12.0}, .max = {-24.0, 20.0}}, {.x = 64.0, .y = 0.0},
+                              shape, {.x = 0.0, .y = 0.0}, kTileSize));
+    EXPECT_TRUE(contact.has_value()) << kTileShapeIdentifiers[static_cast<int>(shape)];
+  }
+}
+
+TEST(TileCollisionTest, CornerTieUsesStableFirstAxisNormal) {
+  ASSERT_OK_AND_ASSIGN(
+      const std::optional<TileCollisionSweepContact> contact,
+      SweepBoxWithTileShape({.min = {-16.0, -16.0}, .max = {0.0, 0.0}}, {.x = 32.0, .y = 32.0},
+                            TileShape::kFullBlock, {.x = 0.0, .y = 0.0}, kTileSize));
+  ASSERT_TRUE(contact.has_value());
+  EXPECT_DOUBLE_EQ(contact->time, 0.0);
+  EXPECT_EQ(contact->normal, (Vec{.x = -1.0, .y = 0.0}));
+}
+
+TEST(TileCollisionTest, RejectsNonFiniteDisplacement) {
+  EXPECT_EQ(SweepBoxWithTileShape({.min = {0.0, 0.0}, .max = {1.0, 1.0}},
+                                  {.x = std::numeric_limits<double>::quiet_NaN(), .y = 0.0},
+                                  TileShape::kFullBlock, {.x = 0.0, .y = 0.0}, kTileSize)
                 .status()
                 .code(),
             absl::StatusCode::kInvalidArgument);

@@ -13,6 +13,7 @@
 #include "objects/collider.h"
 #include "objects/entity.h"
 #include "objects/level.h"
+#include "objects/tileset.h"
 #include "objects/transform.h"
 #include "objects/vec.h"
 
@@ -44,15 +45,40 @@ Level TestLevel() {
   return {
       .id = "test-level",
       .name = "Test Level",
+      .tileset_id = "test-tileset",
+      .tile_render_width = 32,
+      .tile_render_height = 32,
       .width = 1024.0,
       .height = 1024.0,
       .spawn_point = {0.0, 0.0},
   };
 }
 
+Tileset TestTileset() {
+  return {
+      .id = "test-tileset",
+      .name = "Test Tileset",
+      .tiles =
+          {
+              {.id = 1, .shape = TileShape::kFullBlock},
+              {.id = 2, .shape = TileShape::kSlope45FloorTallRight},
+          },
+  };
+}
+
+void PutTile(WorldLayer& layer, int tile_x, int tile_y, int tile_id = 1) {
+  const int chunk_x = tile_x / TileChunk::kSize;
+  const int chunk_y = tile_y / TileChunk::kSize;
+  const int local_x = tile_x % TileChunk::kSize;
+  const int local_y = tile_y % TileChunk::kSize;
+  layer.tile_chunks[ChunkKey(chunk_x, chunk_y)].tiles[local_y * TileChunk::kSize + local_x] =
+      tile_id;
+}
+
 RuntimeWorld::Options WorldOptions(Level level) {
   return {
       .level = std::move(level),
+      .tileset = TestTileset(),
       .player_blueprint_id = kPlayerBlueprintId,
       .player_collider = PlayerCollider(),
   };
@@ -73,6 +99,7 @@ TEST(RuntimeWorldTest, OwnsRuntimeStateWithoutMutatingAuthoredLevel) {
 
   EXPECT_EQ(world->level(), authored_level);
   EXPECT_EQ(world->player_entity_id(), 7);
+  EXPECT_EQ(world->player_layer_id(), 0);
   EXPECT_EQ(world->player_local_collider(),
             (AxisAlignedBox{.min = {-16.0, -64.0}, .max = {16.0, 0.0}}));
   ASSERT_NE(world->FindTransform(7), nullptr);
@@ -82,6 +109,7 @@ TEST(RuntimeWorldTest, OwnsRuntimeStateWithoutMutatingAuthoredLevel) {
   EXPECT_NE(world->FindTransform(8), nullptr);
   EXPECT_EQ(world->FindMotion(8), nullptr);
   EXPECT_EQ(world->FindTransform(999), nullptr);
+  EXPECT_EQ(world->transforms().size(), 2u);
 
   world->FindTransform(7)->position.x = 400.0;
   EXPECT_DOUBLE_EQ(world->FindTransform(7)->position.x, 400.0);
@@ -182,6 +210,81 @@ TEST(RuntimeWorldTest, RejectsInvalidLevelAndEmptyPlayerIdentity) {
   options.player_blueprint_id.clear();
   EXPECT_EQ(RuntimeWorld::Create(std::move(options)).status().code(),
             absl::StatusCode::kInvalidArgument);
+}
+
+TEST(RuntimeWorldTest, RejectsTilesetMismatchAndUnknownOccupiedTile) {
+  Level level = TestLevel();
+  ASSERT_OK(level.AddEntity(0, PlayerEntity()));
+  RuntimeWorld::Options mismatch = WorldOptions(level);
+  mismatch.tileset.id = "other";
+  EXPECT_TRUE(absl::IsFailedPrecondition(RuntimeWorld::Create(std::move(mismatch)).status()));
+
+  PutTile(level.layers.front(), 20, 20, 99);
+  EXPECT_TRUE(
+      absl::IsFailedPrecondition(RuntimeWorld::Create(WorldOptions(std::move(level))).status()));
+}
+
+TEST(RuntimeWorldTest, IntegratesMovementAndGroundedJumpWithoutMutatingLevel) {
+  Level level = TestLevel();
+  Entity player = PlayerEntity();
+  player.transform.position = {48.0, 96.0};
+  ASSERT_OK(level.AddEntity(0, player));
+  for (int tile_x = 0; tile_x < 20; ++tile_x) PutTile(level.layers.front(), tile_x, 3);
+  const Level authored = level;
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
+                       RuntimeWorld::Create(WorldOptions(std::move(level))));
+  ASSERT_TRUE(world->FindPlayerController(7)->grounded);
+
+  InputSnapshot moving;
+  moving.SetKeyDown(Key::kD);
+  ASSERT_OK(world->StepPlayer(moving, 1.0 / 60.0, {}));
+  EXPECT_GT(world->FindTransform(7)->position.x, 48.0);
+  EXPECT_DOUBLE_EQ(world->FindTransform(7)->position.y, 96.0);
+  EXPECT_TRUE(world->FindPlayerController(7)->grounded);
+
+  InputSnapshot jumping = moving;
+  jumping.SetKeyDown(Key::kSpace);
+  ASSERT_OK(world->StepPlayer(jumping, 1.0 / 60.0, {}));
+  EXPECT_LT(world->FindTransform(7)->position.y, 96.0);
+  EXPECT_LT(world->FindMotion(7)->velocity.y, 0.0);
+  EXPECT_FALSE(world->FindPlayerController(7)->grounded);
+  EXPECT_EQ(world->level(), authored);
+}
+
+TEST(RuntimeWorldTest, InvalidStepIsTransactional) {
+  Level level = TestLevel();
+  ASSERT_OK(level.AddEntity(0, PlayerEntity()));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
+                       RuntimeWorld::Create(WorldOptions(std::move(level))));
+  const Transform transform = *world->FindTransform(7);
+  const Motion motion = *world->FindMotion(7);
+  const PlayerControllerState controller = *world->FindPlayerController(7);
+
+  PlayerMovementConfig invalid;
+  invalid.gravity = -1.0;
+  EXPECT_TRUE(absl::IsInvalidArgument(world->StepPlayer({}, 1.0 / 60.0, invalid)));
+  EXPECT_EQ(*world->FindTransform(7), transform);
+  EXPECT_EQ(world->FindMotion(7)->velocity, motion.velocity);
+  EXPECT_EQ(world->FindMotion(7)->acceleration, motion.acceleration);
+  EXPECT_EQ(world->FindPlayerController(7)->intent, controller.intent);
+  EXPECT_EQ(world->FindPlayerController(7)->previous_input.keys, controller.previous_input.keys);
+}
+
+TEST(RuntimeWorldTest, IdleGroundedPlayerDoesNotSlideDownSlope) {
+  Level level = TestLevel();
+  Entity player = PlayerEntity();
+  player.transform.position = {16.0, 96.0};
+  ASSERT_OK(level.AddEntity(0, player));
+  PutTile(level.layers.front(), 0, 3, 2);
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
+                       RuntimeWorld::Create(WorldOptions(std::move(level))));
+  ASSERT_TRUE(world->FindPlayerController(7)->grounded);
+
+  ASSERT_OK(world->StepPlayer({}, 1.0 / 60.0, {}));
+
+  EXPECT_EQ(world->FindTransform(7)->position, (Vec{16, 96}));
+  EXPECT_EQ(world->FindMotion(7)->velocity, (Vec{0, 0}));
+  EXPECT_TRUE(world->FindPlayerController(7)->grounded);
 }
 
 }  // namespace

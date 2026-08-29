@@ -36,10 +36,10 @@ target_link_libraries(scene_composition
   scene_types
   texture_handle
   tileset
+  absl::flat_hash_map
   absl::statusor
   PRIVATE
   status_macros
-  absl::flat_hash_map
   absl::status
   absl::strings
 )
@@ -54,6 +54,22 @@ target_link_libraries(tile_collision
   PRIVATE
   status_macros
   absl::status
+)
+
+add_library(tile_movement tile_movement.cc)
+target_link_libraries(tile_movement
+  PUBLIC
+  level
+  tile_collision
+  tileset
+  vec
+  absl::flat_hash_map
+  absl::statusor
+  PRIVATE
+  status_macros
+  tile_shape_geometry
+  absl::status
+  absl::strings
 )
 
 add_library(input_manager input_manager.cc)

@@ -1,6 +1,7 @@
 #include "game/game_runtime.h"
 
 #include <memory>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -11,11 +12,15 @@
 #include "common/status_macros.h"
 #include "engine/input_manager.h"
 #include "engine/input_types.h"
-#include "game/free_fly_simulation.h"
 #include "game/game_engine.h"
 #include "game/game_renderer.h"
 #include "game/game_scene.h"
+#include "game/player_simulation.h"
+#include "game/runtime_world.h"
 #include "objects/camera.h"
+#include "objects/collider.h"
+#include "objects/entity.h"
+#include "objects/level.h"
 #include "resources/texture_resource_store.h"
 
 namespace zebes {
@@ -42,6 +47,26 @@ absl::Status ValidateOptions(const GameRuntime::Options& options) {
     return absl::InvalidArgumentError("Game runtime pacing mode is invalid");
   }
   return absl::OkStatus();
+}
+
+absl::StatusOr<Collider> ResolvePlayerCollider(const LoadedLevelContent& content) {
+  const Entity* player = nullptr;
+  for (const WorldLayer& layer : content.level.layers) {
+    for (const auto& entry : layer.entities) {
+      const Entity& entity = entry.second;
+      if (entity.blueprint_id != kMousePlayerPlaceholderBlueprintId) continue;
+      if (player != nullptr) {
+        return absl::FailedPreconditionError("Game runtime level contains multiple players");
+      }
+      player = &entity;
+    }
+  }
+  if (player == nullptr) return absl::NotFoundError("Game runtime level has no player");
+  const auto collider = content.colliders.find(player->collider_id);
+  if (collider == content.colliders.end()) {
+    return absl::FailedPreconditionError("Game runtime player collider is unavailable");
+  }
+  return collider->second;
 }
 
 }  // namespace
@@ -74,15 +99,24 @@ absl::Status GameRuntime::Init() {
   ASSIGN_OR_RETURN(input_manager_, InputManager::Create({.input_source = &input_source_}));
 
   const Level& level = level_assets_->content.level;
-  ASSIGN_OR_RETURN(std::unique_ptr<FreeFlySimulation> simulation,
-                   FreeFlySimulation::Create({
+  ASSIGN_OR_RETURN(const Collider player_collider, ResolvePlayerCollider(level_assets_->content));
+  ASSIGN_OR_RETURN(std::unique_ptr<RuntimeWorld> world,
+                   RuntimeWorld::Create({
+                       .level = level,
+                       .tileset = level_assets_->content.tileset,
+                       .player_blueprint_id = std::string(kMousePlayerPlaceholderBlueprintId),
+                       .player_collider = player_collider,
+                   }));
+  ASSIGN_OR_RETURN(std::unique_ptr<PlayerSimulation> simulation,
+                   PlayerSimulation::Create({
                        .input_manager = input_manager_.get(),
+                       .world = std::move(world),
                        .camera = {.position = level.spawn_point,
                                   .zoom = 1.0,
                                   .viewport_width = config_.game_view.width,
                                   .viewport_height = config_.game_view.height},
                    }));
-  FreeFlySimulation* simulation_pointer = simulation.get();
+  PlayerSimulation* simulation_pointer = simulation.get();
   ASSIGN_OR_RETURN(game_engine_, GameEngine::Create({}, pacing_mode_, std::move(simulation)));
   simulation_ = simulation_pointer;
   return absl::OkStatus();
@@ -100,8 +134,10 @@ absl::Status GameRuntime::Run() {
 
     ASSIGN_OR_RETURN(const RunResult run_result, game_engine_->Run());
     (void)run_result;
-    ASSIGN_OR_RETURN(const GameSceneFrame frame,
-                     ComposeGameSceneFrame(*level_assets_, simulation_->camera()));
+    ASSIGN_OR_RETURN(
+        const GameSceneFrame frame,
+        ComposeGameSceneFrame(*level_assets_, simulation_->camera(),
+                              {.transform_overrides = &simulation_->world().transforms()}));
     RETURN_IF_ERROR(renderer_.Render(frame));
   }
   return absl::OkStatus();

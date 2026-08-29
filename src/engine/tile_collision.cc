@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <optional>
 
 #include "absl/status/status.h"
@@ -92,6 +93,23 @@ WorldPolygon ScaleTilePolygon(absl::Span<const TilePoint> normalized_polygon, Ve
   return polygon;
 }
 
+absl::Status ValidatePolygon(const WorldPolygon& polygon) {
+  if (polygon.count < 3 || polygon.count > kMaxTileShapePointCount) {
+    return absl::InvalidArgumentError("Collision tile shape has invalid polygon point count");
+  }
+  for (size_t index = 0; index < polygon.count; ++index) {
+    if (!IsFinite(polygon.points[index])) {
+      return absl::InvalidArgumentError("Collision tile shape has non-finite geometry");
+    }
+    const Vec next = polygon.points[(index + 1) % polygon.count];
+    const Vec edge = Subtract(next, polygon.points[index]);
+    if (!IsFinite(edge) || std::hypot(edge.x, edge.y) == 0.0) {
+      return absl::InvalidArgumentError("Collision tile shape has degenerate geometry");
+    }
+  }
+  return absl::OkStatus();
+}
+
 TileCollisionContact MinimumAxisSeparation(Projection box, Projection polygon, Vec axis) {
   const double negative_distance = box.max - polygon.min;
   const double positive_distance = polygon.max - box.min;
@@ -138,6 +156,7 @@ absl::StatusOr<std::optional<TileCollisionContact>> IntersectBoxWithTileShape(Ax
   }
 
   const WorldPolygon world_polygon = ScaleTilePolygon(normalized_polygon, tile_origin, tile_size);
+  RETURN_IF_ERROR(ValidatePolygon(world_polygon));
   const absl::Span<const Vec> polygon(world_polygon.points.data(), world_polygon.count);
   const CollisionAxisList collision_axes = CollisionAxes(polygon);
   const absl::Span<const Vec> axes(collision_axes.axes.data(), collision_axes.count);
@@ -158,6 +177,72 @@ absl::StatusOr<std::optional<TileCollisionContact>> IntersectBoxWithTileShape(Ax
   }
 
   return contact;
+}
+
+absl::StatusOr<std::optional<TileCollisionSweepContact>> SweepBoxWithTileShape(
+    AxisAlignedBox box, Vec displacement, TileShape shape, Vec tile_origin, Vec tile_size) {
+  RETURN_IF_ERROR(ValidateGeometry(box, shape, tile_origin, tile_size));
+  if (!IsFinite(displacement)) {
+    return absl::InvalidArgumentError("Collision displacement must be finite");
+  }
+  if (shape == TileShape::kNone) return std::nullopt;
+
+  // Positive initial overlap is intentionally handled by the static primitive
+  // so both APIs use the same minimum-translation and tie-breaking rule.
+  ASSIGN_OR_RETURN(const std::optional<TileCollisionContact> initial_contact,
+                   IntersectBoxWithTileShape(box, shape, tile_origin, tile_size));
+  if (initial_contact.has_value()) {
+    return TileCollisionSweepContact{.time = 0.0, .normal = initial_contact->normal};
+  }
+  if (displacement.x == 0.0 && displacement.y == 0.0) return std::nullopt;
+
+  const absl::Span<const TilePoint> normalized_polygon = TileShapePolygon(shape);
+  if (normalized_polygon.empty()) {
+    return absl::InvalidArgumentError("Collision tile shape has no geometry");
+  }
+  const WorldPolygon world_polygon = ScaleTilePolygon(normalized_polygon, tile_origin, tile_size);
+  RETURN_IF_ERROR(ValidatePolygon(world_polygon));
+  const absl::Span<const Vec> polygon(world_polygon.points.data(), world_polygon.count);
+  const CollisionAxisList collision_axes = CollisionAxes(polygon);
+  const absl::Span<const Vec> axes(collision_axes.axes.data(), collision_axes.count);
+
+  double latest_entry = -std::numeric_limits<double>::infinity();
+  double earliest_exit = std::numeric_limits<double>::infinity();
+  Vec impact_normal;
+  for (const Vec axis : axes) {
+    const Projection box_projection = ProjectBox(box, axis);
+    const Projection polygon_projection = ProjectPolygon(polygon, axis);
+    const double axis_velocity = Dot(displacement, axis);
+    if (axis_velocity == 0.0) {
+      if (box_projection.max <= polygon_projection.min ||
+          polygon_projection.max <= box_projection.min) {
+        return std::nullopt;
+      }
+      continue;
+    }
+
+    double axis_entry = 0.0;
+    double axis_exit = 0.0;
+    if (axis_velocity > 0.0) {
+      axis_entry = (polygon_projection.min - box_projection.max) / axis_velocity;
+      axis_exit = (polygon_projection.max - box_projection.min) / axis_velocity;
+    } else {
+      axis_entry = (polygon_projection.max - box_projection.min) / axis_velocity;
+      axis_exit = (polygon_projection.min - box_projection.max) / axis_velocity;
+    }
+    if (axis_entry > latest_entry) {
+      latest_entry = axis_entry;
+      // The first axis owns an exact tie. This makes corner contacts stable
+      // and independent of container or polygon traversal order.
+      impact_normal = axis_velocity > 0.0 ? Vec{.x = -axis.x, .y = -axis.y} : axis;
+    }
+    earliest_exit = std::min(earliest_exit, axis_exit);
+    if (latest_entry >= earliest_exit) return std::nullopt;
+  }
+
+  const double impact_time = std::max(0.0, latest_entry);
+  if (impact_time > 1.0 || impact_time >= earliest_exit) return std::nullopt;
+  return TileCollisionSweepContact{.time = impact_time, .normal = impact_normal};
 }
 
 }  // namespace zebes

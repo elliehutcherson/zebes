@@ -51,6 +51,25 @@ TEST(SceneCompositionTest, ComposesEntitiesWithoutEditorPresentationState) {
   EXPECT_EQ(items[0].sprite->source.height, 24);
 }
 
+TEST(SceneCompositionTest, RuntimeTransformOverridesGeometryWithoutMutatingEntity) {
+  const std::map<uint64_t, Entity> entities{
+      {7, Entity{.id = 7, .transform = {.position = {100, 200}}}},
+  };
+  const absl::flat_hash_map<uint64_t, Transform> overrides{
+      {7, Transform{.position = {300, 400}}},
+  };
+
+  ASSERT_OK_AND_ASSIGN(
+      const std::vector<SceneEntityRenderItem> items,
+      ComposeSceneEntityRenderItems(entities, {}, {.transform_overrides = &overrides}));
+
+  ASSERT_EQ(items.size(), 1u);
+  EXPECT_EQ(items.front().origin, (Vec{300, 400}));
+  EXPECT_EQ(items.front().bounds.min, (Vec{284, 384}));
+  EXPECT_EQ(items.front().bounds.max, (Vec{316, 416}));
+  EXPECT_EQ(entities.at(7).transform.position, (Vec{100, 200}));
+}
+
 TEST(SceneCompositionTest, ComposesOnlyVisibleLevelTiles) {
   Level level{
       .tile_render_width = 16,
@@ -116,7 +135,8 @@ TEST(SceneCompositionTest, BindsParallaxTexturesWithoutNativeTypes) {
 
 TEST(SceneCompositionTest, RejectsInvalidSharedGeometry) {
   const Entity entity{.transform = {.position = {std::numeric_limits<double>::infinity(), 0}}};
-  EXPECT_TRUE(absl::IsInvalidArgument(ComposeSceneEntityRenderItem(1, entity, {}).status()));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      ComposeSceneEntityRenderItem(1, entity, {}, entity.transform).status()));
 
   const Camera invalid_camera;
   const Level level;

@@ -94,6 +94,10 @@ struct WorldLayer {
   bool operator==(const WorldLayer& other) const = default;
 };
 
+// Returns the tile at a world-tile coordinate, or zero when its chunk is
+// absent. Coordinates must be non-negative.
+absl::StatusOr<int> GetTileAt(const WorldLayer& layer, int tile_x, int tile_y);
+
 struct Level {
   std::string id;
   std::string name;

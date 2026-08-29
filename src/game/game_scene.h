@@ -3,9 +3,11 @@
 #include <optional>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "engine/scene_composition.h"
 #include "objects/camera.h"
+#include "objects/transform.h"
 #include "resources/loaded_level_assets.h"
 
 namespace zebes {
@@ -25,7 +27,12 @@ struct GameSceneFrame {
   std::vector<GameWorldLayerFrame> world_layers;
 };
 
-absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(const LoadedLevelAssets& assets,
-                                                     const Camera& camera);
+struct GameSceneCompositionOptions {
+  const absl::flat_hash_map<uint64_t, Transform>* transform_overrides = nullptr;
+};
+
+absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(
+    const LoadedLevelAssets& assets, const Camera& camera,
+    const GameSceneCompositionOptions& options = {});
 
 }  // namespace zebes

@@ -138,6 +138,10 @@ add_executable(tile_collision_test engine/tile_collision_test.cc)
 target_link_libraries(tile_collision_test tile_collision macros gtest_main)
 gtest_discover_tests(tile_collision_test)
 
+add_executable(tile_movement_test engine/tile_movement_test.cc)
+target_link_libraries(tile_movement_test tile_movement macros gtest_main)
+gtest_discover_tests(tile_movement_test)
+
 add_executable(parallax_layout_test engine/parallax_layout_test.cc)
 target_link_libraries(parallax_layout_test parallax_layout gtest_main)
 gtest_discover_tests(parallax_layout_test)
@@ -162,6 +166,10 @@ gtest_discover_tests(player_input_test)
 add_executable(runtime_world_test game/runtime_world_test.cc)
 target_link_libraries(runtime_world_test runtime_world macros gtest_main)
 gtest_discover_tests(runtime_world_test)
+
+add_executable(player_simulation_test game/player_simulation_test.cc)
+target_link_libraries(player_simulation_test player_simulation macros gtest_main)
+gtest_discover_tests(player_simulation_test)
 
 add_executable(game_level_assets_test game/game_level_assets_test.cc)
 target_link_libraries(game_level_assets_test

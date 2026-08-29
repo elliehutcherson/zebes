@@ -30,6 +30,11 @@ class IInputManager {
 
   virtual bool IsActionJustPressed(absl::string_view action_name) const = 0;
 
+  // Returns the platform-neutral state captured by the most recent Update.
+  // Simulation code owns edge detection across fixed ticks, so it consumes
+  // this value instead of render-frame action edges.
+  virtual InputSnapshot CurrentSnapshot() const = 0;
+
   virtual bool QuitRequested() const = 0;
 };
 

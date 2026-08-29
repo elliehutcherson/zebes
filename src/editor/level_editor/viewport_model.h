@@ -43,9 +43,6 @@ absl::StatusOr<TileCoordinate> WorldToTileCoordinate(Vec world_position, int til
 // A tile_id of zero erases the tile.
 absl::Status SetTileAt(WorldLayer& layer, int tile_x, int tile_y, int tile_id);
 
-// Returns the tile at a world-tile coordinate, or zero when its chunk is absent.
-absl::StatusOr<int> GetTileAt(const WorldLayer& layer, int tile_x, int tile_y);
-
 // What the palette is offering to paint this frame. Only one of the two modes
 // is ever active, and each carries the tileset that owns it.
 struct PaletteSelection {

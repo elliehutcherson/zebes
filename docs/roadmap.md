@@ -15,7 +15,7 @@ This document owns the cross-track sequence.
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
 | 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — engineering gates, zone fades, 0.5× Catacombs coverage, independent masonry, distributed decor, and initial A/B prop passes are accepted; finite floor and foreground variants remain |
-| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestone 1 and its ownership cleanup are complete; Milestone 2 foundations exist, and swept movement plus runtime/render integration are next |
+| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestones 1 and 2 are complete; Milestone 3 animation playback is next |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -429,31 +429,32 @@ The production ownership boundaries are also complete:
 - A headless runtime integration test boots the shipped level, advances one
   frame, and records it through a fake renderer without SDL.
 
-**Milestone 2 — foundations complete; controller integration next.**
+**Milestone 2 — complete.**
 `RuntimeWorld` owns immutable authored level data beside entity-ID-keyed
 transforms, motion, and player-controller state. The Mouse Player Placeholder
 is resolved by stable Blueprint ID and validated against its bottom-centered
-32×64 collider. Fixed-tick input intent preserves held movement and consumes a
-jump edge once across catch-up ticks. The collision library supplies an
-allocation-free static AABB-versus-every-`TileShape` overlap primitive backed by
-`tile_shape_geometry`.
+32×64 collider, authored layer, and tileset. Fixed-tick input preserves held
+movement and consumes a jump edge once across catch-up ticks.
 
-Next, implement the swept movement solver and connect it to the running game:
+Dynamic SAT supplies continuous AABB-versus-`TileShape` time of impact. The
+character solver queries only the swept tile rectangle through the level's
+sparse chunk map, resolves occupied IDs through an immutable boot-time lookup,
+collects deterministic simultaneous contacts, applies explicit one-way and
+covered-face policy, and bounds response iterations without allocating in the
+tick path. `PlayerSimulation` integrates acceleration, drag, gravity, speed
+limits, jumping, grounded state, and collision response; it owns the runtime
+world and follow camera. Scene composition borrows runtime transform overrides,
+so movement is rendered without modifying serialized entities.
 
-1. query the player's world layer only, with explicit one-way policy and stable
-   contact ordering;
-2. integrate intent, motion, continuous collision response, grounded state,
-   and jump behavior in fixed ticks without tunneling;
-3. replace the free-fly-only runtime path with `RuntimeWorld` ownership and a
-   follow camera; and
-4. render runtime transforms without mutating serialized `Entity` definitions.
-
-Ground, wall, ceiling, every slope family, one-way behavior, high-speed motion,
-deterministic ordering, and failures remain headless gates before the live
-Catacombs run/jump review. Animation is Milestone 3; the simulation/asset thread
+The collision, runtime-world, player-simulation, shipped-asset, game-runtime,
+input, and shared scene-composition dependency slices pass headlessly. The live
+Catacombs run/jump review across production walls, ceilings, slopes, and camera
+follow was accepted on 2026-08-29. Animation is Milestone 3; the simulation/asset thread
 split remains Milestone 4 and must use a bounded I/O executor rather than
-blocking worker engines. See [`engine-runtime-plan.md`](engine-runtime-plan.md)
-and [`handoff.md`](handoff.md).
+blocking worker engines. The algorithm, sparse-grid performance contract,
+multiple-contact policy, phased implementation, and gates live in the
+[Milestone 2 movement plan](engine-runtime-plan.md#milestone-2-movement-and-collision-implementation-plan);
+[`handoff.md`](handoff.md) remains the concise resume point.
 
 ---
 

@@ -77,21 +77,6 @@ absl::Status SetTileAt(WorldLayer& layer, int tile_x, int tile_y, int tile_id) {
   return absl::OkStatus();
 }
 
-absl::StatusOr<int> GetTileAt(const WorldLayer& layer, int tile_x, int tile_y) {
-  if (tile_x < 0 || tile_y < 0) {
-    return absl::InvalidArgumentError("tile coordinates must be non-negative");
-  }
-
-  constexpr int kSize = TileChunk::kSize;
-  const int chunk_x = tile_x / kSize;
-  const int chunk_y = tile_y / kSize;
-  const int local_x = tile_x % kSize;
-  const int local_y = tile_y % kSize;
-  const auto chunk = layer.tile_chunks.find(ChunkKey(chunk_x, chunk_y));
-  if (chunk == layer.tile_chunks.end()) return 0;
-  return chunk->second.tiles[local_y * kSize + local_x];
-}
-
 PaletteBinding ResolvePaletteBinding(const Level& level, const PaletteSelection& selection) {
   PaletteBinding binding{.tileset_id = level.tileset_id};
 

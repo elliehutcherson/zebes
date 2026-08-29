@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "engine/scene_types.h"
 #include "engine/texture_handle.h"
@@ -98,15 +99,23 @@ struct SceneParallaxRenderOptions {
   std::optional<int> element_id;
 };
 
+struct SceneEntityRenderOptions {
+  // Borrowed runtime state keyed by authored entity ID. A missing map or ID
+  // leaves the authored transform authoritative.
+  const absl::flat_hash_map<uint64_t, Transform>* transform_overrides = nullptr;
+};
+
 // Composes one entity using shared placeholder, sprite-bound, and source-region
 // rules. Native textures remain behind TextureHandle.
 absl::StatusOr<SceneEntityRenderItem> ComposeSceneEntityRenderItem(uint64_t entity_id,
                                                                    const Entity& entity,
-                                                                   const ResolvedSprite& resolved);
+                                                                   const ResolvedSprite& resolved,
+                                                                   const Transform& transform);
 
 // Builds active entities in deterministic back-to-front order.
 absl::StatusOr<std::vector<SceneEntityRenderItem>> ComposeSceneEntityRenderItems(
-    const std::map<uint64_t, Entity>& entities, const SpriteLookup& sprites);
+    const std::map<uint64_t, Entity>& entities, const SpriteLookup& sprites,
+    const SceneEntityRenderOptions& options = {});
 
 // Composes only tiles intersecting the camera. Entire offscreen chunks are
 // rejected before their cells are scanned.

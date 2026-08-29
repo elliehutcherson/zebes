@@ -157,6 +157,12 @@ observer; `EditorEngine` uses that observer to forward events to ImGui, while
 This separation allows engine input behavior to be tested using ordinary fake
 snapshots without initializing a window or ImGui context.
 
+`InputManager::Update` captures one render-frame snapshot. Fixed-tick gameplay
+reads that value through `IInputManager::CurrentSnapshot`; the simulation, not
+the platform adapter, retains its previous snapshot and derives edges. Reusing
+one render snapshot for several catch-up ticks therefore preserves held input
+without repeating a jump press.
+
 ## Game runtime ownership
 
 The standalone game's process composition root loads config and creates an
@@ -178,6 +184,20 @@ to `SDL_Texture`; ImGui is not linked into the game path. Destruction reverses
 ownership: `GameRuntime` releases simulation, frozen handles, and its workspace
 before `SdlGameHost` releases the renderer, input, texture store, window, and
 finally the SDL subsystem.
+
+`PlayerSimulation` is the owned `GameSimulation` for the running game. It owns
+`RuntimeWorld`, which keeps the copied authored `Level` immutable beside mutable
+entity-ID-keyed transforms, motion, and controller state. Runtime boot validates
+the player collider and occupied tile IDs and builds an immutable collision
+lookup. Each fixed tick queries only the player's swept rectangle through the
+authored layer's sparse chunk map; dynamic SAT and a bounded fixed-capacity
+contact solver perform continuous response without scanning the level or
+allocating in the movement path. The camera follows the committed player
+transform.
+
+Scene composition may borrow the runtime transform map as an override. Missing
+IDs fall back to authored transforms, and composition never copies or mutates
+the serialized `Level` to expose runtime movement.
 
 `AssetWorkspace::LoadProfile::kRuntime` is explicitly read-only. It loads
 runtime catalogs (textures, sprites, colliders, blueprints, levels, parallax
@@ -221,9 +241,9 @@ The owning controller supplies that policy:
 
 - `Canvas` owns editor navigation and deliberately permits zoom from 0.1 to
   10.0 so an author can inspect unusually large or small level features.
-- `CameraController` owns gameplay input and defaults to a narrower 0.1 to 5.0
-  range. Its options may supply a different validated `CameraZoomRange` for a
-  specific game camera.
+- `CameraController` owns the Milestone 1 free-fly policy and defaults to a
+  narrower 0.1 to 5.0 range. `PlayerSimulation` owns the running game's follow
+  policy and places the camera at the committed player transform.
 - `Level` is persistent authoring data and does not embed transient camera
   state. A runtime world or editor view owns its camera separately.
 

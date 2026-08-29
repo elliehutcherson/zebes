@@ -94,6 +94,33 @@ TEST(LevelTest, TileChunkCoordinatesUseRowMajorOrder) {
   EXPECT_EQ((TileChunkCoordinate{.x = 4, .y = 5}), (TileChunkCoordinate{.x = 4, .y = 5}));
 }
 
+TEST(LevelTest, GetTileAtReturnsZeroForMissingChunks) {
+  const WorldLayer layer{.id = 0, .name = "Base"};
+
+  ASSERT_OK_AND_ASSIGN(const int tile_id, GetTileAt(layer, 0, 0));
+  EXPECT_EQ(tile_id, 0);
+}
+
+TEST(LevelTest, GetTileAtResolvesChunkAndCellBoundaries) {
+  WorldLayer layer{.id = 0, .name = "Base"};
+  layer.tile_chunks[ChunkKey(0, 0)].tiles[31 * TileChunk::kSize + 31] = 7;
+  layer.tile_chunks[ChunkKey(1, 1)].tiles[0] = 9;
+
+  ASSERT_OK_AND_ASSIGN(const int edge_tile, GetTileAt(layer, 31, 31));
+  EXPECT_EQ(edge_tile, 7);
+  ASSERT_OK_AND_ASSIGN(const int next_chunk_tile, GetTileAt(layer, 32, 32));
+  EXPECT_EQ(next_chunk_tile, 9);
+  ASSERT_OK_AND_ASSIGN(const int empty_cell, GetTileAt(layer, 32, 31));
+  EXPECT_EQ(empty_cell, 0);
+}
+
+TEST(LevelTest, GetTileAtRejectsNegativeCoordinates) {
+  const WorldLayer layer{.id = 0, .name = "Base"};
+
+  EXPECT_EQ(GetTileAt(layer, -1, 0).status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(GetTileAt(layer, 0, -1).status().code(), absl::StatusCode::kInvalidArgument);
+}
+
 TEST(LevelTest, ValidationRejectsMalformedZoneThemeIds) {
   Level level = ValidLevel();
   level.zones.push_back({

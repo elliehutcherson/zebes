@@ -6,13 +6,16 @@
 #include <string_view>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "engine/input_types.h"
 #include "engine/tile_collision.h"
+#include "engine/tile_movement.h"
 #include "game/player_input.h"
 #include "objects/body.h"
 #include "objects/collider.h"
 #include "objects/level.h"
+#include "objects/tileset.h"
 #include "objects/transform.h"
 
 namespace zebes {
@@ -31,6 +34,19 @@ struct PlayerControllerState {
   bool grounded = false;
 };
 
+// M2 gameplay constants. They stay outside EngineConfig until runtime
+// measurements justify host tuning in M5.
+struct PlayerMovementConfig {
+  double horizontal_acceleration = 1800.0;
+  double horizontal_deceleration = 2400.0;
+  double maximum_horizontal_speed = 240.0;
+  double gravity = 1800.0;
+  double maximum_fall_speed = 900.0;
+  double jump_speed = 600.0;
+
+  absl::Status Validate() const;
+};
+
 // Owns immutable authored level data beside mutable, entity-ID-keyed runtime
 // registries. Runtime movement changes transforms_ and motions_, never the
 // Entity definitions in level_. This class performs no I/O.
@@ -38,6 +54,7 @@ class RuntimeWorld {
  public:
   struct Options {
     Level level;
+    Tileset tileset;
     std::string player_blueprint_id;
     Collider player_collider;
   };
@@ -52,7 +69,9 @@ class RuntimeWorld {
 
   const Level& level() const { return level_; }
   uint64_t player_entity_id() const { return player_entity_id_; }
+  int player_layer_id() const { return player_layer_id_; }
   AxisAlignedBox player_local_collider() const { return player_local_collider_; }
+  const absl::flat_hash_map<uint64_t, Transform>& transforms() const { return transforms_; }
 
   const Transform* FindTransform(uint64_t entity_id) const;
   Transform* FindTransform(uint64_t entity_id);
@@ -65,11 +84,19 @@ class RuntimeWorld {
   // snapshot preserves held input but does not repeat jump_pressed.
   void ApplyPlayerInput(const InputSnapshot& input);
 
+  // Advances the player by one fixed tick and commits controller, motion, and
+  // transform state only after collision response succeeds completely.
+  absl::Status StepPlayer(const InputSnapshot& input, double delta_seconds,
+                          const PlayerMovementConfig& config);
+
  private:
   struct InitialState {
     Level level;
     uint64_t player_entity_id = 0;
+    int player_layer_id = -1;
     AxisAlignedBox player_local_collider;
+    Body player_body;
+    TileCollisionLookup collision_tiles;
     absl::flat_hash_map<uint64_t, Transform> transforms;
     absl::flat_hash_map<uint64_t, Motion> motions;
     absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers;
@@ -79,7 +106,10 @@ class RuntimeWorld {
 
   Level level_;
   uint64_t player_entity_id_ = 0;
+  int player_layer_id_ = -1;
   AxisAlignedBox player_local_collider_;
+  Body player_body_;
+  TileCollisionLookup collision_tiles_;
   absl::flat_hash_map<uint64_t, Transform> transforms_;
   absl::flat_hash_map<uint64_t, Motion> motions_;
   absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers_;

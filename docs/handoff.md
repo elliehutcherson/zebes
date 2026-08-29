@@ -16,11 +16,11 @@ Two tracks intentionally proceed in parallel:
   no objective findings. More variants are content polish, not an engine
   prerequisite.
 - **Game-runtime track:** Milestone 1 is complete. `run_game` loads Catacombs,
-  advances a bounded fixed-step free-fly simulation, composes the shared scene,
-  and presents through SDL. Milestone 2 has a runtime-world foundation,
-  deterministic player input intent, the exact 32×64 player collider contract,
-  and allocation-free static AABB-versus-`TileShape` overlap queries. The
-  movement solver and runtime integration remain.
+  and presents through SDL. Milestone 2 is complete: the
+  fixed-tick player simulation owns `RuntimeWorld`, uses continuous collision
+  against a sparse local tile query, resolves simultaneous and one-way contacts,
+  follows the player camera, and renders runtime transforms without mutating the
+  authored level. The live Catacombs movement review was accepted on 2026-08-29.
 
 The most recent runtime cleanup is split into three reviewable commits:
 
@@ -34,21 +34,18 @@ The most recent runtime cleanup is split into three reviewable commits:
 
 ## Pick up next
 
-### Engine: complete Milestone 2
+### Engine: implement Milestone 3 animation playback
 
-1. Add a pure swept AABB-versus-tile movement solver. Query only the player's
-   authored world layer, use `tile_shape_geometry` as the shape authority,
-   define one-way behavior explicitly, and make contact ordering deterministic.
-2. Integrate intent, acceleration, velocity, sweep/response, grounded state,
-   and jump behavior into `RuntimeWorld` without mutating the authored `Level`.
-3. Replace the runtime's free-fly-only simulation path with a player simulation
-   that owns `RuntimeWorld`, consumes one fixed-tick input snapshot, and drives
-   the follow camera.
-4. Compose entity positions from runtime transforms so movement appears without
-   writing transient state back into serialized entities.
-5. Gate the pass with headless ground, wall, ceiling, slope, one-way,
-   high-speed/tunneling, deterministic-order, and failure-path tests before the
-   live Catacombs run/jump review.
+Move the reusable animation cursor out of the editor dependency boundary, add
+per-entity playback and blueprint-state selection to `RuntimeWorld`, and compose
+the runtime-selected sprite frame without mutating authored entities. Expand the
+loaded-level graph to retain referenced blueprints and all state sprites and
+colliders needed after boot. Do not infer behavior from display names or make
+game code depend on `editor/animator.h`.
+
+The current Mouse Player Placeholder has one state and one frame, so headless
+multi-state and multi-frame fixtures must prove the runtime first. A production
+animated entity or player-art follow-up is then required for the live M3 gate.
 
 The likely shared files are `src/game/game_runtime.*`, `src/game/game_scene.*`,
 and their tests. Coordinate those before running asset work that changes the
@@ -92,13 +89,14 @@ required runtime or asset feature.
 
 ## Last verified checkpoint
 
-- Complete `game_engine_test`, `simulation_pacer_test`,
-  `tile_collision_test`, `runtime_world_test`, and scene-composition consumer
-  tests passed.
-- `loaded_level_assets_unit_test`, `game_level_assets_test`, and all three
-  `AssetWorkspace`-affected executables passed.
-- The headless `game_runtime_test`, SDL input and texture-store tests, and the
-  display-backed `sanity_test` passed; `run_game` built successfully.
-- Every edited C++ translation unit passed scoped clang-tidy and
-  `git diff --check` was clean.
-
+- The complete collision dependency slice passed: `tile_collision_test`,
+  `tile_movement_test`, `runtime_world_test`, `player_simulation_test`,
+  `game_level_assets_test`, and `game_runtime_test`.
+- All eight `scene_composition`-affected executables and all four
+  `input_manager`-affected executables passed. `level_test`,
+  `viewport_model_test`, and `viewport_interaction_test` also passed after
+  moving sparse read-only tile access to `objects/level`.
+- `run_game` built successfully, and the live Catacombs movement review was
+  accepted on 2026-08-29.
+- Every edited production C++ translation unit passed one scoped clang-tidy
+  invocation; `git diff --check` was clean.

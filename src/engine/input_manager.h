@@ -35,6 +35,8 @@ class InputManager : public IInputManager {
 
   bool IsActionJustPressed(absl::string_view action_name) const override;
 
+  InputSnapshot CurrentSnapshot() const override;
+
   bool QuitRequested() const override;
 
  private:

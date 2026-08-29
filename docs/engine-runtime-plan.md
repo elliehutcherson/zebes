@@ -1,11 +1,11 @@
 # Game runtime plan
 
-**Status: Milestone 1 and its ownership cleanup are complete. `run_game` boots
-the shipped Catacombs level, drives a fixed-step free-fly simulation, and
-presents the shared scene through an SDL host. Milestone 2 foundations now
-include runtime registries, deterministic player intent, collider validation,
-and static tile-shape overlap; swept movement and runtime/render integration
-remain. The runtime and asset/content tracks proceed in parallel.**
+**Status: Milestones 1 and 2 are complete. `run_game` boots the shipped
+Catacombs level, advances the fixed-tick player through continuous sparse-tile
+collision, follows the player camera, and presents runtime transforms through
+the shared scene and SDL host. The live M2 movement gate was accepted on
+2026-08-29. Milestone 3 animation playback is next; the runtime and
+asset/content tracks proceed in parallel.**
 
 Design for the Zebes game runtime: the executable that loads a shipped level
 and plays it. The editor, curation, and generation stacks are out of scope
@@ -211,7 +211,7 @@ subsystem, renderer, input source, texture store, window, and native renderer
 outlive the platform-neutral runtime borrows. A headless runtime integration
 test boots the shipped level and renders a frame through fakes without SDL.
 
-**M2 — A player — in progress.** Input → intent → kinematic character controller:
+**M2 — A player — complete.** Input → intent → kinematic character controller:
 AABB-versus-`TileShape` collision including slopes via
 `tile_shape_geometry`, `Motion` integration in `RuntimeWorld`, camera follow.
 The Mouse Player Placeholder with its exact 32×64 collider is the test body.
@@ -219,23 +219,177 @@ Gate: run and jump through Catacombs with correct slope traversal; headless
 simulation tests for ground, wall, slope, and ceiling contacts, each failure
 path included.
 
-Foundations implemented: `RuntimeWorld` preserves the authored `Level`
-beside entity-ID-keyed runtime transforms, motion, and controller state; raw
-input snapshots derive held movement and a fixed-tick-consumed jump edge; boot
-copies referenced collider definitions; and a platform-neutral static
-AABB-versus-`TileShape` SAT query covers block and slope contacts using
-`tile_shape_geometry`. The remaining M2 solver must sweep through only the
-player's world layer, enforce one-way policy, resolve contacts deterministically
-without tunneling, integrate motion, and drive the follow camera. The static
-overlap query is a primitive for that solver, not the solver itself.
+Implemented: `RuntimeWorld` preserves the authored `Level` beside entity-ID-keyed
+runtime transforms, motion, and controller state; raw input snapshots derive
+held movement and a fixed-tick-consumed jump edge; and boot validates the player,
+its authored layer, collider, tileset identity, and every occupied tile ID. The
+collision path now combines a platform-neutral dynamic-SAT narrow phase with a
+sparse local tile query, deterministic simultaneous-contact response, explicit
+one-way policy, and bounded allocation-free fixed-tick traversal. The running
+game owns this world through `PlayerSimulation`, follows the committed player
+transform with its camera, and composes runtime transform overrides without
+mutating serialized entities.
 
-The next implementation checkpoint is intentionally vertical: add the pure
-swept solver, integrate it into `RuntimeWorld`, replace the free-fly-only game
-simulation with runtime-world ownership, compose entity positions from runtime
-transforms, and follow the player camera. Do not mutate the authored `Level` to
-make movement visible. Ground, wall, ceiling, every slope family, one-way,
-high-speed/tunneling, deterministic-order, and failure-path tests precede the
-live Catacombs gate.
+The automated M2 gate is complete: collision and movement tests cover ground,
+wall, ceiling, slopes, one-way passage, high-speed tunneling, bordering contacts,
+internal seams, deterministic order, invalid geometry, and transactional
+failure; runtime integration proves input changes the rendered player while the
+authored level remains unchanged. The live Catacombs run/jump review was
+accepted on 2026-08-29 after exercising standing, acceleration/deceleration,
+jumping and landing, walls, ceilings, slope seams, and camera follow.
+
+### Milestone 2 movement and collision implementation plan
+
+The M2 movement path has two distinct responsibilities. The narrow phase asks
+when one translating AABB first contacts one convex tile polygon. The broad
+phase finds only the tile cells that the player can reach during the current
+fixed tick. Keeping those boundaries separate lets later projectile and entity
+indexes reuse the continuous geometry without coupling them to a tile-layer
+query or the player controller.
+
+#### Continuous collision algorithm
+
+“Sweep” means continuous collision detection over one proposed displacement,
+not a second kind of collider. For a starting box and displacement `d`, the
+solver considers every position `start + t * d` for `t` in `[0, 1]` and returns
+the first time of impact, its separating normal, and the stable identity of the
+surface that was hit. Testing only the destination overlap is rejected because
+a body can cross a thin wall or slope completely between fixed ticks.
+
+Use dynamic separating axis theorem for the narrow phase. Project the AABB and
+the convex polygon from `TileShapePolygon` onto the two box axes and every tile
+edge normal. Relative motion gives an entry and exit time on each axis; the
+latest entry is the time of impact when it does not exceed the earliest exit.
+The axis that owns that latest entry supplies the contact normal. This retains
+`tile_shape_geometry` as the one shape authority and handles full blocks, half
+blocks, and every slope family without replacing them with special-case height
+tables. Invalid, degenerate, or non-finite input is an error.
+
+The existing static overlap primitive remains responsible for validating and
+describing positive overlap at `t = 0`. Runtime boot must reject a player that
+starts embedded in a blocking tile and name the entity and tile coordinate.
+Small numerical overlap created by response within a tick may use a bounded
+depenetration path; exhaustion is an explicit failure rather than permission to
+continue with a partially resolved transform.
+
+#### Sparse tile broad phase
+
+Collision work must be proportional to the local swept region, never to the
+number of tiles or chunks in the level. The player's authored `WorldLayer`
+already stores sparse 32-by-32 `TileChunk` values keyed by `ChunkKey`. For each
+movement iteration:
+
+1. Form the conservative bounds of the start and destination AABBs, expanded
+   only by the solver's contact tolerance.
+2. Convert those bounds to a clamped tile-coordinate range.
+3. Resolve only the intersecting chunk keys and only the covered cells inside
+   each present chunk.
+4. Skip tile ID zero immediately and resolve occupied IDs through an immutable
+   tile-ID-to-collision-definition lookup built once during
+   `RuntimeWorld::Create`.
+5. Visit cells in row-major tile-coordinate order. Never derive collision order
+   from `flat_hash_map` iteration.
+
+The hot path performs no catalog lookup, level-wide scan, tile-definition scan,
+or heap allocation. Character speed and terminal fall speed are bounded, so a
+normal 60 Hz tick covers a small tile rectangle even in a level containing
+100,000 occupied cells. A deterministic broad-phase test must prove that adding
+distant occupied chunks does not change the queried coordinate set. Do not use
+wall-clock timing as a correctness assertion.
+
+The editor's current `GetTileAt` helper is not an engine dependency. Move or
+extract read-only sparse-cell access to the platform-neutral level boundary, or
+give the movement library an equivalent collision-specific visitor. Do not
+make `src/engine` or `src/game` depend on `src/editor`.
+
+This rectangle query is the M2 character broad phase, not a universal fast-body
+index. A future projectile that crosses many cells diagonally should use a
+supercover/DDA traversal expanded by its collider extent, so work grows with
+the crossed path rather than the area of its bounding rectangle. Static
+collidable props can be indexed once in a uniform spatial grid; moving entities
+can update a separate dynamic spatial hash. Only their candidate production is
+different—the continuous narrow-phase query can use relative displacement and
+remain shared. Non-collidable artwork never enters either index.
+
+#### Multiple and one-way contacts
+
+A movement operation tests every local candidate but responds to the earliest
+time of impact. All contacts at that time within a documented tolerance form
+one manifold. Stable tile coordinate and normal ordering breaks exact ties;
+selecting whichever hash entry happens to arrive first is invalid. Shared or
+covered tile faces must not act as exposed walls, and the test matrix must cross
+block seams and every multi-tile slope seam in both directions.
+
+Advance to the manifold, remove the components of remaining displacement and
+velocity that point into its blocking normals, and sweep the unconsumed portion
+of the tick again. This permits wall sliding and slope traversal while resolving
+floor/wall and floor/slope corners together. Bound the response iterations with
+a small named constant. Exceeding it is a diagnostic failure with the entity,
+position, displacement, and contacts; silently accepting the last partial
+position would make the result frame-rate- and ordering-dependent.
+
+One-way tiles collide only when relative motion approaches their supporting
+side and the starting AABB is outside that side within tolerance. Upward and
+horizontal passage remains unblocked. Grounding requires a resolved supporting
+normal with a negative Y component in the engine's screen-space coordinates;
+an overlap discovered after the body has already crossed from the pass-through
+side does not retroactively become ground. Although the current shipped
+tilesets do not exercise one-way tiles, this behavior is a headless gate rather
+than a live-review assumption.
+
+#### Runtime ownership and render integration
+
+`RuntimeWorld::Create` must derive and retain the player's authored layer ID,
+validate the level's occupied tile IDs against the supplied `Tileset`, and build
+the immutable collision lookup. Its fixed-tick player step then owns the order:
+consume one input intent, calculate controller acceleration, apply gravity and
+validated speed bounds, sweep and respond, update velocity and grounded state,
+and commit the runtime transform only after the complete step succeeds. The
+authored entity in `Level` remains unchanged.
+
+Add a platform-neutral player simulation implementing `GameSimulation`. It
+owns `RuntimeWorld`, reads the current `InputSnapshot` once per fixed tick, and
+updates a gameplay camera that follows the committed player transform. M2
+movement constants remain gameplay-owned validated defaults; they do not enter
+`EngineConfig` before M5 has measurements that justify host tuning.
+
+Scene composition receives runtime transform overrides through a
+platform-neutral options or lookup boundary. It must not depend on
+`RuntimeWorld`, copy and mutate the serialized `Level`, or expose GPU resources
+to simulation. Entities without a runtime transform continue to render from
+their authored transform; an override changes only the composed frame.
+
+#### Implementation sequence and gates
+
+1. **Pure sweep — implemented.** Add the dynamic-SAT time-of-impact result beside the static
+   primitive, or split `tile_movement.{h,cc}` when keeping pairwise queries in
+   `tile_collision` would mix narrow phase with layer traversal. Cover no-hit,
+   touching, initial-overlap, full/half blocks, every slope polygon, parallel
+   motion, high-speed crossing, non-finite input, and stable normals.
+2. **Tile-layer movement — implemented.** Add the immutable collision lookup, direct sparse
+   chunk query, one-way filter, simultaneous-contact manifold, and bounded
+   remaining-motion response. Cover distant-chunk independence, unknown tile
+   IDs, seams, corners, deterministic insertion order, tunneling, and
+   non-convergence.
+3. **`RuntimeWorld` controller — implemented.** Retain the player layer, integrate intent,
+   acceleration, drag, gravity, speed bounds, jump impulse, grounded state, and
+   transactional transform commit. Cover held input across catch-up ticks,
+   single-consumption jump edges, landing, wall and ceiling response, slope
+   ascent/descent, and every failure path.
+4. **Running-game integration — implemented.** Replace `FreeFlySimulation` in `GameRuntime`
+   with the player simulation, drive the follow camera, and compose entity
+   bounds from runtime transforms. Extend the headless runtime test to prove
+   that input moves the rendered player without changing the loaded authored
+   entity.
+5. **Verification — complete.** Run complete affected executables for collision,
+   `RuntimeWorld`, player simulation, game scene, game runtime, and every shared
+   scene-composition consumer; format and lint all edited translation units;
+   finish with the live Catacombs run, jump, wall, ceiling, and slope review.
+
+M2 does not add entity-versus-entity response, a general physics world, an ECS,
+or projectile simulation. Its reusable result is the continuous convex sweep;
+future object categories add spatial indexes only when their collision behavior
+exists and can be measured.
 
 **M3 — Animation playback and blueprint-state behavior.** Frame timers and
 playback state in `RuntimeWorld`, following the `editor/animator.h` ownership
