@@ -6,7 +6,8 @@ selection implementation slice is in place, but its live gate remains open.
 through continuous sparse-tile collision, follows the player camera, and
 presents runtime transforms through the shared scene and SDL host. The live M2
 movement gate was accepted on 2026-08-29. The runtime and asset/content tracks
-proceed in parallel.**
+proceed in parallel. After the M3 live proof, the animation artwork pipeline is
+a required follow-on before M4.**
 
 Design for the Zebes game runtime: the executable that loads a shipped level
 and plays it. The editor, curation, and generation stacks are out of scope
@@ -438,6 +439,14 @@ definitions, all state-referenced assets, and runtime sprite/frame selection
 are implemented and covered headlessly. Gate remains animated entities in the
 running level; the shipped player currently has one state and one frame, with
 no semantic player animation state machine or live multi-frame player asset.
+
+**Post-M3 — Animation artwork pipeline.** Establish stable semantic Blueprint
+state keys during the M3 closeout, then run the animation-generation feasibility
+gate and build the deterministic frame-set processing, retained-source recipe,
+transactional asset bundle, headless curation, and provider/editor workflow.
+The first production player set must be processable, reviewable, regenerable
+byte-stably, and visibly accepted in Catacombs before M4 begins. See
+[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md).
 
 **M4 — The thread split.** `GameEngine` moves onto its own `EngineRunner`
 with the D4 slots carrying input and frames; `AssetEngine` owns level

@@ -15,7 +15,7 @@ This document owns the cross-track sequence.
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
 | 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — engineering gates, zone fades, 0.5× Catacombs coverage, independent masonry, distributed decor, and initial A/B prop passes are accepted; finite floor and foreground variants remain |
-| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestones 1 and 2 are complete; the M3 playback/state-selection slice is implemented, but its live gate remains open |
+| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestones 1 and 2 are complete; the M3 playback/state-selection slice is implemented, but its live gate remains open; the animation artwork pipeline is the required follow-on before M4 |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -466,6 +466,13 @@ playback, state-reset, invalid-transition, shipped-reference, and runtime
 presentation tests pass. The live acceptance gate remains open: the shipped
 Mouse Player Placeholder still has one state and one frame, and no semantic
 player animation state machine or live multi-frame player asset exists yet.
+Close that gate with stable semantic state keys and a deliberately small
+real-format playback proof. Then build the animation artwork pipeline before
+starting M4: first prove coherent frame-set generation against an imported
+baseline, then add deterministic shared processing, retained-source recipes,
+transactional Texture/Sprite/Blueprint-state output, headless review, and the
+first production player set. The sequence and failure gate are specified in
+[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md).
 
 ---
 

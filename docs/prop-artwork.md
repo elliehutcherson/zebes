@@ -856,8 +856,10 @@ broader border-connected rule for subject safety.
 - **Automatic colliders.** Alpha is artwork, not collision intent. Author them
   in the Blueprint Editor.
 - **Automatic layer or sort assignment.** Depth is a level-authoring decision.
-- **Animation.** Frame consistency, shared quantization, and packing need a
-  frame-set design rather than repeated static-prop runs.
+- **Animation.** Frame consistency, shared quantization, and packing need the
+  separate frame-set workflow in
+  [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md), not repeated
+  static-prop runs.
 - **Parallax backgrounds.** They use whole textures with scroll, repeat, and
   zone semantics, not anchored world entities. They may reuse image transforms
   later but need a different output builder.
