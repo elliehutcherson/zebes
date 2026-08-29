@@ -2,10 +2,11 @@
 
 What is left, in the order the dependencies allow. Updated as each track closes.
 
-This outlives any one phase. [`history/handoff.md`](history/handoff.md) records
-the earlier implementation handoffs; completed design records live under
-[`history/`](history/README.md). Active design documents state what a current
-phase has decided and why. This document only says what has not happened yet.
+This outlives any one phase. [`handoff.md`](handoff.md) records the current
+resume points and last verified checkpoint; [`history/handoff.md`](history/handoff.md)
+and the other records under [`history/`](history/README.md) preserve earlier
+phases. Active design documents state what a current phase has decided and why.
+This document owns the cross-track sequence.
 
 | Track | What | State |
 |---|---|---|
@@ -13,8 +14,8 @@ phase has decided and why. This document only says what has not happened yet.
 | 1 | The clang-tidy backlog | **Done** |
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
-| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — Milestone 5 zone fades, Catacombs formation coverage through 0.5×, and the first player-scaled distributed prop pass are accepted; more prop/decal variants remain |
-| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestone 1 is runnable: `run_game` boots Catacombs through the read-only runtime profile, advances a fixed-step free-fly simulation, and presents the shared scene through SDL; Milestone 2 player movement and collision are next |
+| 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — engineering gates, zone fades, 0.5× Catacombs coverage, independent masonry, distributed decor, and initial A/B prop passes are accepted; finite floor and foreground variants remain |
+| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestone 1 and its ownership cleanup are complete; Milestone 2 foundations exist, and swept movement plus runtime/render integration are next |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -322,16 +323,16 @@ rendering path for origin and attachment-surface feedback. Tile and terrain
 palettes share a stable-ID tileset selector instead of duplicating combo logic
 and retaining authoritative resource pointers.
 The provider-neutral generation, credential, and bounded HTTP contracts, the
-poll-driven libcurl transport, the session-lifetime generation engine, the
-first provider adapter, and the generated-source editor flow are all
-implemented. `ImageGenerationService` assembles and owns that stack for the
-process; a generated candidate reaches `SelectSource` through the same
-retention the imported path uses. The editor now composes the Codex and OpenAI
-providers independently and offers runtime selection without making either a
-startup requirement. Live Codex startup, authentication, skill discovery, and
-generation are confirmed; the corrected Codex-cache decode plus review and
-acceptance flow remain. Also outstanding are the credential-gated opt-in
-OpenAI integration run and Milestone 6 hardening. The local feedback-loop
+poll-driven libcurl transport, the session-lifetime generation engine, both
+provider adapters, and the generated-source editor flow are all implemented.
+`ImageGenerationService` assembles and owns that stack for the process; a
+generated candidate reaches `SelectSource` through the same retention the
+imported path uses. The editor composes the Codex and OpenAI providers
+independently and offers runtime selection without making either a startup
+requirement. Live Codex startup, authentication, skill discovery, and
+generation are confirmed; the complete editor accept/discard/cancel/shutdown
+walk remains. Also outstanding are the credential-gated opt-in OpenAI
+integration run and Milestone 6 hardening. The local feedback-loop
 milestone is complete, so provider work can proceed
 without multiplying an expensive verification cycle. Its §12 sequence:
 
@@ -402,16 +403,83 @@ shared edges. The supported two-theme fade contract lives in
 [`environment-artwork-plan.md`](environment-artwork-plan.md); its detailed
 implementation sequence is [`zone-fades-plan.md`](zone-fades-plan.md).
 
-**Smaller, already recorded:**
+---
+
+## Track 5 — Game runtime
+
+**Milestone 1 — complete.** `run_game` boots Catacombs Processional through the
+read-only runtime workspace, advances a fixed-step `GameEngine` in real-time or
+unpaced mode, composes the shared platform-neutral scene, and presents it on
+the SDL main thread. Timing is independent of render cadence, bounded catch-up
+retains whole-step debt, overload is measured, and `GameEngine::Run` now reads
+as measure/pacing → advance simulation → construct result.
+
+The production ownership boundaries are also complete:
+
+- `AssetWorkspace::LoadLevelAssets` asks `LevelAssetLoader` to resolve the
+  transitive graph through the authoritative resource managers. The game
+  chooses the level ID but does not walk manager pointer/null conventions.
+- `LoadedLevelContent` owns copied definitions for simulation and scene
+  composition; `LevelRenderResources` separately owns the opaque texture
+  bindings. `LoadedLevelAssets` keeps them atomic without exposing GPU handles
+  to simulation APIs.
+- `GameRuntime` borrows only `InputSource`, `TextureResourceStore`, and
+  `GameRenderer`. `SdlGameHost` owns SDL initialization, window, renderer,
+  input, and texture resources and outlives the runtime.
+- A headless runtime integration test boots the shipped level, advances one
+  frame, and records it through a fake renderer without SDL.
+
+**Milestone 2 — foundations complete; controller integration next.**
+`RuntimeWorld` owns immutable authored level data beside entity-ID-keyed
+transforms, motion, and player-controller state. The Mouse Player Placeholder
+is resolved by stable Blueprint ID and validated against its bottom-centered
+32×64 collider. Fixed-tick input intent preserves held movement and consumes a
+jump edge once across catch-up ticks. The collision library supplies an
+allocation-free static AABB-versus-every-`TileShape` overlap primitive backed by
+`tile_shape_geometry`.
+
+Next, implement the swept movement solver and connect it to the running game:
+
+1. query the player's world layer only, with explicit one-way policy and stable
+   contact ordering;
+2. integrate intent, motion, continuous collision response, grounded state,
+   and jump behavior in fixed ticks without tunneling;
+3. replace the free-fly-only runtime path with `RuntimeWorld` ownership and a
+   follow camera; and
+4. render runtime transforms without mutating serialized `Entity` definitions.
+
+Ground, wall, ceiling, every slope family, one-way behavior, high-speed motion,
+deterministic ordering, and failures remain headless gates before the live
+Catacombs run/jump review. Animation is Milestone 3; the simulation/asset thread
+split remains Milestone 4 and must use a bounded I/O executor rather than
+blocking worker engines. See [`engine-runtime-plan.md`](engine-runtime-plan.md)
+and [`handoff.md`](handoff.md).
+
+---
+
+## Technical debt and follow-up
+
+Active, non-blocking debt:
 
 - `viewport_model.h:81` — a linear scan where a spatial index belongs, when
   level size requires it.
-- [`architecture.md`](architecture.md) §Transient texture previews —
-  `TextureEditor` owns a raw preview `SDL_Texture*` because an imported preview
-  is not a managed engine resource.
 - Tile deletion is guarded by `Api::CheckTileDeletable` but has no
   `ConfirmPrompt`, unlike every other destructive control. The refusal covers the
   referenced case, so this is consistency rather than safety.
+- `SdlWrapper` still lives under `src/common`, and `EditorEngine` duplicates
+  SDL initialization/shutdown instead of reusing the new RAII `SdlSubsystem`.
+  Move both when next changing editor platform composition; neither blocks M2.
+- Experimental Slant, Floor Ridge, pilot, and pre-pilot cave assets remain in
+  the catalog from accepted workflow gates. Reprocess anything promoted to
+  production and quarantine unused graphs through checked asset lifecycle.
+- Live provider verification remains manual: complete the Codex editor
+  accept/discard/cancel/shutdown walk, run the opt-in OpenAI integration check,
+  and add Windows Codex process transport before claiming support there.
+
+Accepted exceptions and optional work are not debt: Texture Editor's
+unaccepted preview directly owns its transient `SDL_Texture*`; the headless
+asset loop's optional project-skill wrapper is only ergonomics; atlas compaction
+remains deferred until measured size justifies an explicit ID-preserving tool.
 
 ---
 

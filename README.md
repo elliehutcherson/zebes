@@ -9,6 +9,10 @@ A C++ Game Engine project using SDL2, ImGui, and SQLite.
 * [Style Guide](docs/style-guide.md): project conventions layered on the Google
   C++ Style Guide.
 * [Roadmap](docs/roadmap.md): current work, sequencing, and settled decisions.
+* [Active Handoff](docs/handoff.md): current runtime and asset-track entry
+  points, verification, and known debt.
+* [Game Runtime Plan](docs/engine-runtime-plan.md): runtime ownership, timing,
+  threading, and milestone contracts.
 * [Environment Artwork and Parallax Plan](docs/environment-artwork-plan.md):
   implementation sequence, validation, and the human workflow for layered
   level art.

@@ -13,7 +13,8 @@ active backlog.
 - [`level-layers.md`](level-layers.md): completed world-layer design and
   accepted depth contract.
 
-Use [`../roadmap.md`](../roadmap.md) for current sequencing,
+Use [`../handoff.md`](../handoff.md) for the active resume points,
+[`../roadmap.md`](../roadmap.md) for current sequencing,
 [`../architecture.md`](../architecture.md) for current ownership boundaries,
 and [`../environment-artwork-plan.md`](../environment-artwork-plan.md) for the
 active environment and parallax implementation plan.

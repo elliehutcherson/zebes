@@ -1,8 +1,10 @@
 # Handoff
 
 > Historical snapshot: this file is not the current feature backlog. Use
-> [`roadmap.md`](../roadmap.md) for sequencing and the linked feature design—such
-> as [`prop-artwork.md`](../prop-artwork.md)—for durable decisions and TODOs.
+> [`handoff.md`](../handoff.md) for the active resume points,
+> [`roadmap.md`](../roadmap.md) for sequencing, and the linked feature
+> design—such as [`prop-artwork.md`](../prop-artwork.md)—for durable decisions
+> and TODOs.
 
 ## Current: Codex is selectable in the editor; live smoke remains
 

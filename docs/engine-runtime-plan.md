@@ -1,9 +1,11 @@
 # Game runtime plan
 
-**Status: Milestone 1 implemented. `run_game` boots the shipped Catacombs level,
-drives a fixed-step free-fly simulation, and presents the shared scene through
-SDL. Milestone 2 foundations now exist; player movement integration remains.
-The runtime and asset/content tracks proceed in parallel.**
+**Status: Milestone 1 and its ownership cleanup are complete. `run_game` boots
+the shipped Catacombs level, drives a fixed-step free-fly simulation, and
+presents the shared scene through an SDL host. Milestone 2 foundations now
+include runtime registries, deterministic player intent, collider validation,
+and static tile-shape overlap; swept movement and runtime/render integration
+remain. The runtime and asset/content tracks proceed in parallel.**
 
 Design for the Zebes game runtime: the executable that loads a shipped level
 and plays it. The editor, curation, and generation stacks are out of scope
@@ -37,9 +39,12 @@ and the editor's `ViewportScene`/`ViewportRenderer` split proves the pattern
 of platform-neutral render batches consumed by a thin native boundary.
 
 The platform-neutral `SimulationPacer`, fixed-step `GameEngine`, M1 simulation,
-runtime scene aggregate, and SDL game presentation path now exist. What does
-not exist: a player-controlled runtime world, collision response, animation
-playback outside the editor, runtime asset streaming, or level transitions.
+runtime scene aggregate, and SDL game presentation path now exist. So do the
+first `RuntimeWorld` registries, fixed-tick player-input intent, exact player
+collider validation, and static tile-shape collision primitive. What does not
+exist: swept collision response and motion integration in the running game,
+rendering from runtime transforms, animation playback outside the editor,
+runtime asset streaming, or level transitions.
 
 ## Design decisions
 
@@ -114,11 +119,15 @@ completions) go over `MpscQueue`, whose backpressure is explicit. If
 triple buffer; do not start there.
 
 **D5 — Assets are immutable by invariant after load; no lock ever guards
-them.** Loading a level resolves the complete referenced asset graph —
-tileset, atlas pixels, sprites paired with handles, parallax themes — into one
-frozen `LoadedLevelAssets` value. M1 owns that value uniquely in `GameRuntime`;
-the M4 snapshot handoff will share it as `shared_ptr<const>` without changing
-the definitions. The asset engine submits file reads and decoding to the
+them.** `AssetWorkspace::LoadLevelAssets` delegates transitive graph resolution
+to `LevelAssetLoader`, which coordinates the authoritative managers rather than
+making game code walk their mutable pointer-returning APIs. The result is one
+frozen `LoadedLevelAssets` value: `LoadedLevelContent` contains copied level,
+tileset, sprite, collider, and parallax definitions, while
+`LevelRenderResources` contains their opaque texture handles. M1 owns that value
+uniquely in `GameRuntime`; the M4 snapshot handoff will share it as
+`shared_ptr<const>` without changing the definitions. The asset engine submits
+file reads and decoding to the
 bounded I/O executor and consumes notified completions; the main thread
 performs the GPU upload, honoring D2. A level transition is a message and an
 atomic swap; the old snapshot dies when the last `FrameSnapshot` referencing
@@ -164,7 +173,7 @@ asset thread (EngineRunner)        audio thread
   submit read/decode ──────►         lock-free ring, later work
     bounded I/O executor
   completion ◄──notify queue
-  staged LevelAssets ──MpscQueue──► sim
+  staged LoadedLevelAssets ───────► sim
   GPU upload requests ────────────► main
 ```
 
@@ -177,7 +186,7 @@ store, renderer, and input source outlive every engine that borrows them.
 
 Each milestone ends runnable and gated; none depends on a later one.
 
-**M1 — `run_game` walks a level.** New platform-neutral `GameRuntime` beside
+**M1 — `run_game` walks a level — complete.** New platform-neutral `GameRuntime` beside
 `EditorEngine`: load `Catacombs Processional` through the existing managers
 during an explicit boot phase, freeze `LoadedLevelAssets`, render parallax +
 tiles + entities through the shared scene core (D7), fixed-timestep
@@ -197,9 +206,12 @@ profile. Boot synchronously creates GPU textures and copies the complete
 referenced render graph into `LoadedLevelAssets` before `Run`; the loop performs
 no asset or config I/O. `SdlInputSource` accepts an optional native-event
 observer, so the editor can forward events to ImGui while the game binary has
-no ImGui dependency.
+no ImGui dependency. The standalone process owns `SdlGameHost`, whose RAII
+subsystem, renderer, input source, texture store, window, and native renderer
+outlive the platform-neutral runtime borrows. A headless runtime integration
+test boots the shipped level and renders a frame through fakes without SDL.
 
-**M2 — A player.** Input → intent → kinematic character controller:
+**M2 — A player — in progress.** Input → intent → kinematic character controller:
 AABB-versus-`TileShape` collision including slopes via
 `tile_shape_geometry`, `Motion` integration in `RuntimeWorld`, camera follow.
 The Mouse Player Placeholder with its exact 32×64 collider is the test body.
@@ -207,7 +219,7 @@ Gate: run and jump through Catacombs with correct slope traversal; headless
 simulation tests for ground, wall, slope, and ceiling contacts, each failure
 path included.
 
-First checkpoint implemented: `RuntimeWorld` preserves the authored `Level`
+Foundations implemented: `RuntimeWorld` preserves the authored `Level`
 beside entity-ID-keyed runtime transforms, motion, and controller state; raw
 input snapshots derive held movement and a fixed-tick-consumed jump edge; boot
 copies referenced collider definitions; and a platform-neutral static
@@ -216,6 +228,14 @@ AABB-versus-`TileShape` SAT query covers block and slope contacts using
 player's world layer, enforce one-way policy, resolve contacts deterministically
 without tunneling, integrate motion, and drive the follow camera. The static
 overlap query is a primitive for that solver, not the solver itself.
+
+The next implementation checkpoint is intentionally vertical: add the pure
+swept solver, integrate it into `RuntimeWorld`, replace the free-fly-only game
+simulation with runtime-world ownership, compose entity positions from runtime
+transforms, and follow the player camera. Do not mutate the authored `Level` to
+make movement visible. Ground, wall, ceiling, every slope family, one-way,
+high-speed/tunneling, deterministic-order, and failure-path tests precede the
+live Catacombs gate.
 
 **M3 — Animation playback and blueprint-state behavior.** Frame timers and
 playback state in `RuntimeWorld`, following the `editor/animator.h` ownership
@@ -240,7 +260,10 @@ in `EngineConfig` with validation; measure before exposing anything.
 - A debug UI. If one arrives later it is an optional ImGui layer on the main
   thread, never a runtime dependency.
 
-## Unresolved
+## Current handoff
 
-- Input vocabulary growth (`Key` currently covers editor needs). Decided in
-  M2 when the controller defines its intents.
+The baseline M2 input vocabulary is resolved as A/D movement plus Space held
+and pressed intent. Add new physical keys only when a gameplay intent requires
+them; do not expose platform codes. The detailed next files, parallel asset
+track, known platform debt, and last verification are recorded in
+[`handoff.md`](handoff.md).

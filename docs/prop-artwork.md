@@ -13,10 +13,11 @@ regeneration are also implemented. The Prop Artwork tab now completes the
 durable imported-source workflow with grounded, ceiling, and free/background
 attachment modes. Uncommitted imports are session-owned and are discarded on
 replacement, Clear, or normal shutdown. Milestone 5's generation service,
-session-lifetime polling engine, first provider adapter (OpenAI `gpt-image-2`),
-composition-root owner, and editor prompt/candidate controls are implemented; a
-generated candidate is retained exactly as an imported PNG is. Only the opt-in
-live test remains.
+session-lifetime polling engine, OpenAI `gpt-image-2` and Codex App Server
+adapters, composition-root owners, editor prompt/candidate controls, and
+headless generation entry point are implemented; a generated candidate is
+retained exactly as an imported PNG is. Only credential-backed live completion
+and operational hardening checks remain.
 
 This design covers a static world prop such as a boulder, tree, sign, or ruin.
 The result is ordinary Zebes data: a texture, a one-frame sprite, and a blueprint
@@ -47,13 +48,16 @@ be reused rather than rebuilt:
 - World layers and blueprint placement are complete. A prop needs no new level
   representation.
 
-The remaining gaps are equally concrete:
+The remaining follow-up is equally concrete:
 
 - Provider-neutral image-generation, credential, and HTTP contracts now exist,
   including fail-fast capability checks and non-blocking RAII cancellation. A
   libcurl multi transport provides bounded verified HTTPS and prompt
-  cancellation. There is not yet a provider adapter, editor flow, or opt-in
-  live integration test.
+  cancellation. OpenAI and Codex adapters, editor selection/review, and the
+  headless `generate_assets` path now consume those contracts. Remaining work
+  is the opt-in OpenAI integration check, the final real Codex editor
+  accept/discard/cancel/shutdown walk, retry/shutdown hardening, and Windows
+  Codex process transport before Windows support is advertised.
 - The terrain palette and deterministic transforms are shared platform-neutral
   boundaries. The versioned coordinator enforces source limits, records a
   canonical source digest, retains each preview artifact in review mode, and
@@ -747,7 +751,7 @@ unfinished provider behavior.
    because linking remains dominant. CI retains its existing compiler cache,
    while local presets explicitly disable SDL's implicit ccache discovery so a
    machine with ccache installed does not silently get a partial cache policy.
-5. **Generation service and first adapter (implemented; editor flow remains).**
+5. **Generation service and provider adapters (implemented; live checks remain).**
    The first slice adds
    provider-neutral generation specifications, capabilities, candidates, and
    stable provenance; an environment-backed move-only credential boundary; and
@@ -802,8 +806,10 @@ unfinished provider behavior.
    arrives, and dropping it early would let that event be mistaken for a later
    request's.
 
-   Next: a credential-gated opt-in integration test, which is the only thing
-   that will exercise the curl negative-timeout branch.
+   Next: the credential-gated OpenAI integration test, which is the only thing
+   that will exercise the curl negative-timeout branch, plus the final Codex
+   editor accept/discard/cancel/shutdown walk recorded in
+   `codex-image-generation.md`.
 6. **Operational hardening.** Exercise shutdown, retries that are safe to
    retry, provider error UX, crash leftovers in staging, and the complete editor
    walk before considering another provider or atlas packing.

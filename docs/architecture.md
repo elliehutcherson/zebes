@@ -23,8 +23,10 @@ The important rules are:
 - Resource managers depend on platform-neutral interfaces.
 - Platform implementations may depend on external libraries.
 - ImGui belongs in editor/UI code. It should not determine engine data models.
-- Application composition roots (`EditorEngine` and `GameRuntime`) connect
-  concrete platform implementations to platform-neutral interfaces.
+- Application composition roots (`EditorEngine` and standalone
+  `main`/`SdlGameHost`) connect concrete platform implementations to
+  platform-neutral interfaces. `GameRuntime` consumes those interfaces and is
+  itself platform-neutral.
 
 ## Texture metadata and runtime resources
 
@@ -53,12 +55,14 @@ create, cast, query, or destroy `SDL_Texture` objects itself.
 
 The serialized metadata contains only `id`, `name`, and `path`, and so do the
 in-memory `Texture` and `Sprite` structures. Neither carries a `TextureHandle`:
-handles live in the texture store and are fetched by ID through
-`Api::GetTextureHandle` at the point of use. Callers that need a definition and
-its handle together pair them explicitly — `ResolvedSprite` for entity
-rendering, `AtlasBinding` for palettes — rather than caching a handle on the
-definition, which previously meant a pure data struct had to include
-`engine/texture_handle.h`.
+handles live in the texture store and are fetched by ID at the point of use.
+Authoring callers normally use `Api::GetTextureHandle`; runtime level loading
+uses `LevelAssetLoader` through `AssetWorkspace`, so the game does not walk
+manager pointer/null conventions. Callers that need a definition and its handle
+together pair them explicitly — `ResolvedSprite` for entity rendering,
+`AtlasBinding` for palettes, and `LevelRenderResources` for a loaded runtime
+graph — rather than caching a handle on the definition, which previously meant
+a pure data struct had to include `engine/texture_handle.h`.
 
 `SdlTextureStore` owns every managed `SDL_Texture`. It allocates stable numeric
 resource IDs, stores the mapping from ID to native pointer, and destroys the
@@ -166,19 +170,46 @@ definitions; `LevelRenderResources` contains the texture handles needed to
 render them. All file access and GPU resource creation finishes before `Run`
 begins.
 
-The main-thread loop polls SDL input, performs one bounded non-blocking
-`GameEngine::Run`, composes a platform-neutral `GameSceneFrame`, and hands it
-to the injected renderer. `SdlGameRenderer` alone resolves opaque texture
-handles to `SDL_Texture`; ImGui is not linked into the game path. Destruction
-reverses ownership: `GameRuntime` releases simulation, frozen handles, and its
-workspace before `SdlGameHost` releases the renderer, input, texture store,
-window, and finally the SDL subsystem.
+The main-thread loop polls the injected input source, performs one bounded
+non-blocking `GameEngine::Run`, composes a platform-neutral `GameSceneFrame`,
+and hands it to the injected renderer. In the standalone executable those
+adapters are SDL-backed. `SdlGameRenderer` alone resolves opaque texture handles
+to `SDL_Texture`; ImGui is not linked into the game path. Destruction reverses
+ownership: `GameRuntime` releases simulation, frozen handles, and its workspace
+before `SdlGameHost` releases the renderer, input, texture store, window, and
+finally the SDL subsystem.
 
 `AssetWorkspace::LoadProfile::kRuntime` is explicitly read-only. It loads
 runtime catalogs (textures, sprites, colliders, blueprints, levels, parallax
 themes, and tilesets) while leaving generation and authoring recipe catalogs
 empty. A missing definition or texture handle in the selected level fails boot
 instead of producing a partially initialized running loop.
+
+### Loaded-level graph boundary
+
+Individual resource managers remain authoritative for loading and owning one
+definition kind. `LevelAssetLoader` is a coordinator beside those managers: it
+resolves the level's tileset, entity sprites and colliders, parallax themes, and
+texture handles, validates lookup identity and handle availability, and copies
+the complete result before returning. `AssetWorkspace` owns every participating
+manager and exposes the operation as `LoadLevelAssets(level_id)`.
+
+This is deliberately not an `Api` dependency inside `resources`: that would
+reverse the existing dependency direction. It is also not game code: the game
+chooses which level graph it wants, but resource loading and validation remain
+inside the workspace/resource boundary. `LoadedLevelAssets` is atomic for
+failure and lifetime purposes while its `content` and `rendering` members keep
+simulation inputs separate from GPU bindings.
+
+### Known transitional SDL placement
+
+`SdlWrapper` predates the platform directory and still lives under
+`src/common`; `EditorEngine` also retains its own manual SDL initialization and
+shutdown. The standalone game no longer depends on either compromise:
+`SdlGameHost` and `SdlSubsystem` own its native lifecycle under
+`src/platform/sdl`. When editor platform composition is next changed, move the
+wrapper under that platform directory and reuse the RAII subsystem. This is
+structural debt, not a reason to broaden the M2 movement checkpoint.
 
 ## Camera responsibilities
 

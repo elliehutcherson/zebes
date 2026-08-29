@@ -7,7 +7,8 @@ Catacombs production work in
 replace either document.
 
 **Status: implemented through Phase 3, including focused entity iteration;
-0.5x coverage and two distributed prop passes accepted.** The
+0.5x coverage, distributed prop A/B passes, independent Catacombs masonry, and
+the distinct middle ceiling frieze are accepted.** The
 registered reviewer, deterministic route planner, integrated raster path,
 contact sheets, isolated passes, layout map, and manifest evidence are
 available. The first persisted Catacombs review established the baseline for
@@ -56,7 +57,7 @@ The reviewer produces no movie. PNGs and the manifest are the complete review
 contract: they are lossless, directly inspectable, frame-addressable,
 content-digested, and covered by the existing atomic publication boundary.
 
-## Baseline production problem
+## Original production problem — resolved
 
 `parallax-theme` review proves theme composition but cannot show the theme with
 world-layer tiles and entities. The live Level Editor can show the integrated
@@ -71,8 +72,11 @@ the lower portion of the frame. The current route also places all three props
 inside the first 2,048 pixels of a 16,384-pixel level, and its two
 Catacombs-specific props share a tall pedestal silhouette.
 
-The accepted lower-companion pass resolves the formation coverage problem. The
-sparse prop distribution and silhouette variety remain open content work.
+The accepted lower-companion pass resolves the formation coverage problem.
+Distributed decor now spans the route, floor and foreground A/B silhouettes
+break the initial cadence, and Broken Ring Frieze breaks the three-copy ceiling
+cadence. Additional floor-scatter and foreground-shroud silhouettes remain
+finite content polish; placement density is intentionally unchanged.
 
 The integrated reviewer must make those facts visible before more content is
 committed. It must not convert aesthetic observations into automatic pass/fail
@@ -97,8 +101,10 @@ composition boundaries:
 
 - `ResolveParallaxEnvironment` for active zones and fade weights;
 - `CalculateParallaxLayout` for camera-relative formation geometry;
-- `ComposeLevelTileRenderBatch` for tile culling and atlas source rectangles;
-- `ComposeEntityRenderItems` for sprite bounds and stable draw ordering; and
+- `ComposeSceneLevelTileRenderBatch` for tile culling and atlas source
+  rectangles;
+- `ComposeSceneEntityRenderItems` for sprite bounds and stable draw ordering;
+  and
 - `Camera::WorldToScreen` plus the shared nearest-neighbour RGBA compositor for
   raster output.
 
@@ -325,7 +331,7 @@ Two focused reviews of the same entity also publish byte-identical manifests
 and PNGs while reducing the production bundle from 343 artifacts to 31 for the
 current three-layer Catacombs composition.
 
-Remaining speed work keeps the same quality boundary:
+Completed performance work kept the same quality boundary:
 
 - [x] Prepare a generated Prop candidate through the shared deterministic prop
       pipeline, substitute its texture/Sprite for the selected entity in a
@@ -351,8 +357,13 @@ Remaining speed work keeps the same quality boundary:
 
 Run this only after Phase 3 publishes the baseline evidence.
 
-Steps 1-6 are complete for two distributed content passes. Additional wall
-silhouette and terrain-material variants remain normal content polish.
+Steps 1-6 are complete for the distributed content passes. A later managed pass
+replaced the middle of three identical ceiling accents with Catacombs Broken
+Ring Frieze and passed focused plus complete-route review. The next finite pass
+is one additional floor-scatter silhouette and one additional
+foreground-shroud silhouette where focused evidence shows repetition; do not
+increase density. Additional wall silhouette and terrain-material variants are
+normal content polish, not coverage requirements.
 
 1. Review the persisted Catacombs level and retain the bundle outside the asset
    tree as the before-state.

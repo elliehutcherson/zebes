@@ -4,18 +4,20 @@
 generated background artwork now share retained source, deterministic
 processing, compensated bundle lifecycle, and the accepted Parallax Artwork
 and Theme Editor workflow. Those gates complete the engineering vertical
-slice. Milestone 4 has an accepted horizontal Catacombs baseline, complete
-finite-formation coverage through 0.5×, and an initial scale-aware distributed
-prop/decal pass; further silhouette variation remains non-blocking content work;
-Milestone 5 zone fades pass both their automated and live visual gates.**
+slice. Milestone 4 has an accepted Catacombs production baseline: complete
+finite-formation coverage through 0.5×, independent masonry, distributed
+player-scaled decor, initial floor/foreground A/B silhouettes, and a distinct
+middle ceiling frieze. Further finite silhouette variation remains non-blocking
+content work. Milestone 5 zone fades pass both automated and live visual gates.**
 Written 2026-08-22 for the first cave vertical slice, revised the same day to
 make standalone parallax-theme ownership the highest-priority implementation
 milestone, updated 2026-08-23 after accepting composed parallax layers, and
 updated 2026-08-24 after accepting the live generated-background gate, then
 2026-08-25 to separate the completed engineering slice from content curation,
 and 2026-08-27 after accepting zone fades and the usable horizontal Catacombs
-baseline, then 2026-08-28 after accepting 0.5× formation coverage and the first
-player-scaled distributed prop pass.
+baseline, 2026-08-28 after accepting 0.5× formation coverage and distributed
+props, and 2026-08-29 after the masonry, A/B silhouette, and ceiling-frieze
+passes.
 Update milestone states here as work lands; use [`roadmap.md`](roadmap.md) only
 for the higher-level sequence.
 
@@ -497,9 +499,9 @@ mutable drafts. Catalog refreshes reconcile selection by ID. This preserves
 the existing lifetime boundary and prevents tab order or editor destruction
 from determining theme validity.
 
-Until fade rendering is implemented, the zone inspector must label fade values
-as unsupported or disable them. Editable controls must not imply a visible
-effect that does not exist.
+The zone inspector originally had to label fade values as unsupported until the
+renderer consumed them. Milestone 5 now implements that rendering contract, so
+its editable fade controls correspond to the visible two-theme transition.
 
 ### 7.4 Level Editor authoring interaction model
 
@@ -605,11 +607,13 @@ existing provenance. Imported and generated candidates then enter the same
 deterministic background pipeline. A remote request never writes directly to a
 runtime Texture or Level.
 
-Current providers do not accept reference images. The first version therefore
-generates one layer at a time and makes coherence through shared instructions,
-target geometry, and deterministic palette processing. Do not advertise
-automatic coherent multi-layer generation until an adapter can actually use a
-reference plate and a visual check proves it.
+The OpenAI adapter accepts reference images and powers retained-source redraws;
+the Codex App Server adapter currently does not advertise that capability.
+Background creation still generates one layer at a time and establishes
+coherence through shared instructions, target geometry, and deterministic
+palette processing. Do not advertise automatic coherent multi-layer generation
+until an adapter can consume a shared reference plate and a visual check proves
+the result.
 
 ## 9. Zone fading and rendering
 
@@ -1050,7 +1054,7 @@ silhouette, seam, and composition polish belongs to Milestone 4.
 
 ### Milestone 4 — theme workflow and first cave kit
 
-**Status: usable horizontal baseline accepted; broader content pass remains.**
+**Status: production baseline accepted; finite content variation remains.**
 The accepted gates through Milestone 3 prove the complete authoring and
 persistence workflow. Catacombs Processional now provides the production
 horizontal level: one Far Fill, two Far Formations, four Near Formations, and a
@@ -1108,13 +1112,20 @@ ships. Further wall aging belongs in the source parallax artwork or a layer
 that shares the wall's scroll factor, and should only be added when the route
 review exposes a concrete coverage need.
 
-- Produce the accepted Far Fill and Far Formations plus a small Near Formation
-  element set.
-- Create Back Decor, Gameplay, and Front Decor world layers in the cave level.
-- Produce the minimum prop/decal kit and place each item according to its
-  collision and visual-depth intent.
-- Run the full camera route at minimum and maximum supported zoom, with layer
-  visibility toggles used to inspect every depth plane.
+Completed production gates:
+
+- [x] Produce the accepted Far Fill and Far Formations plus a small Near
+      Formation element set.
+- [x] Create Back Decor, Gameplay, and Front Decor world layers in the cave
+      level.
+- [x] Produce the minimum prop/decal kit and place each item according to its
+      collision and visual-depth intent.
+- [x] Run the full camera route at minimum and maximum supported zoom, with
+      layer visibility toggles used to inspect every depth plane.
+
+Next content work is deliberately bounded: add one floor-scatter and one
+foreground-shroud variant only where focused review shows repetition, preserve
+entity and collider counts, and rerun the complete route after persistence.
 
 Acceptance: the cave reads clearly with backgrounds, world-space back decor,
 gameplay, and sparse foreground framing; removing any one depth band visibly
