@@ -55,6 +55,12 @@ absl::StatusOr<WorldRect> CalculateEntityBounds(const Entity& entity, const Spri
 // above when the persisted transform is authoritative.
 absl::StatusOr<WorldRect> CalculateEntityBounds(const Transform& transform, const Sprite* sprite);
 
+// Returns the world-space bounds for a selected sprite frame. Frame index is
+// the zero-based position in Sprite::frames; index zero preserves the
+// authored/default behavior.
+absl::StatusOr<WorldRect> CalculateEntityBounds(const Transform& transform, const Sprite* sprite,
+                                                int frame_index);
+
 // Returns the sprite and texture for an ID. An absent ID yields a default
 // ResolvedSprite, whose null sprite callers already handle as unresolved.
 ResolvedSprite FindSprite(const SpriteLookup& sprites, const std::string& sprite_id);

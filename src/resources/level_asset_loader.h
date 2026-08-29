@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "absl/status/statusor.h"
+#include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
 #include "resources/level_manager.h"
 #include "resources/loaded_level_assets.h"
@@ -18,6 +19,7 @@ struct LevelAssetLoaderOptions {
   TilesetManager& tilesets;
   SpriteManager& sprites;
   ColliderManager& colliders;
+  BlueprintManager& blueprints;
   ParallaxThemeManager& parallax_themes;
   TextureManager& textures;
 };

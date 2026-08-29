@@ -41,18 +41,6 @@ struct ContactManifold {
   double time = 1.0;
 };
 
-bool IsFinite(Vec value) { return std::isfinite(value.x) && std::isfinite(value.y); }
-
-double Dot(Vec left, Vec right) { return left.x * right.x + left.y * right.y; }
-
-Vec Add(Vec left, Vec right) { return {.x = left.x + right.x, .y = left.y + right.y}; }
-
-Vec Scale(Vec value, double scale) { return {.x = value.x * scale, .y = value.y * scale}; }
-
-AxisAlignedBox Translate(AxisAlignedBox box, Vec displacement) {
-  return {.min = Add(box.min, displacement), .max = Add(box.max, displacement)};
-}
-
 bool HasMotion(Vec displacement) {
   return std::abs(displacement.x) > kMotionTolerance || std::abs(displacement.y) > kMotionTolerance;
 }
@@ -61,13 +49,16 @@ absl::Status ValidateOptions(const TileMovementOptions& options) {
   if (options.tile_width <= 0 || options.tile_height <= 0) {
     return absl::InvalidArgumentError("Tile movement dimensions must be positive");
   }
+
   if (!IsFinite(options.box.min) || !IsFinite(options.box.max) ||
       options.box.min.x >= options.box.max.x || options.box.min.y >= options.box.max.y) {
     return absl::InvalidArgumentError("Tile movement box must have finite positive dimensions");
   }
+
   if (!IsFinite(options.displacement) || !IsFinite(options.velocity)) {
     return absl::InvalidArgumentError("Tile movement vectors must be finite");
   }
+
   return absl::OkStatus();
 }
 
@@ -78,12 +69,13 @@ absl::StatusOr<int> CheckedTileCoordinate(double tile_coordinate, const char* bo
     return absl::OutOfRangeError(
         absl::StrCat("Tile movement ", boundary, " coordinate exceeds the tile grid"));
   }
+
   return static_cast<int>(tile_coordinate);
 }
 
 absl::StatusOr<TileCellRange> SweptCellRange(AxisAlignedBox box, Vec displacement, int tile_width,
                                              int tile_height) {
-  const AxisAlignedBox destination = Translate(box, displacement);
+  const AxisAlignedBox destination = TranslateBox(box, displacement);
   const double min_x = std::min(box.min.x, destination.min.x);
   const double min_y = std::min(box.min.y, destination.min.y);
   const double max_x = std::max(box.max.x, destination.max.x);
@@ -98,8 +90,10 @@ absl::StatusOr<TileCellRange> SweptCellRange(AxisAlignedBox box, Vec displacemen
   // or tangential touching.
   ASSIGN_OR_RETURN(int last_x, CheckedTileCoordinate(std::floor(max_x / tile_width), "maximum X"));
   ASSIGN_OR_RETURN(int last_y, CheckedTileCoordinate(std::floor(max_y / tile_height), "maximum Y"));
+
   first_x = std::max(0, first_x);
   first_y = std::max(0, first_y);
+
   return TileCellRange{
       .min_x = first_x,
       .min_y = first_y,
@@ -184,11 +178,14 @@ absl::StatusOr<bool> IsCoveredTileFace(const TileMovementOptions& options, int t
                                        TileShape shape, Vec normal) {
   const std::optional<SharedBoundary> boundary = BoundaryBehindNormal(normal);
   if (!boundary.has_value()) return false;
+
   const int neighbor_x = tile_x + boundary->neighbor_x;
   const int neighbor_y = tile_y + boundary->neighbor_y;
   if (neighbor_x < 0 || neighbor_y < 0) return false;
+
   ASSIGN_OR_RETURN(const int neighbor_id, GetTileAt(options.layer, neighbor_x, neighbor_y));
   if (neighbor_id == 0) return false;
+
   const auto neighbor = options.tiles.find(neighbor_id);
   if (neighbor == options.tiles.end()) {
     return absl::FailedPreconditionError(absl::StrCat("Tile layer references unknown tile ID ",
@@ -210,6 +207,7 @@ absl::Status AddContact(ContactManifold& manifold, const TileMovementContact& co
   if (manifold.count >= manifold.contacts.size()) {
     return absl::ResourceExhaustedError("Tile movement simultaneous contact capacity exceeded");
   }
+
   manifold.contacts[manifold.count++] = contact;
   return absl::OkStatus();
 }
@@ -226,8 +224,10 @@ absl::StatusOr<std::optional<ContactManifold>> FindEarliestContacts(
     for (int64_t tile_x = range.min_x; tile_x <= range.max_x; ++tile_x) {
       const int cell_x = static_cast<int>(tile_x);
       const int cell_y = static_cast<int>(tile_y);
+
       ASSIGN_OR_RETURN(const int tile_id, GetTileAt(options.layer, cell_x, cell_y));
       if (tile_id == 0) continue;
+
       const auto definition = options.tiles.find(tile_id);
       if (definition == options.tiles.end()) {
         return absl::FailedPreconditionError(absl::StrCat(
@@ -280,13 +280,9 @@ absl::StatusOr<std::optional<ContactManifold>> FindEarliestContacts(
       }
     }
   }
+
   if (!found) return std::nullopt;
   return manifold;
-}
-
-void ProjectOutward(Vec normal, Vec& vector) {
-  const double inward = Dot(vector, normal);
-  if (inward < 0.0) vector = Add(vector, Scale(normal, -inward));
 }
 
 absl::Status AppendContacts(const ContactManifold& manifold, double global_time,
@@ -312,12 +308,14 @@ absl::StatusOr<TileCollisionLookup> BuildTileCollisionLookup(const Tileset& tile
     if (tile.id <= 0) {
       return absl::InvalidArgumentError("Collision tile IDs must be positive");
     }
+
     const int shape = static_cast<int>(tile.shape);
     if (shape < static_cast<int>(TileShape::kNone) ||
         shape > static_cast<int>(TileShape::kSteepSlopeCeilingTallLeftTop)) {
       return absl::InvalidArgumentError(
           absl::StrCat("Collision tile ", tile.id, " has an invalid shape"));
     }
+
     if (tile.shape != TileShape::kNone && TileShapePolygon(tile.shape).empty()) {
       return absl::InvalidArgumentError(
           absl::StrCat("Collision tile ", tile.id, " has no shape geometry"));
@@ -329,6 +327,7 @@ absl::StatusOr<TileCollisionLookup> BuildTileCollisionLookup(const Tileset& tile
       return absl::InvalidArgumentError(absl::StrCat("Duplicate collision tile ID: ", tile.id));
     }
   }
+
   return lookup;
 }
 
@@ -343,19 +342,20 @@ absl::StatusOr<TileMovementResult> MoveBoxThroughTileLayer(const TileMovementOpt
     ASSIGN_OR_RETURN(const std::optional<ContactManifold> manifold,
                      FindEarliestContacts(options, result.box, remaining));
     if (!manifold.has_value()) {
-      result.box = Translate(result.box, remaining);
+      result.box = TranslateBox(result.box, remaining);
       return result;
     }
 
-    result.box = Translate(result.box, Scale(remaining, manifold->time));
+    result.box = TranslateBox(result.box, remaining * manifold->time);
     const double global_time = elapsed_time + remaining_time * manifold->time;
     RETURN_IF_ERROR(AppendContacts(*manifold, global_time, result));
 
-    remaining = Scale(remaining, 1.0 - manifold->time);
+    remaining = remaining * (1.0 - manifold->time);
     for (size_t contact = 0; contact < manifold->count; ++contact) {
-      ProjectOutward(manifold->contacts[contact].normal, remaining);
-      ProjectOutward(manifold->contacts[contact].normal, result.velocity);
+      remaining = RemoveInwardComponent(remaining, manifold->contacts[contact].normal);
+      result.velocity = RemoveInwardComponent(result.velocity, manifold->contacts[contact].normal);
     }
+
     elapsed_time = global_time;
     remaining_time *= 1.0 - manifold->time;
     if (!HasMotion(remaining)) return result;

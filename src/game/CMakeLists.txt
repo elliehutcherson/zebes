@@ -30,6 +30,8 @@ target_link_libraries(player_input
 add_library(runtime_world runtime_world.cc)
 target_link_libraries(runtime_world
   PUBLIC
+  animation
+  blueprint
   collider
   input_types
   level
@@ -38,6 +40,7 @@ target_link_libraries(runtime_world
   tile_movement
   tileset
   transform
+  sprite
   absl::flat_hash_map
   absl::statusor
   PRIVATE

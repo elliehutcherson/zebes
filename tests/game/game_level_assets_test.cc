@@ -3,9 +3,11 @@
 #include <string>
 #include <string_view>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "api/asset_workspace.h"
 #include "common/config.h"
+#include "engine/texture_handle.h"
 #include "game/game_scene.h"
 #include "game/runtime_world.h"
 #include "gtest/gtest.h"
@@ -56,6 +58,8 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
                        RuntimeWorld::Create({
                            .level = assets.content.level,
                            .tileset = assets.content.tileset,
+                           .blueprints = assets.content.blueprints,
+                           .sprites = assets.content.sprites,
                            .player_blueprint_id = std::string(kMousePlayerPlaceholderBlueprintId),
                            .player_collider = mouse_collider->second,
                        }));
@@ -86,6 +90,64 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
   EXPECT_GT(entity_count, 0);
 
   EXPECT_TRUE(absl::IsNotFound(workspace->LoadLevelAssets("missing-level").status()));
+}
+
+TEST(GameLevelAssetsTest, RuntimePresentationOverridesReachTheFinalGameFrame) {
+  int texture_owner = 0;
+  const TextureHandle atlas = TextureHandleAccess::Create(1, &texture_owner);
+  const TextureHandle authored_texture = TextureHandleAccess::Create(2, &texture_owner);
+  const TextureHandle runtime_texture = TextureHandleAccess::Create(3, &texture_owner);
+  LoadedLevelAssets assets{
+      .content = {.level = {.id = "level",
+                            .tileset_id = "tileset",
+                            .tile_render_width = 16,
+                            .tile_render_height = 16,
+                            .width = 320,
+                            .height = 240},
+                  .tileset = {.id = "tileset", .tile_width = 16, .tile_height = 16},
+                  .sprites = {{"authored", Sprite{.id = "authored",
+                                                  .frames = {{.render_w = 8, .render_h = 8}}}},
+                              {"runtime", Sprite{.id = "runtime",
+                                                 .frames = {{.render_w = 10, .render_h = 12},
+                                                            {.texture_x = 20,
+                                                             .texture_y = 30,
+                                                             .texture_w = 40,
+                                                             .texture_h = 50,
+                                                             .render_w = 60,
+                                                             .render_h = 70,
+                                                             .offset_x = 4,
+                                                             .offset_y = 6}}}}}},
+      .rendering = {.tileset_atlas = atlas,
+                    .sprite_textures = {{"authored", authored_texture},
+                                        {"runtime", runtime_texture}}},
+  };
+  assets.content.level.layers.front().entities.emplace(
+      7, Entity{.id = 7, .transform = {.position = {100, 120}}, .sprite_id = "authored"});
+  const Camera camera{
+      .position = {160, 120},
+      .zoom = 1.0,
+      .viewport_width = 320,
+      .viewport_height = 240,
+  };
+  const absl::flat_hash_map<uint64_t, std::string> sprite_ids{{7, "runtime"}};
+  const absl::flat_hash_map<uint64_t, int> frame_indices{{7, 1}};
+
+  ASSERT_OK_AND_ASSIGN(const GameSceneFrame frame,
+                       ComposeGameSceneFrame(assets, camera,
+                                             {.sprite_id_overrides = &sprite_ids,
+                                              .frame_index_overrides = &frame_indices}));
+
+  ASSERT_EQ(frame.world_layers.size(), 1u);
+  ASSERT_EQ(frame.world_layers.front().entities.size(), 1u);
+  const SceneEntityRenderItem& item = frame.world_layers.front().entities.front();
+  ASSERT_TRUE(item.sprite.has_value());
+  EXPECT_EQ(item.sprite->texture, runtime_texture);
+  EXPECT_EQ(item.sprite->source.x, 20);
+  EXPECT_EQ(item.sprite->source.y, 30);
+  EXPECT_EQ(item.sprite->source.width, 40);
+  EXPECT_EQ(item.sprite->source.height, 50);
+  EXPECT_EQ(item.bounds.min, (Vec{104, 126}));
+  EXPECT_EQ(item.bounds.max, (Vec{164, 196}));
 }
 
 }  // namespace

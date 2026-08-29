@@ -10,6 +10,7 @@
 #include "engine/input_types.h"
 #include "gtest/gtest.h"
 #include "macros.h"
+#include "objects/blueprint.h"
 #include "objects/collider.h"
 #include "objects/entity.h"
 #include "objects/level.h"
@@ -76,9 +77,15 @@ void PutTile(WorldLayer& layer, int tile_x, int tile_y, int tile_id = 1) {
 }
 
 RuntimeWorld::Options WorldOptions(Level level) {
+  const Blueprint player_blueprint{
+      .id = kPlayerBlueprintId,
+      .name = "Player",
+      .states = {{.name = "Default", .collider_id = kPlayerColliderId}},
+  };
   return {
       .level = std::move(level),
       .tileset = TestTileset(),
+      .blueprints = {{player_blueprint.id, player_blueprint}},
       .player_blueprint_id = kPlayerBlueprintId,
       .player_collider = PlayerCollider(),
   };
@@ -88,7 +95,7 @@ TEST(RuntimeWorldTest, OwnsRuntimeStateWithoutMutatingAuthoredLevel) {
   Level level = TestLevel();
   ASSERT_OK(level.AddEntity(0, PlayerEntity()));
   Entity static_entity = PlayerEntity(8);
-  static_entity.blueprint_id = "static-decoration";
+  static_entity.blueprint_id.clear();
   static_entity.collider_id.clear();
   static_entity.body.is_static = true;
   ASSERT_OK(level.AddEntity(0, static_entity));
@@ -114,6 +121,67 @@ TEST(RuntimeWorldTest, OwnsRuntimeStateWithoutMutatingAuthoredLevel) {
   world->FindTransform(7)->position.x = 400.0;
   EXPECT_DOUBLE_EQ(world->FindTransform(7)->position.x, 400.0);
   EXPECT_DOUBLE_EQ(FindEntity(world->level(), 7)->transform.position.x, 128.0);
+}
+
+TEST(RuntimeWorldTest, AdvancesAnimationAndResetsPlaybackWhenBlueprintStateChanges) {
+  Level level = TestLevel();
+  Entity player = PlayerEntity();
+  player.sprite_id = "idle";
+  ASSERT_OK(level.AddEntity(0, player));
+  const Level authored = level;
+  RuntimeWorld::Options options = WorldOptions(std::move(level));
+  options.blueprints.at(kPlayerBlueprintId).states = {
+      {.name = "Idle", .collider_id = kPlayerColliderId, .sprite_id = "idle"},
+      {.name = "Moving", .collider_id = kPlayerColliderId, .sprite_id = "moving"},
+  };
+  options.sprites = {
+      {"idle", Sprite{.id = "idle", .frames = {{.frames_per_cycle = 2}, {.frames_per_cycle = 2}}}},
+      {"moving",
+       Sprite{.id = "moving", .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}}},
+  };
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
+                       RuntimeWorld::Create(std::move(options)));
+
+  ASSERT_NE(world->FindBlueprintStateIndex(7), nullptr);
+  EXPECT_EQ(*world->FindBlueprintStateIndex(7), 0);
+  EXPECT_EQ(world->sprite_ids().at(7), "idle");
+  EXPECT_EQ(world->frame_indices().at(7), 0);
+
+  world->AdvanceAnimations();
+  EXPECT_EQ(world->frame_indices().at(7), 0);
+  world->AdvanceAnimations();
+  EXPECT_EQ(world->frame_indices().at(7), 1);
+
+  ASSERT_OK(world->SetEntityBlueprintState(7, 1));
+  EXPECT_EQ(*world->FindBlueprintStateIndex(7), 1);
+  EXPECT_EQ(world->sprite_ids().at(7), "moving");
+  EXPECT_EQ(world->frame_indices().at(7), 0);
+  world->AdvanceAnimations();
+  EXPECT_EQ(world->frame_indices().at(7), 1);
+  ASSERT_OK(world->SetEntityBlueprintState(7, 1));
+  world->AdvanceAnimations();
+  EXPECT_EQ(world->frame_indices().at(7), 0);
+
+  EXPECT_EQ(world->level(), authored);
+}
+
+TEST(RuntimeWorldTest, BlueprintStateSelectionValidatesBeforeMutation) {
+  Level level = TestLevel();
+  ASSERT_OK(level.AddEntity(0, PlayerEntity()));
+  RuntimeWorld::Options options = WorldOptions(std::move(level));
+  options.blueprints.at(kPlayerBlueprintId)
+      .states.push_back(
+          {.name = "Different Collider", .collider_id = "other", .sprite_id = "other"});
+  options.sprites.emplace("other", Sprite{.id = "other", .frames = {{.frames_per_cycle = 1}}});
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
+                       RuntimeWorld::Create(std::move(options)));
+
+  EXPECT_TRUE(absl::IsInvalidArgument(world->SetEntityBlueprintState(7, -1)));
+  EXPECT_TRUE(absl::IsFailedPrecondition(world->SetEntityBlueprintState(7, 1)));
+  EXPECT_TRUE(absl::IsNotFound(world->SetEntityBlueprintState(999, 0)));
+  EXPECT_EQ(*world->FindBlueprintStateIndex(7), 0);
+  EXPECT_EQ(world->sprite_ids().at(7), "");
+  EXPECT_FALSE(world->frame_indices().contains(7));
 }
 
 TEST(RuntimeWorldTest, ConsumesJumpEdgeOnceAcrossCatchUpTicks) {

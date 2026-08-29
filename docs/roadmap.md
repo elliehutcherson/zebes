@@ -15,7 +15,7 @@ This document owns the cross-track sequence.
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
 | 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — engineering gates, zone fades, 0.5× Catacombs coverage, independent masonry, distributed decor, and initial A/B prop passes are accepted; finite floor and foreground variants remain |
-| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestones 1 and 2 are complete; Milestone 3 animation playback is next |
+| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestones 1 and 2 are complete; the M3 playback/state-selection slice is implemented, but its live gate remains open |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -449,12 +449,23 @@ so movement is rendered without modifying serialized entities.
 The collision, runtime-world, player-simulation, shipped-asset, game-runtime,
 input, and shared scene-composition dependency slices pass headlessly. The live
 Catacombs run/jump review across production walls, ceilings, slopes, and camera
-follow was accepted on 2026-08-29. Animation is Milestone 3; the simulation/asset thread
-split remains Milestone 4 and must use a bounded I/O executor rather than
-blocking worker engines. The algorithm, sparse-grid performance contract,
-multiple-contact policy, phased implementation, and gates live in the
+follow was accepted on 2026-08-29. The simulation/asset thread split remains
+Milestone 4 and must use a bounded I/O executor rather than blocking worker
+engines. The algorithm, sparse-grid performance contract, multiple-contact
+policy, phased implementation, and gates live in the
 [Milestone 2 movement plan](engine-runtime-plan.md#milestone-2-movement-and-collision-implementation-plan);
 [`handoff.md`](handoff.md) remains the concise resume point.
+
+**Milestone 3 — implementation slice in progress.** The runtime now retains
+copied blueprints in the loaded-level graph and resolves every sprite and
+collider referenced by every state before boot. `RuntimeWorld` owns per-entity
+blueprint-state selection and animation cursors; `PlayerSimulation` advances
+them once per fixed tick; and scene composition presents runtime-selected
+sprite IDs and frame indices without mutating authored entities. Headless
+playback, state-reset, invalid-transition, shipped-reference, and runtime
+presentation tests pass. The live acceptance gate remains open: the shipped
+Mouse Player Placeholder still has one state and one frame, and no semantic
+player animation state machine or live multi-frame player asset exists yet.
 
 ---
 

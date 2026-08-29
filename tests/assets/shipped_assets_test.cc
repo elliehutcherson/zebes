@@ -266,6 +266,40 @@ TEST(ShippedAssetsTest, EveryShippedColliderLoads) {
   EXPECT_EQ((*manager)->GetAllColliders().size(), DefinitionFileCount("colliders"));
 }
 
+TEST(ShippedAssetsTest, EveryShippedBlueprintStateReferenceResolves) {
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<BlueprintManager> blueprints,
+                       BlueprintManager::Create(kAssetsRoot));
+  ASSERT_OK(blueprints->LoadAllBlueprints());
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ColliderManager> colliders,
+                       ColliderManager::Create(kAssetsRoot));
+  ASSERT_OK(colliders->LoadAllColliders());
+
+  FakeTextureResourceStore store;
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<TextureManager> textures,
+                       TextureManager::Create(&store, kAssetsRoot));
+  ASSERT_OK(textures->LoadAllTextures());
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<SpriteManager> sprites,
+                       SpriteManager::Create(textures.get(), kAssetsRoot));
+  ASSERT_OK(sprites->LoadAllSprites());
+
+  for (const Blueprint& blueprint : blueprints->GetAllBlueprints()) {
+    ASSERT_FALSE(blueprint.states.empty()) << "blueprint '" << blueprint.name << "' has no states";
+    for (const Blueprint::State& state : blueprint.states) {
+      if (!state.sprite_id.empty()) {
+        EXPECT_OK(sprites->GetSprite(state.sprite_id).status())
+            << "blueprint '" << blueprint.name << "' state '" << state.name
+            << "' references missing sprite " << state.sprite_id;
+      }
+      if (!state.collider_id.empty()) {
+        EXPECT_OK(colliders->GetCollider(state.collider_id).status())
+            << "blueprint '" << blueprint.name << "' state '" << state.name
+            << "' references missing collider " << state.collider_id;
+      }
+    }
+  }
+}
+
 TEST(ShippedAssetsTest, MousePlayerColliderStaysInsideOneByTwoTileEnvelope) {
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<BlueprintManager> blueprints,
                        BlueprintManager::Create(kAssetsRoot));

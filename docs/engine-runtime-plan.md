@@ -1,11 +1,12 @@
 # Game runtime plan
 
-**Status: Milestones 1 and 2 are complete. `run_game` boots the shipped
-Catacombs level, advances the fixed-tick player through continuous sparse-tile
-collision, follows the player camera, and presents runtime transforms through
-the shared scene and SDL host. The live M2 movement gate was accepted on
-2026-08-29. Milestone 3 animation playback is next; the runtime and
-asset/content tracks proceed in parallel.**
+**Status: Milestones 1 and 2 are complete. The Milestone 3 playback/state-
+selection implementation slice is in place, but its live gate remains open.
+`run_game` boots the shipped Catacombs level, advances the fixed-tick player
+through continuous sparse-tile collision, follows the player camera, and
+presents runtime transforms through the shared scene and SDL host. The live M2
+movement gate was accepted on 2026-08-29. The runtime and asset/content tracks
+proceed in parallel.**
 
 Design for the Zebes game runtime: the executable that loads a shipped level
 and plays it. The editor, curation, and generation stacks are out of scope
@@ -39,12 +40,12 @@ and the editor's `ViewportScene`/`ViewportRenderer` split proves the pattern
 of platform-neutral render batches consumed by a thin native boundary.
 
 The platform-neutral `SimulationPacer`, fixed-step `GameEngine`, M1 simulation,
-runtime scene aggregate, and SDL game presentation path now exist. So do the
-first `RuntimeWorld` registries, fixed-tick player-input intent, exact player
-collider validation, and static tile-shape collision primitive. What does not
-exist: swept collision response and motion integration in the running game,
-rendering from runtime transforms, animation playback outside the editor,
-runtime asset streaming, or level transitions.
+runtime scene aggregate, SDL game presentation path, swept collision response,
+and motion integration now exist. The runtime also has an immutable loaded-level
+blueprint graph, fixed-tick animation cursors, explicit blueprint-state
+selection, and runtime sprite/frame presentation overrides. Runtime asset
+streaming and level transitions do not exist yet. There is not yet a semantic
+player animation state machine or a live multi-frame player asset.
 
 ## Design decisions
 
@@ -140,8 +141,13 @@ ECS.** `RuntimeWorld` holds the loaded `Level` (untouched authored data)
 beside per-entity runtime maps: `Motion`, animation playback, controller
 state. This extends the split the objects layer already made — `Body` versus
 `Motion`, definitions versus playback — and matches entity counts measured in
-hundreds. An ECS is a redesign to be argued from a profile, not a starting
-point.
+hundreds. These maps are component storage, not yet a runtime entity lifecycle:
+the current checkpoint materializes authored entities only. Before adding
+projectiles or spawned props, introduce one runtime roster with monotonic IDs,
+layer membership, and transactional spawn/despawn across every component and
+spatial index. Game scene composition must then enumerate that roster rather
+than treating the authored layer entity maps as the live population. An ECS is
+a redesign to be argued from a profile, not a starting point.
 
 **D7 — The runtime scene builder is factored from `ViewportScene`, not
 duplicated and not borrowed whole.** The platform-neutral core — shared scene
@@ -238,6 +244,29 @@ authored level remains unchanged. The live Catacombs run/jump review was
 accepted on 2026-08-29 after exercising standing, acceleration/deceleration,
 jumping and landing, walls, ceilings, slope seams, and camera follow.
 
+### Milestone 3 animation and blueprint-state implementation slice
+
+The loaded-level graph now copies each placed blueprint and validates its
+selected state, then resolves every non-empty sprite and collider reference
+across every blueprint state. Resource-manager ownership remains outside the
+runtime; no state transition performs I/O or retains manager pointers.
+
+`AnimationCursor` is an engine-owned, platform-neutral playback cursor. Each
+runtime entity with authored sprite frames has an entity-ID-keyed cursor and
+frame index in `RuntimeWorld`; `PlayerSimulation` advances those cursors once
+per fixed simulation tick. `SetEntityBlueprintState` validates the copied
+blueprint, changes the selected sprite, and resets playback only when the state
+changes. `GameRuntime` passes the selected sprite and frame overrides into scene
+composition, leaving serialized entities and the copied authored level intact.
+
+Headless coverage exercises frame durations, looping, empty and changing frame
+lists, multi-state selection, reset behavior, invalid transitions, runtime
+presentation, and shipped blueprint references. This is an implemented M3
+slice, not full M3 acceptance: the shipped Mouse Player Placeholder still has
+one state and one frame, and no semantic player animation state machine or live
+multi-frame player asset exists yet. The M3 gate therefore remains “animated
+entities in the running level” plus the existing headless playback evidence.
+
 ### Milestone 2 movement and collision implementation plan
 
 The M2 movement path has two distinct responsibilities. The narrow phase asks
@@ -296,6 +325,18 @@ normal 60 Hz tick covers a small tile rectangle even in a level containing
 100,000 occupied cells. A deterministic broad-phase test must prove that adding
 distant occupied chunks does not change the queried coordinate set. Do not use
 wall-clock timing as a correctness assertion.
+
+Loop nesting is intentional only where each dimension is bounded or outside
+the hot path. Runtime boot walks stored layers, allocated chunks, and their
+fixed 32×32 cells once to validate occupied tile IDs; asset loading similarly
+walks placed entities and Blueprint states once. A fixed tick loops at most
+eight response passes, the small swept cell rectangle, and each candidate's
+convex axes. Animation visits only entities with active cursors. Tile scene
+composition derives the visible chunk-coordinate rectangle from the camera and
+performs direct sparse-map lookups; it does not scan every stored chunk or tile
+in the level. Entity rendering still visits the current live entity population,
+so a spatial index becomes necessary if measured runtime-created entity counts
+grow beyond the current hundreds-scale contract.
 
 The editor's current `GetTileAt` helper is not an engine dependency. Move or
 extract read-only sparse-cell access to the platform-neutral level boundary, or
@@ -391,10 +432,12 @@ or projectile simulation. Its reusable result is the continuous convex sweep;
 future object categories add spatial indexes only when their collision behavior
 exists and can be measured.
 
-**M3 — Animation playback and blueprint-state behavior.** Frame timers and
-playback state in `RuntimeWorld`, following the `editor/animator.h` ownership
-pattern; blueprint states select playback. Gate: animated entities in the
-running level; headless playback tests.
+**M3 — Animation playback and blueprint-state behavior — implementation slice
+in progress.** Frame timers, per-entity playback state, copied blueprint
+definitions, all state-referenced assets, and runtime sprite/frame selection
+are implemented and covered headlessly. Gate remains animated entities in the
+running level; the shipped player currently has one state and one frame, with
+no semantic player animation state machine or live multi-frame player asset.
 
 **M4 — The thread split.** `GameEngine` moves onto its own `EngineRunner`
 with the D4 slots carrying input and frames; `AssetEngine` owns level

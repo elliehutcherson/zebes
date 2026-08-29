@@ -29,6 +29,8 @@ struct GameSceneFrame {
 
 struct GameSceneCompositionOptions {
   const absl::flat_hash_map<uint64_t, Transform>* transform_overrides = nullptr;
+  const absl::flat_hash_map<uint64_t, std::string>* sprite_id_overrides = nullptr;
+  const absl::flat_hash_map<uint64_t, int>* frame_index_overrides = nullptr;
 };
 
 absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(

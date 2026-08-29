@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <utility>
 
@@ -13,6 +14,15 @@
 
 namespace zebes {
 namespace {
+
+struct TileChunkRange {
+  int min_x = 0;
+  int min_y = 0;
+  int max_x = -1;
+  int max_y = -1;
+
+  bool empty() const { return min_x > max_x || min_y > max_y; }
+};
 
 bool IntersectsHalfOpen(const WorldRect& rect, const VisibleWorldBounds& visible) {
   return rect.max.x > visible.min.x && rect.min.x < visible.max.x && rect.max.y > visible.min.y &&
@@ -47,6 +57,47 @@ absl::StatusOr<absl::flat_hash_map<int, const Tile*>> BuildTileLookup(const Tile
   return tiles;
 }
 
+absl::StatusOr<int> CheckedChunkCoordinate(double coordinate, const char* boundary) {
+  if (!std::isfinite(coordinate) || coordinate < 0.0 ||
+      coordinate > static_cast<double>(std::numeric_limits<int>::max())) {
+    return absl::OutOfRangeError(
+        absl::StrCat("visible tile chunk ", boundary, " exceeds the chunk grid"));
+  }
+
+  return static_cast<int>(coordinate);
+}
+
+absl::StatusOr<TileChunkRange> VisibleTileChunkRange(const Level& level,
+                                                     const VisibleWorldBounds& visible) {
+  if (!IsFinite(visible.min) || !IsFinite(visible.max)) {
+    return absl::InvalidArgumentError("camera produces non-finite visible world bounds");
+  }
+
+  const double min_x = std::max(0.0, visible.min.x);
+  const double min_y = std::max(0.0, visible.min.y);
+  const double max_x = std::min(level.width, visible.max.x);
+  const double max_y = std::min(level.height, visible.max.y);
+  if (min_x >= max_x || min_y >= max_y) return TileChunkRange{};
+
+  const double chunk_width = static_cast<double>(TileChunk::kSize) * level.tile_render_width;
+  const double chunk_height = static_cast<double>(TileChunk::kSize) * level.tile_render_height;
+  ASSIGN_OR_RETURN(const int first_x,
+                   CheckedChunkCoordinate(std::floor(min_x / chunk_width), "minimum X"));
+  ASSIGN_OR_RETURN(const int first_y,
+                   CheckedChunkCoordinate(std::floor(min_y / chunk_height), "minimum Y"));
+  ASSIGN_OR_RETURN(const int last_x,
+                   CheckedChunkCoordinate(std::ceil(max_x / chunk_width) - 1.0, "maximum X"));
+  ASSIGN_OR_RETURN(const int last_y,
+                   CheckedChunkCoordinate(std::ceil(max_y / chunk_height) - 1.0, "maximum Y"));
+
+  return TileChunkRange{
+      .min_x = first_x,
+      .min_y = first_y,
+      .max_x = last_x,
+      .max_y = last_y,
+  };
+}
+
 SceneTileRenderItem MakeTileRenderItem(const SceneTileRenderOptions& options) {
   const Vec min{
       options.tile_x * static_cast<double>(options.tile_render_width),
@@ -69,7 +120,8 @@ SceneTileRenderItem MakeTileRenderItem(const SceneTileRenderOptions& options) {
 absl::StatusOr<SceneEntityRenderItem> ComposeSceneEntityRenderItem(uint64_t entity_id,
                                                                    const Entity& entity,
                                                                    const ResolvedSprite& resolved,
-                                                                   const Transform& transform) {
+                                                                   const Transform& transform,
+                                                                   int frame_index) {
   SceneEntityRenderItem item{
       .entity_id = entity_id,
       .sort_order = entity.sort_order,
@@ -77,10 +129,10 @@ absl::StatusOr<SceneEntityRenderItem> ComposeSceneEntityRenderItem(uint64_t enti
   };
 
   const Sprite* sprite = resolved.sprite;
-  ASSIGN_OR_RETURN(item.bounds, CalculateEntityBounds(transform, sprite));
+  ASSIGN_OR_RETURN(item.bounds, CalculateEntityBounds(transform, sprite, frame_index));
   if (sprite == nullptr || sprite->frames.empty() || !resolved.texture) return item;
 
-  const SpriteFrame& frame = sprite->frames.front();
+  const SpriteFrame& frame = sprite->frames[frame_index];
   const PixelRect source{
       .x = frame.texture_x,
       .y = frame.texture_y,
@@ -104,14 +156,39 @@ absl::StatusOr<std::vector<SceneEntityRenderItem>> ComposeSceneEntityRenderItems
   items.reserve(entities.size());
   for (const auto& [id, entity] : entities) {
     if (!entity.active) continue;
+    const std::string* sprite_id = &entity.sprite_id;
+    if (options.sprite_id_overrides != nullptr) {
+      const auto sprite_override = options.sprite_id_overrides->find(id);
+      if (sprite_override != options.sprite_id_overrides->end()) {
+        sprite_id = &sprite_override->second;
+      }
+    }
+    const ResolvedSprite resolved = FindSprite(sprites, *sprite_id);
+    if (options.sprite_id_overrides != nullptr && options.sprite_id_overrides->contains(id) &&
+        !sprite_id->empty() && resolved.sprite == nullptr) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("runtime sprite override references unavailable sprite: ", *sprite_id));
+    }
+
+    int frame_index = 0;
+    if (options.frame_index_overrides != nullptr) {
+      const auto frame_override = options.frame_index_overrides->find(id);
+      if (frame_override != options.frame_index_overrides->end()) {
+        frame_index = frame_override->second;
+        if (resolved.sprite == nullptr || resolved.sprite->frames.empty() || frame_index < 0 ||
+            frame_index >= static_cast<int>(resolved.sprite->frames.size())) {
+          return absl::InvalidArgumentError(
+              absl::StrCat("runtime sprite frame override for entity ", id, " is out of range"));
+        }
+      }
+    }
     const Transform* transform = &entity.transform;
     if (options.transform_overrides != nullptr) {
       const auto override = options.transform_overrides->find(id);
       if (override != options.transform_overrides->end()) transform = &override->second;
     }
     ASSIGN_OR_RETURN(SceneEntityRenderItem item,
-                     ComposeSceneEntityRenderItem(id, entity, FindSprite(sprites, entity.sprite_id),
-                                                  *transform));
+                     ComposeSceneEntityRenderItem(id, entity, resolved, *transform, frame_index));
     items.push_back(std::move(item));
   }
 
@@ -133,56 +210,53 @@ absl::StatusOr<SceneTileRenderBatch> ComposeSceneLevelTileRenderBatch(
 
   ASSIGN_OR_RETURN(const auto tile_lookup, BuildTileLookup(tileset));
   const VisibleWorldBounds visible = CalculateVisibleWorldBounds(options.camera);
-  std::map<TileChunkCoordinate, const TileChunk*> visible_chunks;
-  for (const auto& [key, chunk] : options.layer.tile_chunks) {
-    const TileChunkCoordinate coordinate = DecodeChunkKey(key);
-    if (coordinate.x < 0 || coordinate.y < 0) {
-      return absl::InvalidArgumentError("level contains a tile chunk with negative coordinates");
-    }
-
-    const Vec chunk_min{
-        static_cast<double>(coordinate.x) * TileChunk::kSize * level.tile_render_width,
-        static_cast<double>(coordinate.y) * TileChunk::kSize * level.tile_render_height,
-    };
-    const WorldRect chunk_bounds{
-        .min = chunk_min,
-        .max = {chunk_min.x + static_cast<double>(TileChunk::kSize) * level.tile_render_width,
-                chunk_min.y + static_cast<double>(TileChunk::kSize) * level.tile_render_height},
-    };
-    if (IntersectsHalfOpen(chunk_bounds, visible)) {
-      visible_chunks.emplace(coordinate, &chunk);
-    }
-  }
+  ASSIGN_OR_RETURN(const TileChunkRange visible_chunks, VisibleTileChunkRange(level, visible));
 
   SceneTileRenderBatch batch{.atlas_texture = options.atlas_texture};
-  for (const auto& [coordinate, chunk] : visible_chunks) {
-    for (int index = 0; index < TileChunk::kSize * TileChunk::kSize; ++index) {
-      const int tile_id = chunk->tiles[index];
-      if (tile_id == 0) continue;
+  if (visible_chunks.empty()) return batch;
 
-      const auto tile = tile_lookup.find(tile_id);
-      if (tile == tile_lookup.end()) {
-        return absl::InvalidArgumentError(
-            absl::StrCat("level references unknown tile ID: ", tile_id));
-      }
+  // The camera determines which sparse keys to query. Rendering cost therefore
+  // depends on visible chunk coordinates, not on the level's stored chunk count.
+  for (int64_t chunk_y = visible_chunks.min_y; chunk_y <= visible_chunks.max_y; ++chunk_y) {
+    for (int64_t chunk_x = visible_chunks.min_x; chunk_x <= visible_chunks.max_x; ++chunk_x) {
+      const TileChunkCoordinate coordinate{
+          .x = static_cast<int>(chunk_x),
+          .y = static_cast<int>(chunk_y),
+      };
+      const auto stored_chunk =
+          options.layer.tile_chunks.find(ChunkKey(coordinate.x, coordinate.y));
+      if (stored_chunk == options.layer.tile_chunks.end()) continue;
 
-      const int64_t tile_x =
-          static_cast<int64_t>(coordinate.x) * TileChunk::kSize + index % TileChunk::kSize;
-      const int64_t tile_y =
-          static_cast<int64_t>(coordinate.y) * TileChunk::kSize + index / TileChunk::kSize;
-      const SceneTileRenderItem item = MakeTileRenderItem({
-          .tile = *tile->second,
-          .tileset = tileset,
-          .tile_x = tile_x,
-          .tile_y = tile_y,
-          .tile_render_width = level.tile_render_width,
-          .tile_render_height = level.tile_render_height,
-      });
-      if (!IntersectsHalfOpen(item.bounds, visible)) continue;
-      if (item.bounds.max.x > level.width || item.bounds.max.y > level.height) {
-        return absl::InvalidArgumentError("level contains a tile outside its world bounds");
+      const TileChunk& chunk = stored_chunk->second;
+
+      for (int index = 0; index < TileChunk::kSize * TileChunk::kSize; ++index) {
+        const int tile_id = chunk.tiles[index];
+        if (tile_id == 0) continue;
+
+        const auto tile = tile_lookup.find(tile_id);
+        if (tile == tile_lookup.end()) {
+          return absl::InvalidArgumentError(
+              absl::StrCat("level references unknown tile ID: ", tile_id));
+        }
+
+        const int64_t tile_x =
+            static_cast<int64_t>(coordinate.x) * TileChunk::kSize + index % TileChunk::kSize;
+        const int64_t tile_y =
+            static_cast<int64_t>(coordinate.y) * TileChunk::kSize + index / TileChunk::kSize;
+        const SceneTileRenderItem item = MakeTileRenderItem({
+            .tile = *tile->second,
+            .tileset = tileset,
+            .tile_x = tile_x,
+            .tile_y = tile_y,
+            .tile_render_width = level.tile_render_width,
+            .tile_render_height = level.tile_render_height,
+        });
+        if (!IntersectsHalfOpen(item.bounds, visible)) continue;
+        if (item.bounds.max.x > level.width || item.bounds.max.y > level.height) {
+          return absl::InvalidArgumentError("level contains a tile outside its world bounds");
+        }
+        batch.items.push_back(item);
       }
-      batch.items.push_back(item);
     }
   }
   return batch;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -8,13 +9,17 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "engine/animation.h"
+#include "engine/collision.h"
 #include "engine/input_types.h"
 #include "engine/tile_collision.h"
 #include "engine/tile_movement.h"
 #include "game/player_input.h"
+#include "objects/blueprint.h"
 #include "objects/body.h"
 #include "objects/collider.h"
 #include "objects/level.h"
+#include "objects/sprite.h"
 #include "objects/tileset.h"
 #include "objects/transform.h"
 
@@ -49,12 +54,17 @@ struct PlayerMovementConfig {
 
 // Owns immutable authored level data beside mutable, entity-ID-keyed runtime
 // registries. Runtime movement changes transforms_ and motions_, never the
-// Entity definitions in level_. This class performs no I/O.
+// Entity definitions in level_. The current checkpoint materializes authored
+// entities only; runtime spawn/despawn requires a runtime entity roster and a
+// transactional lifecycle API rather than direct insertion into these maps.
+// This class performs no I/O.
 class RuntimeWorld {
  public:
   struct Options {
     Level level;
     Tileset tileset;
+    std::map<std::string, Blueprint> blueprints;
+    std::map<std::string, Sprite> sprites;
     std::string player_blueprint_id;
     Collider player_collider;
   };
@@ -72,6 +82,8 @@ class RuntimeWorld {
   int player_layer_id() const { return player_layer_id_; }
   AxisAlignedBox player_local_collider() const { return player_local_collider_; }
   const absl::flat_hash_map<uint64_t, Transform>& transforms() const { return transforms_; }
+  const absl::flat_hash_map<uint64_t, std::string>& sprite_ids() const { return sprite_ids_; }
+  const absl::flat_hash_map<uint64_t, int>& frame_indices() const { return frame_indices_; }
 
   const Transform* FindTransform(uint64_t entity_id) const;
   Transform* FindTransform(uint64_t entity_id);
@@ -79,6 +91,7 @@ class RuntimeWorld {
   Motion* FindMotion(uint64_t entity_id);
   const PlayerControllerState* FindPlayerController(uint64_t entity_id) const;
   PlayerControllerState* FindPlayerController(uint64_t entity_id);
+  const int* FindBlueprintStateIndex(uint64_t entity_id) const;
 
   // Applies one snapshot for one fixed simulation tick. Reapplying the same
   // snapshot preserves held input but does not repeat jump_pressed.
@@ -89,9 +102,22 @@ class RuntimeWorld {
   absl::Status StepPlayer(const InputSnapshot& input, double delta_seconds,
                           const PlayerMovementConfig& config);
 
+  // Selects one authored Blueprint state without mutating the serialized
+  // Entity. Playback resets only when the selected state actually changes.
+  // Until entity collision response exists, a player state transition must
+  // retain the established M2 collider.
+  absl::Status SetEntityBlueprintState(uint64_t entity_id, int state_index);
+
+  // Advances every active sprite cursor by one fixed simulation tick. Runtime
+  // construction and state selection establish all invariants, so this cannot
+  // fail or allocate during ordinary frame advancement.
+  void AdvanceAnimations();
+
  private:
   struct InitialState {
     Level level;
+    std::map<std::string, Blueprint> blueprints;
+    std::map<std::string, Sprite> sprites;
     uint64_t player_entity_id = 0;
     int player_layer_id = -1;
     AxisAlignedBox player_local_collider;
@@ -100,11 +126,17 @@ class RuntimeWorld {
     absl::flat_hash_map<uint64_t, Transform> transforms;
     absl::flat_hash_map<uint64_t, Motion> motions;
     absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers;
+    absl::flat_hash_map<uint64_t, int> blueprint_state_indices;
+    absl::flat_hash_map<uint64_t, std::string> sprite_ids;
+    absl::flat_hash_map<uint64_t, int> frame_indices;
+    absl::flat_hash_map<uint64_t, AnimationCursor> animation_cursors;
   };
 
   explicit RuntimeWorld(InitialState state);
 
   Level level_;
+  const std::map<std::string, Blueprint> blueprints_;
+  const std::map<std::string, Sprite> sprites_;
   uint64_t player_entity_id_ = 0;
   int player_layer_id_ = -1;
   AxisAlignedBox player_local_collider_;
@@ -113,6 +145,10 @@ class RuntimeWorld {
   absl::flat_hash_map<uint64_t, Transform> transforms_;
   absl::flat_hash_map<uint64_t, Motion> motions_;
   absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers_;
+  absl::flat_hash_map<uint64_t, int> blueprint_state_indices_;
+  absl::flat_hash_map<uint64_t, std::string> sprite_ids_;
+  absl::flat_hash_map<uint64_t, int> frame_indices_;
+  absl::flat_hash_map<uint64_t, AnimationCursor> animation_cursors_;
 };
 
 }  // namespace zebes

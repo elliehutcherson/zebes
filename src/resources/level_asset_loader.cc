@@ -31,25 +31,52 @@ absl::StatusOr<TextureHandle> RequireTextureHandle(TextureManager& textures,
   return handle;
 }
 
+absl::Status LoadSpriteReference(const LevelAssetLoaderOptions& resources,
+                                 LoadedLevelAssets& assets, const std::string& sprite_id,
+                                 std::string_view owner) {
+  if (sprite_id.empty() || assets.content.sprites.contains(sprite_id)) return absl::OkStatus();
+
+  ASSIGN_OR_RETURN(Sprite * sprite, resources.sprites.GetSprite(sprite_id));
+  if (sprite == nullptr) {
+    return absl::FailedPreconditionError(absl::StrCat(owner, " sprite resolved to null"));
+  }
+  if (sprite->id != sprite_id) {
+    return absl::FailedPreconditionError(
+        absl::StrCat(owner, " resolved the wrong sprite definition"));
+  }
+  ASSIGN_OR_RETURN(const TextureHandle texture,
+                   RequireTextureHandle(resources.textures, sprite->texture_id,
+                                        absl::StrCat("sprite ", sprite->id)));
+  assets.content.sprites.emplace(sprite->id, *sprite);
+  assets.rendering.sprite_textures.emplace(sprite->id, texture);
+  return absl::OkStatus();
+}
+
+absl::Status LoadColliderReference(const LevelAssetLoaderOptions& resources,
+                                   LoadedLevelAssets& assets, const std::string& collider_id,
+                                   std::string_view owner) {
+  if (collider_id.empty() || assets.content.colliders.contains(collider_id)) {
+    return absl::OkStatus();
+  }
+
+  ASSIGN_OR_RETURN(Collider * collider, resources.colliders.GetCollider(collider_id));
+  if (collider == nullptr) {
+    return absl::FailedPreconditionError(absl::StrCat(owner, " collider resolved to null"));
+  }
+  if (collider->id != collider_id) {
+    return absl::FailedPreconditionError(
+        absl::StrCat(owner, " resolved the wrong collider definition"));
+  }
+  assets.content.colliders.emplace(collider->id, *collider);
+  return absl::OkStatus();
+}
+
 absl::Status LoadEntitySprites(const LevelAssetLoaderOptions& resources,
                                LoadedLevelAssets& assets) {
   for (const WorldLayer& layer : assets.content.level.layers) {
     for (const auto& [entity_id, entity] : layer.entities) {
-      if (entity.sprite_id.empty() || assets.content.sprites.contains(entity.sprite_id)) continue;
-      ASSIGN_OR_RETURN(Sprite * sprite, resources.sprites.GetSprite(entity.sprite_id));
-      if (sprite == nullptr) {
-        return absl::FailedPreconditionError(
-            absl::StrCat("entity ", entity_id, " sprite resolved to null"));
-      }
-      if (sprite->id != entity.sprite_id) {
-        return absl::FailedPreconditionError(
-            absl::StrCat("entity ", entity_id, " resolved the wrong sprite definition"));
-      }
-      ASSIGN_OR_RETURN(const TextureHandle texture,
-                       RequireTextureHandle(resources.textures, sprite->texture_id,
-                                            absl::StrCat("sprite ", sprite->id)));
-      assets.content.sprites.emplace(sprite->id, *sprite);
-      assets.rendering.sprite_textures.emplace(sprite->id, texture);
+      RETURN_IF_ERROR(LoadSpriteReference(resources, assets, entity.sprite_id,
+                                          absl::StrCat("entity ", entity_id)));
     }
   }
   return absl::OkStatus();
@@ -59,19 +86,68 @@ absl::Status LoadEntityColliders(const LevelAssetLoaderOptions& resources,
                                  LoadedLevelAssets& assets) {
   for (const WorldLayer& layer : assets.content.level.layers) {
     for (const auto& [entity_id, entity] : layer.entities) {
-      if (entity.collider_id.empty() || assets.content.colliders.contains(entity.collider_id)) {
-        continue;
+      RETURN_IF_ERROR(LoadColliderReference(resources, assets, entity.collider_id,
+                                            absl::StrCat("entity ", entity_id)));
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status LoadEntityBlueprints(const LevelAssetLoaderOptions& resources,
+                                  LoadedLevelAssets& assets) {
+  for (const WorldLayer& layer : assets.content.level.layers) {
+    for (const auto& [entity_id, entity] : layer.entities) {
+      if (entity.blueprint_id.empty()) continue;
+
+      const Blueprint* blueprint = nullptr;
+      const auto loaded = assets.content.blueprints.find(entity.blueprint_id);
+      if (loaded != assets.content.blueprints.end()) {
+        blueprint = &loaded->second;
+      } else {
+        ASSIGN_OR_RETURN(Blueprint * resolved,
+                         resources.blueprints.GetBlueprint(entity.blueprint_id));
+        if (resolved == nullptr) {
+          return absl::FailedPreconditionError(
+              absl::StrCat("entity ", entity_id, " blueprint resolved to null"));
+        }
+        if (resolved->id != entity.blueprint_id) {
+          return absl::FailedPreconditionError(
+              absl::StrCat("entity ", entity_id, " resolved the wrong blueprint definition"));
+        }
+        assets.content.blueprints.emplace(resolved->id, *resolved);
+        blueprint = &assets.content.blueprints.at(resolved->id);
       }
-      ASSIGN_OR_RETURN(Collider * collider, resources.colliders.GetCollider(entity.collider_id));
-      if (collider == nullptr) {
+
+      if (blueprint->states.empty()) {
         return absl::FailedPreconditionError(
-            absl::StrCat("entity ", entity_id, " collider resolved to null"));
+            absl::StrCat("entity ", entity_id, " blueprint has no states"));
       }
-      if (collider->id != entity.collider_id) {
+      if (entity.blueprint_state_index < 0 ||
+          entity.blueprint_state_index >= static_cast<int>(blueprint->states.size())) {
         return absl::FailedPreconditionError(
-            absl::StrCat("entity ", entity_id, " resolved the wrong collider definition"));
+            absl::StrCat("entity ", entity_id, " blueprint state index is out of range"));
       }
-      assets.content.colliders.emplace(collider->id, *collider);
+
+      const Blueprint::State& selected_state = blueprint->states[entity.blueprint_state_index];
+      if (selected_state.sprite_id != entity.sprite_id ||
+          selected_state.collider_id != entity.collider_id) {
+        return absl::FailedPreconditionError(absl::StrCat(
+            "entity ", entity_id, " does not match its selected blueprint state assets"));
+      }
+
+      for (const Blueprint::State& state : blueprint->states) {
+        if (state.name.empty()) {
+          return absl::FailedPreconditionError(
+              absl::StrCat("blueprint ", blueprint->id, " has a state without a name"));
+        }
+        if (!IsValidBlueprintPlacementMode(state.placement_mode)) {
+          return absl::FailedPreconditionError(
+              absl::StrCat("blueprint ", blueprint->id, " has an invalid placement mode"));
+        }
+        const std::string owner = absl::StrCat("blueprint ", blueprint->id, " state ", state.name);
+        RETURN_IF_ERROR(LoadSpriteReference(resources, assets, state.sprite_id, owner));
+        RETURN_IF_ERROR(LoadColliderReference(resources, assets, state.collider_id, owner));
+      }
     }
   }
   return absl::OkStatus();
@@ -134,6 +210,7 @@ absl::StatusOr<LoadedLevelAssets> ResolveLevelAssets(const LevelAssetLoaderOptio
   };
   RETURN_IF_ERROR(LoadEntitySprites(resources, assets));
   RETURN_IF_ERROR(LoadEntityColliders(resources, assets));
+  RETURN_IF_ERROR(LoadEntityBlueprints(resources, assets));
   RETURN_IF_ERROR(LoadParallaxThemes(resources, assets));
   return assets;
 }

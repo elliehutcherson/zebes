@@ -75,12 +75,17 @@ std::string_view AssetWorkspace::LoadProfileId(LoadProfile profile) {
 }
 
 absl::StatusOr<LoadedLevelAssets> AssetWorkspace::LoadLevelAssets(std::string_view level_id) {
+  if (load_profile_ == LoadProfile::kLevelReview) {
+    return absl::FailedPreconditionError(
+        "the referenced-level workspace profile cannot resolve a complete level asset graph");
+  }
   return ResolveLevelAssets(
       {
           .levels = *level_manager_,
           .tilesets = *tileset_manager_,
           .sprites = *sprite_manager_,
           .colliders = *collider_manager_,
+          .blueprints = *blueprint_manager_,
           .parallax_themes = *parallax_theme_manager_,
           .textures = *texture_manager_,
       },
@@ -96,6 +101,7 @@ absl::StatusOr<std::unique_ptr<AssetWorkspace>> AssetWorkspace::Create(Options o
 }
 
 absl::Status AssetWorkspace::Init(const Options& options) {
+  load_profile_ = options.load_profile;
   const bool complete = options.load_profile == LoadProfile::kComplete;
   const bool runtime = options.load_profile == LoadProfile::kRuntime;
   if (options.access == Access::kReadWrite) {

@@ -94,14 +94,10 @@ target_link_libraries(palette_ui
   absl::status
 )
 
-# Animator
-add_library(editor_animator animator.cc)
-target_link_libraries(editor_animator
-  absl::status
-  absl::statusor
-  sprite
-  status_macros
-)
+# Animator compatibility target. The cursor itself belongs to the engine so
+# runtime and editor users share one playback implementation.
+add_library(editor_animator INTERFACE)
+target_link_libraries(editor_animator INTERFACE animation)
 
 # Shared managed-texture preview adapter
 add_library(editor_texture_preview texture_preview.cc)

@@ -34,18 +34,22 @@ The most recent runtime cleanup is split into three reviewable commits:
 
 ## Pick up next
 
-### Engine: implement Milestone 3 animation playback
+### Engine: finish the Milestone 3 live animation gate
 
-Move the reusable animation cursor out of the editor dependency boundary, add
-per-entity playback and blueprint-state selection to `RuntimeWorld`, and compose
-the runtime-selected sprite frame without mutating authored entities. Expand the
-loaded-level graph to retain referenced blueprints and all state sprites and
-colliders needed after boot. Do not infer behavior from display names or make
-game code depend on `editor/animator.h`.
+The reusable animation cursor now belongs to the engine, `RuntimeWorld` owns
+per-entity playback and explicit Blueprint-state selection, and scene
+composition presents runtime-selected sprites and frames without mutating
+authored entities. The frozen loaded-level graph retains placed Blueprints and
+all state-referenced sprites, textures, and colliders before boot. Headless
+tests cover multi-frame timing, state changes, reset behavior, invalid
+transitions, and the complete render-composition path.
 
-The current Mouse Player Placeholder has one state and one frame, so headless
-multi-state and multi-frame fixtures must prove the runtime first. A production
-animated entity or player-art follow-up is then required for the live M3 gate.
+The current Mouse Player Placeholder still has one state and one frame, and no
+production gameplay path calls `SetEntityBlueprintState`. Do not infer semantic
+behavior from display names or numeric state order. Finish the live M3 gate by
+authoring an explicit multi-frame runtime entity/player contract and adding the
+corresponding state-selection policy, then verify visible frame changes in the
+running Catacombs level.
 
 The likely shared files are `src/game/game_runtime.*`, `src/game/game_scene.*`,
 and their tests. Coordinate those before running asset work that changes the

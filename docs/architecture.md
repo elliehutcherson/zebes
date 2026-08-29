@@ -187,7 +187,8 @@ finally the SDL subsystem.
 
 `PlayerSimulation` is the owned `GameSimulation` for the running game. It owns
 `RuntimeWorld`, which keeps the copied authored `Level` immutable beside mutable
-entity-ID-keyed transforms, motion, and controller state. Runtime boot validates
+entity-ID-keyed transforms, motion, controller state, blueprint-state selection,
+and animation playback. Runtime boot validates
 the player collider and occupied tile IDs and builds an immutable collision
 lookup. Each fixed tick queries only the player's swept rectangle through the
 authored layer's sparse chunk map; dynamic SAT and a bounded fixed-capacity
@@ -195,9 +196,58 @@ contact solver perform continuous response without scanning the level or
 allocating in the movement path. The camera follows the committed player
 transform.
 
+`engine/collision` owns general `Vec`-based AABB, convex-polygon overlap, sweep,
+translation, and response-vector primitives. `tile_collision` only adapts a
+`TileShape` into world-space convex geometry, while `tile_movement` owns the
+tile-layer broad phase, one-way/covered-face policy, and multi-contact response.
+Future entity or projectile collision should reuse the general narrow phase and
+provide its own spatial candidate index instead of depending on tile movement.
+
 Scene composition may borrow the runtime transform map as an override. Missing
 IDs fall back to authored transforms, and composition never copies or mutates
 the serialized `Level` to expose runtime movement.
+
+Runtime presentation also borrows per-entity sprite-ID and frame-index
+overrides from `RuntimeWorld`. `PlayerSimulation` advances each active
+`AnimationCursor` once per fixed simulation tick, and changing a blueprint state
+resets that entity's cursor only when the selected state changes. State selection
+is validated against the copied blueprint graph; the current player contract
+rejects a state that would replace its established M2 collider. This is playback
+and explicit state selection, not a semantic player animation state machine.
+
+### Runtime-created entity lifecycle
+
+The current runtime materializes authored entities at boot only. The
+entity-ID-keyed transform, motion, controller, presentation, and animation maps
+are appropriate lightweight component storage for the measured entity counts,
+but they are not by themselves an entity lifecycle. In particular, a spawned
+entity inserted into those maps would still be absent from the authored
+layer/entity collection that scene composition currently enumerates. There is
+therefore no supported runtime spawn or despawn API yet.
+
+When gameplay first needs projectiles, effects, pickups, or other spawned
+objects, add the lifecycle as one coherent boundary:
+
+- Keep the loaded `Level`, Blueprints, Sprites, Colliders, and texture bindings
+  immutable. Boot placement and runtime spawn both materialize a separate
+  runtime instance from those definitions.
+- Add a runtime entity roster keyed by a monotonic world-local ID. Each record
+  owns layer membership, active state, sort order, Blueprint identity, and the
+  presence of its component records. Do not reuse an ID within one world;
+  future snapshots must not mistake a stale ID for a new object.
+- Make spawn and despawn transactional across the roster, transform/motion,
+  presentation/animation, controller, and future spatial-index registries. A
+  validation or capacity failure publishes none of the entity.
+- Make game scene composition enumerate runtime instances grouped by layer.
+  The authored `Level` remains the source for static tiles, zones, and the
+  original placement record, not the live entity list.
+- Update static and dynamic collision indexes at the same lifecycle boundary.
+  Non-collidable visual effects never enter those indexes.
+
+Do not implement spawn by mutating the copied authored `Level`, and do not add
+special-case projectile containers beside the entity lifecycle. Until this
+roster and render boundary exist, runtime-created entities are explicitly out
+of scope rather than partially supported.
 
 `AssetWorkspace::LoadProfile::kRuntime` is explicitly read-only. It loads
 runtime catalogs (textures, sprites, colliders, blueprints, levels, parallax
@@ -209,10 +259,13 @@ instead of producing a partially initialized running loop.
 
 Individual resource managers remain authoritative for loading and owning one
 definition kind. `LevelAssetLoader` is a coordinator beside those managers: it
-resolves the level's tileset, entity sprites and colliders, parallax themes, and
-texture handles, validates lookup identity and handle availability, and copies
-the complete result before returning. `AssetWorkspace` owns every participating
-manager and exposes the operation as `LoadLevelAssets(level_id)`.
+resolves the level's tileset, placed entity blueprints, entity sprites and
+colliders, parallax themes, and texture handles, validates lookup identity and
+handle availability, and copies the complete result before returning. For each
+placed blueprint it validates the selected state and walks every state so all
+referenced sprites, sprite textures, and colliders are available before runtime
+state transitions. `AssetWorkspace` owns every participating manager and
+exposes the operation as `LoadLevelAssets(level_id)`.
 
 This is deliberately not an `Api` dependency inside `resources`: that would
 reverse the existing dependency direction. It is also not game code: the game

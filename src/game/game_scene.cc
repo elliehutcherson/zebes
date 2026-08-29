@@ -80,7 +80,9 @@ absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(const LoadedLevelAssets& as
     ASSIGN_OR_RETURN(
         std::vector<SceneEntityRenderItem> entities,
         ComposeSceneEntityRenderItems(layer.entities, sprites,
-                                      {.transform_overrides = options.transform_overrides}));
+                                      {.transform_overrides = options.transform_overrides,
+                                       .sprite_id_overrides = options.sprite_id_overrides,
+                                       .frame_index_overrides = options.frame_index_overrides}));
     frame.world_layers.push_back({
         .layer_id = layer.id,
         .tiles = std::move(tiles),

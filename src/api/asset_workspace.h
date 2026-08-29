@@ -60,8 +60,10 @@ class AssetWorkspace {
   Api& api() { return *api_; }
   const Api& api() const { return *api_; }
 
-  // Resolves one immutable runtime graph from the catalogs owned by this
-  // workspace. The workspace must outlive the returned texture handles.
+  // Resolves one immutable runtime graph from the catalogs owned by a complete
+  // or runtime workspace. The referenced-level profile deliberately omits
+  // catalogs required by this graph and fails with FailedPrecondition. The
+  // workspace must outlive the returned texture handles.
   absl::StatusOr<LoadedLevelAssets> LoadLevelAssets(std::string_view level_id);
 
  private:
@@ -84,6 +86,7 @@ class AssetWorkspace {
   std::unique_ptr<PropRecipeManager> prop_recipe_manager_;
   std::unique_ptr<ParallaxArtworkRecipeManager> parallax_artwork_recipe_manager_;
   std::unique_ptr<Api> api_;
+  LoadProfile load_profile_ = LoadProfile::kComplete;
 };
 
 }  // namespace zebes

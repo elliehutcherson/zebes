@@ -1,4 +1,4 @@
-#include "editor/animator.h"
+#include "engine/animation.h"
 
 #include <algorithm>
 
@@ -7,12 +7,12 @@
 
 namespace zebes {
 
-void Animator::Reset() {
+void AnimationCursor::Reset() {
   current_frame_index_ = 0;
   tick_counter_ = 0;
 }
 
-void Animator::Update(const std::vector<SpriteFrame>& frames) {
+void AnimationCursor::Update(const std::vector<SpriteFrame>& frames) {
   if (frames.empty()) return;
   if (current_frame_index_ >= static_cast<int>(frames.size())) Reset();
 
@@ -32,17 +32,18 @@ void Animator::Update(const std::vector<SpriteFrame>& frames) {
   }
 }
 
-absl::StatusOr<SpriteFrame> Animator::GetCurrentFrame(
+absl::StatusOr<SpriteFrame> AnimationCursor::GetCurrentFrame(
     const std::vector<SpriteFrame>& frames) const {
   ASSIGN_OR_RETURN(const int current_index, GetCurrentFrameIndex(frames));
   return frames[current_index];
 }
 
-absl::StatusOr<int> Animator::GetCurrentFrameIndex(const std::vector<SpriteFrame>& frames) const {
+absl::StatusOr<int> AnimationCursor::GetCurrentFrameIndex(
+    const std::vector<SpriteFrame>& frames) const {
   if (frames.empty()) return absl::FailedPreconditionError("Animation has no frames.");
   return current_frame_index_ % static_cast<int>(frames.size());
 }
 
-bool Animator::IsActive(const std::vector<SpriteFrame>& frames) { return !frames.empty(); }
+bool AnimationCursor::IsActive(const std::vector<SpriteFrame>& frames) { return !frames.empty(); }
 
 }  // namespace zebes

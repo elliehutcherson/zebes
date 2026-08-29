@@ -70,6 +70,97 @@ TEST(SceneCompositionTest, RuntimeTransformOverridesGeometryWithoutMutatingEntit
   EXPECT_EQ(entities.at(7).transform.position, (Vec{100, 200}));
 }
 
+TEST(SceneCompositionTest, RuntimePresentationOverridesSelectSpriteAndFrame) {
+  int texture_owner = 0;
+  const TextureHandle texture = TextureHandleAccess::Create(1, &texture_owner);
+  const Sprite authored_sprite{
+      .frames = {{.texture_x = 1,
+                  .texture_y = 2,
+                  .texture_w = 8,
+                  .texture_h = 10,
+                  .render_w = 12,
+                  .render_h = 14}},
+  };
+  const Sprite runtime_sprite{
+      .frames = {{.texture_x = 20,
+                  .texture_y = 22,
+                  .texture_w = 24,
+                  .texture_h = 26,
+                  .render_w = 30,
+                  .render_h = 32,
+                  .offset_x = -4,
+                  .offset_y = -6},
+                 {.texture_x = 40,
+                  .texture_y = 42,
+                  .texture_w = 44,
+                  .texture_h = 46,
+                  .render_w = 50,
+                  .render_h = 52,
+                  .offset_x = 7,
+                  .offset_y = 9}},
+  };
+  const SpriteLookup sprites{
+      {"authored", ResolvedSprite{.sprite = &authored_sprite, .texture = texture}},
+      {"runtime", ResolvedSprite{.sprite = &runtime_sprite, .texture = texture}},
+  };
+  const std::map<uint64_t, Entity> entities{
+      {7, Entity{.id = 7, .transform = {.position = {100, 200}}, .sprite_id = "authored"}},
+  };
+  const absl::flat_hash_map<uint64_t, std::string> sprite_overrides{{7, "runtime"}};
+  const absl::flat_hash_map<uint64_t, int> frame_overrides{{7, 1}};
+
+  ASSERT_OK_AND_ASSIGN(const std::vector<SceneEntityRenderItem> items,
+                       ComposeSceneEntityRenderItems(entities, sprites,
+                                                     {.sprite_id_overrides = &sprite_overrides,
+                                                      .frame_index_overrides = &frame_overrides}));
+
+  ASSERT_EQ(items.size(), 1u);
+  ASSERT_TRUE(items.front().sprite.has_value());
+  EXPECT_EQ(items.front().sprite->source.x, 40);
+  EXPECT_EQ(items.front().sprite->source.y, 42);
+  EXPECT_EQ(items.front().sprite->source.width, 44);
+  EXPECT_EQ(items.front().bounds.min, (Vec{107, 209}));
+  EXPECT_EQ(items.front().bounds.max, (Vec{157, 261}));
+  EXPECT_EQ(entities.at(7).sprite_id, "authored");
+}
+
+TEST(SceneCompositionTest, RejectsInvalidRuntimePresentationOverrides) {
+  const Sprite sprite{.frames = {{.render_w = 16, .render_h = 16}}};
+  const SpriteLookup sprites{{"sprite", ResolvedSprite{.sprite = &sprite}}};
+  const std::map<uint64_t, Entity> entities{
+      {7, Entity{.id = 7, .sprite_id = "sprite"}},
+  };
+
+  const absl::flat_hash_map<uint64_t, int> out_of_range{{7, 1}};
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      ComposeSceneEntityRenderItems(entities, sprites, {.frame_index_overrides = &out_of_range})
+          .status()));
+
+  const absl::flat_hash_map<uint64_t, std::string> missing_sprite{{7, "missing"}};
+  EXPECT_TRUE(absl::IsFailedPrecondition(
+      ComposeSceneEntityRenderItems(entities, sprites, {.sprite_id_overrides = &missing_sprite})
+          .status()));
+}
+
+TEST(SceneCompositionTest, RuntimeSpriteOverrideMayHideAnEntity) {
+  const Sprite sprite{.frames = {{.render_w = 16, .render_h = 16}}};
+  const SpriteLookup sprites{{"sprite", ResolvedSprite{.sprite = &sprite}}};
+  const std::map<uint64_t, Entity> entities{
+      {7, Entity{.id = 7, .transform = {.position = {100, 200}}, .sprite_id = "sprite"}},
+  };
+  const absl::flat_hash_map<uint64_t, std::string> hidden{{7, ""}};
+
+  ASSERT_OK_AND_ASSIGN(
+      const std::vector<SceneEntityRenderItem> items,
+      ComposeSceneEntityRenderItems(entities, sprites, {.sprite_id_overrides = &hidden}));
+
+  ASSERT_EQ(items.size(), 1u);
+  EXPECT_FALSE(items.front().sprite.has_value());
+  EXPECT_EQ(items.front().bounds.min, (Vec{84, 184}));
+  EXPECT_EQ(items.front().bounds.max, (Vec{116, 216}));
+  EXPECT_EQ(entities.at(7).sprite_id, "sprite");
+}
+
 TEST(SceneCompositionTest, ComposesOnlyVisibleLevelTiles) {
   Level level{
       .tile_render_width = 16,

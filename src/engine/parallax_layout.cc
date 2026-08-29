@@ -21,8 +21,6 @@ struct CompositionGeometry {
 
 using CopyRange = std::pair<int, int>;
 
-bool IsFinite(Vec value) { return std::isfinite(value.x) && std::isfinite(value.y); }
-
 bool IsValidElementSize(const ParallaxElementSize& size) {
   return size.element_id >= 0 && size.width > 0 && size.height > 0;
 }

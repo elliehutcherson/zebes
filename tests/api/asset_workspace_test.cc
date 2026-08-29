@@ -14,6 +14,7 @@ namespace zebes {
 namespace {
 
 constexpr char kAssetsRoot[] = ZEBES_TEST_ASSETS_DIR;
+constexpr char kCatacombsProcessionalId[] = "9e20ee58-f4d2-4931-b74b-5555d4b35c00";
 
 TEST(AssetWorkspaceTest, LevelReviewProfileLoadsRenderableCatalogsOnly) {
   EngineConfig config;
@@ -40,6 +41,8 @@ TEST(AssetWorkspaceTest, LevelReviewProfileLoadsRenderableCatalogsOnly) {
   EXPECT_TRUE(api.GetAllSourceArtwork().empty());
   EXPECT_TRUE(api.GetAllPropRecipes().empty());
   EXPECT_TRUE(api.GetAllParallaxArtworkRecipes().empty());
+  EXPECT_TRUE(
+      absl::IsFailedPrecondition(workspace->LoadLevelAssets(kCatacombsProcessionalId).status()));
 }
 
 TEST(AssetWorkspaceTest, RuntimeProfileLoadsRuntimeCatalogsOnly) {

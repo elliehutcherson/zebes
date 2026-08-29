@@ -44,9 +44,31 @@ target_link_libraries(scene_composition
   absl::strings
 )
 
+add_library(animation animation.cc)
+target_link_libraries(animation
+  PUBLIC
+  sprite
+  absl::statusor
+  PRIVATE
+  absl::status
+  status_macros
+)
+
+add_library(collision collision.cc)
+target_link_libraries(collision
+  PUBLIC
+  vec
+  absl::span
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::status
+)
+
 add_library(tile_collision tile_collision.cc)
 target_link_libraries(tile_collision
   PUBLIC
+  collision
   tile_shape_geometry
   tileset
   vec

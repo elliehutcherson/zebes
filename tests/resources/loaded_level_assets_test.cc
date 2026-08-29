@@ -11,6 +11,7 @@
 #include "objects/parallax_theme.h"
 #include "objects/sprite.h"
 #include "objects/tileset.h"
+#include "resources/blueprint_manager_mock.h"
 #include "resources/collider_manager_mock.h"
 #include "resources/level_asset_loader.h"
 #include "resources/level_manager_mock.h"
@@ -32,6 +33,7 @@ class LoadedLevelAssetsTest : public ::testing::Test {
         .tilesets = tilesets_,
         .sprites = sprites_,
         .colliders = colliders_,
+        .blueprints = blueprints_,
         .parallax_themes = parallax_themes_,
         .textures = textures_,
     };
@@ -41,6 +43,7 @@ class LoadedLevelAssetsTest : public ::testing::Test {
   TilesetManagerMock tilesets_;
   SpriteManagerMock sprites_;
   ColliderManagerMock colliders_;
+  BlueprintManagerMock blueprints_;
   ParallaxThemeManagerMock parallax_themes_;
   TextureManagerMock textures_;
 };
@@ -97,6 +100,130 @@ TEST_F(LoadedLevelAssetsTest, FailsBeforePublishingAnIncompleteTextureGraph) {
 
   EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
   EXPECT_EQ(status.message(), "level tileset texture is not loaded");
+}
+
+TEST_F(LoadedLevelAssetsTest, ResolvesEveryStateAssetForPlacedBlueprints) {
+  Level level{.id = "level", .tileset_id = "tileset"};
+  level.layers.front().entities.emplace(7, Entity{.id = 7,
+                                                  .blueprint_id = "blueprint",
+                                                  .blueprint_state_index = 0,
+                                                  .sprite_id = "sprite-a",
+                                                  .collider_id = "collider-a"});
+  Tileset tileset{.id = "tileset", .texture_id = "atlas"};
+  Blueprint blueprint{
+      .id = "blueprint",
+      .states = {{.name = "idle", .sprite_id = "sprite-a", .collider_id = "collider-a"},
+                 {.name = "active", .sprite_id = "sprite-b", .collider_id = "collider-b"}}};
+  Sprite sprite_a{.id = "sprite-a", .texture_id = "texture-a"};
+  Sprite sprite_b{.id = "sprite-b", .texture_id = "texture-b"};
+  Collider collider_a{.id = "collider-a"};
+  Collider collider_b{.id = "collider-b"};
+  int texture_owner = 0;
+
+  EXPECT_CALL(levels_, GetLevel("level")).WillOnce(Return(&level));
+  EXPECT_CALL(tilesets_, GetTileset("tileset")).WillOnce(Return(&tileset));
+  EXPECT_CALL(blueprints_, GetBlueprint("blueprint")).WillOnce(Return(&blueprint));
+  EXPECT_CALL(sprites_, GetSprite("sprite-a")).WillOnce(Return(&sprite_a));
+  EXPECT_CALL(sprites_, GetSprite("sprite-b")).WillOnce(Return(&sprite_b));
+  EXPECT_CALL(colliders_, GetCollider("collider-a")).WillOnce(Return(&collider_a));
+  EXPECT_CALL(colliders_, GetCollider("collider-b")).WillOnce(Return(&collider_b));
+  EXPECT_CALL(textures_, GetTextureHandle("atlas"))
+      .WillOnce(Return(TextureHandleAccess::Create(1, &texture_owner)));
+  EXPECT_CALL(textures_, GetTextureHandle("texture-a"))
+      .WillOnce(Return(TextureHandleAccess::Create(2, &texture_owner)));
+  EXPECT_CALL(textures_, GetTextureHandle("texture-b"))
+      .WillOnce(Return(TextureHandleAccess::Create(3, &texture_owner)));
+
+  ASSERT_OK_AND_ASSIGN(const LoadedLevelAssets assets, ResolveLevelAssets(Resources(), "level"));
+
+  EXPECT_EQ(assets.content.blueprints.at("blueprint"), blueprint);
+  EXPECT_EQ(assets.content.sprites.size(), 2);
+  EXPECT_EQ(assets.content.colliders.size(), 2);
+  EXPECT_EQ(assets.rendering.sprite_textures.size(), 2);
+}
+
+TEST_F(LoadedLevelAssetsTest, RejectsEntityThatDoesNotMatchItsSelectedBlueprintState) {
+  Level level{.id = "level", .tileset_id = "tileset"};
+  level.layers.front().entities.emplace(7, Entity{.id = 7,
+                                                  .blueprint_id = "blueprint",
+                                                  .sprite_id = "entity-sprite",
+                                                  .collider_id = "entity-collider"});
+  Tileset tileset{.id = "tileset", .texture_id = "atlas"};
+  Blueprint blueprint{
+      .id = "blueprint",
+      .states = {{.name = "idle", .sprite_id = "state-sprite", .collider_id = "state-collider"}},
+  };
+  Sprite entity_sprite{.id = "entity-sprite", .texture_id = "entity-texture"};
+  Collider entity_collider{.id = "entity-collider"};
+  int texture_owner = 0;
+
+  EXPECT_CALL(levels_, GetLevel("level")).WillOnce(Return(&level));
+  EXPECT_CALL(tilesets_, GetTileset("tileset")).WillOnce(Return(&tileset));
+  EXPECT_CALL(sprites_, GetSprite("entity-sprite")).WillOnce(Return(&entity_sprite));
+  EXPECT_CALL(colliders_, GetCollider("entity-collider")).WillOnce(Return(&entity_collider));
+  EXPECT_CALL(blueprints_, GetBlueprint("blueprint")).WillOnce(Return(&blueprint));
+  EXPECT_CALL(textures_, GetTextureHandle("atlas"))
+      .WillOnce(Return(TextureHandleAccess::Create(1, &texture_owner)));
+  EXPECT_CALL(textures_, GetTextureHandle("entity-texture"))
+      .WillOnce(Return(TextureHandleAccess::Create(2, &texture_owner)));
+
+  const absl::Status status = ResolveLevelAssets(Resources(), "level").status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(status.message(), "entity 7 does not match its selected blueprint state assets");
+}
+
+TEST_F(LoadedLevelAssetsTest, RejectsMissingPlacedBlueprint) {
+  Level level{.id = "level", .tileset_id = "tileset"};
+  level.layers.front().entities.emplace(7, Entity{.id = 7, .blueprint_id = "missing"});
+  Tileset tileset{.id = "tileset", .texture_id = "atlas"};
+
+  EXPECT_CALL(levels_, GetLevel("level")).WillOnce(Return(&level));
+  EXPECT_CALL(tilesets_, GetTileset("tileset")).WillOnce(Return(&tileset));
+  EXPECT_CALL(blueprints_, GetBlueprint("missing"))
+      .WillOnce(Return(absl::NotFoundError("blueprint missing")));
+  EXPECT_CALL(textures_, GetTextureHandle("atlas"))
+      .WillOnce(Return(TextureHandleAccess::Create(1, nullptr)));
+
+  EXPECT_EQ(ResolveLevelAssets(Resources(), "level").status().code(), absl::StatusCode::kNotFound);
+}
+
+TEST_F(LoadedLevelAssetsTest, RejectsMissingAssetReferencedByBlueprintState) {
+  Level level{.id = "level", .tileset_id = "tileset"};
+  level.layers.front().entities.emplace(7, Entity{.id = 7, .blueprint_id = "blueprint"});
+  Tileset tileset{.id = "tileset", .texture_id = "atlas"};
+  Blueprint blueprint{
+      .id = "blueprint",
+      .states = {{.name = "idle"}, {.name = "active", .sprite_id = "missing-sprite"}},
+  };
+
+  EXPECT_CALL(levels_, GetLevel("level")).WillOnce(Return(&level));
+  EXPECT_CALL(tilesets_, GetTileset("tileset")).WillOnce(Return(&tileset));
+  EXPECT_CALL(blueprints_, GetBlueprint("blueprint")).WillOnce(Return(&blueprint));
+  EXPECT_CALL(sprites_, GetSprite("missing-sprite"))
+      .WillOnce(Return(absl::NotFoundError("sprite missing")));
+  EXPECT_CALL(textures_, GetTextureHandle("atlas"))
+      .WillOnce(Return(TextureHandleAccess::Create(1, nullptr)));
+
+  EXPECT_EQ(ResolveLevelAssets(Resources(), "level").status().code(), absl::StatusCode::kNotFound);
+}
+
+TEST_F(LoadedLevelAssetsTest, RejectsAnOutOfRangeAuthoredBlueprintState) {
+  Level level{.id = "level", .tileset_id = "tileset"};
+  level.layers.front().entities.emplace(
+      7, Entity{.id = 7, .blueprint_id = "blueprint", .blueprint_state_index = 1});
+  Tileset tileset{.id = "tileset", .texture_id = "atlas"};
+  Blueprint blueprint{.id = "blueprint", .states = {{.name = "idle"}}};
+
+  EXPECT_CALL(levels_, GetLevel("level")).WillOnce(Return(&level));
+  EXPECT_CALL(tilesets_, GetTileset("tileset")).WillOnce(Return(&tileset));
+  EXPECT_CALL(blueprints_, GetBlueprint("blueprint")).WillOnce(Return(&blueprint));
+  EXPECT_CALL(textures_, GetTextureHandle("atlas"))
+      .WillOnce(Return(TextureHandleAccess::Create(1, nullptr)));
+
+  const absl::Status status = ResolveLevelAssets(Resources(), "level").status();
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(status.message(), "entity 7 blueprint state index is out of range");
 }
 
 TEST_F(LoadedLevelAssetsTest, RejectsEmptyAndMismatchedLevelLookups) {

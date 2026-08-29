@@ -46,8 +46,8 @@ struct Entity {
 
   // Animation playback state deliberately lives elsewhere. It is runtime
   // simulation state, not authored data, and keeping it here meant every saved
-  // level carried a frame index nothing ever read. See editor/animator.h for
-  // how playback state is owned today.
+  // level carried a frame index nothing ever read. See engine/animation.h for
+  // the shared playback cursor and game/runtime_world.h for runtime ownership.
 
   bool operator==(const Entity& other) const = default;
 };

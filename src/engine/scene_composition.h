@@ -103,6 +103,11 @@ struct SceneEntityRenderOptions {
   // Borrowed runtime state keyed by authored entity ID. A missing map or ID
   // leaves the authored transform authoritative.
   const absl::flat_hash_map<uint64_t, Transform>* transform_overrides = nullptr;
+
+  // Borrowed runtime presentation state keyed by authored entity ID. A
+  // missing map or ID leaves the authored sprite and first frame authoritative.
+  const absl::flat_hash_map<uint64_t, std::string>* sprite_id_overrides = nullptr;
+  const absl::flat_hash_map<uint64_t, int>* frame_index_overrides = nullptr;
 };
 
 // Composes one entity using shared placeholder, sprite-bound, and source-region
@@ -110,7 +115,8 @@ struct SceneEntityRenderOptions {
 absl::StatusOr<SceneEntityRenderItem> ComposeSceneEntityRenderItem(uint64_t entity_id,
                                                                    const Entity& entity,
                                                                    const ResolvedSprite& resolved,
-                                                                   const Transform& transform);
+                                                                   const Transform& transform,
+                                                                   int frame_index = 0);
 
 // Builds active entities in deterministic back-to-front order.
 absl::StatusOr<std::vector<SceneEntityRenderItem>> ComposeSceneEntityRenderItems(

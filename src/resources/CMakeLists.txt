@@ -170,6 +170,7 @@ add_library(level_asset_loader level_asset_loader.cc)
 target_link_libraries(level_asset_loader
   PUBLIC
   loaded_level_assets
+  blueprint_manager
   collider_manager
   level_manager
   parallax_theme_manager

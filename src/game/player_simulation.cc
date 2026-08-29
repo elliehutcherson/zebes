@@ -49,6 +49,7 @@ absl::Status PlayerSimulation::Step(absl::Duration duration) {
     return absl::InvalidArgumentError("Player simulation step must be finite and positive");
   }
   RETURN_IF_ERROR(world_->StepPlayer(input_manager_.CurrentSnapshot(), delta_seconds, movement_));
+  world_->AdvanceAnimations();
   const Transform* player = world_->FindTransform(world_->player_entity_id());
   if (player == nullptr) {
     return absl::FailedPreconditionError("Player simulation lost the player transform");

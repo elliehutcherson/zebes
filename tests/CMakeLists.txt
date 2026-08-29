@@ -134,6 +134,14 @@ add_executable(scene_composition_test engine/scene_composition_test.cc)
 target_link_libraries(scene_composition_test scene_composition macros gtest_main)
 gtest_discover_tests(scene_composition_test)
 
+add_executable(animation_test engine/animation_test.cc)
+target_link_libraries(animation_test animation gtest_main)
+gtest_discover_tests(animation_test)
+
+add_executable(collision_test engine/collision_test.cc)
+target_link_libraries(collision_test collision macros gtest_main)
+gtest_discover_tests(collision_test)
+
 add_executable(tile_collision_test engine/tile_collision_test.cc)
 target_link_libraries(tile_collision_test tile_collision macros gtest_main)
 gtest_discover_tests(tile_collision_test)

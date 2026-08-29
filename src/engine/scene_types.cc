@@ -27,19 +27,30 @@ VisibleWorldBounds CalculateVisibleWorldBounds(const Camera& camera) {
 }
 
 absl::StatusOr<WorldRect> CalculateEntityBounds(const Transform& transform, const Sprite* sprite) {
+  return CalculateEntityBounds(transform, sprite, 0);
+}
+
+absl::StatusOr<WorldRect> CalculateEntityBounds(const Transform& transform, const Sprite* sprite,
+                                                int frame_index) {
   if (!std::isfinite(transform.position.x) || !std::isfinite(transform.position.y)) {
     return absl::InvalidArgumentError("entity position must be finite");
   }
 
   constexpr double kDefaultHalfSize = 16.0;
   if (sprite == nullptr || sprite->frames.empty()) {
+    if (frame_index != 0) {
+      return absl::InvalidArgumentError("entity sprite frame index is out of range");
+    }
     return WorldRect{
         .min = {transform.position.x - kDefaultHalfSize, transform.position.y - kDefaultHalfSize},
         .max = {transform.position.x + kDefaultHalfSize, transform.position.y + kDefaultHalfSize},
     };
   }
 
-  const SpriteFrame& frame = sprite->frames.front();
+  if (frame_index < 0 || frame_index >= static_cast<int>(sprite->frames.size())) {
+    return absl::InvalidArgumentError("entity sprite frame index is out of range");
+  }
+  const SpriteFrame& frame = sprite->frames[frame_index];
   const SpriteFrameRenderBounds frame_bounds = CalculateSpriteFrameRenderBounds(frame);
   WorldRect bounds{
       .min = {transform.position.x + frame_bounds.left, transform.position.y + frame_bounds.top},

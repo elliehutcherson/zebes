@@ -4,6 +4,7 @@
 #include <string>
 
 #include "engine/texture_handle.h"
+#include "objects/blueprint.h"
 #include "objects/collider.h"
 #include "objects/level.h"
 #include "objects/parallax_theme.h"
@@ -18,6 +19,7 @@ namespace zebes {
 struct LoadedLevelContent {
   Level level;
   Tileset tileset;
+  std::map<std::string, Blueprint> blueprints;
   std::map<std::string, Sprite> sprites;
   std::map<std::string, Collider> colliders;
   std::map<std::string, ParallaxTheme> parallax_themes;

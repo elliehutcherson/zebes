@@ -104,6 +104,8 @@ absl::Status GameRuntime::Init() {
                    RuntimeWorld::Create({
                        .level = level,
                        .tileset = level_assets_->content.tileset,
+                       .blueprints = level_assets_->content.blueprints,
+                       .sprites = level_assets_->content.sprites,
                        .player_blueprint_id = std::string(kMousePlayerPlaceholderBlueprintId),
                        .player_collider = player_collider,
                    }));
@@ -137,7 +139,9 @@ absl::Status GameRuntime::Run() {
     ASSIGN_OR_RETURN(
         const GameSceneFrame frame,
         ComposeGameSceneFrame(*level_assets_, simulation_->camera(),
-                              {.transform_overrides = &simulation_->world().transforms()}));
+                              {.transform_overrides = &simulation_->world().transforms(),
+                               .sprite_id_overrides = &simulation_->world().sprite_ids(),
+                               .frame_index_overrides = &simulation_->world().frame_indices()}));
     RETURN_IF_ERROR(renderer_.Render(frame));
   }
   return absl::OkStatus();
