@@ -67,17 +67,17 @@ absl::Status GameRuntime::Init() {
   ASSIGN_OR_RETURN(input_manager_, InputManager::Create({.input_source = input_source_.get()}));
 
   const Level& level = level_assets_->level;
-  auto simulation = FreeFlySimulation::Create({
-      .input_manager = input_manager_.get(),
-      .camera = {.position = level.spawn_point,
-                 .zoom = 1.0,
-                 .viewport_width = config_.game_view.width,
-                 .viewport_height = config_.game_view.height},
-  });
-  if (!simulation.ok()) return simulation.status();
-  FreeFlySimulation* simulation_pointer = simulation->get();
+  ASSIGN_OR_RETURN(std::unique_ptr<FreeFlySimulation> simulation,
+                   FreeFlySimulation::Create({
+                       .input_manager = input_manager_.get(),
+                       .camera = {.position = level.spawn_point,
+                                  .zoom = 1.0,
+                                  .viewport_width = config_.game_view.width,
+                                  .viewport_height = config_.game_view.height},
+                   }));
+  FreeFlySimulation* simulation_pointer = simulation.get();
   ASSIGN_OR_RETURN(game_engine_,
-                   GameEngine::Create({}, options_.pacing_mode, std::move(*simulation)));
+                   GameEngine::Create({}, options_.pacing_mode, std::move(simulation)));
   simulation_ = simulation_pointer;
   return absl::OkStatus();
 }

@@ -66,9 +66,13 @@ absl::StatusOr<GameSceneFrame> ComposeGameSceneFrame(const GameLevelAssets& asse
 
   frame.world_layers.reserve(assets.level.layers.size());
   for (const WorldLayer& layer : assets.level.layers) {
-    ASSIGN_OR_RETURN(SceneTileRenderBatch tiles,
-                     ComposeSceneLevelTileRenderBatch(assets.level, layer, assets.tileset,
-                                                      assets.tileset_texture, camera));
+    ASSIGN_OR_RETURN(SceneTileRenderBatch tiles, ComposeSceneLevelTileRenderBatch({
+                                                     .level = assets.level,
+                                                     .layer = layer,
+                                                     .tileset = assets.tileset,
+                                                     .atlas_texture = assets.tileset_texture,
+                                                     .camera = camera,
+                                                 }));
     ASSIGN_OR_RETURN(std::vector<SceneEntityRenderItem> entities,
                      ComposeSceneEntityRenderItems(layer.entities, sprites));
     frame.world_layers.push_back({

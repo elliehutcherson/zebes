@@ -75,8 +75,13 @@ TEST(SceneCompositionTest, ComposesOnlyVisibleLevelTiles) {
   int texture_owner = 0;
   const TextureHandle texture = TextureHandleAccess::Create(5, &texture_owner);
 
-  ASSERT_OK_AND_ASSIGN(const SceneTileRenderBatch batch,
-                       ComposeSceneLevelTileRenderBatch(level, layer, tileset, texture, camera));
+  ASSERT_OK_AND_ASSIGN(const SceneTileRenderBatch batch, ComposeSceneLevelTileRenderBatch({
+                                                             .level = level,
+                                                             .layer = layer,
+                                                             .tileset = tileset,
+                                                             .atlas_texture = texture,
+                                                             .camera = camera,
+                                                         }));
 
   EXPECT_EQ(batch.atlas_texture, texture);
   ASSERT_EQ(batch.items.size(), 1u);
@@ -114,9 +119,17 @@ TEST(SceneCompositionTest, RejectsInvalidSharedGeometry) {
   EXPECT_TRUE(absl::IsInvalidArgument(ComposeSceneEntityRenderItem(1, entity, {}).status()));
 
   const Camera invalid_camera;
-  EXPECT_TRUE(absl::IsInvalidArgument(
-      ComposeSceneLevelTileRenderBatch(Level{}, WorldLayer{}, Tileset{}, {}, invalid_camera)
-          .status()));
+  const Level level;
+  const WorldLayer layer;
+  const Tileset tileset;
+  EXPECT_TRUE(absl::IsInvalidArgument(ComposeSceneLevelTileRenderBatch({
+                                                                           .level = level,
+                                                                           .layer = layer,
+                                                                           .tileset = tileset,
+                                                                           .atlas_texture = {},
+                                                                           .camera = invalid_camera,
+                                                                       })
+                                          .status()));
 }
 
 }  // namespace

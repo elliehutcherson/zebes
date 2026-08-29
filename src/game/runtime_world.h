@@ -66,10 +66,16 @@ class RuntimeWorld {
   void ApplyPlayerInput(const InputSnapshot& input);
 
  private:
-  RuntimeWorld(Level level, uint64_t player_entity_id, AxisAlignedBox player_local_collider,
-               absl::flat_hash_map<uint64_t, Transform> transforms,
-               absl::flat_hash_map<uint64_t, Motion> motions,
-               absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers);
+  struct InitialState {
+    Level level;
+    uint64_t player_entity_id = 0;
+    AxisAlignedBox player_local_collider;
+    absl::flat_hash_map<uint64_t, Transform> transforms;
+    absl::flat_hash_map<uint64_t, Motion> motions;
+    absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers;
+  };
+
+  explicit RuntimeWorld(InitialState state);
 
   Level level_;
   uint64_t player_entity_id_ = 0;

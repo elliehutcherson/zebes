@@ -7,6 +7,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
+#include "common/status_macros.h"
 
 namespace zebes {
 namespace {
@@ -34,8 +35,7 @@ absl::Status ValidateConfig(const SimulationPacerConfig& config, SimulationPacin
 
 absl::StatusOr<SimulationPacer> SimulationPacer::Create(SimulationPacerConfig config,
                                                         SimulationPacingMode mode) {
-  const absl::Status status = ValidateConfig(config, mode);
-  if (!status.ok()) return status;
+  RETURN_IF_ERROR(ValidateConfig(config, mode));
   return SimulationPacer(std::move(config), mode);
 }
 

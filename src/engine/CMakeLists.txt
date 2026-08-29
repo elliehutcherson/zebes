@@ -52,6 +52,7 @@ target_link_libraries(tile_collision
   vec
   absl::statusor
   PRIVATE
+  status_macros
   absl::status
 )
 

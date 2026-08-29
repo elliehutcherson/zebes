@@ -56,6 +56,23 @@ struct SceneTileRenderBatch {
   std::vector<SceneTileRenderItem> items;
 };
 
+struct SceneLevelTileRenderOptions {
+  const Level& level;
+  const WorldLayer& layer;
+  const Tileset& tileset;
+  TextureHandle atlas_texture;
+  const Camera& camera;
+};
+
+struct SceneTileRenderOptions {
+  const Tile& tile;
+  const Tileset& tileset;
+  int64_t tile_x = 0;
+  int64_t tile_y = 0;
+  int tile_render_width = 0;
+  int tile_render_height = 0;
+};
+
 // Managed texture bound to one stable authored parallax element ID.
 struct SceneParallaxElementRenderResource {
   int element_id = -1;
@@ -93,19 +110,13 @@ absl::StatusOr<std::vector<SceneEntityRenderItem>> ComposeSceneEntityRenderItems
 
 // Composes only tiles intersecting the camera. Entire offscreen chunks are
 // rejected before their cells are scanned.
-absl::StatusOr<SceneTileRenderBatch> ComposeSceneLevelTileRenderBatch(const Level& level,
-                                                                      const WorldLayer& layer,
-                                                                      const Tileset& tileset,
-                                                                      TextureHandle atlas_texture,
-                                                                      const Camera& camera);
+absl::StatusOr<SceneTileRenderBatch> ComposeSceneLevelTileRenderBatch(
+    const SceneLevelTileRenderOptions& options);
 
 // Composes one exact tileset member at a grid coordinate. This is shared by
 // editor placement previews without putting preview styling in the scene core.
-absl::StatusOr<SceneTileRenderItem> ComposeSceneTileRenderItem(const Tile& tile,
-                                                               const Tileset& tileset,
-                                                               int64_t tile_x, int64_t tile_y,
-                                                               int tile_render_width,
-                                                               int tile_render_height);
+absl::StatusOr<SceneTileRenderItem> ComposeSceneTileRenderItem(
+    const SceneTileRenderOptions& options);
 
 // Binds theme layers to managed textures without exposing native resources.
 absl::StatusOr<SceneParallaxRenderBatch> ComposeSceneParallaxRenderBatch(

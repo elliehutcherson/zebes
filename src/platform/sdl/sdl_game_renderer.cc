@@ -32,6 +32,14 @@ struct NativeTextureInfo {
   int height = 0;
 };
 
+struct DrawTextureOptions {
+  SDL_Renderer& renderer;
+  const NativeTextureInfo& texture;
+  std::optional<PixelRect> source;
+  SDL_FRect destination;
+  uint8_t opacity = 255;
+};
+
 absl::StatusOr<NativeTextureInfo> ResolveTexture(TextureHandle handle) {
   SDL_Texture* texture = SdlTextureHandleAdapter::ToNative(handle);
   if (texture == nullptr) {
@@ -74,30 +82,30 @@ absl::StatusOr<SDL_FRect> ScreenRect(const Camera& camera, const WorldRect& boun
   };
 }
 
-absl::Status DrawTexture(SDL_Renderer& renderer, const NativeTextureInfo& texture,
-                         const std::optional<PixelRect>& source, const SDL_FRect& destination,
-                         uint8_t opacity = 255) {
+absl::Status DrawTexture(const DrawTextureOptions& options) {
   uint8_t previous_opacity = 255;
-  if (SDL_GetTextureAlphaMod(texture.texture, &previous_opacity) != 0 ||
-      SDL_SetTextureAlphaMod(texture.texture, opacity) != 0) {
+  if (SDL_GetTextureAlphaMod(options.texture.texture, &previous_opacity) != 0 ||
+      SDL_SetTextureAlphaMod(options.texture.texture, options.opacity) != 0) {
     return absl::InternalError(
         absl::StrCat("Failed to configure game texture opacity: ", SDL_GetError()));
   }
-  auto restore_opacity = absl::MakeCleanup(
-      [&texture, previous_opacity] { SDL_SetTextureAlphaMod(texture.texture, previous_opacity); });
+  auto restore_opacity = absl::MakeCleanup([&options, previous_opacity] {
+    SDL_SetTextureAlphaMod(options.texture.texture, previous_opacity);
+  });
 
   SDL_Rect native_source;
   const SDL_Rect* native_source_pointer = nullptr;
-  if (source.has_value()) {
+  if (options.source.has_value()) {
     native_source = {
-        .x = source->x,
-        .y = source->y,
-        .w = source->width,
-        .h = source->height,
+        .x = options.source->x,
+        .y = options.source->y,
+        .w = options.source->width,
+        .h = options.source->height,
     };
     native_source_pointer = &native_source;
   }
-  if (SDL_RenderCopyF(&renderer, texture.texture, native_source_pointer, &destination) != 0) {
+  if (SDL_RenderCopyF(&options.renderer, options.texture.texture, native_source_pointer,
+                      &options.destination) != 0) {
     return absl::InternalError(absl::StrCat("Failed to draw game texture: ", SDL_GetError()));
   }
   return absl::OkStatus();
@@ -137,8 +145,13 @@ absl::Status RenderParallax(SDL_Renderer& renderer, const SceneParallaxRenderBat
         return absl::FailedPreconditionError("Game parallax layout references an unbound element");
       }
       ASSIGN_OR_RETURN(const SDL_FRect destination, ScreenRect(batch.camera, element.bounds));
-      RETURN_IF_ERROR(DrawTexture(renderer, textures.at(handle->second.id()), std::nullopt,
-                                  destination, opacity));
+      RETURN_IF_ERROR(DrawTexture({
+          .renderer = renderer,
+          .texture = textures.at(handle->second.id()),
+          .source = std::nullopt,
+          .destination = destination,
+          .opacity = opacity,
+      }));
     }
   }
   return absl::OkStatus();
@@ -150,7 +163,12 @@ absl::Status RenderTiles(SDL_Renderer& renderer, const Camera& camera,
   for (const SceneTileRenderItem& item : batch.items) {
     RETURN_IF_ERROR(ValidateSource(item.source, texture));
     ASSIGN_OR_RETURN(const SDL_FRect destination, ScreenRect(camera, item.bounds));
-    RETURN_IF_ERROR(DrawTexture(renderer, texture, item.source, destination));
+    RETURN_IF_ERROR(DrawTexture({
+        .renderer = renderer,
+        .texture = texture,
+        .source = item.source,
+        .destination = destination,
+    }));
   }
   return absl::OkStatus();
 }
@@ -174,7 +192,12 @@ absl::Status RenderEntities(SDL_Renderer& renderer, const Camera& camera,
       ASSIGN_OR_RETURN(texture->second, ResolveTexture(item.sprite->texture));
     }
     RETURN_IF_ERROR(ValidateSource(item.sprite->source, texture->second));
-    RETURN_IF_ERROR(DrawTexture(renderer, texture->second, item.sprite->source, destination));
+    RETURN_IF_ERROR(DrawTexture({
+        .renderer = renderer,
+        .texture = texture->second,
+        .source = item.sprite->source,
+        .destination = destination,
+    }));
   }
   return absl::OkStatus();
 }

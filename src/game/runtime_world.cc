@@ -137,22 +137,23 @@ absl::StatusOr<std::unique_ptr<RuntimeWorld>> RuntimeWorld::Create(Options optio
   const uint64_t player_entity_id = player->id;
   absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers;
   player_controllers.emplace(player_entity_id, PlayerControllerState{});
-  return std::unique_ptr<RuntimeWorld>(
-      new RuntimeWorld(std::move(options.level), player_entity_id, player_collider,
-                       std::move(transforms), std::move(motions), std::move(player_controllers)));
+  return std::unique_ptr<RuntimeWorld>(new RuntimeWorld({
+      .level = std::move(options.level),
+      .player_entity_id = player_entity_id,
+      .player_local_collider = player_collider,
+      .transforms = std::move(transforms),
+      .motions = std::move(motions),
+      .player_controllers = std::move(player_controllers),
+  }));
 }
 
-RuntimeWorld::RuntimeWorld(Level level, uint64_t player_entity_id,
-                           AxisAlignedBox player_local_collider,
-                           absl::flat_hash_map<uint64_t, Transform> transforms,
-                           absl::flat_hash_map<uint64_t, Motion> motions,
-                           absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers)
-    : level_(std::move(level)),
-      player_entity_id_(player_entity_id),
-      player_local_collider_(player_local_collider),
-      transforms_(std::move(transforms)),
-      motions_(std::move(motions)),
-      player_controllers_(std::move(player_controllers)) {}
+RuntimeWorld::RuntimeWorld(InitialState state)
+    : level_(std::move(state.level)),
+      player_entity_id_(state.player_entity_id),
+      player_local_collider_(state.player_local_collider),
+      transforms_(std::move(state.transforms)),
+      motions_(std::move(state.motions)),
+      player_controllers_(std::move(state.player_controllers)) {}
 
 const Transform* RuntimeWorld::FindTransform(uint64_t entity_id) const {
   const auto found = transforms_.find(entity_id);

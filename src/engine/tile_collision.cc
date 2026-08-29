@@ -9,6 +9,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
+#include "common/status_macros.h"
 #include "objects/tile_shape_geometry.h"
 #include "objects/tileset.h"
 #include "objects/vec.h"
@@ -125,8 +126,7 @@ absl::StatusOr<std::optional<TileCollisionContact>> IntersectBoxWithTileShape(Ax
                                                                               TileShape shape,
                                                                               Vec tile_origin,
                                                                               Vec tile_size) {
-  const absl::Status geometry_status = ValidateGeometry(box, shape, tile_origin, tile_size);
-  if (!geometry_status.ok()) return geometry_status;
+  RETURN_IF_ERROR(ValidateGeometry(box, shape, tile_origin, tile_size));
   if (shape == TileShape::kNone) return std::nullopt;
 
   const absl::Span<const TilePoint> normalized_polygon = TileShapePolygon(shape);

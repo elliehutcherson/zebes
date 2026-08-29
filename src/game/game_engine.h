@@ -51,6 +51,10 @@ class GameEngine final : public Engine {
   GameEngine(SimulationPacer pacer, std::unique_ptr<GameSimulation> simulation,
              std::unique_ptr<NotificationSet> notification_set);
 
+  absl::Duration MeasureElapsedTime();
+  absl::Status AdvanceSimulation(const SimulationPacingResult& pacing);
+  static RunResult BuildRunResult(const SimulationPacingResult& pacing);
+
   SimulationPacer pacer_;
   std::unique_ptr<GameSimulation> simulation_;
   std::unique_ptr<NotificationSet> notification_set_;

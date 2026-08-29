@@ -5,6 +5,7 @@ target_link_libraries(simulation_pacer
   absl::time
   PRIVATE
   absl::status
+  status_macros
 )
 
 add_library(game_engine game_engine.cc)

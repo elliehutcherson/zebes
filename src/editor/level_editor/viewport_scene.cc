@@ -112,8 +112,13 @@ absl::StatusOr<TileRenderBatch> ComposeLevelTileRenderBatch(
     const Level& level, const WorldLayer& layer, const Tileset& tileset,
     TextureHandle atlas_texture, const Camera& camera, const TileRenderOptions& options) {
   RETURN_IF_ERROR(ValidateOpacity(options.overlay_opacity));
-  ASSIGN_OR_RETURN(SceneTileRenderBatch scene,
-                   ComposeSceneLevelTileRenderBatch(level, layer, tileset, atlas_texture, camera));
+  ASSIGN_OR_RETURN(SceneTileRenderBatch scene, ComposeSceneLevelTileRenderBatch({
+                                                   .level = level,
+                                                   .layer = layer,
+                                                   .tileset = tileset,
+                                                   .atlas_texture = atlas_texture,
+                                                   .camera = camera,
+                                               }));
   return TileRenderBatch{
       .atlas_texture = scene.atlas_texture,
       .mode = TileRenderMode::kLevel,
@@ -130,9 +135,14 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(const Tile& tile, cons
                                                           int tile_render_height) {
   ASSIGN_OR_RETURN(const TileCoordinate coordinate,
                    WorldToTileCoordinate(mouse_world, tile_render_width, tile_render_height));
-  ASSIGN_OR_RETURN(SceneTileRenderItem item,
-                   ComposeSceneTileRenderItem(tile, tileset, coordinate.x, coordinate.y,
-                                              tile_render_width, tile_render_height));
+  ASSIGN_OR_RETURN(SceneTileRenderItem item, ComposeSceneTileRenderItem({
+                                                 .tile = tile,
+                                                 .tileset = tileset,
+                                                 .tile_x = coordinate.x,
+                                                 .tile_y = coordinate.y,
+                                                 .tile_render_width = tile_render_width,
+                                                 .tile_render_height = tile_render_height,
+                                             }));
   TileRenderBatch batch{
       .atlas_texture = atlas_texture,
       .mode = TileRenderMode::kPlacementGhost,

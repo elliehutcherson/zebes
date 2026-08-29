@@ -527,9 +527,13 @@ absl::StatusOr<WorldRenderStats> CompositeWorldLayer(
       atlas_handle = loaded->second.handle;
       atlas = &loaded->second;
     }
-    ASSIGN_OR_RETURN(
-        const SceneTileRenderBatch batch,
-        ComposeSceneLevelTileRenderBatch(level, layer, *assets.tileset, atlas_handle, camera));
+    ASSIGN_OR_RETURN(const SceneTileRenderBatch batch, ComposeSceneLevelTileRenderBatch({
+                                                           .level = level,
+                                                           .layer = layer,
+                                                           .tileset = *assets.tileset,
+                                                           .atlas_texture = atlas_handle,
+                                                           .camera = camera,
+                                                       }));
     if (!batch.items.empty() && atlas == nullptr) {
       return absl::FailedPreconditionError("visible tiles require a loaded atlas");
     }
