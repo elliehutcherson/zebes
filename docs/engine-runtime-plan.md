@@ -35,8 +35,10 @@ by ID; `tile_shape_geometry` is the single definition of collision polygons;
 and the editor's `ViewportScene`/`ViewportRenderer` split proves the pattern
 of platform-neutral render batches consumed by a thin native boundary.
 
-What does not exist: a game executable, a simulation loop, collision response,
-animation playback outside the editor, or a game-side render path.
+The platform-neutral `SimulationPacer` and fixed-step `GameEngine` boundary now
+exist. What does not exist: a game executable, runtime world or
+gameplay simulation loop, collision response, animation playback outside the
+editor, or a game-side render path.
 
 ## Design decisions
 
@@ -70,12 +72,24 @@ I/O executor and report completion through a notifying queue.
 
 **D3 — `GameEngine` is an `Engine` from day one, but simulation ticks are not
 render frames.** The simulation uses a small independently tested pacer. In
-real-time mode it accumulates wall time and returns zero or more fixed-duration
-steps plus interpolation alpha; in unpaced mode it produces bounded batches of
-fixed steps without waiting on wall time. Tick duration is independent of
-render cadence. A maximum step count bounds each `Run` pass, and a maximum lag
-bounds real-time catch-up so sustained overload is reported and clamped instead
-of entering a spiral of death or silently taking one unstable variable step.
+real-time mode it accumulates monotonic elapsed time and returns zero or more
+fixed-duration steps plus interpolation alpha; in unpaced mode it produces
+bounded batches of fixed steps without waiting on wall time. Tick duration is
+independent of render cadence. A maximum step count bounds each `Run` pass, and
+a maximum lag bounds real-time catch-up so sustained overload is reported and
+clamped instead of entering a spiral of death or silently taking one unstable
+variable step. Whole-step debt left by a bounded pass is retained for the next
+pass, but interpolation uses only the fractional remainder and therefore stays
+in `[0, 1)`. The pacer returns a relative wake delay; `GameEngine` translates
+that delay into `RunResult::wake_deadline`, keeping civil clock timestamps out
+of simulation accumulation.
+
+The M1 constants are a 60 Hz step, at most four steps per `Run`, and at most
+250 ms of accumulated lag. They remain code constants until M5 has measurements
+that justify host configuration. `GameTimingState` counts completed steps and
+reports cumulative dropped lag and overrun count so overload cannot disappear
+into logs or an unstable timestep.
+
 Milestone 1 drives `GameEngine` inline from the main loop — one bounded `Run`
 call per rendered frame, no second thread — because single-threaded debugging
 is worth more than concurrency while the milestone is "make it exist."

@@ -138,6 +138,14 @@ add_executable(parallax_layout_test engine/parallax_layout_test.cc)
 target_link_libraries(parallax_layout_test parallax_layout gtest_main)
 gtest_discover_tests(parallax_layout_test)
 
+add_executable(simulation_pacer_test game/simulation_pacer_test.cc)
+target_link_libraries(simulation_pacer_test simulation_pacer macros gtest_main)
+gtest_discover_tests(simulation_pacer_test)
+
+add_executable(game_engine_test game/game_engine_test.cc)
+target_link_libraries(game_engine_test game_engine macros gtest_main)
+gtest_discover_tests(game_engine_test)
+
 # --- Level Manager ---
 add_executable(level_manager_test resources/level_manager_test.cc)
 target_link_libraries(level_manager_test level_manager macros gtest_main gmock)

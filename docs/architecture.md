@@ -734,6 +734,20 @@ A deadline is a bound on sleeping and not a wake source, so it never removes the
 requirement that every notifiable source have a notification in the set. It is
 the answer for the sources that cannot have one.
 
+Game simulation timing is split across `SimulationPacer` and `GameEngine`.
+`SimulationPacer` is platform-neutral and deterministic: it consumes monotonic
+elapsed durations, returns a bounded batch of fixed-duration steps, retains
+bounded whole-step debt, and reports discarded lag explicitly. Its interpolation
+alpha is derived only from the fractional remainder, so overload cannot turn
+interpolation into extrapolation. `GameEngine` samples the process monotonic
+clock, translates the pacer's relative wake delay into `RunResult::wake_deadline`,
+owns the `GameSimulation` it advances, and accumulates timing diagnostics. A
+simulation step must be bounded and cannot wait or perform I/O; a failure ends
+the engine pass after diagnostics record only the successfully completed steps.
+Unpaced operation ignores elapsed time and returns the configured bounded batch
+on every pass, allowing tests and offline work to run faster than real time
+without changing simulation step duration.
+
 Owners stop producers before destroying a queue, stop and join the runner
 thread, then destroy the engine, which destroys its notification set and every
 notification in it.
