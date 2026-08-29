@@ -20,10 +20,10 @@
 #include "curation/level_review_route.h"
 #include "curation/prop_candidate.h"
 #include "curation/raster_canvas.h"
-#include "editor/level_editor/parallax_layout.h"
-#include "editor/level_editor/viewport_scene.h"
 #include "editor/parallax_theme_editor/parallax_diagnostics.h"
 #include "editor/parallax_theme_editor/parallax_preview_model.h"
+#include "engine/parallax_layout.h"
+#include "engine/scene_composition.h"
 #include "objects/parallax_theme.h"
 #include "resources/level_manager.h"
 #include "resources/tileset_manager.h"
@@ -407,13 +407,13 @@ absl::Status CompositeParallaxTheme(RgbaImage& canvas, const LevelReviewAssets& 
       handles.emplace(element.texture_id, texture->second.handle);
     }
   }
-  ASSIGN_OR_RETURN(const ParallaxRenderBatch batch,
-                   ComposeParallaxRenderBatch(theme, camera, handles,
-                                              {.opacity = opacity, .layer_index = layer_index}));
-  for (const ParallaxRenderItem& item : batch.layers) {
+  ASSIGN_OR_RETURN(const SceneParallaxRenderBatch batch,
+                   ComposeSceneParallaxRenderBatch(
+                       theme, camera, handles, {.opacity = opacity, .layer_index = layer_index}));
+  for (const SceneParallaxRenderItem& item : batch.layers) {
     std::vector<ParallaxElementSize> sizes;
     sizes.reserve(item.elements.size());
-    for (const ParallaxElementRenderResource& resource : item.elements) {
+    for (const SceneParallaxElementRenderResource& resource : item.elements) {
       const LoadedTexture* texture = FindTexture(assets, resource.texture);
       if (texture == nullptr) {
         return absl::FailedPreconditionError("parallax handle has no loaded pixels");
@@ -482,7 +482,7 @@ bool IntersectsScreen(const Camera& camera, const WorldRect& bounds) {
 }
 
 absl::StatusOr<std::optional<EntityRaster>> ResolveEntityRaster(
-    const LevelReviewAssets& assets, const EntityRenderItem& item,
+    const LevelReviewAssets& assets, const SceneEntityRenderItem& item,
     const TransientEntityReplacement* replacement) {
   if (replacement != nullptr && item.entity_id == replacement->entity_id) {
     if (replacement->candidate == nullptr || replacement->candidate->sprite.frames.empty()) {
@@ -528,12 +528,12 @@ absl::StatusOr<WorldRenderStats> CompositeWorldLayer(
       atlas = &loaded->second;
     }
     ASSIGN_OR_RETURN(
-        const TileRenderBatch batch,
-        ComposeLevelTileRenderBatch(level, layer, *assets.tileset, atlas_handle, camera, {}));
+        const SceneTileRenderBatch batch,
+        ComposeSceneLevelTileRenderBatch(level, layer, *assets.tileset, atlas_handle, camera));
     if (!batch.items.empty() && atlas == nullptr) {
       return absl::FailedPreconditionError("visible tiles require a loaded atlas");
     }
-    for (const TileRenderItem& item : batch.items) {
+    for (const SceneTileRenderItem& item : batch.items) {
       const Vec minimum = camera.WorldToScreen(item.bounds.min);
       const Vec maximum = camera.WorldToScreen(item.bounds.max);
       RETURN_IF_ERROR(CompositeRgbaNearest(canvas, atlas->pixels,
@@ -549,9 +549,9 @@ absl::StatusOr<WorldRenderStats> CompositeWorldLayer(
     stats.tile_count = batch.items.size();
   }
 
-  ASSIGN_OR_RETURN(const std::vector<EntityRenderItem> items,
-                   ComposeEntityRenderItems(layer.entities, assets.sprite_lookup, {}));
-  for (const EntityRenderItem& item : items) {
+  ASSIGN_OR_RETURN(const std::vector<SceneEntityRenderItem> items,
+                   ComposeSceneEntityRenderItems(layer.entities, assets.sprite_lookup));
+  for (const SceneEntityRenderItem& item : items) {
     if (!IntersectsScreen(camera, item.bounds)) continue;
     const Vec minimum = camera.WorldToScreen(item.bounds.min);
     const Vec maximum = camera.WorldToScreen(item.bounds.max);

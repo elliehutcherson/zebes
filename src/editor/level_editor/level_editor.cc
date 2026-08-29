@@ -14,8 +14,8 @@
 #include "editor/inspector_ui.h"
 #include "editor/level_editor/level_panel.h"
 #include "editor/level_editor/level_panel_interface.h"
-#include "editor/level_editor/parallax_layout.h"
 #include "editor/level_editor/viewport_model.h"
+#include "engine/parallax_layout.h"
 #include "imgui.h"
 
 namespace zebes {

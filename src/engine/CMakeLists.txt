@@ -2,6 +2,48 @@ add_library(input_types INTERFACE input_types.h)
 
 add_library(texture_handle INTERFACE texture_handle.h)
 
+add_library(scene_types scene_types.cc)
+target_link_libraries(scene_types
+  PUBLIC
+  camera
+  entity
+  sprite
+  texture_handle
+  absl::flat_hash_map
+  absl::status
+  absl::statusor
+)
+
+add_library(parallax_layout parallax_layout.cc)
+target_link_libraries(parallax_layout
+  PUBLIC
+  parallax_theme
+  scene_types
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::status
+  absl::strings
+)
+
+add_library(scene_composition scene_composition.cc)
+target_link_libraries(scene_composition
+  PUBLIC
+  camera
+  entity
+  level
+  parallax_theme
+  scene_types
+  texture_handle
+  tileset
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::flat_hash_map
+  absl::status
+  absl::strings
+)
+
 add_library(input_manager input_manager.cc)
 target_link_libraries(input_manager
   PUBLIC input_types

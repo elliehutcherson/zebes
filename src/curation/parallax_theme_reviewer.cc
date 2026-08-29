@@ -13,9 +13,9 @@
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
 #include "curation/raster_canvas.h"
-#include "editor/level_editor/parallax_layout.h"
 #include "editor/parallax_theme_editor/parallax_diagnostics.h"
 #include "editor/parallax_theme_editor/parallax_preview_model.h"
+#include "engine/parallax_layout.h"
 
 namespace zebes {
 namespace {

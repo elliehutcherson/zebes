@@ -1,4 +1,4 @@
-#include "editor/level_editor/parallax_layout.h"
+#include "engine/parallax_layout.h"
 
 #include <algorithm>
 #include <cmath>
@@ -98,15 +98,6 @@ absl::StatusOr<CompositionGeometry> BuildCompositionGeometry(
 }
 
 }  // namespace
-
-VisibleWorldBounds CalculateVisibleWorldBounds(const Camera& camera) {
-  const double half_width = camera.viewport_width / (2.0 * camera.zoom);
-  const double half_height = camera.viewport_height / (2.0 * camera.zoom);
-  return {
-      .min = {camera.position.x - half_width, camera.position.y - half_height},
-      .max = {camera.position.x + half_width, camera.position.y + half_height},
-  };
-}
 
 std::optional<CameraFrame> CalculateCameraFrame(VisibleWorldBounds bounds, int viewport_width,
                                                 int viewport_height, double padding_fraction) {

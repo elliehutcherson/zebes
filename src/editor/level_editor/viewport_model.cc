@@ -8,37 +8,6 @@
 
 namespace zebes {
 
-absl::StatusOr<WorldRect> CalculateEntityBounds(const Entity& entity, const Sprite* sprite) {
-  constexpr double kDefaultHalfSize = 16.0;
-  if (sprite == nullptr || sprite->frames.empty()) {
-    return WorldRect{
-        .min = {entity.transform.position.x - kDefaultHalfSize,
-                entity.transform.position.y - kDefaultHalfSize},
-        .max = {entity.transform.position.x + kDefaultHalfSize,
-                entity.transform.position.y + kDefaultHalfSize},
-    };
-  }
-
-  const SpriteFrame& frame = sprite->frames.front();
-  const SpriteFrameRenderBounds frame_bounds = CalculateSpriteFrameRenderBounds(frame);
-  WorldRect bounds{
-      .min = {entity.transform.position.x + frame_bounds.left,
-              entity.transform.position.y + frame_bounds.top},
-      .max = {entity.transform.position.x + frame_bounds.right,
-              entity.transform.position.y + frame_bounds.bottom},
-  };
-  if (!frame_bounds.IsValid() || !bounds.IsValid()) {
-    return absl::InvalidArgumentError("entity sprite frame has invalid render dimensions");
-  }
-  return bounds;
-}
-
-ResolvedSprite FindSprite(const SpriteLookup& sprites, const std::string& sprite_id) {
-  auto found = sprites.find(sprite_id);
-  if (found == sprites.end()) return ResolvedSprite{};
-  return found->second;
-}
-
 absl::StatusOr<uint64_t> PickEntity(const std::map<uint64_t, Entity>& entities, Vec world_pos,
                                     const SpriteLookup& sprites) {
   // Whichever candidate the renderer drew last, because that is the one the user

@@ -5,8 +5,8 @@
 
 #include "absl/status/statusor.h"
 #include "artwork/repetition_review.h"
-#include "editor/level_editor/parallax_layout.h"
 #include "editor/parallax_theme_editor/parallax_preview_model.h"
+#include "engine/parallax_layout.h"
 #include "objects/camera.h"
 #include "objects/game_view.h"
 #include "objects/parallax_theme.h"

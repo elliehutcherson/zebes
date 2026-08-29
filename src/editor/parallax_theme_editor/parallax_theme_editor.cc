@@ -12,8 +12,8 @@
 #include "common/status_macros.h"
 #include "editor/imgui_scoped.h"
 #include "editor/inspector_ui.h"
-#include "editor/level_editor/parallax_layout.h"
 #include "editor/level_editor/viewport_scene.h"
+#include "engine/parallax_layout.h"
 #include "imgui.h"
 
 namespace zebes {

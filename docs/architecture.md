@@ -237,6 +237,12 @@ geometry. For example, the level viewport calculates a `ParallaxLayout` from a
 Zebes `Camera`, layer settings, and texture dimensions. The ImGui/SDL view only
 resolves the native texture and emits the tiles described by that layout. This
 keeps first-frame, viewport, zoom, and repetition behavior headlessly testable.
+The reusable scene types, parallax layout, entity ordering, visible-tile chunk
+culling, and parallax resource binding live under `src/engine/`. Level Editor's
+`ViewportScene` decorates those batches with selection, placement ghosts,
+collision overlays, and zone gizmos; headless curation consumes the common
+batches directly. Neither common consumer depends on ImGui, SDL, or an editor
+target.
 
 Headless curation uses the same boundary at the process level. `AssetWorkspace`
 is the common composition root for every authored manager and `Api`; the editor

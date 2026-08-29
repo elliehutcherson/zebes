@@ -1,6 +1,8 @@
-#include "editor/level_editor/parallax_layout.h"
+#include "engine/parallax_layout.h"
 
 #include <gtest/gtest.h>
+
+#include <vector>
 
 #include "macros.h"
 

@@ -52,13 +52,6 @@ target_link_libraries(world_layer_panel
   absl::strings
 )
 
-add_library(parallax_layout
-  parallax_layout.cc
-)
-target_link_libraries(parallax_layout
-  PUBLIC parallax_theme
-)
-
 add_library(camera_guide
   camera_guide.cc
 )
@@ -78,6 +71,7 @@ target_link_libraries(viewport_model
   blueprint
   entity_factory
   level
+  scene_types
   sprite
   tileset
   absl::status
@@ -166,10 +160,9 @@ target_link_libraries(viewport_scene
   camera
   entity
   level
-  parallax_layout
+  scene_composition
   texture_handle
   viewport_model
-  absl::flat_hash_map
   absl::status
   absl::statusor
   absl::strings
@@ -185,6 +178,7 @@ target_link_libraries(viewport_renderer
   editor_canvas
   viewport_scene
   PRIVATE
+  parallax_layout
   SDL2-static
   ${IMGUI_LIBRARIES}
   absl::status

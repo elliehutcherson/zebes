@@ -453,15 +453,6 @@ target_link_libraries(viewport_interaction_test
 target_include_directories(viewport_interaction_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(viewport_interaction_test)
 
-# --- Parallax Layout Test ---
-add_executable(parallax_layout_test parallax_layout_test.cc)
-target_link_libraries(parallax_layout_test
-  gtest_main
-  parallax_layout
-)
-target_include_directories(parallax_layout_test PRIVATE ${CMAKE_SOURCE_DIR})
-add_test(NAME parallax_layout_test COMMAND parallax_layout_test)
-
 add_executable(camera_guide_test camera_guide_test.cc)
 target_link_libraries(camera_guide_test
   gtest_main

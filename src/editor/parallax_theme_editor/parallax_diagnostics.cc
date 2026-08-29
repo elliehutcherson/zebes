@@ -5,7 +5,7 @@
 
 #include "absl/status/status.h"
 #include "common/status_macros.h"
-#include "editor/level_editor/parallax_layout.h"
+#include "engine/parallax_layout.h"
 
 namespace zebes {
 namespace {

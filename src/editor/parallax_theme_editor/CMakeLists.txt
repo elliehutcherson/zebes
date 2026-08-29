@@ -26,6 +26,7 @@ target_link_libraries(parallax_theme_editor
   editor_texture_preview
   imgui_scoped
   inspector_ui
+  parallax_layout
   parallax_diagnostics
   parallax_preview_model
   status_macros

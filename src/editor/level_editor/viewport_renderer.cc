@@ -12,7 +12,7 @@
 #include "common/status_macros.h"
 #include "editor/anchor_gizmo_renderer.h"
 #include "editor/canvas/tile_draw.h"
-#include "editor/level_editor/parallax_layout.h"
+#include "engine/parallax_layout.h"
 #include "imgui.h"
 #include "platform/sdl/sdl_texture_handle.h"
 

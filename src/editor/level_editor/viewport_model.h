@@ -2,28 +2,18 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
-#include "engine/texture_handle.h"
+#include "engine/scene_types.h"
 #include "objects/blueprint.h"
-#include "objects/entity.h"
 #include "objects/entity_factory.h"
 #include "objects/level.h"
-#include "objects/sprite.h"
 #include "objects/tileset.h"
 #include "objects/vec.h"
 
 namespace zebes {
-
-// Opposing corners in level/world coordinates, measured in logical pixels.
-struct WorldRect {
-  Vec min;
-  Vec max;
-
-  constexpr bool IsValid() const { return max.x > min.x && max.y > min.y; }
-};
 
 // Identifies one tile cell in the level-wide grid. Multiplying x and y by the
 // level's tile render dimensions produces the cell's world-space origin.
@@ -31,31 +21,6 @@ struct TileCoordinate {
   int x = 0;
   int y = 0;
 };
-
-// A sprite definition paired with the GPU handle for its texture.
-//
-// Sprite is a pure definition and names its texture by ID only, so the handle
-// is resolved alongside it rather than stored on it. An invalid handle is an
-// ordinary state: the sprite exists but its texture has not loaded.
-struct ResolvedSprite {
-  const Sprite* sprite = nullptr;
-  TextureHandle texture;
-};
-
-// Sprites resolved for one frame, keyed by Sprite::id.
-//
-// Entities store only a sprite ID, so rendering and picking resolve them once
-// per frame and pass the result explicitly rather than reading a pointer off
-// the level definition.
-using SpriteLookup = absl::flat_hash_map<std::string, ResolvedSprite>;
-
-// Returns the world-space bounds used consistently for rendering and picking.
-// A null sprite, or one with no frames, uses a centered 32x32 placeholder.
-absl::StatusOr<WorldRect> CalculateEntityBounds(const Entity& entity, const Sprite* sprite);
-
-// Returns the sprite and texture for an ID. An absent ID yields a default
-// ResolvedSprite, whose null sprite callers already handle as "unresolved".
-ResolvedSprite FindSprite(const SpriteLookup& sprites, const std::string& sprite_id);
 
 // Returns the active entity whose bounding box contains world_pos, or
 // Entity::kInvalidId. Entities with no resolvable sprite use a 32x32 fallback.

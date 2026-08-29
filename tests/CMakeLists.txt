@@ -130,6 +130,14 @@ add_executable(camera_controller_test engine/camera_controller_test.cc)
 target_link_libraries(camera_controller_test camera_controller macros gtest_main gmock)
 gtest_discover_tests(camera_controller_test)
 
+add_executable(scene_composition_test engine/scene_composition_test.cc)
+target_link_libraries(scene_composition_test scene_composition macros gtest_main)
+gtest_discover_tests(scene_composition_test)
+
+add_executable(parallax_layout_test engine/parallax_layout_test.cc)
+target_link_libraries(parallax_layout_test parallax_layout gtest_main)
+gtest_discover_tests(parallax_layout_test)
+
 # --- Level Manager ---
 add_executable(level_manager_test resources/level_manager_test.cc)
 target_link_libraries(level_manager_test level_manager macros gtest_main gmock)

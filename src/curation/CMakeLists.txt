@@ -61,9 +61,9 @@ target_link_libraries(level_reviewer
   parallax_layout
   parallax_preview_model
   prop_candidate
+  scene_composition
   status_macros
   tileset_manager
-  viewport_scene
   absl::status
   absl::statusor
   absl::strings

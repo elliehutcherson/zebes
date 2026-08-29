@@ -4,17 +4,11 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "editor/level_editor/viewport_model.h"
+#include "engine/scene_types.h"
 #include "objects/camera.h"
 #include "objects/parallax_theme.h"
 
 namespace zebes {
-
-// The portion of the world currently visible through a camera.
-struct VisibleWorldBounds {
-  Vec min;
-  Vec max;
-};
 
 // Native source dimensions for one layer element. Keeping resource handles out
 // of layout makes repetition and culling testable without a rendering backend.
@@ -58,8 +52,6 @@ struct CameraFrame {
   Vec position;
   double zoom = 1;
 };
-
-VisibleWorldBounds CalculateVisibleWorldBounds(const Camera& camera);
 
 // Calculates a camera view that fits bounds with proportional screen padding.
 std::optional<CameraFrame> CalculateCameraFrame(VisibleWorldBounds bounds, int viewport_width,
