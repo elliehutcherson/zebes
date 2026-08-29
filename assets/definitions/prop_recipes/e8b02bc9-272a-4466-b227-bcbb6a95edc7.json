@@ -1,0 +1,219 @@
+{
+  "blueprint_id": "d143f952-43ed-4653-8ca7-c150c0c8510c",
+  "expected_frame": {
+    "frames_per_cycle": 0,
+    "index": 0,
+    "offset_x": -48,
+    "offset_y": -2,
+    "render_h": 32,
+    "render_w": 96,
+    "texture_h": 32,
+    "texture_w": 96,
+    "texture_x": 0,
+    "texture_y": 0
+  },
+  "final_pixel_digest": "d266d99b2396cca6bd0b486eef2518888b9e327383c0e1b0832b9a5b05a8c314",
+  "id": "e8b02bc9-272a-4466-b227-bcbb6a95edc7",
+  "name": "Catacombs Broken Ring Frieze",
+  "pipeline": {
+    "cleanup": {
+      "alpha_threshold": 128,
+      "contact_tolerance": 3,
+      "minimum_component_area": 2
+    },
+    "composition": {
+      "attachment": {
+        "free_anchor": null,
+        "mode": "ceiling"
+      },
+      "canvas_tiles_high": 1,
+      "canvas_tiles_wide": 3,
+      "padding_fraction": 0.05999999865889549
+    },
+    "edge": {
+      "alpha_threshold": 128,
+      "width": 1
+    },
+    "isolation": {
+      "alpha_threshold": 16,
+      "background_distance": 36.0,
+      "competing_subject_ratio": 0.20000000298023224,
+      "enclosed_background_distance": 8.0,
+      "minimum_subject_area": 64
+    },
+    "source_limits": {
+      "maximum_bytes": 67108864,
+      "maximum_height": 4096,
+      "maximum_pixels": 16777216,
+      "maximum_width": 4096
+    }
+  },
+  "pipeline_version": 2,
+  "schema_version": 2,
+  "source_artwork_id": "31dec1a0-8715-49f3-8055-f7d5cf8f67ec",
+  "sprite_id": "780ff51d-e878-47f3-99d6-15f500336f4a",
+  "style": {
+    "palette": [
+      [
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        37,
+        35,
+        50,
+        255
+      ],
+      [
+        170,
+        193,
+        199,
+        255
+      ],
+      [
+        125,
+        142,
+        166,
+        255
+      ],
+      [
+        81,
+        80,
+        126,
+        255
+      ],
+      [
+        7,
+        0,
+        13,
+        255
+      ],
+      [
+        16,
+        27,
+        76,
+        255
+      ],
+      [
+        10,
+        16,
+        59,
+        255
+      ],
+      [
+        26,
+        43,
+        96,
+        255
+      ],
+      [
+        9,
+        16,
+        59,
+        255
+      ],
+      [
+        31,
+        67,
+        104,
+        255
+      ],
+      [
+        11,
+        7,
+        51,
+        255
+      ],
+      [
+        149,
+        171,
+        184,
+        255
+      ],
+      [
+        99,
+        108,
+        144,
+        255
+      ],
+      [
+        22,
+        35,
+        88,
+        255
+      ],
+      [
+        136,
+        155,
+        174,
+        255
+      ],
+      [
+        90,
+        94,
+        136,
+        255
+      ],
+      [
+        154,
+        216,
+        232,
+        255
+      ],
+      [
+        154,
+        202,
+        232,
+        255
+      ],
+      [
+        154,
+        187,
+        233,
+        255
+      ],
+      [
+        154,
+        173,
+        233,
+        255
+      ],
+      [
+        155,
+        159,
+        233,
+        255
+      ],
+      [
+        165,
+        155,
+        233,
+        255
+      ],
+      [
+        180,
+        155,
+        234,
+        255
+      ],
+      [
+        195,
+        155,
+        234,
+        255
+      ],
+      [
+        31,
+        31,
+        60,
+        255
+      ]
+    ],
+    "pixel_block_size": 1,
+    "tile_size": 32
+  },
+  "terrain_recipe_id": "00a2a23d-47fa-4468-b101-9431671f643d",
+  "texture_id": "fa86ea25-3a27-42e0-b990-9731933387e6"
+}

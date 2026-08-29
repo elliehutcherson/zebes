@@ -1,0 +1,19 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 0,
+            "index": 0,
+            "offset_x": -48,
+            "offset_y": -2,
+            "render_h": 32,
+            "render_w": 96,
+            "texture_h": 32,
+            "texture_w": 96,
+            "texture_x": 0,
+            "texture_y": 0
+        }
+    ],
+    "id": "780ff51d-e878-47f3-99d6-15f500336f4a",
+    "name": "Catacombs Broken Ring Frieze",
+    "texture_id": "fa86ea25-3a27-42e0-b990-9731933387e6"
+}

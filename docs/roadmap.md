@@ -284,7 +284,13 @@ graph remain untouched. An explicit read-only `referenced-level` workspace
 profile removes unrelated retained-source validation from exploratory focused
 reviews, reducing the measured production command from 26.3 seconds to 12.6
 seconds while producing byte-identical evidence; complete loading remains the
-default final gate.
+default final gate. A 2026-08-29 managed creation pass adds a distinct
+`Catacombs Broken Ring Frieze` at the middle of the three ceiling-accent
+placements, preserving entity count, layer, order, footprint, and collider
+count while replacing the prior three-copy cadence. Candidate and persisted
+focused renders match at 0.5×, 1×, and 2×, and the rebuilt 343-artifact level
+route reports no findings. Floor-scatter and foreground-shroud variants remain
+the next finite A/B content passes; do not increase placement density.
 See
 [`headless-level-review-plan.md`](headless-level-review-plan.md) and
 [`headless-curation.md`](headless-curation.md).

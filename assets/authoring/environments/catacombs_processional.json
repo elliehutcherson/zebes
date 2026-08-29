@@ -210,7 +210,7 @@
       {
         "id": 10,
         "layer_name": "Back Decor",
-        "blueprint_name": "Catacombs Ceiling Chain Frieze",
+        "blueprint_name": "Catacombs Broken Ring Frieze",
         "state_name": "Default",
         "active": true,
         "position_pixels": [8800.0, 416.0],

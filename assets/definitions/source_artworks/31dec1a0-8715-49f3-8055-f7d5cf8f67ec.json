@@ -1,0 +1,18 @@
+{
+  "content_digest": "52454ed5e528b56bd4d191daf23f36b8f3a5fa75b03b6ee03a7106050590b02f",
+  "height": 887,
+  "id": "31dec1a0-8715-49f3-8055-f7d5cf8f67ec",
+  "name": "Catacombs Broken Ring Frieze source",
+  "provenance": {
+    "generated_at_utc": "2026-08-29T17:27:21Z",
+    "kind": "generated",
+    "model": "codex-imagegen",
+    "provider": "openai-codex",
+    "provider_request_id": "01a04e8f-2acb-7931-9c23-a3194e14acb9",
+    "revised_prompt": "Use case: stylized-concept\nAsset type: isolated side-view pixel-art game prop for an exact 96 x 32 runtime texture\nPrimary request: One sparse, asymmetrical ceiling-mounted funerary frieze. Build it from a single uneven corroded iron rail, exactly three offset broken hanging rings, exactly two very short torn burial-ribbon streamers, and only a few thin web bridges.\nScene/backdrop: genuinely transparent background; no depicted environment\nSubject: a low-profile horizontal funerary frieze intended to attach flush to a ceiling; the rail is irregular and corroded, with the three incomplete rings spaced unevenly and hanging only slightly beneath it; the two ribbon scraps are short and torn, subordinate to the rail; a few delicate web strands bridge small gaps\nStyle/medium: modern pixel-art game asset; deliberate blocky pixel clusters, crisp hard-edged forms, selective anti-aliasing only, compact shading, broad value groups, strong readable silhouette; clearly pixel art, not painted or photorealistic\nComposition/framing: exact 3:1 landscape composition; one complete isolated subject centered with comfortable transparent margin on every side; show the entire subject without cropping; strict side view; keep total silhouette shallow and low-profile, suitable for reduction and quantization to 96 x 32 pixels\nColor palette: restrained funerary iron palette, charcoal-black, oxidized brown, muted rust, small dull gray highlights; ribbons muted desaturated grave-cloth tones\nMaterials/textures: corroded pitted iron expressed through sparse large pixel clusters; torn cloth edges simplified enough to survive reduction\nConstraints: exactly one prop; exactly one uneven iron rail; exactly three offset broken rings; exactly two very short torn ribbon streamers; only a few thin web bridges; no text, no watermark; no cast shadow; no floor, ground plane, scenery, border, or frame; subject must remain legible at gameplay scale where the player hitbox is 32 px wide by 64 px tall\nAvoid: repeating chain scallops; repeated rhythmic loops; centered pendant; focal ornament; symmetry; long dangling elements; chains; bells; hooks; weapons; spikes; glowing parts; treasure or collectible cues; anything resembling a pickup or hazard; extra objects; soft gradients; subpixel texture; painterly rendering; concept-art rendering; 3D render; photorealism",
+    "submitted_prompt": "one sparse asymmetrical ceiling-mounted funerary frieze built from an uneven corroded iron rail, three offset broken hanging rings, two very short torn burial-ribbon streamers, and a few thin web bridges; keep the silhouette low-profile and visually distinct from repeating chain scallops, with no centered pendant, no focal ornament, no long dangling elements, and no object that reads as a pickup or hazard"
+  },
+  "schema_version": 2,
+  "source_path": "source_art/31dec1a0-8715-49f3-8055-f7d5cf8f67ec.png",
+  "width": 1774
+}
