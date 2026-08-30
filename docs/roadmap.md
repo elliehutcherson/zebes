@@ -15,7 +15,7 @@ This document owns the cross-track sequence.
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
 | 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — engineering gates, zone fades, 0.5× Catacombs coverage, independent masonry, distributed decor, and initial A/B prop passes are accepted; finite floor and foreground variants remain |
-| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestones 1–3 are complete; the animation artwork pipeline is the active required follow-on before M4 |
+| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestones 1–3 are complete; imported/manual animation frame-set processing and the first production player set are required before M4 |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -471,17 +471,20 @@ Its idle clips use 15 ticks per frame and its airborne clips hold their final
 frame instead of wrapping. The corrected timing, transitions, landing reset,
 and collision stability were accepted live on 2026-08-29.
 
-The animation artwork pipeline remains active Track 5 work before M4. Coherent
-sheet generation and independently pose-conditioned frames both failed their
-live or identity-consistency gates, so imported/manual sheets remain the
-production source path. Continue with deterministic shared processing,
-retained-source recipes, transactional Texture/Sprite/Blueprint-state output,
-headless review, and the first production player set. A smaller local
-parametric proportion-guide experiment may test whether exact body dimensions
-make a future generated source viable, but remote success is not a production
-pipeline prerequisite. The sequence and evidence live in
-[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) and the
-[pose-conditioned experiment](animation-pose-conditioned-experiment-plan.md).
+Generated animation research is deprecated and no longer appears in the active
+roadmap. Coherent sheets failed live motion review; independently generated
+frames failed identity, proportion, and pose-phase consistency even with
+separated identity views. Imported and manually authored sheets are the only
+production source path.
+
+The next Track 5 work is pure source-neutral frame-set processing: extraction,
+shared registration and palette treatment, validation, and deterministic
+packing. Then add recipe/bundle lifecycle, headless curation, editor import
+controls, and the first imported/manual production player set. That complete
+set must pass commit, restart, and live Catacombs review before M4 starts.
+The deprecated experiment remains
+[historical evidence](animation-pose-conditioned-experiment-plan.md), not a
+dependency or follow-up.
 
 ---
 

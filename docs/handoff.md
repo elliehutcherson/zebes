@@ -109,46 +109,28 @@ add provider-specific animation behavior to that locked run. The processor and
 staging code are useful experimental seams but must not be silently promoted as
 the production animation contract.
 
-A separately reviewed generation experiment now has its production
-infrastructure and disposable runner implemented; see the
-[pose-conditioned experiment plan](animation-pose-conditioned-experiment-plan.md).
-It uses all 12 poses in the supplied sheet as one animation unit and produces
-one image per pose, each conditioned by both the locked identity board and its
-exact pose cell. Reusable ordered reference support belongs in the production
-generation and headless boundaries; 12-frame orchestration remains disposable.
-OpenAI and Codex transport ordered references; the headless resolver accepts
-confined files or bounded managed artwork and retains exact provenance. The
-fake-provider workflow proves the frame-0/frame-6 pilot, reviewed approval gate,
-fresh 0..11 batch, atomic failure evidence, 12-frame assembly, and 576 x 44
-packing. The exact 12-pose/identity input kit is locked under
-`build/animation-feasibility/pose-conditioned-v1/`. Its deterministic
-guide-only processing and four-tick live Catacombs gate passed. `pilot-01`
-exposed that `codex-imagegen` was incorrectly used as a worker model instead of
-the separately supplied skill; the adapter now validates paginated
-`model/list`, defaults to `gpt-5.6-sol`, and retains structured turn errors.
-`pilot-02-sol` exposed that Codex returns a provider-native 1254 x 1254 square
-rather than the assumed 1024 x 1024. The batch path now preserves that native
-canvas without resize and raises only its exact assembled-sheet bounds.
-`pilot-03-sol-native` completed fresh frames 0 and 6 but failed human review:
-frame 0 is visibly stouter, frame 6 is leaner, and their arm and belt
-construction differ. The separated-view follow-up then supplied right-side,
-front, and back identity crops before the pose. Its fresh pair also failed:
-helmet and waist sizes differ, and the poses read as nearly the same phase with
-one arm moved. No batch is authorized. The disposable multi-identity runner
-expansion was removed; production ordered references remain.
+The separately reviewed
+[pose-conditioned experiment](animation-pose-conditioned-experiment-plan.md)
+is also complete, failed, and deprecated. Its guide-only baseline passed, but
+one composite identity board produced different body builds, arms, and belts.
+Three separated identity views still produced different helmet and waist
+dimensions and nearly the same visible pose phase. Six provider turns were
+attempted across four pilots; no 12-frame batch was authorized. Do not continue
+with parametric guides, sequential conditioning, more reference packaging, or
+additional provider calls under that plan.
 
-The next experiment is local first: a pure parametric proportion-guide tool
-with fixed helmet, torso, waist, backpack, limb lengths/widths, joint positions,
-origin, ground line, and z-order. It emits SVG and PNG from one resolved
-primitive list and proves only the two opposing contact poses before any remote
-request. If accepted locally, one right-side identity crop plus one exact guide
-gets a two-call pilot. Sequential conditioning remains later work.
+Reusable ordered-reference support remains production infrastructure for
+headless generation, OpenAI, Codex, and redraw. The disposable pose-conditioned
+runner and feasibility artifacts remain historical evidence, not an animation
+source contract or active milestone.
 
-For the next production implementation pass, use imported/manual frame sheets
-and promote only the source-neutral processing behavior that survives review:
-shared registration, palette processing, packing, retained provenance, and
-transactional bundle persistence. M3's separate left/right Sprite bindings
-remain the runtime contract.
+The next Track 5 pass uses imported or manually authored frame sheets. Promote
+only source-neutral extraction, shared registration and palette processing,
+validation, deterministic packing, retained provenance, and transactional
+bundle persistence. Then add headless curation, editor import controls, and the
+first complete production player set. M3's separate left/right Sprite bindings
+remain the runtime contract; M4 waits for that imported/manual set's commit,
+restart, and live Catacombs gate.
 
 The M3 closeout baseline passed 144 C++ test executables, 95 Python tests, the
 SDL UI sanity test, scoped clang-tidy, definition migration dry-run, and

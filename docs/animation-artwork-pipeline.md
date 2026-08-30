@@ -337,29 +337,20 @@ is not a feasible animation source with this technique. Keep imported/manual
 sheets as the production path, do not add provider-specific animation transport
 to this locked run, and do not spend further requests on it.
 
-Generation research continued under the separately budgeted
+The separately budgeted
 [pose-conditioned experiment](animation-pose-conditioned-experiment-plan.md)
-rather than amending this result. Independent images conditioned by one
-composite identity board failed a frame-0/frame-6 pilot because body build,
-arms, and belt construction drifted. Splitting the board into three ordered
-identity views improved resemblance but still changed helmet and waist size,
-and the opposing pose guides produced nearly the same visible phase. No
-12-frame batch was authorized and the disposable multi-identity runner
-expansion was removed.
+also failed. One composite identity board and three separated identity views
+both produced dimensionally different characters, and the opposing guides did
+not produce unambiguous pose phases. That complete experiment is deprecated.
+No parametric-guide, sequential-conditioning, generated-sheet, independent-frame
+batch, or additional provider call is active roadmap work.
 
-The next research step is local and smaller: a deterministic parametric
-proportion guide that fixes body-part dimensions while pose joint positions
-change. It must pass two opposing SVG/PNG guide overlays before receiving any
-provider budget. Sequential conditioning and a full 2D rig remain separate
-hypotheses; neither is assumed by the production imported/manual pipeline.
+Remote provider success is not a prerequisite for animation authoring. The
+production path is imported or manually authored sheets through source-neutral
+processing, review, recipe, and transactional persistence. Generated animation
+research cannot be used to delay or redefine that path.
 
-Provider success is not allowed to block the basic animation authoring pipeline.
-Manual correction may be measured as follow-up research, but a corrected output
-does not retroactively pass the generated-candidate gate. If the source-sheet or
-frame-geometry contract changes, rerun both baselines before carrying the new
-shape into `AnimationArtworkRecipe`.
-
-### Implementation order and verification
+### Historical generation-gate order and verification
 
 1. Lock the original identity board, character palette, idle guide, locomotion
    guide, exact prompts, and gate constants.
@@ -447,21 +438,24 @@ overwrites collider work or silently invokes a remote provider.
    migration, the player policy, explicit playback modes, and a minimal
    real-format multi-frame proof passed their automated and live Catacombs
    gates on 2026-08-29.
-2. **Generation feasibility — start here.** Run the bounded generated-sheet/
-   imported-sheet comparison and record the accepted source and frame geometry
-   contract.
-3. **Pure frame-set processing.** Implement extraction through deterministic
-   packing with focused platform-neutral tests and a small command-line spike.
+2. **Generation feasibility — complete and closed.** Manual/imported sheets
+   passed deterministic processing and live staging. Coherent generation and
+   pose-conditioned independent frames failed their visual gates; generated
+   animation is deprecated.
+3. **Pure frame-set processing — next.** Promote the accepted source-neutral
+   extraction, registration, shared palette, validation, and deterministic
+   packing behavior with focused platform-neutral tests.
 4. **Recipe and bundle lifecycle.** Add the strict recipe manager, catalog
    references, pure preparation, transactional create/regenerate/delete APIs,
    migrations, and failure-compensation tests.
 5. **Headless curation.** Publish frame, alignment, loop, and focused in-level
    evidence; require byte-stable re-review after commit.
-6. **Editor and provider flow.** Reuse the generation lifecycle controls and
-   provider registry, add animation-specific prompt/reference/clip controls,
-   and retain accepted candidates before processing or persistence.
-7. **Production player set.** Generate or import, process, review, persist, and
-   regenerate the initial player state set, then complete the live route gate.
+6. **Editor import flow.** Reuse retained-source lifecycle controls and add
+   animation-specific imported-sheet, clip, timing, origin, and state-binding
+   controls. Do not add remote animation generation.
+7. **Production player set.** Import or manually author, process, review,
+   persist, and regenerate the initial player state set, then complete the live
+   route gate.
 
 Only after milestone 7 should the runtime plan proceed to M4. The finite cave
 environment variation pass can continue independently when it does not modify

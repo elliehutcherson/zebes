@@ -1,18 +1,23 @@
-# Pose-conditioned animation generation experiment
+# Deprecated: pose-conditioned animation generation experiment
 
-Status: production reference support and the disposable pilot/batch runner were
-implemented and fake-provider verified on 2026-08-30. The exact input kit is
-locked and the four-tick guide-only baseline passed deterministic processing
-and live review. Both the composite-board and separated-identity-view pilots
-were rejected for visible proportion and costume drift, so no candidate batch
-is authorized. Six provider turns were attempted across four pilot runs.
+**Status: DEPRECATED on 2026-08-30.** Both the composite-board and
+separated-identity-view approaches failed their bounded identity and pose gates.
+No candidate batch, parametric-guide follow-up, sequential-conditioning run, or
+additional provider call is authorized under this plan. Six provider turns were
+attempted across four pilot runs.
 
-This plan starts a new experiment after the coherent-sheet generation gate
-recorded in [the animation artwork pipeline](animation-artwork-pipeline.md)
-failed live playback. It does not revise that result. The new hypothesis is
-that one generated image per pose, conditioned by both character-identity and
-pose references, can improve pose obedience enough to form a readable run
-cycle without unacceptable identity drift.
+This document is retained only as historical evidence. Its runner, manifests,
+commands, budgets, and deferred hypotheses are not active roadmap work. The
+production ordered-reference infrastructure remains supported for its
+independent generation and redraw tenants; it does not make generated animation
+an accepted or planned source path.
+
+This document records an experiment started after the coherent-sheet generation
+gate in [the animation artwork pipeline](animation-artwork-pipeline.md) failed
+live playback. It does not revise that result. The tested hypothesis was that
+one generated image per pose, conditioned by character-identity and pose
+references, could improve pose obedience enough to form a readable run cycle
+without unacceptable identity drift.
 
 The supplied 12-pose run sheet is one animation unit. This experiment uses all
 12 poses in their existing order. It must not create a ten-frame derivative by
@@ -361,45 +366,21 @@ the production ordered-reference contract remains because it has independent
 headless, OpenAI, Codex, and redraw tenants. No generated pilot frame may be
 reused.
 
-### Next smaller experiment: parametric proportion guide
+### Abandoned parametric-guide proposal
 
-Stop remote animation work until a deterministic local authoring tool can
-describe both pose and body dimensions. The tool should resolve one immutable
-character-proportion spec beside one pose spec:
+A deterministic proportion-guide tool was considered after the identity-view
+pilot failed. It was not implemented and is not a successor milestone. Any
+future articulated-guide, cutout-rig, or dimension-constrained image experiment
+requires a new design and budget outside this deprecated plan. No part of the
+proposal below is carried into the active roadmap.
 
-- a fixed canvas, character origin, and ground line;
-- exact helmet, torso, pelvis/waist, and backpack bounds;
-- shoulder, elbow, wrist, hip, knee, ankle, and toe joint positions for both
-  sides;
-- upper-arm, forearm, thigh, calf, and foot widths; and
-- explicit near/far z-order.
+### Historical operator contract
 
-Resolve limbs as overlapping capsules or ovals: thigh overlaps calf, calf
-overlaps foot, and upper arm overlaps forearm. Helmet, torso, pelvis, and
-backpack use fixed ellipses or rounded bounds. Pose changes joint positions and
-angles only; it cannot alter any identifying width, length, or body-part bound.
-
-One resolved primitive list must produce both a directly inspectable SVG and a
-provider-ready RGBA PNG, so the two formats cannot drift. Rendering is
-deterministic and platform-neutral; no SDL, editor, API, provider, or resource
-manager enters the geometry layer. Start with only the two opposing contact
-poses. The local gate verifies every resolved dimension and overlays both
-guides at one origin before any provider request.
-
-If the local gate passes, run one two-call pilot using only the locked
-right-side identity crop and the exact parametric pose/proportion guide. Judge
-helmet size, waist width, limb widths, backpack size, canvas occupancy, and
-pose phase before costume polish. A failure ends this hypothesis; it does not
-authorize a rig editor, in-betweening, or a 12-frame batch.
-
-### Implemented operator contract
-
-The implementation entry point is `run_pose_conditioned_animation`. It accepts
-one strict schema-v1 experiment manifest and publishes to a new immutable
-evidence directory. Stable provider selectors are `fake`, `openai`, and
-`codex`. The locked evidence records `openai-codex` as the Codex adapter's
-canonical result provenance, and the runner validates that mapping before it
-can classify a result as complete.
+The historical entry point is `run_pose_conditioned_animation`. It accepts one
+strict schema-v1 experiment manifest and publishes to a new immutable evidence
+directory. Stable provider selectors are `fake`, `openai`, and `codex`. Locked
+evidence records `openai-codex` as the Codex adapter's canonical result
+provenance and validates that mapping before classifying a result as complete.
 The configured Codex model is sent to App Server with model fallback disabled,
 so the recorded model is the requested model rather than an adapter label.
 
