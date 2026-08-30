@@ -1,13 +1,12 @@
 # Game runtime plan
 
-**Status: Milestones 1 and 2 are complete. The Milestone 3 implementation is
-complete, but its live visual gate remains open.
+**Status: Milestones 1, 2, and 3 are complete.
 `run_game` boots the shipped Catacombs level, advances the fixed-tick player
 through continuous sparse-tile collision, follows the player camera, and
 presents runtime transforms through the shared scene and SDL host. The live M2
-movement gate was accepted on 2026-08-29. The runtime and asset/content tracks
-proceed in parallel. After the M3 live proof, the animation artwork pipeline is
-a required follow-on before M4.**
+movement gate and M3 animation gate were accepted on 2026-08-29. The runtime
+and asset/content tracks proceed in parallel. The animation artwork pipeline is
+now the required follow-on before M4.**
 
 Design for the Zebes game runtime: the executable that loads a shipped level
 and plays it. The editor, curation, and generation stacks are out of scope
@@ -47,7 +46,7 @@ blueprint graph, fixed-tick animation cursors, explicit blueprint-state
 selection, semantic Blueprint state keys, player idle/run/airborne selection,
 and runtime sprite/frame presentation overrides. Catacombs uses a six-state
 multi-frame proof asset. Runtime asset streaming and level transitions do not
-exist yet; the M3 implementation still awaits its live visual acceptance gate.
+exist yet; the animation artwork pipeline is the next runtime-track dependency.
 
 ## Design decisions
 
@@ -274,8 +273,10 @@ transitions, runtime presentation, shipped blueprint references, Sprite and
 semantic-key migration, and the six-state player policy. Catacombs now
 instantiates the Player Animation Proof, whose idle clips use 15 ticks per frame
 and airborne clips hold their final frame while retaining one exact collider.
-The implementation and automated M3 gates are complete; full acceptance still
-requires confirming the corrected playback in the running level.
+The automated M3 gate covers those contracts. The live gate was accepted on
+2026-08-29: idle timing, looping run, held airborne final frames, left/right
+transitions, landing resets, and unchanged collision behavior all worked as
+intended.
 
 ### Milestone 2 movement and collision implementation plan
 
@@ -442,13 +443,13 @@ or projectile simulation. Its reusable result is the continuous convex sweep;
 future object categories add spatial indexes only when their collision behavior
 exists and can be measured.
 
-**M3 — Animation playback and blueprint-state behavior — implementation
-complete; live acceptance pending.** Frame timers, per-entity playback state,
-one frozen loaded-level Blueprint graph, all state-referenced assets, semantic
-state keys, boot-resolved player state handles, and runtime sprite/frame
-selection are implemented and covered headlessly. Catacombs ships a six-state
-multi-frame proof with explicit loop-or-hold playback. The remaining gate is
-confirming its corrected visible timing and transitions in the running level.
+**M3 — Animation playback and blueprint-state behavior — complete.** Frame
+timers, per-entity playback state, one frozen loaded-level Blueprint graph, all
+state-referenced assets, semantic state keys, boot-resolved player state
+handles, and runtime sprite/frame selection are implemented and covered
+headlessly. Catacombs ships a six-state multi-frame proof with explicit
+loop-or-hold playback. Its corrected timing, transitions, landing reset, and
+collision stability were accepted live on 2026-08-29.
 
 **Post-M3 — Animation artwork pipeline.** Run the animation-generation
 feasibility gate, then build the deterministic frame-set processing, retained-source recipe,

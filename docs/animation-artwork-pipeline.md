@@ -1,7 +1,8 @@
 # Animation artwork pipeline plan
 
-**Status: planned as the required follow-on to the Milestone 3 live animation
-gate and before the Milestone 4 runtime thread split.**
+**Status: active next work. The Milestone 3 live animation gate was accepted on
+2026-08-29; this pipeline is required before the Milestone 4 runtime thread
+split.**
 
 ## Goal and sequencing
 
@@ -10,10 +11,10 @@ frame-set source artwork into validated Zebes Texture, Sprite, and Blueprint
 state bindings. The output must be reviewable, regenerable from retained source,
 and safe to commit without leaving a partial asset graph.
 
-This work follows the M3 live proof directly. M3 should first establish stable
-semantic Blueprint state keys, a game-owned player state-selection policy, and
-visible playback using a deliberately small asset in the real Texture/Sprite
-format. That separates engine correctness from image-generation quality. The
+M3 established stable semantic Blueprint state keys, a game-owned player
+state-selection policy, explicit loop-or-hold Sprite playback, and visible
+playback using a deliberately small asset in the real Texture/Sprite format.
+That separates engine correctness from image-generation quality. The accepted
 proof is not the production animation workflow, and M4 does not begin until the
 pipeline feasibility and first production clip gates below pass.
 
@@ -50,19 +51,19 @@ churn before runtime measurements justify those systems.
 ### Stable runtime semantics
 
 Blueprint state display names and vector indices are authoring presentation,
-not gameplay identifiers. Add a serialized, stable state key and migrate every
-shipped Blueprint definition. The game layer owns the meaning of keys such as
-`idle`, `run`, and `airborne`; engine playback only resolves a key and changes
-the selected state. Migration and loader tests must cover every shipped
-definition.
+not gameplay identifiers. M3 added serialized, stable state keys and migrated
+every shipped Blueprint definition. The game layer owns the meaning of
+`idle-*`, `run-*`, and `airborne-*`; engine playback resolves the boot-checked
+state handle and changes the selected state. Migration and loader tests cover
+every shipped definition.
 
 The player state policy should be deterministic from fixed-tick runtime data.
 For the first gate, horizontal speed and grounded/airborne state are sufficient.
-State changes reset playback only when the semantic key changes. Facing policy
-must also be explicit: prefer runtime horizontal mirroring if the renderer can
-support it cleanly; otherwise left- and right-facing clips are separate recipe
-outputs. Do not ask generation to make both directions until this choice is
-settled.
+State changes reset playback only when the semantic key changes. M3 settled on
+separate left- and right-facing Sprite bindings because runtime mirroring is not
+part of the renderer contract. Prove one direction during feasibility, then
+produce or derive the paired direction through the same deterministic pipeline;
+do not expand the renderer merely to make the feasibility spike pass.
 
 ### Frame-set geometry
 
@@ -191,12 +192,13 @@ overwrites collider work or silently invokes a remote provider.
 
 ## Implementation milestones
 
-1. **M3 semantic/live proof — implementation complete; live acceptance
-   pending.** Stable Blueprint state keys, migration, the player policy, and a
-   minimal real-format multi-frame proof are implemented. Accept the visible
-   transitions in Catacombs.
-2. **Generation feasibility.** Run the bounded generated-sheet/imported-sheet
-   comparison and record the accepted source and frame geometry contract.
+1. **M3 semantic/live proof — complete.** Stable Blueprint state keys,
+   migration, the player policy, explicit playback modes, and a minimal
+   real-format multi-frame proof passed their automated and live Catacombs
+   gates on 2026-08-29.
+2. **Generation feasibility — start here.** Run the bounded generated-sheet/
+   imported-sheet comparison and record the accepted source and frame geometry
+   contract.
 3. **Pure frame-set processing.** Implement extraction through deterministic
    packing with focused platform-neutral tests and a small command-line spike.
 4. **Recipe and bundle lifecycle.** Add the strict recipe manager, catalog

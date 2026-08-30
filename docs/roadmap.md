@@ -15,7 +15,7 @@ This document owns the cross-track sequence.
 | 2 | Repo hygiene | **Done** |
 | 3 | Terrain carry-overs | **Done** |
 | 4 | Features: layers, prop artwork, environment artwork, zone seaming | **In progress** — engineering gates, zone fades, 0.5× Catacombs coverage, independent masonry, distributed decor, and initial A/B prop passes are accepted; finite floor and foreground variants remain |
-| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestones 1 and 2 are complete; the M3 playback/state-selection slice is implemented, but its live gate remains open; the animation artwork pipeline is the required follow-on before M4 |
+| 5 | Game runtime: `run_game`, simulation, player, thread split | **In progress in parallel with Track 4** — Milestones 1–3 are complete; the animation artwork pipeline is the active required follow-on before M4 |
 
 Track 0 merged through PR #1. CI now compiles one UI-enabled test tree and runs
 the headless, SDL/ImGui, and Python suites from that single build.
@@ -456,25 +456,26 @@ policy, phased implementation, and gates live in the
 [Milestone 2 movement plan](engine-runtime-plan.md#milestone-2-movement-and-collision-implementation-plan);
 [`handoff.md`](handoff.md) remains the concise resume point.
 
-**Milestone 3 — implementation complete; live acceptance pending.** The loaded
-level owns one frozen Blueprint graph and resolves every Sprite and Collider
-referenced by every state before boot. `RuntimeWorld` borrows that graph and
-owns only per-instance Blueprint bindings, animation cursors, and other mutable
-runtime state. Authored entities persist stable Blueprint-local state keys;
-boot resolves the player's six idle/run/airborne and left/right keys to checked
-handles, so fixed ticks do not perform string or catalog lookup. Scene
-composition presents runtime-selected sprite IDs and frame indices without
-mutating authored entities. Headless playback, state-reset,
-invalid-transition, shipped-reference, and runtime presentation tests pass.
-Catacombs ships a deliberately small multi-frame Player Animation Proof that
-preserves one exact collider across all states. Its idle clips use 15 ticks per
-frame and its airborne clips hold their final frame instead of wrapping. The
-remaining M3 gate is live visual confirmation of the corrected playback.
-Then build the animation artwork pipeline before starting M4: first prove
-coherent frame-set generation against an imported baseline, then add
+**Milestone 3 — complete.** The loaded level owns one frozen Blueprint graph
+and resolves every Sprite and Collider referenced by every state before boot.
+`RuntimeWorld` borrows that graph and owns only per-instance Blueprint
+bindings, animation cursors, and other mutable runtime state. Authored entities
+persist stable Blueprint-local state keys; boot resolves the player's six
+idle/run/airborne and left/right keys to checked handles, so fixed ticks do not
+perform string or catalog lookup. Scene composition presents runtime-selected
+sprite IDs and frame indices without mutating authored entities. Headless
+playback, state-reset, invalid-transition, shipped-reference, and runtime
+presentation tests pass. Catacombs ships a deliberately small multi-frame
+Player Animation Proof that preserves one exact collider across all states.
+Its idle clips use 15 ticks per frame and its airborne clips hold their final
+frame instead of wrapping. The corrected timing, transitions, landing reset,
+and collision stability were accepted live on 2026-08-29.
+
+The animation artwork pipeline is now the active Track 5 work before M4: first
+prove coherent frame-set generation against an imported baseline, then add
 deterministic shared processing, retained-source recipes, transactional
-Texture/Sprite/Blueprint-state output, headless review, and the first production
-player set. The sequence and failure gate are specified in
+Texture/Sprite/Blueprint-state output, headless review, and the first
+production player set. The sequence and failure gate are specified in
 [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md).
 
 ---
