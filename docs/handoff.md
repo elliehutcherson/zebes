@@ -45,8 +45,9 @@ graph is the single runtime source of Blueprint definitions and all referenced
 Sprites, textures, and Colliders; `RuntimeWorld` borrows it and owns only
 per-instance bindings, playback, and other mutable runtime state. Scene
 composition presents runtime-selected sprites and frames without mutating
-authored entities. Headless tests cover multi-frame timing, state changes,
-reset behavior, invalid transitions, and the complete render-composition path.
+authored entities. Sprites explicitly select looping or final-frame holding;
+headless tests cover both modes, multi-frame timing, state changes, reset
+behavior, invalid transitions, and the complete render-composition path.
 
 Blueprint states now have required, migrated, unique semantic keys. The key is
 stable programmatic identity within one Blueprint; the name remains editable
@@ -55,12 +56,13 @@ index. Runtime boot resolves `idle-*`, `run-*`, and `airborne-*` to checked
 handles, then fixed ticks select among those handles from grounded state,
 horizontal velocity, and remembered facing. The Catacombs player is the
 six-state Player Animation Proof, which reuses existing multi-frame artwork
-while retaining one exact 32x64 collider across every state.
+while retaining one exact 32x64 collider across every state. Its idle clips use
+15 ticks per frame and its airborne clips hold their final frame.
 
-Finish the live M3 gate by running Catacombs and confirming visible idle, run,
-airborne, and left/right transitions without collision-bound changes. Once
-accepted, record M3 complete and move directly to the animation artwork
-feasibility gate below.
+Finish the live M3 gate by running Catacombs and confirming the slower idle,
+looping run, hold-last airborne, and left/right transitions without
+collision-bound changes. Once accepted, record M3 complete and move directly
+to the animation artwork feasibility gate below.
 
 The likely shared files are `src/game/game_runtime.*`, `src/game/game_scene.*`,
 and their tests. Coordinate those before running asset work that changes the

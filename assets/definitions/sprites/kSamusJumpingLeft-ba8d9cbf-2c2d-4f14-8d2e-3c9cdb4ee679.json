@@ -27,5 +27,6 @@
     ],
     "id": "ba8d9cbf-2c2d-4f14-8d2e-3c9cdb4ee679",
     "name": "kSamusJumpingLeft",
+    "playback_mode": "loop",
     "texture_id": "ec794926-7aa3-41e3-822e-c22e7e1b0388"
 }

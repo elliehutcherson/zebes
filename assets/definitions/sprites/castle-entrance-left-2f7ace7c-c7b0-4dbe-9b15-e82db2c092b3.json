@@ -15,5 +15,6 @@
     ],
     "id": "2f7ace7c-c7b0-4dbe-9b15-e82db2c092b3",
     "name": "castle-entrance-left",
+    "playback_mode": "loop",
     "texture_id": "ef87b036-f7ba-422d-8601-62d5221d42e6"
 }

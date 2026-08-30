@@ -78,6 +78,7 @@ TEST(SpriteReviewerTest, EmitsNativeEnlargedAndAnimationArtifacts) {
   EXPECT_EQ(review.artifacts.front().id, "animation-strip");
   EXPECT_EQ(review.artifacts.at(1).image.width, 16);
   EXPECT_EQ(review.artifacts.at(2).image.width, 256);
+  EXPECT_EQ(review.metadata.at("playback_mode"), "loop");
   EXPECT_EQ(review.metadata.at("frames").size(), 2);
 }
 

@@ -15,5 +15,6 @@
     ],
     "id": "76a34a04-889c-432c-8c79-ef9b68eb48c6",
     "name": "Catacombs Fallen Votive Tablets",
+    "playback_mode": "loop",
     "texture_id": "82a1ea51-f968-4e5b-b44f-ed309038798e"
 }

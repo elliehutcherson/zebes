@@ -15,5 +15,6 @@
     ],
     "id": "c0f593b2-1d66-43c3-aece-5826cef5efa8",
     "name": "Catacombs Funeral Brazier",
+    "playback_mode": "loop",
     "texture_id": "fefd8127-ec34-49f8-8c11-287d900071d5"
 }

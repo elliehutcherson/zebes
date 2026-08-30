@@ -15,5 +15,6 @@
     ],
     "id": "438b282b-d4af-4d56-9356-72266f1be70a",
     "name": "Cave Crystal",
+    "playback_mode": "loop",
     "texture_id": "696ed354-f84c-4d6a-ac8b-e8643a2290e0"
 }

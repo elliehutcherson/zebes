@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <string_view>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -17,6 +18,12 @@ namespace zebes {
 namespace {
 
 constexpr char kDefinitionsPath[] = "definitions/sprites";
+
+absl::StatusOr<SpritePlaybackMode> SpritePlaybackModeFromId(std::string_view id) {
+  if (id == "loop") return SpritePlaybackMode::kLoop;
+  if (id == "hold-last") return SpritePlaybackMode::kHoldLast;
+  return absl::InvalidArgumentError(absl::StrCat("unknown sprite playback mode: ", id));
+}
 
 }  // namespace
 
@@ -52,6 +59,7 @@ nlohmann::json ToJson(const Sprite& sprite) {
   nlohmann::json j = nlohmann::json{
       {"id", sprite.id},
       {"name", sprite.name},
+      {"playback_mode", SpritePlaybackModeId(sprite.playback_mode)},
       {"texture_id", sprite.texture_id},
   };
 
@@ -72,6 +80,9 @@ absl::StatusOr<Sprite> GetSpriteFromJson(const nlohmann::json& j) {
     j.at("id").get_to(sprite.id);
     j.at("name").get_to(sprite.name);
     j.at("texture_id").get_to(sprite.texture_id);
+    std::string playback_mode;
+    j.at("playback_mode").get_to(playback_mode);
+    ASSIGN_OR_RETURN(sprite.playback_mode, SpritePlaybackModeFromId(playback_mode));
 
     for (const auto& item : j.at("frames")) {
       SpriteFrame frame;
@@ -169,6 +180,9 @@ absl::Status SpriteManager::PreflightSpriteWithId(const Sprite& sprite) {
 absl::Status SpriteManager::SaveSprite(Sprite sprite) {
   if (sprite.id.empty()) {
     return absl::InvalidArgumentError("Sprite must have an ID to be saved.");
+  }
+  if (!IsValidSpritePlaybackMode(sprite.playback_mode)) {
+    return absl::InvalidArgumentError("Sprite must have a valid playback mode.");
   }
 
   // The texture must be loaded, but its handle is runtime state and stays with

@@ -1,7 +1,7 @@
 {
     "frames": [
         {
-            "frames_per_cycle": 10,
+            "frames_per_cycle": 15,
             "index": 0,
             "offset_x": -29,
             "offset_y": -88,
@@ -13,7 +13,7 @@
             "texture_y": 0
         },
         {
-            "frames_per_cycle": 10,
+            "frames_per_cycle": 15,
             "index": 1,
             "offset_x": -29,
             "offset_y": -88,
@@ -25,7 +25,7 @@
             "texture_y": 0
         },
         {
-            "frames_per_cycle": 10,
+            "frames_per_cycle": 15,
             "index": 2,
             "offset_x": -29,
             "offset_y": -88,
@@ -37,7 +37,7 @@
             "texture_y": 0
         },
         {
-            "frames_per_cycle": 10,
+            "frames_per_cycle": 15,
             "index": 3,
             "offset_x": -29,
             "offset_y": -88,
@@ -51,5 +51,6 @@
     ],
     "id": "61370e3c-25ca-438c-9b7f-0f978eb2dd4b",
     "name": "kSamusIdleLeft",
+    "playback_mode": "loop",
     "texture_id": "804134c3-d902-499b-ba07-cb3a8228abb7"
 }

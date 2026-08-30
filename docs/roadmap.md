@@ -467,8 +467,9 @@ composition presents runtime-selected sprite IDs and frame indices without
 mutating authored entities. Headless playback, state-reset,
 invalid-transition, shipped-reference, and runtime presentation tests pass.
 Catacombs ships a deliberately small multi-frame Player Animation Proof that
-preserves one exact collider across all states. The remaining M3 gate is live
-visual confirmation of those transitions.
+preserves one exact collider across all states. Its idle clips use 15 ticks per
+frame and its airborne clips hold their final frame instead of wrapping. The
+remaining M3 gate is live visual confirmation of the corrected playback.
 Then build the animation artwork pipeline before starting M4: first prove
 coherent frame-set generation against an imported baseline, then add
 deterministic shared processing, retained-source recipes, transactional

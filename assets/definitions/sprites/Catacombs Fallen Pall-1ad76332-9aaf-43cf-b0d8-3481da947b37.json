@@ -15,5 +15,6 @@
     ],
     "id": "1ad76332-9aaf-43cf-b0d8-3481da947b37",
     "name": "Catacombs Fallen Pall",
+    "playback_mode": "loop",
     "texture_id": "8fb21c81-acaf-467c-b363-81f364555513"
 }

@@ -27,8 +27,10 @@ from pathlib import Path
 
 # Sprite frames gained authored offsets after the first sprites were cut. A
 # frame written before that drew at no offset, so zero is the value that
-# preserves exactly what the old file rendered.
+# preserves exactly what the old file rendered. Sprites also gained an explicit
+# playback mode; every earlier Sprite looped.
 SPRITE_FRAME_DEFAULTS = {"offset_x": 0, "offset_y": 0}
+SPRITE_DEFAULTS = {"playback_mode": "loop"}
 
 
 def blueprint_state_key(name: str) -> str:
@@ -63,8 +65,12 @@ def migrate_blueprint(document: dict) -> bool:
 
 
 def migrate_sprite(document: dict) -> bool:
-    """Fills missing frame offsets. Returns whether anything changed."""
+    """Fills missing Sprite playback and frame geometry fields."""
     changed = False
+    for field, value in SPRITE_DEFAULTS.items():
+        if field not in document:
+            document[field] = value
+            changed = True
     for frame in document.get("frames", []):
         for field, value in SPRITE_FRAME_DEFAULTS.items():
             if field not in frame:

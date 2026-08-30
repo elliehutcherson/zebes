@@ -16,10 +16,10 @@ TEST(AnimationCursorTest, ReadsFramesThatChangeAfterPlaybackStarts) {
   };
 
   ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
 
   frames.push_back({.index = 1, .texture_x = 20, .frames_per_cycle = 1});
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
 
   ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 1);
@@ -33,14 +33,14 @@ TEST(AnimationCursorTest, UsesEachFramesDuration) {
       {.index = 1, .frames_per_cycle = 1},
   };
 
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
   ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 0);
 
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 1);
 
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 0);
 }
 
@@ -51,11 +51,11 @@ TEST(AnimationCursorTest, TreatsNonPositiveDurationAsOneTick) {
       {.index = 1, .frames_per_cycle = -2},
   };
 
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
   ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 1);
 
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 0);
 }
 
@@ -65,14 +65,14 @@ TEST(AnimationCursorTest, HandlesFramesRemovedDuringPlayback) {
       {.index = 0, .frames_per_cycle = 1},
       {.index = 1, .frames_per_cycle = 1},
   };
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
   ASSERT_EQ(cursor.GetCurrentFrame(frames)->index, 1);
 
   frames.resize(1);
 
   ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 0);
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 0);
 }
 
@@ -84,7 +84,7 @@ TEST(AnimationCursorTest, EmptyFramesFailQueriesAndAreInactive) {
   EXPECT_EQ(cursor.GetCurrentFrame(frames).status().code(), absl::StatusCode::kFailedPrecondition);
   EXPECT_EQ(cursor.GetCurrentFrameIndex(frames).status().code(),
             absl::StatusCode::kFailedPrecondition);
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
 }
 
 TEST(AnimationCursorTest, ResetRestartsAtFirstFrame) {
@@ -94,11 +94,32 @@ TEST(AnimationCursorTest, ResetRestartsAtFirstFrame) {
       {.index = 1, .frames_per_cycle = 1},
   };
 
-  cursor.Update(frames);
+  cursor.Update(frames, SpritePlaybackMode::kLoop);
   ASSERT_EQ(cursor.GetCurrentFrame(frames)->index, 1);
   cursor.Reset();
   ASSERT_EQ(cursor.GetCurrentFrameIndex(frames).value(), 0);
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 0);
+}
+
+TEST(AnimationCursorTest, HoldLastPlaybackStopsOnTheFinalFrame) {
+  AnimationCursor cursor;
+  const std::vector<SpriteFrame> frames = {
+      {.index = 0, .frames_per_cycle = 2},
+      {.index = 1, .frames_per_cycle = 2},
+  };
+
+  cursor.Update(frames, SpritePlaybackMode::kHoldLast);
+  EXPECT_EQ(cursor.GetCurrentFrameIndex(frames).value(), 0);
+  cursor.Update(frames, SpritePlaybackMode::kHoldLast);
+  EXPECT_EQ(cursor.GetCurrentFrameIndex(frames).value(), 1);
+
+  for (int tick = 0; tick < 20; ++tick) {
+    cursor.Update(frames, SpritePlaybackMode::kHoldLast);
+  }
+  EXPECT_EQ(cursor.GetCurrentFrameIndex(frames).value(), 1);
+
+  cursor.Reset();
+  EXPECT_EQ(cursor.GetCurrentFrameIndex(frames).value(), 0);
 }
 
 }  // namespace

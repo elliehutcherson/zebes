@@ -27,5 +27,6 @@
     ],
     "id": "9b4bf633-bd01-4ced-980c-2e22b9551f40",
     "name": "Player Airborne Right Proof",
+    "playback_mode": "hold-last",
     "texture_id": "7d730b5d-19fd-47aa-be81-c9a1d6b26965"
 }

@@ -72,7 +72,7 @@ Every clip declares:
 - an entity origin and grounded/contact line shared by every frame;
 - ordered frame durations in fixed simulation ticks;
 - source-cell layout or explicit source rectangles;
-- intended loop behavior; and
+- intended playback behavior (`loop` or `hold-last`); and
 - limits for source dimensions, output dimensions, pixels, and bytes.
 
 Processing may translate isolated subjects inside their fixed frame canvases to
@@ -93,7 +93,7 @@ settles the source shape. The expected recipe records:
 
 - retained source-artwork IDs and their accepted digests;
 - the target Blueprint ID and stable state-key bindings;
-- per-clip cell layout, frame count, timing, canvas, origin, and loop policy;
+- per-clip cell layout, frame count, timing, canvas, origin, and playback mode;
 - shared isolation, scale, palette, alpha, and cleanup settings;
 - produced Texture and Sprite IDs plus final pixel and definition digests; and
 - the deterministic pipeline implementation version.
@@ -167,7 +167,8 @@ review executable. Animation evidence should include:
 - every native frame and an enlarged contact sheet;
 - the ordered animation strip already used by Sprite review;
 - origin, contact-line, bounds, and clipping overlays;
-- adjacent-frame and last-to-first loop comparisons; and
+- adjacent-frame comparisons, plus last-to-first closure evidence for looping
+  clips and final-pose evidence for hold-last clips; and
 - focused Catacombs playback at the supported zooms after persistence.
 
 Preparation is pure and returns final pixels, Sprite definitions, Blueprint

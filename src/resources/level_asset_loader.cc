@@ -47,6 +47,9 @@ absl::Status LoadSpriteReference(const LevelAssetLoaderOptions& resources,
     return absl::FailedPreconditionError(
         absl::StrCat(owner, " resolved the wrong sprite definition"));
   }
+  if (!IsValidSpritePlaybackMode(sprite->playback_mode)) {
+    return absl::FailedPreconditionError(absl::StrCat(owner, " has an invalid playback mode"));
+  }
   ASSIGN_OR_RETURN(const TextureHandle texture,
                    RequireTextureHandle(resources.textures, sprite->texture_id,
                                         absl::StrCat("sprite ", sprite->id)));

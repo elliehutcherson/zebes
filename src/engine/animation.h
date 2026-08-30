@@ -11,7 +11,8 @@ namespace zebes {
 // only transient playback state; callers provide the current frame sequence on
 // every operation so an authored sprite can change while it is being previewed.
 // One Update() advances one simulation tick. Each frame lasts its authored
-// frames_per_cycle ticks, with zero treated as one tick.
+// frames_per_cycle ticks, with zero treated as one tick. Looping wraps to the
+// first frame; hold-last playback remains on the final frame until Reset().
 class AnimationCursor {
  public:
   AnimationCursor() = default;
@@ -19,7 +20,7 @@ class AnimationCursor {
 
   void Reset();
 
-  void Update(const std::vector<SpriteFrame>& frames);
+  void Update(const std::vector<SpriteFrame>& frames, SpritePlaybackMode playback_mode);
 
   // Fails when frames is empty.
   absl::StatusOr<SpriteFrame> GetCurrentFrame(const std::vector<SpriteFrame>& frames) const;

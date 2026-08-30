@@ -15,5 +15,6 @@
     ],
     "id": "b008d3de-2ac0-4450-97d2-60d75e0552aa",
     "name": "kGrass2",
+    "playback_mode": "loop",
     "texture_id": "dfe2596b-f2e1-403e-adb5-fe8da22502bf"
 }

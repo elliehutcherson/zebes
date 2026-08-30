@@ -215,7 +215,9 @@ the serialized `Level` to expose runtime movement.
 Runtime presentation also borrows per-entity sprite-ID and frame-index
 overrides from `RuntimeWorld`. `PlayerSimulation` advances each active
 `AnimationCursor` once per fixed simulation tick, and changing a Blueprint
-state resets that entity's cursor only when the selected state changes. Authored
+state resets that entity's cursor only when the selected state changes. A
+Sprite owns its authored playback mode: `loop` wraps after the final frame,
+while `hold-last` clamps there until a state change resets the cursor. Authored
 entities persist a stable, Blueprint-local state key rather than a vector index;
 the key is programmatic identity, while the state's editable name remains
 display text. Boot resolves the player's six semantic keys to checked state
@@ -1201,8 +1203,8 @@ It is now complete: `src/objects/` includes only Abseil and its own headers, so
   and are never serialized: saving a level must not capture how fast something
   happened to be moving.
 - `Entity` holds no animation playback state. A frame index and timer are
-  simulation state; `editor/animator.h` owns playback today, and the engine
-  should follow that pattern rather than reviving fields on the definition.
+  simulation state owned by the engine `AnimationCursor`; the Sprite definition
+  owns only frame geometry, durations, and the loop-or-hold playback policy.
 
 Levels written before these splits still load; the removed keys — `vx`, `vy`,
 `ax`, `ay`, and `current_frame_index` — are ignored rather than restored.

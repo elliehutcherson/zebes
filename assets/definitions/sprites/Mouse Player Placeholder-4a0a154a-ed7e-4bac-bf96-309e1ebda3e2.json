@@ -15,5 +15,6 @@
     ],
     "id": "4a0a154a-ed7e-4bac-bf96-309e1ebda3e2",
     "name": "Mouse Player Placeholder",
+    "playback_mode": "loop",
     "texture_id": "7e1b7bda-aef6-4718-89b0-c440a83be734"
 }

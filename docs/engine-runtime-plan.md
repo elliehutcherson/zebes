@@ -258,22 +258,24 @@ manager pointers.
 `AnimationCursor` is an engine-owned, platform-neutral playback cursor. Each
 runtime entity with authored sprite frames has an entity-ID-keyed cursor and
 frame index in `RuntimeWorld`; `PlayerSimulation` advances those cursors once
-per fixed simulation tick. Authored entities store a Blueprint-local state key,
-not a state-vector index. Runtime boot resolves the player's six semantic keys
-to checked state handles; fixed ticks select a handle without string lookup,
+per fixed simulation tick. Each Sprite explicitly loops or holds its final
+frame; the cursor applies that authored policy without adding state-machine
+special cases. Authored entities store a Blueprint-local state key, not a
+state-vector index. Runtime boot resolves the player's six semantic keys to
+checked state handles; fixed ticks select a handle without string lookup,
 catalog lookup, or state-vector scanning. Applying a different handle changes
 the selected sprite and resets playback only when the state changes.
 `GameRuntime` passes the selected sprite and frame overrides into scene
 composition, leaving serialized entities and the authored level intact.
 
-Headless coverage exercises frame durations, looping, empty and changing frame
-lists, multi-state selection, reset behavior, invalid transitions, runtime
-presentation, shipped blueprint references, semantic-key migration, and the
-six-state player policy. Catacombs now instantiates the Player Animation Proof,
-which reuses existing multi-frame sprites for `idle-*`, `run-*`, and
-`airborne-*` states while retaining one exact collider. The implementation and
-automated M3 gates are complete; full acceptance still requires confirming the
-visible transitions in the running level.
+Headless coverage exercises frame durations, looping, final-frame holding,
+empty and changing frame lists, multi-state selection, reset behavior, invalid
+transitions, runtime presentation, shipped blueprint references, Sprite and
+semantic-key migration, and the six-state player policy. Catacombs now
+instantiates the Player Animation Proof, whose idle clips use 15 ticks per frame
+and airborne clips hold their final frame while retaining one exact collider.
+The implementation and automated M3 gates are complete; full acceptance still
+requires confirming the corrected playback in the running level.
 
 ### Milestone 2 movement and collision implementation plan
 
@@ -445,8 +447,8 @@ complete; live acceptance pending.** Frame timers, per-entity playback state,
 one frozen loaded-level Blueprint graph, all state-referenced assets, semantic
 state keys, boot-resolved player state handles, and runtime sprite/frame
 selection are implemented and covered headlessly. Catacombs ships a six-state
-multi-frame proof. The remaining gate is confirming its visible transitions in
-the running level.
+multi-frame proof with explicit loop-or-hold playback. The remaining gate is
+confirming its corrected visible timing and transitions in the running level.
 
 **Post-M3 — Animation artwork pipeline.** Run the animation-generation
 feasibility gate, then build the deterministic frame-set processing, retained-source recipe,

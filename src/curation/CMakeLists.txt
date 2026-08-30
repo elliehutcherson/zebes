@@ -140,7 +140,8 @@ target_link_libraries(tileset_reviewer
 add_library(sprite_reviewer sprite_reviewer.cc)
 target_link_libraries(sprite_reviewer
   PUBLIC curation_registry
-  PRIVATE api curation_raster status_macros absl::status absl::statusor absl::strings
+  PRIVATE api curation_raster status_macros absl::flat_hash_set absl::status absl::statusor
+          absl::strings
 )
 
 add_library(terrain_reviewer terrain_reviewer.cc)

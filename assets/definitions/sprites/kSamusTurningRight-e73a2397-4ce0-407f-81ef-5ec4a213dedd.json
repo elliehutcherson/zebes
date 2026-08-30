@@ -39,5 +39,6 @@
     ],
     "id": "e73a2397-4ce0-407f-81ef-5ec4a213dedd",
     "name": "kSamusTurningRight",
+    "playback_mode": "loop",
     "texture_id": "277ab7a2-b5ad-47ab-af38-ad1ad54d44b8"
 }

@@ -15,5 +15,6 @@
     ],
     "id": "df2ec3c4-93ac-4303-83d7-ac113d1dc58f",
     "name": "Catacombs Ossuary Reliquary",
+    "playback_mode": "loop",
     "texture_id": "69d72be6-567c-4528-8f96-bc1afbcb1380"
 }

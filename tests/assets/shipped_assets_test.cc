@@ -329,6 +329,15 @@ TEST(ShippedAssetsTest, PlayerAnimationProofKeepsOneColliderInsideOneByTwoTileEn
     EXPECT_EQ(state.collider_id, collider_id);
     ASSERT_OK_AND_ASSIGN(Sprite * sprite, sprites->GetSprite(state.sprite_id));
     EXPECT_GT(sprite->frames.size(), 1u) << state.key;
+    if (state.key.starts_with("idle-")) {
+      EXPECT_EQ(sprite->playback_mode, SpritePlaybackMode::kLoop) << state.key;
+      for (const SpriteFrame& frame : sprite->frames) {
+        EXPECT_EQ(frame.frames_per_cycle, 15) << state.key;
+      }
+    }
+    if (state.key.starts_with("airborne-")) {
+      EXPECT_EQ(sprite->playback_mode, SpritePlaybackMode::kHoldLast) << state.key;
+    }
   }
   EXPECT_TRUE(expected_state_keys.empty());
 

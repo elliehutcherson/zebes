@@ -177,6 +177,26 @@ TEST(RuntimeWorldTest, AdvancesAnimationAndResetsPlaybackWhenBlueprintStateChang
   EXPECT_EQ(world->level(), authored);
 }
 
+TEST(RuntimeWorldTest, HoldsNonLoopingAnimationOnItsFinalFrame) {
+  Level level = TestLevel();
+  Entity player = PlayerEntity();
+  player.sprite_id = "airborne";
+  ASSERT_OK(level.AddEntity(0, player));
+  LoadedLevelContent content = WorldContent(std::move(level));
+  content.blueprints.at(kPlayerBlueprintId)->states.front().sprite_id = "airborne";
+  content.sprites.emplace("airborne",
+                          Sprite{.id = "airborne",
+                                 .playback_mode = SpritePlaybackMode::kHoldLast,
+                                 .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}});
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
+                       RuntimeWorld::Create(content, WorldOptions()));
+
+  world->AdvanceAnimations();
+  EXPECT_EQ(world->frame_indices().at(7), 1);
+  for (int tick = 0; tick < 20; ++tick) world->AdvanceAnimations();
+  EXPECT_EQ(world->frame_indices().at(7), 1);
+}
+
 TEST(RuntimeWorldTest, BlueprintStateSelectionValidatesBeforeMutation) {
   Level level = TestLevel();
   ASSERT_OK(level.AddEntity(0, PlayerEntity()));

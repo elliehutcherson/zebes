@@ -27,5 +27,6 @@
     ],
     "id": "b94e66f3-11b6-43b8-94e1-818a863c4bae",
     "name": "Player Airborne Left Proof",
+    "playback_mode": "hold-last",
     "texture_id": "ec794926-7aa3-41e3-822e-c22e7e1b0388"
 }

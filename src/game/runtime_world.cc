@@ -124,6 +124,10 @@ absl::Status ValidateEntityPresentation(
     return absl::FailedPreconditionError(
         absl::StrCat("Runtime entity ", entity.id, " resolved the wrong sprite definition"));
   }
+  if (!IsValidSpritePlaybackMode(sprite->second.playback_mode)) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("Runtime entity ", entity.id, " sprite has an invalid playback mode"));
+  }
   return absl::OkStatus();
 }
 
@@ -511,6 +515,10 @@ absl::StatusOr<ResolvedBlueprintState> RuntimeWorld::ResolveEntityBlueprintState
       return absl::FailedPreconditionError(absl::StrCat(
           "Runtime blueprint state references unavailable sprite '", state.sprite_id, "'"));
     }
+    if (!IsValidSpritePlaybackMode(sprite->second.playback_mode)) {
+      return absl::FailedPreconditionError(
+          "Runtime blueprint state references a sprite with an invalid playback mode");
+    }
   }
   if (entity_id == player_entity_id_ && state.collider_id != player_collider_id_) {
     return absl::FailedPreconditionError(
@@ -553,7 +561,7 @@ void RuntimeWorld::AdvanceAnimations() {
     const auto sprite = content_.sprites.find(sprite_id->second);
     ABSL_CHECK(sprite != content_.sprites.end() && !sprite->second.frames.empty())
         << "Runtime animation lost its immutable sprite definition";
-    cursor.Update(sprite->second.frames);
+    cursor.Update(sprite->second.frames, sprite->second.playback_mode);
     const absl::StatusOr<int> current_frame = cursor.GetCurrentFrameIndex(sprite->second.frames);
     ABSL_CHECK(current_frame.ok()) << current_frame.status();
     const auto frame = frame_indices_.find(entity_id);

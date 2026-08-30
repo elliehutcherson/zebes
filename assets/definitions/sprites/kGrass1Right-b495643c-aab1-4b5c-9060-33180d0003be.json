@@ -15,5 +15,6 @@
     ],
     "id": "b495643c-aab1-4b5c-9060-33180d0003be",
     "name": "kGrass1Right",
+    "playback_mode": "loop",
     "texture_id": "94b3b3ed-a8e7-47d4-a632-b6b6c92870cd"
 }

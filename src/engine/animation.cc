@@ -12,9 +12,14 @@ void AnimationCursor::Reset() {
   tick_counter_ = 0;
 }
 
-void AnimationCursor::Update(const std::vector<SpriteFrame>& frames) {
+void AnimationCursor::Update(const std::vector<SpriteFrame>& frames,
+                             SpritePlaybackMode playback_mode) {
   if (frames.empty()) return;
   if (current_frame_index_ >= static_cast<int>(frames.size())) Reset();
+  if (playback_mode == SpritePlaybackMode::kHoldLast &&
+      current_frame_index_ == static_cast<int>(frames.size()) - 1) {
+    return;
+  }
 
   const SpriteFrame& current_frame = frames[current_frame_index_];
 
@@ -27,7 +32,8 @@ void AnimationCursor::Update(const std::vector<SpriteFrame>& frames) {
     current_frame_index_++;
 
     if (current_frame_index_ >= static_cast<int>(frames.size())) {
-      current_frame_index_ = 0;
+      current_frame_index_ =
+          playback_mode == SpritePlaybackMode::kLoop ? 0 : static_cast<int>(frames.size()) - 1;
     }
   }
 }

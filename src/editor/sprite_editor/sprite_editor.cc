@@ -15,6 +15,25 @@
 
 namespace zebes {
 
+namespace {
+
+constexpr SpritePlaybackMode kPlaybackModes[] = {
+    SpritePlaybackMode::kLoop,
+    SpritePlaybackMode::kHoldLast,
+};
+
+const char* PlaybackModeLabel(SpritePlaybackMode mode) {
+  switch (mode) {
+    case SpritePlaybackMode::kLoop:
+      return "Loop";
+    case SpritePlaybackMode::kHoldLast:
+      return "Hold last frame";
+  }
+  return "Invalid";
+}
+
+}  // namespace
+
 constexpr float kSpriteListHeight = 300.0f;
 constexpr float kAnimationPreviewMaximumHeight = 300.0f;
 constexpr float kAnimationPreviewPadding = 8.0f;
@@ -258,6 +277,16 @@ void SpriteEditor::RenderSpriteMeta() {
   if (gui_->InputText("Name", edit_name.data(), edit_name.size())) {
   }
 
+  if (ScopedCombo combo =
+          gui_->CreateScopedCombo("Playback", PlaybackModeLabel(sprite.playback_mode));
+      combo) {
+    for (const SpritePlaybackMode mode : kPlaybackModes) {
+      const bool selected = sprite.playback_mode == mode;
+      if (gui_->Selectable(PlaybackModeLabel(mode), selected)) sprite.playback_mode = mode;
+      if (selected) ImGui::SetItemDefaultFocus();
+    }
+  }
+
   gui_->Spacing();
   gui_->Separator();
   gui_->Spacing();
@@ -294,7 +323,7 @@ void SpriteEditor::RenderSpriteAnimation() {
 
     animation_timer_ += ImGui::GetIO().DeltaTime;
     while (animation_timer_ >= tick_duration) {
-      animator_->Update(frames);
+      animator_->Update(frames, model_.sprite().playback_mode);
       animation_timer_ -= tick_duration;
     }
   }

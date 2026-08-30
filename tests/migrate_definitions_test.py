@@ -671,6 +671,34 @@ class MigrateDefinitionsTest(unittest.TestCase):
         self.assertEqual(frame["offset_x"], 0)
         self.assertEqual(frame["offset_y"], 0)
 
+    def test_missing_playback_mode_preserves_legacy_looping(self):
+        path = self.write_sprite(
+            "walk.json",
+            {"id": "a", "name": "Walk", "texture_id": "t", "frames": []},
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "sprites", dry_run=False)
+
+        self.assertEqual(changed, [path])
+        self.assertEqual(self.read_sprite(path)["playback_mode"], "loop")
+
+    def test_authored_playback_mode_is_left_alone(self):
+        path = self.write_sprite(
+            "jump.json",
+            {
+                "id": "a",
+                "name": "Jump",
+                "playback_mode": "hold-last",
+                "texture_id": "t",
+                "frames": [],
+            },
+        )
+
+        changed = migrate_definitions.migrate_directory(self.root, "sprites", dry_run=False)
+
+        self.assertEqual(changed, [])
+        self.assertEqual(self.read_sprite(path)["playback_mode"], "hold-last")
+
     # An authored offset is the whole reason the field exists; a migration that
     # overwrote one would silently move artwork.
     def test_authored_offsets_are_left_alone(self):
@@ -679,6 +707,7 @@ class MigrateDefinitionsTest(unittest.TestCase):
             {
                 "id": "b",
                 "name": "Idle",
+                "playback_mode": "loop",
                 "texture_id": "t",
                 "frames": [{"index": 0, "offset_x": -4, "offset_y": 7}],
             },

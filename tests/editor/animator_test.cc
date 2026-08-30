@@ -3,8 +3,8 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "objects/sprite.h"
 #include "macros.h"
+#include "objects/sprite.h"
 
 namespace zebes {
 namespace {
@@ -16,10 +16,10 @@ TEST(AnimatorTest, ReadsLiveFramesAddedAfterPlaybackStarts) {
   };
 
   ASSERT_OK(animator.GetCurrentFrame(frames));
-  animator.Update(frames);
+  animator.Update(frames, SpritePlaybackMode::kLoop);
 
   frames.push_back({.index = 1, .texture_x = 20, .frames_per_cycle = 1});
-  animator.Update(frames);
+  animator.Update(frames, SpritePlaybackMode::kLoop);
 
   absl::StatusOr<SpriteFrame> current = animator.GetCurrentFrame(frames);
   ASSERT_OK(current);
@@ -34,14 +34,14 @@ TEST(AnimatorTest, UsesEachFramesDuration) {
       {.index = 1, .frames_per_cycle = 1},
   };
 
-  animator.Update(frames);
+  animator.Update(frames, SpritePlaybackMode::kLoop);
   ASSERT_OK(animator.GetCurrentFrame(frames));
   EXPECT_EQ(animator.GetCurrentFrame(frames)->index, 0);
 
-  animator.Update(frames);
+  animator.Update(frames, SpritePlaybackMode::kLoop);
   EXPECT_EQ(animator.GetCurrentFrame(frames)->index, 1);
 
-  animator.Update(frames);
+  animator.Update(frames, SpritePlaybackMode::kLoop);
   EXPECT_EQ(animator.GetCurrentFrame(frames)->index, 0);
 }
 
@@ -51,14 +51,14 @@ TEST(AnimatorTest, HandlesFramesRemovedDuringPlayback) {
       {.index = 0, .frames_per_cycle = 1},
       {.index = 1, .frames_per_cycle = 1},
   };
-  animator.Update(frames);
+  animator.Update(frames, SpritePlaybackMode::kLoop);
   ASSERT_EQ(animator.GetCurrentFrame(frames)->index, 1);
 
   frames.resize(1);
 
   ASSERT_OK(animator.GetCurrentFrame(frames));
   EXPECT_EQ(animator.GetCurrentFrame(frames)->index, 0);
-  animator.Update(frames);
+  animator.Update(frames, SpritePlaybackMode::kLoop);
   EXPECT_EQ(animator.GetCurrentFrame(frames)->index, 0);
 }
 
@@ -68,7 +68,7 @@ TEST(AnimatorTest, EmptyFramesAreInactive) {
 
   EXPECT_FALSE(animator.IsActive(frames));
   EXPECT_FALSE(animator.GetCurrentFrame(frames).ok());
-  animator.Update(frames);
+  animator.Update(frames, SpritePlaybackMode::kLoop);
 }
 
 }  // namespace

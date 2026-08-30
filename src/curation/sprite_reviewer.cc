@@ -3,11 +3,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/status_macros.h"
@@ -130,6 +130,9 @@ absl::StatusOr<CurationReview> SpriteReviewer::Review(Api& api,
     return absl::FailedPreconditionError(
         "sprite review needs identity, texture, and at least one frame");
   }
+  if (!IsValidSpritePlaybackMode(sprite->playback_mode)) {
+    return absl::FailedPreconditionError("sprite review needs a valid playback mode");
+  }
   if (sprite->frames.size() > kMaximumFrames) {
     return absl::ResourceExhaustedError("sprite exceeds the headless frame artifact limit");
   }
@@ -139,7 +142,7 @@ absl::StatusOr<CurationReview> SpriteReviewer::Review(Api& api,
   }
   ASSIGN_OR_RETURN(RgbaImage pixels, api.ReadTexturePixels(texture->id));
 
-  std::set<int> frame_indices;
+  absl::flat_hash_set<int> frame_indices;
   int64_t total_native_pixels = 0;
   for (const SpriteFrame& frame : sprite->frames) {
     RETURN_IF_ERROR(ValidateFrame(frame, pixels));
@@ -161,6 +164,7 @@ absl::StatusOr<CurationReview> SpriteReviewer::Review(Api& api,
       .metadata =
           {
               {"texture_id", sprite->texture_id},
+              {"playback_mode", SpritePlaybackModeId(sprite->playback_mode)},
               {"frame_count", sprite->frames.size()},
           },
       .artifacts = {{

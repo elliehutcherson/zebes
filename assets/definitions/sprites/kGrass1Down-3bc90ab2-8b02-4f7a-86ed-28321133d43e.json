@@ -15,5 +15,6 @@
     ],
     "id": "3bc90ab2-8b02-4f7a-86ed-28321133d43e",
     "name": "kGrass1Down",
+    "playback_mode": "loop",
     "texture_id": "94b3b3ed-a8e7-47d4-a632-b6b6c92870cd"
 }

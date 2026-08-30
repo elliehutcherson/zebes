@@ -2,11 +2,31 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
 
 namespace zebes {
+
+enum class SpritePlaybackMode : uint8_t {
+  kLoop = 0,
+  kHoldLast = 1,
+};
+
+constexpr std::string_view SpritePlaybackModeId(SpritePlaybackMode mode) {
+  switch (mode) {
+    case SpritePlaybackMode::kLoop:
+      return "loop";
+    case SpritePlaybackMode::kHoldLast:
+      return "hold-last";
+  }
+  return {};
+}
+
+constexpr bool IsValidSpritePlaybackMode(SpritePlaybackMode mode) {
+  return !SpritePlaybackModeId(mode).empty();
+}
 
 struct SpriteFrame {
   int index = 0;
@@ -57,6 +77,8 @@ struct Sprite {
   std::string name;
   // Guid of the texture
   std::string texture_id;
+  // Whether playback wraps after the final frame or remains there.
+  SpritePlaybackMode playback_mode = SpritePlaybackMode::kLoop;
   // Sprite frames
   std::vector<SpriteFrame> frames;
 

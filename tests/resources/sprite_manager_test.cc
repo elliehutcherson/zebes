@@ -104,6 +104,7 @@ TEST_F(SpriteManagerTest, LoadAllSprites) {
   std::string json_content = R"({
     "id": "manual-id",
     "name": "Manual",
+    "playback_mode": "loop",
     "texture_id": ")" + tex_id +
                              R"(",
     "frames": []
@@ -184,6 +185,7 @@ TEST_F(SpriteManagerTest, DeleteSprite) {
 TEST_F(SpriteManagerTest, SaveAndLoadSpriteWithFrames) {
   Sprite sprite;
   sprite.name = "FrameSprite";
+  sprite.playback_mode = SpritePlaybackMode::kHoldLast;
 
   std::string tex_path = test_dir_ + "/textures/f.png";
   std::ofstream f(tex_path);
@@ -223,8 +225,10 @@ TEST_F(SpriteManagerTest, SaveAndLoadSpriteWithFrames) {
   f2 >> j_out;
   EXPECT_TRUE(j_out.contains("frames"));
   EXPECT_EQ(j_out["frames"].size(), 2);
+  EXPECT_EQ(j_out["playback_mode"], "hold-last");
 
   EXPECT_EQ(loaded->frames.size(), 2);
+  EXPECT_EQ(loaded->playback_mode, SpritePlaybackMode::kHoldLast);
   if (loaded->frames.size() >= 2) {
     EXPECT_EQ(loaded->frames[0].texture_x, 10);
     EXPECT_EQ(loaded->frames[1].texture_x, 42);
@@ -243,6 +247,7 @@ TEST_F(SpriteManagerTest, LoadPartialSpriteFrame) {
   std::string json_content = R"({
     "id": "partial-id",
     "name": "Partial",
+    "playback_mode": "loop",
     "texture_id": ")" + tex_id +
                              R"(",
     "frames": [
@@ -266,6 +271,31 @@ TEST_F(SpriteManagerTest, LoadPartialSpriteFrame) {
   auto sprite_or = manager_->GetSprite(id);
   // It should NOT be found
   EXPECT_FALSE(sprite_or.ok());
+}
+
+TEST_F(SpriteManagerTest, RejectsUnknownPlaybackMode) {
+  std::string tex_path = test_dir_ + "/textures/unknown-mode.png";
+  std::ofstream texture_file(tex_path);
+  ASSERT_OK_AND_ASSIGN(const std::string texture_id,
+                       texture_manager_->CreateTexture({.path = tex_path}));
+
+  const std::string definition_path = test_dir_ + "/definitions/sprites/unknown-mode.json";
+  std::ofstream definition(definition_path);
+  definition << R"({
+    "id": "unknown-mode",
+    "name": "Unknown mode",
+    "playback_mode": "rewind",
+    "texture_id": ")"
+             << texture_id << R"(",
+    "frames": []
+  })";
+  definition.close();
+
+  const absl::Status status = manager_->LoadAllSprites();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kDataLoss);
+  EXPECT_THAT(std::string(status.message()), ::testing::HasSubstr("unknown sprite playback mode"));
+  EXPECT_FALSE(manager_->GetSprite("unknown-mode").ok());
 }
 
 TEST_F(SpriteManagerTest, SaveAndLoadSpriteWithOffsets) {

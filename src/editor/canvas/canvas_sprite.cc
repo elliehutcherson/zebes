@@ -139,7 +139,7 @@ void CanvasSprite::UpdateAnimation() {
   constexpr double kTickDuration = 1.0 / kTargetFps;
   animation_timer_ += ImGui::GetIO().DeltaTime;
   while (animation_timer_ >= kTickDuration) {
-    animator_.Update(sprite_.frames);
+    animator_.Update(sprite_.frames, sprite_.playback_mode);
     animation_timer_ -= kTickDuration;
   }
 }
