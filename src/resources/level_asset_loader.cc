@@ -1,5 +1,6 @@
 #include "resources/level_asset_loader.h"
 
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -123,13 +124,15 @@ absl::Status LoadEntityBlueprints(const LevelAssetLoaderOptions& resources,
         return absl::FailedPreconditionError(
             absl::StrCat("entity ", entity_id, " blueprint has no states"));
       }
-      if (entity.blueprint_state_index < 0 ||
-          entity.blueprint_state_index >= static_cast<int>(blueprint->states.size())) {
-        return absl::FailedPreconditionError(
-            absl::StrCat("entity ", entity_id, " blueprint state index is out of range"));
+      const std::optional<int> selected_state_index =
+          blueprint->state_index(entity.blueprint_state_key);
+      if (!selected_state_index.has_value()) {
+        return absl::FailedPreconditionError(absl::StrCat("entity ", entity_id,
+                                                          " blueprint has no state key '",
+                                                          entity.blueprint_state_key, "'"));
       }
 
-      const Blueprint::State& selected_state = blueprint->states[entity.blueprint_state_index];
+      const Blueprint::State& selected_state = blueprint->states[*selected_state_index];
       if (selected_state.sprite_id != entity.sprite_id ||
           selected_state.collider_id != entity.collider_id) {
         return absl::FailedPreconditionError(absl::StrCat(

@@ -18,8 +18,6 @@
 #include "game/player_simulation.h"
 #include "game/runtime_world.h"
 #include "objects/camera.h"
-#include "objects/collider.h"
-#include "objects/entity.h"
 #include "objects/level.h"
 #include "resources/texture_resource_store.h"
 
@@ -47,26 +45,6 @@ absl::Status ValidateOptions(const GameRuntime::Options& options) {
     return absl::InvalidArgumentError("Game runtime pacing mode is invalid");
   }
   return absl::OkStatus();
-}
-
-absl::StatusOr<Collider> ResolvePlayerCollider(const LoadedLevelContent& content) {
-  const Entity* player = nullptr;
-  for (const WorldLayer& layer : content.level.layers) {
-    for (const auto& entry : layer.entities) {
-      const Entity& entity = entry.second;
-      if (entity.blueprint_id != kPlayerBlueprintId) continue;
-      if (player != nullptr) {
-        return absl::FailedPreconditionError("Game runtime level contains multiple players");
-      }
-      player = &entity;
-    }
-  }
-  if (player == nullptr) return absl::NotFoundError("Game runtime level has no player");
-  const auto collider = content.colliders.find(player->collider_id);
-  if (collider == content.colliders.end()) {
-    return absl::FailedPreconditionError("Game runtime player collider is unavailable");
-  }
-  return collider->second;
 }
 
 }  // namespace
@@ -99,16 +77,9 @@ absl::Status GameRuntime::Init() {
   ASSIGN_OR_RETURN(input_manager_, InputManager::Create({.input_source = &input_source_}));
 
   const Level& level = level_assets_->content.level;
-  ASSIGN_OR_RETURN(const Collider player_collider, ResolvePlayerCollider(level_assets_->content));
   ASSIGN_OR_RETURN(std::unique_ptr<RuntimeWorld> world,
-                   RuntimeWorld::Create({
-                       .level = level,
-                       .tileset = level_assets_->content.tileset,
-                       .blueprints = level_assets_->content.blueprints,
-                       .sprites = level_assets_->content.sprites,
-                       .player_blueprint_id = std::string(kPlayerBlueprintId),
-                       .player_collider = player_collider,
-                   }));
+                   RuntimeWorld::Create(level_assets_->content,
+                                        {.player_blueprint_id = std::string(kPlayerBlueprintId)}));
   ASSIGN_OR_RETURN(std::unique_ptr<PlayerSimulation> simulation,
                    PlayerSimulation::Create({
                        .input_manager = input_manager_.get(),

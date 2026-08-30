@@ -248,18 +248,23 @@ jumping and landing, walls, ceilings, slope seams, and camera follow.
 
 ### Milestone 3 animation and blueprint-state implementation slice
 
-The loaded-level graph now copies each placed blueprint and validates its
-selected state, then resolves every non-empty sprite and collider reference
-across every blueprint state. Resource-manager ownership remains outside the
-runtime; no state transition performs I/O or retains manager pointers.
+The loaded-level graph now contains one frozen copy of each placed Blueprint,
+validates its selected state, and resolves every non-empty Sprite and Collider
+reference across every Blueprint state. `RuntimeWorld` borrows that graph
+instead of maintaining a second long-lived copy. Resource-manager ownership
+remains outside the runtime; no state transition performs I/O or retains
+manager pointers.
 
 `AnimationCursor` is an engine-owned, platform-neutral playback cursor. Each
 runtime entity with authored sprite frames has an entity-ID-keyed cursor and
 frame index in `RuntimeWorld`; `PlayerSimulation` advances those cursors once
-per fixed simulation tick. `SetEntityBlueprintState` validates the copied
-blueprint, changes the selected sprite, and resets playback only when the state
-changes. `GameRuntime` passes the selected sprite and frame overrides into scene
-composition, leaving serialized entities and the copied authored level intact.
+per fixed simulation tick. Authored entities store a Blueprint-local state key,
+not a state-vector index. Runtime boot resolves the player's six semantic keys
+to checked state handles; fixed ticks select a handle without string lookup,
+catalog lookup, or state-vector scanning. Applying a different handle changes
+the selected sprite and resets playback only when the state changes.
+`GameRuntime` passes the selected sprite and frame overrides into scene
+composition, leaving serialized entities and the authored level intact.
 
 Headless coverage exercises frame durations, looping, empty and changing frame
 lists, multi-state selection, reset behavior, invalid transitions, runtime
@@ -437,10 +442,11 @@ exists and can be measured.
 
 **M3 — Animation playback and blueprint-state behavior — implementation
 complete; live acceptance pending.** Frame timers, per-entity playback state,
-copied blueprint definitions, all state-referenced assets, semantic state keys,
-player state selection, and runtime sprite/frame selection are implemented and
-covered headlessly. Catacombs ships a six-state multi-frame proof. The remaining
-gate is confirming its visible transitions in the running level.
+one frozen loaded-level Blueprint graph, all state-referenced assets, semantic
+state keys, boot-resolved player state handles, and runtime sprite/frame
+selection are implemented and covered headlessly. Catacombs ships a six-state
+multi-frame proof. The remaining gate is confirming its visible transitions in
+the running level.
 
 **Post-M3 — Animation artwork pipeline.** Run the animation-generation
 feasibility gate, then build the deterministic frame-set processing, retained-source recipe,

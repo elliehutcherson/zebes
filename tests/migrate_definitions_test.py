@@ -196,6 +196,193 @@ class MigrateDefinitionsTest(unittest.TestCase):
                 self.root, "blueprints", dry_run=False
             )
 
+    def test_level_entities_migrate_blueprint_state_indices_to_keys(self):
+        self.write_blueprint(
+            "player.json",
+            {
+                "id": "player",
+                "name": "Player",
+                "states": [
+                    {
+                        "key": "idle",
+                        "name": "Idle",
+                        "collider_id": "body",
+                        "sprite_id": "idle-sprite",
+                        "placement_mode": "grounded",
+                    },
+                    {
+                        "key": "run",
+                        "name": "Run",
+                        "collider_id": "body",
+                        "sprite_id": "run-sprite",
+                        "placement_mode": "grounded",
+                    },
+                ],
+            },
+        )
+        path = self.write_level(
+            "level.json",
+            {
+                "layers": [
+                    {
+                        "entities": [
+                            {
+                                "blueprint_id": "player",
+                                "blueprint_state_index": 1,
+                                "sprite_id": "run-sprite",
+                                "collider_id": "body",
+                            }
+                        ]
+                    }
+                ]
+            },
+        )
+
+        changed = migrate_definitions.migrate_level_blueprint_state_keys(
+            self.root, dry_run=False
+        )
+
+        self.assertEqual(changed, [path])
+        entity = json.loads(path.read_text(encoding="utf-8"))["layers"][0][
+            "entities"
+        ][0]
+        self.assertEqual(entity["blueprint_state_key"], "run")
+        self.assertNotIn("blueprint_state_index", entity)
+        self.assertEqual(
+            migrate_definitions.migrate_level_blueprint_state_keys(
+                self.root, dry_run=False
+            ),
+            [],
+        )
+
+    def test_level_entity_state_key_migration_preserves_unbound_entities(self):
+        path = self.write_level(
+            "level.json",
+            {
+                "layers": [
+                    {
+                        "entities": [
+                            {
+                                "blueprint_id": "",
+                                "blueprint_state_index": 0,
+                                "sprite_id": "direct-sprite",
+                                "collider_id": "",
+                            }
+                        ]
+                    }
+                ]
+            },
+        )
+
+        self.assertEqual(
+            migrate_definitions.migrate_level_blueprint_state_keys(
+                self.root, dry_run=False
+            ),
+            [path],
+        )
+        entity = json.loads(path.read_text(encoding="utf-8"))["layers"][0][
+            "entities"
+        ][0]
+        self.assertEqual(entity["blueprint_state_key"], "")
+
+    def test_level_entity_state_key_migration_dry_run_writes_nothing(self):
+        self.write_blueprint(
+            "player.json",
+            {
+                "id": "player",
+                "name": "Player",
+                "states": [
+                    {"name": "Idle", "collider_id": "body", "sprite_id": "sprite"}
+                ],
+            },
+        )
+        path = self.write_level(
+            "level.json",
+            {
+                "layers": [
+                    {
+                        "entities": [
+                            {
+                                "blueprint_id": "player",
+                                "blueprint_state_index": 0,
+                                "sprite_id": "sprite",
+                                "collider_id": "body",
+                            }
+                        ]
+                    }
+                ]
+            },
+        )
+        before = path.read_bytes()
+
+        self.assertEqual(
+            migrate_definitions.migrate_level_blueprint_state_keys(
+                self.root, dry_run=True
+            ),
+            [path],
+        )
+        self.assertEqual(path.read_bytes(), before)
+
+    def test_level_entity_state_key_migration_preflights_before_writing(self):
+        self.write_blueprint(
+            "player.json",
+            {
+                "id": "player",
+                "name": "Player",
+                "states": [
+                    {
+                        "key": "idle",
+                        "name": "Idle",
+                        "collider_id": "body",
+                        "sprite_id": "sprite",
+                        "placement_mode": "grounded",
+                    }
+                ],
+            },
+        )
+        valid = self.write_level(
+            "a-valid.json",
+            {
+                "layers": [
+                    {
+                        "entities": [
+                            {
+                                "blueprint_id": "player",
+                                "blueprint_state_index": 0,
+                                "sprite_id": "sprite",
+                                "collider_id": "body",
+                            }
+                        ]
+                    }
+                ]
+            },
+        )
+        before = valid.read_bytes()
+        self.write_level(
+            "z-invalid.json",
+            {
+                "layers": [
+                    {
+                        "entities": [
+                            {
+                                "blueprint_id": "player",
+                                "blueprint_state_index": 4,
+                                "sprite_id": "sprite",
+                                "collider_id": "body",
+                            }
+                        ]
+                    }
+                ]
+            },
+        )
+
+        with self.assertRaisesRegex(ValueError, "invalid Blueprint state index"):
+            migrate_definitions.migrate_level_blueprint_state_keys(
+                self.root, dry_run=False
+            )
+
+        self.assertEqual(valid.read_bytes(), before)
+
     def test_embedded_parallax_themes_are_extracted_deterministically(self):
         path = self.write_level(
             "cave.json",

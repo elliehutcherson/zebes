@@ -315,7 +315,9 @@ TEST_F(LevelEditorTest, RenderInspectorNoSelectionDoesNotDelegateToLevelPanel) {
 TEST_F(LevelEditorTest, RenderInspectorResnapsSelectedBlueprintEntityToNearestAnchor) {
   Blueprint blueprint{
       .id = "crystal-blueprint",
-      .states = {{.name = "Default", .placement_mode = BlueprintPlacementMode::kGrounded}},
+      .states = {{.key = "default",
+                  .name = "Default",
+                  .placement_mode = BlueprintPlacementMode::kGrounded}},
   };
   Level level{
       .id = "cave",
@@ -325,7 +327,7 @@ TEST_F(LevelEditorTest, RenderInspectorResnapsSelectedBlueprintEntityToNearestAn
   level.layers.front().entities.emplace(7, Entity{.id = 7,
                                                   .transform = {.position = {176, 440}},
                                                   .blueprint_id = blueprint.id,
-                                                  .blueprint_state_index = 0});
+                                                  .blueprint_state_key = "default"});
   LevelEditorTestPeer::SetEditingLevel(*editor_, std::move(level));
   LevelEditorTestPeer::SetSelection(
       *editor_, SelectionState{.type = SelectionState::Type::kEntity, .entity_id = 7});
@@ -342,13 +344,15 @@ TEST_F(LevelEditorTest, RenderInspectorResnapsSelectedBlueprintEntityToNearestAn
 TEST_F(LevelEditorTest, RenderInspectorRejectsInvalidBlueprintStateDuringResnap) {
   Blueprint blueprint{
       .id = "crystal-blueprint",
-      .states = {{.name = "Default", .placement_mode = BlueprintPlacementMode::kGrounded}},
+      .states = {{.key = "default",
+                  .name = "Default",
+                  .placement_mode = BlueprintPlacementMode::kGrounded}},
   };
   Level level{.id = "cave"};
   level.layers.front().entities.emplace(7, Entity{.id = 7,
                                                   .transform = {.position = {176, 440}},
                                                   .blueprint_id = blueprint.id,
-                                                  .blueprint_state_index = 3});
+                                                  .blueprint_state_key = "missing"});
   LevelEditorTestPeer::SetEditingLevel(*editor_, std::move(level));
   LevelEditorTestPeer::SetSelection(
       *editor_, SelectionState{.type = SelectionState::Type::kEntity, .entity_id = 7});

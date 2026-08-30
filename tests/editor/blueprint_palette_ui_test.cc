@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/status/statusor.h"
 #include "editor/anchor_gizmo_renderer.h"
 #include "editor/gui.h"
 #include "editor/level_editor/blueprint_palette_panel.h"
@@ -25,7 +26,9 @@ struct BlueprintPaletteUiVars {
   Blueprint blueprint{
       .id = "crystal-blueprint",
       .name = "Cave Crystal",
-      .states = {{.name = "Default", .placement_mode = BlueprintPlacementMode::kGrounded}},
+      .states = {{.key = "default",
+                  .name = "Default",
+                  .placement_mode = BlueprintPlacementMode::kGrounded}},
   };
   std::unique_ptr<BlueprintPalettePanel> panel;
   absl::Status render_status;
@@ -86,10 +89,15 @@ void RegisterTests(ImGuiTestEngine* engine) {
     IM_CHECK(selected != nullptr);
     if (selected == nullptr) return;
 
-    const Entity placed = CreateEntityFromBlueprint(*selected, 0, {48, 64}, 7);
-    IM_CHECK_EQ(placed.blueprint_id, vars.blueprint.id);
-    IM_CHECK_EQ(placed.transform.position.x, 48.0);
-    IM_CHECK_EQ(placed.transform.position.y, 64.0);
+    IM_CHECK(!selected->states.empty());
+    if (selected->states.empty()) return;
+    const absl::StatusOr<Entity> placed =
+        CreateEntityFromBlueprint(*selected, selected->states.front().key, {48, 64}, 7);
+    IM_CHECK(placed.ok());
+    if (!placed.ok()) return;
+    IM_CHECK_EQ(placed->blueprint_id, vars.blueprint.id);
+    IM_CHECK_EQ(placed->transform.position.x, 48.0);
+    IM_CHECK_EQ(placed->transform.position.y, 64.0);
   };
 
   ImGuiTest* gizmo_test = IM_REGISTER_TEST(engine, "anchor_gizmo", "presentation");

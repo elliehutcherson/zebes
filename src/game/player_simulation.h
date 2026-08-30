@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <memory>
 
 #include "absl/status/status.h"
@@ -33,12 +34,15 @@ class PlayerSimulation final : public GameSimulation {
   RuntimeWorld& world() { return *world_; }
 
  private:
-  explicit PlayerSimulation(Options options);
+  using AnimationStates = std::array<RuntimeWorld::ResolvedBlueprintState, 6>;
+
+  PlayerSimulation(Options options, AnimationStates animation_states);
 
   IInputManager& input_manager_;
   std::unique_ptr<RuntimeWorld> world_;
   Camera camera_;
   PlayerMovementConfig movement_;
+  AnimationStates animation_states_;
 };
 
 }  // namespace zebes

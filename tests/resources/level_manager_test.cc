@@ -476,7 +476,7 @@ TEST_F(LevelManagerTest, EntityBlueprintFieldsSurviveRoundTrip) {
   Entity entity;
   entity.id = 42;
   entity.blueprint_id = "test-blueprint-uuid";
-  entity.blueprint_state_index = 2;
+  entity.blueprint_state_key = "airborne-left";
   entity.transform.position = {64, 128};
   ASSERT_OK(level.AddEntity(0, std::move(entity)));
 
@@ -486,7 +486,7 @@ TEST_F(LevelManagerTest, EntityBlueprintFieldsSurviveRoundTrip) {
   ASSERT_EQ(loaded->layers.front().entities.size(), 1);
   const Entity& loaded_entity = loaded->layers.front().entities.at(42);
   EXPECT_EQ(loaded_entity.blueprint_id, "test-blueprint-uuid");
-  EXPECT_EQ(loaded_entity.blueprint_state_index, 2);
+  EXPECT_EQ(loaded_entity.blueprint_state_key, "airborne-left");
   EXPECT_EQ(loaded_entity.transform.position.x, 64);
   EXPECT_EQ(loaded_entity.transform.position.y, 128);
 }
@@ -587,7 +587,7 @@ TEST_F(LevelManagerTest, SimulationStateInADocumentIsIgnored) {
         "id": 9,
         "active": true,
         "blueprint_id": "",
-        "blueprint_state_index": 0,
+        "blueprint_state_key": "",
         "sort_order": 0,
         "sprite_id": "",
         "collider_id": "",

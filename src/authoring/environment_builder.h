@@ -55,7 +55,7 @@ struct EnvironmentEntitySpec {
   uint64_t id = 0;
   std::string layer_name;
   std::string blueprint_name;
-  std::string state_name;
+  std::string state_key;
   bool active = true;
   Vec position;
   int sort_order = 0;

@@ -456,18 +456,19 @@ policy, phased implementation, and gates live in the
 [Milestone 2 movement plan](engine-runtime-plan.md#milestone-2-movement-and-collision-implementation-plan);
 [`handoff.md`](handoff.md) remains the concise resume point.
 
-**Milestone 3 — implementation complete; live acceptance pending.** The runtime now retains
-copied blueprints in the loaded-level graph and resolves every sprite and
-collider referenced by every state before boot. `RuntimeWorld` owns per-entity
-blueprint-state selection and animation cursors; `PlayerSimulation` advances
-them once per fixed tick; and scene composition presents runtime-selected
-sprite IDs and frame indices without mutating authored entities. Headless
-playback, state-reset, invalid-transition, shipped-reference, and runtime
-presentation tests pass. Blueprint states now have required, migrated semantic
-keys, and the player selects six idle/run/airborne and left/right states from
-runtime motion and remembered facing. Catacombs ships a deliberately small
-multi-frame Player Animation Proof that preserves one exact collider across all
-states. The remaining M3 gate is live visual confirmation of those transitions.
+**Milestone 3 — implementation complete; live acceptance pending.** The loaded
+level owns one frozen Blueprint graph and resolves every Sprite and Collider
+referenced by every state before boot. `RuntimeWorld` borrows that graph and
+owns only per-instance Blueprint bindings, animation cursors, and other mutable
+runtime state. Authored entities persist stable Blueprint-local state keys;
+boot resolves the player's six idle/run/airborne and left/right keys to checked
+handles, so fixed ticks do not perform string or catalog lookup. Scene
+composition presents runtime-selected sprite IDs and frame indices without
+mutating authored entities. Headless playback, state-reset,
+invalid-transition, shipped-reference, and runtime presentation tests pass.
+Catacombs ships a deliberately small multi-frame Player Animation Proof that
+preserves one exact collider across all states. The remaining M3 gate is live
+visual confirmation of those transitions.
 Then build the animation artwork pipeline before starting M4: first prove
 coherent frame-set generation against an imported baseline, then add
 deterministic shared processing, retained-source recipes, transactional

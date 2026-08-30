@@ -718,6 +718,124 @@ def write_document(path: Path, document: dict, indent: int) -> None:
         json.dump(document, handle, indent=indent, sort_keys=True)
 
 
+def migrate_level_blueprint_state_keys(
+    definitions_root: Path, dry_run: bool
+) -> list[Path]:
+    """Replaces fragile placed-entity state indices with Blueprint-local keys."""
+    blueprints_directory = definitions_root / "blueprints"
+    levels_directory = definitions_root / "levels"
+    if not blueprints_directory.is_dir() or not levels_directory.is_dir():
+        raise ValueError("Blueprint state-key migration requires blueprint and level directories")
+
+    blueprints: dict[str, list[dict]] = {}
+    for blueprint_path in sorted(blueprints_directory.glob("*.json")):
+        blueprint = load_document(blueprint_path)
+        migrate_blueprint(blueprint)
+        blueprint_id = blueprint.get("id")
+        states = blueprint.get("states")
+        if not isinstance(blueprint_id, str) or not blueprint_id or not isinstance(states, list):
+            raise ValueError(f"Blueprint identity or states are invalid: {blueprint_path}")
+        if blueprint_id in blueprints:
+            raise ValueError(f"Duplicate Blueprint ID during level migration: {blueprint_id}")
+
+        state_keys: set[str] = set()
+        for state in states:
+            key = state.get("key") if isinstance(state, dict) else None
+            if (
+                not isinstance(key, str)
+                or re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", key) is None
+                or key in state_keys
+            ):
+                raise ValueError(
+                    f"Blueprint has an invalid or duplicate state key: {blueprint_path}"
+                )
+            state_keys.add(key)
+        blueprints[blueprint_id] = states
+
+    updates: list[tuple[Path, dict]] = []
+    for level_path in sorted(levels_directory.glob("*.json")):
+        level = load_document(level_path)
+        changed = False
+        for layer in level.get("layers", []):
+            for entity in layer.get("entities", []):
+                has_index = "blueprint_state_index" in entity
+                has_key = "blueprint_state_key" in entity
+                if has_index == has_key:
+                    raise ValueError(
+                        "Level entity must contain exactly one Blueprint state identity: "
+                        f"{level_path}"
+                    )
+
+                blueprint_id = entity.get("blueprint_id")
+                if not isinstance(blueprint_id, str):
+                    raise ValueError(f"Level entity has an invalid Blueprint ID: {level_path}")
+
+                if not blueprint_id:
+                    if has_index:
+                        state_index = entity["blueprint_state_index"]
+                        if (
+                            not isinstance(state_index, int)
+                            or isinstance(state_index, bool)
+                            or state_index != 0
+                        ):
+                            raise ValueError(
+                                "Unbound level entity has a non-default Blueprint state index: "
+                                f"{level_path}"
+                            )
+                        entity["blueprint_state_key"] = ""
+                        del entity["blueprint_state_index"]
+                        changed = True
+                    elif entity["blueprint_state_key"] != "":
+                        raise ValueError(
+                            f"Unbound level entity has a Blueprint state key: {level_path}"
+                        )
+                    continue
+
+                states = blueprints.get(blueprint_id)
+                if states is None:
+                    raise ValueError(
+                        f"Level entity references an unknown Blueprint {blueprint_id}: {level_path}"
+                    )
+
+                if has_index:
+                    state_index = entity["blueprint_state_index"]
+                    if (
+                        not isinstance(state_index, int)
+                        or isinstance(state_index, bool)
+                        or state_index < 0
+                        or state_index >= len(states)
+                    ):
+                        raise ValueError(
+                            f"Level entity has an invalid Blueprint state index: {level_path}"
+                        )
+                    state = states[state_index]
+                    entity["blueprint_state_key"] = state["key"]
+                    del entity["blueprint_state_index"]
+                    changed = True
+                else:
+                    state_key = entity["blueprint_state_key"]
+                    state = next((state for state in states if state["key"] == state_key), None)
+                    if state is None:
+                        raise ValueError(
+                            f"Level entity has an unknown Blueprint state key: {level_path}"
+                        )
+
+                if entity.get("sprite_id") != state.get("sprite_id") or entity.get(
+                    "collider_id"
+                ) != state.get("collider_id"):
+                    raise ValueError(
+                        f"Level entity assets do not match its Blueprint state: {level_path}"
+                    )
+
+        if changed:
+            updates.append((level_path, level))
+
+    if not dry_run:
+        for level_path, level in updates:
+            write_document(level_path, level, 4)
+    return [path for path, _ in updates]
+
+
 def migrate_directory(definitions_root: Path, kind: str, dry_run: bool) -> list[Path]:
     """Runs one directory's migration, returning the files that needed it."""
     directory = definitions_root / kind
@@ -776,6 +894,12 @@ def main(argv: list[str]) -> int:
             print(f"skipped (no directory): {kind}")
             continue
         changed = migrate_directory(args.definitions, kind, args.dry_run)
+        total += len(changed)
+        for path in changed:
+            print(f"{'would migrate' if args.dry_run else 'migrated'}: {path}")
+
+    if (args.definitions / "blueprints").is_dir() and (args.definitions / "levels").is_dir():
+        changed = migrate_level_blueprint_state_keys(args.definitions, args.dry_run)
         total += len(changed)
         for path in changed:
             print(f"{'would migrate' if args.dry_run else 'migrated'}: {path}")

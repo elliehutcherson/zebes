@@ -35,6 +35,7 @@ target_link_libraries(runtime_world
   collider
   input_types
   level
+  loaded_level_assets
   player_input
   tile_collision
   tile_movement

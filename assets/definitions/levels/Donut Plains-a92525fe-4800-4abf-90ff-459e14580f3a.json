@@ -7,7 +7,7 @@
                 {
                     "active": true,
                     "blueprint_id": "11755e1d-bca7-476d-8f24-5c6dda8cd0ef",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -27,7 +27,7 @@
                 {
                     "active": true,
                     "blueprint_id": "11755e1d-bca7-476d-8f24-5c6dda8cd0ef",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -47,7 +47,7 @@
                 {
                     "active": true,
                     "blueprint_id": "11755e1d-bca7-476d-8f24-5c6dda8cd0ef",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -67,7 +67,7 @@
                 {
                     "active": true,
                     "blueprint_id": "11755e1d-bca7-476d-8f24-5c6dda8cd0ef",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -87,7 +87,7 @@
                 {
                     "active": true,
                     "blueprint_id": "11755e1d-bca7-476d-8f24-5c6dda8cd0ef",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -107,7 +107,7 @@
                 {
                     "active": true,
                     "blueprint_id": "11755e1d-bca7-476d-8f24-5c6dda8cd0ef",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,

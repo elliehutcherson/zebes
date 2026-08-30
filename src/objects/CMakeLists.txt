@@ -69,6 +69,10 @@ target_link_libraries(entity_factory
   blueprint
   entity
   vec
+  absl::statusor
+  PRIVATE
+  absl::status
+  absl::strings
 )
 
 add_library(level level.cc)

@@ -7,7 +7,7 @@
                 {
                     "active": true,
                     "blueprint_id": "11755e1d-bca7-476d-8f24-5c6dda8cd0ef",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -27,7 +27,7 @@
                 {
                     "active": true,
                     "blueprint_id": "af11cb57-f0c2-4340-b4d9-fc3a3f8e0b90",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -47,7 +47,7 @@
                 {
                     "active": true,
                     "blueprint_id": "e677ac5d-0100-4cbd-928d-0f97b3118232",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -67,7 +67,7 @@
                 {
                     "active": true,
                     "blueprint_id": "079e893c-07f3-4982-aace-5ecb5c28f302",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -87,7 +87,7 @@
                 {
                     "active": true,
                     "blueprint_id": "9f9074b5-832f-468e-b910-ef443b73fc81",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -107,7 +107,7 @@
                 {
                     "active": true,
                     "blueprint_id": "079e893c-07f3-4982-aace-5ecb5c28f302",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -127,7 +127,7 @@
                 {
                     "active": true,
                     "blueprint_id": "3041eff4-f599-4ef2-bf1a-ecd54365d821",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -147,7 +147,7 @@
                 {
                     "active": true,
                     "blueprint_id": "d143f952-43ed-4653-8ca7-c150c0c8510c",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -167,7 +167,7 @@
                 {
                     "active": true,
                     "blueprint_id": "3041eff4-f599-4ef2-bf1a-ecd54365d821",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -194,7 +194,7 @@
                 {
                     "active": true,
                     "blueprint_id": "1be81945-b011-4342-9109-a10c4040078c",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "idle-right",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -16686,7 +16686,7 @@
                 {
                     "active": true,
                     "blueprint_id": "bfc1d974-1f3c-4d75-9dcf-6bf377129d05",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -16706,7 +16706,7 @@
                 {
                     "active": true,
                     "blueprint_id": "fb4a0070-7af2-4183-b67f-2ecf27d098cc",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -16726,7 +16726,7 @@
                 {
                     "active": true,
                     "blueprint_id": "277eeb9c-127d-424d-b50f-d3668c7463e5",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,
@@ -16746,7 +16746,7 @@
                 {
                     "active": true,
                     "blueprint_id": "fb4a0070-7af2-4183-b67f-2ecf27d098cc",
-                    "blueprint_state_index": 0,
+                    "blueprint_state_key": "default",
                     "body": {
                         "drag_x": 0.0,
                         "drag_y": 0.0,

@@ -301,6 +301,10 @@ absl::Status ValidateWorldLayers(const Level& level) {
         return absl::InvalidArgumentError(
             absl::StrCat("Duplicate entity ID found across world layers: '", entity_id, "'"));
       }
+      if (entity.blueprint_id.empty() != entity.blueprint_state_key.empty()) {
+        return absl::InvalidArgumentError(absl::StrCat(
+            "Entity '", entity_id, "' must have both a Blueprint ID and state key, or neither."));
+      }
     }
   }
   return absl::OkStatus();

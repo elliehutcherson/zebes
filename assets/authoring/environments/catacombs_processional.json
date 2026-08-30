@@ -130,7 +130,7 @@
         "id": 1,
         "layer_name": "Back Decor",
         "blueprint_name": "Cave Crystal",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [2048.0, 864.0],
         "sort_order": 0
@@ -139,7 +139,7 @@
         "id": 2,
         "layer_name": "Back Decor",
         "blueprint_name": "Catacombs Ossuary Reliquary",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [640.0, 864.0],
         "sort_order": 10
@@ -148,7 +148,7 @@
         "id": 3,
         "layer_name": "Front Decor",
         "blueprint_name": "Catacombs Funeral Brazier",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [1472.0, 832.0],
         "sort_order": 0
@@ -157,7 +157,7 @@
         "id": 4,
         "layer_name": "GamePlay",
         "blueprint_name": "Player Animation Proof",
-        "state_name": "Idle Right",
+        "state_key": "idle-right",
         "active": true,
         "position_pixels": [256.0, 864.0],
         "sort_order": 0
@@ -166,7 +166,7 @@
         "id": 5,
         "layer_name": "Back Decor",
         "blueprint_name": "Catacombs Collapsed Offerings",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [2944.0, 864.0],
         "sort_order": 20
@@ -175,7 +175,7 @@
         "id": 6,
         "layer_name": "Back Decor",
         "blueprint_name": "Catacombs Fallen Votive Tablets",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [6848.0, 864.0],
         "sort_order": 20
@@ -184,7 +184,7 @@
         "id": 7,
         "layer_name": "Back Decor",
         "blueprint_name": "Catacombs Fallen Pall",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [10944.0, 864.0],
         "sort_order": 20
@@ -193,7 +193,7 @@
         "id": 8,
         "layer_name": "Back Decor",
         "blueprint_name": "Catacombs Fallen Votive Tablets",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [14912.0, 864.0],
         "sort_order": 20
@@ -202,7 +202,7 @@
         "id": 9,
         "layer_name": "Back Decor",
         "blueprint_name": "Catacombs Ceiling Chain Frieze",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [4384.0, 416.0],
         "sort_order": 30
@@ -211,7 +211,7 @@
         "id": 10,
         "layer_name": "Back Decor",
         "blueprint_name": "Catacombs Broken Ring Frieze",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [8800.0, 416.0],
         "sort_order": 30
@@ -220,7 +220,7 @@
         "id": 11,
         "layer_name": "Back Decor",
         "blueprint_name": "Catacombs Ceiling Chain Frieze",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [13248.0, 416.0],
         "sort_order": 30
@@ -229,7 +229,7 @@
         "id": 12,
         "layer_name": "Front Decor",
         "blueprint_name": "Catacombs Foreground Funeral Shroud",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [5696.0, 416.0],
         "sort_order": 10
@@ -238,7 +238,7 @@
         "id": 13,
         "layer_name": "Front Decor",
         "blueprint_name": "Catacombs Foreground Tattered Valance",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [10048.0, 416.0],
         "sort_order": 10
@@ -247,7 +247,7 @@
         "id": 14,
         "layer_name": "Front Decor",
         "blueprint_name": "Catacombs Foreground Funeral Shroud",
-        "state_name": "Default",
+        "state_key": "default",
         "active": true,
         "position_pixels": [14272.0, 416.0],
         "sort_order": 10

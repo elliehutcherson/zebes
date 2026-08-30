@@ -99,7 +99,7 @@ TEST(ViewportInteractionEntityTest, PlacesInvisibleBlueprintWithoutASprite) {
   Level level = MakeLevel();
   Blueprint blueprint{
       .id = "marker",
-      .states = {{.name = "Idle"}},
+      .states = {{.key = "default", .name = "Idle"}},
   };
 
   absl::StatusOr<ViewportInteractionResult> result = controller.Update(
@@ -118,7 +118,7 @@ TEST(ViewportInteractionEntityTest, PlacesResolvedBlueprintWithStableId) {
   level.layers.front().entities.emplace(50, Entity{.id = 50});
   Blueprint blueprint{
       .id = "enemy",
-      .states = {{.name = "Idle", .sprite_id = "enemy-sprite"}},
+      .states = {{.key = "default", .name = "Idle", .sprite_id = "enemy-sprite"}},
   };
   Sprite sprite{.id = "enemy-sprite"};
 
@@ -144,7 +144,7 @@ TEST(ViewportInteractionEntityTest, RejectsUnresolvedBlueprintSprite) {
   Level level = MakeLevel();
   Blueprint blueprint{
       .id = "enemy",
-      .states = {{.name = "Idle", .sprite_id = "missing"}},
+      .states = {{.key = "default", .name = "Idle", .sprite_id = "missing"}},
   };
 
   EXPECT_EQ(
@@ -162,7 +162,10 @@ TEST(ViewportInteractionEntityTest, UsesFinalEntityIdThenFailsWhenExhausted) {
   Level level = MakeLevel();
   const uint64_t final_id = std::numeric_limits<uint64_t>::max();
   level.layers.front().entities.emplace(final_id - 1, Entity{.id = final_id - 1});
-  Blueprint blueprint{.id = "marker"};
+  Blueprint blueprint{
+      .id = "marker",
+      .states = {{.key = "default", .name = "Default"}},
+  };
   const ViewportInteractionInput input{
       .world_position = {32, 48},
       .pointer_in_level = true,

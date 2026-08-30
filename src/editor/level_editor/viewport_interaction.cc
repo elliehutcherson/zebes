@@ -171,8 +171,13 @@ absl::StatusOr<ViewportInteractionResult> ViewportInteractionController::UpdateE
       return absl::ResourceExhaustedError("level entity IDs are exhausted");
     }
 
-    Entity entity = CreateEntityFromBlueprint(*options.placement_blueprint, 0, input.world_position,
-                                              *next_entity_id_);
+    if (options.placement_blueprint->states.empty()) {
+      return absl::FailedPreconditionError("placement blueprint has no states");
+    }
+    ASSIGN_OR_RETURN(Entity entity,
+                     CreateEntityFromBlueprint(*options.placement_blueprint,
+                                               options.placement_blueprint->states.front().key,
+                                               input.world_position, *next_entity_id_));
     if (*next_entity_id_ == std::numeric_limits<uint64_t>::max()) {
       next_entity_id_.reset();
     } else {

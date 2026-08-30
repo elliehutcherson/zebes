@@ -42,12 +42,11 @@ absl::StatusOr<std::optional<BlueprintPlacementMode>> ResolveEntityPlacementMode
   if (entity.blueprint_id.empty()) return std::nullopt;
   absl::StatusOr<Blueprint*> blueprint = api.GetBlueprint(entity.blueprint_id);
   if (!blueprint.ok() || *blueprint == nullptr) return std::nullopt;
-  if (entity.blueprint_state_index < 0 ||
-      entity.blueprint_state_index >= (*blueprint)->states.size()) {
-    return absl::FailedPreconditionError("selected entity has an invalid blueprint state index");
+  const std::optional<int> state_index = (*blueprint)->state_index(entity.blueprint_state_key);
+  if (!state_index.has_value()) {
+    return absl::FailedPreconditionError("selected entity has an invalid blueprint state key");
   }
-  const BlueprintPlacementMode mode =
-      (*blueprint)->states[entity.blueprint_state_index].placement_mode;
+  const BlueprintPlacementMode mode = (*blueprint)->states[*state_index].placement_mode;
   if (!IsValidBlueprintPlacementMode(mode)) {
     return absl::FailedPreconditionError("selected entity has an invalid placement mode");
   }

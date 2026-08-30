@@ -522,18 +522,18 @@ absl::Status LevelEditor::RenderInspector() {
         if (blueprint == nullptr) {
           return absl::FailedPreconditionError("selected entity resolved to a null blueprint");
         }
-        if (entity->blueprint_state_index < 0 ||
-            entity->blueprint_state_index >= blueprint->states.size()) {
+        const std::optional<int> state_index = blueprint->state_index(entity->blueprint_state_key);
+        if (!state_index.has_value()) {
           return absl::InvalidArgumentError(absl::StrCat("selected entity ", entity_id,
-                                                         " has invalid blueprint state index ",
-                                                         entity->blueprint_state_index));
+                                                         " has invalid blueprint state key '",
+                                                         entity->blueprint_state_key, "'"));
         }
 
         ASSIGN_OR_RETURN(
             const Vec snapped_origin,
             SnapBlueprintOriginToNearestGridAnchor(
                 entity->transform.position, level.tile_render_width, level.tile_render_height,
-                blueprint->states[entity->blueprint_state_index].placement_mode));
+                blueprint->states[*state_index].placement_mode));
         entity->transform.position = snapped_origin;
       }
 

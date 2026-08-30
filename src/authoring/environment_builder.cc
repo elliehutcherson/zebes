@@ -151,14 +151,14 @@ absl::StatusOr<EnvironmentTerrainRectangle> RectangleFromJson(const nlohmann::js
 absl::StatusOr<EnvironmentEntitySpec> EntityFromJson(const nlohmann::json& json) {
   constexpr std::string_view kContext = "environment entity";
   RETURN_IF_ERROR(RequireExactObject(json,
-                                     {"id", "layer_name", "blueprint_name", "state_name", "active",
+                                     {"id", "layer_name", "blueprint_name", "state_key", "active",
                                       "position_pixels", "sort_order"},
                                      kContext));
   EnvironmentEntitySpec entity;
   ASSIGN_OR_RETURN(entity.id, Required<uint64_t>(json, "id", kContext));
   ASSIGN_OR_RETURN(entity.layer_name, Required<std::string>(json, "layer_name", kContext));
   ASSIGN_OR_RETURN(entity.blueprint_name, Required<std::string>(json, "blueprint_name", kContext));
-  ASSIGN_OR_RETURN(entity.state_name, Required<std::string>(json, "state_name", kContext));
+  ASSIGN_OR_RETURN(entity.state_key, Required<std::string>(json, "state_key", kContext));
   ASSIGN_OR_RETURN(entity.active, Required<bool>(json, "active", kContext));
   ASSIGN_OR_RETURN(entity.position, VecFromJson(json.at("position_pixels"), "entity position"));
   ASSIGN_OR_RETURN(entity.sort_order, Required<int>(json, "sort_order", kContext));
@@ -262,9 +262,9 @@ absl::Status ValidateSpec(const EnvironmentBuildSpec& spec) {
       return absl::InvalidArgumentError(
           absl::StrCat("environment entity layer is not in world_layers: ", entity.layer_name));
     }
-    if (entity.blueprint_name.empty() || entity.state_name.empty()) {
+    if (entity.blueprint_name.empty() || entity.state_key.empty()) {
       return absl::InvalidArgumentError(
-          "environment entity blueprint and state names must be non-empty");
+          "environment entity blueprint name and state key must be non-empty");
     }
     if (entity.position.x < 0.0 || entity.position.y < 0.0 || entity.position.x > level_width ||
         entity.position.y > level_height) {
@@ -311,31 +311,9 @@ absl::StatusOr<std::string> ResolveArtworkTexture(const std::vector<ParallaxArtw
   return recipe->texture_id;
 }
 
-absl::StatusOr<int> ResolveBlueprintState(const Blueprint& blueprint, std::string_view name) {
-  std::optional<int> index;
-  for (size_t candidate = 0; candidate < blueprint.states.size(); ++candidate) {
-    if (blueprint.states[candidate].name != name) continue;
-    if (index.has_value()) {
-      return absl::FailedPreconditionError(absl::StrCat("more than one state in blueprint '",
-                                                        blueprint.name, "' is named '", name, "'"));
-    }
-    if (!std::in_range<int>(candidate)) {
-      return absl::ResourceExhaustedError(
-          absl::StrCat("blueprint has too many states: ", blueprint.name));
-    }
-    index = static_cast<int>(candidate);
-  }
-  if (!index.has_value()) {
-    return absl::NotFoundError(
-        absl::StrCat("blueprint state not found: ", blueprint.name, " / ", name));
-  }
-  return *index;
-}
-
 struct ResolvedEnvironmentEntity {
   EnvironmentEntitySpec placement;
   Blueprint blueprint;
-  int state_index = 0;
 };
 
 absl::StatusOr<std::vector<ResolvedEnvironmentEntity>> ResolveEntityPlacements(
@@ -350,12 +328,13 @@ absl::StatusOr<std::vector<ResolvedEnvironmentEntity>> ResolveEntityPlacements(
       return absl::NotFoundError(
           absl::StrCat("environment entity blueprint not found: ", placement.blueprint_name));
     }
-    ASSIGN_OR_RETURN(const int state_index,
-                     ResolveBlueprintState(*blueprint, placement.state_name));
+    if (!blueprint->state_index(placement.state_key).has_value()) {
+      return absl::NotFoundError(
+          absl::StrCat("blueprint state not found: ", blueprint->name, " / ", placement.state_key));
+    }
     resolved.push_back({
         .placement = placement,
         .blueprint = std::move(*blueprint),
-        .state_index = state_index,
     });
   }
   return resolved;
@@ -372,8 +351,9 @@ absl::Status PlaceEntities(const std::vector<ResolvedEnvironmentEntity>& placeme
       return absl::FailedPreconditionError(
           absl::StrCat("validated environment entity layer is missing: ", placement.layer_name));
     }
-    Entity entity = CreateEntityFromBlueprint(resolved.blueprint, resolved.state_index,
-                                              placement.position, placement.id);
+    ASSIGN_OR_RETURN(Entity entity,
+                     CreateEntityFromBlueprint(resolved.blueprint, placement.state_key,
+                                               placement.position, placement.id));
     entity.active = placement.active;
     entity.sort_order = placement.sort_order;
     RETURN_IF_ERROR(level.AddEntity(layer->id, std::move(entity)));

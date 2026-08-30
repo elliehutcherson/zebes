@@ -37,7 +37,9 @@ struct Entity {
   int sort_order = 0;
 
   std::string blueprint_id;
-  int blueprint_state_index = 0;
+  // Stable initial state identity within blueprint_id. Runtime selection is
+  // resolved to an index once and stored outside the authored Entity.
+  std::string blueprint_state_key;
 
   // Assets are named, never pointed at; the managers own them. Rendering and
   // picking resolve these once per frame and pass the result explicitly.

@@ -52,17 +52,9 @@ TEST(GameLevelAssetsTest, RuntimeProfileLoadsAndComposesTheShippedInitialLevel) 
     }
   }
   ASSERT_NE(mouse_player, nullptr);
-  const auto mouse_collider = assets.content.colliders.find(mouse_player->collider_id);
-  ASSERT_NE(mouse_collider, assets.content.colliders.end());
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
-                       RuntimeWorld::Create({
-                           .level = assets.content.level,
-                           .tileset = assets.content.tileset,
-                           .blueprints = assets.content.blueprints,
-                           .sprites = assets.content.sprites,
-                           .player_blueprint_id = std::string(kPlayerBlueprintId),
-                           .player_collider = mouse_collider->second,
-                       }));
+                       RuntimeWorld::Create(assets.content, {.player_blueprint_id =
+                                                                 std::string(kPlayerBlueprintId)}));
   EXPECT_EQ(world->player_entity_id(), 4);
   EXPECT_EQ(world->player_local_collider(),
             (AxisAlignedBox{.min = {-16.0, -64.0}, .max = {16.0, 0.0}}));

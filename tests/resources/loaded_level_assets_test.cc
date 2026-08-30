@@ -106,7 +106,7 @@ TEST_F(LoadedLevelAssetsTest, ResolvesEveryStateAssetForPlacedBlueprints) {
   Level level{.id = "level", .tileset_id = "tileset"};
   level.layers.front().entities.emplace(7, Entity{.id = 7,
                                                   .blueprint_id = "blueprint",
-                                                  .blueprint_state_index = 0,
+                                                  .blueprint_state_key = "idle",
                                                   .sprite_id = "sprite-a",
                                                   .collider_id = "collider-a"});
   Tileset tileset{.id = "tileset", .texture_id = "atlas"};
@@ -150,6 +150,7 @@ TEST_F(LoadedLevelAssetsTest, RejectsEntityThatDoesNotMatchItsSelectedBlueprintS
   Level level{.id = "level", .tileset_id = "tileset"};
   level.layers.front().entities.emplace(7, Entity{.id = 7,
                                                   .blueprint_id = "blueprint",
+                                                  .blueprint_state_key = "idle",
                                                   .sprite_id = "entity-sprite",
                                                   .collider_id = "entity-collider"});
   Tileset tileset{.id = "tileset", .texture_id = "atlas"};
@@ -197,7 +198,8 @@ TEST_F(LoadedLevelAssetsTest, RejectsMissingPlacedBlueprint) {
 
 TEST_F(LoadedLevelAssetsTest, RejectsMissingAssetReferencedByBlueprintState) {
   Level level{.id = "level", .tileset_id = "tileset"};
-  level.layers.front().entities.emplace(7, Entity{.id = 7, .blueprint_id = "blueprint"});
+  level.layers.front().entities.emplace(
+      7, Entity{.id = 7, .blueprint_id = "blueprint", .blueprint_state_key = "idle"});
   Tileset tileset{.id = "tileset", .texture_id = "atlas"};
   Blueprint blueprint{
       .id = "blueprint",
@@ -216,10 +218,10 @@ TEST_F(LoadedLevelAssetsTest, RejectsMissingAssetReferencedByBlueprintState) {
   EXPECT_EQ(ResolveLevelAssets(Resources(), "level").status().code(), absl::StatusCode::kNotFound);
 }
 
-TEST_F(LoadedLevelAssetsTest, RejectsAnOutOfRangeAuthoredBlueprintState) {
+TEST_F(LoadedLevelAssetsTest, RejectsAnUnknownAuthoredBlueprintStateKey) {
   Level level{.id = "level", .tileset_id = "tileset"};
   level.layers.front().entities.emplace(
-      7, Entity{.id = 7, .blueprint_id = "blueprint", .blueprint_state_index = 1});
+      7, Entity{.id = 7, .blueprint_id = "blueprint", .blueprint_state_key = "missing"});
   Tileset tileset{.id = "tileset", .texture_id = "atlas"};
   Blueprint blueprint{.id = "blueprint", .states = {{.key = "idle", .name = "idle"}}};
 
@@ -231,7 +233,7 @@ TEST_F(LoadedLevelAssetsTest, RejectsAnOutOfRangeAuthoredBlueprintState) {
 
   const absl::Status status = ResolveLevelAssets(Resources(), "level").status();
   EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
-  EXPECT_EQ(status.message(), "entity 7 blueprint state index is out of range");
+  EXPECT_EQ(status.message(), "entity 7 blueprint has no state key 'missing'");
 }
 
 TEST_F(LoadedLevelAssetsTest, RejectsEmptyAndMismatchedLevelLookups) {

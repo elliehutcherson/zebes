@@ -3,6 +3,7 @@
 #include <limits>
 #include <map>
 
+#include "absl/status/status.h"
 #include "editor/level_editor/viewport_model.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -145,29 +146,30 @@ TEST(PickEntityTest, EqualDrawOrderPicksTheHighestId) {
 TEST(CreateEntityFromBlueprintTest, SetsFields) {
   Blueprint bp{
       .id = "blueprint-abc",
-      .states = {Blueprint::State{.name = "Idle", .collider_id = "collider-abc"}},
+      .states = {Blueprint::State{.key = "idle", .name = "Idle", .collider_id = "collider-abc"}},
   };
 
-  Entity e = CreateEntityFromBlueprint(bp, /*state_index=*/0, {256, 512}, /*id=*/42);
+  ASSERT_OK_AND_ASSIGN(Entity e, CreateEntityFromBlueprint(bp, "idle", {256, 512}, /*id=*/42));
 
   EXPECT_EQ(e.id, 42u);
   EXPECT_EQ(e.blueprint_id, "blueprint-abc");
-  EXPECT_EQ(e.blueprint_state_index, 0);
+  EXPECT_EQ(e.blueprint_state_key, "idle");
   EXPECT_EQ(e.transform.position.x, 256);
   EXPECT_EQ(e.transform.position.y, 512);
   EXPECT_TRUE(e.sprite_id.empty());
   EXPECT_EQ(e.collider_id, "collider-abc");
 }
 
-TEST(CreateEntityFromBlueprintTest, StateIndexPreserved) {
+TEST(CreateEntityFromBlueprintTest, StateKeyPreserved) {
   Blueprint bp{
       .id = "bp-xyz",
-      .states = {Blueprint::State{.name = "State0"}, Blueprint::State{.name = "State1"}},
+      .states = {Blueprint::State{.key = "state-0", .name = "State0"},
+                 Blueprint::State{.key = "state-1", .name = "State1"}},
   };
 
-  Entity e = CreateEntityFromBlueprint(bp, /*state_index=*/1, {0, 0}, /*id=*/1);
+  ASSERT_OK_AND_ASSIGN(Entity e, CreateEntityFromBlueprint(bp, "state-1", {0, 0}, /*id=*/1));
 
-  EXPECT_EQ(e.blueprint_state_index, 1);
+  EXPECT_EQ(e.blueprint_state_key, "state-1");
 }
 
 // Invisible blueprint tests — a blueprint with no sprite_id in its state.
@@ -176,24 +178,22 @@ TEST(CreateEntityFromBlueprintTest, StateIndexPreserved) {
 
 TEST(CreateEntityFromBlueprintTest, InvisibleBlueprintSpriteRemainsNull) {
   // A blueprint with a state but no sprite_id is "invisible".
-  Blueprint bp{.id = "invisible-bp", .states = {Blueprint::State{.name = "Idle"}}};
+  Blueprint bp{.id = "invisible-bp", .states = {Blueprint::State{.key = "idle", .name = "Idle"}}};
   ASSERT_FALSE(bp.sprite_id(0).has_value()) << "Precondition: blueprint has no sprite";
 
-  Entity e = CreateEntityFromBlueprint(bp, /*state_index=*/0, {100, 200}, /*id=*/5);
+  ASSERT_OK_AND_ASSIGN(Entity e, CreateEntityFromBlueprint(bp, "idle", {100, 200}, /*id=*/5));
 
   EXPECT_EQ(e.id, 5u);
   EXPECT_EQ(e.blueprint_id, "invisible-bp");
   EXPECT_TRUE(e.sprite_id.empty());
 }
 
-TEST(CreateEntityFromBlueprintTest, InvisibleBlueprintNoStatesSpriteRemainsNull) {
-  // A blueprint with no states at all also has no sprite.
+TEST(CreateEntityFromBlueprintTest, RejectsMissingStateKey) {
   Blueprint bp{.id = "empty-bp"};
   ASSERT_FALSE(bp.sprite_id(0).has_value()) << "Precondition: blueprint has no states";
 
-  Entity e = CreateEntityFromBlueprint(bp, /*state_index=*/0, {0, 0}, /*id=*/1);
-
-  EXPECT_TRUE(e.sprite_id.empty());
+  EXPECT_TRUE(
+      absl::IsInvalidArgument(CreateEntityFromBlueprint(bp, "idle", {0, 0}, /*id=*/1).status()));
 }
 
 // NextAvailableEntityId tests

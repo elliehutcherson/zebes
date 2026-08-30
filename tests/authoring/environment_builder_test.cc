@@ -71,7 +71,7 @@ EnvironmentBuildSpec EntityBuildSpec() {
                   .id = 7,
                   .layer_name = "Back Decor",
                   .blueprint_name = "Crystal",
-                  .state_name = "Lit",
+                  .state_key = "lit",
                   .active = false,
                   .position = {64.0, 96.0},
                   .sort_order = -3,
@@ -93,6 +93,7 @@ class EnvironmentApiFake final : public Api {
         .id = "blueprint-id",
         .name = "Crystal",
         .states = {{
+            .key = "lit",
             .name = "Lit",
             .collider_id = "collider-id",
             .sprite_id = "sprite-id",
@@ -195,7 +196,7 @@ TEST(EnvironmentBuilderTest, LoadsTheProductionCatacombsWithoutCatalogIds) {
   EXPECT_EQ(spec.level.entities[2].position.y, 832.0f);
   EXPECT_EQ(spec.level.entities[3].id, 4);
   EXPECT_EQ(spec.level.entities[3].blueprint_name, "Player Animation Proof");
-  EXPECT_EQ(spec.level.entities[3].state_name, "Idle Right");
+  EXPECT_EQ(spec.level.entities[3].state_key, "idle-right");
   EXPECT_EQ(spec.level.entities[3].layer_name, "GamePlay");
   EXPECT_EQ(spec.level.entities[3].position.x, 256.0f);
   EXPECT_EQ(spec.level.entities[3].position.y, 864.0f);
@@ -263,7 +264,7 @@ TEST(EnvironmentBuilderTest, RebuildsBlueprintEntitiesIdempotently) {
   const Entity& entity = back_decor->entities.at(7);
   EXPECT_FALSE(entity.active);
   EXPECT_EQ(entity.blueprint_id, "blueprint-id");
-  EXPECT_EQ(entity.blueprint_state_index, 0);
+  EXPECT_EQ(entity.blueprint_state_key, "lit");
   EXPECT_EQ(entity.sprite_id, "sprite-id");
   EXPECT_EQ(entity.collider_id, "collider-id");
   EXPECT_EQ(entity.transform.position, (Vec{64.0, 96.0}));
@@ -293,7 +294,7 @@ TEST(EnvironmentBuilderTest, RefusesDuplicateBlueprintNames) {
 TEST(EnvironmentBuilderTest, RefusesUnknownBlueprintState) {
   EnvironmentApiFake api;
   EnvironmentBuildSpec spec = EntityBuildSpec();
-  spec.level.entities.front().state_name = "Missing";
+  spec.level.entities.front().state_key = "missing";
 
   EXPECT_EQ(BuildEnvironment(api, spec).status().code(), absl::StatusCode::kNotFound);
   EXPECT_TRUE(api.themes().empty());

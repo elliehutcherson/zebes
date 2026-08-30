@@ -40,18 +40,20 @@ The most recent runtime cleanup is split into three reviewable commits:
 
 ### Engine: finish the Milestone 3 live animation gate
 
-The reusable animation cursor now belongs to the engine, `RuntimeWorld` owns
-per-entity playback and explicit Blueprint-state selection, and scene
+The reusable animation cursor now belongs to the engine. The frozen loaded-level
+graph is the single runtime source of Blueprint definitions and all referenced
+Sprites, textures, and Colliders; `RuntimeWorld` borrows it and owns only
+per-instance bindings, playback, and other mutable runtime state. Scene
 composition presents runtime-selected sprites and frames without mutating
-authored entities. The frozen loaded-level graph retains placed Blueprints and
-all state-referenced sprites, textures, and colliders before boot. Headless
-tests cover multi-frame timing, state changes, reset behavior, invalid
-transitions, and the complete render-composition path.
+authored entities. Headless tests cover multi-frame timing, state changes,
+reset behavior, invalid transitions, and the complete render-composition path.
 
-Blueprint states now have required, migrated, unique semantic keys. The player
-policy selects `idle-*`, `run-*`, and `airborne-*` states from grounded state,
-horizontal velocity, and remembered facing; runtime selection uses those keys
-rather than display names or numeric state order. The Catacombs player is the
+Blueprint states now have required, migrated, unique semantic keys. The key is
+stable programmatic identity within one Blueprint; the name remains editable
+display text. Authored entities persist the key instead of a numeric state
+index. Runtime boot resolves `idle-*`, `run-*`, and `airborne-*` to checked
+handles, then fixed ticks select among those handles from grounded state,
+horizontal velocity, and remembered facing. The Catacombs player is the
 six-state Player Animation Proof, which reuses existing multi-frame artwork
 while retaining one exact 32x64 collider across every state.
 

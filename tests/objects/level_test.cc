@@ -121,6 +121,21 @@ TEST(LevelTest, GetTileAtRejectsNegativeCoordinates) {
   EXPECT_EQ(GetTileAt(layer, 0, -1).status().code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST(LevelTest, ValidationRequiresBlueprintIdentityAndStateKeyTogether) {
+  Level level = ValidLevel();
+  ASSERT_OK(level.AddEntity(0, Entity{.id = 1, .blueprint_id = "player"}));
+  EXPECT_EQ(ValidateLevel(level).code(), absl::StatusCode::kInvalidArgument);
+
+  Entity* entity = FindEntity(level, 1);
+  ASSERT_NE(entity, nullptr);
+  entity->blueprint_id.clear();
+  entity->blueprint_state_key = "idle";
+  EXPECT_EQ(ValidateLevel(level).code(), absl::StatusCode::kInvalidArgument);
+
+  entity->blueprint_id = "player";
+  EXPECT_OK(ValidateLevel(level));
+}
+
 TEST(LevelTest, ValidationRejectsMalformedZoneThemeIds) {
   Level level = ValidLevel();
   level.zones.push_back({

@@ -186,15 +186,18 @@ before `SdlGameHost` releases the renderer, input, texture store, window, and
 finally the SDL subsystem.
 
 `PlayerSimulation` is the owned `GameSimulation` for the running game. It owns
-`RuntimeWorld`, which keeps the copied authored `Level` immutable beside mutable
-entity-ID-keyed transforms, motion, controller state, blueprint-state selection,
-and animation playback. Runtime boot validates
-the player collider and occupied tile IDs and builds an immutable collision
-lookup. Each fixed tick queries only the player's swept rectangle through the
-authored layer's sparse chunk map; dynamic SAT and a bounded fixed-capacity
-contact solver perform continuous response without scanning the level or
-allocating in the movement path. The camera follows the committed player
-transform.
+`RuntimeWorld`, which borrows the one frozen `LoadedLevelContent` graph owned by
+`GameRuntime`; it does not copy the level, Blueprint catalog, Sprite catalog, or
+Collider catalog again. Runtime entities keep mutable, entity-ID-keyed
+transforms, motion, controller state, Blueprint bindings, and animation
+playback beside that immutable source of truth. A Blueprint binding points to
+the frozen definition and stores the selected state index for the instance.
+Runtime boot validates the player collider and occupied tile IDs and builds an
+immutable collision lookup. Each fixed tick queries only the player's swept
+rectangle through the authored layer's sparse chunk map; dynamic SAT and a
+bounded fixed-capacity contact solver perform continuous response without
+scanning the level or allocating in the movement path. The camera follows the
+committed player transform.
 
 `engine/collision` owns general `Vec`-based AABB, convex-polygon overlap, sweep,
 translation, and response-vector primitives. `tile_collision` only adapts a
@@ -209,11 +212,14 @@ the serialized `Level` to expose runtime movement.
 
 Runtime presentation also borrows per-entity sprite-ID and frame-index
 overrides from `RuntimeWorld`. `PlayerSimulation` advances each active
-`AnimationCursor` once per fixed simulation tick, and changing a blueprint state
-resets that entity's cursor only when the selected state changes. State selection
-is validated against the copied blueprint graph; the current player contract
-rejects a state that would replace its established M2 collider. This is playback
-and explicit state selection, not a semantic player animation state machine.
+`AnimationCursor` once per fixed simulation tick, and changing a Blueprint
+state resets that entity's cursor only when the selected state changes. Authored
+entities persist a stable, Blueprint-local state key rather than a vector index;
+the key is programmatic identity, while the state's editable name remains
+display text. Boot resolves the player's six semantic keys to checked state
+handles. Fixed ticks select among those handles without string lookup, catalog
+lookup, or a state-vector scan. The current player contract rejects a state
+that would replace its established M2 collider.
 
 ### Runtime-created entity lifecycle
 

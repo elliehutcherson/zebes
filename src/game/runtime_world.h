@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -22,6 +21,7 @@
 #include "objects/sprite.h"
 #include "objects/tileset.h"
 #include "objects/transform.h"
+#include "resources/loaded_level_assets.h"
 
 namespace zebes {
 
@@ -57,32 +57,45 @@ struct PlayerMovementConfig {
   absl::Status Validate() const;
 };
 
-// Owns immutable authored level data beside mutable, entity-ID-keyed runtime
-// registries. Runtime movement changes transforms_ and motions_, never the
-// Entity definitions in level_. The current checkpoint materializes authored
-// entities only; runtime spawn/despawn requires a runtime entity roster and a
-// transactional lifecycle API rather than direct insertion into these maps.
-// This class performs no I/O.
+// Borrows one immutable loaded-level definition graph beside mutable,
+// entity-ID-keyed runtime registries. Runtime movement changes transforms_ and
+// motions_, never the authored Entity definitions. The current checkpoint
+// materializes authored entities only; runtime spawn/despawn requires a runtime
+// entity roster and a transactional lifecycle API rather than direct insertion
+// into these maps. This class performs no I/O.
 class RuntimeWorld {
  public:
-  struct Options {
-    Level level;
-    Tileset tileset;
-    std::map<std::string, Blueprint> blueprints;
-    std::map<std::string, Sprite> sprites;
-    std::string player_blueprint_id;
-    Collider player_collider;
+  // A boot-resolved state within one immutable Blueprint definition. Keeping
+  // the definition identity in the handle prevents an index resolved for one
+  // Blueprint from being applied to another.
+  class ResolvedBlueprintState {
+   public:
+    int index() const { return state_index_; }
+
+   private:
+    friend class RuntimeWorld;
+
+    ResolvedBlueprintState(const Blueprint* definition, int state_index)
+        : definition_(definition), state_index_(state_index) {}
+
+    const Blueprint* definition_ = nullptr;
+    int state_index_ = -1;
   };
 
-  // Requires exactly one entity with player_blueprint_id. The candidate must
-  // be active, dynamic, unrotated, and reference player_collider. The collider
-  // must be the player's established bottom-centered 32x64 rectangle.
-  static absl::StatusOr<std::unique_ptr<RuntimeWorld>> Create(Options options);
+  struct Options {
+    std::string player_blueprint_id;
+  };
+
+  // Borrows content, which must outlive the returned RuntimeWorld. Requires
+  // exactly one entity with player_blueprint_id. The candidate must be active,
+  // dynamic, unrotated, and use the established bottom-centered 32x64 collider.
+  static absl::StatusOr<std::unique_ptr<RuntimeWorld>> Create(const LoadedLevelContent& content,
+                                                              Options options);
 
   RuntimeWorld(const RuntimeWorld&) = delete;
   RuntimeWorld& operator=(const RuntimeWorld&) = delete;
 
-  const Level& level() const { return level_; }
+  const Level& level() const { return content_.level; }
   uint64_t player_entity_id() const { return player_entity_id_; }
   int player_layer_id() const { return player_layer_id_; }
   AxisAlignedBox player_local_collider() const { return player_local_collider_; }
@@ -107,12 +120,13 @@ class RuntimeWorld {
   absl::Status StepPlayer(const InputSnapshot& input, double delta_seconds,
                           const PlayerMovementConfig& config);
 
-  // Validates or selects one stable authored Blueprint state key without
-  // mutating the serialized Entity. Playback resets only when the selected
-  // state actually changes. Until entity collision response exists, a player
-  // state transition must retain the established M2 collider.
-  absl::Status ValidateEntityBlueprintState(uint64_t entity_id, std::string_view state_key) const;
-  absl::Status SetEntityBlueprintState(uint64_t entity_id, std::string_view state_key);
+  // Resolves a stable authored key once, then applies the resulting handle
+  // without string or Blueprint-catalog lookup. Playback resets only when the
+  // selected state actually changes. Until entity collision response exists,
+  // a player state transition must retain the established M2 collider.
+  absl::StatusOr<ResolvedBlueprintState> ResolveEntityBlueprintState(
+      uint64_t entity_id, std::string_view state_key) const;
+  absl::Status SetEntityBlueprintState(uint64_t entity_id, const ResolvedBlueprintState& state);
 
   // Advances every active sprite cursor by one fixed simulation tick. Runtime
   // construction and state selection establish all invariants, so this cannot
@@ -120,10 +134,12 @@ class RuntimeWorld {
   void AdvanceAnimations();
 
  private:
+  struct BlueprintBinding {
+    const Blueprint* definition = nullptr;
+    int state_index = -1;
+  };
+
   struct InitialState {
-    Level level;
-    std::map<std::string, Blueprint> blueprints;
-    std::map<std::string, Sprite> sprites;
     uint64_t player_entity_id = 0;
     int player_layer_id = -1;
     std::string player_collider_id;
@@ -133,21 +149,15 @@ class RuntimeWorld {
     absl::flat_hash_map<uint64_t, Transform> transforms;
     absl::flat_hash_map<uint64_t, Motion> motions;
     absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers;
-    absl::flat_hash_map<uint64_t, std::string> blueprint_ids;
-    absl::flat_hash_map<uint64_t, int> blueprint_state_indices;
+    absl::flat_hash_map<uint64_t, BlueprintBinding> blueprint_bindings;
     absl::flat_hash_map<uint64_t, std::string> sprite_ids;
     absl::flat_hash_map<uint64_t, int> frame_indices;
     absl::flat_hash_map<uint64_t, AnimationCursor> animation_cursors;
   };
 
-  explicit RuntimeWorld(InitialState state);
+  RuntimeWorld(const LoadedLevelContent& content, InitialState state);
 
-  absl::StatusOr<int> ResolveEntityBlueprintStateIndex(uint64_t entity_id,
-                                                       std::string_view state_key) const;
-
-  Level level_;
-  const std::map<std::string, Blueprint> blueprints_;
-  const std::map<std::string, Sprite> sprites_;
+  const LoadedLevelContent& content_;
   uint64_t player_entity_id_ = 0;
   int player_layer_id_ = -1;
   std::string player_collider_id_;
@@ -157,8 +167,7 @@ class RuntimeWorld {
   absl::flat_hash_map<uint64_t, Transform> transforms_;
   absl::flat_hash_map<uint64_t, Motion> motions_;
   absl::flat_hash_map<uint64_t, PlayerControllerState> player_controllers_;
-  absl::flat_hash_map<uint64_t, std::string> blueprint_ids_;
-  absl::flat_hash_map<uint64_t, int> blueprint_state_indices_;
+  absl::flat_hash_map<uint64_t, BlueprintBinding> blueprint_bindings_;
   absl::flat_hash_map<uint64_t, std::string> sprite_ids_;
   absl::flat_hash_map<uint64_t, int> frame_indices_;
   absl::flat_hash_map<uint64_t, AnimationCursor> animation_cursors_;
