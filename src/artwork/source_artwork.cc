@@ -116,8 +116,12 @@ absl::Status ValidateSourceArtworkLimits(const SourceArtworkLimits& limits) {
   if (limits.maximum_pixels == 0) {
     return absl::InvalidArgumentError("source artwork maximum pixels must be positive");
   }
-  if (limits.maximum_bytes == 0) {
-    return absl::InvalidArgumentError("source artwork maximum bytes must be positive");
+  if (limits.maximum_bytes < 4) {
+    return absl::InvalidArgumentError(
+        "source artwork maximum bytes must hold at least one RGBA8 pixel");
+  }
+  if (limits.maximum_encoded_bytes == 0) {
+    return absl::InvalidArgumentError("source artwork maximum encoded bytes must be positive");
   }
   return absl::OkStatus();
 }

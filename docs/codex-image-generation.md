@@ -39,17 +39,35 @@ EditorUi
   engine's existing eight-operation bound over that child. Individual request
   objects borrow the session and are destroyed before their client by the
   engine's member order.
+- Ordered provider-neutral references are encoded as role-labelled PNGs in an
+  operation-owned subdirectory of the private workspace. `turn/start` receives
+  those `localImage` inputs first, followed by the shared indexed-role turn text
+  and the `imagegen` skill. General artwork instructions remain only in the
+  ephemeral thread's developer instructions, so they are not duplicated.
+- Before starting a thread, the session reads the complete paginated App Server
+  model catalogue and rejects an unavailable configured worker model. The
+  `imagegen` name is a skill, not a model selector. `thread/start` then receives
+  the validated model with provider fallback disabled, so result provenance
+  names the requested App Server model rather than an adapter label.
+- The imagegen skill owns provider-native raster dimensions. The adapter
+  requests aspect and bounded pixels but does not claim an exact size or resize
+  returned pixels. Workflows that require a fixed canvas must observe and lock
+  the native size or explicitly define a separate deterministic normalization
+  stage.
 - Successful files are accepted only when they are absolute, regular,
   non-symlink files inside either the private working directory or the active
   Codex home's `generated_images` cache and within configured byte and
-  decoded-pixel limits. Zebes removes files it owns in the private directory
-  after decoding, but leaves Codex-owned cache files to Codex.
+  decoded-pixel limits. No successful output may resolve inside any live
+  operation-owned reference directory. Zebes removes files it owns in the
+  private directory after decoding, but leaves Codex-owned cache files to
+  Codex.
 
 ## Security and failure policy
 
 - The child environment explicitly removes `OPENAI_API_KEY`.
-- The session accepts only an active `chatgpt` account and discovers the
-  enabled `imagegen` skill before starting work.
+- The session accepts only an active `chatgpt` account, validates the configured
+  worker model against `model/list`, and discovers the enabled `imagegen` skill
+  before starting work.
 - Threads are ephemeral, use `approvalPolicy: never`, use the
   `workspace-write` sandbox, and run in a newly created private directory.
 - The App Server's image tool writes its result to the Codex-managed image
@@ -61,8 +79,16 @@ EditorUi
   write, or invalid state transition permanently fails the session and every
   sibling operation. Zebes does not continue when it cannot know what reached
   the child.
-- Cancellation removes local ownership immediately. If a turn exists it first
-  queues `turn/interrupt`; a failed interrupt write poisons the shared session.
+- Cancellation before `turn/start` removes local ownership immediately. A
+  known active turn first queues `turn/interrupt`; a failed interrupt write
+  poisons the shared session. If `turn/start` was sent but its turn ID is not
+  known, cancellation or timeout fails closed by stopping and permanently
+  poisoning the shared session, because no sound interrupt can yet be
+  addressed. Sibling operations fail and all reference inputs are cleaned.
+- Operation-owned reference inputs are removed on success, provider or session
+  failure, timeout, cancellation, partial preparation failure, request/session
+  destruction, and client destruction. A pre-existing operation-directory name
+  is rejected and never claimed or removed.
 - Subscription usage limits surface as `ResourceExhausted`.
 
 ## Milestones
@@ -86,7 +112,8 @@ protocol behavior is covered by `tests/codex_imagegen_probe_test.py`.
 
 ### 2. Provider adapter and hardening — complete
 
-- Lazy ChatGPT-authenticated session and `imagegen` skill validation.
+- Lazy ChatGPT authentication, paginated worker-model validation, and
+  `imagegen` skill validation.
 - Multiplexed generation, cancellation, timeouts, usage-limit mapping, output
   confinement, decoding, and cleanup.
 - Variant-based session, operation, transport, and protocol outcomes prevent

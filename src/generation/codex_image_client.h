@@ -18,9 +18,13 @@ struct CodexImageConfig {
   // Trusted provider-owned image cache. When unset, this resolves from
   // CODEX_HOME (or HOME/.codex) to match the App Server child environment.
   std::optional<std::filesystem::path> generated_images_directory;
-  std::string model = "codex-imagegen";
+  std::string model = "gpt-5.6-sol";
   int64_t maximum_candidate_bytes = 64 * 1024 * 1024;
   int64_t maximum_candidate_pixels = 4096 * 4096;
+  // Reference pixels are also bounded by the provider-neutral validator
+  // before this adapter creates operation-owned PNGs.
+  int maximum_reference_images = 8;
+  int64_t maximum_reference_pixels = 4096 * 4096;
   absl::Duration request_timeout = absl::Minutes(5);
 };
 

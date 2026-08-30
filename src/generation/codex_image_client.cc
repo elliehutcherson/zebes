@@ -77,11 +77,16 @@ struct OperationState {
   ImageGenerationSpec spec;
   absl::Time deadline;
   OperationPhase phase;
+  std::optional<std::filesystem::path> reference_directory;
+  std::vector<std::filesystem::path> reference_paths;
 };
 
 struct SessionNotStarted {};
 struct SessionInitializing {};
 struct SessionReadingAccount {};
+struct SessionReadingModels {
+  std::vector<std::string> models;
+};
 struct SessionReadingSkills {};
 
 struct SessionReady {
@@ -92,8 +97,9 @@ struct SessionFailed {
   absl::Status status;
 };
 
-using SessionState = std::variant<SessionNotStarted, SessionInitializing, SessionReadingAccount,
-                                  SessionReadingSkills, SessionReady, SessionFailed>;
+using SessionState =
+    std::variant<SessionNotStarted, SessionInitializing, SessionReadingAccount,
+                 SessionReadingModels, SessionReadingSkills, SessionReady, SessionFailed>;
 
 struct ActiveTurn {
   std::string_view thread_id;
@@ -117,6 +123,64 @@ bool IsWithin(const std::filesystem::path& child, const std::filesystem::path& p
     if (child_component == child.end() || *child_component != *parent_component) return false;
   }
   return true;
+}
+
+absl::Status CleanupReferenceFiles(OperationState& state) {
+  state.reference_paths.clear();
+  if (!state.reference_directory.has_value()) return absl::OkStatus();
+
+  std::error_code error;
+  std::filesystem::remove_all(*state.reference_directory, error);
+  if (error) {
+    return absl::InternalError(
+        absl::StrCat("could not remove Codex reference directory: ", error.message()));
+  }
+  state.reference_directory.reset();
+  return absl::OkStatus();
+}
+
+absl::Status PrepareReferenceFiles(OperationState& state,
+                                   const std::filesystem::path& working_directory) {
+  if (state.spec.references.empty()) return absl::OkStatus();
+  if (!working_directory.is_absolute()) {
+    return absl::FailedPreconditionError("Codex private working directory is not absolute");
+  }
+
+  const std::filesystem::path directory =
+      working_directory / absl::StrCat("reference-inputs-operation-", state.id);
+  std::error_code error;
+  const bool created = std::filesystem::create_directory(directory, error);
+  if (error) {
+    return absl::InternalError(
+        absl::StrCat("could not create Codex reference directory: ", error.message()));
+  }
+  if (!created) {
+    return absl::AlreadyExistsError("Codex reference directory already exists");
+  }
+  state.reference_directory = directory;
+  state.reference_paths.reserve(state.spec.references.size());
+
+  for (size_t index = 0; index < state.spec.references.size(); ++index) {
+    const ImageGenerationReference& reference = state.spec.references[index];
+    ASSIGN_OR_RETURN(const std::vector<uint8_t> encoded, EncodePng(reference.image));
+    const std::filesystem::path path =
+        directory / absl::StrCat("reference-", index + 1, "-",
+                                 ImageGenerationReferenceRoleName(reference.role), ".png");
+    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+    if (!stream) {
+      return absl::InternalError(
+          absl::StrCat("could not open Codex reference image: ", path.string()));
+    }
+    stream.write(reinterpret_cast<const char*>(encoded.data()),
+                 static_cast<std::streamsize>(encoded.size()));
+    stream.close();
+    if (!stream) {
+      return absl::InternalError(
+          absl::StrCat("could not write Codex reference image: ", path.string()));
+    }
+    state.reference_paths.push_back(path);
+  }
+  return absl::OkStatus();
 }
 
 absl::StatusOr<std::filesystem::path> ResolveGeneratedImagesDirectory(
@@ -200,6 +264,9 @@ absl::Status RequestFailureStatus(CodexRequestKind kind, std::string_view detail
   if (kind == CodexRequestKind::kReadAccount) {
     return absl::UnauthenticatedError(absl::StrCat("could not read Codex account: ", detail));
   }
+  if (kind == CodexRequestKind::kListModels) {
+    return absl::UnavailableError(absl::StrCat("could not list Codex models: ", detail));
+  }
   if (kind == CodexRequestKind::kListSkills) {
     return absl::NotFoundError(absl::StrCat("could not discover Codex imagegen skill: ", detail));
   }
@@ -216,7 +283,22 @@ class CodexImageClient::Session {
         config_(std::move(config)),
         generated_images_directory_(std::move(generated_images_directory)) {}
 
-  ~Session() { transport_->Stop(); }
+  ~Session() {
+    transport_->Stop();
+    for (auto& operation : operations_) {
+      static_cast<void>(CleanupReferenceFiles(operation.second));
+    }
+  }
+
+  ImageGenerationCapabilities Capabilities() const {
+    return ImageGenerationCapabilities{
+        .maximum_candidates = 1,
+        .supports_negative_prompt = false,
+        .supports_transparency = false,
+        .maximum_reference_images = config_.maximum_reference_images,
+        .maximum_reference_pixels = config_.maximum_reference_pixels,
+    };
+  }
 
   absl::StatusOr<uint64_t> Start(ImageGenerationSpec spec) {
     if (const auto* failed = std::get_if<SessionFailed>(&session_state_)) {
@@ -233,6 +315,17 @@ class CodexImageClient::Session {
         operations_.try_emplace(id, id, std::move(spec), absl::Now() + config_.request_timeout);
     if (!inserted) return absl::InternalError("Codex operation id was reused");
     OperationState& state = operation->second;
+    const absl::Status references_ready =
+        PrepareReferenceFiles(state, transport_->working_directory());
+    if (!references_ready.ok()) {
+      const absl::Status cleaned = CleanupReferenceFiles(state);
+      if (!cleaned.ok()) {
+        FailSession(cleaned);
+        return cleaned;
+      }
+      operations_.erase(operation);
+      return references_ready;
+    }
     if (std::holds_alternative<SessionReady>(session_state_)) {
       const absl::Status status = StartThread(state);
       if (!status.ok()) {
@@ -259,7 +352,12 @@ class CodexImageClient::Session {
     if (completed == nullptr) return std::nullopt;
 
     absl::StatusOr<ImageGenerationResult> outcome = std::move(completed->outcome);
-    operations_.erase(operation_id);
+    const absl::Status cleaned = CleanupReferenceFiles(state);
+    if (!cleaned.ok()) {
+      outcome = cleaned;
+    } else {
+      operations_.erase(operation_id);
+    }
     ASSIGN_OR_RETURN(ImageGenerationResult result, std::move(outcome));
     return std::optional<ImageGenerationResult>(std::move(result));
   }
@@ -268,10 +366,21 @@ class CodexImageClient::Session {
     const auto found = operations_.find(operation_id);
     if (found == operations_.end()) return;
     OperationState& state = found->second;
+    if (std::holds_alternative<StartingTurn>(state.phase)) {
+      FailSession(
+          absl::CancelledError("Codex turn start was cancelled before its turn ID was known"));
+      operations_.erase(found);
+      return;
+    }
     absl::Status interrupt_status = absl::OkStatus();
     if (const std::optional<ActiveTurn> turn = GetActiveTurn(state)) {
       interrupt_status =
           Send(protocol_.InterruptTurn(operation_id, turn->thread_id, turn->turn_id));
+    }
+    const absl::Status cleanup_status = CleanupReferenceFiles(state);
+    if (!cleanup_status.ok()) {
+      FailSession(cleanup_status);
+      return;
     }
     operations_.erase(found);
     if (!interrupt_status.ok()) FailSession(interrupt_status);
@@ -336,6 +445,30 @@ class CodexImageClient::Session {
       return absl::UnauthenticatedError(
           absl::StrCat("Codex must use ChatGPT authentication, not ", *account.type));
     }
+    session_state_ = SessionReadingModels{};
+    return Send(protocol_.ListModels(std::nullopt));
+  }
+
+  absl::Status HandleEvent(const CodexModelsListed& listed) {
+    auto* reading = std::get_if<SessionReadingModels>(&session_state_);
+    if (reading == nullptr) {
+      return absl::DataLossError("Codex model response arrived out of order");
+    }
+    reading->models.insert(reading->models.end(), listed.models.begin(), listed.models.end());
+    if (listed.next_cursor.has_value()) {
+      return Send(protocol_.ListModels(listed.next_cursor));
+    }
+    bool configured_model_available = false;
+    for (const std::string& model : reading->models) {
+      if (model == config_.model) {
+        configured_model_available = true;
+        break;
+      }
+    }
+    if (!configured_model_available) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("configured Codex model is not available: ", config_.model));
+    }
     session_state_ = SessionReadingSkills{};
     return Send(protocol_.ListSkills(transport_->working_directory()));
   }
@@ -375,8 +508,8 @@ class CodexImageClient::Session {
       return absl::InternalError("Codex operation was not waiting for a thread");
     }
     state.phase = StartingThread{};
-    return Send(
-        protocol_.StartThread(state.id, transport_->working_directory(), state.spec.instructions));
+    return Send(protocol_.StartThread(state.id, transport_->working_directory(), config_.model,
+                                      state.spec.instructions));
   }
 
   absl::Status HandleEvent(const CodexThreadStarted& started) {
@@ -393,12 +526,12 @@ class CodexImageClient::Session {
 
     state.phase = StartingTurn{.thread_id = started.thread_id};
     const std::string prompt =
-        absl::StrCat("$imagegen ", state.spec.prompt,
+        absl::StrCat("$imagegen ", ComposeImageGenerationTurnPrompt(state.spec),
                      "\nGenerate exactly one PNG. Target composition aspect ratio: ",
                      state.spec.target_aspect.width, ":", state.spec.target_aspect.height,
                      ". Do not inspect or edit project files.");
-    return Send(
-        protocol_.StartTurn(state.id, started.thread_id, prompt, ready->imagegen_skill_path));
+    return Send(protocol_.StartTurn(state.id, started.thread_id, prompt, ready->imagegen_skill_path,
+                                    state.reference_paths));
   }
 
   absl::Status HandleEvent(const CodexTurnStarted& started) {
@@ -461,8 +594,10 @@ class CodexImageClient::Session {
   absl::Status HandleEvent(const CodexTurnFailed& failed) {
     OperationState* const state = FindByTurn(failed.turn_id);
     if (state == nullptr) return absl::OkStatus();
+    const std::string detail =
+        failed.detail.has_value() ? absl::StrCat(": ", *failed.detail) : std::string();
     Complete(state->id,
-             absl::UnavailableError(absl::StrCat("Codex turn ended as ", failed.status)));
+             absl::UnavailableError(absl::StrCat("Codex turn ended as ", failed.status, detail)));
     return absl::OkStatus();
   }
 
@@ -475,9 +610,37 @@ class CodexImageClient::Session {
 
   static absl::Status HandleEvent(const CodexIgnoredEvent&) { return absl::OkStatus(); }
 
+  absl::Status RejectReferenceOutputPath(const std::filesystem::path& path) const {
+    if (!path.is_absolute()) {
+      return absl::DataLossError("Codex image path is not absolute");
+    }
+    std::error_code error;
+    const std::filesystem::path canonical_path = std::filesystem::weakly_canonical(path, error);
+    if (error) {
+      return absl::DataLossError(
+          absl::StrCat("could not resolve Codex image path: ", error.message()));
+    }
+    for (const auto& entry : operations_) {
+      const OperationState& operation = entry.second;
+      if (!operation.reference_directory.has_value()) continue;
+      const std::filesystem::path canonical_reference_directory =
+          std::filesystem::weakly_canonical(*operation.reference_directory, error);
+      if (error) {
+        return absl::InternalError(
+            absl::StrCat("could not resolve Codex reference directory: ", error.message()));
+      }
+      if (IsWithin(canonical_path, canonical_reference_directory)) {
+        return absl::PermissionDeniedError(
+            "Codex image output aliases an operation-owned reference input");
+      }
+    }
+    return absl::OkStatus();
+  }
+
   absl::StatusOr<ImageGenerationResult> DecodeResult(const OperationState& state,
                                                      const AwaitingTurnCompletion& awaiting) {
     const std::filesystem::path path = awaiting.image.saved_path;
+    RETURN_IF_ERROR(RejectReferenceOutputPath(path));
     ASSIGN_OR_RETURN(BoundedImageFile file,
                      ReadBoundedFile(path, transport_->working_directory(),
                                      generated_images_directory_, config_.maximum_candidate_bytes));
@@ -514,6 +677,11 @@ class CodexImageClient::Session {
     const absl::Time now = absl::Now();
     for (auto& [id, state] : operations_) {
       if (std::holds_alternative<OperationCompleted>(state.phase) || now < state.deadline) continue;
+      if (std::holds_alternative<StartingTurn>(state.phase)) {
+        FailSession(absl::DeadlineExceededError(
+            "Codex image generation timed out before its turn ID was known"));
+        return absl::OkStatus();
+      }
       if (const std::optional<ActiveTurn> turn = GetActiveTurn(state)) {
         RETURN_IF_ERROR(Send(protocol_.InterruptTurn(id, turn->thread_id, turn->turn_id)));
       }
@@ -528,7 +696,10 @@ class CodexImageClient::Session {
         std::holds_alternative<OperationCompleted>(found->second.phase)) {
       return;
     }
-    found->second.phase = OperationCompleted{.outcome = std::move(outcome)};
+    OperationState& state = found->second;
+    const absl::Status cleaned = CleanupReferenceFiles(state);
+    if (!cleaned.ok()) outcome = cleaned;
+    state.phase = OperationCompleted{.outcome = std::move(outcome)};
   }
 
   void FailSession(absl::Status status) {
@@ -538,13 +709,14 @@ class CodexImageClient::Session {
     } else {
       session_state_ = SessionFailed{.status = status};
     }
+    transport_->Stop();
     for (auto& operation : operations_) {
       OperationState& state = operation.second;
+      const absl::Status cleaned = CleanupReferenceFiles(state);
       if (!std::holds_alternative<OperationCompleted>(state.phase)) {
-        state.phase = OperationCompleted{.outcome = status};
+        state.phase = OperationCompleted{.outcome = cleaned.ok() ? status : cleaned};
       }
     }
-    transport_->Stop();
   }
 
   std::unique_ptr<CodexAppServerTransport> transport_;
@@ -588,8 +760,10 @@ absl::StatusOr<std::unique_ptr<CodexImageClient>> CodexImageClient::CreateWithTr
   if (config.model.empty()) {
     return absl::InvalidArgumentError("Codex image client requires a model label");
   }
-  if (config.maximum_candidate_bytes <= 0 || config.maximum_candidate_pixels <= 0) {
-    return absl::InvalidArgumentError("Codex image client byte and pixel limits must be positive");
+  if (config.maximum_candidate_bytes <= 0 || config.maximum_candidate_pixels <= 0 ||
+      config.maximum_reference_images <= 0 || config.maximum_reference_pixels <= 0) {
+    return absl::InvalidArgumentError(
+        "Codex image client candidate and reference limits must be positive");
   }
   if (config.request_timeout <= absl::ZeroDuration() ||
       config.request_timeout == absl::InfiniteDuration()) {
@@ -608,12 +782,7 @@ CodexImageClient::CodexImageClient(std::unique_ptr<Session> session)
 CodexImageClient::~CodexImageClient() = default;
 
 ImageGenerationCapabilities CodexImageClient::Capabilities() const {
-  return ImageGenerationCapabilities{
-      .maximum_candidates = 1,
-      .supports_negative_prompt = false,
-      .supports_transparency = false,
-      .supports_reference_image = false,
-  };
+  return session_->Capabilities();
 }
 
 absl::StatusOr<ImageGenerationRequest> CodexImageClient::StartValidated(ImageGenerationSpec spec) {

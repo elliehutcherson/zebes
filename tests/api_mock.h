@@ -88,6 +88,8 @@ class MockApi : public Api {
   MOCK_METHOD(std::vector<SourceArtwork>, GetAllSourceArtwork, (), (const, override));
   MOCK_METHOD(absl::StatusOr<RgbaImage>, ReadSourceArtworkPixels, (const std::string&),
               (const, override));
+  MOCK_METHOD(absl::StatusOr<RgbaImage>, ReadSourceArtworkPixels, (const std::string&, size_t),
+              (const, override));
   MOCK_METHOD(absl::Status, DeleteSourceArtwork, (const std::string&), (override));
 
   // Generated prop recipes and bundles

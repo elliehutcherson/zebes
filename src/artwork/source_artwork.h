@@ -32,7 +32,10 @@ struct SourceArtworkLimits {
   int maximum_width = 4096;
   int maximum_height = 4096;
   size_t maximum_pixels = 16 * 1024 * 1024;
+  // Decoded, tightly packed RGBA8 storage.
   size_t maximum_bytes = 64 * 1024 * 1024;
+  // Encoded retained PNG storage.
+  size_t maximum_encoded_bytes = 64 * 1024 * 1024;
 };
 
 // Editor-only retained input. Runtime texture stores never load this image;

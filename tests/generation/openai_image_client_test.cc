@@ -155,7 +155,32 @@ TEST(OpenAiImageClientTest, ReportsCapabilitiesThatMatchTheModel) {
   // spec through that the provider then refuses.
   EXPECT_FALSE(capabilities.supports_transparency);
   EXPECT_FALSE(capabilities.supports_negative_prompt);
-  EXPECT_TRUE(capabilities.supports_reference_image);
+  EXPECT_EQ(capabilities.maximum_reference_images, 16);
+  EXPECT_EQ(capabilities.maximum_reference_pixels, 16 * 1024 * 1024);
+}
+
+TEST(OpenAiImageClientTest, RetainsTheCaseInsensitiveProviderRequestIdHeader) {
+  HttpResponse response = JsonResponse(200, SuccessBody(1));
+  response.headers.push_back({.name = "X-ReQuEsT-Id", .value = "req_image_123"});
+  response.headers.push_back({.name = "x-request-id", .value = "req_image_123"});
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(std::move(response)));
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request,
+                       fixture.client->Start(SpecFor("a mossy boulder")));
+
+  ASSERT_OK_AND_ASSIGN(std::optional<ImageGenerationResult> result, request.Poll());
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->provider_request_id, "req_image_123");
+}
+
+TEST(OpenAiImageClientTest, RejectsConflictingProviderRequestIdHeaders) {
+  HttpResponse response = JsonResponse(200, SuccessBody(1));
+  response.headers.push_back({.name = "x-request-id", .value = "req_first"});
+  response.headers.push_back({.name = "X-Request-Id", .value = "req_second"});
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(std::move(response)));
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request,
+                       fixture.client->Start(SpecFor("a mossy boulder")));
+
+  EXPECT_EQ(request.Poll().status().code(), absl::StatusCode::kDataLoss);
 }
 
 TEST(OpenAiImageClientTest, RefusesTransparencyBeforeReachingTheProvider) {
@@ -202,15 +227,27 @@ TEST(OpenAiImageClientTest, BuildsTheGenerationsRequest) {
   EXPECT_EQ(payload.at("output_format"), "png");
 }
 
-TEST(OpenAiImageClientTest, BuildsAMultipartEditRequestForAReferenceImage) {
+TEST(OpenAiImageClientTest, BuildsAnOrderedMultipartEditRequestForTypedReferences) {
   ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(JsonResponse(200, SuccessBody(1))));
-  ImageGenerationSpec spec = SpecFor("soften both lateral edges");
-  spec.instructions = "Preserve the subject and edit the supplied source.";
-  spec.reference_image = RgbaImage{
+  ImageGenerationSpec spec = SpecFor("render the character in the supplied running pose");
+  spec.instructions = "Create one isolated game character.";
+  const RgbaImage identity{
       .width = 2,
       .height = 2,
       .pixels = std::vector<uint8_t>(2 * 2 * 4, 127),
   };
+  const RgbaImage pose{
+      .width = 2,
+      .height = 2,
+      .pixels = std::vector<uint8_t>(2 * 2 * 4, 63),
+  };
+  spec.references = {
+      {.role = ImageGenerationReferenceRole::kSubjectIdentity, .image = identity},
+      {.role = ImageGenerationReferenceRole::kPose, .image = pose},
+  };
+  const std::string expected_prompt = ComposeImageGenerationPrompt(spec);
+  ASSERT_OK_AND_ASSIGN(const std::vector<uint8_t> identity_png, EncodePng(identity));
+  ASSERT_OK_AND_ASSIGN(const std::vector<uint8_t> pose_png, EncodePng(pose));
 
   ASSERT_OK(fixture.client->Start(std::move(spec)).status());
 
@@ -221,9 +258,47 @@ TEST(OpenAiImageClientTest, BuildsAMultipartEditRequestForAReferenceImage) {
             std::string::npos);
   const std::string body(request.body.begin(), request.body.end());
   EXPECT_NE(body.find("name=\"model\"\r\n\r\ngpt-image-2"), std::string::npos);
-  EXPECT_NE(body.find("name=\"prompt\"\r\n\r\nPreserve the subject"), std::string::npos);
-  EXPECT_NE(body.find("name=\"image\"; filename=\"reference.png\""), std::string::npos);
-  EXPECT_NE(body.find("\x89PNG\r\n\x1a\n"), std::string::npos);
+  EXPECT_NE(body.find(absl::StrCat("name=\"prompt\"\r\n\r\n", expected_prompt, "\r\n")),
+            std::string::npos);
+  const size_t identity_header =
+      body.find("name=\"image[]\"; filename=\"reference-1-subject-identity.png\"");
+  const size_t pose_header = body.find("name=\"image[]\"; filename=\"reference-2-pose.png\"");
+  ASSERT_NE(identity_header, std::string::npos);
+  ASSERT_NE(pose_header, std::string::npos);
+  EXPECT_LT(identity_header, pose_header);
+  const std::string identity_bytes(identity_png.begin(), identity_png.end());
+  const std::string pose_bytes(pose_png.begin(), pose_png.end());
+  const size_t identity_image = body.find(identity_bytes, identity_header);
+  const size_t pose_image = body.find(pose_bytes, pose_header);
+  ASSERT_NE(identity_image, std::string::npos);
+  ASSERT_NE(pose_image, std::string::npos);
+  EXPECT_LT(identity_image, pose_header);
+  EXPECT_LT(pose_header, pose_image);
+}
+
+TEST(OpenAiImageClientTest, ChoosesAMultipartBoundaryOutsideTheSubmittedContent) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(JsonResponse(200, SuccessBody(1))));
+  std::string prompt = "Preserve these literal values:";
+  for (int index = 0; index < 64; ++index) {
+    absl::StrAppend(&prompt, " zebes-image-edit-", index);
+  }
+  ImageGenerationSpec spec = SpecFor(prompt);
+  spec.references = {{
+      .role = ImageGenerationReferenceRole::kPose,
+      .image = {.width = 1, .height = 1, .pixels = {10, 20, 30, 255}},
+  }};
+
+  ASSERT_OK(fixture.client->Start(std::move(spec)).status());
+
+  const HttpRequest& request = fixture.transport->last_request();
+  ASSERT_EQ(request.headers.size(), 1);
+  const std::string_view prefix = "multipart/form-data; boundary=";
+  ASSERT_TRUE(std::string_view(request.headers[0].value).starts_with(prefix));
+  const std::string boundary = request.headers[0].value.substr(prefix.size());
+  EXPECT_EQ(prompt.find(boundary), std::string::npos);
+  const std::string body(request.body.begin(), request.body.end());
+  EXPECT_NE(body.find(prompt), std::string::npos);
+  EXPECT_NE(body.find(absl::StrCat("--", boundary, "--\r\n")), std::string::npos);
 }
 
 TEST(OpenAiImageClientTest, DecodesCandidatesWithStableProvenance) {
@@ -344,6 +419,16 @@ TEST(OpenAiImageClientTest, RejectsAnIncompleteConfiguration) {
   OpenAiImageConfig no_limit;
   no_limit.maximum_candidate_pixels = 0;
   EXPECT_EQ(OpenAiImageClient::Create(transport, credentials, no_limit).status().code(),
+            absl::StatusCode::kInvalidArgument);
+
+  OpenAiImageConfig no_reference_limit;
+  no_reference_limit.maximum_reference_pixels = 0;
+  EXPECT_EQ(OpenAiImageClient::Create(transport, credentials, no_reference_limit).status().code(),
+            absl::StatusCode::kInvalidArgument);
+
+  OpenAiImageConfig too_many_references;
+  too_many_references.maximum_reference_images = 17;
+  EXPECT_EQ(OpenAiImageClient::Create(transport, credentials, too_many_references).status().code(),
             absl::StatusCode::kInvalidArgument);
 }
 

@@ -35,6 +35,98 @@ target_link_libraries(
           absl::statusor absl::strings
 )
 
+add_library(animation_artwork_run_manifest animation_artwork_run_manifest.cc)
+target_include_directories(animation_artwork_run_manifest PUBLIC ${CMAKE_SOURCE_DIR})
+target_link_libraries(animation_artwork_run_manifest
+  PUBLIC
+  animation_artwork_feasibility
+  PRIVATE
+  status_macros
+  absl::status
+  absl::statusor
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
+add_executable(animation_artwork_spike animation_artwork_spike.cc)
+target_compile_definitions(animation_artwork_spike
+  PRIVATE ZEBES_CHECKED_IN_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+target_link_libraries(animation_artwork_spike
+  PRIVATE
+  animation_artwork_feasibility
+  animation_artwork_run_manifest
+  atomic_directory_publisher
+  image_digest
+  image_io
+  status_macros
+  utc_timestamp
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::statusor
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
+add_library(pose_conditioned_animation_batch pose_conditioned_animation_batch.cc)
+target_include_directories(pose_conditioned_animation_batch PUBLIC ${CMAKE_SOURCE_DIR})
+target_link_libraries(pose_conditioned_animation_batch
+  PUBLIC
+  image_generation_service
+  PRIVATE
+  animation_artwork_feasibility
+  animation_artwork_run_manifest
+  atomic_directory_publisher
+  common
+  headless_asset_generation
+  image_digest
+  image_io
+  status_macros
+  utc_timestamp
+  absl::status
+  absl::statusor
+  absl::strings
+  absl::time
+  nlohmann_json::nlohmann_json
+)
+
+add_executable(run_pose_conditioned_animation run_pose_conditioned_animation.cc)
+target_link_libraries(run_pose_conditioned_animation
+  PRIVATE
+  asset_workspace
+  fake_image_generation_client
+  headless_texture_store
+  pose_conditioned_animation_batch
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::statusor
+  absl::strings
+)
+add_dependencies(run_pose_conditioned_animation copy_assets)
+
+add_executable(stage_animation_live_proof stage_animation_live_proof.cc)
+target_compile_definitions(stage_animation_live_proof
+  PRIVATE ZEBES_CHECKED_IN_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+target_link_libraries(stage_animation_live_proof
+  PRIVATE
+  atomic_directory_publisher
+  utc_timestamp
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::statusor
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
 add_executable(process_generated_artwork process_generated_artwork.cc)
 target_link_libraries(process_generated_artwork
   PRIVATE

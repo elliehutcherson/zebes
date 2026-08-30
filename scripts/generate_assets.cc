@@ -33,6 +33,8 @@ ABSL_FLAG(std::string, name, "", "Name for the new generated asset");
 ABSL_FLAG(std::string, prompt, "", "Provider subject prompt");
 ABSL_FLAG(std::string, provider, "fake", "Image provider: openai, codex, or fake");
 ABSL_FLAG(std::string, output, "", "New directory in which to publish the candidate bundle");
+ABSL_FLAG(std::string, reference_manifest, "",
+          "Optional ordered reference manifest for pose-conditioned creation");
 ABSL_FLAG(int, prop_canvas_tiles_wide, 0,
           "Prop output width in tiles; set with --prop_canvas_tiles_high, or zero to inherit");
 ABSL_FLAG(int, prop_canvas_tiles_high, 0,
@@ -132,6 +134,10 @@ absl::Status Run() {
                                 prop_attachment_mode.has_value() || prop_free_anchor.has_value())) {
     return absl::InvalidArgumentError("prop composition overrides do not apply to redraw");
   }
+  if (operation == "redraw" && !absl::GetFlag(FLAGS_reference_manifest).empty()) {
+    return absl::InvalidArgumentError(
+        "--reference_manifest does not apply to redraw; redraw resolves its retained source");
+  }
   ASSIGN_OR_RETURN(EngineConfig config,
                    EngineConfig::Load(absl::StrCat(asset_root, "/config.json")));
   HeadlessTextureStore texture_resources;
@@ -141,6 +147,11 @@ absl::Status Run() {
                        .texture_resources = &texture_resources,
                        .asset_root = asset_root,
                    }));
+  std::optional<HeadlessImageReferenceManifest> reference_manifest;
+  if (!absl::GetFlag(FLAGS_reference_manifest).empty()) {
+    ASSIGN_OR_RETURN(reference_manifest,
+                     LoadHeadlessImageReferenceManifest(absl::GetFlag(FLAGS_reference_manifest)));
+  }
   ASSIGN_OR_RETURN(const std::string recipe_id, ResolveRecipe(assets->api(), kind));
   ASSIGN_OR_RETURN(std::unique_ptr<ImageGenerationService> service,
                    CreateService(absl::GetFlag(FLAGS_provider)));
@@ -167,6 +178,7 @@ absl::Status Run() {
             prop_canvas_tiles_high == 0 ? std::nullopt : std::optional(prop_canvas_tiles_high),
         .prop_attachment_mode = prop_attachment_mode,
         .prop_free_anchor = prop_free_anchor,
+        .reference_manifest = std::move(reference_manifest),
     };
     RETURN_IF_ERROR(ValidateHeadlessAssetGenerationRequest(request));
     ASSIGN_OR_RETURN(result, GenerateAssetCandidateBundle(assets->api(), *service, request));

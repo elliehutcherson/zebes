@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -26,6 +27,17 @@ enum class ImageTransparencyPreference : uint8_t {
   kPreferTransparent = 1,
 };
 
+enum class ImageGenerationReferenceRole : uint8_t {
+  kEditSource = 0,
+  kSubjectIdentity = 1,
+  kPose = 2,
+};
+
+struct ImageGenerationReference {
+  ImageGenerationReferenceRole role = ImageGenerationReferenceRole::kEditSource;
+  RgbaImage image;
+};
+
 struct ImageGenerationSpec {
   std::string prompt;
   // Provider-neutral guidance applied before the subject prompt. Providers
@@ -36,14 +48,20 @@ struct ImageGenerationSpec {
   int requested_candidates = 1;
   ImageAspectRatio target_aspect;
   ImageTransparencyPreference transparency = ImageTransparencyPreference::kNoPreference;
-  std::optional<RgbaImage> reference_image;
+  // Order is provider-visible. An optional edit source is unique and must be
+  // first; caller-specific workflows may impose stricter role counts.
+  std::vector<ImageGenerationReference> references;
 };
 
 struct ImageGenerationCapabilities {
   int maximum_candidates = 1;
   bool supports_negative_prompt = false;
   bool supports_transparency = false;
-  bool supports_reference_image = false;
+  // Zero for both fields means references are unsupported. The pixel limit is
+  // aggregate decoded RGBA pixels across one request; at four bytes per pixel
+  // it also bounds the owned reference byte total.
+  int maximum_reference_images = 0;
+  int64_t maximum_reference_pixels = 0;
 };
 
 struct ImageGenerationCandidate {
@@ -63,6 +81,15 @@ struct ImageGenerationResult {
 
 absl::Status ValidateImageGenerationSpec(const ImageGenerationSpec& spec,
                                          const ImageGenerationCapabilities& capabilities);
+std::string_view ImageGenerationReferenceRoleName(ImageGenerationReferenceRole role);
+absl::StatusOr<ImageGenerationReferenceRole> ParseImageGenerationReferenceRole(
+    std::string_view value);
+// Composes the provider-neutral user-turn body: indexed reference semantics
+// followed by the subject request. Codex keeps developer instructions separate
+// and uses this form directly.
+std::string ComposeImageGenerationTurnPrompt(const ImageGenerationSpec& spec);
+// Flattens optional instructions and the shared turn body for providers that
+// expose only one prompt field.
 std::string ComposeImageGenerationPrompt(const ImageGenerationSpec& spec);
 absl::Status ValidateImageGenerationResult(const ImageGenerationResult& result);
 

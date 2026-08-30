@@ -489,6 +489,11 @@ absl::StatusOr<RgbaImage> Api::ReadSourceArtworkPixels(const std::string& source
   return source_artwork_manager_->ReadArtworkPixels(source_artwork_id);
 }
 
+absl::StatusOr<RgbaImage> Api::ReadSourceArtworkPixels(const std::string& source_artwork_id,
+                                                       size_t maximum_pixels) const {
+  return source_artwork_manager_->ReadArtworkPixels(source_artwork_id, maximum_pixels);
+}
+
 absl::Status Api::DeleteSourceArtwork(const std::string& source_artwork_id) {
   const CatalogSnapshot catalog = SnapshotCatalog();
   RETURN_IF_ERROR(

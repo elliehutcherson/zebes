@@ -16,8 +16,9 @@ namespace zebes {
 namespace {
 
 RgbaImage FakePixels(const ImageGenerationSpec& spec) {
-  if (spec.reference_image.has_value()) {
-    RgbaImage image = *spec.reference_image;
+  if (!spec.references.empty() &&
+      spec.references.front().role == ImageGenerationReferenceRole::kEditSource) {
+    RgbaImage image = spec.references.front().image;
     image.pixels.front() ^= 1;
     return image;
   }
@@ -41,6 +42,16 @@ RgbaImage FakePixels(const ImageGenerationSpec& spec) {
       image.pixels[offset + 2] = static_cast<uint8_t>(80 + ((x / 8 + y / 8) % 2) * 50);
       image.pixels[offset + 3] = 255;
     }
+  }
+  // Keep non-edit output at the requested aspect while making ordered
+  // reference metadata and pixels observable to deterministic integration
+  // tests. Each reference owns one output pixel's red/green marker; alpha is
+  // untouched so reference coverage cannot change isolation behavior.
+  for (size_t index = 0; index < spec.references.size(); ++index) {
+    const ImageGenerationReference& reference = spec.references[index];
+    const size_t offset = index * 4;
+    image.pixels[offset] ^= static_cast<uint8_t>((static_cast<uint8_t>(reference.role) + 1) * 31);
+    image.pixels[offset + 1] ^= reference.image.pixels.front();
   }
   return image;
 }
@@ -74,7 +85,8 @@ class FakeClient final : public ImageGenerationClient {
     return {
         .maximum_candidates = 1,
         .supports_transparency = true,
-        .supports_reference_image = true,
+        .maximum_reference_images = 8,
+        .maximum_reference_pixels = 16 * 1024 * 1024,
     };
   }
 

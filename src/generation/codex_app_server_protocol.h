@@ -16,6 +16,7 @@ namespace zebes {
 enum class CodexRequestKind : uint8_t {
   kInitialize = 0,
   kReadAccount,
+  kListModels,
   kListSkills,
   kStartThread,
   kStartTurn,
@@ -26,6 +27,11 @@ struct CodexInitialized {};
 
 struct CodexAccountRead {
   std::optional<std::string> type;
+};
+
+struct CodexModelsListed {
+  std::vector<std::string> models;
+  std::optional<std::string> next_cursor;
 };
 
 struct CodexSkill {
@@ -81,6 +87,7 @@ struct CodexTurnSucceeded {
 struct CodexTurnFailed {
   std::string turn_id;
   std::string status;
+  std::optional<std::string> detail;
 };
 
 struct CodexSessionRequestFailed {
@@ -101,9 +108,9 @@ struct CodexServerRequest {
 struct CodexIgnoredEvent {};
 
 using CodexProtocolEvent =
-    std::variant<CodexInitialized, CodexAccountRead, CodexSkillsListed, CodexThreadStarted,
-                 CodexTurnStarted, CodexTurnInterrupted, CodexImageSucceeded, CodexImageFailed,
-                 CodexTurnSucceeded, CodexTurnFailed, CodexSessionRequestFailed,
+    std::variant<CodexInitialized, CodexAccountRead, CodexModelsListed, CodexSkillsListed,
+                 CodexThreadStarted, CodexTurnStarted, CodexTurnInterrupted, CodexImageSucceeded,
+                 CodexImageFailed, CodexTurnSucceeded, CodexTurnFailed, CodexSessionRequestFailed,
                  CodexOperationRequestFailed, CodexServerRequest, CodexIgnoredEvent>;
 
 // The only JSON translation boundary for the Codex App Server protocol.
@@ -119,13 +126,15 @@ class CodexAppServerProtocol {
   absl::StatusOr<std::string> Initialize();
   static absl::StatusOr<std::string> InitializedNotification();
   absl::StatusOr<std::string> ReadAccount();
+  absl::StatusOr<std::string> ListModels(const std::optional<std::string>& cursor);
   absl::StatusOr<std::string> ListSkills(const std::filesystem::path& cwd);
   absl::StatusOr<std::string> StartThread(
-      uint64_t operation_id, const std::filesystem::path& cwd,
+      uint64_t operation_id, const std::filesystem::path& cwd, std::string_view model,
       const std::optional<std::string>& generation_instructions);
   absl::StatusOr<std::string> StartTurn(uint64_t operation_id, std::string_view thread_id,
                                         std::string_view prompt,
-                                        const std::filesystem::path& skill_path);
+                                        const std::filesystem::path& skill_path,
+                                        const std::vector<std::filesystem::path>& local_images);
   absl::StatusOr<std::string> InterruptTurn(uint64_t operation_id, std::string_view thread_id,
                                             std::string_view turn_id);
 

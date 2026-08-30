@@ -21,6 +21,21 @@ target_link_libraries(generated_artwork_postprocessor
   absl::strings
 )
 
+add_library(animation_artwork_feasibility animation_artwork_feasibility.cc)
+target_link_libraries(animation_artwork_feasibility
+  PUBLIC
+  image_io
+  sprite
+  terrain_palette
+  absl::status
+  absl::statusor
+  PRIVATE
+  generated_artwork_postprocessor
+  image_digest
+  status_macros
+  absl::strings
+)
+
 add_library(repetition_review repetition_review.cc)
 target_link_libraries(repetition_review
   PUBLIC

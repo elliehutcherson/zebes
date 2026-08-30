@@ -1,5 +1,6 @@
 #include "generation/openai_image_client.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -11,6 +12,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
@@ -21,8 +23,10 @@
 namespace zebes {
 namespace {
 
-// gpt-image-2 accepts 1-10 images per request.
+// Maximum requested output candidates exposed by this adapter.
 constexpr int kMaximumCandidates = 10;
+// The image edits endpoint accepts up to 16 ordered image inputs.
+constexpr int kMaximumReferences = 16;
 
 void Append(std::vector<uint8_t>& output, std::string_view text) {
   output.insert(output.end(), text.begin(), text.end());
@@ -34,37 +38,66 @@ void AppendField(std::vector<uint8_t>& output, std::string_view boundary, std::s
                               "\"\r\n\r\n", value, "\r\n"));
 }
 
-std::string MultipartBoundary() {
+bool ContainsBoundary(absl::Span<const uint8_t> bytes, std::string_view boundary) {
+  return std::search(bytes.begin(), bytes.end(), boundary.begin(), boundary.end()) != bytes.end();
+}
+
+std::string MultipartBoundary(const OpenAiImageConfig& config, std::string_view prompt) {
   static std::atomic<uint64_t> sequence = 0;
-  return absl::StrCat("zebes-image-edit-", sequence.fetch_add(1, std::memory_order_relaxed));
+  while (true) {
+    const std::string boundary =
+        absl::StrCat("zebes-image-edit-", sequence.fetch_add(1, std::memory_order_relaxed));
+    if (config.model.find(boundary) != std::string::npos ||
+        config.size.find(boundary) != std::string::npos ||
+        config.quality.find(boundary) != std::string::npos ||
+        prompt.find(boundary) != std::string_view::npos) {
+      continue;
+    }
+    return boundary;
+  }
 }
 
 absl::StatusOr<HttpRequest> BuildEditRequest(const OpenAiImageConfig& config,
                                              const ImageGenerationSpec& spec) {
-  if (!spec.reference_image.has_value()) {
-    return absl::InvalidArgumentError("image edit request needs a reference image");
+  if (spec.references.empty()) {
+    return absl::InvalidArgumentError("image edit request needs at least one reference image");
   }
-  ASSIGN_OR_RETURN(const std::vector<uint8_t> image, EncodePng(*spec.reference_image));
-  const std::string boundary = MultipartBoundary();
-  std::vector<uint8_t> body;
-  AppendField(body, boundary, "model", config.model);
-  AppendField(body, boundary, "prompt", ComposeImageGenerationPrompt(spec));
-  AppendField(body, boundary, "n", absl::StrCat(spec.requested_candidates));
-  AppendField(body, boundary, "size", config.size);
-  AppendField(body, boundary, "quality", config.quality);
-  AppendField(body, boundary, "output_format", "png");
-  Append(body, absl::StrCat("--", boundary,
-                            "\r\nContent-Disposition: form-data; name=\"image\"; "
-                            "filename=\"reference.png\"\r\nContent-Type: image/png\r\n\r\n"));
-  body.insert(body.end(), image.begin(), image.end());
-  Append(body, absl::StrCat("\r\n--", boundary, "--\r\n"));
-  return HttpRequest{
-      .method = HttpMethod::kPost,
-      .url = config.edit_endpoint,
-      .headers = {{.name = "Content-Type",
-                   .value = absl::StrCat("multipart/form-data; boundary=", boundary)}},
-      .body = std::move(body),
-  };
+  const std::string prompt = ComposeImageGenerationPrompt(spec);
+  while (true) {
+    const std::string boundary = MultipartBoundary(config, prompt);
+    std::vector<uint8_t> body;
+    AppendField(body, boundary, "model", config.model);
+    AppendField(body, boundary, "prompt", prompt);
+    AppendField(body, boundary, "n", absl::StrCat(spec.requested_candidates));
+    AppendField(body, boundary, "size", config.size);
+    AppendField(body, boundary, "quality", config.quality);
+    AppendField(body, boundary, "output_format", "png");
+    bool boundary_collision = false;
+    for (size_t index = 0; index < spec.references.size(); ++index) {
+      const ImageGenerationReference& reference = spec.references[index];
+      ASSIGN_OR_RETURN(const std::vector<uint8_t> image, EncodePng(reference.image));
+      if (ContainsBoundary(image, boundary)) {
+        boundary_collision = true;
+        break;
+      }
+      const std::string filename = absl::StrCat(
+          "reference-", index + 1, "-", ImageGenerationReferenceRoleName(reference.role), ".png");
+      Append(body, absl::StrCat("--", boundary,
+                                "\r\nContent-Disposition: form-data; name=\"image[]\"; filename=\"",
+                                filename, "\"\r\nContent-Type: image/png\r\n\r\n"));
+      body.insert(body.end(), image.begin(), image.end());
+      Append(body, "\r\n");
+    }
+    if (boundary_collision) continue;
+    Append(body, absl::StrCat("--", boundary, "--\r\n"));
+    return HttpRequest{
+        .method = HttpMethod::kPost,
+        .url = config.edit_endpoint,
+        .headers = {{.name = "Content-Type",
+                     .value = absl::StrCat("multipart/form-data; boundary=", boundary)}},
+        .body = std::move(body),
+    };
+  }
 }
 
 absl::Status StatusForHttpCode(int status_code, std::string_view detail) {
@@ -121,6 +154,22 @@ std::string ErrorDetail(const std::vector<uint8_t>& body) {
   }
 }
 
+absl::StatusOr<std::optional<std::string>> ProviderRequestId(
+    const std::vector<HttpHeader>& headers) {
+  std::optional<std::string> request_id;
+  for (const HttpHeader& header : headers) {
+    if (!absl::EqualsIgnoreCase(header.name, "x-request-id")) continue;
+    if (header.value.empty()) {
+      return absl::DataLossError("image provider returned an empty x-request-id header");
+    }
+    if (request_id.has_value() && *request_id != header.value) {
+      return absl::DataLossError("image provider returned conflicting x-request-id headers");
+    }
+    request_id = header.value;
+  }
+  return request_id;
+}
+
 class OpenAiImageOperation final : public ImageGenerationOperation {
  public:
   OpenAiImageOperation(HttpRequestHandle request, std::string model, std::string prompt,
@@ -147,11 +196,14 @@ class OpenAiImageOperation final : public ImageGenerationOperation {
  private:
   absl::StatusOr<ImageGenerationResult> Decode(const HttpResponse& response) {
     ASSIGN_OR_RETURN(const nlohmann::json body, ParseJson(response.body));
+    ASSIGN_OR_RETURN(std::optional<std::string> provider_request_id,
+                     ProviderRequestId(response.headers));
 
     ImageGenerationResult result{
         .provider = "openai",
         .model = model_,
         .submitted_prompt = prompt_,
+        .provider_request_id = std::move(provider_request_id),
     };
     try {
       if (!body.contains("data") || !body.at("data").is_array()) {
@@ -205,8 +257,11 @@ absl::StatusOr<std::unique_ptr<OpenAiImageClient>> OpenAiImageClient::Create(
     return absl::InvalidArgumentError(
         "OpenAI image client needs generation/edit endpoints, a model, and credential reference");
   }
-  if (config.maximum_candidate_pixels <= 0) {
-    return absl::InvalidArgumentError("OpenAI image client needs a positive pixel limit");
+  if (config.maximum_candidate_pixels <= 0 || config.maximum_reference_images <= 0 ||
+      config.maximum_reference_images > kMaximumReferences ||
+      config.maximum_reference_pixels <= 0) {
+    return absl::InvalidArgumentError(
+        "OpenAI image client needs valid candidate and reference limits");
   }
   return std::unique_ptr<OpenAiImageClient>(
       new OpenAiImageClient(transport, credentials, std::move(config)));
@@ -223,7 +278,8 @@ ImageGenerationCapabilities OpenAiImageClient::Capabilities() const {
       // gpt-image-2 rejects background=transparent; isolation removes the
       // background downstream, as it already does for imported sources.
       .supports_transparency = false,
-      .supports_reference_image = true,
+      .maximum_reference_images = config_.maximum_reference_images,
+      .maximum_reference_pixels = config_.maximum_reference_pixels,
   };
 }
 
@@ -235,7 +291,7 @@ absl::StatusOr<ImageGenerationRequest> OpenAiImageClient::StartValidated(ImageGe
                    SecretString::Create(absl::StrCat("Bearer ", secret.value())));
 
   HttpRequest request;
-  if (spec.reference_image.has_value()) {
+  if (!spec.references.empty()) {
     ASSIGN_OR_RETURN(request, BuildEditRequest(config_, spec));
   } else {
     const nlohmann::json payload{

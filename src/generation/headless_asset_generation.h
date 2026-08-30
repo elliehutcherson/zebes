@@ -1,15 +1,57 @@
 #pragma once
 
+#include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "api/api.h"
 #include "artwork/compose_prop.h"
 #include "common/image_io.h"
+#include "generation/image_generation.h"
 #include "generation/image_generation_service.h"
 
 namespace zebes {
+
+// A headless-only reference origin. Exactly one origin is set. Filesystem and
+// managed-resource details stop at the resolver and never enter the async
+// provider-neutral request contract.
+struct HeadlessImageReferenceSource {
+  ImageGenerationReferenceRole role = ImageGenerationReferenceRole::kEditSource;
+  std::optional<std::string> path;
+  std::optional<std::string> source_artwork_id;
+};
+
+struct HeadlessImageReferenceManifest {
+  // Canonical manifest path. Relative reference paths resolve within its
+  // parent directory and cannot escape it.
+  std::filesystem::path manifest_path;
+  std::vector<HeadlessImageReferenceSource> references;
+};
+
+struct ResolvedHeadlessImageReference {
+  HeadlessImageReferenceSource source;
+  RgbaImage image;
+  std::string content_digest;
+};
+
+absl::Status ValidateHeadlessImageReferenceSource(const HeadlessImageReferenceSource& source);
+
+// Loads the strict schema-version-1 reference manifest. This workflow is
+// intentionally narrower than the core contract: it requires one
+// subject-identity reference followed by one pose reference.
+absl::StatusOr<HeadlessImageReferenceManifest> LoadHeadlessImageReferenceManifest(
+    const std::filesystem::path& path);
+
+// Resolves one descriptor to owned RGBA8 pixels and auditable metadata. A
+// positive pixel bound is required before any path-backed image is decoded.
+// `reference_root` is ignored for managed SourceArtwork descriptors.
+absl::StatusOr<ResolvedHeadlessImageReference> ResolveHeadlessImageReference(
+    Api& api, const HeadlessImageReferenceSource& source,
+    const std::filesystem::path& reference_root, int64_t maximum_pixels);
 
 struct HeadlessAssetGenerationRequest {
   std::string kind;
@@ -21,6 +63,7 @@ struct HeadlessAssetGenerationRequest {
   std::optional<int> prop_canvas_tiles_high;
   std::optional<PropAttachmentMode> prop_attachment_mode;
   std::optional<PropFreeAnchor> prop_free_anchor;
+  std::optional<HeadlessImageReferenceManifest> reference_manifest;
 };
 
 struct HeadlessAssetGenerationResult {

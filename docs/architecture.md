@@ -1034,11 +1034,29 @@ models. The services and registry are declared before the editors, so each
 controller abandons its in-flight request while the selected engine still
 runs. Editors never see a transport or credential.
 
-Reference-image redraw is the same generation boundary with an existing
-retained source in `ImageGenerationSpec`. The OpenAI adapter serializes that
-source as an in-memory PNG multipart image-edit request. Redraw candidates carry
-optimistic source and derived-texture digests; curation refuses a candidate if
-either current definition no longer matches its captured base.
+Reference-conditioned generation uses the same boundary. `ImageGenerationSpec`
+owns an ordered vector of decoded RGBA references labelled `edit-source`,
+`subject-identity`, or `pose`; paths, asset IDs, texture handles, and borrowed
+pixels cannot cross into the asynchronous request. Core validation bounds both
+reference count and aggregate decoded pixels, requires an optional edit source
+to be unique and first, and composes one indexed role legend shared by every
+provider. OpenAI serializes the vector as ordered repeated PNG multipart inputs.
+Codex writes ordered PNGs into an operation-owned private directory and supplies
+them as `localImage` turn inputs. Its ephemeral thread locks the configured
+model with provider fallback disabled, and generated outputs cannot resolve
+inside any live reference-input tree. Terminal operation cleanup removes the
+adapter-owned files.
+
+The headless boundary resolves either a manifest-confined path or a managed
+`SourceArtwork` ID into the same owned reference value before remote work. It
+limits the manifest before parsing, requires the exact workflow reference
+count, bounds decode to the managed definition's actual pixel count, verifies
+managed metadata, computes the exact digest, and copies every resolved PNG plus
+role, order, origin, dimensions, and digest into the candidate bundle.
+Parallax redraw constructs its retained source as the sole `edit-source` through
+that resolver rather than maintaining a second loading policy. Redraw candidates
+also carry optimistic source and derived-texture digests; curation refuses a
+candidate if either current definition no longer matches its captured base.
 
 Generation presentation is split at the same boundary. The shared lifecycle
 panel renders provider selection, cancellation, candidate navigation,

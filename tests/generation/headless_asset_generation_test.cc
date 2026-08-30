@@ -1,10 +1,12 @@
 #include "generation/headless_asset_generation.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -25,6 +27,7 @@
 namespace zebes {
 namespace {
 
+using ::testing::HasSubstr;
 using ::testing::Return;
 
 class HeadlessAssetGenerationTest : public ::testing::Test {
@@ -142,6 +145,241 @@ absl::StatusOr<PropRecipe> PropTemplateRecipe() {
   recipe.pipeline.composition.canvas_tiles_high = 2;
   RETURN_IF_ERROR(ValidatePropRecipe(recipe));
   return recipe;
+}
+
+TEST_F(HeadlessAssetGenerationTest, ReferenceSourceRequiresExactlyOneOrigin) {
+  const absl::Status missing = ValidateHeadlessImageReferenceSource({
+      .role = ImageGenerationReferenceRole::kPose,
+  });
+  const absl::Status ambiguous = ValidateHeadlessImageReferenceSource({
+      .role = ImageGenerationReferenceRole::kPose,
+      .path = "pose.png",
+      .source_artwork_id = "pose-source",
+  });
+
+  EXPECT_TRUE(absl::IsInvalidArgument(missing));
+  EXPECT_TRUE(absl::IsInvalidArgument(ambiguous));
+  EXPECT_THAT(ambiguous.message(), ::testing::HasSubstr("exactly one"));
+}
+
+TEST_F(HeadlessAssetGenerationTest, PathReferenceRejectsTraversalAndAbsolutePaths) {
+  const absl::Status traversal = ValidateHeadlessImageReferenceSource({
+      .role = ImageGenerationReferenceRole::kPose,
+      .path = "../pose.png",
+  });
+  const absl::Status absolute = ValidateHeadlessImageReferenceSource({
+      .role = ImageGenerationReferenceRole::kPose,
+      .path = (root_ / "pose.png").string(),
+  });
+
+  EXPECT_TRUE(absl::IsInvalidArgument(traversal));
+  EXPECT_THAT(traversal.message(), ::testing::HasSubstr("escape"));
+  EXPECT_TRUE(absl::IsInvalidArgument(absolute));
+  EXPECT_THAT(absolute.message(), ::testing::HasSubstr("relative"));
+}
+
+TEST_F(HeadlessAssetGenerationTest, PathReferenceRejectsSymlinkEscapingManifestDirectory) {
+  const std::filesystem::path manifest_root = root_ / "manifest-root";
+  const std::filesystem::path outside_root = root_ / "outside-root";
+  std::filesystem::create_directories(manifest_root);
+  std::filesystem::create_directories(outside_root);
+  const RgbaImage pose{
+      .width = 1,
+      .height = 1,
+      .pixels = {1, 2, 3, 255},
+  };
+  const std::filesystem::path outside_pose = outside_root / "pose.png";
+  ASSERT_OK(WritePng(outside_pose.string(), pose.width, pose.height, pose.pixels));
+  const std::filesystem::path link = manifest_root / "pose.png";
+  std::error_code error;
+  std::filesystem::create_symlink(outside_pose, link, error);
+  if (error) GTEST_SKIP() << "could not create symlink: " << error.message();
+  MockApi api;
+
+  const absl::Status status =
+      ResolveHeadlessImageReference(api,
+                                    {
+                                        .role = ImageGenerationReferenceRole::kPose,
+                                        .path = "pose.png",
+                                    },
+                                    manifest_root, 1)
+          .status();
+
+  EXPECT_TRUE(absl::IsInvalidArgument(status));
+  EXPECT_THAT(status.message(), ::testing::HasSubstr("outside its manifest directory"));
+}
+
+TEST_F(HeadlessAssetGenerationTest, ReferenceManifestRequiresIdentityThenPose) {
+  const std::filesystem::path manifest_path = root_ / "wrong-order.json";
+  std::filesystem::create_directories(root_);
+  std::ofstream manifest_stream(manifest_path);
+  manifest_stream << nlohmann::json{
+      {"schema_version", 1},
+      {"references",
+       {{{"role", "pose"}, {"path", "pose.png"}},
+        {{"role", "subject-identity"}, {"source_artwork_id", "character-board"}}}},
+  };
+  manifest_stream.close();
+
+  const absl::Status status = LoadHeadlessImageReferenceManifest(manifest_path).status();
+
+  EXPECT_TRUE(absl::IsInvalidArgument(status));
+  EXPECT_THAT(status.message(), ::testing::HasSubstr("subject-identity then pose"));
+}
+
+TEST_F(HeadlessAssetGenerationTest, ReferenceManifestRejectsWrongCountBeforeEntryParsing) {
+  std::filesystem::create_directories(root_);
+  const std::filesystem::path manifest_path = root_ / "wrong-count-references.json";
+  std::ofstream stream(manifest_path);
+  stream << nlohmann::json{
+      {"schema_version", 1},
+      {"references",
+       {{{"role", "subject-identity"}, {"path", "identity.png"}},
+        {{"role", "pose"}, {"path", "pose.png"}},
+        {{"this-entry-would-otherwise-be-invalid", true}}}},
+  };
+  stream.close();
+
+  const absl::Status status = LoadHeadlessImageReferenceManifest(manifest_path).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("exactly two references"));
+}
+
+TEST_F(HeadlessAssetGenerationTest, ReferenceManifestRejectsOversizedInputBeforeParsing) {
+  std::filesystem::create_directories(root_);
+  const std::filesystem::path manifest_path = root_ / "oversized-references.json";
+  std::ofstream stream(manifest_path);
+  stream << "{}";
+  stream.close();
+  std::filesystem::resize_file(manifest_path, 1024 * 1024 + 1);
+
+  const absl::Status status = LoadHeadlessImageReferenceManifest(manifest_path).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kResourceExhausted);
+  EXPECT_THAT(std::string(status.message()), HasSubstr("1 MiB"));
+}
+
+TEST_F(HeadlessAssetGenerationTest, PathReferenceDecodeHonorsPixelBound) {
+  const RgbaImage pose{
+      .width = 2,
+      .height = 2,
+      .pixels = std::vector<uint8_t>(2 * 2 * 4, 255),
+  };
+  ASSERT_OK(WritePng((root_ / "pose.png").string(), pose.width, pose.height, pose.pixels));
+  MockApi api;
+
+  const absl::Status status =
+      ResolveHeadlessImageReference(api,
+                                    {
+                                        .role = ImageGenerationReferenceRole::kPose,
+                                        .path = "pose.png",
+                                    },
+                                    root_, 3)
+          .status();
+
+  EXPECT_TRUE(absl::IsResourceExhausted(status));
+  EXPECT_THAT(status.message(), ::testing::HasSubstr("pixel limit"));
+}
+
+TEST_F(HeadlessAssetGenerationTest,
+       ReferenceManifestRetainsOrderedExactArtifactsAndOriginMetadata) {
+  ASSERT_OK_AND_ASSIGN(ParallaxArtworkRecipe recipe, TemplateRecipe());
+  const RgbaImage identity{
+      .width = 2,
+      .height = 1,
+      .pixels = {11, 12, 13, 255, 21, 22, 23, 255},
+  };
+  const RgbaImage pose{
+      .width = 1,
+      .height = 2,
+      .pixels = {31, 32, 33, 255, 41, 42, 43, 255},
+  };
+  ASSERT_OK_AND_ASSIGN(const std::string identity_digest, RgbaImageDigest(identity));
+  ASSERT_OK_AND_ASSIGN(const std::string pose_digest, RgbaImageDigest(pose));
+  SourceArtwork identity_source{
+      .id = "character-board",
+      .name = "Character identity board",
+      .source_path = "source_artwork/character-board.png",
+      .provenance =
+          ImportedArtworkProvenance{
+              .original_filename = "character-board.png",
+              .imported_at_utc = "2026-08-30T12:00:00Z",
+          },
+      .width = identity.width,
+      .height = identity.height,
+      .content_digest = identity_digest,
+  };
+  const std::filesystem::path inputs = root_ / "inputs";
+  ASSERT_OK(WritePng((inputs / "pose.png").string(), pose.width, pose.height, pose.pixels));
+  const std::filesystem::path manifest_path = inputs / "references.json";
+  std::ofstream manifest_stream(manifest_path);
+  manifest_stream << nlohmann::json{
+      {"schema_version", 1},
+      {"references",
+       {{{"role", "subject-identity"}, {"source_artwork_id", identity_source.id}},
+        {{"role", "pose"}, {"path", "pose.png"}}}},
+  };
+  manifest_stream.close();
+  ASSERT_OK_AND_ASSIGN(HeadlessImageReferenceManifest reference_manifest,
+                       LoadHeadlessImageReferenceManifest(manifest_path));
+
+  MockApi api;
+  EXPECT_CALL(api, GetParallaxArtworkRecipe(recipe.id)).WillOnce(Return(&recipe));
+  EXPECT_CALL(api, GetSourceArtwork(identity_source.id)).WillOnce(Return(&identity_source));
+  EXPECT_CALL(api, ReadSourceArtworkPixels(identity_source.id,
+                                           static_cast<size_t>(identity.width) * identity.height))
+      .WillOnce(Return(identity));
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
+                       ImageGenerationService::Create(CreateFakeImageGenerationClient()));
+  const std::filesystem::path output = root_ / "referenced-candidate";
+
+  ASSERT_OK_AND_ASSIGN(HeadlessAssetGenerationResult result,
+                       GenerateAssetCandidateBundle(api, *service,
+                                                    {
+                                                        .kind = "parallax-artwork",
+                                                        .template_recipe_id = recipe.id,
+                                                        .name = "Pose Conditioned Cave",
+                                                        .prompt = "use the requested silhouette",
+                                                        .output_path = output.string(),
+                                                        .reference_manifest = reference_manifest,
+                                                    }));
+
+  const std::filesystem::path retained_identity = output / "reference-00-subject-identity.png";
+  const std::filesystem::path retained_pose = output / "reference-01-pose.png";
+  ASSERT_OK_AND_ASSIGN(RgbaImage retained_identity_pixels, ReadPng(retained_identity.string()));
+  ASSERT_OK_AND_ASSIGN(RgbaImage retained_pose_pixels, ReadPng(retained_pose.string()));
+  ASSERT_OK_AND_ASSIGN(RgbaImage generated_pixels,
+                       ReadPng((output / "generated-source.png").string()));
+  EXPECT_EQ(retained_identity_pixels.pixels, identity.pixels);
+  EXPECT_EQ(retained_pose_pixels.pixels, pose.pixels);
+  ASSERT_GE(generated_pixels.pixels.size(), 8);
+  const uint8_t identity_role_marker = static_cast<uint8_t>(
+      (static_cast<uint8_t>(ImageGenerationReferenceRole::kSubjectIdentity) + 1) * 31);
+  const uint8_t pose_role_marker =
+      static_cast<uint8_t>((static_cast<uint8_t>(ImageGenerationReferenceRole::kPose) + 1) * 31);
+  EXPECT_EQ(generated_pixels.pixels[0], static_cast<uint8_t>(35 ^ identity_role_marker));
+  EXPECT_EQ(generated_pixels.pixels[1], static_cast<uint8_t>(45 ^ identity.pixels.front()));
+  EXPECT_EQ(generated_pixels.pixels[4], static_cast<uint8_t>(35 ^ pose_role_marker));
+  EXPECT_EQ(generated_pixels.pixels[5], static_cast<uint8_t>(45 ^ pose.pixels.front()));
+
+  std::ifstream published_manifest_stream(result.manifest_path);
+  nlohmann::json published_manifest;
+  published_manifest_stream >> published_manifest;
+  const nlohmann::json& references = published_manifest.at("references");
+  ASSERT_EQ(references.size(), 2);
+  EXPECT_EQ(references.at(0).at("order"), 0);
+  EXPECT_EQ(references.at(0).at("role"), "subject-identity");
+  EXPECT_EQ(references.at(0).at("origin").at("kind"), "source-artwork");
+  EXPECT_EQ(references.at(0).at("origin").at("source_artwork_id"), identity_source.id);
+  EXPECT_EQ(references.at(0).at("rgba_sha256"), identity_digest);
+  EXPECT_EQ(references.at(0).at("width"), identity.width);
+  EXPECT_EQ(references.at(0).at("height"), identity.height);
+  EXPECT_EQ(references.at(1).at("order"), 1);
+  EXPECT_EQ(references.at(1).at("role"), "pose");
+  EXPECT_EQ(references.at(1).at("origin").at("kind"), "path");
+  EXPECT_EQ(references.at(1).at("origin").at("path"), "pose.png");
+  EXPECT_EQ(references.at(1).at("rgba_sha256"), pose_digest);
 }
 
 TEST_F(HeadlessAssetGenerationTest, FakeProviderPublishesACompleteStrictCandidateBundle) {
@@ -586,7 +824,9 @@ TEST_F(HeadlessAssetGenerationTest, FakeProviderPublishesAStaleProtectedRedrawBu
   MockApi api;
   EXPECT_CALL(api, GetParallaxArtworkRecipe(recipe.id)).WillOnce(Return(&recipe));
   EXPECT_CALL(api, GetSourceArtwork(source.id)).WillOnce(Return(&source));
-  EXPECT_CALL(api, ReadSourceArtworkPixels(source.id)).WillOnce(Return(source_pixels));
+  EXPECT_CALL(api,
+              ReadSourceArtworkPixels(source.id, static_cast<size_t>(source.width) * source.height))
+      .WillOnce(Return(source_pixels));
   EXPECT_CALL(api, ReadTexturePixels(recipe.texture_id)).WillOnce(Return(source_pixels));
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
                        ImageGenerationService::Create(CreateFakeImageGenerationClient()));
@@ -614,6 +854,15 @@ TEST_F(HeadlessAssetGenerationTest, FakeProviderPublishesAStaleProtectedRedrawBu
   EXPECT_EQ(candidate.expected_final_pixel_digest, digest);
   EXPECT_EQ(candidate.source.provenance.provider, "fake");
   ASSERT_OK(ReadGeneratedAssetSourceCandidate(output, candidate.source).status());
+  std::ifstream manifest_stream(result.manifest_path);
+  nlohmann::json manifest;
+  manifest_stream >> manifest;
+  ASSERT_EQ(manifest.at("references").size(), 1);
+  EXPECT_EQ(manifest.at("references").at(0).at("role"), "edit-source");
+  EXPECT_EQ(manifest.at("references").at(0).at("order"), 0);
+  EXPECT_EQ(manifest.at("references").at(0).at("origin").at("kind"), "source-artwork");
+  EXPECT_EQ(manifest.at("references").at(0).at("origin").at("source_artwork_id"), source.id);
+  EXPECT_EQ(manifest.at("references").at(0).at("rgba_sha256"), digest);
 }
 
 }  // namespace

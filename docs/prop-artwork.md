@@ -179,7 +179,7 @@ The editor-facing interface is provider-neutral. In conceptual terms it needs:
 ```text
 ImageGenerationSpec
   prompt, optional negative prompt, requested candidates, target aspect,
-  transparency preference, optional style/reference image
+  transparency preference, ordered owned reference images with semantic roles
 
 ImageGenerationClient
   Capabilities()

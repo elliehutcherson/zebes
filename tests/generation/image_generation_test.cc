@@ -28,6 +28,11 @@ struct OperationState {
 
 RgbaImage OnePixelImage() { return RgbaImage{.width = 1, .height = 1, .pixels = {1, 2, 3, 255}}; }
 
+ImageGenerationReference Reference(
+    ImageGenerationReferenceRole role = ImageGenerationReferenceRole::kSubjectIdentity) {
+  return ImageGenerationReference{.role = role, .image = OnePixelImage()};
+}
+
 ImageGenerationResult ValidGenerationResult() {
   return ImageGenerationResult{
       .provider = "provider",
@@ -122,7 +127,8 @@ TEST(ImageGenerationContractTest, ValidatesRequestedProviderCapabilities) {
       .maximum_candidates = 4,
       .supports_negative_prompt = true,
       .supports_transparency = true,
-      .supports_reference_image = true,
+      .maximum_reference_images = 2,
+      .maximum_reference_pixels = 2,
   };
   const ImageGenerationSpec spec{
       .prompt = "an isolated cave boulder",
@@ -131,7 +137,8 @@ TEST(ImageGenerationContractTest, ValidatesRequestedProviderCapabilities) {
       .requested_candidates = 2,
       .target_aspect = {.width = 4, .height = 3},
       .transparency = ImageTransparencyPreference::kPreferTransparent,
-      .reference_image = OnePixelImage(),
+      .references = {Reference(ImageGenerationReferenceRole::kSubjectIdentity),
+                     Reference(ImageGenerationReferenceRole::kPose)},
   };
 
   EXPECT_TRUE(ValidateImageGenerationSpec(spec, capabilities).ok());
@@ -148,7 +155,7 @@ TEST(ImageGenerationContractTest, RejectsUnsupportedRequestedCapabilities) {
   EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
             absl::StatusCode::kInvalidArgument);
   spec.transparency = ImageTransparencyPreference::kNoPreference;
-  spec.reference_image = OnePixelImage();
+  spec.references = {Reference()};
   EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
             absl::StatusCode::kInvalidArgument);
 }
@@ -157,7 +164,8 @@ TEST(ImageGenerationContractTest, RejectsInvalidCoreInputs) {
   ImageGenerationCapabilities capabilities{
       .maximum_candidates = 2,
       .supports_negative_prompt = true,
-      .supports_reference_image = true,
+      .maximum_reference_images = 2,
+      .maximum_reference_pixels = 2,
   };
   ImageGenerationSpec spec{.prompt = "boulder"};
 
@@ -177,13 +185,64 @@ TEST(ImageGenerationContractTest, RejectsInvalidCoreInputs) {
   EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
             absl::StatusCode::kInvalidArgument);
   spec.negative_prompt.reset();
-  spec.reference_image = RgbaImage{};
+  spec.references = {
+      ImageGenerationReference{.role = ImageGenerationReferenceRole::kPose, .image = RgbaImage{}}};
   EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
             absl::StatusCode::kInvalidArgument);
 
   capabilities.maximum_candidates = 0;
   EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
             absl::StatusCode::kFailedPrecondition);
+}
+
+TEST(ImageGenerationContractTest, RejectsInvalidReferenceRolesOrderCountAndPixels) {
+  ImageGenerationCapabilities capabilities{
+      .maximum_candidates = 1,
+      .maximum_reference_images = 2,
+      .maximum_reference_pixels = 2,
+  };
+  ImageGenerationSpec spec{.prompt = "boulder"};
+
+  spec.references = {Reference(ImageGenerationReferenceRole::kSubjectIdentity),
+                     Reference(ImageGenerationReferenceRole::kPose),
+                     Reference(ImageGenerationReferenceRole::kPose)};
+  EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
+            absl::StatusCode::kInvalidArgument);
+
+  spec.references = {
+      ImageGenerationReference{
+          .role = ImageGenerationReferenceRole::kPose,
+          .image = RgbaImage{.width = 2, .height = 1, .pixels = {1, 2, 3, 255, 4, 5, 6, 255}}},
+      Reference(ImageGenerationReferenceRole::kSubjectIdentity),
+  };
+  EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
+            absl::StatusCode::kInvalidArgument);
+
+  spec.references = {Reference(ImageGenerationReferenceRole::kSubjectIdentity),
+                     Reference(ImageGenerationReferenceRole::kEditSource)};
+  EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
+            absl::StatusCode::kInvalidArgument);
+
+  spec.references = {Reference(static_cast<ImageGenerationReferenceRole>(99))};
+  EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
+            absl::StatusCode::kInvalidArgument);
+
+  capabilities.maximum_reference_images = 0;
+  EXPECT_EQ(ValidateImageGenerationSpec(spec, capabilities).code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST(ImageGenerationContractTest, ParsesStableReferenceRoleNames) {
+  EXPECT_EQ(ImageGenerationReferenceRoleName(ImageGenerationReferenceRole::kEditSource),
+            "edit-source");
+  EXPECT_EQ(ImageGenerationReferenceRoleName(ImageGenerationReferenceRole::kSubjectIdentity),
+            "subject-identity");
+  EXPECT_EQ(ImageGenerationReferenceRoleName(ImageGenerationReferenceRole::kPose), "pose");
+  ASSERT_OK_AND_ASSIGN(const ImageGenerationReferenceRole role,
+                       ParseImageGenerationReferenceRole("subject-identity"));
+  EXPECT_EQ(role, ImageGenerationReferenceRole::kSubjectIdentity);
+  EXPECT_EQ(ParseImageGenerationReferenceRole("style").status().code(),
+            absl::StatusCode::kInvalidArgument);
 }
 
 TEST(ImageGenerationContractTest, ComposesOptionalInstructionsWithoutChangingTheSubjectPrompt) {
@@ -198,6 +257,26 @@ TEST(ImageGenerationContractTest, ComposesOptionalInstructionsWithoutChangingThe
 
   spec.instructions.reset();
   EXPECT_EQ(ComposeImageGenerationPrompt(spec), "a mossy boulder");
+}
+
+TEST(ImageGenerationContractTest, ComposesOneSharedIndexedReferenceLegend) {
+  const ImageGenerationSpec spec{
+      .prompt = "one right-facing runner",
+      .instructions = "Create one isolated game character.",
+      .references = {Reference(ImageGenerationReferenceRole::kSubjectIdentity),
+                     Reference(ImageGenerationReferenceRole::kPose)},
+  };
+
+  const std::string turn =
+      "Reference inputs:\n"
+      "Reference 1 (subject-identity): preserve this subject's identity, proportions, design, "
+      "palette, and identifying landmarks; do not copy the reference layout or pose.\n"
+      "Reference 2 (pose): use only its pose, facing, limb geometry, and ground contact; do not "
+      "copy its appearance, line style, or background.\n\n"
+      "Subject request:\n"
+      "one right-facing runner";
+  EXPECT_EQ(ComposeImageGenerationTurnPrompt(spec), turn);
+  EXPECT_EQ(ComposeImageGenerationPrompt(spec), "Create one isolated game character.\n\n" + turn);
 }
 
 TEST(ImageGenerationContractTest, RejectsIncompleteStableProvenanceAndCandidates) {

@@ -17,6 +17,37 @@ target_link_libraries(generated_artwork_postprocessor_test
 target_include_directories(generated_artwork_postprocessor_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(generated_artwork_postprocessor_test)
 
+add_executable(animation_artwork_feasibility_test animation_artwork_feasibility_test.cc)
+target_link_libraries(animation_artwork_feasibility_test
+  animation_artwork_feasibility
+  gtest_main
+  macros
+)
+target_include_directories(animation_artwork_feasibility_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(animation_artwork_feasibility_test)
+
+add_executable(animation_artwork_run_manifest_test animation_artwork_run_manifest_test.cc)
+target_link_libraries(animation_artwork_run_manifest_test
+  animation_artwork_run_manifest
+  gtest_main
+  macros
+)
+target_include_directories(animation_artwork_run_manifest_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(animation_artwork_run_manifest_test)
+
+add_executable(pose_conditioned_animation_batch_test pose_conditioned_animation_batch_test.cc)
+target_link_libraries(pose_conditioned_animation_batch_test
+  pose_conditioned_animation_batch
+  image_digest
+  image_io
+  gtest_main
+  gmock
+  macros
+  status_macros
+)
+target_include_directories(pose_conditioned_animation_batch_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(pose_conditioned_animation_batch_test)
+
 add_executable(parallax_artwork_pipeline_test parallax_artwork_pipeline_test.cc)
 target_link_libraries(parallax_artwork_pipeline_test
   parallax_artwork_pipeline

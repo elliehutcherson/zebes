@@ -1,11 +1,14 @@
 #include "resources/source_artwork_manager.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
@@ -35,6 +38,54 @@ absl::StatusOr<SourceArtwork> LoadDefinition(const std::string& path) {
     return absl::InvalidArgumentError(
         absl::StrCat("invalid source artwork JSON in ", path, ": ", error.what()));
   }
+}
+
+absl::StatusOr<size_t> BoundedEncodedImageSize(const std::string& path, size_t maximum_bytes) {
+  if (maximum_bytes == 0) {
+    return absl::InvalidArgumentError("source artwork encoded byte limit must be positive");
+  }
+
+  std::error_code error;
+  const uintmax_t file_bytes = std::filesystem::file_size(path, error);
+  if (error) {
+    return absl::NotFoundError(
+        absl::StrCat("could not inspect source artwork image ", path, ": ", error.message()));
+  }
+  if (file_bytes == 0) {
+    return absl::DataLossError(absl::StrCat("source artwork image is empty: ", path));
+  }
+  if (file_bytes > static_cast<uintmax_t>(maximum_bytes)) {
+    return absl::ResourceExhaustedError(absl::StrCat("source artwork encoded image is ", file_bytes,
+                                                     " bytes, exceeding the ", maximum_bytes,
+                                                     " byte limit"));
+  }
+  if (!std::in_range<int>(file_bytes) || !std::in_range<size_t>(file_bytes) ||
+      !std::in_range<std::streamsize>(file_bytes)) {
+    return absl::OutOfRangeError("source artwork encoded image exceeds the reader's range");
+  }
+  return static_cast<size_t>(file_bytes);
+}
+
+absl::StatusOr<std::vector<uint8_t>> ReadBoundedEncodedImage(const std::string& path,
+                                                             size_t maximum_bytes) {
+  ASSIGN_OR_RETURN(const size_t file_bytes, BoundedEncodedImageSize(path, maximum_bytes));
+  std::ifstream stream(path, std::ios::binary);
+  if (!stream.is_open()) {
+    return absl::NotFoundError(absl::StrCat("could not open source artwork image ", path));
+  }
+  std::vector<uint8_t> encoded(file_bytes);
+  stream.read(reinterpret_cast<char*>(encoded.data()),
+              static_cast<std::streamsize>(encoded.size()));
+  if (static_cast<size_t>(stream.gcount()) != encoded.size()) {
+    return absl::DataLossError(absl::StrCat("source artwork image changed while reading: ", path));
+  }
+  if (stream.peek() != std::char_traits<char>::eof()) {
+    return absl::DataLossError(absl::StrCat("source artwork image changed while reading: ", path));
+  }
+  if (stream.bad()) {
+    return absl::DataLossError(absl::StrCat("could not read source artwork image: ", path));
+  }
+  return encoded;
 }
 
 }  // namespace
@@ -89,7 +140,36 @@ absl::Status SourceArtworkManager::ValidateStoredArtwork(const SourceArtwork& ar
     return absl::InvalidArgumentError(
         "source artwork path must be the ID-backed path under source_art");
   }
-  ASSIGN_OR_RETURN(const RgbaImage image, ReadPng(ImagePath(artwork.id)));
+  return ReadStoredArtworkPixels(artwork, MaximumDecodedPixels()).status();
+}
+
+size_t SourceArtworkManager::MaximumDecodedPixels() const {
+  return std::min(limits_.maximum_pixels, limits_.maximum_bytes / 4);
+}
+
+absl::Status SourceArtworkManager::ValidateReadPixelLimit(size_t maximum_pixels) const {
+  const size_t manager_maximum_pixels = MaximumDecodedPixels();
+  if (maximum_pixels == 0) {
+    return absl::InvalidArgumentError("source artwork read pixel limit must be positive");
+  }
+  if (maximum_pixels > manager_maximum_pixels) {
+    return absl::InvalidArgumentError(absl::StrCat("source artwork read pixel limit ",
+                                                   maximum_pixels, " exceeds the manager maximum ",
+                                                   manager_maximum_pixels));
+  }
+  if (!std::in_range<int64_t>(maximum_pixels)) {
+    return absl::OutOfRangeError("source artwork read pixel limit exceeds the decoder's range");
+  }
+  return absl::OkStatus();
+}
+
+absl::StatusOr<RgbaImage> SourceArtworkManager::ReadStoredArtworkPixels(
+    const SourceArtwork& artwork, size_t maximum_pixels) const {
+  RETURN_IF_ERROR(ValidateReadPixelLimit(maximum_pixels));
+
+  ASSIGN_OR_RETURN(const std::vector<uint8_t> encoded,
+                   ReadBoundedEncodedImage(ImagePath(artwork.id), limits_.maximum_encoded_bytes));
+  ASSIGN_OR_RETURN(RgbaImage image, DecodeImage(encoded, static_cast<int64_t>(maximum_pixels)));
   RETURN_IF_ERROR(ValidateSourceArtworkPixels(image, limits_));
   if (image.width != artwork.width || image.height != artwork.height) {
     return absl::DataLossError("source artwork dimensions do not match its retained image");
@@ -98,7 +178,7 @@ absl::Status SourceArtworkManager::ValidateStoredArtwork(const SourceArtwork& ar
   if (digest != artwork.content_digest) {
     return absl::DataLossError("source artwork digest does not match its retained image");
   }
-  return absl::OkStatus();
+  return image;
 }
 
 absl::Status SourceArtworkManager::LoadAllArtwork() {
@@ -154,6 +234,7 @@ absl::StatusOr<std::string> SourceArtworkManager::CreateArtwork(std::string name
     std::error_code ignored;
     std::filesystem::remove(temporary_image, ignored);
   };
+  RETURN_IF_ERROR(BoundedEncodedImageSize(temporary_image, limits_.maximum_encoded_bytes).status());
   std::error_code error;
   std::filesystem::rename(temporary_image, image_path, error);
   if (error) {
@@ -223,6 +304,7 @@ absl::Status SourceArtworkManager::ReplaceArtwork(const SourceArtwork& expected,
     std::error_code ignored;
     std::filesystem::remove(temporary_image, ignored);
   };
+  RETURN_IF_ERROR(BoundedEncodedImageSize(temporary_image, limits_.maximum_encoded_bytes).status());
 
   std::error_code error;
   std::filesystem::rename(image_path, backup_image, error);
@@ -294,17 +376,17 @@ std::vector<SourceArtwork> SourceArtworkManager::GetAllArtwork() const {
 }
 
 absl::StatusOr<RgbaImage> SourceArtworkManager::ReadArtworkPixels(const std::string& id) const {
+  return ReadArtworkPixels(id, MaximumDecodedPixels());
+}
+
+absl::StatusOr<RgbaImage> SourceArtworkManager::ReadArtworkPixels(const std::string& id,
+                                                                  size_t maximum_pixels) const {
+  RETURN_IF_ERROR(ValidateReadPixelLimit(maximum_pixels));
   const auto found = artwork_.find(id);
   if (found == artwork_.end()) {
     return absl::NotFoundError(absl::StrCat("source artwork ", id, " is not loaded"));
   }
-  ASSIGN_OR_RETURN(RgbaImage image, ReadPng(ImagePath(id)));
-  RETURN_IF_ERROR(ValidateSourceArtworkPixels(image, limits_));
-  ASSIGN_OR_RETURN(const std::string digest, RgbaImageDigest(image));
-  if (digest != found->second->content_digest) {
-    return absl::DataLossError("source artwork changed since it was loaded");
-  }
-  return image;
+  return ReadStoredArtworkPixels(*found->second, maximum_pixels);
 }
 
 absl::Status SourceArtworkManager::DeleteArtwork(const std::string& id) {

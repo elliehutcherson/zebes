@@ -15,6 +15,8 @@
 
 ABSL_FLAG(bool, unpaced, false,
           "Run bounded fixed simulation steps as fast as presentation allows");
+ABSL_FLAG(std::string, asset_root, "",
+          "Override the configured asset root (for disposable staged runtime proofs)");
 
 namespace zebes {
 namespace {
@@ -24,7 +26,9 @@ absl::Status RunGame() {
                                                ? SimulationPacingMode::kUnpaced
                                                : SimulationPacingMode::kRealtime;
   ASSIGN_OR_RETURN(EngineConfig config, EngineConfig::Create());
-  const std::string asset_root = config.paths.assets();
+  std::string asset_root = absl::GetFlag(FLAGS_asset_root);
+  if (asset_root.empty()) asset_root = config.paths.assets();
+  LOG(INFO) << "Using game asset root: " << asset_root;
   ASSIGN_OR_RETURN(std::unique_ptr<SdlGameHost> host,
                    SdlGameHost::Create({.window = config.window, .game_view = config.game_view}));
   ASSIGN_OR_RETURN(std::unique_ptr<GameRuntime> runtime,

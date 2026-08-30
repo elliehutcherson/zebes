@@ -37,6 +37,10 @@ class SourceArtworkManager {
   virtual absl::StatusOr<SourceArtwork*> GetArtwork(const std::string& id);
   virtual std::vector<SourceArtwork> GetAllArtwork() const;
   virtual absl::StatusOr<RgbaImage> ReadArtworkPixels(const std::string& id) const;
+  // Applies a caller-owned pixel budget before decoding. The requested limit
+  // may tighten, but never widen, the manager's configured limits.
+  virtual absl::StatusOr<RgbaImage> ReadArtworkPixels(const std::string& id,
+                                                      size_t maximum_pixels) const;
   virtual absl::Status DeleteArtwork(const std::string& id);
 
  protected:
@@ -47,6 +51,10 @@ class SourceArtworkManager {
 
   absl::Status EnsureDirectories() const;
   absl::Status ValidateStoredArtwork(const SourceArtwork& artwork) const;
+  absl::StatusOr<RgbaImage> ReadStoredArtworkPixels(const SourceArtwork& artwork,
+                                                    size_t maximum_pixels) const;
+  absl::Status ValidateReadPixelLimit(size_t maximum_pixels) const;
+  size_t MaximumDecodedPixels() const;
   std::string DefinitionPath(const std::string& id) const;
   std::string ImagePath(const std::string& id) const;
   static std::string RelativeImagePath(const std::string& id);

@@ -1,8 +1,10 @@
 #include "generation/image_generation.h"
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"
@@ -11,6 +13,23 @@
 #include "common/status_macros.h"
 
 namespace zebes {
+namespace {
+
+std::string_view ReferenceGuidance(ImageGenerationReferenceRole role) {
+  switch (role) {
+    case ImageGenerationReferenceRole::kEditSource:
+      return "edit this base image rather than replacing its subject or composition";
+    case ImageGenerationReferenceRole::kSubjectIdentity:
+      return "preserve this subject's identity, proportions, design, palette, and identifying "
+             "landmarks; do not copy the reference layout or pose";
+    case ImageGenerationReferenceRole::kPose:
+      return "use only its pose, facing, limb geometry, and ground contact; do not copy its "
+             "appearance, line style, or background";
+  }
+  return "";
+}
+
+}  // namespace
 
 absl::Status ValidateImageGenerationSpec(const ImageGenerationSpec& spec,
                                          const ImageGenerationCapabilities& capabilities) {
@@ -21,6 +40,12 @@ absl::Status ValidateImageGenerationSpec(const ImageGenerationSpec& spec,
   if (capabilities.maximum_candidates <= 0) {
     return absl::FailedPreconditionError(
         "image generation provider reported an invalid candidate limit");
+  }
+  if (capabilities.maximum_reference_images < 0 || capabilities.maximum_reference_pixels < 0 ||
+      ((capabilities.maximum_reference_images == 0) !=
+       (capabilities.maximum_reference_pixels == 0))) {
+    return absl::FailedPreconditionError(
+        "image generation provider reported invalid reference limits");
   }
   if (spec.requested_candidates <= 0 ||
       spec.requested_candidates > capabilities.maximum_candidates) {
@@ -42,20 +67,85 @@ absl::Status ValidateImageGenerationSpec(const ImageGenerationSpec& spec,
       !capabilities.supports_transparency) {
     return absl::InvalidArgumentError("image generation provider has no transparent output");
   }
-  if (spec.reference_image.has_value()) {
-    if (!spec.reference_image->IsValid()) {
-      return absl::InvalidArgumentError("image generation reference image is invalid");
+  if (!spec.references.empty() && capabilities.maximum_reference_images == 0) {
+    return absl::InvalidArgumentError("image generation provider has no reference images");
+  }
+  if (spec.references.size() > static_cast<size_t>(capabilities.maximum_reference_images)) {
+    return absl::InvalidArgumentError(absl::StrCat("image generation provider accepts at most ",
+                                                   capabilities.maximum_reference_images,
+                                                   " reference images"));
+  }
+  int64_t total_reference_pixels = 0;
+  bool has_edit_source = false;
+  for (size_t index = 0; index < spec.references.size(); ++index) {
+    const ImageGenerationReference& reference = spec.references[index];
+    if (!reference.image.IsValid()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("image generation reference ", index, " is invalid"));
     }
-    if (!capabilities.supports_reference_image) {
-      return absl::InvalidArgumentError("image generation provider has no reference images");
+    if (ImageGenerationReferenceRoleName(reference.role).empty()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("image generation reference ", index, " has an invalid role"));
     }
+    if (reference.role == ImageGenerationReferenceRole::kEditSource) {
+      if (has_edit_source || index != 0) {
+        return absl::InvalidArgumentError(
+            "image generation edit source must be unique and reference 0");
+      }
+      has_edit_source = true;
+    }
+    const int64_t pixels = static_cast<int64_t>(reference.image.width) * reference.image.height;
+    if (pixels > capabilities.maximum_reference_pixels - total_reference_pixels) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("image generation references exceed the provider's aggregate ",
+                       capabilities.maximum_reference_pixels, " pixel limit"));
+    }
+    total_reference_pixels += pixels;
   }
   return absl::OkStatus();
 }
 
+std::string_view ImageGenerationReferenceRoleName(ImageGenerationReferenceRole role) {
+  switch (role) {
+    case ImageGenerationReferenceRole::kEditSource:
+      return "edit-source";
+    case ImageGenerationReferenceRole::kSubjectIdentity:
+      return "subject-identity";
+    case ImageGenerationReferenceRole::kPose:
+      return "pose";
+  }
+  return "";
+}
+
+absl::StatusOr<ImageGenerationReferenceRole> ParseImageGenerationReferenceRole(
+    std::string_view value) {
+  if (value == "edit-source") return ImageGenerationReferenceRole::kEditSource;
+  if (value == "subject-identity") return ImageGenerationReferenceRole::kSubjectIdentity;
+  if (value == "pose") return ImageGenerationReferenceRole::kPose;
+  return absl::InvalidArgumentError(
+      absl::StrCat("unknown image generation reference role: ", value));
+}
+
+std::string ComposeImageGenerationTurnPrompt(const ImageGenerationSpec& spec) {
+  if (spec.references.empty()) return spec.prompt;
+
+  std::string prompt = "Reference inputs:\n";
+  for (size_t index = 0; index < spec.references.size(); ++index) {
+    const ImageGenerationReferenceRole role = spec.references[index].role;
+    absl::StrAppend(&prompt, "Reference ", index + 1, " (", ImageGenerationReferenceRoleName(role),
+                    "): ", ReferenceGuidance(role), ".\n");
+  }
+  absl::StrAppend(&prompt, "\nSubject request:\n", spec.prompt);
+  return prompt;
+}
+
 std::string ComposeImageGenerationPrompt(const ImageGenerationSpec& spec) {
-  if (!spec.instructions.has_value()) return spec.prompt;
-  return absl::StrCat(*spec.instructions, "\n\nSubject request:\n", spec.prompt);
+  const std::string turn_prompt = ComposeImageGenerationTurnPrompt(spec);
+  if (!spec.instructions.has_value()) return turn_prompt;
+  if (spec.references.empty()) {
+    return absl::StrCat(*spec.instructions, "\n\nSubject request:\n", spec.prompt);
+  }
+  return absl::StrCat(*spec.instructions, "\n\n", turn_prompt);
 }
 
 absl::Status ValidateImageGenerationResult(const ImageGenerationResult& result) {

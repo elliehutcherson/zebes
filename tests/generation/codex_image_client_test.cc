@@ -10,6 +10,8 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "common/image_io.h"
 #include "common/status_macros.h"
 #include "generation/codex_app_server_transport.h"
@@ -29,6 +31,8 @@ enum class FakeCompletion : uint8_t {
   kEscapedPath,
   kCodexManagedPath,
   kApprovalRequest,
+  kDelayedTurnStart,
+  kCrossOperationReferenceAlias,
 };
 
 class FakeAppServerTransport final : public CodexAppServerTransport {
@@ -62,6 +66,14 @@ class FakeAppServerTransport final : public CodexAppServerTransport {
           {{"id", id}, {"result", {{"account", {{"type", account_type_}, {"planType", "pro"}}}}}});
       return absl::OkStatus();
     }
+    if (method == "model/list") {
+      Queue({{"id", id},
+             {"result",
+              {{"data",
+                nlohmann::json::array({{{"id", "model-1"}, {"model", "test-codex-image-model"}}})},
+               {"nextCursor", nullptr}}}});
+      return absl::OkStatus();
+    }
     if (method == "skills/list") {
       Queue(
           {{"id", id},
@@ -80,7 +92,27 @@ class FakeAppServerTransport final : public CodexAppServerTransport {
     }
     if (method == "turn/start") {
       const std::string turn_id = "turn-" + std::to_string(++turn_count_);
-      Queue({{"id", id}, {"result", {{"turn", {{"id", turn_id}}}}}});
+      nlohmann::json turn_started{{"id", id}, {"result", {{"turn", {{"id", turn_id}}}}}};
+      if (completion_ == FakeCompletion::kDelayedTurnStart) {
+        return absl::OkStatus();
+      }
+      Queue(std::move(turn_started));
+      if (completion_ == FakeCompletion::kCrossOperationReferenceAlias) {
+        if (!reference_alias_path_.has_value()) {
+          for (const nlohmann::json& input : message.at("params").at("input")) {
+            if (input.at("type") != "localImage") continue;
+            reference_alias_path_ = input.at("path").get<std::string>();
+            break;
+          }
+          if (!reference_alias_path_.has_value()) {
+            return absl::InvalidArgumentError(
+                "fake alias scenario requires the first turn to have a local image");
+          }
+          return absl::OkStatus();
+        }
+        QueueImageCompletion(message.at("params").at("threadId").get<std::string>(), turn_id);
+        return absl::OkStatus();
+      }
       if (completion_ == FakeCompletion::kPending ||
           completion_ == FakeCompletion::kInterruptFailure) {
         return absl::OkStatus();
@@ -129,6 +161,9 @@ class FakeAppServerTransport final : public CodexAppServerTransport {
       saved_path = working_directory_.parent_path() / "zebes_codex_escape.png";
     } else if (completion_ == FakeCompletion::kCodexManagedPath) {
       saved_path = generated_images_directory_ / "thread-1" / "generated-turn-1.png";
+    } else if (completion_ == FakeCompletion::kCrossOperationReferenceAlias &&
+               reference_alias_path_.has_value()) {
+      saved_path = *reference_alias_path_;
     }
     nlohmann::json item{{"type", "imageGeneration"},
                         {"id", "image-1"},
@@ -155,6 +190,7 @@ class FakeAppServerTransport final : public CodexAppServerTransport {
   int thread_count_ = 0;
   int turn_count_ = 0;
   bool stopped_ = false;
+  std::optional<std::filesystem::path> reference_alias_path_;
   std::vector<nlohmann::json> sent_;
   std::vector<std::string> incoming_;
 };
@@ -184,6 +220,20 @@ ImageGenerationSpec SpecFor(std::string prompt = "a mossy boulder") {
   };
 }
 
+ImageGenerationReference Reference(ImageGenerationReferenceRole role, uint8_t red, uint8_t green) {
+  RgbaImage image{
+      .width = 2,
+      .height = 2,
+      .pixels = std::vector<uint8_t>(2 * 2 * 4, 255),
+  };
+  for (size_t index = 0; index < image.pixels.size(); index += 4) {
+    image.pixels[index] = red;
+    image.pixels[index + 1] = green;
+    image.pixels[index + 2] = 0;
+  }
+  return ImageGenerationReference{.role = role, .image = std::move(image)};
+}
+
 absl::StatusOr<ImageGenerationResult> PollToCompletion(ImageGenerationRequest& request) {
   for (int attempt = 0; attempt < 20; ++attempt) {
     ASSIGN_OR_RETURN(std::optional<ImageGenerationResult> result, request.Poll());
@@ -200,7 +250,9 @@ struct Fixture {
 };
 
 absl::StatusOr<Fixture> MakeClient(FakeCompletion completion = FakeCompletion::kSuccess,
-                                   std::string account_type = "chatgpt") {
+                                   std::string account_type = "chatgpt",
+                                   absl::Duration request_timeout = absl::Minutes(5),
+                                   std::string model = "test-codex-image-model") {
   Fixture fixture;
   fixture.working_directory = UniqueTestDirectory("zebes_codex_image_client_test");
   fixture.generated_images_directory = UniqueTestDirectory("zebes_codex_generated_images_test");
@@ -213,6 +265,8 @@ absl::StatusOr<Fixture> MakeClient(FakeCompletion completion = FakeCompletion::k
   fixture.transport = transport.get();
   CodexImageConfig config;
   config.generated_images_directory = fixture.generated_images_directory;
+  config.model = std::move(model);
+  config.request_timeout = request_timeout;
   ASSIGN_OR_RETURN(fixture.client,
                    CodexImageClient::CreateWithTransport(std::move(transport), std::move(config)));
   return fixture;
@@ -223,6 +277,14 @@ const nlohmann::json* FindSent(const FakeAppServerTransport& transport, std::str
     if (message.at("method").get<std::string>() == method) return &message;
   }
   return nullptr;
+}
+
+std::vector<std::filesystem::path> LocalImagePaths(const nlohmann::json& turn_request) {
+  std::vector<std::filesystem::path> paths;
+  for (const nlohmann::json& input : turn_request.at("params").at("input")) {
+    if (input.at("type") == "localImage") paths.emplace_back(input.at("path").get<std::string>());
+  }
+  return paths;
 }
 
 TEST(CodexImageClientTest, LazilyGeneratesThroughAConfinedChatGptSession) {
@@ -236,7 +298,7 @@ TEST(CodexImageClientTest, LazilyGeneratesThroughAConfinedChatGptSession) {
   ASSERT_OK_AND_ASSIGN(ImageGenerationResult result, PollToCompletion(request));
 
   EXPECT_EQ(result.provider, "openai-codex");
-  EXPECT_EQ(result.model, "codex-imagegen");
+  EXPECT_EQ(result.model, "test-codex-image-model");
   EXPECT_EQ(result.submitted_prompt, "a mossy boulder");
   ASSERT_TRUE(result.provider_request_id.has_value());
   EXPECT_EQ(*result.provider_request_id, "turn-1");
@@ -252,6 +314,8 @@ TEST(CodexImageClientTest, LazilyGeneratesThroughAConfinedChatGptSession) {
   EXPECT_EQ(thread->at("params").at("approvalPolicy"), "never");
   EXPECT_EQ(thread->at("params").at("sandbox"), "workspace-write");
   EXPECT_EQ(thread->at("params").at("cwd"), fixture.working_directory.string());
+  EXPECT_EQ(thread->at("params").at("model"), "test-codex-image-model");
+  EXPECT_FALSE(thread->at("params").at("allowProviderModelFallback"));
   EXPECT_NE(thread->at("params")
                 .at("developerInstructions")
                 .get<std::string>()
@@ -268,24 +332,174 @@ TEST(CodexImageClientTest, LazilyGeneratesThroughAConfinedChatGptSession) {
   EXPECT_NE(request_text.find("3:2"), std::string::npos);
 }
 
+TEST(CodexImageClientTest, ReportsBoundedReferenceCapabilities) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient());
+
+  const ImageGenerationCapabilities capabilities = fixture.client->Capabilities();
+
+  EXPECT_EQ(capabilities.maximum_reference_images, 8);
+  EXPECT_EQ(capabilities.maximum_reference_pixels, 4096 * 4096);
+}
+
+TEST(CodexImageClientTest, RejectsConfiguredModelMissingFromCatalogBeforeStartingAThread) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kSuccess, "chatgpt",
+                                                   absl::Minutes(5), "missing-image-worker-model"));
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(SpecFor()));
+
+  const absl::Status status = PollToCompletion(request).status();
+
+  EXPECT_TRUE(absl::IsFailedPrecondition(status));
+  EXPECT_NE(FindSent(*fixture.transport, "model/list"), nullptr);
+  EXPECT_EQ(FindSent(*fixture.transport, "thread/start"), nullptr);
+}
+
+TEST(CodexImageClientTest, SendsOrderedPrivateReferencePngsAndSharedTurnPrompt) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kPending));
+  ImageGenerationSpec spec = SpecFor();
+  spec.instructions = "Keep the general rendering instructions at developer level.";
+  spec.references = {
+      Reference(ImageGenerationReferenceRole::kSubjectIdentity, 210, 30),
+      Reference(ImageGenerationReferenceRole::kPose, 20, 190),
+  };
+  const RgbaImage expected_identity = spec.references[0].image;
+  const RgbaImage expected_pose = spec.references[1].image;
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(std::move(spec)));
+  for (int attempt = 0; attempt < 10 && FindSent(*fixture.transport, "turn/start") == nullptr;
+       ++attempt) {
+    ASSERT_OK(request.Poll().status());
+  }
+
+  const nlohmann::json* turn = FindSent(*fixture.transport, "turn/start");
+  ASSERT_NE(turn, nullptr);
+  const nlohmann::json& input = turn->at("params").at("input");
+  ASSERT_EQ(input.size(), 4);
+  EXPECT_EQ(input.at(0).at("type"), "localImage");
+  EXPECT_EQ(input.at(1).at("type"), "localImage");
+  EXPECT_EQ(input.at(2).at("type"), "text");
+  EXPECT_EQ(input.at(3).at("type"), "skill");
+
+  const std::vector<std::filesystem::path> paths = LocalImagePaths(*turn);
+  ASSERT_EQ(paths.size(), 2);
+  EXPECT_EQ(paths[0].filename(), "reference-1-subject-identity.png");
+  EXPECT_EQ(paths[1].filename(), "reference-2-pose.png");
+  EXPECT_EQ(paths[0].parent_path(), paths[1].parent_path());
+  EXPECT_EQ(paths[0].parent_path().parent_path(), fixture.working_directory);
+  EXPECT_TRUE(paths[0].is_absolute());
+  ASSERT_OK_AND_ASSIGN(const RgbaImage decoded_identity, ReadPng(paths[0].string()));
+  ASSERT_OK_AND_ASSIGN(const RgbaImage decoded_pose, ReadPng(paths[1].string()));
+  EXPECT_EQ(decoded_identity.pixels, expected_identity.pixels);
+  EXPECT_EQ(decoded_pose.pixels, expected_pose.pixels);
+
+  EXPECT_EQ(
+      input.at(2).at("text"),
+      "$imagegen Reference inputs:\n"
+      "Reference 1 (subject-identity): preserve this subject's identity, proportions, design, "
+      "palette, and identifying landmarks; do not copy the reference layout or pose.\n"
+      "Reference 2 (pose): use only its pose, facing, limb geometry, and ground contact; do not "
+      "copy its appearance, line style, or background.\n\n"
+      "Subject request:\n"
+      "a mossy boulder\n"
+      "Generate exactly one PNG. Target composition aspect ratio: 3:2. Do not inspect or edit "
+      "project files.");
+  EXPECT_EQ(input.at(2).at("text").get<std::string>().find("developer level"), std::string::npos);
+
+  ASSERT_OK(request.Poll().status());
+  request.Cancel();
+
+  EXPECT_FALSE(std::filesystem::exists(paths[0].parent_path()));
+}
+
+TEST(CodexImageClientTest, RemovesReferenceDirectoryAfterSuccess) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient());
+  ImageGenerationSpec spec = SpecFor();
+  spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(std::move(spec)));
+
+  ASSERT_OK_AND_ASSIGN(ImageGenerationResult result, PollToCompletion(request));
+
+  EXPECT_EQ(result.candidates.size(), 1);
+  const nlohmann::json* turn = FindSent(*fixture.transport, "turn/start");
+  ASSERT_NE(turn, nullptr);
+  const std::vector<std::filesystem::path> paths = LocalImagePaths(*turn);
+  ASSERT_EQ(paths.size(), 1);
+  EXPECT_FALSE(std::filesystem::exists(paths[0].parent_path()));
+}
+
+TEST(CodexImageClientTest, RequestDestructionRemovesReferenceDirectory) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kPending));
+  const std::filesystem::path reference_directory =
+      fixture.working_directory / "reference-inputs-operation-1";
+  {
+    ImageGenerationSpec spec = SpecFor();
+    spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+    ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(std::move(spec)));
+    EXPECT_TRUE(std::filesystem::exists(reference_directory));
+  }
+
+  EXPECT_FALSE(std::filesystem::exists(reference_directory));
+}
+
+TEST(CodexImageClientTest, DoesNotClaimOrRemoveAPreexistingReferenceDirectory) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient());
+  const std::filesystem::path reference_directory =
+      fixture.working_directory / "reference-inputs-operation-1";
+  std::filesystem::create_directory(reference_directory);
+  const std::filesystem::path marker = reference_directory / "owned-by-someone-else";
+  WriteCandidate(marker);
+  ImageGenerationSpec spec = SpecFor();
+  spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+
+  const absl::Status status = fixture.client->Start(std::move(spec)).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kAlreadyExists);
+  EXPECT_TRUE(std::filesystem::exists(marker));
+}
+
 TEST(CodexImageClientTest, RefusesApiKeyAuthenticationBeforeStartingAThread) {
   ASSERT_OK_AND_ASSIGN(Fixture fixture,
                        MakeClient(FakeCompletion::kSuccess, /*account_type=*/"apiKey"));
-  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(SpecFor()));
+  ImageGenerationSpec spec = SpecFor();
+  spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(std::move(spec)));
+  const std::filesystem::path reference_directory =
+      fixture.working_directory / "reference-inputs-operation-1";
+  EXPECT_TRUE(std::filesystem::exists(reference_directory));
 
   const absl::Status status = PollToCompletion(request).status();
 
   EXPECT_EQ(status.code(), absl::StatusCode::kUnauthenticated);
   EXPECT_EQ(FindSent(*fixture.transport, "thread/start"), nullptr);
+  EXPECT_FALSE(std::filesystem::exists(reference_directory));
 }
 
 TEST(CodexImageClientTest, ReportsImageGenerationUsageLimits) {
   ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kUsageLimit));
-  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(SpecFor()));
+  ImageGenerationSpec spec = SpecFor();
+  spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(std::move(spec)));
+  const std::filesystem::path reference_directory =
+      fixture.working_directory / "reference-inputs-operation-1";
 
   const absl::Status status = PollToCompletion(request).status();
 
   EXPECT_EQ(status.code(), absl::StatusCode::kResourceExhausted);
+  EXPECT_FALSE(std::filesystem::exists(reference_directory));
+}
+
+TEST(CodexImageClientTest, RemovesReferenceDirectoryAfterTimeout) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kPending, "chatgpt",
+                                                   /*request_timeout=*/absl::Nanoseconds(1)));
+  ImageGenerationSpec spec = SpecFor();
+  spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(std::move(spec)));
+  const std::filesystem::path reference_directory =
+      fixture.working_directory / "reference-inputs-operation-1";
+  EXPECT_TRUE(std::filesystem::exists(reference_directory));
+
+  const absl::Status status = PollToCompletion(request).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kDeadlineExceeded);
+  EXPECT_FALSE(std::filesystem::exists(reference_directory));
 }
 
 TEST(CodexImageClientTest, RejectsImagesOutsideTheTrustedOutputDirectories) {
@@ -299,6 +513,31 @@ TEST(CodexImageClientTest, RejectsImagesOutsideTheTrustedOutputDirectories) {
 
   EXPECT_EQ(status.code(), absl::StatusCode::kPermissionDenied);
   std::filesystem::remove(escaped);
+}
+
+TEST(CodexImageClientTest, RejectsOutputAliasingAnotherLiveOperationsReference) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kCrossOperationReferenceAlias));
+  ImageGenerationSpec victim_spec = SpecFor("reference owner");
+  victim_spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest victim,
+                       fixture.client->Start(std::move(victim_spec)));
+  for (int attempt = 0; attempt < 10 && FindSent(*fixture.transport, "turn/start") == nullptr;
+       ++attempt) {
+    ASSERT_OK(victim.Poll().status());
+  }
+  const nlohmann::json* victim_turn = FindSent(*fixture.transport, "turn/start");
+  ASSERT_NE(victim_turn, nullptr);
+  const std::vector<std::filesystem::path> reference_paths = LocalImagePaths(*victim_turn);
+  ASSERT_EQ(reference_paths.size(), 1);
+  ASSERT_TRUE(std::filesystem::exists(reference_paths[0]));
+
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest attacker,
+                       fixture.client->Start(SpecFor("aliasing output")));
+  const absl::Status status = PollToCompletion(attacker).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kPermissionDenied);
+  EXPECT_TRUE(std::filesystem::exists(reference_paths[0]));
+  victim.Cancel();
 }
 
 TEST(CodexImageClientTest, ReadsButDoesNotDeleteImagesFromTheCodexManagedCache) {
@@ -319,11 +558,16 @@ TEST(CodexImageClientTest, ReadsButDoesNotDeleteImagesFromTheCodexManagedCache) 
 
 TEST(CodexImageClientTest, RefusesApprovalRequestsFromTheAppServer) {
   ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kApprovalRequest));
-  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(SpecFor()));
+  ImageGenerationSpec spec = SpecFor();
+  spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(std::move(spec)));
+  const std::filesystem::path reference_directory =
+      fixture.working_directory / "reference-inputs-operation-1";
 
   const absl::Status status = PollToCompletion(request).status();
 
   EXPECT_EQ(status.code(), absl::StatusCode::kPermissionDenied);
+  EXPECT_FALSE(std::filesystem::exists(reference_directory));
 }
 
 TEST(CodexImageClientTest, MultiplexesOperationsOverOneAppServerProcess) {
@@ -362,14 +606,89 @@ TEST(CodexImageClientTest, CancellationInterruptsAnActiveTurnWithoutStoppingTheS
   EXPECT_FALSE(fixture.transport->stopped());
 }
 
-TEST(CodexImageClientTest, CancellationBeforeAThreadImmediatelyReleasesTheOperation) {
-  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient());
-  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest cancelled,
-                       fixture.client->Start(SpecFor("cancelled boulder")));
+TEST(CodexImageClientTest, CancellationWhileStartingTurnPoisonsTheAmbiguousSession) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kDelayedTurnStart));
+  ImageGenerationSpec spec = SpecFor("cancelled while starting");
+  spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest cancelled, fixture.client->Start(std::move(spec)));
+  for (int attempt = 0; attempt < 10 && FindSent(*fixture.transport, "turn/start") == nullptr;
+       ++attempt) {
+    ASSERT_OK(cancelled.Poll().status());
+  }
+  ASSERT_NE(FindSent(*fixture.transport, "turn/start"), nullptr);
+  const std::filesystem::path reference_directory =
+      fixture.working_directory / "reference-inputs-operation-1";
+  ASSERT_TRUE(std::filesystem::exists(reference_directory));
+  ImageGenerationSpec sibling_spec = SpecFor("affected sibling");
+  sibling_spec.references = {Reference(ImageGenerationReferenceRole::kPose, 30, 180)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest sibling,
+                       fixture.client->Start(std::move(sibling_spec)));
+  const std::filesystem::path sibling_reference_directory =
+      fixture.working_directory / "reference-inputs-operation-2";
+  ASSERT_TRUE(std::filesystem::exists(sibling_reference_directory));
 
   cancelled.Cancel();
 
   EXPECT_FALSE(cancelled.active());
+  EXPECT_FALSE(std::filesystem::exists(reference_directory));
+  EXPECT_FALSE(std::filesystem::exists(sibling_reference_directory));
+  EXPECT_EQ(FindSent(*fixture.transport, "turn/interrupt"), nullptr);
+  EXPECT_TRUE(fixture.transport->stopped());
+  EXPECT_EQ(sibling.Poll().status().code(), absl::StatusCode::kCancelled);
+  EXPECT_EQ(fixture.client->Start(SpecFor("later request")).status().code(),
+            absl::StatusCode::kCancelled);
+}
+
+TEST(CodexImageClientTest, TimeoutWhileStartingTurnPoisonsTheAmbiguousSession) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient(FakeCompletion::kDelayedTurnStart, "chatgpt",
+                                                   /*request_timeout=*/absl::Milliseconds(200)));
+  ImageGenerationSpec spec = SpecFor("timed out while starting");
+  spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest request, fixture.client->Start(std::move(spec)));
+  for (int attempt = 0; attempt < 10 && FindSent(*fixture.transport, "turn/start") == nullptr;
+       ++attempt) {
+    ASSERT_OK(request.Poll().status());
+  }
+  ASSERT_NE(FindSent(*fixture.transport, "turn/start"), nullptr);
+  const std::filesystem::path reference_directory =
+      fixture.working_directory / "reference-inputs-operation-1";
+  ASSERT_TRUE(std::filesystem::exists(reference_directory));
+  ImageGenerationSpec sibling_spec = SpecFor("affected sibling");
+  sibling_spec.references = {Reference(ImageGenerationReferenceRole::kPose, 30, 180)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest sibling,
+                       fixture.client->Start(std::move(sibling_spec)));
+  const std::filesystem::path sibling_reference_directory =
+      fixture.working_directory / "reference-inputs-operation-2";
+  ASSERT_TRUE(std::filesystem::exists(sibling_reference_directory));
+
+  absl::SleepFor(absl::Milliseconds(250));
+  const absl::Status status = request.Poll().status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kDeadlineExceeded);
+  EXPECT_FALSE(request.active());
+  EXPECT_EQ(FindSent(*fixture.transport, "turn/interrupt"), nullptr);
+  EXPECT_FALSE(std::filesystem::exists(reference_directory));
+  EXPECT_FALSE(std::filesystem::exists(sibling_reference_directory));
+  EXPECT_TRUE(fixture.transport->stopped());
+  EXPECT_EQ(sibling.Poll().status().code(), absl::StatusCode::kDeadlineExceeded);
+  EXPECT_EQ(fixture.client->Start(SpecFor("later request")).status().code(),
+            absl::StatusCode::kDeadlineExceeded);
+}
+
+TEST(CodexImageClientTest, CancellationBeforeAThreadImmediatelyReleasesTheOperation) {
+  ASSERT_OK_AND_ASSIGN(Fixture fixture, MakeClient());
+  ImageGenerationSpec cancelled_spec = SpecFor("cancelled boulder");
+  cancelled_spec.references = {Reference(ImageGenerationReferenceRole::kPose, 20, 190)};
+  ASSERT_OK_AND_ASSIGN(ImageGenerationRequest cancelled,
+                       fixture.client->Start(std::move(cancelled_spec)));
+  const std::filesystem::path reference_directory =
+      fixture.working_directory / "reference-inputs-operation-1";
+  EXPECT_TRUE(std::filesystem::exists(reference_directory));
+
+  cancelled.Cancel();
+
+  EXPECT_FALSE(cancelled.active());
+  EXPECT_FALSE(std::filesystem::exists(reference_directory));
   EXPECT_EQ(FindSent(*fixture.transport, "thread/start"), nullptr);
   ASSERT_OK_AND_ASSIGN(ImageGenerationRequest active,
                        fixture.client->Start(SpecFor("retained boulder")));

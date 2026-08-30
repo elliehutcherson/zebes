@@ -62,6 +62,23 @@ absl::StatusOr<CodexAccountRead> ParseAccount(const nlohmann::json& result) {
   return CodexAccountRead{.type = type};
 }
 
+absl::StatusOr<CodexModelsListed> ParseModels(const nlohmann::json& result) {
+  if (!result.contains("data") || !result.at("data").is_array()) {
+    return absl::DataLossError("Codex model response has no data array");
+  }
+  CodexModelsListed listed;
+  for (const nlohmann::json& entry : result.at("data")) {
+    if (!entry.is_object()) return absl::DataLossError("Codex model is not an object");
+    ASSIGN_OR_RETURN(std::string model, RequiredString(entry, "model", "Codex model"));
+    listed.models.push_back(std::move(model));
+  }
+  if (result.contains("nextCursor") && !result.at("nextCursor").is_null()) {
+    ASSIGN_OR_RETURN(listed.next_cursor,
+                     RequiredString(result, "nextCursor", "Codex model response"));
+  }
+  return listed;
+}
+
 absl::StatusOr<CodexSkillsListed> ParseSkills(const nlohmann::json& result) {
   if (!result.contains("data") || !result.at("data").is_array()) {
     return absl::DataLossError("Codex skills response has no data array");
@@ -131,12 +148,27 @@ absl::StatusOr<CodexProtocolEvent> ParseTurnCompleted(const nlohmann::json& para
   if (!params.is_object() || !params.contains("turn") || !params.at("turn").is_object()) {
     return absl::DataLossError("Codex turn completion has no turn");
   }
-  ASSIGN_OR_RETURN(const std::string turn_id,
-                   RequiredString(params.at("turn"), "id", "Codex turn"));
-  ASSIGN_OR_RETURN(const std::string status,
-                   RequiredString(params.at("turn"), "status", "Codex turn"));
+  const nlohmann::json& turn = params.at("turn");
+  ASSIGN_OR_RETURN(const std::string turn_id, RequiredString(turn, "id", "Codex turn"));
+  ASSIGN_OR_RETURN(const std::string status, RequiredString(turn, "status", "Codex turn"));
   if (status == "completed") return CodexTurnSucceeded{.turn_id = turn_id};
-  return CodexTurnFailed{.turn_id = turn_id, .status = status};
+
+  std::optional<std::string> detail;
+  if (turn.contains("error") && !turn.at("error").is_null()) {
+    const nlohmann::json& error = turn.at("error");
+    if (!error.is_object()) {
+      return absl::DataLossError("Codex turn error is not an object");
+    }
+    ASSIGN_OR_RETURN(detail, RequiredString(error, "message", "Codex turn error"));
+    if (error.contains("additionalDetails") && !error.at("additionalDetails").is_null()) {
+      if (!error.at("additionalDetails").is_string()) {
+        return absl::DataLossError("Codex turn error has non-string additionalDetails");
+      }
+      const std::string additional = error.at("additionalDetails").get<std::string>();
+      if (!additional.empty()) detail = absl::StrCat(*detail, ": ", additional);
+    }
+  }
+  return CodexTurnFailed{.turn_id = turn_id, .status = status, .detail = std::move(detail)};
 }
 
 }  // namespace
@@ -178,6 +210,15 @@ absl::StatusOr<std::string> CodexAppServerProtocol::ReadAccount() {
                               R"({"refreshToken":false})");
 }
 
+absl::StatusOr<std::string> CodexAppServerProtocol::ListModels(
+    const std::optional<std::string>& cursor) {
+  return TranslateJson("could not encode Codex model request", [&] {
+    nlohmann::json params{{"includeHidden", true}, {"limit", 100}};
+    if (cursor.has_value()) params["cursor"] = *cursor;
+    return EncodeSessionRequest(CodexRequestKind::kListModels, "model/list", params.dump());
+  });
+}
+
 absl::StatusOr<std::string> CodexAppServerProtocol::ListSkills(const std::filesystem::path& cwd) {
   return TranslateJson("could not encode Codex skills request", [&] {
     return EncodeSessionRequest(
@@ -188,7 +229,7 @@ absl::StatusOr<std::string> CodexAppServerProtocol::ListSkills(const std::filesy
 }
 
 absl::StatusOr<std::string> CodexAppServerProtocol::StartThread(
-    uint64_t operation_id, const std::filesystem::path& cwd,
+    uint64_t operation_id, const std::filesystem::path& cwd, std::string_view model,
     const std::optional<std::string>& generation_instructions) {
   return TranslateJson("could not encode Codex thread request", [&] {
     std::string developer_instructions =
@@ -203,6 +244,8 @@ absl::StatusOr<std::string> CodexAppServerProtocol::StartThread(
                                 {"ephemeral", true},
                                 {"approvalPolicy", "never"},
                                 {"sandbox", "workspace-write"},
+                                {"model", model},
+                                {"allowProviderModelFallback", false},
                                 {"developerInstructions", developer_instructions}};
     return EncodeOperationRequest(CodexRequestKind::kStartThread, operation_id, "thread/start",
                                   params.dump());
@@ -211,11 +254,15 @@ absl::StatusOr<std::string> CodexAppServerProtocol::StartThread(
 
 absl::StatusOr<std::string> CodexAppServerProtocol::StartTurn(
     uint64_t operation_id, std::string_view thread_id, std::string_view prompt,
-    const std::filesystem::path& skill_path) {
+    const std::filesystem::path& skill_path,
+    const std::vector<std::filesystem::path>& local_images) {
   return TranslateJson("could not encode Codex turn request", [&] {
-    const nlohmann::json input = nlohmann::json::array(
-        {{{"type", "text"}, {"text", prompt}},
-         {{"type", "skill"}, {"name", "imagegen"}, {"path", skill_path.string()}}});
+    nlohmann::json input = nlohmann::json::array();
+    for (const std::filesystem::path& local_image : local_images) {
+      input.push_back({{"type", "localImage"}, {"path", local_image.string()}});
+    }
+    input.push_back({{"type", "text"}, {"text", prompt}});
+    input.push_back({{"type", "skill"}, {"name", "imagegen"}, {"path", skill_path.string()}});
     return EncodeOperationRequest(CodexRequestKind::kStartTurn, operation_id, "turn/start",
                                   nlohmann::json{{"threadId", thread_id}, {"input", input}}.dump());
   });
@@ -272,6 +319,10 @@ absl::StatusOr<CodexProtocolEvent> CodexAppServerProtocol::Parse(std::string_vie
             case CodexRequestKind::kReadAccount: {
               ASSIGN_OR_RETURN(CodexAccountRead account, ParseAccount(result));
               return account;
+            }
+            case CodexRequestKind::kListModels: {
+              ASSIGN_OR_RETURN(CodexModelsListed models, ParseModels(result));
+              return models;
             }
             case CodexRequestKind::kListSkills: {
               ASSIGN_OR_RETURN(CodexSkillsListed skills, ParseSkills(result));

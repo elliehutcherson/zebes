@@ -25,6 +25,8 @@ struct OpenAiImageConfig {
   std::string quality = "high";
 
   int64_t maximum_candidate_pixels = 4096 * 4096;
+  int maximum_reference_images = 16;
+  int64_t maximum_reference_pixels = 16 * 1024 * 1024;
 };
 
 // Adapter for OpenAI's image generations endpoint.

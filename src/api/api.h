@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
 
 #include "absl/status/statusor.h"
@@ -162,6 +163,8 @@ class Api {
   virtual std::vector<SourceArtwork> GetAllSourceArtwork() const;
   virtual absl::StatusOr<RgbaImage> ReadSourceArtworkPixels(
       const std::string& source_artwork_id) const;
+  virtual absl::StatusOr<RgbaImage> ReadSourceArtworkPixels(const std::string& source_artwork_id,
+                                                            size_t maximum_pixels) const;
   virtual absl::Status DeleteSourceArtwork(const std::string& source_artwork_id);
 
   // Prop recipes are exposed for creation, regeneration edits, and lookup.
