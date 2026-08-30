@@ -56,6 +56,8 @@ focused `test.sh --ui` form for SDL or ImGui work. `build_and_test.sh
 --ui-tests` narrows the suite to the UI-labeled tests and skips everything
 else; `build_and_test.sh --all-tests-with-ui` is the only local command that
 matches the GitHub Actions merge gate.
+Use `scripts/build_and_test.sh --quiet` for automated full gates so successful
+per-executable output does not consume conversation context.
 
 Run `clang-format -i` on edited C++ source and header files before linting.
 Pass all edited translation units to one
@@ -74,12 +76,25 @@ deliberately uses only two workers by default to limit heat and contention.
 - Do not manually construct texture handles or retain them beyond their owning
   resource store's lifetime.
 
+## Context discipline
+
+- Read `docs/handoff.md` first, then only the relevant roadmap, architecture,
+  or active-plan section. Do not ingest complete design documents when targeted
+  headings or ranges answer the task.
+- `docs/history/` is non-normative. Open it only for explicit archaeology.
+- Move completed plans to history; active documents contain current contracts,
+  remaining work, and links to evidence rather than implementation chronology.
+- Start a new conversation after a major commit, accepted/rejected gate, or
+  workstream change.
+
 ## Project references
 
 - `docs/style-guide.md` is the style source of truth. `.claude/rules/` is
   generated from it by `scripts/sync_rules.py`; never edit generated rules.
-- `docs/architecture.md` records cross-layer ownership and lifetime boundaries.
-- `docs/roadmap.md` records remaining work and settled decisions.
+- Relevant sections of `docs/architecture.md` record cross-layer ownership and
+  lifetime boundaries.
+- `docs/roadmap.md` records only remaining work, dependencies, and settled
+  sequencing decisions.
 
 Agreement is not the goal. Sound engineering judgment and a maintainable Zebes
 codebase are the goal. Ask for clarification only when the choice materially

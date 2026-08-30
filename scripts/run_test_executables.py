@@ -209,7 +209,7 @@ def load_ctest_manifest(build_dir: Path, label: str | None) -> dict:
     return document
 
 
-def run_executables(executables: list[TestExecutable]) -> int:
+def run_executables(executables: list[TestExecutable], *, quiet: bool = False) -> int:
     failures: list[str] = []
     for executable in executables:
         if not executable.path.is_file():
@@ -228,7 +228,8 @@ def run_executables(executables: list[TestExecutable]) -> int:
         )
         label = executable.path.name
         if completed.returncode == 0:
-            print(f"PASS {label} ({len(executable.test_names)} registered tests)")
+            if not quiet:
+                print(f"PASS {label} ({len(executable.test_names)} registered tests)")
             continue
 
         failures.append(label)
@@ -253,11 +254,16 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--label", help="Run only tests carrying this CTest label")
+    parser.add_argument(
+        "--quiet", action="store_true", help="Print failures and the final summary only"
+    )
     args = parser.parse_args(argv)
 
     try:
         document = load_ctest_manifest(args.build_dir.resolve(), args.label)
-        return run_executables(group_test_executables(document))
+        return run_executables(
+            group_test_executables(document), quiet=args.quiet
+        )
     except TestRunnerError as error:
         print(f"run_test_executables.py: {error}", file=sys.stderr)
         return 2

@@ -13,7 +13,7 @@ independent generation and redraw tenants; it does not make generated animation
 an accepted or planned source path.
 
 This document records an experiment started after the coherent-sheet generation
-gate in [the animation artwork pipeline](animation-artwork-pipeline.md) failed
+gate in [the animation artwork pipeline](../animation-artwork-pipeline.md) failed
 live playback. It does not revise that result. The tested hypothesis was that
 one generated image per pose, conditioned by character-identity and pose
 references, could improve pose obedience enough to form a readable run cycle

@@ -139,6 +139,19 @@ class RunTestExecutablesTest(unittest.TestCase):
         self.assertIn("FAIL first_test (exit 7)", error.getvalue())
         self.assertIn("details from first_test", error.getvalue())
 
+    def test_quiet_mode_prints_only_final_success_summary(self):
+        executable = self.write_executable("quiet_test")
+        grouped = run_test_executables.group_test_executables(
+            {"tests": [self.case("Quiet.One", executable)]}
+        )
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            status = run_test_executables.run_executables(grouped, quiet=True)
+
+        self.assertEqual(status, 0)
+        self.assertEqual(output.getvalue(), "Passed 1 test executables.\n")
+
     def test_refuses_custom_test_arguments_instead_of_silently_dropping_them(self):
         executable = self.write_executable("custom_test")
         document = {

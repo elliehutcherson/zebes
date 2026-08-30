@@ -1,7 +1,7 @@
 # Closing the headless loop
 
 Implementation plan for completing the headless asset pipeline. Extends
-[`headless-curation.md`](headless-curation.md); it does not supersede anything.
+[`headless-curation.md`](../headless-curation.md); it does not supersede anything.
 
 The headless curation architecture is settled and correct: `AssetWorkspace`
 (`src/api/asset_workspace.h`) is the same composition root the editor uses,

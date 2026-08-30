@@ -4,7 +4,7 @@
 review, composed-Near follow-up, import-first managed cave-plate workflow, and
 live generated-background workflow are complete. Current implementation
 sequence, next steps, and carried debt live in
-[`environment-artwork-plan.md`](environment-artwork-plan.md).
+[`environment-artwork-plan.md`](../environment-artwork-plan.md).
 The three textures were imported, theme composition was assembled, and X/Y
 repeat rendering remained filled and stable while scrubbing. Repetition was
 accepted for low-salience Far Fill and Far Formations but rejected as the
@@ -14,10 +14,10 @@ zero-area level was repaired and a zone was selected. The editor now exposes
 setup readiness and transactional theme assignment directly, with permanent
 field labels and an always-visible Level Contents hierarchy. The prepared
 inputs live under
-[`notes/cave-parallax-gate-inputs/`](../notes/cave-parallax-gate-inputs/).
+[`notes/cave-parallax-gate-inputs/`](../../notes/cave-parallax-gate-inputs/).
 
 This is the accepted review record for Milestone 1 of
-[`environment-artwork-plan.md`](environment-artwork-plan.md). It proves the
+[`environment-artwork-plan.md`](../environment-artwork-plan.md). It proves the
 imported workflow and supplies evidence for the processing defaults proposed in
 Milestone 2.
 
@@ -50,9 +50,9 @@ that were not persisted are called out rather than reconstructed.
 
 | Plane | Source PNG | Texture ID | Native size | Repeat X/Y | Scale | Offset | Edge observations | Worst coverage margins |
 |---|---|---|---|---|---:|---|---|---|
-| Far Fill | [`cave-far-fill.png`](../notes/cave-parallax-gate-inputs/cave-far-fill.png) | `2fd319f2-f8ac-487f-9a28-a8c987c148a8` | 960×540 | X/Y | 1.0 | 0, 0 | Filled and visually acceptable while scrubbing; repetition is low-salience | None on repeated axes |
-| Far Formations | [`cave-far-formations.png`](../notes/cave-parallax-gate-inputs/cave-far-formations.png) | `88f60ea9-c1aa-4688-9943-687bb0b45879` | 960×540 | X/Y | 1.0 | 0, 0 | Filled and acceptable while scrubbing; may later use a longer composed repeat cell | None on repeated axes |
-| Near Background | [`cave-near-background.png`](../notes/cave-parallax-gate-inputs/cave-near-background.png) | `d034ba7c-4951-456c-98d9-6aefc3e00578` | 960×540 | X only | 1.0 | 0, 0 | Coverage remained filled, but the repeated landmark composition is apparent | No visible Y gap on the reviewed route; numeric margin was not persisted |
+| Far Fill | [`cave-far-fill.png`](../../notes/cave-parallax-gate-inputs/cave-far-fill.png) | `2fd319f2-f8ac-487f-9a28-a8c987c148a8` | 960×540 | X/Y | 1.0 | 0, 0 | Filled and visually acceptable while scrubbing; repetition is low-salience | None on repeated axes |
+| Far Formations | [`cave-far-formations.png`](../../notes/cave-parallax-gate-inputs/cave-far-formations.png) | `88f60ea9-c1aa-4688-9943-687bb0b45879` | 960×540 | X/Y | 1.0 | 0, 0 | Filled and acceptable while scrubbing; may later use a longer composed repeat cell | None on repeated axes |
+| Near Background | [`cave-near-background.png`](../../notes/cave-parallax-gate-inputs/cave-near-background.png) | `d034ba7c-4951-456c-98d9-6aefc3e00578` | 960×540 | X only | 1.0 | 0, 0 | Coverage remained filled, but the repeated landmark composition is apparent | No visible Y gap on the reviewed route; numeric margin was not persisted |
 
 Also record:
 

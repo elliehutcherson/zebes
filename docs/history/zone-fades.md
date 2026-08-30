@@ -4,7 +4,7 @@
 automated suite and the live two-zone visual gate pass.**
 
 Implementation plan for the first two-theme parallax transition. Extends
-[`environment-artwork-plan.md`](environment-artwork-plan.md) section 9 and
+[`environment-artwork-plan.md`](../environment-artwork-plan.md) section 9 and
 Milestone 5; it does not change the persisted level format.
 
 The implementation started from a narrower point than the older roadmap text

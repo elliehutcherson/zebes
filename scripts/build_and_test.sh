@@ -7,6 +7,7 @@ TEST_FILTER=""
 PRESET="dev"
 BUILD_PRESET="dev-full"
 TEST_PRESET="dev"
+QUIET=false
 VENV_PYTHON="${PROJECT_ROOT}/build/tileset-venv/bin/python"
 
 while [[ $# -gt 0 ]]; do
@@ -36,6 +37,10 @@ while [[ $# -gt 0 ]]; do
       TEST_FILTER="${1#*=}"
       shift
       ;;
+    --quiet)
+      QUIET=true
+      shift
+      ;;
     *)
       echo "Unknown argument: $1" >&2
       exit 2
@@ -53,10 +58,18 @@ echo "[1/4] Checking generated rule files..."
 python3 "${PROJECT_ROOT}/scripts/sync_rules.py" --check --root "${PROJECT_ROOT}"
 
 echo "[2/4] Configuring CMake..."
-cmake --preset "${PRESET}" -S "${PROJECT_ROOT}"
+if [ "${QUIET}" = true ]; then
+    cmake --preset "${PRESET}" -S "${PROJECT_ROOT}" --log-level=WARNING
+else
+    cmake --preset "${PRESET}" -S "${PROJECT_ROOT}"
+fi
 
 echo "[3/4] Building..."
-cmake --build --preset "${BUILD_PRESET}"
+if [ "${QUIET}" = true ]; then
+    cmake --build --preset "${BUILD_PRESET}" -- --quiet
+else
+    cmake --build --preset "${BUILD_PRESET}"
+fi
 
 # 3. Test
 if [ "$RUN_TESTS" = true ]; then
@@ -67,6 +80,9 @@ if [ "$RUN_TESTS" = true ]; then
         TEST_RUNNER_ARGS=(--build-dir "${PROJECT_ROOT}/build/${PRESET}")
         if [ "${TEST_PRESET}" = "ui" ]; then
             TEST_RUNNER_ARGS+=(--label ui)
+        fi
+        if [ "${QUIET}" = true ]; then
+            TEST_RUNNER_ARGS+=(--quiet)
         fi
         python3 "${PROJECT_ROOT}/scripts/run_test_executables.py" \
             "${TEST_RUNNER_ARGS[@]}"
@@ -82,9 +98,15 @@ if [ "$RUN_TESTS" = true ]; then
     fi
 
     echo "Running Python tool tests..."
-    "${VENV_PYTHON}" -m unittest discover \
-        --start-directory "${PROJECT_ROOT}/tests" \
+    PYTHON_TEST_ARGS=(
+        -m unittest discover
+        --start-directory "${PROJECT_ROOT}/tests"
         --pattern '*_test.py'
+    )
+    if [ "${QUIET}" = true ]; then
+        PYTHON_TEST_ARGS+=(-q)
+    fi
+    "${VENV_PYTHON}" "${PYTHON_TEST_ARGS[@]}"
 else
     echo "[4/4] Skipping Tests (--no-tests flag provided)"
 fi

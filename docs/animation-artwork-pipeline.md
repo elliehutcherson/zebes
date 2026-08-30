@@ -338,7 +338,7 @@ sheets as the production path, do not add provider-specific animation transport
 to this locked run, and do not spend further requests on it.
 
 The separately budgeted
-[pose-conditioned experiment](animation-pose-conditioned-experiment-plan.md)
+[pose-conditioned experiment](history/animation-pose-conditioned-experiment.md)
 also failed. One composite identity board and three separated identity views
 both produced dimensionally different characters, and the opposing guides did
 not produce unambiguous pose phases. That complete experiment is deprecated.
