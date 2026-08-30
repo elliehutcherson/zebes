@@ -99,6 +99,8 @@ struct SceneParallaxRenderOptions {
   std::optional<int> element_id;
 };
 
+using TextureHandleLookup = absl::flat_hash_map<std::string, TextureHandle>;
+
 struct SceneEntityRenderOptions {
   // Borrowed runtime state keyed by authored entity ID. A missing map or ID
   // leaves the authored transform authoritative.
@@ -135,8 +137,7 @@ absl::StatusOr<SceneTileRenderItem> ComposeSceneTileRenderItem(
 
 // Binds theme layers to managed textures without exposing native resources.
 absl::StatusOr<SceneParallaxRenderBatch> ComposeSceneParallaxRenderBatch(
-    const ParallaxTheme& theme, const Camera& camera,
-    const std::map<std::string, TextureHandle>& textures,
+    const ParallaxTheme& theme, const Camera& camera, const TextureHandleLookup& textures,
     const SceneParallaxRenderOptions& options = {});
 
 }  // namespace zebes

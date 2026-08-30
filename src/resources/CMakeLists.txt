@@ -39,6 +39,7 @@ target_link_libraries(blueprint_manager common)
 target_link_libraries(blueprint_manager absl::status)
 target_link_libraries(blueprint_manager absl::statusor)
 target_link_libraries(blueprint_manager absl::flat_hash_map)
+target_link_libraries(blueprint_manager absl::flat_hash_set)
 target_link_libraries(blueprint_manager blueprint)
 target_link_libraries(blueprint_manager resource_utils)
 
@@ -158,12 +159,14 @@ target_link_libraries(asset_references
 add_library(loaded_level_assets INTERFACE loaded_level_assets.h)
 target_link_libraries(loaded_level_assets
   INTERFACE
+  blueprint
   collider
   level
   parallax_theme
   sprite
   texture_handle
   tileset
+  absl::flat_hash_map
 )
 
 add_library(level_asset_loader level_asset_loader.cc)
@@ -180,6 +183,7 @@ target_link_libraries(level_asset_loader
   absl::statusor
   PRIVATE
   status_macros
+  absl::flat_hash_set
   absl::status
   absl::strings
 )

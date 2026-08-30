@@ -748,7 +748,7 @@ absl::Status ParallaxThemeEditor::RenderViewport(ParallaxTheme& draft,
   }
 
   const ParallaxPreviewTheme preview = BuildParallaxPreviewTheme(draft);
-  std::map<std::string, TextureHandle> handles;
+  TextureHandleLookup handles;
   for (const ParallaxLayer& layer : preview.theme.layers) {
     for (const ParallaxElement& element : layer.elements) {
       if (handles.contains(element.texture_id)) continue;

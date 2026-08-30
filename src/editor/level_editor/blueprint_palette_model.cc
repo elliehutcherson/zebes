@@ -1,9 +1,9 @@
 #include "editor/level_editor/blueprint_palette_model.h"
 
 #include <algorithm>
-#include <set>
 #include <utility>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
@@ -14,7 +14,7 @@ namespace zebes {
 absl::Status BlueprintPaletteModel::SetBlueprints(std::span<const Blueprint> blueprints) {
   std::vector<BlueprintPaletteEntry> entries;
   entries.reserve(blueprints.size());
-  std::set<std::string> ids;
+  absl::flat_hash_set<std::string> ids;
   for (const Blueprint& blueprint : blueprints) {
     if (blueprint.id.empty()) {
       return absl::InvalidArgumentError("blueprint palette entry has an empty ID");

@@ -1,8 +1,9 @@
 #pragma once
 
-#include <map>
+#include <memory>
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
 #include "engine/texture_handle.h"
 #include "objects/blueprint.h"
 #include "objects/collider.h"
@@ -19,18 +20,20 @@ namespace zebes {
 struct LoadedLevelContent {
   Level level;
   Tileset tileset;
-  std::map<std::string, Blueprint> blueprints;
-  std::map<std::string, Sprite> sprites;
-  std::map<std::string, Collider> colliders;
-  std::map<std::string, ParallaxTheme> parallax_themes;
+  // Blueprint bindings retain definition pointers after boot. Heap ownership
+  // keeps those pointers stable if the hash table moves its entries.
+  absl::flat_hash_map<std::string, std::unique_ptr<Blueprint>> blueprints;
+  absl::flat_hash_map<std::string, Sprite> sprites;
+  absl::flat_hash_map<std::string, Collider> colliders;
+  absl::flat_hash_map<std::string, ParallaxTheme> parallax_themes;
 };
 
 // Runtime texture bindings for LoadedLevelContent. Handles remain valid only
 // while the TextureResourceStore behind the supplying TextureManager is alive.
 struct LevelRenderResources {
   TextureHandle tileset_atlas;
-  std::map<std::string, TextureHandle> sprite_textures;
-  std::map<std::string, TextureHandle> parallax_textures;
+  absl::flat_hash_map<std::string, TextureHandle> sprite_textures;
+  absl::flat_hash_map<std::string, TextureHandle> parallax_textures;
 };
 
 // One atomically resolved level graph. Keeping definitions and bindings beside

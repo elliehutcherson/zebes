@@ -6,11 +6,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <set>
 #include <string>
 #include <utility>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/log/absl_check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -62,10 +62,16 @@ absl::Status ValidateOccupiedTileIds(const Level& level, const TileCollisionLook
   return absl::OkStatus();
 }
 
-absl::Status ValidateBlueprintStateKeys(const std::map<std::string, Blueprint>& blueprints) {
+absl::Status ValidateBlueprintStateKeys(
+    const absl::flat_hash_map<std::string, std::unique_ptr<Blueprint>>& blueprints) {
   for (const auto& [blueprint_id, blueprint] : blueprints) {
-    std::set<std::string> state_keys;
-    for (const Blueprint::State& state : blueprint.states) {
+    if (blueprint == nullptr) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("Runtime blueprint ", blueprint_id, " resolved to null"));
+    }
+
+    absl::flat_hash_set<std::string> state_keys;
+    for (const Blueprint::State& state : blueprint->states) {
       if (!IsValidBlueprintStateKey(state.key)) {
         return absl::FailedPreconditionError(absl::StrCat(
             "Runtime blueprint ", blueprint_id, " has invalid state key '", state.key, "'"));
@@ -80,26 +86,28 @@ absl::Status ValidateBlueprintStateKeys(const std::map<std::string, Blueprint>& 
 }
 
 absl::StatusOr<const Blueprint::State*> ResolveEntityBlueprintState(
-    const Entity& entity, const std::map<std::string, Blueprint>& blueprints) {
+    const Entity& entity,
+    const absl::flat_hash_map<std::string, std::unique_ptr<Blueprint>>& blueprints) {
   if (entity.blueprint_id.empty()) return nullptr;
   const auto blueprint = blueprints.find(entity.blueprint_id);
-  if (blueprint == blueprints.end()) {
+  if (blueprint == blueprints.end() || blueprint->second == nullptr) {
     return absl::FailedPreconditionError(absl::StrCat("Runtime entity ", entity.id,
                                                       " references unavailable blueprint '",
                                                       entity.blueprint_id, "'"));
   }
-  const std::optional<int> state_index = blueprint->second.state_index(entity.blueprint_state_key);
+  const std::optional<int> state_index = blueprint->second->state_index(entity.blueprint_state_key);
   if (!state_index.has_value()) {
     return absl::FailedPreconditionError(absl::StrCat("Runtime entity ", entity.id,
                                                       " blueprint has no state key '",
                                                       entity.blueprint_state_key, "'"));
   }
-  return &blueprint->second.states[*state_index];
+  return &blueprint->second->states[*state_index];
 }
 
-absl::Status ValidateEntityPresentation(const Entity& entity,
-                                        const std::map<std::string, Blueprint>& blueprints,
-                                        const std::map<std::string, Sprite>& sprites) {
+absl::Status ValidateEntityPresentation(
+    const Entity& entity,
+    const absl::flat_hash_map<std::string, std::unique_ptr<Blueprint>>& blueprints,
+    const absl::flat_hash_map<std::string, Sprite>& sprites) {
   ASSIGN_OR_RETURN(const Blueprint::State* state, ResolveEntityBlueprintState(entity, blueprints));
   if (state != nullptr &&
       (state->sprite_id != entity.sprite_id || state->collider_id != entity.collider_id)) {
@@ -241,13 +249,17 @@ absl::StatusOr<std::unique_ptr<RuntimeWorld>> RuntimeWorld::Create(
         if (blueprint == content.blueprints.end()) {
           return absl::InternalError("Validated runtime blueprint binding disappeared");
         }
+        if (blueprint->second == nullptr) {
+          return absl::InternalError("Validated runtime blueprint binding resolved to null");
+        }
         const std::optional<int> state_index =
-            blueprint->second.state_index(entity.blueprint_state_key);
+            blueprint->second->state_index(entity.blueprint_state_key);
         if (!state_index.has_value()) {
           return absl::InternalError("Validated runtime blueprint state disappeared");
         }
-        blueprint_bindings.emplace(entity_id, BlueprintBinding{.definition = &blueprint->second,
-                                                               .state_index = *state_index});
+        blueprint_bindings.emplace(
+            entity_id,
+            BlueprintBinding{.definition = blueprint->second.get(), .state_index = *state_index});
       }
 
       sprite_ids.emplace(entity_id, entity.sprite_id);
@@ -474,7 +486,7 @@ absl::Status RuntimeWorld::StepPlayer(const InputSnapshot& input, double delta_s
   return absl::OkStatus();
 }
 
-absl::StatusOr<RuntimeWorld::ResolvedBlueprintState> RuntimeWorld::ResolveEntityBlueprintState(
+absl::StatusOr<ResolvedBlueprintState> RuntimeWorld::ResolveEntityBlueprintState(
     uint64_t entity_id, std::string_view state_key) const {
   if (!transforms_.contains(entity_id)) {
     return absl::NotFoundError(

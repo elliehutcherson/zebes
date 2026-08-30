@@ -13,6 +13,7 @@ target_link_libraries(environment_builder
   entity_factory
   terrain_brush
   status_macros
+  absl::flat_hash_set
   absl::strings
   nlohmann_json::nlohmann_json
 )

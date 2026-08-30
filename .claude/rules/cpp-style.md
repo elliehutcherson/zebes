@@ -17,13 +17,22 @@ no tool checks is that CMake targets and source file names are `snake_case`.
 - References for required dependencies. Pointers only for nullable or
   reseatable ones. Never null-check a reference.
 - Express ownership with RAII types such as `std::unique_ptr`.
+- Keep reusable and public types at namespace scope. Nest implementation types
+  only when they are private to the owning class. Public nested `Options`
+  structs are allowed for the `Create` factory pattern and to avoid namespace
+  collisions.
 - Prefer Zebes-owned domain types at library boundaries. Do not expose SDL or
   ImGui types from engine or resource interfaces.
 
 ## Libraries
 
-Use `absl::Status`, `absl::StatusOr`, `absl::flat_hash_map`, `absl::StrFormat`
-over their STL equivalents.
+- Use `absl::Status`, `absl::StatusOr`, and `absl::StrFormat` over their STL
+  equivalents.
+- Use `absl::flat_hash_map` and `absl::flat_hash_set` unless an algorithm or
+  caller relies on sorted iteration or ordered range operations.
+- When hash-map values need stable addresses, store `std::unique_ptr<T>` values
+  in an `absl::flat_hash_map` instead of choosing an ordered container only for
+  pointer stability.
 
 ## Errors
 

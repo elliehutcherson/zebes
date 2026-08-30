@@ -6,12 +6,12 @@
 #include <fstream>
 #include <initializer_list>
 #include <optional>
-#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "api/api.h"
@@ -45,7 +45,7 @@ absl::Status RequireExactObject(const nlohmann::json& json, std::initializer_lis
   if (!json.is_object()) {
     return absl::InvalidArgumentError(absl::StrCat(context, " must be an object"));
   }
-  std::set<std::string> expected;
+  absl::flat_hash_set<std::string> expected;
   for (const char* key : keys) expected.emplace(key);
   for (const auto& [key, unused] : json.items()) {
     static_cast<void>(unused);
@@ -242,7 +242,7 @@ absl::Status ValidateSpec(const EnvironmentBuildSpec& spec) {
   if (spec.level.world_layers.empty() || spec.level.gameplay_layer.empty()) {
     return absl::InvalidArgumentError("environment level needs a gameplay world layer");
   }
-  std::set<std::string> layer_names;
+  absl::flat_hash_set<std::string> layer_names;
   for (const std::string& name : spec.level.world_layers) {
     if (name.empty() || !layer_names.insert(name).second) {
       return absl::InvalidArgumentError("environment world layer names must be unique and set");
@@ -251,7 +251,7 @@ absl::Status ValidateSpec(const EnvironmentBuildSpec& spec) {
   if (!layer_names.contains(spec.level.gameplay_layer)) {
     return absl::InvalidArgumentError("environment gameplay layer is not in world_layers");
   }
-  std::set<uint64_t> entity_ids;
+  absl::flat_hash_set<uint64_t> entity_ids;
   const double level_width = static_cast<double>(spec.level.columns) * spec.level.tile_render_width;
   const double level_height = static_cast<double>(spec.level.rows) * spec.level.tile_render_height;
   for (const EnvironmentEntitySpec& entity : spec.level.entities) {

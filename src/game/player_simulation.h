@@ -34,7 +34,7 @@ class PlayerSimulation final : public GameSimulation {
   RuntimeWorld& world() { return *world_; }
 
  private:
-  using AnimationStates = std::array<RuntimeWorld::ResolvedBlueprintState, 6>;
+  using AnimationStates = std::array<ResolvedBlueprintState, 6>;
 
   PlayerSimulation(Options options, AnimationStates animation_states);
 

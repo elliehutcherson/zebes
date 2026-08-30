@@ -47,6 +47,7 @@ target_link_libraries(runtime_world
   PRIVATE
   status_macros
   absl::check
+  absl::flat_hash_set
   absl::status
   absl::strings
 )

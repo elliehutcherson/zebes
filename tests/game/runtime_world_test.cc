@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "engine/input_types.h"
 #include "gtest/gtest.h"
 #include "macros.h"
@@ -78,17 +79,20 @@ void PutTile(WorldLayer& layer, int tile_x, int tile_y, int tile_id = 1) {
 }
 
 LoadedLevelContent WorldContent(Level level) {
-  const Blueprint player_blueprint{
+  Blueprint player_blueprint{
       .id = kPlayerBlueprintId,
       .name = "Player",
       .states = {{.key = "default", .name = "Default", .collider_id = kPlayerColliderId}},
   };
-  return {
+  LoadedLevelContent content{
       .level = std::move(level),
       .tileset = TestTileset(),
-      .blueprints = {{player_blueprint.id, player_blueprint}},
       .colliders = {{kPlayerColliderId, PlayerCollider()}},
   };
+  const std::string blueprint_id = player_blueprint.id;
+  content.blueprints.emplace(blueprint_id,
+                             std::make_unique<Blueprint>(std::move(player_blueprint)));
+  return content;
 }
 
 RuntimeWorld::Options WorldOptions() { return {.player_blueprint_id = kPlayerBlueprintId}; }
@@ -136,7 +140,7 @@ TEST(RuntimeWorldTest, AdvancesAnimationAndResetsPlaybackWhenBlueprintStateChang
   ASSERT_OK(level.AddEntity(0, player));
   const Level authored = level;
   LoadedLevelContent content = WorldContent(std::move(level));
-  content.blueprints.at(kPlayerBlueprintId).states = {
+  content.blueprints.at(kPlayerBlueprintId)->states = {
       {.key = "idle", .name = "Idle", .collider_id = kPlayerColliderId, .sprite_id = "idle"},
       {.key = "moving", .name = "Moving", .collider_id = kPlayerColliderId, .sprite_id = "moving"},
   };
@@ -158,7 +162,7 @@ TEST(RuntimeWorldTest, AdvancesAnimationAndResetsPlaybackWhenBlueprintStateChang
   world->AdvanceAnimations();
   EXPECT_EQ(world->frame_indices().at(7), 1);
 
-  ASSERT_OK_AND_ASSIGN(const RuntimeWorld::ResolvedBlueprintState moving,
+  ASSERT_OK_AND_ASSIGN(const ResolvedBlueprintState moving,
                        world->ResolveEntityBlueprintState(7, "moving"));
   ASSERT_OK(world->SetEntityBlueprintState(7, moving));
   EXPECT_EQ(*world->FindBlueprintStateIndex(7), 1);
@@ -178,10 +182,10 @@ TEST(RuntimeWorldTest, BlueprintStateSelectionValidatesBeforeMutation) {
   ASSERT_OK(level.AddEntity(0, PlayerEntity()));
   LoadedLevelContent content = WorldContent(std::move(level));
   content.blueprints.at(kPlayerBlueprintId)
-      .states.push_back({.key = "different-collider",
-                         .name = "Different Collider",
-                         .collider_id = "other",
-                         .sprite_id = "other"});
+      ->states.push_back({.key = "different-collider",
+                          .name = "Different Collider",
+                          .collider_id = "other",
+                          .sprite_id = "other"});
   content.sprites.emplace("other", Sprite{.id = "other", .frames = {{.frames_per_cycle = 1}}});
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<RuntimeWorld> world,
                        RuntimeWorld::Create(content, WorldOptions()));
@@ -200,15 +204,28 @@ TEST(RuntimeWorldTest, RejectsInvalidOrDuplicateBlueprintStateKeysAtBoot) {
   ASSERT_OK(level.AddEntity(0, PlayerEntity()));
 
   LoadedLevelContent invalid = WorldContent(level);
-  invalid.blueprints.at(kPlayerBlueprintId).states.front().key = "Invalid Key";
+  invalid.blueprints.at(kPlayerBlueprintId)->states.front().key = "Invalid Key";
   EXPECT_EQ(RuntimeWorld::Create(invalid, WorldOptions()).status().code(),
             absl::StatusCode::kFailedPrecondition);
 
   LoadedLevelContent duplicate = WorldContent(std::move(level));
   duplicate.blueprints.at(kPlayerBlueprintId)
-      .states.push_back({.key = "default", .name = "Duplicate", .collider_id = kPlayerColliderId});
+      ->states.push_back({.key = "default", .name = "Duplicate", .collider_id = kPlayerColliderId});
   EXPECT_EQ(RuntimeWorld::Create(duplicate, WorldOptions()).status().code(),
             absl::StatusCode::kFailedPrecondition);
+}
+
+TEST(RuntimeWorldTest, RejectsNullBlueprintDefinitionAtBoot) {
+  Level level = TestLevel();
+  ASSERT_OK(level.AddEntity(0, PlayerEntity()));
+  LoadedLevelContent content = WorldContent(std::move(level));
+  content.blueprints.at(kPlayerBlueprintId).reset();
+
+  const absl::Status status = RuntimeWorld::Create(content, WorldOptions()).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_EQ(status.message(),
+            absl::StrCat("Runtime blueprint ", kPlayerBlueprintId, " resolved to null"));
 }
 
 TEST(RuntimeWorldTest, ConsumesJumpEdgeOnceAcrossCatchUpTicks) {

@@ -283,7 +283,7 @@ TEST(ViewportSceneParallaxTest, BindsTexturesInAuthoredLayerAndElementOrder) {
           },
   };
   Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
-  std::map<std::string, TextureHandle> textures{
+  TextureHandleLookup textures{
       {"fog", fog},
       {"forest", forest},
   };
@@ -307,7 +307,7 @@ TEST(ViewportSceneParallaxTest, PreservesValidOpacityAndRejectsInvalidOpacity) {
       .layers = {ParallaxLayerWithTexture("Fill", "fill", {0.5, 0.5})},
   };
   const Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
-  const std::map<std::string, TextureHandle> textures{{"fill", texture}};
+  const TextureHandleLookup textures{{"fill", texture}};
 
   ASSERT_OK_AND_ASSIGN(const ParallaxRenderBatch batch,
                        ComposeParallaxRenderBatch(theme, camera, textures, {.opacity = 0.375}));
@@ -331,7 +331,7 @@ TEST(ViewportSceneParallaxTest, RejectsMissingTexturesAndInvalidGeometry) {
             absl::StatusCode::kFailedPrecondition);
 
   int texture_owner = 0;
-  std::map<std::string, TextureHandle> textures{
+  TextureHandleLookup textures{
       {"missing", TextureHandleAccess::Create(1, &texture_owner)},
   };
   theme.layers.front().elements.front().scale = 0.0f;
@@ -355,7 +355,7 @@ TEST(ViewportSceneParallaxTest, IsolatesSelectedLayerAndRejectsStaleIndex) {
           },
   };
   Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
-  std::map<std::string, TextureHandle> textures{{"back", back}, {"front", front}};
+  TextureHandleLookup textures{{"back", back}, {"front", front}};
 
   absl::StatusOr<ParallaxRenderBatch> batch =
       ComposeParallaxRenderBatch(theme, camera, textures, {.layer_index = 1});
@@ -376,7 +376,7 @@ TEST(ViewportSceneParallaxTest, IsolatesSelectedElementByStableId) {
   layer.elements.push_back({.id = 9, .name = "Second", .texture_id = "second"});
   ParallaxTheme theme{.layers = {layer}};
   Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
-  std::map<std::string, TextureHandle> textures{{"first", first}, {"second", second}};
+  TextureHandleLookup textures{{"first", first}, {"second", second}};
 
   ASSERT_OK_AND_ASSIGN(
       const ParallaxRenderBatch batch,

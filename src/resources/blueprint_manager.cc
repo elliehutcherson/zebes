@@ -2,9 +2,9 @@
 
 #include <filesystem>
 #include <fstream>
-#include <set>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/resource_identity.h"
@@ -26,7 +26,7 @@ absl::Status ValidateBlueprint(const Blueprint& blueprint) {
     return absl::InvalidArgumentError("Blueprint must have a name to be saved.");
   }
 
-  std::set<std::string> state_keys;
+  absl::flat_hash_set<std::string> state_keys;
   for (const Blueprint::State& state : blueprint.states) {
     if (!IsValidBlueprintStateKey(state.key)) {
       return absl::InvalidArgumentError(

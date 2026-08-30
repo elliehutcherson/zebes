@@ -213,7 +213,7 @@ TEST(SceneCompositionTest, BindsParallaxTexturesWithoutNativeTypes) {
       }},
   };
   const Camera camera{.zoom = 1.0, .viewport_width = 800, .viewport_height = 600};
-  const std::map<std::string, TextureHandle> textures{{"formation", texture}};
+  const TextureHandleLookup textures{{"formation", texture}};
 
   ASSERT_OK_AND_ASSIGN(const SceneParallaxRenderBatch batch,
                        ComposeSceneParallaxRenderBatch(theme, camera, textures));

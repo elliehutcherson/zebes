@@ -57,6 +57,26 @@ struct PlayerMovementConfig {
   absl::Status Validate() const;
 };
 
+class RuntimeWorld;
+
+// A boot-resolved state within one immutable Blueprint definition. Keeping the
+// definition identity in the handle prevents an index resolved for one
+// Blueprint from being applied to another. Only RuntimeWorld can construct a
+// valid handle.
+class ResolvedBlueprintState {
+ public:
+  int index() const { return state_index_; }
+
+ private:
+  friend class RuntimeWorld;
+
+  ResolvedBlueprintState(const Blueprint* definition, int state_index)
+      : definition_(definition), state_index_(state_index) {}
+
+  const Blueprint* definition_ = nullptr;
+  int state_index_ = -1;
+};
+
 // Borrows one immutable loaded-level definition graph beside mutable,
 // entity-ID-keyed runtime registries. Runtime movement changes transforms_ and
 // motions_, never the authored Entity definitions. The current checkpoint
@@ -65,23 +85,6 @@ struct PlayerMovementConfig {
 // into these maps. This class performs no I/O.
 class RuntimeWorld {
  public:
-  // A boot-resolved state within one immutable Blueprint definition. Keeping
-  // the definition identity in the handle prevents an index resolved for one
-  // Blueprint from being applied to another.
-  class ResolvedBlueprintState {
-   public:
-    int index() const { return state_index_; }
-
-   private:
-    friend class RuntimeWorld;
-
-    ResolvedBlueprintState(const Blueprint* definition, int state_index)
-        : definition_(definition), state_index_(state_index) {}
-
-    const Blueprint* definition_ = nullptr;
-    int state_index_ = -1;
-  };
-
   struct Options {
     std::string player_blueprint_id;
   };

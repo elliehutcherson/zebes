@@ -140,7 +140,8 @@ TEST_F(LoadedLevelAssetsTest, ResolvesEveryStateAssetForPlacedBlueprints) {
 
   ASSERT_OK_AND_ASSIGN(const LoadedLevelAssets assets, ResolveLevelAssets(Resources(), "level"));
 
-  EXPECT_EQ(assets.content.blueprints.at("blueprint"), blueprint);
+  ASSERT_NE(assets.content.blueprints.at("blueprint"), nullptr);
+  EXPECT_EQ(*assets.content.blueprints.at("blueprint"), blueprint);
   EXPECT_EQ(assets.content.sprites.size(), 2);
   EXPECT_EQ(assets.content.colliders.size(), 2);
   EXPECT_EQ(assets.rendering.sprite_textures.size(), 2);

@@ -286,8 +286,7 @@ absl::StatusOr<SceneTileRenderItem> ComposeSceneTileRenderItem(
 }
 
 absl::StatusOr<SceneParallaxRenderBatch> ComposeSceneParallaxRenderBatch(
-    const ParallaxTheme& theme, const Camera& camera,
-    const std::map<std::string, TextureHandle>& textures,
+    const ParallaxTheme& theme, const Camera& camera, const TextureHandleLookup& textures,
     const SceneParallaxRenderOptions& options) {
   RETURN_IF_ERROR(ValidateSceneCamera(camera));
   if (!std::isfinite(options.opacity) || options.opacity < 0.0 || options.opacity > 1.0) {

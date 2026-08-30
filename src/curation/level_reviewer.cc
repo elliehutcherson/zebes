@@ -396,7 +396,7 @@ const ParallaxElement* FindElement(const ParallaxLayer& layer, int element_id) {
 absl::Status CompositeParallaxTheme(RgbaImage& canvas, const LevelReviewAssets& assets,
                                     const ParallaxTheme& theme, const Camera& camera,
                                     double opacity, std::optional<int> layer_index = std::nullopt) {
-  std::map<std::string, TextureHandle> handles;
+  TextureHandleLookup handles;
   for (const ParallaxLayer& layer : theme.layers) {
     for (const ParallaxElement& element : layer.elements) {
       auto texture = assets.textures.find(element.texture_id);

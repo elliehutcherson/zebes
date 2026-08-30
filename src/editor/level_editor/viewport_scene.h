@@ -115,8 +115,7 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(const Tile& tile, cons
 // Compatibility name for editor callers; the implementation is the common
 // runtime-neutral scene composer.
 absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
-    const ParallaxTheme& theme, const Camera& camera,
-    const std::map<std::string, TextureHandle>& textures,
+    const ParallaxTheme& theme, const Camera& camera, const TextureHandleLookup& textures,
     const ParallaxRenderOptions& options = {});
 
 }  // namespace zebes

@@ -153,8 +153,8 @@ absl::StatusOr<TileRenderBatch> ComposeTilePlacementBatch(const Tile& tile, cons
 }
 
 absl::StatusOr<ParallaxRenderBatch> ComposeParallaxRenderBatch(
-    const ParallaxTheme& theme, const Camera& camera,
-    const std::map<std::string, TextureHandle>& textures, const ParallaxRenderOptions& options) {
+    const ParallaxTheme& theme, const Camera& camera, const TextureHandleLookup& textures,
+    const ParallaxRenderOptions& options) {
   return ComposeSceneParallaxRenderBatch(theme, camera, textures, options);
 }
 

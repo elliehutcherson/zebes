@@ -576,7 +576,7 @@ absl::StatusOr<ViewportTab::ParallaxBackgroundFrame> ViewportTab::PrepareParalla
     themes.push_back(&*theme);
   }
 
-  std::map<std::string, TextureHandle> textures;
+  TextureHandleLookup textures;
   for (const ParallaxTheme* theme : themes) {
     for (const ParallaxLayer& layer : theme->layers) {
       for (const ParallaxElement& element : layer.elements) {

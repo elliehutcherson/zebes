@@ -173,8 +173,10 @@ input source, and runtime texture store. It injects only `InputSource`,
 resolves the shipped level's complete graph into a frozen
 `LoadedLevelAssets` value. `LoadedLevelContent` contains only copied authored
 definitions; `LevelRenderResources` contains the texture handles needed to
-render them. All file access and GPU resource creation finishes before `Run`
-begins.
+render them. Definition catalogs use ID-keyed hash maps. Blueprints are
+heap-owned within their catalog because runtime bindings retain definition
+pointers; moving or rehashing catalog entries therefore cannot invalidate a
+binding. All file access and GPU resource creation finishes before `Run` begins.
 
 The main-thread loop polls the injected input source, performs one bounded
 non-blocking `GameEngine::Run`, composes a platform-neutral `GameSceneFrame`,

@@ -63,36 +63,36 @@ absl::StatusOr<TestRuntimeWorld> TestWorld() {
   if (!added.ok()) return added;
   for (int x = 0; x < 20; ++x) PutTile(content->level.layers.front(), x, 3);
   content->tileset = {.id = "tileset", .tiles = {{.id = 1, .shape = TileShape::kFullBlock}}};
-  content->blueprints = {{"player", Blueprint{
-                                        .id = "player",
-                                        .states =
-                                            {
-                                                {.key = "run-left",
-                                                 .name = "Run left",
-                                                 .collider_id = "collider",
-                                                 .sprite_id = "run-left"},
-                                                {.key = "airborne-right",
-                                                 .name = "Airborne right",
-                                                 .collider_id = "collider",
-                                                 .sprite_id = "airborne-right"},
-                                                {.key = "idle-left",
-                                                 .name = "Idle left",
-                                                 .collider_id = "collider",
-                                                 .sprite_id = "idle-left"},
-                                                {.key = "airborne-left",
-                                                 .name = "Airborne left",
-                                                 .collider_id = "collider",
-                                                 .sprite_id = "airborne-left"},
-                                                {.key = "run-right",
-                                                 .name = "Run right",
-                                                 .collider_id = "collider",
-                                                 .sprite_id = "run-right"},
-                                                {.key = "idle-right",
-                                                 .name = "Idle right",
-                                                 .collider_id = "collider",
-                                                 .sprite_id = "idle-right"},
-                                            },
-                                    }}};
+  content->blueprints.emplace("player", std::make_unique<Blueprint>(Blueprint{
+                                            .id = "player",
+                                            .states =
+                                                {
+                                                    {.key = "run-left",
+                                                     .name = "Run left",
+                                                     .collider_id = "collider",
+                                                     .sprite_id = "run-left"},
+                                                    {.key = "airborne-right",
+                                                     .name = "Airborne right",
+                                                     .collider_id = "collider",
+                                                     .sprite_id = "airborne-right"},
+                                                    {.key = "idle-left",
+                                                     .name = "Idle left",
+                                                     .collider_id = "collider",
+                                                     .sprite_id = "idle-left"},
+                                                    {.key = "airborne-left",
+                                                     .name = "Airborne left",
+                                                     .collider_id = "collider",
+                                                     .sprite_id = "airborne-left"},
+                                                    {.key = "run-right",
+                                                     .name = "Run right",
+                                                     .collider_id = "collider",
+                                                     .sprite_id = "run-right"},
+                                                    {.key = "idle-right",
+                                                     .name = "Idle right",
+                                                     .collider_id = "collider",
+                                                     .sprite_id = "idle-right"},
+                                                },
+                                        }));
   content->sprites = {
       {"idle-right",
        Sprite{.id = "idle-right", .frames = {{.frames_per_cycle = 1}, {.frames_per_cycle = 1}}}},

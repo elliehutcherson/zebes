@@ -270,6 +270,7 @@ target_link_libraries(blueprint_palette_model
   blueprint
   absl::status
   PRIVATE
+  absl::flat_hash_set
   absl::strings
 )
 

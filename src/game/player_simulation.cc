@@ -52,22 +52,22 @@ PlayerAnimationState SelectPlayerAnimationState(const PlayerControllerState& con
                                                   : PlayerAnimationState::kIdleRight;
 }
 
-using ResolvedPlayerAnimationStates = std::array<RuntimeWorld::ResolvedBlueprintState, 6>;
+using ResolvedPlayerAnimationStates = std::array<ResolvedBlueprintState, 6>;
 
 absl::StatusOr<ResolvedPlayerAnimationStates> ResolvePlayerAnimationStates(
     const RuntimeWorld& world) {
   const uint64_t player_id = world.player_entity_id();
-  ASSIGN_OR_RETURN(const RuntimeWorld::ResolvedBlueprintState idle_left,
+  ASSIGN_OR_RETURN(const ResolvedBlueprintState idle_left,
                    world.ResolveEntityBlueprintState(player_id, kIdleLeft));
-  ASSIGN_OR_RETURN(const RuntimeWorld::ResolvedBlueprintState idle_right,
+  ASSIGN_OR_RETURN(const ResolvedBlueprintState idle_right,
                    world.ResolveEntityBlueprintState(player_id, kIdleRight));
-  ASSIGN_OR_RETURN(const RuntimeWorld::ResolvedBlueprintState run_left,
+  ASSIGN_OR_RETURN(const ResolvedBlueprintState run_left,
                    world.ResolveEntityBlueprintState(player_id, kRunLeft));
-  ASSIGN_OR_RETURN(const RuntimeWorld::ResolvedBlueprintState run_right,
+  ASSIGN_OR_RETURN(const ResolvedBlueprintState run_right,
                    world.ResolveEntityBlueprintState(player_id, kRunRight));
-  ASSIGN_OR_RETURN(const RuntimeWorld::ResolvedBlueprintState airborne_left,
+  ASSIGN_OR_RETURN(const ResolvedBlueprintState airborne_left,
                    world.ResolveEntityBlueprintState(player_id, kAirborneLeft));
-  ASSIGN_OR_RETURN(const RuntimeWorld::ResolvedBlueprintState airborne_right,
+  ASSIGN_OR_RETURN(const ResolvedBlueprintState airborne_right,
                    world.ResolveEntityBlueprintState(player_id, kAirborneRight));
   return ResolvedPlayerAnimationStates{
       idle_left, idle_right, run_left, run_right, airborne_left, airborne_right,

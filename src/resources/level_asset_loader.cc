@@ -1,10 +1,11 @@
 #include "resources/level_asset_loader.h"
 
+#include <memory>
 #include <optional>
-#include <set>
 #include <string>
 #include <string_view>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -104,7 +105,11 @@ absl::Status LoadEntityBlueprints(const LevelAssetLoaderOptions& resources,
       const Blueprint* blueprint = nullptr;
       const auto loaded = assets.content.blueprints.find(entity.blueprint_id);
       if (loaded != assets.content.blueprints.end()) {
-        blueprint = &loaded->second;
+        if (loaded->second == nullptr) {
+          return absl::FailedPreconditionError(
+              absl::StrCat("entity ", entity_id, " blueprint resolved to null"));
+        }
+        blueprint = loaded->second.get();
       } else {
         ASSIGN_OR_RETURN(Blueprint * resolved,
                          resources.blueprints.GetBlueprint(entity.blueprint_id));
@@ -116,8 +121,9 @@ absl::Status LoadEntityBlueprints(const LevelAssetLoaderOptions& resources,
           return absl::FailedPreconditionError(
               absl::StrCat("entity ", entity_id, " resolved the wrong blueprint definition"));
         }
-        assets.content.blueprints.emplace(resolved->id, *resolved);
-        blueprint = &assets.content.blueprints.at(resolved->id);
+        auto definition = std::make_unique<Blueprint>(*resolved);
+        blueprint = definition.get();
+        assets.content.blueprints.emplace(resolved->id, std::move(definition));
       }
 
       if (blueprint->states.empty()) {
@@ -139,7 +145,7 @@ absl::Status LoadEntityBlueprints(const LevelAssetLoaderOptions& resources,
             "entity ", entity_id, " does not match its selected blueprint state assets"));
       }
 
-      std::set<std::string> state_keys;
+      absl::flat_hash_set<std::string> state_keys;
       for (const Blueprint::State& state : blueprint->states) {
         if (!IsValidBlueprintStateKey(state.key)) {
           return absl::FailedPreconditionError(
