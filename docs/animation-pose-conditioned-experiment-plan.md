@@ -3,9 +3,9 @@
 Status: production reference support and the disposable pilot/batch runner were
 implemented and fake-provider verified on 2026-08-30. The exact input kit is
 locked and the four-tick guide-only baseline passed deterministic processing
-and live review. The complete provider-native two-frame pilot was rejected for
-visible identity drift, so no candidate batch is authorized. Four provider
-turns were attempted across the three separately authorized pilot runs.
+and live review. Both the composite-board and separated-identity-view pilots
+were rejected for visible proportion and costume drift, so no candidate batch
+is authorized. Six provider turns were attempted across four pilot runs.
 
 This plan starts a new experiment after the coherent-sheet generation gate
 recorded in [the animation artwork pipeline](animation-artwork-pipeline.md)
@@ -337,37 +337,60 @@ frame 6 is leaner, and arm construction and belt details differ. These are not
 the same locked character in two poses. The complete 12-frame batch must not
 start.
 
-The locked identity board already contains front, right-side, and back views
-plus palette swatches. This result shows that one composite identity reference
-does not constrain independently generated frames tightly enough. A follow-up
-using separate ordered identity crops, or sequential prior-frame conditioning,
-is a new budgeted hypothesis. It may reuse the production ordered-reference
-contract, but it may not reinterpret this failed pilot or combine its frames.
+### Separated identity-view pilot record
 
-### Next experiment: separated identity views
+The follow-up under
+`build/animation-feasibility/pose-conditioned-v2-separated-identity/` cropped
+the locked board into right-side, front, and back views. It submitted those as
+three ordered `subject-identity` references followed by the exact pose.
+Production reference infrastructure already supported that request; a
+disposable schema-v2 runner expansion was used only for this pilot.
 
-The next bounded hypothesis changes only identity-reference packaging. Crop the
-existing locked board into its front, right-side, and back character views and
-submit those as three ordered `subject-identity` references. Submit the exact
-frame pose fourth as `pose`. Do not include the composite board or palette
-swatch row as another reference: the point is to remove the board layout and
-give each character view its own provider-visible input.
+Fresh frames 0 and 6 completed at the locked provider-native 1254 x 1254 size.
+Their RGBA digests are
+`02b88a7675afe4672ed0c1d83c780d2cc7391d16e3d1fe298cd342f9d6cb96a2`
+and
+`f7018f51586b8fdf31311399646c3992a2383551c6a888bcbfd767ca099e6d98`.
+Human review rejected them. Frame 0 has a visibly larger helmet and wider
+waist; frame 6 is smaller through the waist, and the pair still reads as nearly
+the same pose with one arm moved rather than opposing contact phases. They are
+not one dimensionally locked character in two unambiguous poses.
 
-The production ordered-reference contract already permits repeated identity
-roles and the Codex adapter advertises capacity for all four inputs. Generalize
-only the disposable experiment manifest and runner from one `identity_source`
-to an ordered `identity_sources` array. Preserve role, order, source crop,
-dimensions, and RGBA digest in the locked request and evidence. Continue to use
-GPT-5.6-Sol, provider-native 1254 x 1254 output, the same prompt and negative
-requirements, the same pose cells, and four-tick playback.
+The failed schema-v2 runner expansion was removed after evidence publication;
+the production ordered-reference contract remains because it has independent
+headless, OpenAI, Codex, and redraw tenants. No generated pilot frame may be
+reused.
 
-Run one new two-frame pilot for fresh frames 0 and 6. In addition to fresh
-render, identity, and pose checks, compare body build, helmet-to-body ratio,
-arm construction, belt geometry, backpack construction, palette, and canvas
-occupancy directly between the two outputs. Any visible stout-versus-lean
-split, substituted costume structure, or material scale change stops the
-experiment before a batch. The rejected pilot's frames are evidence only and
-must not be reused.
+### Next smaller experiment: parametric proportion guide
+
+Stop remote animation work until a deterministic local authoring tool can
+describe both pose and body dimensions. The tool should resolve one immutable
+character-proportion spec beside one pose spec:
+
+- a fixed canvas, character origin, and ground line;
+- exact helmet, torso, pelvis/waist, and backpack bounds;
+- shoulder, elbow, wrist, hip, knee, ankle, and toe joint positions for both
+  sides;
+- upper-arm, forearm, thigh, calf, and foot widths; and
+- explicit near/far z-order.
+
+Resolve limbs as overlapping capsules or ovals: thigh overlaps calf, calf
+overlaps foot, and upper arm overlaps forearm. Helmet, torso, pelvis, and
+backpack use fixed ellipses or rounded bounds. Pose changes joint positions and
+angles only; it cannot alter any identifying width, length, or body-part bound.
+
+One resolved primitive list must produce both a directly inspectable SVG and a
+provider-ready RGBA PNG, so the two formats cannot drift. Rendering is
+deterministic and platform-neutral; no SDL, editor, API, provider, or resource
+manager enters the geometry layer. Start with only the two opposing contact
+poses. The local gate verifies every resolved dimension and overlays both
+guides at one origin before any provider request.
+
+If the local gate passes, run one two-call pilot using only the locked
+right-side identity crop and the exact parametric pose/proportion guide. Judge
+helmet size, waist width, limb widths, backpack size, canvas occupancy, and
+pose phase before costume polish. A failure ends this hypothesis; it does not
+authorize a rig editor, in-betweening, or a 12-frame batch.
 
 ### Implemented operator contract
 

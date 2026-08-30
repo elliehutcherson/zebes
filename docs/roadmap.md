@@ -471,12 +471,17 @@ Its idle clips use 15 ticks per frame and its airborne clips hold their final
 frame instead of wrapping. The corrected timing, transitions, landing reset,
 and collision stability were accepted live on 2026-08-29.
 
-The animation artwork pipeline is now the active Track 5 work before M4: first
-prove coherent frame-set generation against an imported baseline, then add
-deterministic shared processing, retained-source recipes, transactional
-Texture/Sprite/Blueprint-state output, headless review, and the first
-production player set. The sequence and failure gate are specified in
-[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md).
+The animation artwork pipeline remains active Track 5 work before M4. Coherent
+sheet generation and independently pose-conditioned frames both failed their
+live or identity-consistency gates, so imported/manual sheets remain the
+production source path. Continue with deterministic shared processing,
+retained-source recipes, transactional Texture/Sprite/Blueprint-state output,
+headless review, and the first production player set. A smaller local
+parametric proportion-guide experiment may test whether exact body dimensions
+make a future generated source viable, but remote success is not a production
+pipeline prerequisite. The sequence and evidence live in
+[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) and the
+[pose-conditioned experiment](animation-pose-conditioned-experiment-plan.md).
 
 ---
 

@@ -131,13 +131,18 @@ rather than the assumed 1024 x 1024. The batch path now preserves that native
 canvas without resize and raises only its exact assembled-sheet bounds.
 `pilot-03-sol-native` completed fresh frames 0 and 6 but failed human review:
 frame 0 is visibly stouter, frame 6 is leaner, and their arm and belt
-construction differ. No batch is authorized and the rejected frames remain
-evidence only. The next bounded experiment separates the existing board's
-front, right-side, and back views into three ordered identity references, then
-supplies the pose fourth. Its fresh frame-0/frame-6 pilot must hold body build,
-helmet ratio, arms, belt, backpack, palette, and canvas occupancy stable before
-any batch. Sequential conditioning remains a later separately budgeted
-hypothesis.
+construction differ. The separated-view follow-up then supplied right-side,
+front, and back identity crops before the pose. Its fresh pair also failed:
+helmet and waist sizes differ, and the poses read as nearly the same phase with
+one arm moved. No batch is authorized. The disposable multi-identity runner
+expansion was removed; production ordered references remain.
+
+The next experiment is local first: a pure parametric proportion-guide tool
+with fixed helmet, torso, waist, backpack, limb lengths/widths, joint positions,
+origin, ground line, and z-order. It emits SVG and PNG from one resolved
+primitive list and proves only the two opposing contact poses before any remote
+request. If accepted locally, one right-side identity crop plus one exact guide
+gets a two-call pilot. Sequential conditioning remains later work.
 
 For the next production implementation pass, use imported/manual frame sheets
 and promote only the source-neutral processing behavior that survives review:

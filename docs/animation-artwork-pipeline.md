@@ -337,18 +337,21 @@ is not a feasible animation source with this technique. Keep imported/manual
 sheets as the production path, do not add provider-specific animation transport
 to this locked run, and do not spend further requests on it.
 
-Generation research resumed under the separately budgeted
+Generation research continued under the separately budgeted
 [pose-conditioned experiment](animation-pose-conditioned-experiment-plan.md)
-rather than amending this result. It uses the supplied complete 12-pose sheet
-as one unit: the locked identity reference and one exact frame-sized pose guide
-condition each requested image, then all 12 unmodified outputs form one frame
-set. This may improve pose obedience, but it gives up the whole-sheet identity
-prior and therefore creates a new risk of costume, proportion, camera, and
-rendering drift between frames. That experiment retains every individual
-output, forbids frame splicing or repainting, and requires the same native and
-live loop review. Sequential conditioning and a deterministic 2D rig remain
-separate hypotheses rather than assumptions that independent images will
-automatically become coherent animation.
+rather than amending this result. Independent images conditioned by one
+composite identity board failed a frame-0/frame-6 pilot because body build,
+arms, and belt construction drifted. Splitting the board into three ordered
+identity views improved resemblance but still changed helmet and waist size,
+and the opposing pose guides produced nearly the same visible phase. No
+12-frame batch was authorized and the disposable multi-identity runner
+expansion was removed.
+
+The next research step is local and smaller: a deterministic parametric
+proportion guide that fixes body-part dimensions while pose joint positions
+change. It must pass two opposing SVG/PNG guide overlays before receiving any
+provider budget. Sequential conditioning and a full 2D rig remain separate
+hypotheses; neither is assumed by the production imported/manual pipeline.
 
 Provider success is not allowed to block the basic animation authoring pipeline.
 Manual correction may be measured as follow-up research, but a corrected output
