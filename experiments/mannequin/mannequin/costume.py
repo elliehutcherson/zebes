@@ -351,7 +351,7 @@ TRICKSTER = Costume(
     # so at most 0.73 can sit below it before the butt goes through the floor,
     # and the whole figure plus shaft has to stay inside the 3.57 head units the
     # layout reserves.
-    weapon=Weapon(hand="r", length=3.0, radius=0.09, grip=0.78),
+    weapon=Weapon(hand="r", length=3.0, radius=0.11, grip=0.78),
 )
 
 COSTUMES: dict[str, Costume] = {c.name: c for c in (KNIGHT, SCOUT, TRICKSTER)}

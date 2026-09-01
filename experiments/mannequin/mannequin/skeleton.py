@@ -278,14 +278,33 @@ def build_rig(
                     p.wrist_radius,
                     ARM,
                 ),
+                # A thin stem to the fingertips, with the hand's mass as a ball
+                # partway along it. The hand used to be a single capsule that
+                # widened from wrist to fingertip, which renders as a club and
+                # came back from the generator as a club — or, holding a weapon,
+                # as an arm that turns into a blade. A hand reads as a hand only
+                # when there is a narrow wrist in front of a distinct lump.
+                #
+                # The ball is a sphere because an ellipsoid's axes stay
+                # world-aligned here; only its centre follows the joint. A
+                # sphere has no orientation to get wrong.
                 Capsule(
-                    f"hand_{side}",
+                    f"wrist_stem_{side}",
                     f"wrist_{side}",
                     f"hand_{side}",
-                    p.wrist_radius,
-                    p.wrist_radius * 0.8,
+                    p.wrist_radius * 0.85,
+                    p.wrist_radius * 0.85,
+                    p.wrist_radius * 0.6,
+                    p.wrist_radius * 0.6,
+                    HAND,
+                ),
+                Ellipsoid(
+                    f"hand_{side}",
+                    f"wrist_{side}",
+                    (0.0, -p.hand_length * 0.55, 0.0),
                     p.hand_radius,
-                    p.hand_radius * 0.55,
+                    p.hand_radius,
+                    p.hand_radius,
                     HAND,
                 ),
                 Capsule(
