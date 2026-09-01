@@ -21,6 +21,22 @@ target_link_libraries(generated_artwork_postprocessor
   absl::strings
 )
 
+add_library(animation_frame_set_pipeline animation_frame_set_pipeline.cc)
+target_link_libraries(animation_frame_set_pipeline
+  PUBLIC
+  image_io
+  source_artwork
+  sprite
+  terrain_palette
+  absl::status
+  absl::statusor
+  PRIVATE
+  generated_artwork_postprocessor
+  image_digest
+  status_macros
+  absl::strings
+)
+
 add_library(animation_artwork_feasibility animation_artwork_feasibility.cc)
 target_link_libraries(animation_artwork_feasibility
   PUBLIC

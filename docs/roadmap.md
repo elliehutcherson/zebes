@@ -12,7 +12,7 @@ Current work and dependency order only. Completed narratives are indexed in
 | 2 | Repository hygiene | Done |
 | 3 | Terrain carry-overs | Done |
 | 4 | Layers and production environment/content | In progress: finite content polish remains |
-| 5 | Game runtime | In progress: M1–M3 complete; production player frame-set pipeline precedes M4 |
+| 5 | Game runtime | In progress: M1–M3 and pure frame-set processing complete; recipe lifecycle next |
 
 Tracks 4 and 5 may proceed in parallel when they do not edit the same production
 level, player Blueprint, or review evidence.
@@ -71,23 +71,25 @@ evidence and is not a dependency or follow-up.
 
 Imported and manually authored sheets are the only production animation source.
 
-### Next: production frame-set pipeline
+### Next: recipe and bundle lifecycle
+
+Pure frame-set processing is complete in `AnimationFrameSetPipeline`: imported
+or manually authored sheets now have source-neutral extraction, common
+registration and scale, shared palette treatment, alpha/geometry validation,
+deterministic strip/grid packing, ordered timing metadata, and loop/hold output.
 
 Follow [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md):
 
-1. **Pure frame-set processing.** Promote source-neutral extraction, shared
-   registration, palette treatment, alpha/geometry validation, deterministic
-   packing, and Sprite frame metadata.
-2. **Recipe and bundle lifecycle.** Versioned retained-source recipe;
+1. **Recipe and bundle lifecycle.** Versioned retained-source recipe;
    transactional Texture/Sprite/Blueprint-state create, regenerate, and delete;
    stale-snapshot refusal and compensation.
-3. **Headless curation.** Native frames, alignment/contact overlays, loop or
+2. **Headless curation.** Native frames, alignment/contact overlays, loop or
    hold evidence, focused Catacombs context, byte-stable re-review.
-4. **Editor import flow.** Sheet layout, timing, origin/contact line, playback
+3. **Editor import flow.** Sheet layout, timing, origin/contact line, playback
    mode, and stable Blueprint state bindings. No remote animation generation.
-5. **Production player set.** Import or manually author left/right idle, run,
+4. **Production player set.** Import or manually author left/right idle, run,
    and airborne clips while preserving the exact 32×64 collider.
-6. **Human gate.** Commit, restart, and exercise idle, locomotion, direction,
+5. **Human gate.** Commit, restart, and exercise idle, locomotion, direction,
    jump/fall, landing, slopes, walls, and ceilings in Catacombs.
 
 ### M4 — thread split

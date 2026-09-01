@@ -1,6 +1,6 @@
 # Active handoff
 
-Updated 2026-08-30. [`roadmap.md`](roadmap.md) owns sequencing; this file is the
+Updated 2026-08-31. [`roadmap.md`](roadmap.md) owns sequencing; this file is the
 short resume point. Completed narratives live in [`history/`](history/README.md).
 
 ## Current state
@@ -12,12 +12,12 @@ Two tracks proceed independently:
   distributed player-scaled decor, initial floor/foreground variants, and a
   distinct middle ceiling frieze. The complete route review has no objective
   findings. Remaining silhouette variation is non-blocking content polish.
-- **Track 5 — runtime/animation.** Runtime Milestones 1–3 are complete:
-  `run_game`, fixed-tick player movement/collision, camera follow, semantic
-  Blueprint states, and deterministic Sprite playback passed their live gates.
-  Generated animation research is deprecated after motion, identity,
-  proportion, and pose-phase failures. Imported/manual frame sheets are the
-  only production source path.
+- **Track 5 — runtime/animation.** Runtime Milestones 1–3 and pure frame-set
+  processing are complete. `AnimationFrameSetPipeline` owns source-neutral
+  sheet extraction, common registration and scale, shared palette treatment,
+  alpha/geometry validation, deterministic packing, ordered timing metadata,
+  and loop/hold output. Generated animation research remains deprecated;
+  imported/manual frame sheets are the only production source path.
 
 The reusable ordered-reference generation boundary remains supported for
 OpenAI, Codex, headless generation, and redraw; it is not an animation roadmap
@@ -26,20 +26,19 @@ item. The deprecated evidence is indexed under
 
 ## Pick up next
 
-### Track 5: production frame-set processing
+### Track 5: recipe and bundle lifecycle
 
-Start at Milestone 3 in
+Start at Milestone 4 in
 [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md):
 
-1. Promote source-neutral extraction, shared registration, shared palette
-   treatment, alpha/geometry validation, and deterministic packing.
-2. Cover exact frame count/layout, common origin/contact line, uniform versus
-   ordered timing, loop/hold behavior, and byte-stable output.
-3. Use imported/manual sheets only. Do not add remote animation generation,
-   parametric-guide experiments, or provider-specific animation behavior.
+1. Add the versioned retained-source frame-set recipe and strict parser.
+2. Prepare the complete Texture, Sprite, and stable Blueprint-state binding
+   change without mutating stores.
+3. Commit create, regenerate, and delete transactionally with stale-snapshot
+   refusal and reverse-order compensation.
+4. Cover every persistence failure boundary and shipped-definition migration.
 
-Then implement the versioned recipe and transactional Texture/Sprite/Blueprint
-state bundle, headless curation, editor import controls, and the first complete
+Then implement headless curation, editor import controls, and the first complete
 left/right idle/run/airborne player set. M4 waits for that set's commit, restart,
 and live Catacombs gate.
 
@@ -85,7 +84,9 @@ order, and collider counts; finish with the complete route gate.
 
 ## Last verification
 
-Commit `18dcba6` is on `main`/`origin/main`. Before this documentation cleanup,
-all CMake targets, 147 C++ test executables, and 95 Python tests passed. Use
+`animation_frame_set_pipeline_test` passes all seven focused cases; scoped
+clang-tidy passes the pipeline and test translation units. The last broad
+boundary remains commit `18dcba6`: all CMake targets, 147 C++ test executables,
+and 95 Python tests passed before the documentation cleanup. Continue using
 focused verification per `AGENTS.md`; do not rerun the full suite merely because
 a new conversation started.

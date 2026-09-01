@@ -1,12 +1,12 @@
 # Animation artwork pipeline plan
 
-**Status: active next work. The Milestone 3 live animation gate was accepted on
-2026-08-29; this pipeline is required before the Milestone 4 runtime thread
-split.**
+**Status: pure frame-set processing is complete; recipe and bundle lifecycle is
+next. The production player set remains required before the Milestone 4 runtime
+thread split.**
 
 ## Goal and sequencing
 
-Build a repeatable authoring path that can turn imported or remotely generated
+Build a repeatable authoring path that can turn imported or manually authored
 frame-set source artwork into validated Zebes Texture, Sprite, and Blueprint
 state bindings. The output must be reviewable, regenerable from retained source,
 and safe to commit without leaving a partial asset graph.
@@ -19,17 +19,16 @@ proof is not the production animation workflow, and M4 does not begin until the
 pipeline feasibility and first production clip gates below pass.
 
 Animation is not an extension that runs the static Prop pipeline once per
-frame. Independent image requests do not preserve identity, proportions,
-camera, palette, contact point, or loop continuity. A generated candidate is a
-coherent frame set produced in one request or from one retained source sheet;
-all frames then pass through one shared deterministic processing run.
+frame. Every candidate is one coherent retained source sheet; all frames pass
+through one shared deterministic processing run so identity, proportions,
+camera, palette, contact point, and loop continuity are reviewed together.
 
 ## Scope
 
-The first pipeline supports short, looping 2D entity clips such as player idle
-and run. Imported and manually drawn sheets are first-class inputs and use the
-same processing, review, recipe, and commit path as generated sheets. Remote
-generation is an optional source provider, not an invariant of the pipeline.
+The first pipeline supports short 2D entity clips such as player idle and run.
+Imported and manually drawn sheets use the same processing, review, recipe, and
+commit path. Remote generation is excluded from the production animation
+workflow.
 
 The first version deliberately excludes:
 
@@ -442,12 +441,14 @@ overwrites collider work or silently invokes a remote provider.
    passed deterministic processing and live staging. Coherent generation and
    pose-conditioned independent frames failed their visual gates; generated
    animation is deprecated.
-3. **Pure frame-set processing — next.** Promote the accepted source-neutral
-   extraction, registration, shared palette, validation, and deterministic
-   packing behavior with focused platform-neutral tests.
-4. **Recipe and bundle lifecycle.** Add the strict recipe manager, catalog
-   references, pure preparation, transactional create/regenerate/delete APIs,
-   migrations, and failure-compensation tests.
+3. **Pure frame-set processing — complete.** `AnimationFrameSetPipeline`
+   implements source-neutral extraction, common registration and uniform scale,
+   shared palette quantization, alpha and geometry validation, deterministic
+   strip/grid packing, ordered timing metadata, and loop/hold output. Focused
+   platform-neutral tests cover the contract and byte-stable reruns.
+4. **Recipe and bundle lifecycle — next.** Add the strict recipe manager,
+   catalog references, pure preparation, transactional create/regenerate/delete
+   APIs, migrations, and failure-compensation tests.
 5. **Headless curation.** Publish frame, alignment, loop, and focused in-level
    evidence; require byte-stable re-review after commit.
 6. **Editor import flow.** Reuse retained-source lifecycle controls and add

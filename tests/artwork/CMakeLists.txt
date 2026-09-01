@@ -17,6 +17,15 @@ target_link_libraries(generated_artwork_postprocessor_test
 target_include_directories(generated_artwork_postprocessor_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(generated_artwork_postprocessor_test)
 
+add_executable(animation_frame_set_pipeline_test animation_frame_set_pipeline_test.cc)
+target_link_libraries(animation_frame_set_pipeline_test
+  animation_frame_set_pipeline
+  gtest_main
+  macros
+)
+target_include_directories(animation_frame_set_pipeline_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(animation_frame_set_pipeline_test)
+
 add_executable(animation_artwork_feasibility_test animation_artwork_feasibility_test.cc)
 target_link_libraries(animation_artwork_feasibility_test
   animation_artwork_feasibility
