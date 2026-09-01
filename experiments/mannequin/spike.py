@@ -185,6 +185,16 @@ def main() -> int:
     )
     parser.add_argument("--strength", type=float, default=None)
     parser.add_argument("--end-percent", type=float, default=None)
+    parser.add_argument(
+        "--workflow", default="workflows/depth-controlnet.json"
+    )
+    parser.add_argument(
+        "--identity",
+        default=None,
+        help="reference image for IP-Adapter; requires a workflow with "
+        "a ZEBES_IDENTITY_IMAGE handle",
+    )
+    parser.add_argument("--identity-weight", type=float, default=0.7)
     args = parser.parse_args()
 
     out = Path(args.out)
@@ -195,9 +205,15 @@ def main() -> int:
     print(f"{'measured' if args.remeasure else 'rendered'} {len(rendered)} guides")
 
     client = None if args.remeasure else ComfyClient(args.url)
-    template = None if args.remeasure else workflow.load(
-        Path("workflows/depth-controlnet.json")
-    )
+    template = None if args.remeasure else workflow.load(Path(args.workflow))
+
+    # Uploaded once. The whole point is that every frame is conditioned on the
+    # same reference, so re-uploading per frame would only add a way for them to
+    # differ.
+    identity = None
+    if not args.remeasure and args.identity is not None:
+        identity = client.upload_image(Path(args.identity))
+        print(f"identity reference: {identity.reference}")
 
     results: list[FrameResult] = []
     for frame, guide_buffers, head_band, shoulder_band in rendered:
@@ -218,6 +234,12 @@ def main() -> int:
                 control["end_percent"] = args.end_percent
             if control:
                 patches["ZEBES_CONTROL_STRENGTH"] = control
+            if identity is not None:
+                patches[workflow.IDENTITY_IMAGE] = {"image": identity.reference}
+                patches["ZEBES_IDENTITY_STRENGTH"] = {
+                    "weight": args.identity_weight,
+                    "weight_type": "linear",
+                }
             patched = workflow.apply(template, patches)
             client.run(patched, out / "generated")[0].rename(final)
 
