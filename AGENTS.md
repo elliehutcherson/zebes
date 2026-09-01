@@ -23,6 +23,10 @@ syntax hoping for a fix or weaken an assertion to make a test pass.
 
 - First-party implementation and tests live under `src/`, `tests/`, `scripts/`,
   and `cmake/`.
+- `experiments/` holds committed, self-contained spikes that are deliberately
+  outside the engine build: no CMake target, no `src/` dependency, and no
+  provider calls. Their tests live in `tests/` like any other. An experiment is
+  not a source of project requirements until its findings move into a plan.
 - `include/` contains vendored submodules. Do not search or edit it unless the
   task explicitly concerns a dependency; use `rg --no-ignore` for that case.
 - `build/` is generated output, `notes/` contains non-normative research, and

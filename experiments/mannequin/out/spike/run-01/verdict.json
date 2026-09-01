@@ -1,0 +1,158 @@
+{
+  "seed": 42,
+  "frames": 12,
+  "prompt": "2d game character art, armored knight with helmet and red cape, running while carrying a raised sword, side profile, full body, bold flat colors, thick clean outlines, high contrast, dark fantasy, plain solid background",
+  "criteria": {
+    "max_head_width_drift": 0.1,
+    "max_shoulder_width_drift": 0.12
+  },
+  "measured": {
+    "head_px": [
+      107,
+      30,
+      20,
+      148,
+      16,
+      0,
+      104,
+      40,
+      0,
+      132,
+      153,
+      24
+    ],
+    "head_median": 35.0,
+    "head_drift": 3.3714285714285714,
+    "shoulder_px": [
+      151,
+      153,
+      147,
+      121,
+      129,
+      146,
+      163,
+      121,
+      96,
+      95,
+      129,
+      128
+    ],
+    "shoulder_median": 129.0,
+    "shoulder_drift": 0.26356589147286824
+  },
+  "per_frame": [
+    {
+      "index": 0,
+      "label": "contact-r",
+      "guide_head_px": 149,
+      "head_px": 107,
+      "shoulder_px": 151,
+      "height_px": 832,
+      "touched_border": false
+    },
+    {
+      "index": 1,
+      "label": "contact-r+0.33",
+      "guide_head_px": 149,
+      "head_px": 30,
+      "shoulder_px": 153,
+      "height_px": 877,
+      "touched_border": false
+    },
+    {
+      "index": 2,
+      "label": "contact-r+0.67",
+      "guide_head_px": 150,
+      "head_px": 20,
+      "shoulder_px": 147,
+      "height_px": 870,
+      "touched_border": false
+    },
+    {
+      "index": 3,
+      "label": "passing-r",
+      "guide_head_px": 149,
+      "head_px": 148,
+      "shoulder_px": 121,
+      "height_px": 866,
+      "touched_border": false
+    },
+    {
+      "index": 4,
+      "label": "passing-r+0.33",
+      "guide_head_px": 150,
+      "head_px": 16,
+      "shoulder_px": 129,
+      "height_px": 870,
+      "touched_border": false
+    },
+    {
+      "index": 5,
+      "label": "passing-r+0.67",
+      "guide_head_px": 149,
+      "head_px": 0,
+      "shoulder_px": 146,
+      "height_px": 703,
+      "touched_border": false
+    },
+    {
+      "index": 6,
+      "label": "contact-l",
+      "guide_head_px": 149,
+      "head_px": 104,
+      "shoulder_px": 163,
+      "height_px": 767,
+      "touched_border": false
+    },
+    {
+      "index": 7,
+      "label": "contact-l+0.33",
+      "guide_head_px": 149,
+      "head_px": 40,
+      "shoulder_px": 121,
+      "height_px": 827,
+      "touched_border": false
+    },
+    {
+      "index": 8,
+      "label": "contact-l+0.67",
+      "guide_head_px": 150,
+      "head_px": 0,
+      "shoulder_px": 96,
+      "height_px": 692,
+      "touched_border": false
+    },
+    {
+      "index": 9,
+      "label": "passing-l",
+      "guide_head_px": 149,
+      "head_px": 132,
+      "shoulder_px": 95,
+      "height_px": 863,
+      "touched_border": false
+    },
+    {
+      "index": 10,
+      "label": "passing-l+0.33",
+      "guide_head_px": 150,
+      "head_px": 153,
+      "shoulder_px": 129,
+      "height_px": 889,
+      "touched_border": false
+    },
+    {
+      "index": 11,
+      "label": "passing-l+0.67",
+      "guide_head_px": 149,
+      "head_px": 24,
+      "shoulder_px": 128,
+      "height_px": 884,
+      "touched_border": false
+    }
+  ],
+  "accepted": false,
+  "failures": [
+    "head width drifts 337.1% (limit 10%)",
+    "shoulder width drifts 26.4% (limit 12%)"
+  ]
+}
