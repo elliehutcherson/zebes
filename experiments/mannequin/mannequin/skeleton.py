@@ -221,6 +221,27 @@ def build_rig(
         ),
     ]
 
+    if p.eye_radius > 0.0:
+        # Eyes protrude past the skull surface rather than sitting flush on it.
+        # A depth map only carries shape, so an eye that does not stick out is
+        # not in the picture at all, and the generator invents a blank face.
+        for side, sign in (("l", 1.0), ("r", -1.0)):
+            volumes.append(
+                Ellipsoid(
+                    f"eye_{side}",
+                    "head",
+                    (
+                        sign * p.head_width * 0.26,
+                        0.55,
+                        p.head_depth * 0.34,
+                    ),
+                    p.eye_radius,
+                    p.eye_radius,
+                    p.eye_radius,
+                    HEAD,
+                )
+            )
+
     if p.hair.volume > 1.0 or p.hair.length > 0.0:
         volumes.append(
             Ellipsoid(

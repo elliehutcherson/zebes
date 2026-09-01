@@ -48,6 +48,11 @@ class Proportions:
 
     head_width: float
     head_depth: float
+    # Eyes are volumes, not decoration. A head with no eye geometry comes back
+    # from the generator as a featureless bag every single time, so the size of
+    # the eyes is a measurement like any other. Radius in head units; 0 means a
+    # face with no eye relief.
+    eye_radius: float
 
     neck_length: float
     neck_width: float
@@ -162,6 +167,7 @@ HEROIC_6H = Proportions(
     heads_tall=6.0,
     head_width=0.78,
     head_depth=0.86,
+    eye_radius=0.075,
     neck_length=0.22,
     neck_width=0.34,
     shoulder_width=1.72,
@@ -195,6 +201,7 @@ REALISTIC_75H = Proportions(
     heads_tall=7.5,
     head_width=0.72,
     head_depth=0.84,
+    eye_radius=0.070,
     neck_length=0.28,
     neck_width=0.32,
     shoulder_width=1.85,
@@ -228,6 +235,7 @@ CHIBI_4H = Proportions(
     heads_tall=4.0,
     head_width=0.94,
     head_depth=0.94,
+    eye_radius=0.130,
     neck_length=0.10,
     neck_width=0.30,
     shoulder_width=1.10,
@@ -329,8 +337,52 @@ def resolution_report(
     return report
 
 
+# An original small amphibian trickster, proportioned from a reference the user
+# supplied. Roughly three heads tall: the skull is about a third of the figure,
+# the torso is short, and the legs are shorter still. The reference character
+# itself is someone else's property, so nothing here copies its design — only
+# the proportions and archetype, which is what the pipeline needs.
+#
+# The distinctive numbers are the head, which is as wide as it is tall; the
+# hands and feet, which are large the way a stylised creature's are; and the
+# limbs, which are thin enough that the hands read as separate shapes rather
+# than as the ends of the arms.
+TRICKSTER_3H = Proportions(
+    name="trickster-3h",
+    heads_tall=3.0,
+    head_width=1.02,
+    head_depth=1.00,
+    eye_radius=0.190,
+    neck_length=0.08,
+    neck_width=0.26,
+    shoulder_width=0.86,
+    chest_width=0.66,
+    chest_depth=0.48,
+    waist_width=0.58,
+    waist_depth=0.44,
+    hip_width=0.66,
+    hip_depth=0.48,
+    shoulder_to_waist=0.52,
+    waist_to_hip=0.28,
+    inseam=1.12,
+    thigh_share=0.46,
+    foot_height=0.10,
+    foot_length=0.74,
+    upper_arm=0.46,
+    forearm=0.42,
+    hand_length=0.26,
+    upper_arm_radius=0.095,
+    elbow_radius=0.080,
+    wrist_radius=0.062,
+    hand_radius=0.155,
+    thigh_radius=0.150,
+    knee_radius=0.115,
+    ankle_radius=0.090,
+    hair=Hair(length=0.0, volume=1.0, tail_length=0.0),
+)
+
 PRESETS: dict[str, Proportions] = {
-    p.name: p for p in (HEROIC_6H, REALISTIC_75H, CHIBI_4H)
+    p.name: p for p in (HEROIC_6H, REALISTIC_75H, CHIBI_4H, TRICKSTER_3H)
 }
 
 

@@ -21,6 +21,7 @@ from .measurements import Proportions
 from .skeleton import (
     ARMOR,
     CAPE,
+    HEAD,
     HELMET,
     WEAPON,
     Capsule,
@@ -76,17 +77,43 @@ class Cape:
 
 
 @dataclass(frozen=True)
-class Weapon:
-    """Held in one hand, extending along the hand's own axis.
+class Ears:
+    """A swept-back pair, parented to the head so they turn with it.
 
-    Given its own joint rather than an offset volume so forward kinematics
+    Built from joints and capsules rather than offset ellipsoids because an
+    ellipsoid's axes stay world-aligned here, so it cannot be angled; ears that
+    sweep back and down need real direction.
+    """
+
+    length: float
+    droop: float
+    thickness: float
+
+
+@dataclass(frozen=True)
+class Tail:
+    length: float
+    droop: float
+    thickness: float
+
+
+@dataclass(frozen=True)
+class Weapon:
+    """Held in one hand, running along the hand's own axis.
+
+    Given its own joints rather than an offset volume so forward kinematics
     swings it with the arm. An offset ellipsoid would stay stubbornly vertical
     while the arm rotated.
+
+    `grip` is the fraction of the shaft above the hand, so a staff or polearm is
+    held partway along its length. Without it a long weapon extends only
+    downward from the fist and spears straight through the floor.
     """
 
     hand: str
     length: float
     radius: float
+    grip: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -98,6 +125,8 @@ class Costume:
     backpack: Backpack | None = None
     cape: Cape | None = None
     weapon: Weapon | None = None
+    ears: Ears | None = None
+    tail: Tail | None = None
 
     def build(self, p: Proportions) -> tuple[tuple[Joint, ...], tuple[Volume, ...]]:
         """Size this kit against a measurement set.
@@ -119,9 +148,17 @@ class Costume:
         if self.cape is not None:
             volumes.append(_cape_volume(p, self.cape))
         if self.weapon is not None:
-            weapon_joint, weapon_volume = _weapon_pieces(self.weapon)
-            joints.append(weapon_joint)
+            weapon_joints, weapon_volume = _weapon_pieces(self.weapon)
+            joints.extend(weapon_joints)
             volumes.append(weapon_volume)
+        if self.ears is not None:
+            ear_joints, ear_volumes = _ear_pieces(p, self.ears)
+            joints.extend(ear_joints)
+            volumes.extend(ear_volumes)
+        if self.tail is not None:
+            tail_joint, tail_volume = _tail_pieces(p, self.tail)
+            joints.append(tail_joint)
+            volumes.append(tail_volume)
 
         return tuple(joints), tuple(volumes)
 
@@ -210,25 +247,75 @@ def _cape_volume(p: Proportions, cape: Cape) -> Ellipsoid:
     )
 
 
-def _weapon_pieces(weapon: Weapon) -> tuple[Joint, Capsule]:
+def _weapon_pieces(weapon: Weapon) -> tuple[tuple[Joint, ...], Capsule]:
     if weapon.hand not in ("l", "r"):
         raise CostumeError(f"weapon hand must be 'l' or 'r', got {weapon.hand!r}")
     if weapon.length <= 0.0 or weapon.radius <= 0.0:
         raise CostumeError("weapon length and radius must be positive")
+    if not 0.0 <= weapon.grip < 1.0:
+        raise CostumeError(f"weapon grip must be in [0, 1), got {weapon.grip}")
 
-    grip = f"hand_{weapon.hand}"
+    hand = f"hand_{weapon.hand}"
+    butt = f"weapon_butt_{weapon.hand}"
     tip = f"weapon_tip_{weapon.hand}"
     return (
-        Joint(tip, grip, (0.0, -weapon.length, 0.0)),
+        (
+            Joint(butt, hand, (0.0, -weapon.length * (1.0 - weapon.grip), 0.0)),
+            Joint(tip, hand, (0.0, weapon.length * weapon.grip, 0.0)),
+        ),
         Capsule(
             name="weapon",
-            joint_a=grip,
+            joint_a=butt,
             joint_b=tip,
-            rx_a=weapon.radius,
-            rz_a=weapon.radius,
-            rx_b=weapon.radius * 0.6,
-            rz_b=weapon.radius * 0.6,
+            rx_a=weapon.radius * 0.6,
+            rz_a=weapon.radius * 0.6,
+            rx_b=weapon.radius,
+            rz_b=weapon.radius,
             region=WEAPON,
+        ),
+    )
+
+
+def _ear_pieces(p: Proportions, ears: Ears) -> tuple[tuple[Joint, ...], list[Capsule]]:
+    if ears.length <= 0.0 or ears.thickness <= 0.0:
+        raise CostumeError("ear length and thickness must be positive")
+
+    joints: list[Joint] = []
+    volumes: list[Capsule] = []
+    for side, sign in (("l", 1.0), ("r", -1.0)):
+        base = f"ear_{side}"
+        tip = f"ear_tip_{side}"
+        joints.append(Joint(base, "head", (sign * p.head_width * 0.44, 0.58, 0.0)))
+        joints.append(Joint(tip, base, (sign * ears.length * 0.25, -ears.droop, -ears.length)))
+        volumes.append(
+            Capsule(
+                name=f"ear_{side}",
+                joint_a=base,
+                joint_b=tip,
+                rx_a=ears.thickness,
+                rz_a=ears.thickness * 1.4,
+                rx_b=ears.thickness * 0.5,
+                rz_b=ears.thickness * 0.7,
+                region=HEAD,
+            )
+        )
+    return tuple(joints), volumes
+
+
+def _tail_pieces(p: Proportions, tail: Tail) -> tuple[Joint, Capsule]:
+    if tail.length <= 0.0 or tail.thickness <= 0.0:
+        raise CostumeError("tail length and thickness must be positive")
+    return (
+        Joint("tail_tip", "pelvis", (0.0, -tail.droop, -tail.length)),
+        Capsule(
+            name="tail",
+            joint_a="pelvis",
+            joint_b="tail_tip",
+            rx_a=tail.thickness,
+            rz_a=tail.thickness,
+            rx_b=tail.thickness * 0.35,
+            rz_b=tail.thickness * 0.35,
+            region=ARMOR,
         ),
     )
 
@@ -252,7 +339,22 @@ SCOUT = Costume(
     backpack=Backpack(width_scale=0.8, height=0.9, depth=0.34),
 )
 
-COSTUMES: dict[str, Costume] = {c.name: c for c in (KNIGHT, SCOUT)}
+# The amphibian trickster kit: swept ear-fins, a tail, and a trident held
+# partway up the shaft. No helmet — the head's own eyes and muzzle carry it,
+# and a helmet ellipsoid would bury them the way it did on the knight.
+TRICKSTER = Costume(
+    name="trickster",
+    belt=Belt(width_scale=1.10, thickness=0.05),
+    ears=Ears(length=0.62, droop=0.30, thickness=0.10),
+    tail=Tail(length=0.55, droop=0.12, thickness=0.11),
+    # Held high on the shaft. In an A-pose the hand hangs at 0.78 head units,
+    # so at most 0.73 can sit below it before the butt goes through the floor,
+    # and the whole figure plus shaft has to stay inside the 3.57 head units the
+    # layout reserves.
+    weapon=Weapon(hand="r", length=3.0, radius=0.09, grip=0.78),
+)
+
+COSTUMES: dict[str, Costume] = {c.name: c for c in (KNIGHT, SCOUT, TRICKSTER)}
 
 
 def costume(name: str) -> Costume:
