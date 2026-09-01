@@ -190,6 +190,35 @@ def build_rig(
             p.head_depth / 2.0,
             HEAD,
         ),
+        # A brow ridge and a jaw, protruding forward of the skull.
+        #
+        # Without them the head is a smooth ellipsoid, and a generator handed a
+        # smooth ellipsoid draws a smooth ellipsoid: every frame came back with
+        # a featureless blob for a face. They also make the head *directional* —
+        # a symmetric skull gives no cue which way the character faces, which is
+        # why a three-quarter front view was rendered as a back view.
+        # Both reach head_depth * 0.60 forward, clearing the skull's 0.50 front
+        # by a tenth of a head depth. An earlier attempt cleared it by 0.018
+        # head units — about one pixel at 1024 — and was invisible in the depth
+        # map, which is the same as not existing.
+        Ellipsoid(
+            "brow",
+            "head",
+            (0.0, 0.60, p.head_depth * 0.35),
+            p.head_width * 0.38,
+            0.11,
+            p.head_depth * 0.25,
+            HEAD,
+        ),
+        Ellipsoid(
+            "muzzle",
+            "head",
+            (0.0, 0.38, p.head_depth * 0.34),
+            p.head_width * 0.26,
+            0.14,
+            p.head_depth * 0.26,
+            HEAD,
+        ),
     ]
 
     if p.hair.volume > 1.0 or p.hair.length > 0.0:
