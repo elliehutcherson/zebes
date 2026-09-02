@@ -580,6 +580,11 @@ def render_pose_layers(
     binding: ProfileBinding, pose: str
 ) -> tuple[bytearray, dict[str, Point]]:
     """Pose 1-based bone IDs, resolving overlaps by declared ordinal depth."""
+    if pose == "neutral":
+        return (
+            bytearray(label + 1 if label >= 0 else 0 for label in binding.labels),
+            dict(binding.joints),
+        )
     posed_mask, target_joints = render_pose(binding, pose)
     depths = depths_for_pose(binding, pose)
     output = bytearray(binding.width * binding.height)

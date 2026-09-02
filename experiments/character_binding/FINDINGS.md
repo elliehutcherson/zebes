@@ -320,6 +320,22 @@ strong settings, and dual Canny/depth have all failed the four-pose articulation
 gate. Diffusion-based animation control is closed; no complete cycle or further
 weight sweep is justified.
 
+## 13. Direct C++ deformation — renderer pass, source-layer fail
+
+`profile_deformation` performs inverse sampling rather than forward cut-and-paste:
+each target pixel maps through its bone into the original source, blends incident
+bone transforms near joints, and may sample only artwork owned by the same layer.
+
+| Proof | Mapped / unmapped | Visual result |
+|---|---:|---|
+| Neutral | 18,974 / 0 | Pixel-exact reconstruction; zero differing pixels |
+| Contact | 18,852 / 0 | Same recognizable mouse and no sampling holes, but boots/coat still intersect |
+
+The C++ renderer solves deterministic mapping and joint continuity. It cannot
+solve bad semantic ownership in the target layer map or invent upper-leg pixels
+hidden by the neutral coat. The two-pose gate therefore rejects the current
+automatically inferred source layers, not the renderer.
+
 ---
 
 # The one rule that explains most failures
@@ -408,9 +424,9 @@ in-process stub, so they pass with `derry` switched off.
    set settles its rules; then replace hard pixel ownership with smooth mesh
    weights and explicit front/back limb layers in platform-neutral C++.
 
-3. **Move to direct C++ deformation/rendering.** The generation control route is
-   closed by the dual-control failure. Use the isolated reference as texture,
-   replace hard pixel ownership with a smooth layered mesh, render neutral and
-   contact directly at native size, and judge intersections and readability
-   without asking diffusion to reconstruct each frame. Only that two-pose pass
-   justifies a complete locomotion sequence.
+3. **Acquire separated source layers.** Direct C++ inverse deformation is now
+   pixel-exact in neutral and complete in contact, but the contact image still
+   places boot artwork through the coat because the neutral source hides the
+   upper legs. Generate or author one bind-pose reference with visibly separated
+   limbs, or fixed supplemental rear/front limb patches. Re-run only neutral and
+   contact before considering a complete locomotion sequence.
