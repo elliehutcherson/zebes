@@ -35,8 +35,8 @@ target_link_libraries(
           absl::statusor absl::strings
 )
 
-add_executable(profile_silhouette_spike profile_silhouette_spike.cc)
-target_link_libraries(profile_silhouette_spike
+add_executable(extract_profile_silhouette extract_profile_silhouette.cc)
+target_link_libraries(extract_profile_silhouette
   PRIVATE
   image_io
   profile_silhouette
@@ -47,8 +47,20 @@ target_link_libraries(profile_silhouette_spike
   absl::statusor
 )
 
-add_executable(profile_pose_control profile_pose_control.cc)
-target_link_libraries(profile_pose_control
+add_executable(render_profile_pose_control render_profile_pose_control.cc)
+target_link_libraries(render_profile_pose_control
+  PRIVATE
+  image_io
+  profile_silhouette
+  absl::flags
+  absl::flags_parse
+  absl::status
+  absl::statusor
+  nlohmann_json::nlohmann_json
+)
+
+add_executable(render_profile_pose_depth render_profile_pose_depth.cc)
+target_link_libraries(render_profile_pose_depth
   PRIVATE
   image_io
   profile_silhouette

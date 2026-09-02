@@ -124,7 +124,6 @@ class ProfileBindingTest(unittest.TestCase):
         self.assertLess(airborne["foot_a"][1], binding.joints["foot_a"][1])
         self.assertLess(airborne["foot_b"][1], binding.joints["foot_b"][1])
 
-
     def test_color_warp_fills_every_approved_pose_pixel(self):
         mask, width, height = self.profile_mask()
         binding = self.binding()
@@ -142,6 +141,26 @@ class ProfileBindingTest(unittest.TestCase):
 
         for index, covered in enumerate(posed_mask):
             self.assertEqual(bool(posed_color[index * 4 + 3]), bool(covered))
+
+    def test_pose_layers_cover_mask_and_alternate_front_limbs(self):
+        binding = self.binding()
+        layers, _ = profile_bind.render_pose_layers(binding, "contact")
+        posed, _ = profile_bind.render_pose(binding, "contact")
+
+        self.assertTrue(
+            all(bool(layer) == bool(covered) for layer, covered in zip(layers, posed))
+        )
+        depths = {
+            bone.name: depth
+            for bone, depth in zip(
+                binding.bones,
+                profile_bind.depths_for_pose(binding, "contact"),
+                strict=True,
+            )
+        }
+        self.assertGreater(depths["thigh_a"], depths["thigh_b"])
+        self.assertGreater(depths["forearm_a"], depths["forearm_b"])
+
 
     def test_flat_cli_consumes_cpp_isolated_alpha_and_topology(self):
         mask, width, height = self.profile_mask()

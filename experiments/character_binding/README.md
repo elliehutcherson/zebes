@@ -48,8 +48,9 @@ Stable C++ implementation:
 ```text
 src/artwork/profile_silhouette.h
 src/artwork/profile_silhouette.cc
-scripts/profile_silhouette_spike.cc
-scripts/profile_pose_control.cc
+scripts/extract_profile_silhouette.cc
+scripts/render_profile_pose_control.cc
+scripts/render_profile_pose_depth.cc
 tests/artwork/profile_silhouette_test.cc
 ```
 
@@ -57,7 +58,8 @@ tests/artwork/profile_silhouette_test.cc
 
 ```bash
 cmake --preset dev
-cmake --build build/dev --target profile_silhouette_spike profile_pose_control
+cmake --build build/dev --target extract_profile_silhouette \
+  render_profile_pose_control render_profile_pose_depth
 ```
 
 ## 1. Isolate and extract topology in C++
@@ -67,7 +69,7 @@ matte tolerance of 128. This is experiment evidence, not a new production
 default; future references should request transparency or a truly flat matte.
 
 ```bash
-build/dev/bin/profile_silhouette_spike \
+build/dev/bin/extract_profile_silhouette \
   --input=profile-reference.png \
   --isolated_output=experiments/character_binding/out/profile/isolated.png \
   --output=experiments/character_binding/out/profile/skeleton.png \
@@ -86,8 +88,9 @@ Outputs answer distinct questions:
 
 The prototype consumes the C++-isolated PNG and C++ skeleton evidence. Python no
 longer duplicates background isolation, mask reduction, thinning, branch
-pruning, or binary posed-control rendering. The thin CLI invokes the C++
-`profile_pose_control` executable after experimental joint inference.
+pruning, binary posed-control rendering, or ordinal-depth pixel encoding. The
+thin CLI invokes `render_profile_pose_control` and `render_profile_pose_depth`
+after experimental joint inference and front/rear layer policy.
 
 ```bash
 PYTHONPATH=experiments python3 -m character_binding.cli bind-profile \
@@ -100,9 +103,11 @@ Important outputs:
 
 - `skeleton.png`: semantic joints over the isolated silhouette;
 - `binding-regions.png`: current hard pixel-to-bone ownership;
-- `pose-*-control.png`: binary contour plus semantic bones and joints;
+- `pose-*-layers.png`: experimental 1-based front/rear bone ownership;
+- `pose-*-control.png`: C++ binary contour plus semantic bones and joints;
+- `pose-*-depth.png`: C++ ordinal grayscale depth;
 - `pose-*-color.png`: recognizable diagnostics showing deformation failures;
-- `binding.json`: reproducible joints, bones, and proof poses.
+- `binding.json`: reproducible joints, bones, poses, and depth policy.
 
 The color previews are not proposed frames. They expose known issues: coat/hip
 ownership, hidden legs, boot intersections, hard cut-and-paste boundaries, and
@@ -132,6 +137,51 @@ Current result: IP-Adapter retains a recognizable identity; Canny-only controls
 improve local limb differences but fail airborne elevation, facing, and reliable
 front/back limb order. The next model experiment needs a depth-bearing control
 channel rather than more Canny tuning.
+
+## 4. Ordinal-depth-only gate
+
+The same runner can select C++ depth guides and the exported depth/IP-Adapter
+workflow:
+
+```bash
+PYTHONPATH=experiments python3 -m character_binding.cli generate-profile-proof \
+  --binding experiments/character_binding/out/profile-binding \
+  --identity profile-reference.png \
+  --workflow experiments/character_binding/workflows/depth-controlnet-ipadapter.json \
+  --guide-kind depth \
+  --prompt 'the same character, following the supplied pose and elevation exactly' \
+  --control-strength 0.45 \
+  --control-end-percent 0.70 \
+  --out experiments/character_binding/out/profile-depth-proof
+```
+
+Weak depth preserves identity but returns four standing poses. Strong depth
+finally raises airborne and changes limb order, but destroys face, facing, coat
+construction, and pixel style. Depth-only is rejected.
+
+## 5. Final dual-control gate
+
+The dual workflow was assembled in the ComfyUI editor and exported as API JSON:
+
+```bash
+PYTHONPATH=experiments python3 -m character_binding.cli generate-profile-proof \
+  --binding experiments/character_binding/out/profile-binding \
+  --identity profile-reference.png \
+  --workflow experiments/character_binding/workflows/pixelart-canny-depth-ipadapter.json \
+  --guide-kind dual \
+  --prompt 'the same character, following the supplied pose and elevation exactly' \
+  --control-strength 0.90 \
+  --control-end-percent 0.95 \
+  --depth-strength 0.25 \
+  --depth-end-percent 0.70 \
+  --out experiments/character_binding/out/profile-dual-proof
+```
+
+Identity and style remain recognizable, but airborne is still grounded and turns
+toward the camera. The pre-registered stop rule closes diffusion-based animation
+control. The next experiment is direct C++ layered mesh deformation: render
+neutral and contact from the isolated reference without regenerating either
+frame.
 
 ## Other commands
 

@@ -278,29 +278,45 @@ class ComfyClientTest(unittest.TestCase):
             binding = root / "binding"
             binding.mkdir()
             for pose in profile_proof.POSES:
-                (binding / f"pose-{pose}-control.png").write_bytes(PNG_BYTES)
+                for guide_kind in ("control", "depth"):
+                    (binding / f"pose-{pose}-{guide_kind}.png").write_bytes(
+                        PNG_BYTES
+                    )
             identity = root / "identity.png"
             identity.write_bytes(PNG_BYTES)
-            output = root / "proof"
 
-            profile_proof.generate(
-                self.client,
-                binding,
-                identity,
-                CHARACTER_BINDING_ROOT / "workflows" / "pixelart-canny-ipadapter.json",
-                output,
-                profile_proof.ProfileProofConfig(prompt="one mouse"),
-            )
+            for guide_kind in ("control", "depth", "dual"):
+                with self.subTest(guide_kind=guide_kind):
+                    output = root / f"proof-{guide_kind}"
+                    profile_proof.generate(
+                        self.client,
+                        binding,
+                        identity,
+                        CHARACTER_BINDING_ROOT
+                        / "workflows"
+                        / (
+                            "pixelart-canny-depth-ipadapter.json"
+                            if guide_kind == "dual"
+                            else "pixelart-canny-ipadapter.json"
+                        ),
+                        output,
+                        profile_proof.ProfileProofConfig(
+                            prompt="one mouse", guide_kind=guide_kind
+                        ),
+                    )
 
-            manifest = json.loads((output / "manifest.json").read_text())
-            self.assertEqual(
-                [record["pose"] for record in manifest["poses"]],
-                list(profile_proof.POSES),
-            )
-            self.assertEqual(
-                sorted(path.name for path in (output / "generated").iterdir()),
-                sorted(f"{pose}.png" for pose in profile_proof.POSES),
-            )
+                    manifest = json.loads((output / "manifest.json").read_text())
+                    self.assertEqual(manifest["guide_kind"], guide_kind)
+                    self.assertEqual(
+                        [record["pose"] for record in manifest["poses"]],
+                        list(profile_proof.POSES),
+                    )
+                    self.assertEqual(
+                        sorted(
+                            path.name for path in (output / "generated").iterdir()
+                        ),
+                        sorted(f"{pose}.png" for pose in profile_proof.POSES),
+                    )
 
 
 class WorkflowTemplateTest(unittest.TestCase):

@@ -73,4 +73,12 @@ absl::StatusOr<RgbaImage> RenderProfilePoseControl(absl::Span<const uint8_t> sil
                                                    absl::Span<const ProfileControlPoint> joints,
                                                    absl::Span<const ProfileControlBone> bones);
 
+// Converts experiment-owned ordinal layer IDs into a grayscale depth guide.
+// Layer ID zero is background; IDs 1..N index depth_by_layer at 0..N-1.
+// Which limb is front remains experiment policy, while validation and pixel
+// encoding are reusable deterministic C++.
+absl::StatusOr<RgbaImage> RenderProfileOrdinalDepth(absl::Span<const uint8_t> layer_ids, int width,
+                                                    int height,
+                                                    absl::Span<const uint8_t> depth_by_layer);
+
 }  // namespace zebes

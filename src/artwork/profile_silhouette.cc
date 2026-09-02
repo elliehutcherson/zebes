@@ -432,4 +432,39 @@ absl::StatusOr<RgbaImage> RenderProfilePoseControl(absl::Span<const uint8_t> sil
   return control;
 }
 
+absl::StatusOr<RgbaImage> RenderProfileOrdinalDepth(absl::Span<const uint8_t> layer_ids, int width,
+                                                    int height,
+                                                    absl::Span<const uint8_t> depth_by_layer) {
+  if (width <= 0 || height <= 0 || layer_ids.size() != static_cast<size_t>(width) * height) {
+    return absl::InvalidArgumentError("profile ordinal-depth layer dimensions are invalid");
+  }
+  if (depth_by_layer.empty()) {
+    return absl::InvalidArgumentError("profile ordinal-depth mapping must not be empty");
+  }
+
+  RgbaImage depth{
+      .width = width,
+      .height = height,
+      .pixels = std::vector<uint8_t>(static_cast<size_t>(width) * height * 4, 0),
+  };
+  for (size_t index = 0; index < layer_ids.size(); ++index) {
+    const uint8_t layer_id = layer_ids[index];
+    uint8_t value = 0;
+    if (layer_id != 0) {
+      const size_t layer_index = static_cast<size_t>(layer_id - 1);
+      if (layer_index >= depth_by_layer.size()) {
+        return absl::InvalidArgumentError(
+            "profile ordinal-depth pixel references an unknown layer");
+      }
+      value = depth_by_layer[layer_index];
+    }
+    const size_t pixel = index * 4;
+    depth.pixels[pixel] = value;
+    depth.pixels[pixel + 1] = value;
+    depth.pixels[pixel + 2] = value;
+    depth.pixels[pixel + 3] = 255;
+  }
+  return depth;
+}
+
 }  // namespace zebes

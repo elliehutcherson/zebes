@@ -176,6 +176,34 @@ TEST(ProfileSilhouetteTest, RejectsPoseControlWithUnknownJoint) {
   EXPECT_NE(status.message().find("unknown joint"), std::string::npos);
 }
 
+TEST(ProfileSilhouetteTest, RendersOrdinalDepthFromExperimentLayers) {
+  const std::vector<uint8_t> layers = {0, 1, 2, 1};
+  const std::vector<uint8_t> depths = {70, 200};
+
+  const absl::StatusOr<RgbaImage> image = RenderProfileOrdinalDepth(layers, 2, 2, depths);
+
+  ASSERT_TRUE(image.ok()) << image.status();
+  EXPECT_EQ(image->pixels[0], 0);
+  EXPECT_EQ(image->pixels[4], 70);
+  EXPECT_EQ(image->pixels[8], 200);
+  EXPECT_EQ(image->pixels[12], 70);
+  for (size_t pixel = 0; pixel < image->pixels.size() / 4; ++pixel) {
+    EXPECT_EQ(image->pixels[pixel * 4], image->pixels[pixel * 4 + 1]);
+    EXPECT_EQ(image->pixels[pixel * 4], image->pixels[pixel * 4 + 2]);
+    EXPECT_EQ(image->pixels[pixel * 4 + 3], 255);
+  }
+}
+
+TEST(ProfileSilhouetteTest, RejectsOrdinalDepthWithUnknownLayer) {
+  const std::vector<uint8_t> layers = {3};
+  const std::vector<uint8_t> depths = {70, 200};
+
+  const absl::Status status = RenderProfileOrdinalDepth(layers, 1, 1, depths).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_NE(status.message().find("unknown layer"), std::string::npos);
+}
+
 TEST(ProfileSilhouetteTest, RejectsGeometryThatWouldChangeRegistration) {
   RgbaImage non_square{
       .width = 128,

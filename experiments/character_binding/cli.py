@@ -7,8 +7,8 @@ Run with `PYTHONPATH=experiments python3 -m character_binding.cli <command>`.
 
 from __future__ import annotations
 
-import subprocess
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -63,27 +63,48 @@ def command_bind_profile(args: argparse.Namespace) -> int:
     )
     if not args.skip_control_render:
         control_tool = Path(args.control_tool)
-        if not control_tool.is_file():
-            raise SystemExit(
-                f"no C++ posed-control tool: {control_tool}; "
-                "build target profile_pose_control"
-            )
+        depth_tool = Path(args.depth_tool)
+        for tool, target in (
+            (control_tool, "render_profile_pose_control"),
+            (depth_tool, "render_profile_pose_depth"),
+        ):
+            if not tool.is_file():
+                raise SystemExit(
+                    f"no C++ guide tool: {tool}; build target {target}"
+                )
         for pose in profile_bind.POSES:
-            completed = subprocess.run(
-                [
-                    str(control_tool),
-                    f"--mask={out / f'pose-{pose}.png'}",
-                    f"--binding={out / 'binding.json'}",
-                    f"--pose={pose}",
-                    f"--output={out / f'pose-{pose}-control.png'}",
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
+            commands = (
+                (
+                    "posed-control",
+                    [
+                        str(control_tool),
+                        f"--mask={out / f'pose-{pose}.png'}",
+                        f"--binding={out / 'binding.json'}",
+                        f"--pose={pose}",
+                        f"--output={out / f'pose-{pose}-control.png'}",
+                    ],
+                ),
+                (
+                    "ordinal-depth",
+                    [
+                        str(depth_tool),
+                        f"--layers={out / f'pose-{pose}-layers.png'}",
+                        f"--binding={out / 'binding.json'}",
+                        f"--pose={pose}",
+                        f"--output={out / f'pose-{pose}-depth.png'}",
+                    ],
+                ),
             )
-            if completed.returncode != 0:
-                detail = completed.stderr.strip() or completed.stdout.strip()
-                raise SystemExit(f"C++ posed-control rendering failed: {detail}")
+            for label, command in commands:
+                completed = subprocess.run(
+                    command,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if completed.returncode != 0:
+                    detail = completed.stderr.strip() or completed.stdout.strip()
+                    raise SystemExit(f"C++ {label} rendering failed: {detail}")
     print(f"\nwrote profile binding and recognizable pose previews to {out}")
     return 0
 
@@ -95,6 +116,9 @@ def command_generate_profile_proof(args: argparse.Namespace) -> int:
         control_strength=args.control_strength,
         control_end_percent=args.control_end_percent,
         identity_weight=args.identity_weight,
+        guide_kind=args.guide_kind,
+        depth_strength=args.depth_strength,
+        depth_end_percent=args.depth_end_percent,
     )
     out = Path(args.out)
     profile_proof.generate(
@@ -148,7 +172,10 @@ def build_parser() -> argparse.ArgumentParser:
     bind_profile.add_argument("topology")
     bind_profile.add_argument("--alpha-threshold", type=int, default=16)
     bind_profile.add_argument(
-        "--control-tool", default="build/dev/bin/profile_pose_control"
+        "--control-tool", default="build/dev/bin/render_profile_pose_control"
+    )
+    bind_profile.add_argument(
+        "--depth-tool", default="build/dev/bin/render_profile_pose_depth"
     )
     bind_profile.add_argument("--skip-control-render", action="store_true")
     bind_profile.add_argument("--out", default="out/profile-binding")
@@ -164,11 +191,18 @@ def build_parser() -> argparse.ArgumentParser:
     generate_profile.add_argument("--prompt", required=True)
     generate_profile.add_argument("--out", required=True)
     generate_profile.add_argument("--url", default=None)
+    generate_profile.add_argument(
+        "--guide-kind", choices=("control", "depth", "dual"), default="control"
+    )
     generate_profile.add_argument("--seed", type=int, default=42)
     generate_profile.add_argument("--control-strength", type=float, default=0.5)
     generate_profile.add_argument("--control-end-percent", type=float, default=0.6)
     generate_profile.add_argument("--identity-weight", type=float, default=0.7)
     generate_profile.set_defaults(func=command_generate_profile_proof)
+    generate_profile.add_argument("--depth-strength", type=float, default=0.25)
+    generate_profile.add_argument(
+        "--depth-end-percent", type=float, default=0.7
+    )
 
     comfy = subcommands.add_parser("comfy", help="check the ComfyUI box")
     comfy.add_argument("--url", default=None)

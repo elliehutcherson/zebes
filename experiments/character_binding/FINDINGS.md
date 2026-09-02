@@ -286,6 +286,40 @@ camera. Correct Canny input improves local articulation but does not convey
 contact state, elevation, or front/back limb order. Canny is therefore rejected
 as the sole pose-control channel.
 
+## 11. Ordinal-depth-only gate — same control conflict
+
+The binder now assigns experiment-owned front/rear policy to each semantic bone,
+writes 1-based posed layer maps, and records per-pose grayscale values. Stable
+C++ validates and renders the ordinal-depth pixels.
+
+Two bounded depth-only runs reused the same identity and four poses:
+
+| Depth strength/end | Identity/style | Pose/elevation | Verdict |
+|---|---|---|---|
+| 0.45 / 0.70 | Strong: recognizable face, ears, coat, scarf, belt, boots | Four upright standing variations; airborne grounded | Reject pose |
+| 0.90 / 0.95 | Weak: face, facing, coat construction, and pixel style drift badly | Larger limb differences; airborne finally floats | Reject identity/style |
+
+Depth carries elevation and ordering only when held strongly enough to overwrite
+the identity/style signal. Weak depth preserves the mouse but is ignored. This
+reproduces the original one-knob/two-directions failure on cleaner reference-first
+inputs. Depth is rejected as the sole control channel.
+
+## 12. Dual semantic-edge plus weak-depth gate — closed
+
+The final workflow was built in the ComfyUI graph editor and exported in API
+format. It chained semantic Canny at strength/end 0.90/0.95 with ordinal depth
+at 0.25/0.70, plus the same IP-Adapter identity and four locked poses.
+
+Identity and pixel style remain strong, and contact/passing show modest local
+leg differences. Airborne still stands on the ground and turns toward the
+camera. Weak depth adds no usable elevation or front/back ordering when Canny
+and identity dominate.
+
+This triggers the pre-registered stop rule. Canny-only, depth-only at weak and
+strong settings, and dual Canny/depth have all failed the four-pose articulation
+gate. Diffusion-based animation control is closed; no complete cycle or further
+weight sweep is justified.
+
 ---
 
 # The one rule that explains most failures
@@ -374,9 +408,9 @@ in-process stub, so they pass with `derry` switched off.
    set settles its rules; then replace hard pixel ownership with smooth mesh
    weights and explicit front/back limb layers in platform-neutral C++.
 
-3. **Add a depth-bearing pose channel.** Semantic binary contours have now been
-   tested and improve local limb differences, but still fail airborne elevation
-   and facing. Keep the same four locked poses and add weak depth or an
-   OpenPose-compatible joint map. Do not expand to a cycle and do not continue
-   tuning Canny strength: three bounded runs already establish that identity
-   retention is promising and Canny-only articulation is insufficient.
+3. **Move to direct C++ deformation/rendering.** The generation control route is
+   closed by the dual-control failure. Use the isolated reference as texture,
+   replace hard pixel ownership with a smooth layered mesh, render neutral and
+   contact directly at native size, and judge intersections and readability
+   without asking diffusion to reconstruct each frame. Only that two-pose pass
+   justifies a complete locomotion sequence.

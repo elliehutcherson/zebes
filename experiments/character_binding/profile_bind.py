@@ -16,6 +16,12 @@ from pathlib import Path
 from .png import write_rgba
 
 POSES = ("neutral", "contact", "passing", "airborne")
+POSE_FRONT_SUFFIX = {
+    "neutral": "b",
+    "contact": "a",
+    "passing": "b",
+    "airborne": "a",
+}
 BONE_COLORS = (
     (44, 123, 229, 255),
     (230, 126, 34, 255),
@@ -552,6 +558,78 @@ def render_pose(binding: ProfileBinding, pose: str) -> tuple[bytearray, dict[str
     return _fill_holes(output, binding.width, binding.height), target_joints
 
 
+def depths_for_pose(binding: ProfileBinding, pose: str) -> tuple[int, ...]:
+    """Ordinal grayscale policy; which limb is front remains experiment-owned."""
+    if pose not in POSE_FRONT_SUFFIX:
+        raise BindingError(f"unknown profile pose {pose!r}; available: {POSES}")
+    front_suffix = POSE_FRONT_SUFFIX[pose]
+    depths = []
+    for bone in binding.bones:
+        if bone.name == "head":
+            depths.append(200)
+        elif bone.name == "torso":
+            depths.append(140)
+        elif bone.name.endswith(f"_{front_suffix}"):
+            depths.append(220)
+        else:
+            depths.append(70)
+    return tuple(depths)
+
+
+def render_pose_layers(
+    binding: ProfileBinding, pose: str
+) -> tuple[bytearray, dict[str, Point]]:
+    """Pose 1-based bone IDs, resolving overlaps by declared ordinal depth."""
+    posed_mask, target_joints = render_pose(binding, pose)
+    depths = depths_for_pose(binding, pose)
+    output = bytearray(binding.width * binding.height)
+    output_depth = bytearray(binding.width * binding.height)
+    for index, label in enumerate(binding.labels):
+        if label < 0:
+            continue
+        bone = binding.bones[label]
+        target = _transform_point(
+            _point(index, binding.width),
+            binding.joints[bone.start],
+            binding.joints[bone.end],
+            target_joints[bone.start],
+            target_joints[bone.end],
+        )
+        target_x, target_y = round(target[0]), round(target[1])
+        for offset_y in (0, 1):
+            for offset_x in (0, 1):
+                x, y = target_x + offset_x, target_y + offset_y
+                if not 0 <= x < binding.width or not 0 <= y < binding.height:
+                    continue
+                target_index = y * binding.width + x
+                if not posed_mask[target_index]:
+                    continue
+                if output[target_index] and output_depth[target_index] > depths[label]:
+                    continue
+                output[target_index] = label + 1
+                output_depth[target_index] = depths[label]
+
+    pending: deque[int] = deque(
+        index for index, layer in enumerate(output) if layer
+    )
+    reached = bytearray(1 if layer else 0 for layer in output)
+    while pending:
+        index = pending.popleft()
+        x, y = index % binding.width, index // binding.width
+        for offset_x, offset_y in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            nx, ny = x + offset_x, y + offset_y
+            if not 0 <= nx < binding.width or not 0 <= ny < binding.height:
+                continue
+            neighbor = ny * binding.width + nx
+            if not posed_mask[neighbor] or reached[neighbor]:
+                continue
+            reached[neighbor] = 1
+            output[neighbor] = output[index]
+            output_depth[neighbor] = output_depth[index]
+            pending.append(neighbor)
+    return output, target_joints
+
+
 def _draw_line(
     pixels: bytearray,
     width: int,
@@ -794,14 +872,25 @@ def write_evidence(
 
 
     pose_manifest = {}
+    depth_manifest = {}
     for pose in POSES:
-        posed, joints = render_pose(binding, pose)
+        layers, joints = render_pose_layers(binding, pose)
+        posed = bytearray(1 if layer else 0 for layer in layers)
         pose_pixels = _mask_rgba(posed, binding.width, binding.height)
         write_rgba(
             out / f"pose-{pose}.png",
             binding.width,
             binding.height,
             pose_pixels,
+        )
+        layer_pixels = bytearray(b"\x00\x00\x00\xff" * binding.width * binding.height)
+        for index, layer in enumerate(layers):
+            layer_pixels[index * 4] = layer
+        write_rgba(
+            out / f"pose-{pose}-layers.png",
+            binding.width,
+            binding.height,
+            layer_pixels,
         )
         if reduced_source is not None:
             write_rgba(
@@ -836,6 +925,12 @@ def write_evidence(
             name: [round(x, 3), round(y, 3)]
             for name, (x, y) in joints.items()
         }
+        depth_manifest[pose] = {
+            bone.name: depth
+            for bone, depth in zip(
+                binding.bones, depths_for_pose(binding, pose), strict=True
+            )
+        }
 
     manifest = {
         "version": 1,
@@ -845,5 +940,6 @@ def write_evidence(
         "joints": {name: [round(x, 3), round(y, 3)] for name, (x, y) in binding.joints.items()},
         "bones": [asdict(bone) for bone in binding.bones],
         "poses": pose_manifest,
+        "depths": depth_manifest,
     }
     (out / "binding.json").write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
