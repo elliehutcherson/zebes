@@ -1,3 +1,11 @@
+add_executable(profile_silhouette_test profile_silhouette_test.cc)
+target_link_libraries(profile_silhouette_test
+  profile_silhouette
+  gtest_main
+)
+target_include_directories(profile_silhouette_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(profile_silhouette_test)
+
 add_executable(prop_artwork_pipeline_test prop_artwork_pipeline_test.cc)
 target_link_libraries(prop_artwork_pipeline_test
   gtest_main
