@@ -36,6 +36,17 @@ target_link_libraries(animation_artwork_feasibility
   absl::strings
 )
 
+add_library(profile_silhouette profile_silhouette.cc)
+target_link_libraries(profile_silhouette
+  PUBLIC
+  image_io
+  absl::status
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::strings
+)
+
 add_library(repetition_review repetition_review.cc)
 target_link_libraries(repetition_review
   PUBLIC

@@ -79,9 +79,79 @@ python3 -m mannequin.cli render --preset heroic-6h --cycle run --frames 12 \
 
 # Drift between two isolated frames
 python3 -m mannequin.cli gate reference.png candidate.png --tolerance 0.08
+
+# Bind measurements and an exact isolated silhouette to a freely generated
+# front-facing standing reference.
+python3 -m mannequin.cli fit reference.png --base trickster-3h \
+    --name mouse --out out/fitted
+
+# Render posed guides from those retained constraints.
+python3 -m mannequin.cli render \
+    --constraints out/fitted/mouse-constraints.json \
+    --cycle run --frames 12 --views right --out out/mouse-run
+
+# For a target-view profile, derive a medial-axis skeleton directly from the
+# exact isolated silhouette and emit neutral/contact/passing/airborne guides.
+python3 -m mannequin.cli bind-profile profile-reference.png \
+    --out out/profile-binding
+
+# Run the deterministic C++ isolation/thinning boundary against any generated
+# identity. The broad matte tolerance is explicit evidence, not a hidden default.
+build/dev/bin/profile_silhouette_spike \
+    --input=profile-reference.png \
+    --output=out/cpp-profile/skeleton.png \
+    --isolated_output=out/cpp-profile/isolated.png \
+    --background_distance=128
+
+# Ask ComfyUI only four questions: can one identity survive neutral, contact,
+# passing, and airborne guides? This is not an animation-cycle claim.
+python3 -m mannequin.cli generate-profile-proof \
+    --binding out/profile-binding \
+    --identity profile-reference.png \
+    --workflow workflows/pixelart-canny-ipadapter.json \
+    --prompt 'the same character, following the supplied pose guide' \
+    --out out/profile-proof
 ```
 
 A 12-frame set at 1024x1024 takes about 14 seconds.
+
+`fit` writes four distinct artifacts. `*-isolated.png` retains the subject pixels
+selected by the existing isolation algorithm. `*-silhouette.png` is that exact
+mask in white on black; it is the authoritative reference silhouette and is
+never reconstructed from circles or capsules. `*-wireframe.png` overlays the
+fitted joints and rig outline for visual review. `*-rig-diagnostic.png` shows
+where the poseable volume approximation misses the isolated silhouette. A low
+rig IoU blocks a posed generation run; it does not invalidate the isolated mask.
+
+`bind-profile` does not reuse the generic capsule outline. It thins the isolated
+profile to a medial axis, prunes short branches, infers head, trunk, arm, hip,
+knee, and foot joints, and binds both silhouette pixels and isolated source
+colors to those bones. Its evidence includes the recognizable source mouse,
+four warped color previews, the raw medial axis, semantic wireframe, bone
+regions, posed masks, posed wireframe overlays, and a JSON manifest. The color
+previews make deformation errors visible; they are not proposed final frames.
+A single neutral image still cannot reveal limb surfaces hidden by a long coat.
+The four-pose runner uploads `pose-*-control.png`, not the color preview or
+diagnostic wireframe. Each Canny input is opaque black with a white outer contour,
+semantic bones, and joint dots. This tests whether an edge model can obey the
+articulation contract separately from whether IP-Adapter retains identity.
+
+## Experiment stages and implementation boundary
+
+| Step | Goal | Current owner |
+|---|---|---|
+| Generate varied references | Fuzz the binder across silhouettes, clothes, proportions, and poses; not select production identity | Python orchestration + local ComfyUI |
+| Isolate the subject | Preserve the exact generated boundary and reject unusable backgrounds or competing subjects | Existing C++ `IsolateSubject` |
+| Extract the medial axis | Test whether one deterministic topology algorithm survives those varied identities | C++ `profile_silhouette`; Python remains comparison evidence |
+| Infer semantic joints | Turn topology into head, trunk, arm, hip, knee, and foot landmarks | Python prototype until the rules survive the fuzz set |
+| Deform mask and colors | Expose intersections, hidden-surface gaps, and bad ownership before another model call | Python diagnostic prototype; final mesh/weights belong in C++ |
+| Four-pose generation gate | Test whether structure plus the source image yields consistent identity and plausible hidden surfaces | Python/ComfyUI experiment only |
+| Full animation and engine import | Prove native-size motion, registration, palette, loop, and live playback | Existing C++ frame-set and curation pipeline, only after the gate passes |
+
+Python is disposable orchestration and algorithm exploration. Deterministic
+pixel processing graduates to platform-neutral C++ only after its contract is
+measured. No experimental generator or Python runtime becomes an engine
+dependency.
 
 ## The ComfyUI box
 
@@ -224,12 +294,14 @@ so instead of quietly cropping a foot.
 | `render_svg.py` | Vector output in three modes |
 | `openpose.py` | COCO-18 export and canonical skeleton render |
 | `measure.py` | Scale-invariant proportion signatures and the drift gate |
-| `isolate.py` | Separates a generated frame from its background for measurement |
+| `isolate.py` | Separates a generated frame; its exact mask is retained as the reference silhouette |
+| `fit.py` | Derives reusable proportions and persistent head attachments from the isolated reference |
+| `profile_bind.py` | Extracts a pruned medial axis, infers profile joints, and poses the bound silhouette |
 | `spike.py` | The rung-1 experiment: render, generate, score against fixed criteria |
 | `png.py` | Minimal PNG writer and a narrow reader |
 | `comfy_client.py` | HTTP bridge to ComfyUI: upload, queue, wait, download |
 | `workflow.py` | Patching API-format templates by `ZEBES_` node title |
-| `cli.py` | `render`, `report`, `gate`, `comfy`, `template` |
+| `cli.py` | `render`, `report`, `gate`, `fit`, `bind-profile`, `comfy`, `template` |
 
 ## Tests
 

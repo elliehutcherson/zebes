@@ -26,9 +26,12 @@ and reported separately so nobody mistakes them for measurements.
 from __future__ import annotations
 
 import dataclasses
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
-from .measurements import Proportions
+from .measurements import Hair, Proportions
+from .skeleton import HEAD, Ellipsoid
 
 # A row must be this much wider than the neck to count as the shoulder line.
 SHOULDER_WIDTH_RATIO = 1.15
@@ -67,7 +70,8 @@ class Landmarks:
     bottom: int
 
     @property
-    def head_height(self) -> int:
+    def silhouette_head_height(self) -> int:
+        """Height from the highest attachment to the neck."""
         return self.neck - self.top
 
 
@@ -94,6 +98,24 @@ def row_spans(mask: bytes | bytearray, width: int, height: int) -> list[RowSpan 
                 inside = False
         spans.append(RowSpan(left, right, runs) if right >= 0 else None)
     return spans
+
+
+def row_runs(
+    mask: bytes | bytearray, width: int, y: int
+) -> tuple[tuple[int, int], ...]:
+    """Contiguous covered runs in one row, inclusive at both ends."""
+    runs: list[tuple[int, int]] = []
+    start: int | None = None
+    for x in range(width):
+        covered = bool(mask[y * width + x])
+        if covered and start is None:
+            start = x
+        if not covered and start is not None:
+            runs.append((start, x - 1))
+            start = None
+    if start is not None:
+        runs.append((start, width - 1))
+    return tuple(runs)
 
 
 def find_landmarks(spans: list[RowSpan | None]) -> Landmarks:
@@ -220,20 +242,258 @@ def shadow_warning(spans: list[RowSpan | None], marks: Landmarks) -> str | None:
 
 
 @dataclass(frozen=True)
+class HeadAttachment:
+    """One image-derived head silhouette lobe, in head units."""
+
+    name: str
+    center_x: float
+    center_y: float
+    radius_x: float
+    radius_y: float
+    radius_z: float
+
+
+@dataclass(frozen=True)
+class Constraints:
+    """Reusable geometry extracted from one freely generated reference."""
+
+    proportions: Proportions
+    head_attachments: tuple[HeadAttachment, ...]
+    top_overhang: float
+    source_size: tuple[int, int]
+    subject_bounds: tuple[int, int]
+    center_x_px: float
+
+    @property
+    def frame_height_hu(self) -> float:
+        return self.proportions.heads_tall + self.top_overhang
+
+
+def attachment_volumes(
+    attachments: tuple[HeadAttachment, ...],
+) -> tuple[Ellipsoid, ...]:
+    """Build head-parented volumes that survive every later pose."""
+    return tuple(
+        Ellipsoid(
+            item.name,
+            "head",
+            (item.center_x, item.center_y, 0.0),
+            item.radius_x,
+            item.radius_y,
+            item.radius_z,
+            HEAD,
+        )
+        for item in attachments
+    )
+
+
+@dataclass(frozen=True)
+class SilhouetteScore:
+    intersection: int
+    union: int
+    reference_only: int
+    fitted_only: int
+
+    @property
+    def iou(self) -> float:
+        return self.intersection / self.union if self.union else 1.0
+
+
+def compare_silhouettes(
+    reference: bytes | bytearray,
+    fitted: bytes | bytearray,
+    width: int,
+    first_row: int,
+    last_row: int,
+) -> SilhouetteScore:
+    """Compare registered masks over an inclusive vertical band."""
+    if len(reference) != len(fitted) or len(reference) != width * (len(reference) // width):
+        raise FitError("silhouette buffers do not share one rectangular size")
+    if not 0 <= first_row <= last_row < len(reference) // width:
+        raise FitError(f"invalid silhouette rows {first_row}..{last_row}")
+
+    intersection = union = reference_only = fitted_only = 0
+    for y in range(first_row, last_row + 1):
+        for x in range(width):
+            index = y * width + x
+            in_reference = bool(reference[index])
+            in_fitted = bool(fitted[index])
+            intersection += in_reference and in_fitted
+            union += in_reference or in_fitted
+            reference_only += in_reference and not in_fitted
+            fitted_only += in_fitted and not in_reference
+    return SilhouetteScore(intersection, union, reference_only, fitted_only)
+
+
+def write_constraints(path: Path, constraints: Constraints) -> None:
+    payload = {
+        "version": 1,
+        "proportions": asdict(constraints.proportions),
+        "head_attachments": [asdict(item) for item in constraints.head_attachments],
+        "framing": {
+            "top_overhang": constraints.top_overhang,
+            "source_size": constraints.source_size,
+            "subject_bounds": constraints.subject_bounds,
+            "center_x_px": constraints.center_x_px,
+        },
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def load_constraints(path: Path) -> Constraints:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if payload["version"] != 1:
+            raise FitError(f"unsupported constraint version {payload['version']!r}")
+        proportion_fields = dict(payload["proportions"])
+        proportion_fields["hair"] = Hair(**proportion_fields["hair"])
+        proportions = Proportions(**proportion_fields)
+        proportions.validate()
+        framing = payload["framing"]
+        return Constraints(
+            proportions=proportions,
+            head_attachments=tuple(
+                HeadAttachment(**item) for item in payload["head_attachments"]
+            ),
+            top_overhang=float(framing["top_overhang"]),
+            source_size=tuple(int(value) for value in framing["source_size"]),
+            subject_bounds=tuple(int(value) for value in framing["subject_bounds"]),
+            center_x_px=float(framing["center_x_px"]),
+        )
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        if isinstance(error, FitError):
+            raise
+        raise FitError(f"invalid constraint file {path}: {error}") from error
+
+
+def _torso_center(spans: list[RowSpan | None], marks: Landmarks) -> float:
+    centres = sorted(
+        (span.left + span.right) / 2.0
+        for span in spans[marks.shoulder : marks.crotch]
+        if span is not None
+    )
+    if not centres:
+        raise FitError("no torso rows between the shoulder and crotch landmarks")
+    return centres[len(centres) // 2]
+
+
+def _run_containing(
+    runs: tuple[tuple[int, int], ...], x: float
+) -> tuple[int, int] | None:
+    return next((run for run in runs if run[0] <= x <= run[1]), None)
+
+
+def _fit_head(
+    mask: bytes | bytearray,
+    width: int,
+    marks: Landmarks,
+    center_x: float,
+) -> tuple[int, float, tuple[HeadAttachment, ...]]:
+    center_column = min(width - 1, max(0, round(center_x)))
+    skull_top = next(
+        (
+            y
+            for y in range(marks.top, marks.neck)
+            if mask[y * width + center_column]
+        ),
+        None,
+    )
+    if skull_top is None:
+        raise FitError("could not find a central skull above the neck")
+
+    head_px = marks.neck - skull_top
+    if head_px <= 0:
+        raise FitError("measured skull height is zero")
+
+    width_start = skull_top + max(1, int(head_px * 0.45))
+    central_widths = sorted(
+        run[1] - run[0] + 1
+        for y in range(width_start, marks.neck)
+        if (run := _run_containing(row_runs(mask, width, y), center_x)) is not None
+    )
+    if not central_widths:
+        raise FitError("could not measure the central skull width")
+    skull_width_px = float(central_widths[len(central_widths) // 2])
+
+    # A large paired feature above the central skull is not skull width. It is
+    # persistent geometry: mouse ears, horns, hair buns, or a split headdress.
+    # Fit each visible lobe independently so the guide retains the generated
+    # silhouette instead of replacing the whole head with one enormous circle.
+    lobe_rows: dict[str, list[tuple[int, int, int]]] = {"left": [], "right": []}
+    scan_bottom = min(marks.neck, skull_top + max(2, head_px // 4))
+    center_margin = skull_width_px * 0.15
+    for y in range(marks.top, scan_bottom):
+        for left, right in row_runs(mask, width, y):
+            if right < center_x - center_margin:
+                lobe_rows["left"].append((left, right, y))
+            elif left > center_x + center_margin:
+                lobe_rows["right"].append((left, right, y))
+
+    attachments: list[HeadAttachment] = []
+    for side in ("left", "right"):
+        samples = lobe_rows[side]
+        if not samples:
+            continue
+        left = min(sample[0] for sample in samples)
+        right = max(sample[1] for sample in samples)
+        top = min(sample[2] for sample in samples)
+        radius_x_px = (right - left + 1) / 2.0
+        if radius_x_px < head_px * 0.12:
+            continue
+        # Only the free upper arc is separable from the skull. The attachment's
+        # hidden lower arc is inferred as near-round and checked in the overlay.
+        radius_y_px = radius_x_px * 1.08
+        lobe_center_x = (left + right) / 2.0
+        lobe_center_y = top + radius_y_px
+        attachments.append(
+            HeadAttachment(
+                name=f"head_lobe_{side}",
+                center_x=(lobe_center_x - center_x) / head_px,
+                center_y=(marks.neck - lobe_center_y) / head_px,
+                radius_x=radius_x_px / head_px,
+                radius_y=radius_y_px / head_px,
+                radius_z=radius_x_px / head_px * 0.45,
+            )
+        )
+
+    return skull_top, skull_width_px, tuple(attachments)
+
+
+@dataclass(frozen=True)
 class Fit:
     proportions: Proportions
     landmarks: Landmarks
+    skull_top: int
+    center_x_px: float
+    head_attachments: tuple[HeadAttachment, ...]
     measured: tuple[str, ...]
     carried: tuple[str, ...]
+    source_size: tuple[int, int]
     warning: str | None = None
+
+    @property
+    def head_height(self) -> int:
+        return self.landmarks.neck - self.skull_top
+
+    def constraints(self) -> Constraints:
+        return Constraints(
+            proportions=self.proportions,
+            head_attachments=self.head_attachments,
+            top_overhang=(self.skull_top - self.landmarks.top) / self.head_height,
+            source_size=self.source_size,
+            subject_bounds=(self.landmarks.top, self.landmarks.bottom),
+            center_x_px=self.center_x_px,
+        )
 
     def report(self) -> str:
         p = self.proportions
         lines = [
             f"fitted '{p.name}' from a {self.landmarks.bottom - self.landmarks.top + 1}px figure",
-            f"  head height   {self.landmarks.head_height}px",
+            f"  skull height  {self.head_height}px",
+            f"  top overhang  {self.skull_top - self.landmarks.top}px",
             f"  heads tall    {p.heads_tall:.2f}",
             f"  head width    {p.head_width:.2f} HU",
+            f"  head lobes    {len(self.head_attachments)}",
             f"  shoulders     {p.shoulder_width:.2f} HU",
             f"  waist / hip   {p.waist_width:.2f} / {p.hip_width:.2f} HU",
             f"  inseam        {p.inseam:.2f} HU",
@@ -242,9 +502,16 @@ class Fit:
             f"carried from the base preset (not visible in a front view): "
             f"{', '.join(self.carried)}",
         ]
+        for item in self.head_attachments:
+            lines.append(
+                f"  {item.name}: center ({item.center_x:.2f}, {item.center_y:.2f}) HU, "
+                f"radii {item.radius_x:.2f} x {item.radius_y:.2f} HU"
+            )
         if self.warning is not None:
             lines += ["", f"WARNING: {self.warning}"]
         return "\n".join(lines)
+
+
 
 
 def fit_proportions(
@@ -254,14 +521,18 @@ def fit_proportions(
     base: Proportions,
     name: str = "fitted",
 ) -> Fit:
-    """Fit a measurement set to an isolated, front-facing standing figure.
+    """Fit reusable geometry to an isolated, front-facing standing figure.
 
-    Ears, hats and hair inflate the head measurements, because a silhouette
-    cannot tell them from a skull. Check the overlay before trusting the result.
+    Paired lobes above the central skull are retained as separate head-parented
+    attachments. The overlay remains the authority for ambiguous silhouettes.
     """
     spans = row_spans(mask, width, height)
     marks = find_landmarks(spans)
-    head_px = float(marks.head_height)
+    center_x = _torso_center(spans, marks)
+    skull_top, skull_width_px, head_attachments = _fit_head(
+        mask, width, marks, center_x
+    )
+    head_px = float(marks.neck - skull_top)
     if head_px <= 0.0:
         raise FitError("measured head height is zero")
 
@@ -269,9 +540,7 @@ def fit_proportions(
         return pixels / head_px
 
     torso_px = marks.crotch - marks.shoulder
-    # Median rather than max across the head band: on a character with ears or a
-    # hat the widest row is the ears, and the skull is what the rig needs.
-    head_width = hu(_median_width(spans, marks.top, marks.neck))
+    head_width = hu(skull_width_px)
     shoulder_width = hu(
         _max_width(spans, marks.shoulder, marks.shoulder + max(1, torso_px // 3))
     )
@@ -303,8 +572,7 @@ def fit_proportions(
         name=name,
         upper_arm=base.upper_arm * reach_scale,
         forearm=base.forearm * reach_scale,
-        hand_length=base.hand_length * reach_scale,
-        heads_tall=hu(marks.bottom - marks.top + 1),
+        heads_tall=hu(marks.bottom - skull_top),
         head_width=head_width,
         head_depth=depth_like(head_width, base.head_width, base.head_depth),
         neck_length=hu(marks.shoulder - marks.neck),
@@ -324,9 +592,13 @@ def fit_proportions(
     return Fit(
         proportions=fitted,
         landmarks=marks,
+        skull_top=skull_top,
+        center_x_px=center_x,
+        head_attachments=head_attachments,
         measured=(
             "heads_tall",
             "head_width",
+            "head silhouette lobes",
             "neck_length",
             "shoulder_width",
             "waist_width",
@@ -342,5 +614,6 @@ def fit_proportions(
             "foot_length",
             "eye_radius",
         ),
+        source_size=(width, height),
         warning=shadow_warning(spans, marks),
     )

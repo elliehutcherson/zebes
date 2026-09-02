@@ -35,6 +35,18 @@ target_link_libraries(
           absl::statusor absl::strings
 )
 
+add_executable(profile_silhouette_spike profile_silhouette_spike.cc)
+target_link_libraries(profile_silhouette_spike
+  PRIVATE
+  image_io
+  profile_silhouette
+  prop_artwork
+  absl::flags
+  absl::flags_parse
+  absl::status
+  absl::statusor
+)
+
 add_library(animation_artwork_run_manifest animation_artwork_run_manifest.cc)
 target_include_directories(animation_artwork_run_manifest PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(animation_artwork_run_manifest

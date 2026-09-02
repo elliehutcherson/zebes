@@ -31,14 +31,13 @@ import statistics
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from mannequin import isolate, measure, raster
+from mannequin import fit, isolate, measure, raster, workflow
 from mannequin.comfy_client import ComfyClient
 from mannequin.costume import costume
 from mannequin.measurements import preset
 from mannequin.pose import run_cycle
-from mannequin.project import layout_for, project
+from mannequin.project import Layout, layout_for, project
 from mannequin.skeleton import build_rig, seat_on_ground, solve
-from mannequin import workflow
 
 # --- Pre-registered acceptance criteria. Do not edit after a run. -------------
 
@@ -138,18 +137,34 @@ def shoulder_rows(joints, layout) -> tuple[int, int]:
     )
 
 
-def render_guides(out: Path, write: bool = True):
+def render_guides(
+    out: Path, constraints_path: Path | None, write: bool = True
+):
     from mannequin.project import project_joints
 
-    p = preset("heroic-6h")
-    joints, volumes = costume("knight").build(p)
+    if constraints_path is None:
+        p = preset("heroic-6h")
+        joints, volumes = costume("knight").build(p)
+        layout = layout_for(p, CANVAS, CANVAS)
+    else:
+        constraints = fit.load_constraints(constraints_path)
+        p = constraints.proportions
+        joints = ()
+        volumes = fit.attachment_volumes(constraints.head_attachments)
+        layout = Layout(
+            width=CANVAS,
+            height=CANVAS,
+            pixels_per_head=CANVAS * 0.84 / constraints.frame_height_hu,
+            origin_x=CANVAS / 2.0,
+            ground_y=CANVAS * 0.92,
+        )
     rig = build_rig(p, joints, volumes)
-    layout = layout_for(p, CANVAS, CANVAS)
 
     rendered, near, far = [], float("inf"), float("-inf")
     for frame in run_cycle(FRAMES):
         pose = dict(frame.pose)
-        pose["wrist_l"] = WRIST_GRIP
+        if constraints_path is None:
+            pose["wrist_l"] = WRIST_GRIP
         world = seat_on_ground(rig, solve(rig, pose), frame.planted_foot)
         items = project(rig, world, VIEW, layout)
         buffers = raster.rasterize(CANVAS, CANVAS, items)
@@ -195,13 +210,27 @@ def main() -> int:
         "a ZEBES_IDENTITY_IMAGE handle",
     )
     parser.add_argument("--identity-weight", type=float, default=0.7)
+    parser.add_argument(
+        "--constraints",
+        default=None,
+        help="reference-first constraint JSON from mannequin.cli fit",
+    )
+    parser.add_argument(
+        "--prompt",
+        default=PROMPT,
+        help="character description paired with --identity",
+    )
     args = parser.parse_args()
 
     out = Path(args.out)
     if out.exists() and not args.remeasure:
         raise SystemExit(f"{out} already exists; evidence directories are immutable")
 
-    rendered, proportions, layout = render_guides(out, write=not args.remeasure)
+    rendered, proportions, layout = render_guides(
+        out,
+        Path(args.constraints) if args.constraints is not None else None,
+        write=not args.remeasure,
+    )
     print(f"{'measured' if args.remeasure else 'rendered'} {len(rendered)} guides")
 
     client = None if args.remeasure else ComfyClient(args.url)
@@ -224,7 +253,7 @@ def main() -> int:
             )
             patches = {
                 workflow.CONTROL_IMAGE: {"image": uploaded.reference},
-                workflow.POSITIVE_PROMPT: {"text": PROMPT},
+                workflow.POSITIVE_PROMPT: {"text": args.prompt},
                 workflow.SEED: {"seed": SEED},
             }
             control = {}
@@ -283,8 +312,8 @@ def main() -> int:
 
     verdict = {
         "seed": SEED,
-        "frames": FRAMES,
-        "prompt": PROMPT,
+        "prompt": args.prompt,
+        "constraints": args.constraints,
         "criteria": {
             "max_head_width_drift": MAX_HEAD_WIDTH_DRIFT,
             "max_shoulder_width_drift": MAX_SHOULDER_WIDTH_DRIFT,

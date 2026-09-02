@@ -18,7 +18,15 @@ EXPERIMENT_ROOT = Path(__file__).parent.parent / "experiments" / "mannequin"
 if str(EXPERIMENT_ROOT) not in sys.path:
     sys.path.insert(0, str(EXPERIMENT_ROOT))
 
-from mannequin import cli, isolate, measure, openpose, raster  # noqa: E402
+from mannequin import (  # noqa: E402
+    cli,
+    fit,
+    isolate,
+    measure,
+    openpose,
+    profile_bind,
+    raster,
+)
 from mannequin.costume import (  # noqa: E402
     Costume,
     CostumeError,
@@ -377,6 +385,188 @@ class OpenPoseTest(unittest.TestCase):
 
         self.assertTrue(all(pixels[i] == 255 for i in range(3, len(pixels), 4)))
         self.assertEqual(tuple(pixels[0:3]), (0, 0, 0))
+
+
+class ReferenceFitTest(unittest.TestCase):
+    @staticmethod
+    def mouse_mask() -> tuple[bytearray, int, int]:
+        width, height = 120, 180
+        mask = bytearray(width * height)
+
+        def ellipse(cx, cy, radius_x, radius_y):
+            for y in range(max(0, cy - radius_y), min(height, cy + radius_y + 1)):
+                for x in range(max(0, cx - radius_x), min(width, cx + radius_x + 1)):
+                    if (
+                        ((x - cx) / radius_x) ** 2
+                        + ((y - cy) / radius_y) ** 2
+                        <= 1.0
+                    ):
+                        mask[y * width + x] = 1
+
+        def rectangle(left, top, right, bottom):
+            for y in range(top, bottom):
+                start = y * width + left
+                mask[start : start + right - left] = b"\x01" * (right - left)
+
+        ellipse(60, 42, 20, 24)
+        ellipse(29, 20, 12, 14)
+        ellipse(91, 20, 12, 14)
+        rectangle(55, 64, 65, 73)
+        rectangle(40, 73, 80, 120)
+        rectangle(42, 82, 48, 126)
+        rectangle(72, 82, 78, 126)
+        rectangle(45, 120, 57, 172)
+        rectangle(63, 120, 75, 172)
+        return mask, width, height
+
+    def test_big_ears_are_fitted_separately_from_the_skull(self):
+        mask, width, height = self.mouse_mask()
+
+        result = fit.fit_proportions(
+            mask, width, height, preset("trickster-3h"), "mouse"
+        )
+
+        self.assertEqual(result.skull_top, 18)
+        self.assertEqual(result.head_height, 48)
+        self.assertEqual(len(result.head_attachments), 2)
+        self.assertLess(result.proportions.head_width, 1.0)
+        left, right = result.head_attachments
+        self.assertAlmostEqual(left.center_x, -right.center_x, delta=0.05)
+        self.assertAlmostEqual(left.radius_x, right.radius_x, delta=0.01)
+
+    def test_fitted_constraints_round_trip_and_build_a_rig(self):
+        import tempfile
+
+        mask, width, height = self.mouse_mask()
+        result = fit.fit_proportions(
+            mask, width, height, preset("trickster-3h"), "mouse"
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mouse.json"
+            fit.write_constraints(path, result.constraints())
+            loaded = fit.load_constraints(path)
+
+        self.assertEqual(loaded, result.constraints())
+        rig = build_rig(
+            loaded.proportions, (), fit.attachment_volumes(loaded.head_attachments)
+        )
+        self.assertIn("head_lobe_left", {volume.name for volume in rig.volumes})
+        self.assertIn("head_lobe_right", {volume.name for volume in rig.volumes})
+
+
+class ProfileBindingTest(unittest.TestCase):
+    @staticmethod
+    def profile_mask() -> tuple[bytearray, int, int]:
+        width = height = 128
+        mask = bytearray(width * height)
+
+        def ellipse(cx, cy, radius_x, radius_y):
+            for y in range(max(0, cy - radius_y), min(height, cy + radius_y + 1)):
+                for x in range(max(0, cx - radius_x), min(width, cx + radius_x + 1)):
+                    if (
+                        ((x - cx) / radius_x) ** 2
+                        + ((y - cy) / radius_y) ** 2
+                        <= 1.0
+                    ):
+                        mask[y * width + x] = 1
+
+        def rectangle(left, top, right, bottom):
+            for y in range(top, bottom):
+                start = y * width + left
+                mask[start : start + right - left] = b"\x01" * (right - left)
+
+        ellipse(64, 27, 18, 19)
+        ellipse(45, 15, 10, 11)
+        ellipse(83, 15, 10, 11)
+        rectangle(59, 43, 69, 52)
+        rectangle(45, 50, 83, 91)
+        rectangle(35, 57, 48, 82)
+        rectangle(80, 57, 101, 79)
+        rectangle(49, 88, 59, 117)
+        rectangle(69, 88, 79, 117)
+        rectangle(42, 113, 59, 120)
+        rectangle(69, 113, 88, 120)
+        return mask, width, height
+
+    def test_medial_axis_binding_finds_ordered_profile_joints(self):
+        mask, width, height = self.profile_mask()
+
+        binding = profile_bind.make_binding(mask, width, height, target=128)
+
+        joints = binding.joints
+        self.assertLess(joints["head"][1], joints["neck"][1])
+        self.assertLess(joints["neck"][1], joints["shoulder"][1])
+        self.assertLess(joints["shoulder"][1], joints["hip"][1])
+        self.assertLess(joints["hip"][1], joints["leg_split"][1])
+        self.assertLess(joints["leg_split"][1], joints["foot_a"][1])
+        self.assertIn("hand_a", joints)
+        self.assertIn("hand_b", joints)
+
+    def test_neutral_binding_retains_the_isolated_silhouette(self):
+        mask, width, height = self.profile_mask()
+        binding = profile_bind.make_binding(mask, width, height, target=128)
+
+        neutral, _ = profile_bind.render_pose(binding, "neutral")
+        intersection = sum(
+            bool(reference) and bool(candidate)
+            for reference, candidate in zip(binding.mask, neutral, strict=True)
+        )
+        union = sum(
+            bool(reference) or bool(candidate)
+            for reference, candidate in zip(binding.mask, neutral, strict=True)
+        )
+
+        self.assertGreater(intersection / union, 0.90)
+
+    def test_airborne_pose_lifts_both_feet(self):
+        mask, width, height = self.profile_mask()
+        binding = profile_bind.make_binding(mask, width, height, target=128)
+
+        _, airborne = profile_bind.render_pose(binding, "airborne")
+
+        self.assertLess(airborne["foot_a"][1], binding.joints["foot_a"][1])
+        self.assertLess(airborne["foot_b"][1], binding.joints["foot_b"][1])
+
+    def test_color_warp_fills_every_approved_pose_pixel(self):
+        mask, width, height = self.profile_mask()
+        binding = profile_bind.make_binding(mask, width, height, target=128)
+        pixels = bytearray(width * height * 4)
+        for index, covered in enumerate(mask):
+            if not covered:
+                continue
+            pixels[index * 4 : index * 4 + 4] = bytes(
+                (index % width, index // width, 90, 255)
+            )
+        reduced = profile_bind.downsample_subject_rgba(
+            pixels, mask, width, height, binding
+        )
+
+        posed_mask, _ = profile_bind.render_pose(binding, "contact")
+        posed_color = profile_bind.render_color_pose(binding, reduced, "contact")
+
+        for index, covered in enumerate(posed_mask):
+            self.assertEqual(bool(posed_color[index * 4 + 3]), bool(covered))
+
+    def test_pose_control_is_binary_outline_plus_semantic_bones(self):
+        mask, width, height = self.profile_mask()
+        binding = profile_bind.make_binding(mask, width, height, target=128)
+        posed, joints = profile_bind.render_pose(binding, "contact")
+
+        control = profile_bind.render_pose_control(
+            posed, joints, binding.bones, binding.width, binding.height
+        )
+
+        colors = {
+            tuple(control[offset : offset + 4])
+            for offset in range(0, len(control), 4)
+        }
+        self.assertEqual(colors, {(0, 0, 0, 255), (255, 255, 255, 255)})
+        self.assertEqual(tuple(control[0:4]), (0, 0, 0, 255))
+        self.assertGreater(
+            sum(control[offset] == 255 for offset in range(0, len(control), 4)),
+            100,
+        )
 
 
 class CostumeTest(unittest.TestCase):

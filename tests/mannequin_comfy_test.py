@@ -16,7 +16,7 @@ EXPERIMENT_ROOT = Path(__file__).parent.parent / "experiments" / "mannequin"
 if str(EXPERIMENT_ROOT) not in sys.path:
     sys.path.insert(0, str(EXPERIMENT_ROOT))
 
-from mannequin import workflow  # noqa: E402
+from mannequin import profile_proof, workflow  # noqa: E402
 from mannequin.comfy_client import ComfyClient, ComfyError, OutputImage  # noqa: E402
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\nstub-image-payload"
@@ -267,6 +267,39 @@ class ComfyClientTest(unittest.TestCase):
             self.assertEqual(len(written), 1)
             self.assertEqual(written[0].name, "zebes_00001_.png")
             self.assertEqual(written[0].read_bytes(), PNG_BYTES)
+
+    def test_profile_proof_generates_exactly_four_locked_poses(self):
+        import tempfile
+
+        self.state.history_replies = [self.completed_history()]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binding = root / "binding"
+            binding.mkdir()
+            for pose in profile_proof.POSES:
+                (binding / f"pose-{pose}-control.png").write_bytes(PNG_BYTES)
+            identity = root / "identity.png"
+            identity.write_bytes(PNG_BYTES)
+            output = root / "proof"
+
+            profile_proof.generate(
+                self.client,
+                binding,
+                identity,
+                EXPERIMENT_ROOT / "workflows" / "pixelart-canny-ipadapter.json",
+                output,
+                profile_proof.ProfileProofConfig(prompt="one mouse"),
+            )
+
+            manifest = json.loads((output / "manifest.json").read_text())
+            self.assertEqual(
+                [record["pose"] for record in manifest["poses"]],
+                list(profile_proof.POSES),
+            )
+            self.assertEqual(
+                sorted(path.name for path in (output / "generated").iterdir()),
+                sorted(f"{pose}.png" for pose in profile_proof.POSES),
+            )
 
 
 class WorkflowTemplateTest(unittest.TestCase):

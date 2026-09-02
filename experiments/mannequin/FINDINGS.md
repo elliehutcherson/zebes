@@ -23,12 +23,14 @@ runs on local ComfyUI.
 
 ## Current status in one paragraph
 
-The consistency problem is solved and the style problem is mostly solved, but
-never at the same time in a measured run. Depth conditioning holds proportions
-to 1.3% across eleven of twelve frames but destroys the art style. Edge
-conditioning preserves the style and transfers poses but has not been measured
-across twelve frames. The rig-fitting step, which was meant to join them, is
-built but fits badly: 50% too narrow overall, per-band errors from −35% to +57%.
+The reference-first route now has a target-view binder. A freely generated
+profile mouse is isolated exactly, thinned to a pruned medial axis, assigned
+semantic head, trunk, arm, hip, knee, and foot joints, and bound to ten bones.
+The neutral deformation retains 97.3% silhouette IoU at the 256px working size.
+Contact, passing, and airborne proofs remain recognizably the same large-eared,
+long-coated mouse at 48px and expose different poses. These are conditioning
+guides, not final art: the neutral coat hides leg surfaces that no single-image
+deformation can recover.
 
 ---
 
@@ -85,12 +87,12 @@ measure.signature / compare     scale-invariant drift gate
 | `render_svg.py` | Vector output in three modes | Artist-facing; no C++ analogue intended |
 | `openpose.py` | COCO-18 export, canonical coloured skeleton | Colours match the reference renderer |
 | `png.py` | Minimal PNG writer, narrow reader | Superseded by `src/common/image_io.h` at port time |
-| `isolate.py` | Background separation for generated frames | Experiment-side stand-in for `src/artwork/isolate_subject.h` |
+| `isolate.py` | Background separation for generated frames | Its exact mask is retained as the reference silhouette |
 | `measure.py` | Proportion signatures, drift comparison | Scale-invariant: widths normalised by figure height |
-| `fit.py` | Derive `Proportions` from a character image | Built, not yet accurate |
+| `fit.py` | Derive reusable constraints from a character image | Separates central skull from persistent head lobes |
 | `comfy_client.py` | HTTP bridge to ComfyUI | No retries anywhere, by design |
 | `workflow.py` | Patch API-format templates by `ZEBES_` node title | Templates are exported from the UI, never hand-written |
-| `cli.py` | `render`, `report`, `gate`, `fit`, `comfy`, `template` | |
+| `cli.py` | `render`, `report`, `gate`, `fit`, `comfy`, `template` | Fit emits isolated, silhouette, wireframe, and rig-diagnostic evidence |
 | `spike.py` | The 12-frame experiment with pre-registered criteria | Thresholds fixed in code before a run |
 | `tunnel.sh` | Ensures the SSH port-forward and restarts ComfyUI | The forward dies on idle |
 
@@ -187,22 +189,99 @@ characters: cute mice with round ears, expressive eyes, scarves and satchels,
 readable at 48px. This is the quality bar, and it is what the rig must stop
 destroying.
 
-## 7. Fitting the rig to a generated character — built, inaccurate
+## 7. Reference-first fitting — head solved, complete rig rejected
 
-Fits `Proportions` from a front-facing standing figure using two landmarks: the
-neck (narrowest row in the upper half) and the crotch (first row where coverage
-splits into two runs). Vertical closure holds by construction.
+The free mouse image is isolated before any geometry is inferred. That exact
+mask is written as the authoritative silhouette. The fitter then finds the
+central skull separately from paired upper lobes, so the large ears become two
+head-parented ellipsoids rather than inflating the skull into one circle.
 
-Measured against the mouse it was fitted to:
+Measured on the original freely generated mouse:
 
-| | Mouse | Rig | Error |
-|---|---|---|---|
-| Height | 856px | 770px | −10% |
-| Width | 761px | 378px | **−50%** |
-| Per-band width | | | **−35% to +57%** |
+| Evidence | Result |
+|---|---:|
+| Exact isolated silhouette | retained byte-for-byte as the mask |
+| Fitted head silhouette IoU | **90.9%** |
+| Fitted complete-rig silhouette IoU | **68.8%** |
+| Publish threshold | 85% head, 80% complete rig |
 
-**This is not good enough to use.** It gets the vertical landmarks roughly right
-and the widths badly wrong.
+The fit correctly rejects. Visual evidence shows that the remaining error is
+not the ears: it is the satchel, tail, long coat, cast shadow, and oversized
+carried shoulder/limb radii. No constraint file is published from a rejected
+fit. A second unconstrained prompt produced a cleaner profile mouse without a
+bag or broad shadow, but the current fitter is explicitly front-view and does
+not pretend that profile measurements determine unseen depth.
+
+## 8. Profile silhouette binding — first posed proof
+
+`bind-profile` uses the isolated silhouette rather than the rejected primitive
+rig outline. Zhang-Suen thinning produces a one-pixel medial axis; short terminal
+branches are pruned; graph paths locate the two feet, visible leg split, trunk,
+head interior, and lateral arm evidence. The anatomical hip is placed above the
+visible split because the long coat hides it.
+
+Measured on the selected unconstrained profile reference:
+
+| Evidence | Result |
+|---|---:|
+| Working mask | 256 × 256 from the 1024px isolated source |
+| Medial-axis pixels | 505 |
+| Semantic joints / bones | 13 / 10 |
+| Neutral posed-mask IoU | **97.3%** |
+| Proof poses | neutral, contact, passing, airborne |
+| Recognizable preview | isolated colors warped through the same ten bones |
+
+Visual review includes the mouse artwork, not only masks. The original, neutral,
+contact, passing, and airborne color previews retain the same face, large ears,
+green hood and coat, red scarf, belt, and boots. The contact and airborne
+previews also expose the remaining deformation errors plainly: coat sections
+stretch around moving arms, and boots cannot supply the hidden leg pixels absent
+from the neutral reference. These previews are diagnostic inputs to the next
+four-image generation gate, not proposed animation frames.
+
+## 9. Deterministic C++ silhouette core — ported and fuzzed
+
+The stable preprocessing boundary now lives in `src/artwork/profile_silhouette`.
+It consumes production `IsolateSubject` output, reduces the exact alpha mask,
+performs Zhang-Suen thinning, prunes short branches, reports components,
+endpoints, and branch pixels, and renders review evidence. Python still owns
+semantic-joint exploration and ComfyUI orchestration; neither is an engine
+dependency.
+
+Three independently generated mouse identities exercised different failure
+classes rather than competing for final-art selection:
+
+| Identity | C++ isolation/topology result | What the step tells us |
+|---|---|---|
+| seed 11 | Rejected: competing components of 115,873 and 29,643 pixels | Its background/shadow is not bindable evidence |
+| seed 23 | Accepted at explicit RGB matte distance 128: 18,974 silhouette pixels, 573 axis pixels, 2 components | Main candidate; also exposes one disconnected topology component |
+| seed 45 | Accepted at distance 128: 4,700 silhouette pixels, 218 axis pixels, 1 component | The same extractor handles a much smaller/chunkier identity |
+
+The fuzz set found a real source contract: generated near-white backgrounds vary
+too much for the production isolation default of 36. Future reference prompts
+should request transparency or a truly flat matte; widening to 128 must remain
+an explicit experiment parameter. The C++ boundary also renders a binary neutral
+control—exact outer contour plus medial axis, white on black—using the same
+contract as later posed semantic controls.
+
+## 10. Four-pose identity generation — identity pass, pose fail
+
+The bounded runner sends exactly neutral, contact, passing, and airborne guides,
+uses one uploaded identity, records every digest and setting, and makes no cycle
+claim.
+
+The first two runs mistakenly sent a filled diagnostic wireframe to a
+Canny-trained model. Strength 0.5 retained identity but returned four standing
+poses. Strength 0.9 added small limb differences, while airborne still stood on
+the ground.
+
+The third run corrected the channel: each input is a binary outer contour plus
+thick semantic bones and joint dots. Neutral, contact, and passing remain
+left-facing and show clearer leg/arm differences; identity is again stable.
+Airborne still stands on the ground, spreads its arms, and turns toward the
+camera. Correct Canny input improves local articulation but does not convey
+contact state, elevation, or front/back limb order. Canny is therefore rejected
+as the sole pose-control channel.
 
 ---
 
@@ -225,13 +304,14 @@ Adding the geometry fixed each one. This is the most reliable predictor found.
 
 # Known bugs and limitations
 
-**Fitting is inaccurate.** See above. The head width uses a median across the
-head band, which lands between skull and ear span and is right for neither. Ears
-are not modelled at all, which is most of the 50% width error.
+**Complete fitting is still inaccurate.** The skull and large ears now match,
+but clothing silhouettes, carried props, tails, and limb thickness are not yet
+recovered as poseable parts. The exact isolated silhouette is retained so this
+loss is visible rather than hidden.
 
-**Limb radii and all depths are carried from a base preset**, not measured. They
-are reported as carried, but they are wrong for any character whose limbs differ
-from the base.
+**Limb radii and all depths are carried from a base preset**, not measured. The
+wireframe and rig diagnostic expose those carried values, and the IoU gate
+prevents them from becoming accepted constraints when they visibly disagree.
 
 **Capsule geometry cannot express a grip.** A weapon sits beside the fist because
 fingers wrapping a shaft are not expressible. This is a ceiling, not a bug.
@@ -283,22 +363,18 @@ against an in-process stub, so they pass with derry switched off.
 
 # What I would do next, in order
 
-1. **Measure the edge-conditioned path across twelve frames at 48px.** This is
-   the only untested combination that has looked right, and it is one `spike.py`
-   run with `--workflow workflows/pixelart-canny-ipadapter.json`. Everything
-   else is speculation until this number exists.
+1. **Keep fuzzing identity acquisition.** Generate varied mice with different
+   proportions and clothes, but require transparent or truly flat backgrounds
+   and separated limbs. The goal is algorithm robustness, not identity selection.
 
-2. **Fix or abandon fitting.** The width error is the blocker. Two options:
-   model ears and hats as separate volumes so the head band measures a skull, or
-   drop automatic fitting and let a human enter four numbers against the overlay.
-   The overlay is the valuable part and it already works.
+2. **Port stable deterministic stages to C++.** Isolation and medial-axis
+   extraction are complete. Port semantic joint inference only after the fuzz
+   set settles its rules; then replace hard pixel ownership with smooth mesh
+   weights and explicit front/back limb layers in platform-neutral C++.
 
-3. **Judge everything at 48px from now on.** Nothing above 1024px predicted
-   anything about the shipped size.
-
-4. **Decide on the 3D route.** Dead Cells rendered characters 50px tall directly
-   from 3D with no anti-aliasing, and never had a high-resolution image to lose
-   detail from. That is why their sprites are crisp and downsampled diffusion
-   output is soft. If crispness matters, this is the route: TRELLIS 2 produces a
-   mesh from one image in ~30s on a 3090, and headless Blender can rig and pose
-   it from the joint positions this rig already computes. Untested.
+3. **Add a depth-bearing pose channel.** Semantic binary contours have now been
+   tested and improve local limb differences, but still fail airborne elevation
+   and facing. Keep the same four locked poses and add weak depth or an
+   OpenPose-compatible joint map. Do not expand to a cycle and do not continue
+   tuning Canny strength: three bounded runs already establish that identity
+   retention is promising and Canny-only articulation is insufficient.
