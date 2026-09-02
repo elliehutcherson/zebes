@@ -419,5 +419,29 @@ TEST_F(SourceArtworkManagerTest, DeleteRemovesDefinitionAndRetainedPixels) {
   EXPECT_EQ(manager_->GetArtwork(id).status().code(), absl::StatusCode::kNotFound);
 }
 
+TEST_F(SourceArtworkManagerTest, RestoresAnExactDeletedSnapshotWithItsId) {
+  const RgbaImage image = TestImage();
+  ASSERT_OK_AND_ASSIGN(const std::string id,
+                       manager_->CreateArtwork("Tree source",
+                                               ImportedArtworkProvenance{
+                                                   .original_filename = "oak.png",
+                                                   .imported_at_utc = "2026-08-16T15:04:05Z",
+                                               },
+                                               image));
+  ASSERT_OK_AND_ASSIGN(SourceArtwork * loaded, manager_->GetArtwork(id));
+  const SourceArtwork snapshot = *loaded;
+  ASSERT_OK(manager_->DeleteArtwork(id));
+
+  ASSERT_OK(manager_->CreateArtworkWithId(snapshot, image));
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<SourceArtworkManager> reloaded,
+                       SourceArtworkManager::Create(path_.string()));
+  ASSERT_OK(reloaded->LoadAllArtwork());
+  ASSERT_OK_AND_ASSIGN(SourceArtwork * restored, reloaded->GetArtwork(id));
+  EXPECT_EQ(SourceArtworkToJson(*restored), SourceArtworkToJson(snapshot));
+  ASSERT_OK_AND_ASSIGN(const RgbaImage restored_pixels, reloaded->ReadArtworkPixels(id));
+  EXPECT_EQ(restored_pixels.pixels, image.pixels);
+}
+
 }  // namespace
 }  // namespace zebes

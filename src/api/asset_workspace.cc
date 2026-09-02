@@ -148,21 +148,26 @@ absl::Status AssetWorkspace::Init(const Options& options) {
                    ParallaxArtworkRecipeManager::Create(options.asset_root));
   if (complete) RETURN_IF_ERROR(parallax_artwork_recipe_manager_->LoadAllRecipes());
 
-  ASSIGN_OR_RETURN(api_,
-                   Api::Create({
-                       .config = options.config,
-                       .texture_manager = texture_manager_.get(),
-                       .sprite_manager = sprite_manager_.get(),
-                       .collider_manager = collider_manager_.get(),
-                       .blueprint_manager = blueprint_manager_.get(),
-                       .level_manager = level_manager_.get(),
-                       .parallax_theme_manager = parallax_theme_manager_.get(),
-                       .tileset_manager = tileset_manager_.get(),
-                       .terrain_recipe_manager = terrain_recipe_manager_.get(),
-                       .source_artwork_manager = source_artwork_manager_.get(),
-                       .prop_recipe_manager = prop_recipe_manager_.get(),
-                       .parallax_artwork_recipe_manager = parallax_artwork_recipe_manager_.get(),
-                   }));
+  ASSIGN_OR_RETURN(animation_frame_set_recipe_manager_,
+                   AnimationFrameSetRecipeManager::Create(options.asset_root));
+  if (complete) RETURN_IF_ERROR(animation_frame_set_recipe_manager_->LoadAllRecipes());
+
+  ASSIGN_OR_RETURN(
+      api_, Api::Create({
+                .config = options.config,
+                .texture_manager = texture_manager_.get(),
+                .sprite_manager = sprite_manager_.get(),
+                .collider_manager = collider_manager_.get(),
+                .blueprint_manager = blueprint_manager_.get(),
+                .level_manager = level_manager_.get(),
+                .parallax_theme_manager = parallax_theme_manager_.get(),
+                .tileset_manager = tileset_manager_.get(),
+                .terrain_recipe_manager = terrain_recipe_manager_.get(),
+                .source_artwork_manager = source_artwork_manager_.get(),
+                .prop_recipe_manager = prop_recipe_manager_.get(),
+                .parallax_artwork_recipe_manager = parallax_artwork_recipe_manager_.get(),
+                .animation_frame_set_recipe_manager = animation_frame_set_recipe_manager_.get(),
+            }));
   if (options.access == Access::kReadOnly) catalog_lock_.reset();
   return absl::OkStatus();
 }

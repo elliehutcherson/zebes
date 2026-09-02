@@ -37,6 +37,75 @@ target_link_libraries(animation_frame_set_pipeline
   absl::strings
 )
 
+add_library(animation_frame_set_recipe animation_frame_set_recipe.cc)
+target_link_libraries(animation_frame_set_recipe
+  PUBLIC
+  animation_frame_set_pipeline
+  sprite
+  nlohmann_json::nlohmann_json
+  absl::status
+  absl::statusor
+  PRIVATE
+  blueprint
+  image_digest
+  status_macros
+  absl::strings
+)
+
+add_library(prepare_animation_frame_set_asset prepare_animation_frame_set_asset.cc)
+target_link_libraries(prepare_animation_frame_set_asset
+  PUBLIC
+  animation_frame_set_pipeline
+  animation_frame_set_recipe
+  source_artwork
+  blueprint
+  sprite
+  texture
+  absl::status
+  absl::statusor
+  PRIVATE
+  common
+  image_digest
+  status_macros
+  absl::strings
+)
+
+add_library(regenerate_animation_frame_set_asset regenerate_animation_frame_set_asset.cc)
+target_link_libraries(regenerate_animation_frame_set_asset
+  PUBLIC
+  animation_frame_set_pipeline
+  animation_frame_set_recipe
+  source_artwork
+  blueprint
+  sprite
+  texture
+  image_io
+  absl::status
+  absl::statusor
+  PRIVATE
+  prepare_animation_frame_set_asset
+  image_digest
+  status_macros
+  absl::strings
+)
+
+add_library(delete_animation_frame_set_asset delete_animation_frame_set_asset.cc)
+target_link_libraries(delete_animation_frame_set_asset
+  PUBLIC
+  animation_frame_set_recipe
+  source_artwork
+  blueprint
+  sprite
+  texture
+  image_io
+  absl::status
+  absl::statusor
+  PRIVATE
+  image_digest
+  status_macros
+  absl::strings
+)
+
 add_library(animation_artwork_feasibility animation_artwork_feasibility.cc)
 target_link_libraries(animation_artwork_feasibility
   PUBLIC

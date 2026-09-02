@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
@@ -26,6 +27,12 @@ class SourceArtworkManager {
   virtual absl::StatusOr<std::string> CreateArtwork(std::string name,
                                                     SourceArtworkProvenance provenance,
                                                     const RgbaImage& image);
+  // Restores an exact retained-source snapshot during compensated bundle
+  // deletion. Refuses to overwrite any loaded or durable source with the same
+  // ID.
+  virtual absl::Status CreateArtworkWithId(const SourceArtwork& artwork, const RgbaImage& image);
+  virtual absl::Status PreflightArtworkWithId(const SourceArtwork& artwork,
+                                              const RgbaImage& image) const;
   // Replaces retained pixels and provenance without changing the identity or
   // path referenced by generated-asset recipes. `expected` is an optimistic
   // concurrency snapshot; stale callers are refused before anything is
@@ -50,6 +57,9 @@ class SourceArtworkManager {
   SourceArtworkManager(std::string root_path, SourceArtworkLimits limits);
 
   absl::Status EnsureDirectories() const;
+  absl::Status PreflightArtworkWithId(const SourceArtwork& artwork, const RgbaImage& image,
+                                      std::string_view digest) const;
+  absl::Status CommitArtworkWithId(const SourceArtwork& artwork, const RgbaImage& image);
   absl::Status ValidateStoredArtwork(const SourceArtwork& artwork) const;
   absl::StatusOr<RgbaImage> ReadStoredArtworkPixels(const SourceArtwork& artwork,
                                                     size_t maximum_pixels) const;

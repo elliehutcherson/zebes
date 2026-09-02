@@ -446,9 +446,11 @@ overwrites collider work or silently invokes a remote provider.
    shared palette quantization, alpha and geometry validation, deterministic
    strip/grid packing, ordered timing metadata, and loop/hold output. Focused
    platform-neutral tests cover the contract and byte-stable reruns.
-4. **Recipe and bundle lifecycle — next.** Add the strict recipe manager,
-   catalog references, pure preparation, transactional create/regenerate/delete
-   APIs, migrations, and failure-compensation tests.
+4. **Recipe and bundle lifecycle — complete.** A strict versioned recipe
+   retains imported/manual source processing and prior Blueprint bindings.
+   Pure preparation produces complete Texture, Sprite, recipe, and
+   Blueprint-state changes. Transactional create, regenerate, and delete refuse
+   stale snapshots and compensate every persistence failure in reverse order.
 5. **Headless curation.** Publish frame, alignment, loop, and focused in-level
    evidence; require byte-stable re-review after commit.
 6. **Editor import flow.** Reuse retained-source lifecycle controls and add

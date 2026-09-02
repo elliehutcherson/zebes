@@ -26,10 +26,18 @@ struct Catalogs {
   std::vector<TerrainRecipe> recipes;
   std::vector<PropRecipe> prop_recipes;
   std::vector<ParallaxArtworkRecipe> parallax_artwork_recipes;
+  std::vector<AnimationFrameSetRecipe> animation_frame_set_recipes;
 
   AssetCatalog View() const {
-    return {tilesets,        sprites, blueprints,   levels,
-            parallax_themes, recipes, prop_recipes, parallax_artwork_recipes};
+    return {tilesets,
+            sprites,
+            blueprints,
+            levels,
+            parallax_themes,
+            recipes,
+            prop_recipes,
+            parallax_artwork_recipes,
+            animation_frame_set_recipes};
   }
 };
 
@@ -68,6 +76,8 @@ TEST(AssetReferencesTest, FindsATextureAcrossEveryKindThatCanNameOne) {
   c.prop_recipes.push_back(PropRecipe{.id = "prop", .name = "Tree", .texture_id = "tex"});
   c.parallax_artwork_recipes.push_back(
       ParallaxArtworkRecipe{.id = "background", .name = "Cave", .texture_id = "tex"});
+  c.animation_frame_set_recipes.push_back(
+      AnimationFrameSetRecipe{.id = "animation", .name = "Run", .texture_id = "tex"});
 
   const std::vector<AssetReference> referrers = FindTextureReferrers(c.View(), "tex");
 
@@ -77,7 +87,8 @@ TEST(AssetReferencesTest, FindsATextureAcrossEveryKindThatCanNameOne) {
                           Field(&AssetReference::kind, AssetKind::kParallaxTheme),
                           Field(&AssetReference::kind, AssetKind::kTerrainRecipe),
                           Field(&AssetReference::kind, AssetKind::kPropRecipe),
-                          Field(&AssetReference::kind, AssetKind::kParallaxArtworkRecipe)));
+                          Field(&AssetReference::kind, AssetKind::kParallaxArtworkRecipe),
+                          Field(&AssetReference::kind, AssetKind::kAnimationFrameSetRecipe)));
 }
 
 TEST(AssetReferencesTest, FindsParallaxArtworkAuthoringAndOutputReferences) {
@@ -115,6 +126,33 @@ TEST(AssetReferencesTest, FindsPropAuthoringAndOutputReferences) {
               ElementsAre(Field(&AssetReference::field, "terrain_recipe_id")));
   EXPECT_THAT(FindSpriteReferrers(c.View(), "sprite"),
               ElementsAre(Field(&AssetReference::field, "sprite_id")));
+  EXPECT_THAT(FindBlueprintReferrers(c.View(), "blueprint"),
+              ElementsAre(Field(&AssetReference::field, "blueprint_id")));
+}
+
+TEST(AssetReferencesTest, FindsAnimationFrameSetGraphAndRollbackReferences) {
+  Catalogs c;
+  c.animation_frame_set_recipes.push_back(AnimationFrameSetRecipe{
+      .id = "animation",
+      .name = "Run",
+      .source_artwork_id = "source",
+      .texture_id = "texture",
+      .sprite_id = "sprite",
+      .blueprint_id = "blueprint",
+      .blueprint_bindings = {{
+          .state_key = "run-left",
+          .previous_sprite_id = "previous",
+      }},
+  });
+
+  EXPECT_THAT(FindSourceArtworkReferrers(c.View(), "source"),
+              ElementsAre(Field(&AssetReference::kind, AssetKind::kAnimationFrameSetRecipe)));
+  EXPECT_THAT(FindTextureReferrers(c.View(), "texture"),
+              ElementsAre(Field(&AssetReference::field, "texture_id")));
+  EXPECT_THAT(FindSpriteReferrers(c.View(), "sprite"),
+              ElementsAre(Field(&AssetReference::field, "sprite_id")));
+  EXPECT_THAT(FindSpriteReferrers(c.View(), "previous"),
+              ElementsAre(Field(&AssetReference::field, HasSubstr("previous_sprite_id"))));
   EXPECT_THAT(FindBlueprintReferrers(c.View(), "blueprint"),
               ElementsAre(Field(&AssetReference::field, "blueprint_id")));
 }

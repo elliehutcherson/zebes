@@ -12,12 +12,13 @@ Two tracks proceed independently:
   distributed player-scaled decor, initial floor/foreground variants, and a
   distinct middle ceiling frieze. The complete route review has no objective
   findings. Remaining silhouette variation is non-blocking content polish.
-- **Track 5 — runtime/animation.** Runtime Milestones 1–3 and pure frame-set
-  processing are complete. `AnimationFrameSetPipeline` owns source-neutral
-  sheet extraction, common registration and scale, shared palette treatment,
-  alpha/geometry validation, deterministic packing, ordered timing metadata,
-  and loop/hold output. Generated animation research remains deprecated;
-  imported/manual frame sheets are the only production source path.
+- **Track 5 — runtime/animation.** Runtime Milestones 1–3, pure frame-set
+  processing, and the recipe/bundle lifecycle are complete. The strict
+  retained-source recipe persists every processing and binding field. Pure
+  preparation returns complete Texture, Sprite, and Blueprint-state changes;
+  API create, regenerate, and delete refuse stale snapshots and compensate
+  persistence failures in reverse order. Generated animation remains
+  deprecated; imported/manual frame sheets are the only production source path.
 
 The reusable ordered-reference generation boundary remains supported for
 OpenAI, Codex, headless generation, and redraw; it is not an animation roadmap
@@ -26,21 +27,19 @@ item. The deprecated evidence is indexed under
 
 ## Pick up next
 
-### Track 5: recipe and bundle lifecycle
+### Track 5: headless animation curation
 
-Start at Milestone 4 in
+Start at Milestone 5 in
 [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md):
 
-1. Add the versioned retained-source frame-set recipe and strict parser.
-2. Prepare the complete Texture, Sprite, and stable Blueprint-state binding
-   change without mutating stores.
-3. Commit create, regenerate, and delete transactionally with stale-snapshot
-   refusal and reverse-order compensation.
-4. Cover every persistence failure boundary and shipped-definition migration.
+1. Extend the existing headless curation boundary with native frames, contact
+   sheets, ordered strips, alignment overlays, and loop/hold evidence.
+2. Require byte-stable review after persistence.
+3. Then implement editor import controls and the first complete left/right
+   idle/run/airborne player set.
 
-Then implement headless curation, editor import controls, and the first complete
-left/right idle/run/airborne player set. M4 waits for that set's commit, restart,
-and live Catacombs gate.
+Runtime M4 still waits for that production set's commit, restart, and live
+Catacombs gate.
 
 ### Track 4: finite content polish
 
@@ -84,7 +83,7 @@ order, and collider counts; finish with the complete route gate.
 
 ## Last verification
 
-`animation_frame_set_pipeline_test` passes all seven focused cases; scoped
+`animation_frame_set_pipeline_test` passes all nine focused cases; scoped
 clang-tidy passes the pipeline and test translation units. The last broad
 boundary remains commit `18dcba6`: all CMake targets, 147 C++ test executables,
 and 95 Python tests passed before the documentation cleanup. Continue using

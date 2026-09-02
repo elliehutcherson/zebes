@@ -1,5 +1,7 @@
 #include "api/api.h"
 
+#include <set>
+
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
@@ -130,6 +132,9 @@ absl::StatusOr<std::unique_ptr<Api>> Api::Create(const Options& options) {
   if (options.parallax_artwork_recipe_manager == nullptr) {
     return absl::InvalidArgumentError("ParallaxArtworkRecipeManager is null.");
   }
+  if (options.animation_frame_set_recipe_manager == nullptr) {
+    return absl::InvalidArgumentError("AnimationFrameSetRecipeManager is null.");
+  }
   return std::unique_ptr<Api>(new Api(options));
 }
 
@@ -145,7 +150,8 @@ Api::Api(const Options& options)
       terrain_recipe_manager_(options.terrain_recipe_manager),
       source_artwork_manager_(options.source_artwork_manager),
       prop_recipe_manager_(options.prop_recipe_manager),
-      parallax_artwork_recipe_manager_(options.parallax_artwork_recipe_manager) {}
+      parallax_artwork_recipe_manager_(options.parallax_artwork_recipe_manager),
+      animation_frame_set_recipe_manager_(options.animation_frame_set_recipe_manager) {}
 
 absl::Status Api::SaveConfig(const EngineConfig& config) {
   LOG(INFO) << "SaveConfig in the api....";
@@ -222,12 +228,20 @@ Api::CatalogSnapshot Api::SnapshotCatalog() {
       .recipes = terrain_recipe_manager_->GetAllRecipes(),
       .prop_recipes = prop_recipe_manager_->GetAllRecipes(),
       .parallax_artwork_recipes = parallax_artwork_recipe_manager_->GetAllRecipes(),
+      .animation_frame_set_recipes = animation_frame_set_recipe_manager_->GetAllRecipes(),
   };
 }
 
 AssetCatalog Api::CatalogSnapshot::View() const {
-  return AssetCatalog{tilesets,        sprites, blueprints,   levels,
-                      parallax_themes, recipes, prop_recipes, parallax_artwork_recipes};
+  return AssetCatalog{tilesets,
+                      sprites,
+                      blueprints,
+                      levels,
+                      parallax_themes,
+                      recipes,
+                      prop_recipes,
+                      parallax_artwork_recipes,
+                      animation_frame_set_recipes};
 }
 
 absl::Status Api::DeleteSprite(const std::string& sprite_id) {
@@ -1002,6 +1016,442 @@ absl::Status Api::RedrawGeneratedParallaxArtwork(const PreparedParallaxArtworkRe
         source_artwork_manager_->ReplaceArtwork(prepared.updated_source, prepared.source_snapshot,
                                                 prepared.source_pixels_snapshot));
     return compensation.Report(texture_status);
+  }
+  return absl::OkStatus();
+}
+
+absl::StatusOr<AnimationFrameSetRecipe*> Api::GetAnimationFrameSetRecipe(
+    const std::string& recipe_id) {
+  return animation_frame_set_recipe_manager_->GetRecipe(recipe_id);
+}
+
+std::vector<AnimationFrameSetRecipe> Api::GetAllAnimationFrameSetRecipes() const {
+  return animation_frame_set_recipe_manager_->GetAllRecipes();
+}
+
+absl::StatusOr<std::string> Api::CreateAnimationFrameSet(
+    const PreparedAnimationFrameSetAsset& prepared) {
+  RETURN_IF_ERROR(ValidatePreparedAnimationFrameSetAsset(prepared));
+
+  ASSIGN_OR_RETURN(SourceArtwork * current_source,
+                   source_artwork_manager_->GetArtwork(prepared.source_snapshot.id));
+  if (SourceArtworkToJson(*current_source) != SourceArtworkToJson(prepared.source_snapshot)) {
+    return absl::FailedPreconditionError(
+        "retained source changed while the animation frame set was prepared");
+  }
+  RETURN_IF_ERROR(source_artwork_manager_->ReadArtworkPixels(current_source->id).status());
+
+  ASSIGN_OR_RETURN(Blueprint * current_blueprint,
+                   blueprint_manager_->GetBlueprint(prepared.blueprint_snapshot.id));
+  if (*current_blueprint != prepared.blueprint_snapshot) {
+    return absl::FailedPreconditionError(
+        "Blueprint changed while the animation frame set was prepared");
+  }
+  for (const AnimationFrameSetBlueprintBinding& binding : prepared.recipe.blueprint_bindings) {
+    if (!binding.previous_sprite_id.empty()) {
+      RETURN_IF_ERROR(sprite_manager_->GetSprite(binding.previous_sprite_id).status());
+    }
+  }
+
+  RETURN_IF_ERROR(RequireAbsent(texture_manager_->GetTexture(prepared.texture.id).status(),
+                                "texture", prepared.texture.id));
+  RETURN_IF_ERROR(RequireAbsent(sprite_manager_->GetSprite(prepared.sprite.id).status(), "sprite",
+                                prepared.sprite.id));
+  RETURN_IF_ERROR(
+      RequireAbsent(animation_frame_set_recipe_manager_->GetRecipe(prepared.recipe.id).status(),
+                    "animation frame-set recipe", prepared.recipe.id));
+  RETURN_IF_ERROR(texture_manager_->PreflightGeneratedTexture(prepared.texture));
+  RETURN_IF_ERROR(sprite_manager_->PreflightSpriteWithId(prepared.sprite));
+  RETURN_IF_ERROR(animation_frame_set_recipe_manager_->PreflightRecipeWithId(prepared.recipe));
+
+  const RgbaImage& image = prepared.artwork.packed_texture;
+  RETURN_IF_ERROR(texture_manager_->CreateGeneratedTexture(prepared.texture, image.width,
+                                                           image.height, image.pixels));
+
+  absl::Status status = sprite_manager_->CreateSpriteWithId(prepared.sprite);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("delete animation Texture",
+                     texture_manager_->DeleteTexture(prepared.texture.id));
+    return compensation.Report(status);
+  }
+
+  status = blueprint_manager_->SaveBlueprint(prepared.updated_blueprint);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("delete animation Sprite", sprite_manager_->DeleteSprite(prepared.sprite.id));
+    compensation.Add("delete animation Texture",
+                     texture_manager_->DeleteTexture(prepared.texture.id));
+    return compensation.Report(status);
+  }
+
+  status = animation_frame_set_recipe_manager_->CreateRecipeWithId(prepared.recipe);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore Blueprint",
+                     blueprint_manager_->SaveBlueprint(prepared.blueprint_snapshot));
+    compensation.Add("delete animation Sprite", sprite_manager_->DeleteSprite(prepared.sprite.id));
+    compensation.Add("delete animation Texture",
+                     texture_manager_->DeleteTexture(prepared.texture.id));
+    return compensation.Report(status);
+  }
+  return prepared.recipe.id;
+}
+
+absl::Status Api::RegenerateAnimationFrameSet(
+    const PreparedAnimationFrameSetRegeneration& prepared) {
+  RETURN_IF_ERROR(ValidatePreparedAnimationFrameSetRegeneration(prepared));
+
+  ASSIGN_OR_RETURN(SourceArtwork * current_source,
+                   source_artwork_manager_->GetArtwork(prepared.source_snapshot.id));
+  if (SourceArtworkToJson(*current_source) != SourceArtworkToJson(prepared.source_snapshot)) {
+    return absl::FailedPreconditionError(
+        "retained source changed while the animation frame set was regenerating");
+  }
+  ASSIGN_OR_RETURN(const RgbaImage current_source_pixels,
+                   source_artwork_manager_->ReadArtworkPixels(current_source->id));
+  ASSIGN_OR_RETURN(const std::string current_source_digest, RgbaImageDigest(current_source_pixels));
+  if (current_source_digest != prepared.source_snapshot.content_digest) {
+    return absl::FailedPreconditionError(
+        "retained source pixels changed while the animation frame set was regenerating");
+  }
+
+  ASSIGN_OR_RETURN(AnimationFrameSetRecipe * current_recipe,
+                   animation_frame_set_recipe_manager_->GetRecipe(prepared.recipe_snapshot.id));
+  if (AnimationFrameSetRecipeToJson(*current_recipe) !=
+      AnimationFrameSetRecipeToJson(prepared.recipe_snapshot)) {
+    return absl::FailedPreconditionError(
+        "animation frame-set recipe changed while it was regenerating");
+  }
+
+  ASSIGN_OR_RETURN(Texture * current_texture,
+                   texture_manager_->GetTexture(prepared.texture_snapshot.id));
+  if (current_texture->id != prepared.texture_snapshot.id ||
+      current_texture->name != prepared.texture_snapshot.name ||
+      current_texture->path != prepared.texture_snapshot.path) {
+    return absl::FailedPreconditionError(
+        "animation frame-set Texture definition changed while it was regenerating");
+  }
+  ASSIGN_OR_RETURN(const RgbaImage current_texture_pixels,
+                   texture_manager_->ReadTexturePixels(current_texture->id));
+  ASSIGN_OR_RETURN(const std::string current_texture_digest,
+                   RgbaImageDigest(current_texture_pixels));
+  ASSIGN_OR_RETURN(const std::string snapshot_texture_digest,
+                   RgbaImageDigest(prepared.texture_pixels_snapshot));
+  if (current_texture_digest != snapshot_texture_digest) {
+    return absl::FailedPreconditionError(
+        "animation frame-set Texture pixels changed while it was regenerating");
+  }
+
+  ASSIGN_OR_RETURN(Sprite * current_sprite,
+                   sprite_manager_->GetSprite(prepared.sprite_snapshot.id));
+  if (*current_sprite != prepared.sprite_snapshot) {
+    return absl::FailedPreconditionError(
+        "animation frame-set Sprite changed while it was regenerating");
+  }
+  ASSIGN_OR_RETURN(Blueprint * current_blueprint,
+                   blueprint_manager_->GetBlueprint(prepared.blueprint_snapshot.id));
+  if (*current_blueprint != prepared.blueprint_snapshot) {
+    return absl::FailedPreconditionError(
+        "Blueprint changed while the animation frame set was regenerating");
+  }
+  for (const AnimationFrameSetBlueprintBinding& binding :
+       prepared.updated_recipe.blueprint_bindings) {
+    if (!binding.previous_sprite_id.empty()) {
+      RETURN_IF_ERROR(sprite_manager_->GetSprite(binding.previous_sprite_id).status());
+    }
+  }
+
+  const RgbaImage& image = prepared.artwork.packed_texture;
+  RETURN_IF_ERROR(texture_manager_->ReplaceTexturePixels(prepared.texture_snapshot.id, image.width,
+                                                         image.height, image.pixels));
+
+  absl::Status status = sprite_manager_->SaveSprite(prepared.updated_sprite);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add(
+        "restore animation Texture",
+        texture_manager_->ReplaceTexturePixels(
+            prepared.texture_snapshot.id, prepared.texture_pixels_snapshot.width,
+            prepared.texture_pixels_snapshot.height, prepared.texture_pixels_snapshot.pixels));
+    return compensation.Report(status);
+  }
+
+  status = animation_frame_set_recipe_manager_->SaveRecipe(prepared.updated_recipe);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore animation Sprite",
+                     sprite_manager_->SaveSprite(prepared.sprite_snapshot));
+    compensation.Add(
+        "restore animation Texture",
+        texture_manager_->ReplaceTexturePixels(
+            prepared.texture_snapshot.id, prepared.texture_pixels_snapshot.width,
+            prepared.texture_pixels_snapshot.height, prepared.texture_pixels_snapshot.pixels));
+    return compensation.Report(status);
+  }
+
+  status = blueprint_manager_->SaveBlueprint(prepared.updated_blueprint);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore animation recipe",
+                     animation_frame_set_recipe_manager_->SaveRecipe(prepared.recipe_snapshot));
+    compensation.Add("restore animation Sprite",
+                     sprite_manager_->SaveSprite(prepared.sprite_snapshot));
+    compensation.Add(
+        "restore animation Texture",
+        texture_manager_->ReplaceTexturePixels(
+            prepared.texture_snapshot.id, prepared.texture_pixels_snapshot.width,
+            prepared.texture_pixels_snapshot.height, prepared.texture_pixels_snapshot.pixels));
+    return compensation.Report(status);
+  }
+  return absl::OkStatus();
+}
+
+absl::Status Api::CheckAnimationFrameSetDeletable(const std::string& recipe_id) {
+  ASSIGN_OR_RETURN(const AnimationFrameSetRecipe* recipe,
+                   animation_frame_set_recipe_manager_->GetRecipe(recipe_id));
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  return CheckAnimationFrameSetDeletable(*recipe, catalog);
+}
+
+absl::Status Api::CheckAnimationFrameSetDeletable(const AnimationFrameSetRecipe& recipe,
+                                                  const CatalogSnapshot& catalog) {
+  const Blueprint* target_blueprint = nullptr;
+  for (const Blueprint& blueprint : catalog.blueprints) {
+    if (blueprint.id == recipe.blueprint_id) {
+      target_blueprint = &blueprint;
+      break;
+    }
+  }
+  if (target_blueprint == nullptr) {
+    return absl::FailedPreconditionError("animation frame-set target Blueprint is not loaded");
+  }
+
+  std::set<std::string> owned_state_keys;
+  for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
+    owned_state_keys.insert(binding.state_key);
+    const std::optional<int> state_index = target_blueprint->state_index(binding.state_key);
+    if (!state_index.has_value() ||
+        target_blueprint->states[*state_index].sprite_id != recipe.sprite_id) {
+      return absl::FailedPreconditionError(absl::StrCat("animation frame-set Blueprint binding '",
+                                                        binding.state_key,
+                                                        "' changed before deletion"));
+    }
+  }
+
+  std::vector<AssetReference> outside;
+  for (const Blueprint::State& state : target_blueprint->states) {
+    if (state.sprite_id == recipe.sprite_id && !owned_state_keys.contains(state.key)) {
+      outside.push_back({
+          .kind = AssetKind::kBlueprint,
+          .id = target_blueprint->id,
+          .display_name = target_blueprint->name,
+          .field = absl::StrCat("state '", state.name, "'"),
+      });
+    }
+  }
+  for (const AssetReference& referrer : FindSpriteReferrers(catalog.View(), recipe.sprite_id)) {
+    if (referrer.kind == AssetKind::kAnimationFrameSetRecipe && referrer.id == recipe.id) {
+      continue;
+    }
+    if (referrer.kind == AssetKind::kBlueprint && referrer.id == recipe.blueprint_id) {
+      continue;
+    }
+    outside.push_back(referrer);
+  }
+  for (const AssetReference& referrer : FindTextureReferrers(catalog.View(), recipe.texture_id)) {
+    if (referrer.kind == AssetKind::kAnimationFrameSetRecipe && referrer.id == recipe.id) {
+      continue;
+    }
+    if (referrer.kind == AssetKind::kSprite && referrer.id == recipe.sprite_id) {
+      continue;
+    }
+    outside.push_back(referrer);
+  }
+  return RefuseIfReferenced(absl::StrCat("animation frame set '", recipe.name, "'"), outside);
+}
+
+absl::Status Api::DeleteAnimationFrameSet(const PreparedAnimationFrameSetDeletion& prepared) {
+  RETURN_IF_ERROR(ValidatePreparedAnimationFrameSetDeletion(prepared));
+
+  ASSIGN_OR_RETURN(SourceArtwork * current_source,
+                   source_artwork_manager_->GetArtwork(prepared.source_snapshot.id));
+  if (SourceArtworkToJson(*current_source) != SourceArtworkToJson(prepared.source_snapshot)) {
+    return absl::FailedPreconditionError(
+        "retained source changed while animation frame-set deletion was prepared");
+  }
+  ASSIGN_OR_RETURN(const RgbaImage current_source_pixels,
+                   source_artwork_manager_->ReadArtworkPixels(current_source->id));
+  ASSIGN_OR_RETURN(const std::string current_source_digest, RgbaImageDigest(current_source_pixels));
+  if (current_source_digest != prepared.source_snapshot.content_digest) {
+    return absl::FailedPreconditionError(
+        "retained source pixels changed while animation frame-set deletion was prepared");
+  }
+
+  ASSIGN_OR_RETURN(AnimationFrameSetRecipe * current_recipe,
+                   animation_frame_set_recipe_manager_->GetRecipe(prepared.recipe_snapshot.id));
+  if (AnimationFrameSetRecipeToJson(*current_recipe) !=
+      AnimationFrameSetRecipeToJson(prepared.recipe_snapshot)) {
+    return absl::FailedPreconditionError(
+        "animation frame-set recipe changed while deletion was prepared");
+  }
+  ASSIGN_OR_RETURN(Texture * current_texture,
+                   texture_manager_->GetTexture(prepared.texture_snapshot.id));
+  if (current_texture->id != prepared.texture_snapshot.id ||
+      current_texture->name != prepared.texture_snapshot.name ||
+      current_texture->path != prepared.texture_snapshot.path) {
+    return absl::FailedPreconditionError(
+        "animation frame-set Texture changed while deletion was prepared");
+  }
+  ASSIGN_OR_RETURN(const RgbaImage current_texture_pixels,
+                   texture_manager_->ReadTexturePixels(current_texture->id));
+  ASSIGN_OR_RETURN(const std::string current_texture_digest,
+                   RgbaImageDigest(current_texture_pixels));
+  ASSIGN_OR_RETURN(const std::string snapshot_texture_digest,
+                   RgbaImageDigest(prepared.texture_pixels_snapshot));
+  if (current_texture_digest != snapshot_texture_digest) {
+    return absl::FailedPreconditionError(
+        "animation frame-set Texture pixels changed while deletion was prepared");
+  }
+  ASSIGN_OR_RETURN(Sprite * current_sprite,
+                   sprite_manager_->GetSprite(prepared.sprite_snapshot.id));
+  if (*current_sprite != prepared.sprite_snapshot) {
+    return absl::FailedPreconditionError(
+        "animation frame-set Sprite changed while deletion was prepared");
+  }
+  ASSIGN_OR_RETURN(Blueprint * current_blueprint,
+                   blueprint_manager_->GetBlueprint(prepared.blueprint_snapshot.id));
+  if (*current_blueprint != prepared.blueprint_snapshot) {
+    return absl::FailedPreconditionError(
+        "Blueprint changed while animation frame-set deletion was prepared");
+  }
+  for (const AnimationFrameSetBlueprintBinding& binding :
+       prepared.recipe_snapshot.blueprint_bindings) {
+    if (!binding.previous_sprite_id.empty()) {
+      RETURN_IF_ERROR(sprite_manager_->GetSprite(binding.previous_sprite_id).status());
+    }
+  }
+
+  const CatalogSnapshot catalog = SnapshotCatalog();
+  RETURN_IF_ERROR(CheckAnimationFrameSetDeletable(prepared.recipe_snapshot, catalog));
+  bool source_is_shared = false;
+  for (const AssetReference& referrer :
+       FindSourceArtworkReferrers(catalog.View(), prepared.recipe_snapshot.source_artwork_id)) {
+    if (referrer.kind != AssetKind::kAnimationFrameSetRecipe ||
+        referrer.id != prepared.recipe_snapshot.id) {
+      source_is_shared = true;
+      break;
+    }
+  }
+
+  const auto restore_recipe = [this, &prepared]() -> absl::Status {
+    absl::StatusOr<AnimationFrameSetRecipe*> current =
+        animation_frame_set_recipe_manager_->GetRecipe(prepared.recipe_snapshot.id);
+    if (current.ok()) {
+      if (AnimationFrameSetRecipeToJson(**current) ==
+          AnimationFrameSetRecipeToJson(prepared.recipe_snapshot)) {
+        return absl::OkStatus();
+      }
+      return absl::FailedPreconditionError("cannot restore changed animation frame-set recipe");
+    }
+    if (!absl::IsNotFound(current.status())) return current.status();
+    return animation_frame_set_recipe_manager_->CreateRecipeWithId(prepared.recipe_snapshot);
+  };
+  const auto restore_blueprint = [this, &prepared]() -> absl::Status {
+    absl::StatusOr<Blueprint*> current =
+        blueprint_manager_->GetBlueprint(prepared.blueprint_snapshot.id);
+    if (current.ok() && **current == prepared.blueprint_snapshot) {
+      return absl::OkStatus();
+    }
+    if (!current.ok() && !absl::IsNotFound(current.status())) {
+      return current.status();
+    }
+    return blueprint_manager_->SaveBlueprint(prepared.blueprint_snapshot);
+  };
+  const auto restore_sprite = [this, &prepared]() -> absl::Status {
+    absl::StatusOr<Sprite*> current = sprite_manager_->GetSprite(prepared.sprite_snapshot.id);
+    if (current.ok()) {
+      if (**current == prepared.sprite_snapshot) return absl::OkStatus();
+      return absl::FailedPreconditionError("cannot restore changed animation frame-set Sprite");
+    }
+    if (!absl::IsNotFound(current.status())) return current.status();
+    return sprite_manager_->CreateSpriteWithId(prepared.sprite_snapshot);
+  };
+  const auto restore_texture = [this, &prepared]() -> absl::Status {
+    absl::StatusOr<Texture*> current = texture_manager_->GetTexture(prepared.texture_snapshot.id);
+    if (current.ok()) {
+      if ((*current)->id == prepared.texture_snapshot.id &&
+          (*current)->name == prepared.texture_snapshot.name &&
+          (*current)->path == prepared.texture_snapshot.path) {
+        return absl::OkStatus();
+      }
+      return absl::FailedPreconditionError("cannot restore changed animation frame-set Texture");
+    }
+    if (!absl::IsNotFound(current.status())) return current.status();
+    return texture_manager_->CreateGeneratedTexture(
+        prepared.texture_snapshot, prepared.texture_pixels_snapshot.width,
+        prepared.texture_pixels_snapshot.height, prepared.texture_pixels_snapshot.pixels);
+  };
+  const auto restore_source = [this, &prepared, &current_source_pixels]() -> absl::Status {
+    absl::StatusOr<SourceArtwork*> current =
+        source_artwork_manager_->GetArtwork(prepared.source_snapshot.id);
+    if (current.ok()) {
+      if (SourceArtworkToJson(**current) == SourceArtworkToJson(prepared.source_snapshot)) {
+        return absl::OkStatus();
+      }
+      return absl::FailedPreconditionError("cannot restore changed retained source");
+    }
+    if (!absl::IsNotFound(current.status())) return current.status();
+    return source_artwork_manager_->CreateArtworkWithId(prepared.source_snapshot,
+                                                        current_source_pixels);
+  };
+
+  absl::Status status =
+      animation_frame_set_recipe_manager_->DeleteRecipe(prepared.recipe_snapshot.id);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore animation recipe", restore_recipe());
+    return compensation.Report(status);
+  }
+
+  status = blueprint_manager_->SaveBlueprint(prepared.updated_blueprint);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore Blueprint", restore_blueprint());
+    compensation.Add("restore animation recipe", restore_recipe());
+    return compensation.Report(status);
+  }
+
+  status = sprite_manager_->DeleteSprite(prepared.sprite_snapshot.id);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore animation Sprite", restore_sprite());
+    compensation.Add("restore Blueprint", restore_blueprint());
+    compensation.Add("restore animation recipe", restore_recipe());
+    return compensation.Report(status);
+  }
+
+  status = texture_manager_->DeleteTexture(prepared.texture_snapshot.id);
+  if (!status.ok()) {
+    CompensationFailures compensation;
+    compensation.Add("restore animation Texture", restore_texture());
+    compensation.Add("restore animation Sprite", restore_sprite());
+    compensation.Add("restore Blueprint", restore_blueprint());
+    compensation.Add("restore animation recipe", restore_recipe());
+    return compensation.Report(status);
+  }
+
+  if (!source_is_shared) {
+    status = source_artwork_manager_->DeleteArtwork(prepared.source_snapshot.id);
+    if (!status.ok()) {
+      CompensationFailures compensation;
+      compensation.Add("restore retained source", restore_source());
+      compensation.Add("restore animation Texture", restore_texture());
+      compensation.Add("restore animation Sprite", restore_sprite());
+      compensation.Add("restore Blueprint", restore_blueprint());
+      compensation.Add("restore animation recipe", restore_recipe());
+      return compensation.Report(status);
+    }
   }
   return absl::OkStatus();
 }

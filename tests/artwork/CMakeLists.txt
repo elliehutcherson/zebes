@@ -34,6 +34,27 @@ target_link_libraries(animation_frame_set_pipeline_test
 target_include_directories(animation_frame_set_pipeline_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(animation_frame_set_pipeline_test)
 
+add_executable(animation_frame_set_recipe_test animation_frame_set_recipe_test.cc)
+target_link_libraries(animation_frame_set_recipe_test
+  animation_frame_set_recipe
+  gtest_main
+  macros
+)
+target_include_directories(animation_frame_set_recipe_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(animation_frame_set_recipe_test)
+
+add_executable(animation_frame_set_asset_test animation_frame_set_asset_test.cc)
+target_link_libraries(animation_frame_set_asset_test
+  delete_animation_frame_set_asset
+  prepare_animation_frame_set_asset
+  regenerate_animation_frame_set_asset
+  image_digest
+  gtest_main
+  macros
+)
+target_include_directories(animation_frame_set_asset_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(animation_frame_set_asset_test)
+
 add_executable(animation_artwork_feasibility_test animation_artwork_feasibility_test.cc)
 target_link_libraries(animation_artwork_feasibility_test
   animation_artwork_feasibility

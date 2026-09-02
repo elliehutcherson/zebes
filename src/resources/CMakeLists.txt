@@ -142,6 +142,21 @@ target_link_libraries(parallax_artwork_recipe_manager
   nlohmann_json::nlohmann_json
 )
 
+add_library(animation_frame_set_recipe_manager animation_frame_set_recipe_manager.cc)
+target_link_libraries(animation_frame_set_recipe_manager
+  PUBLIC
+  animation_frame_set_recipe
+  absl::status
+  absl::statusor
+  PRIVATE
+  common
+  resource_utils
+  status_macros
+  absl::flat_hash_map
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
 add_library(asset_references asset_references.cc)
 target_link_libraries(asset_references
   PUBLIC
@@ -152,6 +167,7 @@ target_link_libraries(asset_references
   tileset
   terrain_recipe
   prop_recipe
+  animation_frame_set_recipe
   PRIVATE
   absl::strings
 )

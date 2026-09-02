@@ -3,6 +3,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "macros.h"
+#include "resources/animation_frame_set_recipe_manager_mock.h"
 #include "resources/blueprint_manager_mock.h"
 #include "resources/collider_manager_mock.h"
 #include "resources/level_manager_mock.h"
@@ -42,6 +43,7 @@ class ApiValidationTest : public ::testing::Test {
         .source_artwork_manager = &source_artwork_manager_,
         .prop_recipe_manager = &prop_recipe_manager_,
         .parallax_artwork_recipe_manager = &parallax_artwork_recipe_manager_,
+        .animation_frame_set_recipe_manager = &animation_frame_set_recipe_manager_,
     };
 
     ASSERT_OK_AND_ASSIGN(api_, Api::Create(options));
@@ -62,6 +64,7 @@ class ApiValidationTest : public ::testing::Test {
   NiceMock<SourceArtworkManagerMock> source_artwork_manager_;
   NiceMock<PropRecipeManagerMock> prop_recipe_manager_;
   NiceMock<ParallaxArtworkRecipeManagerMock> parallax_artwork_recipe_manager_;
+  NiceMock<AnimationFrameSetRecipeManagerMock> animation_frame_set_recipe_manager_;
   std::unique_ptr<Api> api_;
 };
 

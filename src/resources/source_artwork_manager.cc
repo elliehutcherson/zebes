@@ -209,9 +209,8 @@ absl::StatusOr<std::string> SourceArtworkManager::CreateArtwork(std::string name
   RETURN_IF_ERROR(EnsureDirectories());
   RETURN_IF_ERROR(ValidateSourceArtworkPixels(image, limits_));
   ASSIGN_OR_RETURN(const std::string digest, RgbaImageDigest(image));
-
   const std::string id = GenerateGuid();
-  SourceArtwork artwork{
+  const SourceArtwork artwork{
       .id = id,
       .name = std::move(name),
       .source_path = RelativeImagePath(id),
@@ -220,14 +219,52 @@ absl::StatusOr<std::string> SourceArtworkManager::CreateArtwork(std::string name
       .height = image.height,
       .content_digest = digest,
   };
+  RETURN_IF_ERROR(PreflightArtworkWithId(artwork, image, digest));
+  RETURN_IF_ERROR(CommitArtworkWithId(artwork, image));
+  return id;
+}
+
+absl::Status SourceArtworkManager::PreflightArtworkWithId(const SourceArtwork& artwork,
+                                                          const RgbaImage& image) const {
+  RETURN_IF_ERROR(ValidateSourceArtworkPixels(image, limits_));
+  ASSIGN_OR_RETURN(const std::string digest, RgbaImageDigest(image));
+  return PreflightArtworkWithId(artwork, image, digest);
+}
+
+absl::Status SourceArtworkManager::PreflightArtworkWithId(const SourceArtwork& artwork,
+                                                          const RgbaImage& image,
+                                                          std::string_view digest) const {
   RETURN_IF_ERROR(ValidateSourceArtwork(artwork));
-
-  const std::string image_path = ImagePath(id);
-  const std::string definition_path = DefinitionPath(id);
-  if (std::filesystem::exists(image_path) || std::filesystem::exists(definition_path)) {
-    return absl::AlreadyExistsError("generated source artwork ID already exists");
+  if (!IsPathSafeResourceId(artwork.id) || artwork.source_path != RelativeImagePath(artwork.id)) {
+    return absl::InvalidArgumentError(
+        "restored source artwork must keep its ID-backed source_art path");
   }
+  if (artwork.width != image.width || artwork.height != image.height) {
+    return absl::InvalidArgumentError("restored source artwork dimensions do not match its pixels");
+  }
+  if (artwork.content_digest != digest) {
+    return absl::InvalidArgumentError("restored source artwork digest does not match its pixels");
+  }
+  if (artwork_.contains(artwork.id) || std::filesystem::exists(ImagePath(artwork.id)) ||
+      std::filesystem::exists(DefinitionPath(artwork.id))) {
+    return absl::AlreadyExistsError(absl::StrCat("source artwork ", artwork.id, " already exists"));
+  }
+  return absl::OkStatus();
+}
 
+absl::Status SourceArtworkManager::CreateArtworkWithId(const SourceArtwork& artwork,
+                                                       const RgbaImage& image) {
+  RETURN_IF_ERROR(EnsureDirectories());
+  RETURN_IF_ERROR(ValidateSourceArtworkPixels(image, limits_));
+  ASSIGN_OR_RETURN(const std::string digest, RgbaImageDigest(image));
+  RETURN_IF_ERROR(PreflightArtworkWithId(artwork, image, digest));
+  return CommitArtworkWithId(artwork, image);
+}
+
+absl::Status SourceArtworkManager::CommitArtworkWithId(const SourceArtwork& artwork,
+                                                       const RgbaImage& image) {
+  const std::string image_path = ImagePath(artwork.id);
+  const std::string definition_path = DefinitionPath(artwork.id);
   const std::string temporary_image = absl::StrCat(image_path, ".tmp");
   RETURN_IF_ERROR(WritePng(temporary_image, image.width, image.height, image.pixels));
   absl::Cleanup remove_temporary = [&temporary_image] {
@@ -248,9 +285,9 @@ absl::StatusOr<std::string> SourceArtworkManager::CreateArtwork(std::string name
   };
 
   RETURN_IF_ERROR(WriteTextFileAtomically(definition_path, SourceArtworkToJson(artwork).dump(2)));
-  artwork_[id] = std::make_unique<SourceArtwork>(std::move(artwork));
+  artwork_[artwork.id] = std::make_unique<SourceArtwork>(artwork);
   std::move(remove_image).Cancel();
-  return id;
+  return absl::OkStatus();
 }
 
 absl::Status SourceArtworkManager::ReplaceArtwork(const SourceArtwork& expected,

@@ -23,6 +23,7 @@ target_link_libraries(asset_workspace
   texture_resource_store
   PRIVATE
   asset_root_lock
+  animation_frame_set_recipe_manager
   blueprint_manager
   collider_manager
   level_manager
@@ -56,6 +57,9 @@ target_link_libraries(retained_source_transaction
 
 target_link_libraries(api
   asset_references
+  delete_animation_frame_set_asset
+  prepare_animation_frame_set_asset
+  regenerate_animation_frame_set_asset
   prepare_prop_asset
   prepare_parallax_artwork_asset
   regenerate_prop_asset
@@ -79,5 +83,6 @@ target_link_libraries(api
   source_artwork_manager
   prop_recipe_manager
   parallax_artwork_recipe_manager
+  animation_frame_set_recipe_manager
   absl::strings
 )

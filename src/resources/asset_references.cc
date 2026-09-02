@@ -60,6 +60,8 @@ std::string_view AssetKindName(AssetKind kind) {
       return "Prop recipe";
     case AssetKind::kParallaxArtworkRecipe:
       return "Parallax artwork recipe";
+    case AssetKind::kAnimationFrameSetRecipe:
+      return "Animation frame-set recipe";
   }
   return "Unknown";
 }
@@ -95,6 +97,11 @@ std::vector<AssetReference> FindTextureReferrers(const AssetCatalog& catalog,
   for (const ParallaxArtworkRecipe& recipe : catalog.parallax_artwork_recipes) {
     if (Names(recipe.texture_id, texture_id)) {
       Add(referrers, AssetKind::kParallaxArtworkRecipe, recipe.id, recipe.name, "texture_id");
+    }
+  }
+  for (const AnimationFrameSetRecipe& recipe : catalog.animation_frame_set_recipes) {
+    if (Names(recipe.texture_id, texture_id)) {
+      Add(referrers, AssetKind::kAnimationFrameSetRecipe, recipe.id, recipe.name, "texture_id");
     }
   }
   return referrers;
@@ -160,6 +167,17 @@ std::vector<AssetReference> FindSpriteReferrers(const AssetCatalog& catalog,
       Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "sprite_id");
     }
   }
+  for (const AnimationFrameSetRecipe& recipe : catalog.animation_frame_set_recipes) {
+    if (Names(recipe.sprite_id, sprite_id)) {
+      Add(referrers, AssetKind::kAnimationFrameSetRecipe, recipe.id, recipe.name, "sprite_id");
+    }
+    for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
+      if (Names(binding.previous_sprite_id, sprite_id)) {
+        Add(referrers, AssetKind::kAnimationFrameSetRecipe, recipe.id, recipe.name,
+            absl::StrCat("Blueprint state '", binding.state_key, "' previous_sprite_id"));
+      }
+    }
+  }
   return referrers;
 }
 
@@ -206,6 +224,11 @@ std::vector<AssetReference> FindBlueprintReferrers(const AssetCatalog& catalog,
       Add(referrers, AssetKind::kPropRecipe, recipe.id, recipe.name, "blueprint_id");
     }
   }
+  for (const AnimationFrameSetRecipe& recipe : catalog.animation_frame_set_recipes) {
+    if (Names(recipe.blueprint_id, blueprint_id)) {
+      Add(referrers, AssetKind::kAnimationFrameSetRecipe, recipe.id, recipe.name, "blueprint_id");
+    }
+  }
   return referrers;
 }
 
@@ -221,6 +244,12 @@ std::vector<AssetReference> FindSourceArtworkReferrers(const AssetCatalog& catal
   for (const ParallaxArtworkRecipe& recipe : catalog.parallax_artwork_recipes) {
     if (Names(recipe.source_artwork_id, source_artwork_id)) {
       Add(referrers, AssetKind::kParallaxArtworkRecipe, recipe.id, recipe.name,
+          "source_artwork_id");
+    }
+  }
+  for (const AnimationFrameSetRecipe& recipe : catalog.animation_frame_set_recipes) {
+    if (Names(recipe.source_artwork_id, source_artwork_id)) {
+      Add(referrers, AssetKind::kAnimationFrameSetRecipe, recipe.id, recipe.name,
           "source_artwork_id");
     }
   }

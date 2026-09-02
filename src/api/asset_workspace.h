@@ -9,6 +9,7 @@
 #include "api/api.h"
 #include "api/asset_root_lock.h"
 #include "common/config.h"
+#include "resources/animation_frame_set_recipe_manager.h"
 #include "resources/blueprint_manager.h"
 #include "resources/loaded_level_assets.h"
 #include "resources/parallax_artwork_recipe_manager.h"
@@ -85,6 +86,7 @@ class AssetWorkspace {
   std::unique_ptr<SourceArtworkManager> source_artwork_manager_;
   std::unique_ptr<PropRecipeManager> prop_recipe_manager_;
   std::unique_ptr<ParallaxArtworkRecipeManager> parallax_artwork_recipe_manager_;
+  std::unique_ptr<AnimationFrameSetRecipeManager> animation_frame_set_recipe_manager_;
   std::unique_ptr<Api> api_;
   LoadProfile load_profile_ = LoadProfile::kComplete;
 };

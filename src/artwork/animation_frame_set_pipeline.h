@@ -63,8 +63,8 @@ struct AnimationFrameSetPipelineConfig {
   int render_scale = 2;
   int contact_tolerance = 2;
   int minimum_visible_pixels = 16;
-  int maximum_horizontal_anchor_drift = 24;
-  int maximum_vertical_anchor_drift = 44;
+  int maximum_horizontal_anchor_drift = 8;
+  int maximum_vertical_anchor_drift = 8;
   // Packed texture columns. The frame count must divide evenly so no implicit
   // or unused atlas cells exist. Set this to the frame count for a strip.
   int packing_columns = 1;

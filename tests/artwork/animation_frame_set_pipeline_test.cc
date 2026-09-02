@@ -1,5 +1,6 @@
 #include "artwork/animation_frame_set_pipeline.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -161,6 +162,33 @@ TEST(AnimationFrameSetPipelineTest,
     ExpectBinaryPaletteAndCleanTransparency(result.frames[static_cast<size_t>(index)].finished);
   }
   ExpectBinaryPaletteAndCleanTransparency(result.packed_texture);
+}
+
+TEST(AnimationFrameSetPipelineTest, PreservesUniformTimingAndLoopPlayback) {
+  const AnimationFrameSetStyle style = MatteStyle();
+  AnimationFrameSetPipelineConfig config = TestConfig();
+  config.playback_mode = SpritePlaybackMode::kLoop;
+  config.frames_per_cycle = {5, 5, 5, 5};
+
+  ASSERT_OK_AND_ASSIGN(const AnimationFrameSetPipelineResult result,
+                       RunAnimationFrameSetPipeline(PaintedMatteSheet(), style, config));
+
+  EXPECT_EQ(result.playback_mode, SpritePlaybackMode::kLoop);
+  ASSERT_EQ(result.sprite_frames.size(), 4);
+  for (const SpriteFrame& frame : result.sprite_frames) {
+    EXPECT_EQ(frame.frames_per_cycle, 5);
+  }
+}
+
+TEST(AnimationFrameSetPipelineTest, DefaultAnchorDriftLimitsConstrainOutputCanvas) {
+  const AnimationFrameSetPipelineConfig config;
+  const int maximum_possible_horizontal_drift =
+      std::max(config.origin_x, config.output_width - config.origin_x);
+  const int maximum_possible_vertical_drift =
+      std::max(config.contact_line_y - 1, config.output_height - config.contact_line_y);
+
+  EXPECT_LT(config.maximum_horizontal_anchor_drift, maximum_possible_horizontal_drift);
+  EXPECT_LT(config.maximum_vertical_anchor_drift, maximum_possible_vertical_drift);
 }
 
 TEST(AnimationFrameSetPipelineTest, PreserveAlphaClearsTransparentRgb) {

@@ -4,16 +4,20 @@
 #include <memory>
 
 #include "absl/status/statusor.h"
+#include "artwork/delete_animation_frame_set_asset.h"
+#include "artwork/prepare_animation_frame_set_asset.h"
 #include "artwork/prepare_parallax_artwork_asset.h"
 #include "artwork/prepare_prop_asset.h"
 #include "artwork/prop_recipe.h"
 #include "artwork/redraw_parallax_artwork_asset.h"
+#include "artwork/regenerate_animation_frame_set_asset.h"
 #include "artwork/regenerate_parallax_artwork_asset.h"
 #include "artwork/regenerate_prop_asset.h"
 #include "artwork/source_artwork.h"
 #include "common/config.h"
 #include "engine/texture_handle.h"
 #include "objects/texture.h"
+#include "resources/animation_frame_set_recipe_manager.h"
 #include "resources/asset_references.h"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
@@ -44,6 +48,7 @@ class Api {
     SourceArtworkManager* source_artwork_manager;
     PropRecipeManager* prop_recipe_manager;
     ParallaxArtworkRecipeManager* parallax_artwork_recipe_manager;
+    AnimationFrameSetRecipeManager* animation_frame_set_recipe_manager;
   };
 
   static absl::StatusOr<std::unique_ptr<Api>> Create(const Options& options);
@@ -217,6 +222,19 @@ class Api {
   virtual absl::Status RedrawGeneratedParallaxArtwork(
       const PreparedParallaxArtworkRedraw& prepared);
 
+  virtual absl::StatusOr<AnimationFrameSetRecipe*> GetAnimationFrameSetRecipe(
+      const std::string& recipe_id);
+  virtual std::vector<AnimationFrameSetRecipe> GetAllAnimationFrameSetRecipes() const;
+
+  // Publishes a prepared imported/manual frame set into an existing Blueprint.
+  // Every snapshot is rechecked before dependency-order writes begin.
+  virtual absl::StatusOr<std::string> CreateAnimationFrameSet(
+      const PreparedAnimationFrameSetAsset& prepared);
+  virtual absl::Status RegenerateAnimationFrameSet(
+      const PreparedAnimationFrameSetRegeneration& prepared);
+  virtual absl::Status CheckAnimationFrameSetDeletable(const std::string& recipe_id);
+  virtual absl::Status DeleteAnimationFrameSet(const PreparedAnimationFrameSetDeletion& prepared);
+
  protected:
   // Allow default construction for mocks
   Api()
@@ -231,7 +249,8 @@ class Api {
         terrain_recipe_manager_(nullptr),
         source_artwork_manager_(nullptr),
         prop_recipe_manager_(nullptr),
-        parallax_artwork_recipe_manager_(nullptr) {}
+        parallax_artwork_recipe_manager_(nullptr),
+        animation_frame_set_recipe_manager_(nullptr) {}
 
  private:
   // Every catalogue a reference can live in, read once for one deletion check.
@@ -248,6 +267,7 @@ class Api {
     std::vector<TerrainRecipe> recipes;
     std::vector<PropRecipe> prop_recipes;
     std::vector<ParallaxArtworkRecipe> parallax_artwork_recipes;
+    std::vector<AnimationFrameSetRecipe> animation_frame_set_recipes;
 
     AssetCatalog View() const;
   };
@@ -262,6 +282,8 @@ class Api {
                                                   const CatalogSnapshot& catalog);
   static absl::Status CheckGeneratedParallaxArtworkDeletable(const ParallaxArtworkRecipe& recipe,
                                                              const CatalogSnapshot& catalog);
+  static absl::Status CheckAnimationFrameSetDeletable(const AnimationFrameSetRecipe& recipe,
+                                                      const CatalogSnapshot& catalog);
 
   EngineConfig& config_;
   TextureManager* texture_manager_;
@@ -275,6 +297,7 @@ class Api {
   SourceArtworkManager* source_artwork_manager_;
   PropRecipeManager* prop_recipe_manager_;
   ParallaxArtworkRecipeManager* parallax_artwork_recipe_manager_;
+  AnimationFrameSetRecipeManager* animation_frame_set_recipe_manager_;
 };
 
 }  // namespace zebes

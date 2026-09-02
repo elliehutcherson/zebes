@@ -25,6 +25,7 @@
 #include "gtest/gtest.h"
 #include "macros.h"
 #include "nlohmann/json.hpp"
+#include "resources/animation_frame_set_recipe_manager.h"
 #include "resources/blueprint_manager.h"
 #include "resources/collider_manager.h"
 #include "resources/fake_texture_resource_store.h"
@@ -181,6 +182,23 @@ TEST(ShippedAssetsTest, EveryShippedParallaxArtworkRecipeLoads) {
   const absl::Status loaded = (*manager)->LoadAllRecipes();
   EXPECT_OK(loaded);
   EXPECT_EQ((*manager)->GetAllRecipes().size(), DefinitionFileCount("parallax_artwork_recipes"));
+}
+
+TEST(ShippedAssetsTest, EveryShippedAnimationFrameSetRecipeLoads) {
+  const std::string directory =
+      std::string(kAssetsRoot) + "/definitions/animation_frame_set_recipes";
+  if (!std::filesystem::exists(directory)) {
+    EXPECT_EQ(DefinitionFileCount("animation_frame_set_recipes"), 0);
+    return;
+  }
+
+  absl::StatusOr<std::unique_ptr<AnimationFrameSetRecipeManager>> manager =
+      AnimationFrameSetRecipeManager::Create(kAssetsRoot);
+  ASSERT_OK(manager);
+
+  const absl::Status loaded = (*manager)->LoadAllRecipes();
+  EXPECT_OK(loaded);
+  EXPECT_EQ((*manager)->GetAllRecipes().size(), DefinitionFileCount("animation_frame_set_recipes"));
 }
 
 TEST(ShippedAssetsTest, EveryShippedLevelLoads) {

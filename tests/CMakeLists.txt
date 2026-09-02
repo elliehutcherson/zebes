@@ -96,6 +96,16 @@ target_link_libraries(api_validation_test
 )
 gtest_discover_tests(api_validation_test) # <--- REGISTERS THE TEST
 
+add_executable(animation_frame_set_api_test animation_frame_set_api_test.cc)
+target_link_libraries(animation_frame_set_api_test
+  api
+  image_digest
+  macros
+  gtest_main
+  gmock
+)
+gtest_discover_tests(animation_frame_set_api_test)
+
 add_executable(asset_root_lock_test api/asset_root_lock_test.cc)
 target_link_libraries(asset_root_lock_test asset_root_lock macros gtest_main gmock)
 gtest_discover_tests(asset_root_lock_test)
@@ -272,6 +282,16 @@ target_link_libraries(parallax_artwork_recipe_manager_test
 )
 gtest_discover_tests(parallax_artwork_recipe_manager_test)
 
+add_executable(animation_frame_set_recipe_manager_test
+  resources/animation_frame_set_recipe_manager_test.cc)
+target_link_libraries(animation_frame_set_recipe_manager_test
+  animation_frame_set_recipe_manager
+  macros
+  gtest_main
+  nlohmann_json::nlohmann_json
+)
+gtest_discover_tests(animation_frame_set_recipe_manager_test)
+
 # --- Shipped assets ---
 # Reads the repository's assets/ directly, so the path is baked in rather than
 # depending on ctest's working directory.
@@ -286,6 +306,7 @@ target_link_libraries(shipped_assets_test
   collider_manager
   prop_recipe_manager
   parallax_artwork_recipe_manager
+  animation_frame_set_recipe_manager
   source_artwork_manager
   terrain_brush
   terrain_mask
