@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "common/image_io.h"
 
 namespace zebes {
@@ -36,6 +38,16 @@ struct ProfileSilhouette {
   bool IsValid() const;
 };
 
+struct ProfileControlPoint {
+  double x = 0.0;
+  double y = 0.0;
+};
+
+struct ProfileControlBone {
+  size_t start_joint = 0;
+  size_t end_joint = 0;
+};
+
 absl::Status ValidateProfileSilhouetteConfig(const ProfileSilhouetteConfig& config);
 
 // Reduces the isolated alpha mask, extracts a topology-preserving Zhang-Suen
@@ -52,5 +64,13 @@ absl::StatusOr<RgbaImage> RenderProfileSilhouetteEvidence(const ProfileSilhouett
 // medial axis are white on opaque black. Posed semantic bones use the same
 // contract after joint inference.
 absl::StatusOr<RgbaImage> RenderProfileSilhouetteControl(const ProfileSilhouette& profile);
+
+// Binary posed Canny input from an approved silhouette mask and semantic
+// skeleton. This renderer is stable C++; joint inference and pose selection are
+// still experiment policy and remain outside this function.
+absl::StatusOr<RgbaImage> RenderProfilePoseControl(absl::Span<const uint8_t> silhouette, int width,
+                                                   int height,
+                                                   absl::Span<const ProfileControlPoint> joints,
+                                                   absl::Span<const ProfileControlBone> bones);
 
 }  // namespace zebes

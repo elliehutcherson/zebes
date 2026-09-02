@@ -39,9 +39,9 @@
       "negative": ["3", 0],
       "control_net": ["5", 0],
       "image": ["4", 0],
-      "strength": 0.55,
+      "strength": 0.9,
       "start_percent": 0.0,
-      "end_percent": 0.5
+      "end_percent": 0.95
     },
     "_meta": { "title": "ZEBES_CONTROL_STRENGTH" }
   },
@@ -50,10 +50,41 @@
     "inputs": { "width": 1024, "height": 1024, "batch_size": 1 },
     "_meta": { "title": "ZEBES_CANVAS" }
   },
+  "11": {
+    "class_type": "LoadImage",
+    "inputs": { "image": "identity.png" },
+    "_meta": { "title": "ZEBES_IDENTITY_IMAGE" }
+  },
+  "12": {
+    "class_type": "IPAdapterModelLoader",
+    "inputs": { "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors" },
+    "_meta": { "title": "Load IP-Adapter" }
+  },
+  "13": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": { "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors" },
+    "_meta": { "title": "Load CLIP Vision" }
+  },
+  "14": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "model": ["1", 0],
+      "ipadapter": ["12", 0],
+      "image": ["11", 0],
+      "clip_vision": ["13", 0],
+      "weight": 0.8,
+      "weight_type": "style and composition",
+      "combine_embeds": "concat",
+      "start_at": 0.0,
+      "end_at": 1.0,
+      "embeds_scaling": "V only"
+    },
+    "_meta": { "title": "ZEBES_IDENTITY_STRENGTH" }
+  },
   "8": {
     "class_type": "KSampler",
     "inputs": {
-      "model": ["1", 0],
+      "model": ["14", 0],
       "seed": 1,
       "steps": 28,
       "cfg": 8.0,
@@ -73,7 +104,7 @@
   },
   "10": {
     "class_type": "SaveImage",
-    "inputs": { "images": ["9", 0], "filename_prefix": "zebes/mannequin" },
+    "inputs": { "images": ["9", 0], "filename_prefix": "zebes/character-binding" },
     "_meta": { "title": "ZEBES_OUTPUT" }
   }
 }

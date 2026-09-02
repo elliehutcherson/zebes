@@ -1,9 +1,8 @@
-"""Bind an isolated profile silhouette to an image-derived 2D skeleton.
+"""Prototype semantics over C++-extracted profile topology.
 
-The isolated mask is authoritative. Thinning finds its medial axis; semantic
-joints are inferred from that axis and the silhouette's leg split. Posed guides
-move pixels bound to those bones rather than replacing the character with generic
-capsules.
+The C++ silhouette and medial axis are authoritative. This disposable Python
+layer explores joint inference, bone ownership, and posed deformation without
+duplicating stable isolation, reduction, thinning, or branch pruning.
 """
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ from pathlib import Path
 
 from .png import write_rgba
 
-WORK_SIZE = 256
 POSES = ("neutral", "contact", "passing", "airborne")
 BONE_COLORS = (
     (44, 123, 229, 255),
@@ -68,31 +66,6 @@ class ProfileBinding:
         return "\n".join(lines)
 
 
-def downsample_mask(
-    mask: bytes | bytearray, width: int, height: int, target: int = WORK_SIZE
-) -> tuple[bytearray, int, int, int]:
-    """Reduce a square high-resolution mask for stable medial-axis analysis."""
-    if width != height:
-        raise BindingError("profile binding currently requires a square reference image")
-    if target <= 0 or width % target != 0:
-        raise BindingError(f"source width {width} is not an integer multiple of {target}")
-    if len(mask) != width * height:
-        raise BindingError("profile mask dimensions do not match its pixel buffer")
-
-    scale = width // target
-    output = bytearray(target * target)
-    # Keep slim hands, feet, tails, and ears without admitting one-pixel matte
-    # noise. One third of a source block must belong to the subject.
-    threshold = max(1, scale * scale // 3)
-    for output_y in range(target):
-        for output_x in range(target):
-            covered = 0
-            source_x = output_x * scale
-            for source_y in range(output_y * scale, (output_y + 1) * scale):
-                start = source_y * width + source_x
-                covered += sum(mask[start : start + scale])
-            output[output_y * target + output_x] = covered >= threshold
-    return output, target, target, scale
 
 
 def _neighbors(mask: bytes | bytearray, width: int, height: int, index: int) -> list[int]:
@@ -111,94 +84,6 @@ def _neighbors(mask: bytes | bytearray, width: int, height: int, index: int) -> 
     return result
 
 
-def thin_mask(mask: bytes | bytearray, width: int, height: int) -> bytearray:
-    """Zhang-Suen thinning: one-pixel medial axis, topology preserved."""
-    if len(mask) != width * height:
-        raise BindingError("thinning mask dimensions do not match")
-    work = bytearray(mask)
-    changed = True
-    iterations = 0
-    while changed:
-        changed = False
-        iterations += 1
-        for step in (0, 1):
-            remove: list[int] = []
-            for y in range(1, height - 1):
-                for x in range(1, width - 1):
-                    index = y * width + x
-                    if not work[index]:
-                        continue
-                    p2 = work[index - width]
-                    p3 = work[index - width + 1]
-                    p4 = work[index + 1]
-                    p5 = work[index + width + 1]
-                    p6 = work[index + width]
-                    p7 = work[index + width - 1]
-                    p8 = work[index - 1]
-                    p9 = work[index - width - 1]
-                    neighbors = (p2, p3, p4, p5, p6, p7, p8, p9)
-                    count = sum(neighbors)
-                    if count < 2 or count > 6:
-                        continue
-                    transitions = sum(
-                        not neighbors[i] and neighbors[(i + 1) % 8]
-                        for i in range(8)
-                    )
-                    if transitions != 1:
-                        continue
-                    if step == 0:
-                        if p2 * p4 * p6 or p4 * p6 * p8:
-                            continue
-                    elif p2 * p4 * p8 or p2 * p6 * p8:
-                        continue
-                    remove.append(index)
-            if remove:
-                changed = True
-                for index in remove:
-                    work[index] = 0
-        if iterations > max(width, height):
-            raise BindingError("medial-axis thinning did not converge")
-    return work
-
-
-def prune_short_branches(
-    skeleton: bytes | bytearray, width: int, height: int, minimum_length: int = 5
-) -> bytearray:
-    """Remove whisker-sized terminal branches while preserving limbs."""
-    work = bytearray(skeleton)
-    for _ in range(4):
-        changed = False
-        endpoints = [
-            index
-            for index, covered in enumerate(work)
-            if covered and len(_neighbors(work, width, height, index)) == 1
-        ]
-        for endpoint in endpoints:
-            if not work[endpoint]:
-                continue
-            path = [endpoint]
-            previous = -1
-            current = endpoint
-            while len(path) <= minimum_length:
-                following = [
-                    item
-                    for item in _neighbors(work, width, height, current)
-                    if item != previous
-                ]
-                if len(following) != 1:
-                    break
-                previous, current = current, following[0]
-                path.append(current)
-            if len(path) > minimum_length:
-                continue
-            if len(_neighbors(work, width, height, current)) < 3:
-                continue
-            for index in path[:-1]:
-                work[index] = 0
-                changed = True
-        if not changed:
-            break
-    return work
 
 
 def _components(mask: bytes | bytearray, width: int, height: int) -> list[list[int]]:
@@ -325,6 +210,34 @@ def infer_joints(
         (index for index in endpoints if index // width >= top + figure_height * 0.72),
         key=lambda index: index % width,
     )
+    if len(feet) < 2:
+        # A boot with an enclosed opening can produce a closed medial-axis loop
+        # and therefore no endpoint. Fall back to the lowest main-component
+        # extremity on each side; the C++ topology fuzz set found this case.
+        center_x = (left + right) / 2.0
+        lower = [
+            index
+            for index in main
+            if index // width >= top + figure_height * 0.72
+        ]
+        feet = []
+        for side in (-1, 1):
+            candidates = [
+                index
+                for index in lower
+                if (index % width - center_x) * side > 0
+            ]
+            if candidates:
+                feet.append(
+                    max(
+                        candidates,
+                        key=lambda index: (
+                            index // width,
+                            abs(index % width - center_x),
+                        ),
+                    )
+                )
+        feet.sort(key=lambda index: index % width)
     if len(feet) < 2:
         raise BindingError("profile silhouette does not expose two separate feet")
     foot_a, foot_b = feet[0], feet[-1]
@@ -520,25 +433,29 @@ def bind_pixels(
     return tuple(labels)
 
 
-def make_binding(
-    mask: bytes | bytearray, width: int, height: int, target: int = WORK_SIZE
+def make_binding_from_topology(
+    mask: bytes | bytearray,
+    skeleton: bytes | bytearray,
+    width: int,
+    height: int,
+    source_scale: int,
 ) -> ProfileBinding:
-    reduced, reduced_width, reduced_height, scale = downsample_mask(
-        mask, width, height, target
-    )
-    skeleton = prune_short_branches(
-        thin_mask(reduced, reduced_width, reduced_height),
-        reduced_width,
-        reduced_height,
-    )
-    joints = infer_joints(reduced, skeleton, reduced_width, reduced_height)
+    """Bind semantics to topology produced by the C++ profile extractor."""
+    if width <= 0 or height <= 0 or source_scale <= 0:
+        raise BindingError("profile topology dimensions and source scale must be positive")
+    if len(mask) != width * height or len(skeleton) != width * height:
+        raise BindingError("profile topology buffers do not match their dimensions")
+    if not any(mask) or not any(skeleton):
+        raise BindingError("profile topology must contain silhouette and medial-axis pixels")
+
+    joints = infer_joints(mask, skeleton, width, height)
     bones = bones_for(joints)
-    labels = bind_pixels(reduced, reduced_width, joints, bones)
+    labels = bind_pixels(mask, width, joints, bones)
     return ProfileBinding(
-        width=reduced_width,
-        height=reduced_height,
-        source_scale=scale,
-        mask=bytes(reduced),
+        width=width,
+        height=height,
+        source_scale=source_scale,
+        mask=bytes(mask),
         skeleton=bytes(skeleton),
         joints=joints,
         bones=bones,
@@ -815,56 +732,6 @@ def render_color_pose(
     return output
 
 
-def render_pose_control(
-    mask: bytes | bytearray,
-    joints: dict[str, Point],
-    bones: tuple[Bone, ...],
-    width: int,
-    height: int,
-) -> bytearray:
-    """Binary Canny input: outer contour plus semantic bones, never a filled blob."""
-    if len(mask) != width * height:
-        raise BindingError("pose control mask dimensions do not match")
-    pixels = bytearray(b"\x00\x00\x00\xff" * width * height)
-    for y in range(height):
-        for x in range(width):
-            index = y * width + x
-            if not mask[index]:
-                continue
-            edge = False
-            for neighbor_y in range(max(0, y - 1), min(height, y + 2)):
-                for neighbor_x in range(max(0, x - 1), min(width, x + 2)):
-                    if not mask[neighbor_y * width + neighbor_x]:
-                        edge = True
-                        break
-                if edge:
-                    break
-            if edge:
-                offset = index * 4
-                pixels[offset : offset + 4] = b"\xff\xff\xff\xff"
-
-    for bone in bones:
-        start = joints[bone.start]
-        end = joints[bone.end]
-        for offset_x, offset_y in ((0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)):
-            _draw_line(
-                pixels,
-                width,
-                height,
-                (start[0] + offset_x, start[1] + offset_y),
-                (end[0] + offset_x, end[1] + offset_y),
-                (255, 255, 255, 255),
-            )
-    for x, y in joints.values():
-        for offset_y in range(-2, 3):
-            for offset_x in range(-2, 3):
-                if offset_x * offset_x + offset_y * offset_y > 4:
-                    continue
-                px, py = round(x) + offset_x, round(y) + offset_y
-                if 0 <= px < width and 0 <= py < height:
-                    offset = (py * width + px) * 4
-                    pixels[offset : offset + 4] = b"\xff\xff\xff\xff"
-    return pixels
 
 
 def write_evidence(
@@ -935,14 +802,6 @@ def write_evidence(
             binding.width,
             binding.height,
             pose_pixels,
-        )
-        write_rgba(
-            out / f"pose-{pose}-control.png",
-            binding.width,
-            binding.height,
-            render_pose_control(
-                posed, joints, binding.bones, binding.width, binding.height
-            ),
         )
         if reduced_source is not None:
             write_rgba(

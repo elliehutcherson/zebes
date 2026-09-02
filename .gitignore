@@ -21,9 +21,9 @@ imgui.ini
 # Scratch directories that tests create and populate at run time
 test_data/
 
-# Mannequin renders. Regenerate with `python3 -m mannequin.cli render`; the
-# measurement set and pose library are the source of truth, not the PNGs.
-experiments/mannequin/out/
+# Character-binding renders are review evidence generated locally by the C++
+# proof tool and bounded Python ComfyUI runner.
+experiments/character_binding/out/
 
 # Cross-process authoring locks contain per-machine process metadata.
 .zebes/

@@ -1,4 +1,4 @@
-# Mannequin experiment: architecture, results, and open problems
+# Character-binding experiment: results and open problems
 
 Written 2026-09-01 as a handoff. Everything below is measured unless it says
 otherwise. Where a claim is a guess, it says so.
@@ -17,9 +17,9 @@ Two structural causes, neither fixable by prompting:
 2. **There was no hard conditioning channel.** The OpenAI and Codex image APIs
    accept reference images, not control maps.
 
-This experiment tests whether a parametric 3D figure, rendered to conditioning
-maps, can supply the missing constraint. It makes no provider calls; generation
-runs on local ComfyUI.
+This experiment tests whether freely generated reference art can be bound to
+deterministic geometry, posed, and used as identity/style evidence without
+reintroducing frame drift. Generation runs on local ComfyUI.
 
 ## Current status in one paragraph
 
@@ -34,10 +34,12 @@ deformation can recover.
 
 ---
 
-# Architecture
+# Historical mannequin architecture
 
-Pure Python 3.14 standard library. No numpy, no Pillow, no Blender. Runs from
-`experiments/mannequin/`.
+The original route was a pure Python parametric mannequin under the former
+`experiments/mannequin/` name. It is retained below as experiment history, not
+the active implementation. The active flat layout and C++ boundary are described
+in `README.md`.
 
 ## Data flow
 
@@ -241,12 +243,13 @@ four-image generation gate, not proposed animation frames.
 
 ## 9. Deterministic C++ silhouette core — ported and fuzzed
 
-The stable preprocessing boundary now lives in `src/artwork/profile_silhouette`.
-It consumes production `IsolateSubject` output, reduces the exact alpha mask,
-performs Zhang-Suen thinning, prunes short branches, reports components,
-endpoints, and branch pixels, and renders review evidence. Python still owns
-semantic-joint exploration and ComfyUI orchestration; neither is an engine
-dependency.
+The stable boundary now lives in `src/artwork/profile_silhouette`. It consumes
+production `IsolateSubject` output, reduces the exact alpha mask, performs
+Zhang-Suen thinning, prunes short branches, reports topology, and renders neutral
+and posed binary controls. The active experiment was renamed and flattened to
+`experiments/character_binding`; rejected mannequin geometry code was removed.
+Python retains only unsettled semantic-joint/deformation policy and ComfyUI
+orchestration, neither of which is an engine dependency.
 
 Three independently generated mouse identities exercised different failure
 classes rather than competing for final-art selection:
@@ -349,15 +352,14 @@ when the subject covers two of them. It samples the whole border ring now.
 
 # Evidence
 
-Committed: `out/spike/run-01/verdict.json`, `out/spike/run-02/verdict.json`.
-Renders are gitignored and regenerable.
+Committed historical verdicts:
+`evidence/run-01-verdict.json` and `evidence/run-02-verdict.json`.
+Current renders are gitignored and regenerable.
 
-`out/review/` holds a numbered walkthrough, from the 48px mush through the
-edge-control results to the fitted overlay.
-
-Tests: `tests/mannequin_test.py` and `tests/mannequin_comfy_test.py` at the
-repository root, run by `scripts/build_and_test.sh`. The ComfyUI tests run
-against an in-process stub, so they pass with derry switched off.
+Tests: `tests/character_binding_test.py`,
+`tests/character_binding_comfy_test.py`, and
+`tests/artwork/profile_silhouette_test.cc`. The ComfyUI tests run against an
+in-process stub, so they pass with `derry` switched off.
 
 ---
 

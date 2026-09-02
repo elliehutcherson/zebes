@@ -4,27 +4,19 @@
     "inputs": { "ckpt_name": "sd_xl_base_1.0.safetensors" },
     "_meta": { "title": "Load Checkpoint" }
   },
-  "15": {
-    "class_type": "LoraLoader",
-    "inputs": {
-      "model": ["1", 0],
-      "clip": ["1", 1],
-      "lora_name": "pixel-art-xl.safetensors",
-      "strength_model": 1.0,
-      "strength_clip": 1.0
-    },
-    "_meta": { "title": "ZEBES_STYLE" }
-  },
   "2": {
     "class_type": "CLIPTextEncode",
-    "inputs": { "text": "pixel art, a character", "clip": ["15", 1] },
+    "inputs": {
+      "text": "a lone game character, full body, plain flat background",
+      "clip": ["1", 1]
+    },
     "_meta": { "title": "ZEBES_POSITIVE" }
   },
   "3": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "3d render, photo, realistic, blurry, soft shading, gradient, text",
-      "clip": ["15", 1]
+      "text": "multiple characters, cropped, text, watermark, grid, sheet, blurry",
+      "clip": ["1", 1]
     },
     "_meta": { "title": "ZEBES_NEGATIVE" }
   },
@@ -47,9 +39,9 @@
       "negative": ["3", 0],
       "control_net": ["5", 0],
       "image": ["4", 0],
-      "strength": 0.9,
+      "strength": 0.55,
       "start_percent": 0.0,
-      "end_percent": 0.95
+      "end_percent": 0.5
     },
     "_meta": { "title": "ZEBES_CONTROL_STRENGTH" }
   },
@@ -61,10 +53,10 @@
   "8": {
     "class_type": "KSampler",
     "inputs": {
-      "model": ["15", 0],
+      "model": ["1", 0],
       "seed": 1,
       "steps": 28,
-      "cfg": 7.0,
+      "cfg": 8.0,
       "sampler_name": "dpmpp_2m",
       "scheduler": "karras",
       "positive": ["6", 0],
@@ -81,7 +73,7 @@
   },
   "10": {
     "class_type": "SaveImage",
-    "inputs": { "images": ["9", 0], "filename_prefix": "zebes/pixel" },
+    "inputs": { "images": ["9", 0], "filename_prefix": "zebes/character-binding" },
     "_meta": { "title": "ZEBES_OUTPUT" }
   }
 }

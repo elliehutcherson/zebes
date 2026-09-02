@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <queue>
@@ -206,24 +207,57 @@ int CountComponents(const std::vector<uint8_t>& mask, int width, int height) {
   return components;
 }
 
-bool IsSilhouetteEdge(const ProfileSilhouette& profile, size_t index) {
-  if (profile.silhouette[index] == 0) return false;
-  const int x = static_cast<int>(index % profile.width);
-  const int y = static_cast<int>(index / profile.width);
+bool IsMaskEdge(absl::Span<const uint8_t> silhouette, int width, int height, size_t index) {
+  if (silhouette[index] == 0) return false;
+  const int x = static_cast<int>(index % width);
+  const int y = static_cast<int>(index / width);
   for (int offset_y = -1; offset_y <= 1; ++offset_y) {
     for (int offset_x = -1; offset_x <= 1; ++offset_x) {
       const int neighbor_x = x + offset_x;
       const int neighbor_y = y + offset_y;
-      if (neighbor_x < 0 || neighbor_y < 0 || neighbor_x >= profile.width ||
-          neighbor_y >= profile.height) {
+      if (neighbor_x < 0 || neighbor_y < 0 || neighbor_x >= width || neighbor_y >= height) {
         return true;
       }
-      if (profile.silhouette[PixelIndex(profile.width, neighbor_x, neighbor_y)] == 0) {
+      if (silhouette[PixelIndex(width, neighbor_x, neighbor_y)] == 0) {
         return true;
       }
     }
   }
   return false;
+}
+
+void PaintWhite(RgbaImage* image, int x, int y) {
+  if (x < 0 || y < 0 || x >= image->width || y >= image->height) return;
+  const size_t pixel = PixelIndex(image->width, x, y) * 4;
+  image->pixels[pixel] = 255;
+  image->pixels[pixel + 1] = 255;
+  image->pixels[pixel + 2] = 255;
+  image->pixels[pixel + 3] = 255;
+}
+
+void DrawWhiteLine(RgbaImage* image, ProfileControlPoint start, ProfileControlPoint end) {
+  int x0 = static_cast<int>(std::lround(start.x));
+  int y0 = static_cast<int>(std::lround(start.y));
+  const int x1 = static_cast<int>(std::lround(end.x));
+  const int y1 = static_cast<int>(std::lround(end.y));
+  const int delta_x = std::abs(x1 - x0);
+  const int delta_y = -std::abs(y1 - y0);
+  const int step_x = x0 < x1 ? 1 : -1;
+  const int step_y = y0 < y1 ? 1 : -1;
+  int error = delta_x + delta_y;
+  while (true) {
+    PaintWhite(image, x0, y0);
+    if (x0 == x1 && y0 == y1) return;
+    const int doubled_error = 2 * error;
+    if (doubled_error >= delta_y) {
+      error += delta_y;
+      x0 += step_x;
+    }
+    if (doubled_error <= delta_x) {
+      error += delta_x;
+      y0 += step_y;
+    }
+  }
 }
 
 }  // namespace
@@ -336,12 +370,64 @@ absl::StatusOr<RgbaImage> RenderProfileSilhouetteControl(const ProfileSilhouette
   for (size_t index = 0; index < profile.silhouette.size(); ++index) {
     const size_t pixel = index * 4;
     control.pixels[pixel + 3] = 255;
-    if (!IsSilhouetteEdge(profile, index) && profile.medial_axis[index] == 0) {
+    if (!IsMaskEdge(profile.silhouette, profile.width, profile.height, index) &&
+        profile.medial_axis[index] == 0) {
       continue;
     }
     control.pixels[pixel] = 255;
     control.pixels[pixel + 1] = 255;
     control.pixels[pixel + 2] = 255;
+  }
+  return control;
+}
+
+absl::StatusOr<RgbaImage> RenderProfilePoseControl(absl::Span<const uint8_t> silhouette, int width,
+                                                   int height,
+                                                   absl::Span<const ProfileControlPoint> joints,
+                                                   absl::Span<const ProfileControlBone> bones) {
+  if (width <= 0 || height <= 0 || silhouette.size() != static_cast<size_t>(width) * height) {
+    return absl::InvalidArgumentError("profile pose control silhouette dimensions are invalid");
+  }
+  for (const ProfileControlPoint& joint : joints) {
+    if (!std::isfinite(joint.x) || !std::isfinite(joint.y)) {
+      return absl::InvalidArgumentError("profile pose control contains a non-finite joint");
+    }
+  }
+  for (const ProfileControlBone& bone : bones) {
+    if (bone.start_joint >= joints.size() || bone.end_joint >= joints.size()) {
+      return absl::InvalidArgumentError("profile pose control bone references an unknown joint");
+    }
+  }
+
+  RgbaImage control{
+      .width = width,
+      .height = height,
+      .pixels = std::vector<uint8_t>(static_cast<size_t>(width) * height * 4, 0),
+  };
+  for (size_t index = 0; index < silhouette.size(); ++index) {
+    control.pixels[index * 4 + 3] = 255;
+    if (IsMaskEdge(silhouette, width, height, index)) {
+      PaintWhite(&control, static_cast<int>(index % width), static_cast<int>(index / width));
+    }
+  }
+  for (const ProfileControlBone& bone : bones) {
+    const ProfileControlPoint start = joints[bone.start_joint];
+    const ProfileControlPoint end = joints[bone.end_joint];
+    for (const std::array<int, 2>& offset :
+         {std::array<int, 2>{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1}}) {
+      DrawWhiteLine(&control, {start.x + offset[0], start.y + offset[1]},
+                    {end.x + offset[0], end.y + offset[1]});
+    }
+  }
+  for (const ProfileControlPoint& joint : joints) {
+    const int center_x = static_cast<int>(std::lround(joint.x));
+    const int center_y = static_cast<int>(std::lround(joint.y));
+    for (int offset_y = -2; offset_y <= 2; ++offset_y) {
+      for (int offset_x = -2; offset_x <= 2; ++offset_x) {
+        if (offset_x * offset_x + offset_y * offset_y > 4) continue;
+        PaintWhite(&control, center_x + offset_x, center_y + offset_y);
+      }
+    }
   }
   return control;
 }

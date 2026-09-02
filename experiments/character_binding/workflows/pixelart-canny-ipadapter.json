@@ -112,7 +112,7 @@
   },
   "10": {
     "class_type": "SaveImage",
-    "inputs": { "images": ["9", 0], "filename_prefix": "zebes/mouse" },
+    "inputs": { "images": ["9", 0], "filename_prefix": "zebes/character-binding" },
     "_meta": { "title": "ZEBES_OUTPUT" }
   }
 }

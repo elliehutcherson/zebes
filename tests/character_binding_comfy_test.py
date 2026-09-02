@@ -12,12 +12,13 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-EXPERIMENT_ROOT = Path(__file__).parent.parent / "experiments" / "mannequin"
-if str(EXPERIMENT_ROOT) not in sys.path:
-    sys.path.insert(0, str(EXPERIMENT_ROOT))
+EXPERIMENTS_ROOT = Path(__file__).parent.parent / "experiments"
+CHARACTER_BINDING_ROOT = EXPERIMENTS_ROOT / "character_binding"
+if str(EXPERIMENTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXPERIMENTS_ROOT))
 
-from mannequin import profile_proof, workflow  # noqa: E402
-from mannequin.comfy_client import ComfyClient, ComfyError, OutputImage  # noqa: E402
+from character_binding import profile_proof, workflow  # noqa: E402
+from character_binding.comfy_client import ComfyClient, ComfyError, OutputImage  # noqa: E402
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\nstub-image-payload"
 
@@ -148,16 +149,16 @@ class ComfyClientTest(unittest.TestCase):
 
         self.state.upload_response = {
             "name": "guide.png",
-            "subfolder": "mannequin",
+            "subfolder": "character_binding",
             "type": "input",
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "depth.png"
             path.write_bytes(PNG_BYTES)
 
-            uploaded = self.client.upload_image(path, subfolder="mannequin")
+            uploaded = self.client.upload_image(path, subfolder="character_binding")
 
-        self.assertEqual(uploaded.reference, "mannequin/guide.png")
+        self.assertEqual(uploaded.reference, "character_binding/guide.png")
 
     def test_uploading_a_missing_file_is_refused_before_any_request(self):
         before = len(self.state.requests)
@@ -175,7 +176,7 @@ class ComfyClientTest(unittest.TestCase):
         self.assertEqual(route, "/prompt")
         payload = json.loads(body)
         self.assertEqual(payload["prompt"]["1"]["class_type"], "X")
-        self.assertTrue(payload["client_id"].startswith("zebes-mannequin-"))
+        self.assertTrue(payload["client_id"].startswith("zebes-character-binding-"))
 
     def test_a_rejected_graph_reports_the_node_errors(self):
         self.state.prompt_response = {
@@ -286,7 +287,7 @@ class ComfyClientTest(unittest.TestCase):
                 self.client,
                 binding,
                 identity,
-                EXPERIMENT_ROOT / "workflows" / "pixelart-canny-ipadapter.json",
+                CHARACTER_BINDING_ROOT / "workflows" / "pixelart-canny-ipadapter.json",
                 output,
                 profile_proof.ProfileProofConfig(prompt="one mouse"),
             )

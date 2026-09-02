@@ -107,7 +107,7 @@ class ComfyClient:
     ) -> None:
         self.base_url = (base_url or base_url_from_environment()).rstrip("/")
         self.timeout = timeout
-        self.client_id = client_id or f"zebes-mannequin-{uuid.uuid4().hex[:12]}"
+        self.client_id = client_id or f"zebes-character-binding-{uuid.uuid4().hex[:12]}"
 
     def _open(self, request: urllib.request.Request, timeout: float | None = None):
         try:

@@ -134,6 +134,48 @@ TEST(ProfileSilhouetteTest, RendersBinaryNeutralControl) {
   EXPECT_LT(white_pixels, profile->silhouette_pixels);
 }
 
+TEST(ProfileSilhouetteTest, RendersBinarySemanticPoseControl) {
+  const absl::StatusOr<ProfileSilhouette> profile =
+      ExtractProfileSilhouette(ProfileMouse(), ProfileSilhouetteConfig{.working_size = 128});
+  ASSERT_TRUE(profile.ok()) << profile.status();
+  const std::vector<ProfileControlPoint> joints = {
+      {.x = 64.0, .y = 45.0},
+      {.x = 64.0, .y = 70.0},
+      {.x = 45.0, .y = 100.0},
+  };
+  const std::vector<ProfileControlBone> bones = {
+      {.start_joint = 0, .end_joint = 1},
+      {.start_joint = 1, .end_joint = 2},
+  };
+
+  const absl::StatusOr<RgbaImage> control =
+      RenderProfilePoseControl(profile->silhouette, profile->width, profile->height, joints, bones);
+
+  ASSERT_TRUE(control.ok()) << control.status();
+  const size_t shoulder = (static_cast<size_t>(70) * control->width + 64) * 4;
+  EXPECT_EQ(control->pixels[shoulder], 255);
+  for (size_t pixel = 0; pixel < control->pixels.size() / 4; ++pixel) {
+    const uint8_t red = control->pixels[pixel * 4];
+    EXPECT_TRUE(red == 0 || red == 255);
+    EXPECT_EQ(control->pixels[pixel * 4 + 1], red);
+    EXPECT_EQ(control->pixels[pixel * 4 + 2], red);
+    EXPECT_EQ(control->pixels[pixel * 4 + 3], 255);
+  }
+}
+
+TEST(ProfileSilhouetteTest, RejectsPoseControlWithUnknownJoint) {
+  const std::vector<uint8_t> silhouette(16 * 16, 1);
+  const std::vector<ProfileControlPoint> joints = {{.x = 4.0, .y = 4.0}};
+  const std::vector<ProfileControlBone> bones = {
+      {.start_joint = 0, .end_joint = 1},
+  };
+
+  const absl::Status status = RenderProfilePoseControl(silhouette, 16, 16, joints, bones).status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_NE(status.message().find("unknown joint"), std::string::npos);
+}
+
 TEST(ProfileSilhouetteTest, RejectsGeometryThatWouldChangeRegistration) {
   RgbaImage non_square{
       .width = 128,

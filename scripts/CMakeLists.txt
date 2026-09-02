@@ -47,6 +47,18 @@ target_link_libraries(profile_silhouette_spike
   absl::statusor
 )
 
+add_executable(profile_pose_control profile_pose_control.cc)
+target_link_libraries(profile_pose_control
+  PRIVATE
+  image_io
+  profile_silhouette
+  absl::flags
+  absl::flags_parse
+  absl::status
+  absl::statusor
+  nlohmann_json::nlohmann_json
+)
+
 add_library(animation_artwork_run_manifest animation_artwork_run_manifest.cc)
 target_include_directories(animation_artwork_run_manifest PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(animation_artwork_run_manifest
