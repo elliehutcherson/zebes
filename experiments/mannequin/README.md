@@ -4,6 +4,10 @@ A measurement-driven figure that renders to the conditioning maps an image
 generator needs in order to hold one character's proportions across a set of
 frames. Pure Python 3.14 standard library: no numpy, no Pillow, no Blender.
 
+**Read [FINDINGS.md](FINDINGS.md) first.** It records the architecture, every
+approach tried with its measured result, the known bugs, and what to do next.
+This file is usage; that file is the state of the work.
+
 ## Why this exists
 
 `docs/history/animation-pose-conditioned-experiment.md` records six provider
