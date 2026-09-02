@@ -15,7 +15,7 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
-from . import comfy_client, measure, openpose, raster, render_svg, workflow
+from . import comfy_client, fit, isolate, measure, openpose, raster, render_svg, workflow
 from .comfy_client import ComfyClient
 from .costume import COSTUMES, costume as load_costume
 from .measurements import (
@@ -25,7 +25,14 @@ from .measurements import (
     resolution_report,
 )
 from .pose import Frame, STATIC_POSES, idle_cycle, run_cycle, static_pose
-from .project import VIEWS, layout_for, project, project_joints
+from .png import read_rgba, write_rgba
+from .project import (
+    VIEWS,
+    Layout,
+    layout_for,
+    project,
+    project_joints,
+)
 from .skeleton import build_rig, seat_on_ground, shell_height, skeletal_height, solve
 
 CYCLES = ("run", "idle")
@@ -188,6 +195,61 @@ def command_gate(args: argparse.Namespace) -> int:
     return 0 if comparison.passed else 1
 
 
+def command_fit(args: argparse.Namespace) -> int:
+    source = Path(args.image)
+    if not source.is_file():
+        raise SystemExit(f"no such image: {source}")
+
+    mask, width, height = isolate.subject_mask_from_png(source)
+    result = fit.fit_proportions(mask, width, height, load_preset(args.base), args.name)
+    print(result.report())
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{args.name}.json").write_text(
+        json.dumps(asdict(result.proportions), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    # Align the rig to the source exactly: one head unit is the measured head
+    # height, the ground is the figure's own feet, and the origin is its centre.
+    # Anything else and the overlay would show a scale error rather than a fit
+    # error, which is the one thing it exists to rule out.
+    marks = result.landmarks
+    spans = fit.row_spans(mask, width, height)
+    # Centre on the torso, not on the whole silhouette. A tail, a held weapon or
+    # one outflung arm drags a full-bounding-box centre sideways, and the overlay
+    # would then show an offset that is not a fitting error.
+    torso = [s for s in spans[marks.shoulder : marks.crotch] if s is not None]
+    if not torso:
+        raise SystemExit("no torso rows between the shoulder and crotch landmarks")
+    centres = sorted((s.left + s.right) / 2.0 for s in torso)
+    layout = Layout(
+        width=width,
+        height=height,
+        pixels_per_head=float(marks.head_height),
+        origin_x=centres[len(centres) // 2],
+        ground_y=float(marks.bottom + 1),
+    )
+    rig = build_rig(result.proportions)
+    world = seat_on_ground(rig, solve(rig, static_pose("a-pose").pose), "both")
+    buffers = raster.rasterize(width, height, project(rig, world, "front", layout))
+
+    _, _, pixels = read_rgba(source)
+    overlay = bytearray(pixels)
+    for i, on in enumerate(buffers.covered):
+        if on:
+            # Half-strength magenta: the source stays readable underneath.
+            for channel, value in ((0, 255), (1, 0), (2, 255)):
+                overlay[i * 4 + channel] = (overlay[i * 4 + channel] + value) // 2
+            overlay[i * 4 + 3] = 255
+    write_rgba(out / f"{args.name}-overlay.png", width, height, overlay)
+
+    print(f"\nwrote {out / (args.name + '.json')}")
+    print(f"wrote {out / (args.name + '-overlay.png')} — check the fit before using it")
+    return 0
+
+
 def command_comfy(args: argparse.Namespace) -> int:
     client = ComfyClient(args.url)
     stats = client.system_stats()
@@ -248,6 +310,15 @@ def build_parser() -> argparse.ArgumentParser:
     gate.add_argument("--tolerance", type=float, default=0.08)
     gate.add_argument("--bands", type=int, default=measure.DEFAULT_BANDS)
     gate.set_defaults(func=command_gate)
+
+    fit_parser = sub.add_parser(
+        "fit", help="derive a measurement set from a generated character image"
+    )
+    fit_parser.add_argument("image")
+    fit_parser.add_argument("--base", default="trickster-3h", choices=sorted(PRESETS))
+    fit_parser.add_argument("--name", default="fitted")
+    fit_parser.add_argument("--out", default="out/fitted")
+    fit_parser.set_defaults(func=command_fit)
 
     comfy = sub.add_parser("comfy", help="check the ComfyUI box is reachable")
     comfy.add_argument(
