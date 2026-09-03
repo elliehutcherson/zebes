@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "name": "badger",
+  "body_plan": "quadruped",
+  "camera": {"scale": 5.4, "center_z": 2.35},
+  "palette": {
+    "outline": "#171326",
+    "primary": "#3E4149",
+    "primary_dark": "#232631",
+    "secondary": "#686B70",
+    "accent": "#D5453F",
+    "skin": "#D8D0B5",
+    "detail": "#171326"
+  },
+  "parameters": {
+    "body_length": 1.35,
+    "body_height": 0.72,
+    "body_z": 1.65,
+    "head_height": 0.72,
+    "head_size": 0.62,
+    "leg_length": 1.05,
+    "leg_thickness": 0.24,
+    "ears": "round",
+    "ear_size": 0.28,
+    "tail": "thin",
+    "tail_length": 0.62,
+    "face_stripe": true
+  }
+}

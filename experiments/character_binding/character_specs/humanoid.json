@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "humanoid",
+  "body_plan": "biped",
+  "camera": {"scale": 5.8, "center_z": 2.85},
+  "palette": {
+    "outline": "#171326",
+    "primary": "#536A8A",
+    "primary_dark": "#303D5E",
+    "secondary": "#6B382D",
+    "accent": "#D5453F",
+    "skin": "#D59A6B",
+    "detail": "#171326"
+  },
+  "parameters": {
+    "head_size": 0.62,
+    "torso_width": 0.70,
+    "torso_height": 0.96,
+    "arm_length": 1.05,
+    "leg_length": 1.28,
+    "limb_thickness": 0.22,
+    "ears": "none",
+    "ear_size": 0.0,
+    "muzzle": false,
+    "tail": "none",
+    "tail_length": 0.0,
+    "coat": false,
+    "scarf": false
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "name": "bat",
+  "body_plan": "flyer",
+  "camera": {"scale": 6.4, "center_z": 3.05},
+  "palette": {
+    "outline": "#171326",
+    "primary": "#403650",
+    "primary_dark": "#282238",
+    "secondary": "#6B5579",
+    "accent": "#D5453F",
+    "skin": "#C59A8A",
+    "detail": "#F1D5A1"
+  },
+  "parameters": {
+    "ear_size": 0.62,
+    "wing_span": 2.45
+  }
+}

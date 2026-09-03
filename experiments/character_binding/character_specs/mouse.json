@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "mouse",
+  "body_plan": "biped",
+  "camera": {"scale": 6.3, "center_z": 3.05},
+  "palette": {
+    "outline": "#171326",
+    "primary": "#55705A",
+    "primary_dark": "#30483F",
+    "secondary": "#A65F43",
+    "accent": "#D5453F",
+    "skin": "#F1D5A1",
+    "detail": "#171326"
+  },
+  "parameters": {
+    "head_size": 0.88,
+    "torso_width": 0.98,
+    "torso_height": 1.08,
+    "arm_length": 1.18,
+    "leg_length": 1.15,
+    "limb_thickness": 0.25,
+    "ears": "round",
+    "ear_size": 0.72,
+    "muzzle": true,
+    "tail": "thin",
+    "tail_length": 1.05,
+    "coat": true,
+    "scarf": true
+  }
+}

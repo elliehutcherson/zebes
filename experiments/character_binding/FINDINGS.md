@@ -32,6 +32,14 @@ long-coated mouse at 48px and expose different poses. These are conditioning
 guides, not final art: the neutral coat hides leg surfaces that no single-image
 deformation can recover.
 
+The follow-up body-plan matrix shows what can be automated without pretending
+that character design is a scalar prompt. Humanoid and mouse reuse one biped
+builder; badger, rabbit, fox, and cat reuse one quadruped builder; bat uses a
+flyer builder. Each JSON specimen renders neutral and action poses in one
+validated batch. The result passes reuse, framing, pose-change, and coarse
+species-readability gates, but remains a structural prototype rather than final
+art.
+
 ---
 
 # Historical mannequin architecture
@@ -382,6 +390,32 @@ to identify the modeling work.
 
 The reference is a model sheet, not a projected texture. This preserves complete
 hidden geometry for later poses instead of reintroducing the flat-image problem.
+
+## 16. Reusable body-plan families — automation pass
+
+A data-driven Blender renderer produced seven named specimens from three shared
+body-plan builders. The reviewed 7×2 matrix contains neutral and action renders
+for humanoid, mouse, badger, rabbit, fox, cat, and bat. All fourteen frames
+remain inside the 48×48 camera, expose the intended pose change, and retain the
+same identity across poses.
+
+The strongest evidence is reuse within the quadruped row. Rabbit, fox, cat, and
+badger share all limb and pose construction while remaining distinguishable
+through proportions, ears, tails, markings, and palette. The bat also shows why
+body-plan boundaries matter: wings are topology, not another quadruped
+parameter. The badger is the least specific specimen and needs a stronger mask,
+back stripe, and shoulder mass before a production gate.
+
+This changes the expected per-character cost. Within a known family, setup is a
+validated JSON spec plus deliberate art tuning. A repeated trait should extend
+the family builder once. Only a new topology requires a new builder. Unique
+faces, garments, accessories, and high-quality motion cannot be automated away;
+they remain the work that determines whether the final sprite reads as the
+actual character rather than merely its species.
+
+The Blender batch command rendered all seven specs successfully in one process.
+This verifies schema validation, shared-builder dispatch, deterministic
+48×48 output, source `.blend` capture, and manifest generation together.
 
 ---
 

@@ -38,6 +38,9 @@ experiments/character_binding/
   workflow.py           exported workflow patching
   png.py                experiment-only preview PNG I/O
   render_3d_proxy.py    Blender-only direct 48px neutral/contact proof
+  render_character_family.py
+                        data-driven biped/quadruped/flyer renderer
+  character_specs/     one JSON specimen per reusable family member
   workflows/            exported ComfyUI API templates
   evidence/             committed historical verdicts
   README.md
@@ -264,6 +267,49 @@ The source pixels are not projected over the mesh. They supply orientation,
 bounds, proportions, palette roles, and a native model-sheet target. Hidden
 surfaces remain real model geometry and therefore continue to render correctly
 in contact.
+
+## 9. Reusable body-plan automation
+
+`render_character_family.py` separates reusable model construction from
+character-specific values. Version 1 defines three body plans:
+
+- `biped`: shared humanoid and mouse skeleton, neutral stance, and stride;
+- `quadruped`: shared badger, rabbit, fox, and cat skeleton, neutral stance,
+  and run pose;
+- `flyer`: shared bat body and neutral/action wing articulation.
+
+The seven committed JSON specs select proportions, camera framing, palette,
+ear type, tail type, and limited species traits. One Blender invocation validates
+and renders every spec to its own output directory:
+
+```bash
+blender --background --python \
+  experiments/character_binding/render_character_family.py -- \
+  --spec-dir experiments/character_binding/character_specs \
+  --out /tmp/zebes-character-families
+```
+
+Each specimen produces `neutral.png`, `action.png`, both source `.blend` files,
+and a manifest at 48×48. The reviewed matrix uses columns humanoid, mouse,
+badger, rabbit, fox, cat, bat; neutral is the first row and action the second.
+All seven stay inside frame, change pose, and remain species-readable. Long ears
+identify the rabbit, the brush tail and palette identify the fox, pointed ears
+plus a thin tail identify the cat, and wing topology identifies the bat. The
+badger remains the weakest read because its identity depends mainly on body mass,
+round ears, and a face stripe.
+
+The reuse boundary is deliberate:
+
+- a new character within these families should usually be one JSON spec;
+- a recurring ear, tail, marking, garment, or limb feature belongs in the
+  corresponding shared builder;
+- a genuinely different topology needs one new body-plan builder;
+- production-quality faces, hands, clothing, species anatomy, and authored
+  motion remain modeling work rather than spec values.
+
+This is evidence that body-plan automation removes repeated rig/render setup.
+It is not evidence that seven production character models can be generated from
+names or palettes alone.
 
 ## Other commands
 

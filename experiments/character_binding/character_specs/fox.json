@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "name": "fox",
+  "body_plan": "quadruped",
+  "camera": {"scale": 5.8, "center_z": 2.45},
+  "palette": {
+    "outline": "#171326",
+    "primary": "#B95E32",
+    "primary_dark": "#713520",
+    "secondary": "#D77B43",
+    "accent": "#D5453F",
+    "skin": "#F1D5A1",
+    "detail": "#171326"
+  },
+  "parameters": {
+    "body_length": 1.42,
+    "body_height": 0.66,
+    "body_z": 1.70,
+    "head_height": 0.78,
+    "head_size": 0.60,
+    "leg_length": 1.18,
+    "leg_thickness": 0.19,
+    "ears": "pointed",
+    "ear_size": 0.52,
+    "tail": "brush",
+    "tail_length": 1.55,
+    "face_stripe": false
+  }
+}
