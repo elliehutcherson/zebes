@@ -37,6 +37,7 @@ experiments/character_binding/
   profile_proof.py      bounded four-pose generation runner
   workflow.py           exported workflow patching
   png.py                experiment-only preview PNG I/O
+  render_3d_proxy.py    Blender-only direct 48px neutral/contact proof
   workflows/            exported ComfyUI API templates
   evidence/             committed historical verdicts
   README.md
@@ -184,9 +185,7 @@ PYTHONPATH=experiments python3 -m character_binding.cli generate-profile-proof \
 
 Identity and style remain recognizable, but airborne is still grounded and turns
 toward the camera. The pre-registered stop rule closes diffusion-based animation
-control. The next experiment is direct C++ layered mesh deformation: render
-neutral and contact from the isolated reference without regenerating either
-frame.
+control.
 
 ## 6. Direct C++ deformation gate
 
@@ -214,6 +213,30 @@ fails the contact-pose visual gate.
 The next input experiment needs separated limb artwork—either a bind-pose
 reference with visible limbs or fixed supplemental rear/front limb patches—not
 another deformation algorithm over the same occluded source.
+
+## 7. Direct low-poly 3D gate
+
+Blender 4.0.2 on `derry` renders one deliberately crude low-poly mouse with a
+fixed orthographic camera, palette, model, and scale. Blender Python is used only
+because `bpy` is Blender's offline authoring API; no Python or 3D dependency
+enters the engine.
+
+```bash
+scp experiments/character_binding/render_3d_proxy.py derry:/tmp/
+ssh derry 'blender --background --python /tmp/render_3d_proxy.py -- \
+  --out /tmp/zebes-blender-proxy'
+```
+
+Both outputs are native 48×48 RGBA with workbench antialiasing disabled.
+Neutral and contact retain identical head, ears, muzzle, hood, scarf, coat,
+belt, tail, and materials. Contact has an unambiguous stride, opposite arm
+placement, one planted foot, one lifted foot, and no boot/coat intersection.
+
+Structural verdict: pass. Art-direction verdict: not production-ready. The proxy
+is recognizable but crude; arms are small, legs still read too human, and
+Workbench emits 100–113 colors before pipeline quantization. The next iteration
+should improve the reusable 3D model and flat/toon palette, not return to
+per-frame diffusion or single-image deformation.
 
 ## Other commands
 

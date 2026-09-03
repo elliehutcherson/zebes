@@ -336,6 +336,29 @@ solve bad semantic ownership in the target layer map or invent upper-leg pixels
 hidden by the neutral coat. The two-pose gate therefore rejects the current
 automatically inferred source layers, not the renderer.
 
+## 14. Direct low-poly 3D — structural pass
+
+Blender 4.0.2 was installed on `derry`. One deterministic script builds a crude
+mouse from low-poly ellipsoids, prisms, and eight-sided limb segments, then
+renders neutral and contact directly at 48×48. Camera, scale, model geometry,
+materials, and depth order are identical between poses; only joint coordinates
+change.
+
+| Gate | Result |
+|---|---|
+| Same identity and proportions | Pass: head, ears, muzzle, hood, scarf, coat, belt, and tail are unchanged |
+| Contact readability | Pass: wide opposing legs and arms read immediately |
+| Foot/coat intersection | Pass: both legs begin below the short coat; no boot enters the torso |
+| Ground contact | Pass: lead foot planted, rear foot visibly lifted |
+| Native framing | Pass: both poses fit one 48×48 orthographic frame |
+| Production art quality | Fail: proxy is crude, arms are small, legs read too human |
+| Palette | Fail before processing: Workbench emits 100–113 colors |
+
+This is the first route that obeys pose structurally without changing identity.
+It validates direct low-resolution 3D as the animation source, not this proxy as
+production art. The next work is model and shader quality: better chibi anatomy,
+stronger arm silhouettes, a strict flat/toon palette, then normal-map export.
+
 ---
 
 # The one rule that explains most failures
@@ -415,18 +438,15 @@ in-process stub, so they pass with `derry` switched off.
 
 # What I would do next, in order
 
-1. **Keep fuzzing identity acquisition.** Generate varied mice with different
-   proportions and clothes, but require transparent or truly flat backgrounds
-   and separated limbs. The goal is algorithm robustness, not identity selection.
+1. **Improve the one reusable 3D model.** Use generated identity art as a model
+   sheet, shorten and broaden limbs, strengthen hands/arm silhouettes, and retain
+   the large ears, muzzle, hood, scarf, coat, belt, boots, and tail.
 
-2. **Port stable deterministic stages to C++.** Isolation and medial-axis
-   extraction are complete. Port semantic joint inference only after the fuzz
-   set settles its rules; then replace hard pixel ownership with smooth mesh
-   weights and explicit front/back limb layers in platform-neutral C++.
+2. **Lock the render style.** Replace Workbench's 100–113 colors with a strict
+   flat/toon palette that survives direct 48×48 rendering; add a normal pass only
+   after color readability passes.
 
-3. **Acquire separated source layers.** Direct C++ inverse deformation is now
-   pixel-exact in neutral and complete in contact, but the contact image still
-   places boot artwork through the coat because the neutral source hides the
-   upper legs. Generate or author one bind-pose reference with visibly separated
-   limbs, or fixed supplemental rear/front limb patches. Re-run only neutral and
-   contact before considering a complete locomotion sequence.
+3. **Expand from two to four poses.** Neutral/contact now pass structurally.
+   Add passing and airborne from the same model, verify the airborne ground gap,
+   then use the existing C++ frame-set pipeline for native and Catacombs review.
+   Image-to-3D mesh acquisition is optional after this gate, not a prerequisite.
