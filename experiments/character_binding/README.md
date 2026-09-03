@@ -223,8 +223,9 @@ enters the engine.
 
 ```bash
 scp experiments/character_binding/render_3d_proxy.py derry:/tmp/
+scp isolated-generated-mouse.png derry:/tmp/mouse-reference.png
 ssh derry 'blender --background --python /tmp/render_3d_proxy.py -- \
-  --out /tmp/zebes-blender-proxy'
+  --reference /tmp/mouse-reference.png --out /tmp/zebes-blender-proxy'
 ```
 
 Both outputs are native 48×48 RGBA. Eevee uses emission-only materials, one
@@ -234,11 +235,35 @@ coat, belt, tail, and materials. Contact has an unambiguous stride, opposite arm
 placement, one planted foot, one lifted foot, and no boot/coat intersection.
 
 Structural verdict: pass. Pixel-discipline verdict: pass after deterministic
-quantization—the 41/47 raw edge colors reduce to the same nine-color palette.
-Art-direction verdict: not production-ready. The proxy is recognizable and
+quantization—both raw renders contain 40 edge colors and reduce to eight/nine
+colors. Art-direction verdict: not production-ready. The proxy is recognizable and
 crisp, but the face is minimal, hands are tiny, and the legs still read too
 human. Improve the reusable model; do not return to per-frame diffusion or
 single-image deformation.
+
+## 8. Generated model-sheet mapping
+
+`render_3d_proxy.py` now requires the C++-isolated generated profile. Blender
+measures its opaque bounds, mirrors it to the canonical right-facing direction,
+normalizes it to the same 5.8-unit/44-pixel target height, and renders
+`reference.png` beside the model outputs.
+
+```bash
+blender --background --python render_3d_proxy.py -- \
+  --reference isolated-generated-mouse.png \
+  --out out/blender-proxy
+```
+
+On the current specimen, the generated reference is 30×44 visible pixels. The
+adjusted neutral model is 27×45, up from the earlier 21-pixel width, and reaches
+75.5% registered silhouette IoU. The comparison makes the remaining art gap
+explicit: the generated face, coat construction, hands, and boot shapes are much
+stronger than the proxy.
+
+The source pixels are not projected over the mesh. They supply orientation,
+bounds, proportions, palette roles, and a native model-sheet target. Hidden
+surfaces remain real model geometry and therefore continue to render correctly
+in contact.
 
 ## Other commands
 

@@ -352,14 +352,36 @@ change.
 | Ground contact | Pass: lead foot planted, rear foot visibly lifted |
 | Native framing | Pass: both poses fit one 48×48 orthographic frame |
 | Production art quality | Fail: proxy is crude, hands are small, legs read too human |
-| Raw edge colors | 41 neutral / 47 contact with one Eevee sample |
-| Deterministic quantization | Pass: both reduce to the same 9-color palette |
+| Raw edge colors | 40 neutral / 40 contact with one Eevee sample |
+| Deterministic quantization | Pass: neutral/contact reduce to 8/9 colors |
 
 This is the first route that obeys pose structurally without changing identity.
 Emission-only materials and enlarged black backing geometry produce crisp native
 pixels and readable outlines. It validates direct low-resolution 3D as the
 animation source, not this proxy as production art. Remaining work is model
 quality: better chibi anatomy, stronger hands and face, then normal-map export.
+
+## 15. Generated profile as native model sheet — measurable fit
+
+The renderer now loads the C++-isolated generated profile, measures its alpha
+bounds, mirrors it right, and normalizes it to the model's 5.8-unit target height.
+It renders the model sheet, neutral model, and contact model through the same
+48×48 orthographic camera.
+
+| Measurement | Generated reference | Neutral model |
+|---|---:|---:|
+| Visible bounds | 30×44 | 27×45 |
+| Registered silhouette IoU | — | **75.5%** |
+
+The earlier proxy was only 21 pixels wide, so reference-driven ear, head, and
+coat dimensions materially close the silhouette gap. Visual review still rejects
+the model as production art: its face is a disk rather than the reference's
+cheek/eye/brow construction, the coat lacks lapels and pockets, and hands/boots
+remain generic. The mapping path is valid; more generated pixels are not needed
+to identify the modeling work.
+
+The reference is a model sheet, not a projected texture. This preserves complete
+hidden geometry for later poses instead of reintroducing the flat-image problem.
 
 ---
 
@@ -440,10 +462,11 @@ in-process stub, so they pass with `derry` switched off.
 
 # What I would do next, in order
 
-1. **Improve the one reusable 3D model.** Use generated identity art as a model
-   sheet, shorten and broaden limbs, strengthen hands/arm silhouettes and facial
-   landmarks, and retain the large ears, muzzle, hood, scarf, coat, belt, boots,
-   and tail.
+1. **Finish the neutral model-sheet gate.** The measured remap reaches 27×45
+   against the 30×44 reference at 75.5% silhouette IoU. Model the cheek, eye,
+   brow, coat lapels/pockets, larger hands, and mouse-like boots; require at least
+   85% silhouette IoU and a visually recognizable neutral frame before adding
+   poses.
 
 2. **Expand from two to four poses.** Neutral/contact pass structure and pixel
    discipline. Add passing and airborne from the same model and require a visible

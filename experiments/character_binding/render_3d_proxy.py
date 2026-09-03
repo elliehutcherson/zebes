@@ -8,7 +8,9 @@ contact at native 48x48 with one camera, model, palette, and scale.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -29,18 +31,25 @@ PALETTE = {
     "nose": (0.70, 0.10, 0.12, 1.0),
 }
 
+MIRROR_REFERENCE_X = True
+TARGET_SUBJECT_HEIGHT = 5.8
+
+
+def model_x(value: float) -> float:
+    return -value if MIRROR_REFERENCE_X else value
+
 POSES = {
     "neutral": {
-        "front_arm": ((-0.45, 3.55), (-0.68, 2.95), (-0.66, 2.56)),
-        "rear_arm": ((0.30, 3.50), (0.66, 3.00), (0.72, 2.56)),
-        "front_leg": ((-0.28, 2.18), (-0.34, 1.32), (-0.40, 0.52), (-0.82, 0.40)),
-        "rear_leg": ((0.28, 2.16), (0.35, 1.32), (0.42, 0.52), (0.74, 0.40)),
+        "front_arm": ((-0.62, 3.48), (-0.92, 2.85), (-0.98, 2.30)),
+        "rear_arm": ((0.52, 3.44), (0.92, 2.86), (0.98, 2.30)),
+        "front_leg": ((-0.34, 1.70), (-0.38, 1.10), (-0.42, 0.56), (-0.82, 0.42)),
+        "rear_leg": ((0.34, 1.68), (0.38, 1.10), (0.42, 0.56), (0.76, 0.42)),
     },
     "contact": {
-        "front_arm": ((-0.54, 3.56), (0.16, 3.42), (0.94, 3.14)),
-        "rear_arm": ((0.22, 3.48), (-0.52, 3.34), (-1.18, 3.04)),
-        "front_leg": ((-0.34, 2.18), (-0.88, 1.38), (-1.38, 0.55), (-1.82, 0.43)),
-        "rear_leg": ((0.24, 2.14), (0.76, 1.48), (1.05, 0.88), (1.36, 0.76)),
+        "front_arm": ((-0.62, 3.48), (0.18, 3.34), (1.02, 3.04)),
+        "rear_arm": ((0.46, 3.42), (-0.48, 3.26), (-1.28, 2.94)),
+        "front_leg": ((-0.34, 1.70), (-0.84, 1.12), (-1.32, 0.54), (-1.76, 0.42)),
+        "rear_leg": ((0.30, 1.68), (0.76, 1.18), (1.04, 0.82), (1.36, 0.72)),
     },
 }
 
@@ -83,7 +92,7 @@ def ellipsoid(name, location, scale, value, segments=8, rings=4, outlined=True):
     bpy.ops.mesh.primitive_uv_sphere_add(
         segments=segments,
         ring_count=rings,
-        location=location,
+        location=(model_x(location[0]), location[1], location[2]),
     )
     obj = bpy.context.object
     obj.name = name
@@ -95,7 +104,9 @@ def ellipsoid(name, location, scale, value, segments=8, rings=4, outlined=True):
 
 
 def cube(name, location, scale, value, outlined=True):
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=location)
+    bpy.ops.mesh.primitive_cube_add(
+        size=1.0, location=(model_x(location[0]), location[1], location[2])
+    )
     obj = bpy.context.object
     obj.name = name
     obj.scale = scale
@@ -106,8 +117,8 @@ def cube(name, location, scale, value, outlined=True):
 
 
 def segment(name, start, end, radius, depth, value, outlined=True):
-    start_point = Vector((start[0], depth, start[1]))
-    end_point = Vector((end[0], depth, end[1]))
+    start_point = Vector((model_x(start[0]), depth, start[1]))
+    end_point = Vector((model_x(end[0]), depth, end[1]))
     direction = end_point - start_point
     bpy.ops.mesh.primitive_cylinder_add(
         vertices=8,
@@ -126,8 +137,8 @@ def segment(name, start, end, radius, depth, value, outlined=True):
 
 
 def prism(name, points, depth, thickness, value, outlined=True):
-    vertices = [(x, depth - thickness / 2.0, z) for x, z in points]
-    vertices += [(x, depth + thickness / 2.0, z) for x, z in points]
+    vertices = [(model_x(x), depth - thickness / 2.0, z) for x, z in points]
+    vertices += [(model_x(x), depth + thickness / 2.0, z) for x, z in points]
     count = len(points)
     faces = [tuple(range(count)), tuple(range(count, count * 2))]
     for index in range(count):
@@ -152,6 +163,83 @@ def make_camera():
     camera.data.type = "ORTHO"
     camera.data.ortho_scale = 6.3
     bpy.context.scene.camera = camera
+
+
+def load_reference(path: Path):
+    image = bpy.data.images.load(str(path), check_existing=False)
+    width, height = image.size
+    pixels = list(image.pixels)
+    covered = [
+        index
+        for index in range(width * height)
+        if pixels[index * 4 + 3] >= 0.5
+    ]
+    if not covered:
+        raise RuntimeError(f"reference has no opaque subject: {path}")
+    left = min(index % width for index in covered)
+    right = max(index % width for index in covered)
+    bottom = min(index // width for index in covered)
+    top = max(index // width for index in covered)
+    stats = {
+        "path": str(path),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "image_size": [width, height],
+        "subject_bounds": {
+            "left": left,
+            "right": right,
+            "bottom": bottom,
+            "top": top,
+        },
+        "subject_width_ratio": (right - left + 1) / width,
+        "subject_height_ratio": (top - bottom + 1) / height,
+    }
+    return image, stats
+
+
+def make_reference_material(image):
+    value = bpy.data.materials.new("reference")
+    value.use_nodes = True
+    value.blend_method = "BLEND"
+    nodes = value.node_tree.nodes
+    nodes.clear()
+    output = nodes.new("ShaderNodeOutputMaterial")
+    transparent = nodes.new("ShaderNodeBsdfTransparent")
+    emission = nodes.new("ShaderNodeEmission")
+    texture = nodes.new("ShaderNodeTexImage")
+    mix = nodes.new("ShaderNodeMixShader")
+    texture.image = image
+    texture.interpolation = "Closest"
+    texture.extension = "CLIP"
+    value.node_tree.links.new(texture.outputs["Color"], emission.inputs["Color"])
+    value.node_tree.links.new(texture.outputs["Alpha"], mix.inputs[0])
+    value.node_tree.links.new(transparent.outputs[0], mix.inputs[1])
+    value.node_tree.links.new(emission.outputs[0], mix.inputs[2])
+    value.node_tree.links.new(mix.outputs[0], output.inputs["Surface"])
+    return value
+
+
+def add_reference_plane(image, stats):
+    width, height = stats["image_size"]
+    bounds = stats["subject_bounds"]
+    subject_fraction = stats["subject_height_ratio"]
+    plane_size = TARGET_SUBJECT_HEIGHT / subject_fraction
+    source_center_x = ((bounds["left"] + bounds["right"] + 1) / 2.0) / width - 0.5
+    source_center_z = ((bounds["bottom"] + bounds["top"] + 1) / 2.0) / height - 0.5
+    visual_center_x = -source_center_x if MIRROR_REFERENCE_X else source_center_x
+    location_x = -visual_center_x * plane_size
+    location_z = 3.05 - source_center_z * plane_size
+    bpy.ops.mesh.primitive_plane_add(
+        size=plane_size,
+        location=(location_x, 0.0, location_z),
+        rotation=(math.pi / 2.0, 0.0, 0.0),
+    )
+    plane = bpy.context.object
+    plane.name = "reference_model_sheet"
+    if MIRROR_REFERENCE_X:
+        plane.scale.x = -1.0
+    apply_material(plane, make_reference_material(image))
+    stats["plane_size"] = plane_size
+    stats["mirrored_x"] = MIRROR_REFERENCE_X
 
 
 def add_limb(name, joints, depth, sleeve_material, hand_material, boot_material=None):
@@ -183,35 +271,35 @@ def build_mouse(pose_name: str):
         colors["fur"],
         colors["boot"],
     )
-    segment("tail_base", (0.55, 2.38), (1.05, 2.06), 0.10, 0.40, colors["fur"])
-    segment("tail_tip", (1.05, 2.06), (1.36, 2.34), 0.075, 0.40, colors["fur"])
+    segment("tail_base", (0.72, 2.18), (1.22, 1.96), 0.11, 0.40, colors["fur"])
+    segment("tail_tip", (1.22, 1.96), (1.54, 2.18), 0.08, 0.40, colors["fur"])
 
-    # Torso and coat are one stable silhouette, deliberately ending above the knees.
-    ellipsoid("torso", (0.0, 0.0, 3.05), (0.72, 0.48, 1.03), colors["coat"])
+    # The model-sheet reference is broad through the coat and hides short legs.
+    ellipsoid("torso", (0.0, 0.0, 2.76), (0.94, 0.52, 1.10), colors["coat"])
     prism(
         "coat_skirt",
-        ((-0.76, 3.02), (0.70, 3.02), (0.92, 2.08), (-0.94, 2.08)),
+        ((-1.02, 3.16), (0.94, 3.16), (1.25, 1.48), (-1.30, 1.48)),
         0.0,
-        0.82,
+        0.88,
         colors["coat"],
     )
-    cube("belt", (0.0, -0.45, 2.67), (0.82, 0.08, 0.10), colors["leather"])
-    cube("belt_buckle", (-0.05, -0.56, 2.67), (0.13, 0.05, 0.14), colors["muzzle"])
+    cube("belt", (0.0, -0.45, 2.44), (1.00, 0.08, 0.10), colors["leather"])
+    cube("belt_buckle", (-0.05, -0.56, 2.44), (0.13, 0.05, 0.14), colors["muzzle"])
 
     add_limb("front_leg", pose["front_leg"], -0.38, colors["leather"], colors["fur"], colors["boot"])
     add_limb("front_arm", pose["front_arm"], -0.42, colors["coat"], colors["fur"])
 
     # Hood, face, and ears are separate geometry so their silhouette cannot drift.
-    ellipsoid("hood", (-0.08, 0.0, 4.62), (0.92, 0.64, 1.05), colors["coat"])
-    ellipsoid("rear_ear", (0.58, 0.18, 5.28), (0.58, 0.24, 0.62), colors["fur"])
-    ellipsoid("rear_ear_inner", (0.58, -0.08, 5.28), (0.38, 0.06, 0.42), colors["ear"])
-    ellipsoid("front_ear", (-0.62, -0.18, 5.30), (0.62, 0.22, 0.66), colors["fur"])
-    ellipsoid("front_ear_inner", (-0.62, -0.43, 5.30), (0.40, 0.06, 0.44), colors["ear"])
-    ellipsoid("face", (-0.28, -0.58, 4.62), (0.62, 0.10, 0.72), colors["fur"])
-    ellipsoid("muzzle", (-0.82, -0.70, 4.42), (0.35, 0.08, 0.30), colors["muzzle"])
-    ellipsoid("nose", (-1.12, -0.78, 4.43), (0.10, 0.06, 0.10), colors["nose"], segments=6, rings=3)
-    ellipsoid("eye", (-0.55, -0.76, 4.82), (0.10, 0.05, 0.14), colors["eye"], segments=6, rings=3)
-    ellipsoid("scarf", (-0.16, -0.52, 3.84), (0.66, 0.10, 0.22), colors["scarf"])
+    ellipsoid("hood", (-0.08, 0.0, 4.62), (1.06, 0.68, 1.05), colors["coat"])
+    ellipsoid("rear_ear", (0.96, 0.18, 5.28), (0.74, 0.24, 0.70), colors["fur"])
+    ellipsoid("rear_ear_inner", (0.96, -0.08, 5.28), (0.50, 0.06, 0.48), colors["ear"])
+    ellipsoid("front_ear", (-0.96, -0.18, 5.30), (0.78, 0.22, 0.74), colors["fur"])
+    ellipsoid("front_ear_inner", (-0.96, -0.43, 5.30), (0.52, 0.06, 0.50), colors["ear"])
+    ellipsoid("face", (-0.30, -0.58, 4.62), (0.76, 0.10, 0.74), colors["fur"])
+    ellipsoid("muzzle", (-0.91, -0.70, 4.40), (0.40, 0.08, 0.32), colors["muzzle"])
+    ellipsoid("nose", (-1.27, -0.78, 4.42), (0.11, 0.06, 0.11), colors["nose"], segments=6, rings=3)
+    ellipsoid("eye", (-0.60, -0.76, 4.82), (0.13, 0.05, 0.17), colors["eye"], segments=6, rings=3)
+    ellipsoid("scarf", (-0.16, -0.52, 3.84), (0.76, 0.10, 0.24), colors["scarf"])
     prism(
         "scarf_tail",
         ((-0.05, 3.80), (0.25, 3.73), (0.18, 3.08), (-0.12, 3.18)),
@@ -245,6 +333,18 @@ def configure_scene():
     make_camera()
 
 
+def render_reference(reference: Path, out: Path):
+    configure_scene()
+    image, stats = load_reference(reference)
+    add_reference_plane(image, stats)
+    scene = bpy.context.scene
+    scene.render.filepath = str(out / "reference.png")
+    bpy.ops.wm.save_as_mainfile(filepath=str(out / "reference.blend"))
+    bpy.ops.render.render(write_still=True)
+    print(f"rendered {scene.render.filepath}")
+    return stats
+
+
 def render_pose(pose_name: str, out: Path):
     configure_scene()
     build_mouse(pose_name)
@@ -259,16 +359,19 @@ def main() -> None:
     arguments = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
+    parser.add_argument("--reference", required=True)
     args = parser.parse_args(arguments)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    reference_stats = render_reference(Path(args.reference), out)
     for pose_name in ("neutral", "contact"):
         render_pose(pose_name, out)
     manifest = {
         "version": 1,
         "goal": (
-            "Test whether one fixed low-poly model can render recognizable "
-            "neutral and contact poses directly at native sprite resolution."
+            "Normalize a generated profile as a right-facing native model sheet, "
+            "fit one reusable low-poly model to its measured silhouette, and "
+            "render neutral/contact without changing identity."
         ),
         "blender": bpy.app.version_string,
         "render": {
@@ -279,6 +382,7 @@ def main() -> None:
         "camera": {"type": "orthographic", "scale": 6.3},
         "poses": POSES,
         "palette": PALETTE,
+        "reference": reference_stats,
     }
     (out / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
