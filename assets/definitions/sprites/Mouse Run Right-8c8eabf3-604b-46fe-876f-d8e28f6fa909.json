@@ -1,0 +1,104 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 4,
+            "index": 0,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 0,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 1,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 48,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 2,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 96,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 3,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 144,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 4,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 192,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 5,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 240,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 6,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 288,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 7,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 336,
+            "texture_y": 0
+        }
+    ],
+    "id": "8c8eabf3-604b-46fe-876f-d8e28f6fa909",
+    "name": "Mouse Run Right",
+    "playback_mode": "loop",
+    "texture_id": "915316c1-83a6-4b9c-ab5a-b3a426a660e4"
+}

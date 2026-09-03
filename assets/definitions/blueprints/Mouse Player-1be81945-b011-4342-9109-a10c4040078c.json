@@ -1,48 +1,48 @@
 {
     "id": "1be81945-b011-4342-9109-a10c4040078c",
-    "name": "Player Animation Proof",
+    "name": "Mouse Player",
     "states": [
         {
             "collider_id": "2ef185c9-3a26-4729-8373-416e36ed67c7",
             "key": "idle-right",
             "name": "Idle Right",
             "placement_mode": "grounded",
-            "sprite_id": "65bd6ae3-5aa9-4ef9-8669-81d99c7c297a"
+            "sprite_id": "9cdadc72-2196-4820-b62a-29d133ebb30a"
         },
         {
             "collider_id": "2ef185c9-3a26-4729-8373-416e36ed67c7",
             "key": "idle-left",
             "name": "Idle Left",
             "placement_mode": "grounded",
-            "sprite_id": "61370e3c-25ca-438c-9b7f-0f978eb2dd4b"
+            "sprite_id": "47bac0c0-9d23-42a8-8aab-c8744cf9c98b"
         },
         {
             "collider_id": "2ef185c9-3a26-4729-8373-416e36ed67c7",
             "key": "run-right",
             "name": "Run Right",
             "placement_mode": "grounded",
-            "sprite_id": "12fb85c9-3969-42a6-a784-a4540c1dcd31"
+            "sprite_id": "8c8eabf3-604b-46fe-876f-d8e28f6fa909"
         },
         {
             "collider_id": "2ef185c9-3a26-4729-8373-416e36ed67c7",
             "key": "run-left",
             "name": "Run Left",
             "placement_mode": "grounded",
-            "sprite_id": "11f2dee4-0ca7-4132-baf6-0ca5dd67784b"
+            "sprite_id": "76afab54-06b1-47b8-a879-64af36366aff"
         },
         {
             "collider_id": "2ef185c9-3a26-4729-8373-416e36ed67c7",
             "key": "airborne-right",
-            "name": "Airborne Right Proof",
+            "name": "Airborne Right",
             "placement_mode": "grounded",
-            "sprite_id": "9b4bf633-bd01-4ced-980c-2e22b9551f40"
+            "sprite_id": "de2f1e3b-276e-437c-9386-0129ad682f20"
         },
         {
             "collider_id": "2ef185c9-3a26-4729-8373-416e36ed67c7",
             "key": "airborne-left",
-            "name": "Airborne Left Proof",
+            "name": "Airborne Left",
             "placement_mode": "grounded",
-            "sprite_id": "b94e66f3-11b6-43b8-94e1-818a863c4bae"
+            "sprite_id": "aa03d095-d3cf-4113-aa55-584006537d03"
         }
     ]
 }

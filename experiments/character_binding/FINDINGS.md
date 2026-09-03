@@ -417,6 +417,38 @@ The Blender batch command rendered all seven specs successfully in one process.
 This verifies schema validation, shared-builder dispatch, deterministic
 48×48 output, source `.blend` capture, and manifest generation together.
 
+## 17. Mouse production set — asset pass
+
+The two-pose proxy was replaced by one authored Blender model that renders 32
+frames across six clips: left/right idle, run, and airborne. The finished 48px
+model adds the missing eye patch, cheek, muzzle, ear highlights, hood, scarf,
+lapels, coat panels, pockets, cuffs, belt, larger hands, boots, and tail. The
+idle clips remain grounded, run traverses eight distinct gait poses, and
+airborne preserves both a transparent border and a visible ground gap.
+
+All six source strips passed `AnimationFrameSetPipeline` validation and were
+retained as imported artwork. Six recipes now own the processed Textures,
+Sprites, timings, playback modes, and bindings on the stable player Blueprint.
+Catacombs entity 4 was migrated from the proof Sprite to the production
+idle-right Sprite without changing its 32×64 collider.
+
+The production attempt exposed and fixed one latent lifecycle bug:
+`ValidateAnimationFrameSetRecipe` incorrectly scaled texture atlas geometry when
+`render_scale` exceeded one. Texture geometry now stays at native resolution;
+only render dimensions and offsets scale. A regression test covers the
+production value of two.
+
+Headless Sprite review now emits contact and alignment sheets, actual foreground
+bounds, adjacent differences, loop closure, and hold-final evidence in addition
+to its prior native/enlarged frames and ordered strip. A repeated persisted
+run-right review was byte-for-byte identical. Focused Catacombs reviews at
+0.5×, 1×, and 2× load the production mouse; the 2× view preserves its face,
+ears, scarf, coat, hands, and boots against the route.
+
+The runtime has no Texture or Sprite normal-map channel, so this production
+asset deliberately ships RGBA color frames only. An unconsumed normal sidecar
+would not be a production feature.
+
 ---
 
 # The one rule that explains most failures
@@ -483,30 +515,31 @@ when the subject covers two of them. It samples the whole border ring now.
 
 # Evidence
 
-Committed historical verdicts:
-`evidence/run-01-verdict.json` and `evidence/run-02-verdict.json`.
-Current renders are gitignored and regenerable.
+The production source renderer is `render_mouse_production.py`. Local Blender
+outputs remain gitignored and reproducible. Persistent source strips, processed
+textures, Sprite definitions, recipes, and Blueprint bindings live under the
+normal `assets/` catalogs.
 
-Tests: `tests/character_binding_test.py`,
-`tests/character_binding_comfy_test.py`, and
-`tests/artwork/profile_silhouette_test.cc`. The ComfyUI tests run against an
-in-process stub, so they pass with `derry` switched off.
+Focused verification covers `animation_frame_set_recipe_test` and
+`sprite_reviewer_test`. Runtime evidence includes a successful game launch
+against the committed asset root and focused Catacombs route reviews at every
+supported zoom.
 
 ---
 
 # What I would do next, in order
 
-1. **Finish the neutral model-sheet gate.** The measured remap reaches 27×45
-   against the 30×44 reference at 75.5% silhouette IoU. Model the cheek, eye,
-   brow, coat lapels/pockets, larger hands, and mouse-like boots; require at least
-   85% silhouette IoU and a visually recognizable neutral frame before adding
-   poses.
+1. **Complete the visible transition acceptance.** Screen capture is currently
+   blocked by macOS Screen Recording permission for Terminal. Exercise and
+   record idle, direction change, run, jump/fall, and landing once that external
+   permission is available; the runtime already loads and presents the new
+   production graph.
 
-2. **Expand from two to four poses.** Neutral/contact pass structure and pixel
-   discipline. Add passing and airborne from the same model and require a visible
-   airborne ground gap before building a complete cycle.
+2. **Add editor import controls.** The headless importer proves the production
+   API and rollback path. Editor controls should now expose retained source,
+   sheet geometry, timing, origin, playback, and state bindings without adding
+   remote animation generation.
 
-3. **Add production evidence only after model quality passes.** Export a normal
-   pass, process the frames through the existing C++ frame-set pipeline, and
-   review native/2×/4× plus Catacombs playback. Image-to-3D mesh acquisition
-   remains optional model authoring, not a pipeline requirement.
+3. **Proceed to runtime M4 after the visible gate.** The production mouse no
+   longer blocks the runtime architecture, but the explicit human transition
+   acceptance remains part of that milestone boundary.

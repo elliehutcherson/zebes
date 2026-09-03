@@ -1,0 +1,56 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 15,
+            "index": 0,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 0,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 15,
+            "index": 1,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 48,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 15,
+            "index": 2,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 96,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 15,
+            "index": 3,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 144,
+            "texture_y": 0
+        }
+    ],
+    "id": "47bac0c0-9d23-42a8-8aab-c8744cf9c98b",
+    "name": "Mouse Idle Left",
+    "playback_mode": "loop",
+    "texture_id": "091eb6ea-d3a7-484c-986e-7b57afabd339"
+}

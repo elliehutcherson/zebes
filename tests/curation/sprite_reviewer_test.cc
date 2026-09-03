@@ -74,12 +74,34 @@ TEST(SpriteReviewerTest, EmitsNativeEnlargedAndAnimationArtifacts) {
   ASSERT_OK_AND_ASSIGN(CurationReview review, reviewer.Review(api, {.asset_id = sprite.id}));
 
   EXPECT_EQ(review.kind, "sprite");
-  ASSERT_EQ(review.artifacts.size(), 5);
+  ASSERT_EQ(review.artifacts.size(), 9);
   EXPECT_EQ(review.artifacts.front().id, "animation-strip");
-  EXPECT_EQ(review.artifacts.at(1).image.width, 16);
-  EXPECT_EQ(review.artifacts.at(2).image.width, 256);
+  EXPECT_EQ(review.artifacts.at(1).id, "contact-sheet");
+  EXPECT_EQ(review.artifacts.at(2).id, "alignment-overlay");
+  EXPECT_EQ(review.artifacts.at(3).image.width, 16);
+  EXPECT_EQ(review.artifacts.at(4).image.width, 256);
+  EXPECT_EQ(review.artifacts.at(7).id, "transition-0-1");
+  EXPECT_EQ(review.artifacts.at(8).id, "loop-closure");
   EXPECT_EQ(review.metadata.at("playback_mode"), "loop");
   EXPECT_EQ(review.metadata.at("frames").size(), 2);
+  EXPECT_EQ(review.metadata.at("transitions").size(), 2);
+}
+
+TEST(SpriteReviewerTest, EmitsFinalPoseEvidenceForHoldLastPlayback) {
+  Sprite sprite = TestSprite();
+  sprite.playback_mode = SpritePlaybackMode::kHoldLast;
+  Texture texture{.id = sprite.texture_id, .name = sprite.name, .path = "crawler.png"};
+  MockApi api;
+  EXPECT_CALL(api, GetSprite(sprite.id)).WillOnce(Return(&sprite));
+  EXPECT_CALL(api, GetTexture(texture.id)).WillOnce(Return(&texture));
+  EXPECT_CALL(api, ReadTexturePixels(texture.id)).WillOnce(Return(TexturePixels()));
+
+  SpriteReviewer reviewer;
+  ASSERT_OK_AND_ASSIGN(CurationReview review, reviewer.Review(api, {.asset_id = sprite.id}));
+
+  ASSERT_EQ(review.artifacts.size(), 9);
+  EXPECT_EQ(review.artifacts.back().id, "hold-final");
+  EXPECT_EQ(review.metadata.at("transitions").size(), 1);
 }
 
 TEST(SpriteReviewerTest, RejectsDuplicateFrameIdentity) {

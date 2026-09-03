@@ -214,6 +214,28 @@ target_link_libraries(curate_assets
 )
 add_dependencies(curate_assets copy_assets)
 
+add_executable(import_animation_frame_sets import_animation_frame_sets.cc)
+target_link_libraries(import_animation_frame_sets
+  PRIVATE
+  asset_workspace
+  retained_source_transaction
+  delete_animation_frame_set_asset
+  prepare_animation_frame_set_asset
+  headless_texture_store
+  image_io
+  utc_timestamp
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::log
+  absl::log_initialize
+  absl::status
+  absl::statusor
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+add_dependencies(import_animation_frame_sets copy_assets)
+
 add_executable(generate_assets generate_assets.cc)
 target_link_libraries(generate_assets
   PRIVATE

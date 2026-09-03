@@ -1,0 +1,56 @@
+{
+    "frames": [
+        {
+            "frames_per_cycle": 4,
+            "index": 0,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 0,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 1,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 48,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 2,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 96,
+            "texture_y": 0
+        },
+        {
+            "frames_per_cycle": 4,
+            "index": 3,
+            "offset_x": -48,
+            "offset_y": -88,
+            "render_h": 96,
+            "render_w": 96,
+            "texture_h": 48,
+            "texture_w": 48,
+            "texture_x": 144,
+            "texture_y": 0
+        }
+    ],
+    "id": "de2f1e3b-276e-437c-9386-0129ad682f20",
+    "name": "Mouse Airborne Right",
+    "playback_mode": "hold-last",
+    "texture_id": "eb3f7676-2772-4717-afa0-c0c292ecf814"
+}

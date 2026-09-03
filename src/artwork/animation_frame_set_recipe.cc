@@ -303,17 +303,19 @@ absl::Status ValidateExpectedFrames(const AnimationFrameSetRecipe& recipe) {
     return absl::InvalidArgumentError(
         "animation frame-set recipe expected frames do not match its frame count");
   }
-  const int frame_width = recipe.pipeline.output_width * recipe.pipeline.render_scale;
-  const int frame_height = recipe.pipeline.output_height * recipe.pipeline.render_scale;
+  const int texture_width = recipe.pipeline.output_width;
+  const int texture_height = recipe.pipeline.output_height;
+  const int render_width = texture_width * recipe.pipeline.render_scale;
+  const int render_height = texture_height * recipe.pipeline.render_scale;
   for (size_t index = 0; index < frame_count; ++index) {
     const SpriteFrame expected{
         .index = static_cast<int>(index),
-        .texture_x = static_cast<int>(index % recipe.pipeline.packing_columns) * frame_width,
-        .texture_y = static_cast<int>(index / recipe.pipeline.packing_columns) * frame_height,
-        .texture_w = frame_width,
-        .texture_h = frame_height,
-        .render_w = frame_width,
-        .render_h = frame_height,
+        .texture_x = static_cast<int>(index % recipe.pipeline.packing_columns) * texture_width,
+        .texture_y = static_cast<int>(index / recipe.pipeline.packing_columns) * texture_height,
+        .texture_w = texture_width,
+        .texture_h = texture_height,
+        .render_w = render_width,
+        .render_h = render_height,
         .frames_per_cycle = recipe.pipeline.frames_per_cycle[index],
         .offset_x = -recipe.pipeline.origin_x * recipe.pipeline.render_scale,
         .offset_y = -recipe.pipeline.origin_y * recipe.pipeline.render_scale,

@@ -13,12 +13,12 @@ Two tracks proceed independently:
   distinct middle ceiling frieze. The complete route review has no objective
   findings. Remaining silhouette variation is non-blocking content polish.
 - **Track 5 — runtime/animation.** Runtime Milestones 1–3, pure frame-set
-  processing, and the recipe/bundle lifecycle are complete. The strict
-  retained-source recipe persists every processing and binding field. Pure
-  preparation returns complete Texture, Sprite, and Blueprint-state changes;
-  API create, regenerate, and delete refuse stale snapshots and compensate
-  persistence failures in reverse order. Generated animation remains
-  deprecated; imported/manual frame sheets are the only production source path.
+  processing, recipe/bundle lifecycle, and headless animation curation are
+  complete. The first production player asset is an authored mouse with
+  left/right idle, run, and airborne clips. Six retained-source recipes own its
+  Texture, Sprite, timing, playback, and stable Blueprint bindings. Generated
+  animation remains deprecated; imported/manual frame sheets are the only
+  production source path.
 
 The reusable ordered-reference generation boundary remains supported for
 OpenAI, Codex, headless generation, and redraw; it is not an animation roadmap
@@ -27,19 +27,18 @@ item. The deprecated evidence is indexed under
 
 ## Pick up next
 
-### Track 5: headless animation curation
+### Track 5: finish the production-player gate
 
-Start at Milestone 5 in
-[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md):
+The mouse asset set and headless review pass
+[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) Milestones 5
+and the asset portion of 7:
 
-1. Extend the existing headless curation boundary with native frames, contact
-   sheets, ordered strips, alignment overlays, and loop/hold evidence.
-2. Require byte-stable review after persistence.
-3. Then implement editor import controls and the first complete left/right
-   idle/run/airborne player set.
-
-Runtime M4 still waits for that production set's commit, restart, and live
-Catacombs gate.
+1. Add the Milestone 6 editor import controls over the proven headless import
+   and transactional lifecycle.
+2. Grant Terminal macOS Screen Recording permission, then record the remaining
+   interactive idle, direction, run, jump/fall, and landing acceptance in
+   Catacombs. The runtime already loads and presents the production graph.
+3. Commit/restart acceptance then unblocks Runtime M4.
 
 ### Track 4: finite content polish
 
@@ -83,9 +82,10 @@ order, and collider counts; finish with the complete route gate.
 
 ## Last verification
 
-`animation_frame_set_pipeline_test` passes all nine focused cases; scoped
-clang-tidy passes the pipeline and test translation units. The last broad
-boundary remains commit `18dcba6`: all CMake targets, 147 C++ test executables,
-and 95 Python tests passed before the documentation cleanup. Continue using
-focused verification per `AGENTS.md`; do not rerun the full suite merely because
-a new conversation started.
+`animation_frame_set_recipe_test` passes all seven cases and
+`sprite_reviewer_test` passes all three. The six-clip mouse import passed every
+pipeline and persistence gate; repeated persisted run-right review output was
+byte-identical. Focused Catacombs review resolves the mouse at 0.5×, 1×, and 2×,
+and `run_game` loaded the production graph continuously before a clean stop.
+Interactive screen evidence remains blocked only by the Terminal Screen
+Recording permission described above.

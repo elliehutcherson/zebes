@@ -213,6 +213,17 @@ TEST(AnimationFrameSetRecipeTest, RejectsUnsupportedSchemaVersion) {
             absl::StatusCode::kFailedPrecondition);
 }
 
+TEST(AnimationFrameSetRecipeTest, KeepsTextureGeometryNativeWhenRenderScaleExceedsOne) {
+  AnimationFrameSetRecipe recipe = ValidRecipe();
+  recipe.pipeline.render_scale = 2;
+  recipe.expected_frames[0].render_w = 4;
+  recipe.expected_frames[0].render_h = 4;
+  recipe.expected_frames[0].offset_x = -2;
+  recipe.expected_frames[0].offset_y = -4;
+
+  EXPECT_TRUE(ValidateAnimationFrameSetRecipe(recipe).ok());
+}
+
 TEST(AnimationFrameSetRecipeTest, RejectsCollidingAndSelfRestoringOwnedIds) {
   AnimationFrameSetRecipe recipe = ValidRecipe();
   recipe.sprite_id = recipe.texture_id;

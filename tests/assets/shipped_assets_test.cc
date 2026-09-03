@@ -318,14 +318,14 @@ TEST(ShippedAssetsTest, EveryShippedBlueprintStateReferenceResolves) {
   }
 }
 
-TEST(ShippedAssetsTest, PlayerAnimationProofKeepsOneColliderInsideOneByTwoTileEnvelope) {
+TEST(ShippedAssetsTest, MousePlayerKeepsOneColliderInsideOneByTwoTileEnvelope) {
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<BlueprintManager> blueprints,
                        BlueprintManager::Create(kAssetsRoot));
   ASSERT_OK(blueprints->LoadAllBlueprints());
   const std::vector<Blueprint> all_blueprints = blueprints->GetAllBlueprints();
   const auto blueprint =
       std::find_if(all_blueprints.begin(), all_blueprints.end(),
-                   [](const Blueprint& item) { return item.name == "Player Animation Proof"; });
+                   [](const Blueprint& item) { return item.name == "Mouse Player"; });
   ASSERT_NE(blueprint, all_blueprints.end());
   ASSERT_EQ(blueprint->states.size(), 6);
   absl::flat_hash_set<std::string> expected_state_keys = {

@@ -1,0 +1,214 @@
+{
+  "blueprint_bindings": [
+    {
+      "previous_sprite_id": "65bd6ae3-5aa9-4ef9-8669-81d99c7c297a",
+      "state_key": "idle-right"
+    }
+  ],
+  "blueprint_id": "1be81945-b011-4342-9109-a10c4040078c",
+  "expected_frames": [
+    {
+      "frames_per_cycle": 15,
+      "index": 0,
+      "offset_x": -48,
+      "offset_y": -88,
+      "render_h": 96,
+      "render_w": 96,
+      "texture_h": 48,
+      "texture_w": 48,
+      "texture_x": 0,
+      "texture_y": 0
+    },
+    {
+      "frames_per_cycle": 15,
+      "index": 1,
+      "offset_x": -48,
+      "offset_y": -88,
+      "render_h": 96,
+      "render_w": 96,
+      "texture_h": 48,
+      "texture_w": 48,
+      "texture_x": 48,
+      "texture_y": 0
+    },
+    {
+      "frames_per_cycle": 15,
+      "index": 2,
+      "offset_x": -48,
+      "offset_y": -88,
+      "render_h": 96,
+      "render_w": 96,
+      "texture_h": 48,
+      "texture_w": 48,
+      "texture_x": 96,
+      "texture_y": 0
+    },
+    {
+      "frames_per_cycle": 15,
+      "index": 3,
+      "offset_x": -48,
+      "offset_y": -88,
+      "render_h": 96,
+      "render_w": 96,
+      "texture_h": 48,
+      "texture_w": 48,
+      "texture_x": 144,
+      "texture_y": 0
+    }
+  ],
+  "final_pixel_digest": "27bcc1014d78e736dd6dff7d9a7eb3e76c59255569b2a39cdab2c94a84632512",
+  "id": "280929d1-3a5c-4e23-afe0-d6423b154bc1",
+  "name": "Mouse Idle Right",
+  "pipeline": {
+    "contact_line_y": 44,
+    "contact_tolerance": 2,
+    "frames_per_cycle": [
+      15,
+      15,
+      15,
+      15
+    ],
+    "maximum_horizontal_anchor_drift": 10,
+    "maximum_vertical_anchor_drift": 4,
+    "minimum_visible_pixels": 64,
+    "origin_x": 24,
+    "origin_y": 44,
+    "output_height": 48,
+    "output_width": 48,
+    "packing_columns": 4,
+    "planted_frames": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "playback_mode": "loop",
+    "render_scale": 2,
+    "sheet": {
+      "cell_height": 48,
+      "cell_width": 48,
+      "column_gap": 0,
+      "columns": 4,
+      "grid_x": 0,
+      "grid_y": 0,
+      "row_gap": 0,
+      "rows": 1
+    },
+    "source_limits": {
+      "maximum_bytes": 67108864,
+      "maximum_encoded_bytes": 67108864,
+      "maximum_height": 4096,
+      "maximum_pixels": 16777216,
+      "maximum_width": 4096
+    }
+  },
+  "pipeline_version": 1,
+  "schema_version": 1,
+  "source_artwork_id": "8e320873-305f-4e47-9c54-bdd0a769e9a4",
+  "sprite_id": "9cdadc72-2196-4820-b62a-29d133ebb30a",
+  "style": {
+    "alpha_threshold": 128,
+    "extraction": "preserve-alpha",
+    "matte": [
+      255,
+      0,
+      255,
+      255
+    ],
+    "opaque_matte_distance": 190.0,
+    "palette": [
+      [
+        33,
+        29,
+        26,
+        255
+      ],
+      [
+        124,
+        75,
+        53,
+        255
+      ],
+      [
+        207,
+        158,
+        124,
+        255
+      ],
+      [
+        247,
+        230,
+        201,
+        255
+      ],
+      [
+        242,
+        185,
+        188,
+        255
+      ],
+      [
+        255,
+        214,
+        211,
+        255
+      ],
+      [
+        142,
+        170,
+        135,
+        255
+      ],
+      [
+        166,
+        188,
+        156,
+        255
+      ],
+      [
+        108,
+        137,
+        105,
+        255
+      ],
+      [
+        222,
+        53,
+        44,
+        255
+      ],
+      [
+        249,
+        80,
+        56,
+        255
+      ],
+      [
+        156,
+        105,
+        70,
+        255
+      ],
+      [
+        90,
+        45,
+        31,
+        255
+      ],
+      [
+        184,
+        124,
+        75,
+        255
+      ],
+      [
+        227,
+        81,
+        98,
+        255
+      ]
+    ],
+    "transparent_matte_distance": 24.0
+  },
+  "texture_id": "ac9cae75-e2c0-432e-b238-296aa264edd5"
+}

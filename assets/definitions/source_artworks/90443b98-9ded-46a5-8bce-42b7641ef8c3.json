@@ -1,0 +1,14 @@
+{
+  "content_digest": "50ea36cb740d4962cf4f2f7fbc7a27f71fc5c3e4a6bfcf01df1dc0858fe5f357",
+  "height": 48,
+  "id": "90443b98-9ded-46a5-8bce-42b7641ef8c3",
+  "name": "Mouse Idle Left source",
+  "provenance": {
+    "imported_at_utc": "2026-09-03T02:34:32Z",
+    "kind": "imported",
+    "original_filename": "idle-left.png"
+  },
+  "schema_version": 2,
+  "source_path": "source_art/90443b98-9ded-46a5-8bce-42b7641ef8c3.png",
+  "width": 192
+}

@@ -1,0 +1,14 @@
+{
+  "content_digest": "d1670750f03238b74e833089faa1ec2608d82475f96e8848f761ae990ca01cd9",
+  "height": 48,
+  "id": "8e320873-305f-4e47-9c54-bdd0a769e9a4",
+  "name": "Mouse Idle Right source",
+  "provenance": {
+    "imported_at_utc": "2026-09-03T02:34:32Z",
+    "kind": "imported",
+    "original_filename": "idle-right.png"
+  },
+  "schema_version": 2,
+  "source_path": "source_art/8e320873-305f-4e47-9c54-bdd0a769e9a4.png",
+  "width": 192
+}

@@ -451,14 +451,18 @@ overwrites collider work or silently invokes a remote provider.
    Pure preparation produces complete Texture, Sprite, recipe, and
    Blueprint-state changes. Transactional create, regenerate, and delete refuse
    stale snapshots and compensate every persistence failure in reverse order.
-5. **Headless curation.** Publish frame, alignment, loop, and focused in-level
-   evidence; require byte-stable re-review after commit.
+5. **Headless curation — complete.** Sprite review publishes native/enlarged
+   frames, contact sheets, ordered strips, origin/contact/bounds overlays,
+   adjacent differences, loop closure, and hold-final evidence. The persisted
+   production run-right review is byte-stable across independent publications.
 6. **Editor import flow.** Reuse retained-source lifecycle controls and add
    animation-specific imported-sheet, clip, timing, origin, and state-binding
    controls. Do not add remote animation generation.
-7. **Production player set.** Import or manually author, process, review,
-   persist, and regenerate the initial player state set, then complete the live
-   route gate.
+7. **Production player set — asset complete, live transition gate pending.**
+   The authored mouse left/right idle, run, and airborne set is processed,
+   retained, persisted, bound, and visible in focused Catacombs reviews. The
+   executable loads and presents it; record the full interactive transition
+   sequence after macOS Screen Recording permission is available.
 
 Only after milestone 7 should the runtime plan proceed to M4. The finite cave
 environment variation pass can continue independently when it does not modify

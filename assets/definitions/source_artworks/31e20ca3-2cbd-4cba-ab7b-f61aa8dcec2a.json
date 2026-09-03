@@ -1,0 +1,14 @@
+{
+  "content_digest": "1912b9f1b7ab10483a1643f1077999082cc4414a8ac75bfc04d220e7f676595e",
+  "height": 48,
+  "id": "31e20ca3-2cbd-4cba-ab7b-f61aa8dcec2a",
+  "name": "Mouse Airborne Left source",
+  "provenance": {
+    "imported_at_utc": "2026-09-03T02:34:33Z",
+    "kind": "imported",
+    "original_filename": "airborne-left.png"
+  },
+  "schema_version": 2,
+  "source_path": "source_art/31e20ca3-2cbd-4cba-ab7b-f61aa8dcec2a.png",
+  "width": 192
+}

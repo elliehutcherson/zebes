@@ -37,7 +37,8 @@ experiments/character_binding/
   profile_proof.py      bounded four-pose generation runner
   workflow.py           exported workflow patching
   png.py                experiment-only preview PNG I/O
-  render_3d_proxy.py    Blender-only direct 48px neutral/contact proof
+  render_mouse_production.py
+                        authored 48px mouse player clip renderer
   render_character_family.py
                         data-driven biped/quadruped/flyer renderer
   character_specs/     one JSON specimen per reusable family member
@@ -219,54 +220,25 @@ another deformation algorithm over the same occluded source.
 
 ## 7. Direct low-poly 3D gate
 
-Blender 4.0.2 on `derry` renders one deliberately crude low-poly mouse with a
-fixed orthographic camera, palette, model, and scale. Blender Python is used only
-because `bpy` is Blender's offline authoring API; no Python or 3D dependency
-enters the engine.
+The initial Blender 4.0.2 spike on `derry` established that one reusable model
+could preserve identity while changing pose. It used a fixed orthographic
+camera, emission-only materials, one sample, a 0.01 filter, and enlarged backing
+geometry for pixel-stable edges. Neutral and contact retained identical head,
+ears, muzzle, hood, scarf, coat, belt, tail, and materials.
 
-```bash
-scp experiments/character_binding/render_3d_proxy.py derry:/tmp/
-scp isolated-generated-mouse.png derry:/tmp/mouse-reference.png
-ssh derry 'blender --background --python /tmp/render_3d_proxy.py -- \
-  --reference /tmp/mouse-reference.png --out /tmp/zebes-blender-proxy'
-```
-
-Both outputs are native 48×48 RGBA. Eevee uses emission-only materials, one
-sample, a 0.01 filter, and enlarged black backing geometry for pixel-stable
-outlines. Neutral and contact retain identical head, ears, muzzle, hood, scarf,
-coat, belt, tail, and materials. Contact has an unambiguous stride, opposite arm
-placement, one planted foot, one lifted foot, and no boot/coat intersection.
-
-Structural verdict: pass. Pixel-discipline verdict: pass after deterministic
-quantization—both raw renders contain 40 edge colors and reduce to eight/nine
-colors. Art-direction verdict: not production-ready. The proxy is recognizable and
-crisp, but the face is minimal, hands are tiny, and the legs still read too
-human. Improve the reusable model; do not return to per-frame diffusion or
-single-image deformation.
+Structural and pixel-discipline verdicts passed. The art-direction verdict did
+not: the face was minimal, hands were tiny, and legs read too human. That result
+closed the structural gate and became the input to the production renderer
+below; the obsolete two-pose proxy entry point was removed.
 
 ## 8. Generated model-sheet mapping
 
-`render_3d_proxy.py` now requires the C++-isolated generated profile. Blender
-measures its opaque bounds, mirrors it to the canonical right-facing direction,
-normalizes it to the same 5.8-unit/44-pixel target height, and renders
-`reference.png` beside the model outputs.
-
-```bash
-blender --background --python render_3d_proxy.py -- \
-  --reference isolated-generated-mouse.png \
-  --out out/blender-proxy
-```
-
-On the current specimen, the generated reference is 30×44 visible pixels. The
-adjusted neutral model is 27×45, up from the earlier 21-pixel width, and reaches
-75.5% registered silhouette IoU. The comparison makes the remaining art gap
-explicit: the generated face, coat construction, hands, and boot shapes are much
-stronger than the proxy.
-
-The source pixels are not projected over the mesh. They supply orientation,
-bounds, proportions, palette roles, and a native model-sheet target. Hidden
-surfaces remain real model geometry and therefore continue to render correctly
-in contact.
+The generated profile was used as a native model sheet rather than projected
+onto the mesh. Its 30×44 visible bounds drove a 27×45 neutral model at 75.5%
+registered silhouette IoU. The comparison isolated the remaining authored work:
+cheek and eye construction, coat lapels and pockets, hands, and mouse-like
+boots. Keeping the pixels off the mesh preserved real hidden geometry for later
+poses.
 
 ## 9. Reusable body-plan automation
 
@@ -310,6 +282,48 @@ The reuse boundary is deliberate:
 This is evidence that body-plan automation removes repeated rig/render setup.
 It is not evidence that seven production character models can be generated from
 names or palettes alone.
+
+## 10. Production mouse player
+
+`render_mouse_production.py` implements the art work identified by the prior
+gates. It renders six complete 48×48 RGBA source sheets from one model:
+
+- four-frame left/right idle loops at 15 ticks per frame;
+- eight-frame left/right run loops at 4 ticks per frame;
+- four-frame left/right airborne sequences with hold-last playback.
+
+The model has a distinct eye patch and glint, cheek and muzzle planes, ear
+highlights, hood, scarf, asymmetric coat panels, lapels, pockets, cuffs, belt,
+larger hands, highlighted boots, and a posed tail. All frames retain a
+transparent border. Grounded frames meet the authored contact line; airborne
+frames retain a visible gap.
+
+```bash
+blender --background --python \
+  experiments/character_binding/render_mouse_production.py -- \
+  --out /tmp/zebes-mouse-production
+
+build/bin/import_animation_frame_sets \
+  --asset_root=assets \
+  --manifest=/tmp/zebes-mouse-production/import.json
+```
+
+The renderer owns stable Texture, Sprite, and recipe IDs. The importer validates
+the manifest, retains every source sheet as imported artwork, runs the production
+`AnimationFrameSetPipeline`, and publishes all six state bindings through the
+transactional API. A later clip failure rolls back earlier clips in reverse
+order.
+
+The production Blueprint keeps the existing stable player ID and 32×64 collider.
+Catacombs entity 4 now resolves the new idle Sprite, while runtime state
+transitions select the other five clips. `SpriteReviewer` publishes native and
+enlarged frames, a contact sheet, an ordered strip, origin/contact/bounds
+alignment, every adjacent-frame difference, loop closure, and airborne
+hold-final evidence.
+
+The engine has no normal-map field on Texture or Sprite definitions. This asset
+therefore ships color frames only rather than introducing an unused sidecar
+format.
 
 ## Other commands
 

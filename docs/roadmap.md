@@ -71,26 +71,24 @@ evidence and is not a dependency or follow-up.
 
 Imported and manually authored sheets are the only production animation source.
 
-### Next: recipe and bundle lifecycle
+### Production animation asset complete; acceptance remains
 
-Pure frame-set processing is complete in `AnimationFrameSetPipeline`: imported
-or manually authored sheets now have source-neutral extraction, common
-registration and scale, shared palette treatment, alpha/geometry validation,
-deterministic strip/grid packing, ordered timing metadata, and loop/hold output.
+Pure frame-set processing, retained-source recipe lifecycle, headless curation,
+and the first production player asset are complete. The authored mouse supplies
+left/right idle, run, and airborne clips while preserving the exact 32×64
+collider. Review now includes native/enlarged frames, contact and alignment
+sheets, adjacent differences, loop or hold evidence, focused Catacombs context,
+and byte-stable re-review.
 
 Follow [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md):
 
-1. **Recipe and bundle lifecycle.** Versioned retained-source recipe;
-   transactional Texture/Sprite/Blueprint-state create, regenerate, and delete;
-   stale-snapshot refusal and compensation.
-2. **Headless curation.** Native frames, alignment/contact overlays, loop or
-   hold evidence, focused Catacombs context, byte-stable re-review.
-3. **Editor import flow.** Sheet layout, timing, origin/contact line, playback
-   mode, and stable Blueprint state bindings. No remote animation generation.
-4. **Production player set.** Import or manually author left/right idle, run,
-   and airborne clips while preserving the exact 32×64 collider.
-5. **Human gate.** Commit, restart, and exercise idle, locomotion, direction,
-   jump/fall, landing, slopes, walls, and ceilings in Catacombs.
+1. **Editor import flow.** Expose sheet layout, timing, origin/contact line,
+   playback mode, and stable Blueprint state bindings over the proven headless
+   import boundary. Do not add remote animation generation.
+2. **Human gate.** Grant Terminal Screen Recording permission, then record idle,
+   locomotion, direction, jump/fall, landing, slopes, walls, and ceilings in
+   Catacombs. Runtime boot and focused 0.5×/1×/2× route presentation already
+   pass.
 
 ### M4 — thread split
 

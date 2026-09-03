@@ -1,0 +1,14 @@
+{
+  "content_digest": "0909c195d62a5492a9b27e914a54ef716eff982b98d5f5ce41d0a776696f6d45",
+  "height": 48,
+  "id": "c7962278-233e-4325-9af2-54d10b6c7c1a",
+  "name": "Mouse Run Left source",
+  "provenance": {
+    "imported_at_utc": "2026-09-03T02:34:33Z",
+    "kind": "imported",
+    "original_filename": "run-left.png"
+  },
+  "schema_version": 2,
+  "source_path": "source_art/c7962278-233e-4325-9af2-54d10b6c7c1a.png",
+  "width": 384
+}

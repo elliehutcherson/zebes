@@ -1,0 +1,14 @@
+{
+  "content_digest": "f69047a76a5977c5af010b86784eaacf889a0b227afc56583e579a9f69170f92",
+  "height": 48,
+  "id": "fc2cd486-caec-4b02-85a4-c7601e859dc1",
+  "name": "Mouse Run Right source",
+  "provenance": {
+    "imported_at_utc": "2026-09-03T02:34:33Z",
+    "kind": "imported",
+    "original_filename": "run-right.png"
+  },
+  "schema_version": 2,
+  "source_path": "source_art/fc2cd486-caec-4b02-85a4-c7601e859dc1.png",
+  "width": 384
+}

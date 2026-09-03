@@ -1,0 +1,14 @@
+{
+  "content_digest": "1f34c1779c2f4941f0ba340601b789132a1aafe125a955c6ce72db97fac2a625",
+  "height": 48,
+  "id": "bf6fd01e-1061-4293-ac02-7fcd5a50bed7",
+  "name": "Mouse Airborne Right source",
+  "provenance": {
+    "imported_at_utc": "2026-09-03T02:34:33Z",
+    "kind": "imported",
+    "original_filename": "airborne-right.png"
+  },
+  "schema_version": 2,
+  "source_path": "source_art/bf6fd01e-1061-4293-ac02-7fcd5a50bed7.png",
+  "width": 192
+}
