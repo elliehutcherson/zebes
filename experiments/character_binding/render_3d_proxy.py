@@ -48,7 +48,14 @@ POSES = {
 def material(name: str, color: tuple[float, float, float, float]):
     result = bpy.data.materials.new(name)
     result.diffuse_color = color
-    result.use_nodes = False
+    result.use_nodes = True
+    nodes = result.node_tree.nodes
+    nodes.clear()
+    output = nodes.new("ShaderNodeOutputMaterial")
+    emission = nodes.new("ShaderNodeEmission")
+    emission.inputs["Color"].default_value = color
+    emission.inputs["Strength"].default_value = 1.0
+    result.node_tree.links.new(emission.outputs["Emission"], output.inputs["Surface"])
     return result
 
 
@@ -57,7 +64,22 @@ def apply_material(obj, value):
     obj.color = value.diffuse_color
 
 
-def ellipsoid(name, location, scale, value, segments=8, rings=4):
+def add_outline(obj, scale_factor=1.10):
+    outline_material = bpy.data.materials.get("outline")
+    if outline_material is None:
+        return
+    outline = obj.copy()
+    outline.data = obj.data.copy()
+    outline.name = f"{obj.name}_outline"
+    outline.scale = tuple(value * scale_factor for value in obj.scale)
+    outline.location = obj.location.copy()
+    outline.location.y += 0.08
+    outline.data.materials.clear()
+    bpy.context.collection.objects.link(outline)
+    apply_material(outline, outline_material)
+
+
+def ellipsoid(name, location, scale, value, segments=8, rings=4, outlined=True):
     bpy.ops.mesh.primitive_uv_sphere_add(
         segments=segments,
         ring_count=rings,
@@ -67,19 +89,23 @@ def ellipsoid(name, location, scale, value, segments=8, rings=4):
     obj.name = name
     obj.scale = scale
     apply_material(obj, value)
+    if outlined:
+        add_outline(obj)
     return obj
 
 
-def cube(name, location, scale, value):
+def cube(name, location, scale, value, outlined=True):
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=location)
     obj = bpy.context.object
     obj.name = name
     obj.scale = scale
     apply_material(obj, value)
+    if outlined:
+        add_outline(obj, 1.12)
     return obj
 
 
-def segment(name, start, end, radius, depth, value):
+def segment(name, start, end, radius, depth, value, outlined=True):
     start_point = Vector((start[0], depth, start[1]))
     end_point = Vector((end[0], depth, end[1]))
     direction = end_point - start_point
@@ -94,10 +120,12 @@ def segment(name, start, end, radius, depth, value):
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = direction.to_track_quat("Z", "Y")
     apply_material(obj, value)
+    if outlined:
+        add_outline(obj, 1.10)
     return obj
 
 
-def prism(name, points, depth, thickness, value):
+def prism(name, points, depth, thickness, value, outlined=True):
     vertices = [(x, depth - thickness / 2.0, z) for x, z in points]
     vertices += [(x, depth + thickness / 2.0, z) for x, z in points]
     count = len(points)
@@ -111,6 +139,8 @@ def prism(name, points, depth, thickness, value):
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     apply_material(obj, value)
+    if outlined:
+        add_outline(obj, 1.08)
     return obj
 
 
@@ -198,7 +228,7 @@ def configure_scene():
         bpy.data.materials.remove(block)
 
     scene = bpy.context.scene
-    scene.render.engine = "BLENDER_WORKBENCH"
+    scene.render.engine = "BLENDER_EEVEE"
     scene.render.resolution_x = 48
     scene.render.resolution_y = 48
     scene.render.resolution_percentage = 100
@@ -206,16 +236,10 @@ def configure_scene():
     scene.render.image_settings.color_mode = "RGBA"
     scene.render.image_settings.color_depth = "8"
     scene.render.film_transparent = True
-    scene.display.shading.light = "FLAT"
-    scene.display.shading.color_type = "MATERIAL"
-    scene.display.shading.show_shadows = False
-    scene.display.shading.show_cavity = False
-    scene.display.shading.show_specular_highlight = False
-    scene.display.shading.show_object_outline = True
-    scene.display.shading.object_outline_color = PALETTE["outline"][:3]
-    scene.display.render_aa = "OFF"
+    scene.eevee.taa_render_samples = 1
+    scene.render.filter_size = 0.01
     scene.view_settings.view_transform = "Standard"
-    scene.view_settings.look = "Medium High Contrast"
+    scene.view_settings.look = "None"
     scene.view_settings.exposure = 0
     scene.view_settings.gamma = 1
     make_camera()
@@ -247,9 +271,12 @@ def main() -> None:
             "neutral and contact poses directly at native sprite resolution."
         ),
         "blender": bpy.app.version_string,
-        "resolution": [48, 48],
+        "render": {
+            "engine": "BLENDER_EEVEE",
+            "taa_render_samples": 1,
+            "filter_size": 0.01,
+        },
         "camera": {"type": "orthographic", "scale": 6.3},
-        "antialiasing": "OFF",
         "poses": POSES,
         "palette": PALETTE,
     }

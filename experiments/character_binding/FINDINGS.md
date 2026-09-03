@@ -351,13 +351,15 @@ change.
 | Foot/coat intersection | Pass: both legs begin below the short coat; no boot enters the torso |
 | Ground contact | Pass: lead foot planted, rear foot visibly lifted |
 | Native framing | Pass: both poses fit one 48×48 orthographic frame |
-| Production art quality | Fail: proxy is crude, arms are small, legs read too human |
-| Palette | Fail before processing: Workbench emits 100–113 colors |
+| Production art quality | Fail: proxy is crude, hands are small, legs read too human |
+| Raw edge colors | 41 neutral / 47 contact with one Eevee sample |
+| Deterministic quantization | Pass: both reduce to the same 9-color palette |
 
 This is the first route that obeys pose structurally without changing identity.
-It validates direct low-resolution 3D as the animation source, not this proxy as
-production art. The next work is model and shader quality: better chibi anatomy,
-stronger arm silhouettes, a strict flat/toon palette, then normal-map export.
+Emission-only materials and enlarged black backing geometry produce crisp native
+pixels and readable outlines. It validates direct low-resolution 3D as the
+animation source, not this proxy as production art. Remaining work is model
+quality: better chibi anatomy, stronger hands and face, then normal-map export.
 
 ---
 
@@ -439,14 +441,15 @@ in-process stub, so they pass with `derry` switched off.
 # What I would do next, in order
 
 1. **Improve the one reusable 3D model.** Use generated identity art as a model
-   sheet, shorten and broaden limbs, strengthen hands/arm silhouettes, and retain
-   the large ears, muzzle, hood, scarf, coat, belt, boots, and tail.
+   sheet, shorten and broaden limbs, strengthen hands/arm silhouettes and facial
+   landmarks, and retain the large ears, muzzle, hood, scarf, coat, belt, boots,
+   and tail.
 
-2. **Lock the render style.** Replace Workbench's 100–113 colors with a strict
-   flat/toon palette that survives direct 48×48 rendering; add a normal pass only
-   after color readability passes.
+2. **Expand from two to four poses.** Neutral/contact pass structure and pixel
+   discipline. Add passing and airborne from the same model and require a visible
+   airborne ground gap before building a complete cycle.
 
-3. **Expand from two to four poses.** Neutral/contact now pass structurally.
-   Add passing and airborne from the same model, verify the airborne ground gap,
-   then use the existing C++ frame-set pipeline for native and Catacombs review.
-   Image-to-3D mesh acquisition is optional after this gate, not a prerequisite.
+3. **Add production evidence only after model quality passes.** Export a normal
+   pass, process the frames through the existing C++ frame-set pipeline, and
+   review native/2×/4× plus Catacombs playback. Image-to-3D mesh acquisition
+   remains optional model authoring, not a pipeline requirement.

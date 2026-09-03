@@ -227,16 +227,18 @@ ssh derry 'blender --background --python /tmp/render_3d_proxy.py -- \
   --out /tmp/zebes-blender-proxy'
 ```
 
-Both outputs are native 48×48 RGBA with workbench antialiasing disabled.
-Neutral and contact retain identical head, ears, muzzle, hood, scarf, coat,
-belt, tail, and materials. Contact has an unambiguous stride, opposite arm
+Both outputs are native 48×48 RGBA. Eevee uses emission-only materials, one
+sample, a 0.01 filter, and enlarged black backing geometry for pixel-stable
+outlines. Neutral and contact retain identical head, ears, muzzle, hood, scarf,
+coat, belt, tail, and materials. Contact has an unambiguous stride, opposite arm
 placement, one planted foot, one lifted foot, and no boot/coat intersection.
 
-Structural verdict: pass. Art-direction verdict: not production-ready. The proxy
-is recognizable but crude; arms are small, legs still read too human, and
-Workbench emits 100–113 colors before pipeline quantization. The next iteration
-should improve the reusable 3D model and flat/toon palette, not return to
-per-frame diffusion or single-image deformation.
+Structural verdict: pass. Pixel-discipline verdict: pass after deterministic
+quantization—the 41/47 raw edge colors reduce to the same nine-color palette.
+Art-direction verdict: not production-ready. The proxy is recognizable and
+crisp, but the face is minimal, hands are tiny, and the legs still read too
+human. Improve the reusable model; do not return to per-frame diffusion or
+single-image deformation.
 
 ## Other commands
 
