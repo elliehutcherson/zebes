@@ -1,7 +1,10 @@
 # Character layer deformation
 
-**Status:** 2026-09-04. Steps 1 through 4 done, joints corrected, and the render
-**currently fails two hard gates on purpose** — see "Known failing gates".
+**Status:** 2026-09-04. Steps 1-4 done, joints corrected. Step 5 review failed:
+the moved arm reads as a slab across the chest, because it owns too much coat and
+the pose sweeps it across the body. The render also **fails two hard gates on
+purpose** — see "Known failing gates". Read "How to review this without getting
+it wrong" before judging any frame.
 
 The earlier plan was to add an ARAP solver. Withdrawn: measurement showed the
 visible damage is in how the layers were cut apart, not in the solver.
@@ -269,10 +272,30 @@ let body pixels near the shoulder partially follow the arm, using the same
 Do not build this pre-emptively. It breaks "every pixel has exactly one owner",
 which is the gate that has caught the most real bugs so far.
 
-### Step 5 — review at 48px
+### Step 5 — review at 48px. Failed, with a clear cause.
 
-If the arm reads right with steps 3 and 4 in, stop. No solver. Area is not a
-gate; see step 2b.
+The moved arm does not read as an arm. In the passing pose it is a wide slab
+lying across the chest and belt. Two causes, neither of them deformation:
+
+**The arm owns too much coat.** `source_from_semantic_reach` starts at 22 px at
+the shoulder, wide enough to take a large piece of the chest along with the
+sleeve. Standing still that is invisible, because the coat it took is exactly
+where the coat already was. As soon as the arm rotates, that chest piece rotates
+with it and a chunk of torso sweeps across the body.
+
+Reach was chosen when the pivot was still at the body midline, where 22 px
+covered a plausible sleeve. With the pivot at the real socket it covers far more.
+Pull it in until the moving layer is a sleeve rather than a sleeve plus chest,
+and re-check.
+
+**The pose sends the arm across the chest.** A side-on run swings each arm
+forward and back beside the body. This one sweeps over the front, and the passing
+draw order puts it on top, so it covers the belt. The four poses were authored
+against the midline pivot and want re-authoring for a real two-shoulder rig. That
+is an art decision, not a solver decision.
+
+Next after that: the second arm, then the tail. Neither is what a viewer notices
+first.
 
 ## If step 5 fails
 
@@ -290,6 +313,23 @@ go, not the mesh itself.
    prefactored least-squares solves, no iteration, so it stays deterministic.
 4. **Hand-drawn elbow patches.** Four of them is cheaper than any of the above
    and certainly works.
+
+## How to review this without getting it wrong
+
+Do not identify parts by eye. At 48 px, upscaled, the moved arm and the static
+one are not reliably distinguishable, and four separate wrong calls in this
+document's history came from stating a visual conclusion before measuring it.
+
+Tint the layer instead. Composite the pose, then paint every pixel that
+`part-poses/<part>/<pose>.png` marks opaque in a flat colour. That answers "which
+of these is the thing that moved" with no judgement involved. Bounding boxes from
+the part poses do the same job in numbers.
+
+The four wrong calls, for the pattern rather than the blame: retained area was
+predicted to rise and fell; interior holes were dismissed on a count read once
+and never re-read; "stop clipping the underpaint" was planned and does nothing;
+and the arm draped across the chest was called the static one when it is the
+moved one. Every one was a conclusion formed before the measurement existed.
 
 ## Caveats
 

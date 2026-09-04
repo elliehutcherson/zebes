@@ -41,7 +41,7 @@ The newer art-direction evidence is in
 `experiments/character_binding/FINDINGS.md`:
 
 The ARAP-first plan is withdrawn; ARAP addressed the smallest of three problems.
-Steps 1 through 4 are done. Follow
+Steps 1-4 are done, step 5 review failed. Follow
 [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md):
 
 1. **Done.** Diagnostics and four opt-in gates. Frame digests unchanged.
@@ -61,10 +61,21 @@ Steps 1 through 4 are done. Follow
    interior, not its contour, so the fill carries coat colour rather than the
    dark outline. Uncovered 745 to 0, contact interior holes 355 to 194.
    `require_backfill_coverage` is on.
-5. Review at 48px. If it still fails, drive the existing mesh with MLS rather
-   than replacing it, then bounded biharmonic weights, then ARAP.
-6. Only after that passes: second arm, split footwear, legs and tail.
-7. Skeleton-conditioned ML stays deferred. M4 blocked until the art passes.
+5. **Failed.** The moved arm reads as a slab across the chest, not an arm. Two
+   causes, neither deformation: `source_from_semantic_reach` starts at 22 px and
+   takes a piece of chest along with the sleeve, so rotating the arm sweeps torso
+   across the body; and the passing pose sends the arm over the front when a
+   side-on run swings it fore and aft beside the body.
+6. Pull the shoulder reach in until the moving layer is a sleeve, not a sleeve
+   plus chest. Measurable, and the first thing to try.
+7. Re-author the four poses for a real two-shoulder rig. They were drawn against
+   the old midline pivot. Art decision.
+8. Then the second arm, then the tail, then split footwear and legs. Neither of
+   those is what a viewer notices first.
+9. Skeleton-conditioned ML stays deferred. M4 blocked until the art passes.
+
+Review frames by tinting the moved part, never by eye — see "How to review this
+without getting it wrong" in the experiment doc.
 
 ### Track 4: finite content polish
 

@@ -46,8 +46,22 @@ outward from its interior.
 
 Correcting the shoulder joint then exposed two gates the old rig had masked: 149
 orphan pixels and 4 folded triangles, neither tunable with the current knobs.
-That failure is the signal. Do not proceed to the second arm or legs until 48px
-review accepts the result.
+That failure is the signal.
+
+48px review then rejected the moved arm for a reason none of the gates measure.
+It reads as a wide slab lying across the chest rather than an arm, because
+`source_from_semantic_reach` starts at 22 px and takes a piece of chest coat
+along with the sleeve. Standing still that is invisible; rotating the arm sweeps
+torso across the body. The reach was chosen while the pivot was still at the
+midline, where 22 px covered a plausible sleeve.
+
+The passing pose compounds it by sending the arm over the front, when a side-on
+run swings each arm fore and aft beside the body. The four poses were authored
+against the midline pivot and want re-authoring.
+
+Next: narrow the shoulder reach until the moving layer is a sleeve rather than a
+sleeve plus chest, then re-author the poses. Only after that, the second arm and
+the tail — neither is what a viewer notices first.
 
 Inference supplies candidate RGBA only. C++ owns crop restoration, original
 pixel preservation, semantic acceptance, skeleton mapping, deformation,
@@ -86,6 +100,7 @@ articulation scoring, and rejection.
 | 27 | Ownership from layer alpha plus bone reach | Orphans 105 to 0, backfill 876 to 598, tail no longer swings with the arm | Accept; gate on |
 | 28 | Corrected shoulder joint | Arm pivots at its socket; poses re-solved by IK, passing clamped; 149 orphans and 4 folds appear | Accept; failure is the signal |
 | 29 | Backfill by stretching | Uncovered 745 to 0, contact tears 355 to 194; 47% of the region behind the arm is invented | Accept; gate on |
+| 30 | 48px review of the moved arm | Reads as a slab across the chest: the layer owns chest coat, and the pose sweeps it over the front | Reject; narrow the reach and re-author the poses |
 
 ---
 
@@ -753,6 +768,25 @@ Verdict: pass, gate on.
 Stop clipping the underpaint, then stretch to close what is left. Plan and
 fallbacks in
 [`docs/character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md).
+
+## 26. How to review a pose without getting it wrong
+
+Do not identify parts by eye. At 48 px, upscaled, the moved arm and the static
+one are not reliably distinguishable, and several wrong calls recorded here came
+from stating a visual conclusion before measuring it.
+
+Tint instead: composite the pose, then paint every pixel that
+`part-poses/<part>/<pose>.png` marks opaque in a flat colour. That answers "which
+of these moved" with no judgement. Bounding boxes from the part poses give the
+same answer in numbers.
+
+The wrong calls, kept for the pattern: retained area was predicted to rise and
+fell six points; interior holes were dismissed on a count read once and never
+re-read, while contact had gone to 355; "stop clipping the underpaint" was
+planned and measured to do nothing; and the arm draped across the chest was
+called the static one when it is the moved one. Each was a conclusion formed
+before the measurement existed.
+
 ---
 
 # The one rule that explains most failures
