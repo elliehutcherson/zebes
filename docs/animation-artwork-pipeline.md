@@ -465,12 +465,13 @@ overwrites collider work or silently invokes a remote provider.
    first exposed a static torso-owned ghost; the corrected underpaint/arm/
    visible-body stack assigns every source pixel exactly once and reproduces the
    full neutral source exactly. Connectivity and Catacombs presentation pass,
-   but human review rejects the linear mesh as two rigid sections with a narrow
-   compressed blend. Run the fixed-input C++ ARAP comparison in
+   but human review rejected the linear mesh. The ARAP plan that followed is
+   withdrawn: measurement showed the visible damage was the layer cut, not the
+   solver. Follow
    [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md)
-   before applying deformation to the second arm or legs. If ARAP passes, finish
-   missing parts, render the replacement clips, and record interactive
-   transitions.
+   — close the backfill, clear the two gates the shoulder correction exposed,
+   then finish missing parts, render the replacement clips, and record
+   interactive transitions.
 
 Only after milestone 7 should the runtime plan proceed to M4. The finite cave
 environment variation pass can continue independently when it does not modify

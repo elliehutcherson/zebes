@@ -399,9 +399,11 @@ TEST(ShippedAssetsTest, EveryShippedImageHasADefinitionNamingIt) {
     declared.insert(std::filesystem::path(path).filename().string());
   }
 
+  // Recursive: animation frame sheets, props and parallax artwork all live in
+  // subdirectories, so a flat sweep left every one of them unguarded.
   const std::string images = std::string(kAssetsRoot) + "/textures";
   for (const std::filesystem::directory_entry& entry :
-       std::filesystem::directory_iterator(images)) {
+       std::filesystem::recursive_directory_iterator(images)) {
     if (!entry.is_regular_file()) continue;
     const std::string filename = entry.path().filename().string();
     EXPECT_TRUE(declared.contains(filename))

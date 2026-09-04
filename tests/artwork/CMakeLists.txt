@@ -22,6 +22,14 @@ target_link_libraries(layered_puppet_test
 target_include_directories(layered_puppet_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(layered_puppet_test)
 
+add_executable(layered_puppet_diagnostics_test layered_puppet_diagnostics_test.cc)
+target_link_libraries(layered_puppet_diagnostics_test
+  layered_puppet_diagnostics
+  gtest_main
+)
+target_include_directories(layered_puppet_diagnostics_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(layered_puppet_diagnostics_test)
+
 add_executable(semantic_layer_import_test semantic_layer_import_test.cc)
 target_link_libraries(semantic_layer_import_test
   semantic_layer_import

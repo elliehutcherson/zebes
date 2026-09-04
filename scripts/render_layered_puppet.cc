@@ -15,6 +15,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "artwork/layered_puppet.h"
+#include "artwork/layered_puppet_diagnostics.h"
 #include "artwork/semantic_layer_import.h"
 #include "common/image_digest.h"
 #include "common/image_io.h"
@@ -148,9 +149,14 @@ absl::Status ClearVisiblePolygons(zebes::RgbaImage& visible, const zebes::RgbaIm
   return absl::OkStatus();
 }
 
-absl::StatusOr<zebes::RgbaImage> LoadSemanticPart(
-    const zebes::RgbaImage& source, const zebes::RgbaImage& visible_artwork, const std::string& tag,
-    const std::filesystem::path& root, const nlohmann::json& metadata, bool clip_to_source_alpha) {
+// Restores one semantic layer onto the source canvas. This is the candidate
+// artwork before any ownership decision, so it can also drive the ownership
+// mask.
+absl::StatusOr<zebes::RgbaImage> LoadSemanticCandidate(const zebes::RgbaImage& source,
+                                                       const std::string& tag,
+                                                       const std::filesystem::path& root,
+                                                       const nlohmann::json& metadata,
+                                                       bool clip_to_source_alpha) {
   if (!IsSafePartName(tag) || root.empty()) {
     return absl::InvalidArgumentError("semantic puppet part tag or root is invalid");
   }
@@ -161,8 +167,16 @@ absl::StatusOr<zebes::RgbaImage> LoadSemanticPart(
       coordinates.size() != 4) {
     return absl::InvalidArgumentError("semantic layer metadata dimensions are invalid");
   }
+  // See-through has only ever emitted a square canvas, so which of these two is
+  // height and which is width has never been exercised. Refuse a non-square
+  // canvas rather than silently transposing every layer placement.
   const int canvas_height = frame_size.at(0).get<int>();
   const int canvas_width = frame_size.at(1).get<int>();
+  if (canvas_width != canvas_height) {
+    return absl::UnimplementedError(
+        "semantic layer canvas is not square; confirm whether frame_size is "
+        "[height, width] or [width, height] before trusting layer placement");
+  }
   const int left = coordinates.at(0).get<int>();
   const int top = coordinates.at(1).get<int>();
   const int right = coordinates.at(2).get<int>();
@@ -179,7 +193,7 @@ absl::StatusOr<zebes::RgbaImage> LoadSemanticPart(
   if (clip_to_source_alpha) {
     ASSIGN_OR_RETURN(candidate, zebes::ClipSemanticLayerToMask(candidate, source));
   }
-  return zebes::PreserveSemanticVisiblePixels(candidate, source, visible_artwork);
+  return candidate;
 }
 
 absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
@@ -229,6 +243,9 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
   }
 
   absl::flat_hash_map<std::string, size_t> part_indices;
+  // Derived ownership regions, so a later part can subtract exactly what an
+  // earlier one claimed instead of repeating an outline that can drift.
+  absl::flat_hash_map<std::string, zebes::RgbaImage> ownership_masks;
   const nlohmann::json& parts = spec.at("parts");
   if (!parts.is_array() || parts.empty()) {
     return absl::InvalidArgumentError("puppet spec parts must be a non-empty array");
@@ -287,13 +304,69 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
         source_exclusions.push_back(std::move(polygon));
       }
     }
+    // A part may derive ownership from its own candidate layer instead of an
+    // authored outline. Doing so is what keeps the arm's outline and the body's
+    // matching cut-out from drifting apart, and what stops a candidate whose
+    // alpha spills onto a neighbouring part from claiming it.
+    zebes::RgbaImage semantic_candidate;
+    zebes::RgbaImage ownership_mask;
+    if (part.contains("source_from_semantic_reach")) {
+      if (!part.contains("semantic_tag") || semantic_metadata == nullptr) {
+        return absl::InvalidArgumentError(label +
+                                          ".source_from_semantic_reach needs a semantic tag");
+      }
+      if (!source_polygons.empty() || !source_exclusions.empty()) {
+        return absl::InvalidArgumentError(label +
+                                          " cannot mix derived ownership with authored polygons");
+      }
+      const nlohmann::json& settings = part.at("source_from_semantic_reach");
+      ASSIGN_OR_RETURN(
+          semantic_candidate,
+          LoadSemanticCandidate(source, part.at("semantic_tag").get<std::string>(), semantic_root,
+                                *semantic_metadata, part.value("clip_to_source_alpha", false)));
+      ASSIGN_OR_RETURN(ownership_mask, zebes::BuildLayeredPuppetOwnershipMask(
+                                           semantic_candidate, source, part_bones, puppet.bones,
+                                           puppet.source_joints,
+                                           {.start = settings.at("start").get<double>(),
+                                            .end = settings.at("end").get<double>(),
+                                            .grow = settings.value("grow", 1)}));
+      ownership_masks.emplace(name, ownership_mask);
+    }
+
+    std::vector<std::string> excluded_parts;
+    if (part.contains("source_exclude_parts")) {
+      const nlohmann::json& names = part.at("source_exclude_parts");
+      if (!names.is_array()) {
+        return absl::InvalidArgumentError(label + ".source_exclude_parts must be an array");
+      }
+      for (const nlohmann::json& entry : names) {
+        if (!entry.is_string()) {
+          return absl::InvalidArgumentError(label + ".source_exclude_parts must contain names");
+        }
+        excluded_parts.push_back(entry.get<std::string>());
+      }
+    }
+
     zebes::RgbaImage visible_artwork = EmptyCanvasLike(source);
-    if (!source_polygons.empty()) {
+    if (ownership_mask.IsValid()) {
+      ASSIGN_OR_RETURN(visible_artwork,
+                       zebes::BuildLayeredPuppetMaskedArtwork(source, ownership_mask));
+    } else if (!source_polygons.empty()) {
       ASSIGN_OR_RETURN(visible_artwork,
                        zebes::BuildLayeredPuppetPartArtwork(source, source_polygons, {}));
       RETURN_IF_ERROR(ClearVisiblePolygons(visible_artwork, source, source_exclusions));
     } else if (!source_exclusions.empty()) {
       return absl::InvalidArgumentError("source exclusions require source ownership polygons");
+    }
+    std::vector<const zebes::RgbaImage*> excluded_masks;
+    for (const std::string& excluded : excluded_parts) {
+      const auto owner = ownership_masks.find(excluded);
+      if (owner == ownership_masks.end()) {
+        return absl::InvalidArgumentError(label + " excludes " + excluded +
+                                          ", which has no derived ownership yet");
+      }
+      excluded_masks.push_back(&owner->second);
+      RETURN_IF_ERROR(zebes::SubtractLayeredPuppetMask(visible_artwork, owner->second));
     }
 
     std::vector<zebes::LayeredPuppetFill> fills;
@@ -319,21 +392,32 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
         return absl::InvalidArgumentError(
             "semantic puppet part requires metadata and forbids solid fills");
       }
-      ASSIGN_OR_RETURN(
-          artwork, LoadSemanticPart(source, visible_artwork,
-                                    part.at("semantic_tag").get<std::string>(), semantic_root,
-                                    *semantic_metadata, part.value("clip_to_source_alpha", false)));
+      if (!semantic_candidate.IsValid()) {
+        ASSIGN_OR_RETURN(
+            semantic_candidate,
+            LoadSemanticCandidate(source, part.at("semantic_tag").get<std::string>(), semantic_root,
+                                  *semantic_metadata, part.value("clip_to_source_alpha", false)));
+      }
+      ASSIGN_OR_RETURN(artwork, zebes::PreserveSemanticVisiblePixels(semantic_candidate, source,
+                                                                     visible_artwork));
     } else {
       ASSIGN_OR_RETURN(artwork,
                        zebes::BuildLayeredPuppetPartArtwork(source, source_polygons, fills));
       RETURN_IF_ERROR(ClearVisiblePolygons(artwork, source, source_exclusions));
+    }
+    // The rendered artwork must lose the same region the ownership record did,
+    // or the part keeps drawing pixels it no longer owns and the ownership gate
+    // reports a clean decomposition over a composite that still ghosts.
+    for (const zebes::RgbaImage* excluded : excluded_masks) {
+      RETURN_IF_ERROR(zebes::SubtractLayeredPuppetMask(artwork, *excluded));
     }
     zebes::LayeredPuppetMesh mesh;
     if (part_bones.size() == 2) {
       ASSIGN_OR_RETURN(
           mesh, zebes::BuildLayeredPuppetMesh(artwork, part_bones, puppet.bones,
                                               puppet.source_joints, part.value("mesh_spacing", 4),
-                                              part.value("joint_blend_radius", 12.0)));
+                                              part.value("joint_blend_radius", 12.0),
+                                              part.value("joint_blend_lateral_scale", 0.0)));
     }
     part_indices.emplace(name, puppet.parts.size());
     puppet.parts.push_back({.name = name,
@@ -474,10 +558,49 @@ int Run() {
          ownership->ownership_outside_source_pixels != 0)) {
       validation_errors.push_back("source-visible pixels do not have exclusive complete ownership");
     }
+    const bool require_backfill_coverage = spec->value("require_backfill_coverage", false);
+    const bool require_part_ownership_isolation =
+        spec->value("require_part_ownership_isolation", false);
+    const bool require_no_triangle_inversion = spec->value("require_no_triangle_inversion", false);
     for (size_t part_index = 0; part_index < puppet->parts.size(); ++part_index) {
       const zebes::LayeredPuppetPart& part = puppet->parts[part_index];
       if (part.bone_indices.size() != 2) continue;
       const size_t source_opaque_pixels = OpaquePixelCount(part.artwork);
+
+      std::vector<zebes::RgbaImage> static_layers;
+      nlohmann::json orphan_diagnostics = nlohmann::json::object();
+      for (size_t other = 0; other < puppet->parts.size(); ++other) {
+        if (other == part_index) continue;
+        const zebes::LayeredPuppetPart& static_part = puppet->parts[other];
+        static_layers.push_back(static_part.artwork);
+        absl::StatusOr<zebes::LayeredPuppetOrphanReport> orphans =
+            zebes::MeasureLayeredPuppetOrphans(static_part.artwork, part.artwork);
+        if (!orphans.ok()) {
+          std::cerr << orphans.status().message() << '\n';
+          return 1;
+        }
+        if (require_part_ownership_isolation && orphans->orphan_pixels != 0) {
+          validation_errors.push_back(static_part.name + " retains " +
+                                      std::to_string(orphans->orphan_pixels) +
+                                      " orphan pixels inside " + part.name);
+        }
+        orphan_diagnostics[static_part.name] = {
+            {"components", orphans->components},
+            {"orphan_pixels", orphans->orphan_pixels},
+        };
+      }
+      absl::StatusOr<zebes::LayeredPuppetBackfillReport> backfill =
+          zebes::MeasureLayeredPuppetBackfill(part.artwork, static_layers);
+      if (!backfill.ok()) {
+        std::cerr << backfill.status().message() << '\n';
+        return 1;
+      }
+      if (require_backfill_coverage && backfill->uncovered_pixels != 0) {
+        validation_errors.push_back(part.name + " covers " +
+                                    std::to_string(backfill->uncovered_pixels) +
+                                    " pixels no static layer paints");
+      }
+
       const std::filesystem::path part_directory = part_poses_directory / part.name;
       std::filesystem::create_directories(part_directory, error);
       if (error) {
@@ -519,24 +642,51 @@ int Run() {
           std::cerr << digest.status().message() << '\n';
           return 1;
         }
+        absl::StatusOr<std::vector<zebes::ProfileControlPoint>> deformed =
+            zebes::SolveLayeredPuppetMeshVertices(*puppet, pose, part_index);
+        if (!deformed.ok()) {
+          std::cerr << deformed.status().message() << '\n';
+          return 1;
+        }
+        absl::StatusOr<zebes::LayeredPuppetTriangleReport> triangles =
+            zebes::MeasureLayeredPuppetTriangles(part.mesh, *deformed, part.artwork);
+        if (!triangles.ok()) {
+          std::cerr << triangles.status().message() << '\n';
+          return 1;
+        }
+        if (require_no_triangle_inversion &&
+            (triangles->inverted_over_artwork != 0 || triangles->degenerate != 0)) {
+          validation_errors.push_back(part.name + " " + pose.name + " folds " +
+                                      std::to_string(triangles->inverted_over_artwork) +
+                                      " triangles over artwork");
+        }
         pose_diagnostics[pose.name] = {
             {"components", components->size()},
             {"opaque_pixels", rendered_opaque_pixels},
             {"retained_area_ratio",
              static_cast<double>(rendered_opaque_pixels) / source_opaque_pixels},
             {"neutral_reconstruction_difference", reconstruction_difference},
+            {"inverted_triangles", triangles->inverted},
+            {"inverted_triangles_over_artwork", triangles->inverted_over_artwork},
+            {"degenerate_triangles", triangles->degenerate},
             {"rgba_digest", *digest},
         };
       }
       skinned_part_diagnostics[part.name] = {
           {"mesh_vertices", part.mesh.vertices.size()},
           {"mesh_triangles", part.mesh.triangles.size()},
+          {"backfill",
+           {{"moving_pixels", backfill->moving_pixels},
+            {"uncovered_pixels", backfill->uncovered_pixels}}},
+          {"orphans", std::move(orphan_diagnostics)},
           {"poses", std::move(pose_diagnostics)},
       };
     }
 
     std::vector<zebes::RgbaImage> frames;
     nlohmann::json frame_digests = nlohmann::json::object();
+    nlohmann::json interior_holes = nlohmann::json::object();
+    const bool require_no_interior_holes = spec->value("require_no_interior_holes", false);
     size_t neutral_composite_difference = 0;
     for (const zebes::LayeredPuppetPose& pose : puppet->poses) {
       absl::StatusOr<zebes::RgbaImage> working = zebes::RenderLayeredPuppetPose(*puppet, pose);
@@ -557,6 +707,16 @@ int Run() {
           validation_errors.push_back("neutral composite changed approved source pixels");
         }
       }
+      absl::StatusOr<size_t> holes = zebes::MeasureLayeredPuppetInteriorHoles(*working);
+      if (!holes.ok()) {
+        std::cerr << holes.status().message() << '\n';
+        return 1;
+      }
+      if (require_no_interior_holes && *holes != 0) {
+        validation_errors.push_back(pose.name + " composite has " + std::to_string(*holes) +
+                                    " interior holes");
+      }
+      interior_holes[pose.name] = *holes;
       absl::StatusOr<zebes::RgbaImage> frame =
           zebes::DownsampleLayeredPuppetFrame(*working, absl::GetFlag(FLAGS_frame_size));
       if (!frame.ok()) {
@@ -621,6 +781,7 @@ int Run() {
           {"multiply_owned_pixels", ownership->multiply_owned_pixels},
           {"ownership_outside_source_pixels", ownership->ownership_outside_source_pixels}}},
         {"neutral_composite_difference", neutral_composite_difference},
+        {"interior_holes", std::move(interior_holes)},
         {"skinned_parts", std::move(skinned_part_diagnostics)},
         {"hard_validation",
          {{"passed", validation_passed}, {"errors", std::move(validation_errors)}}},

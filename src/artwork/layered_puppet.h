@@ -87,19 +87,70 @@ absl::StatusOr<RgbaImage> BuildLayeredPuppetPartArtwork(
     const RgbaImage& source, absl::Span<const LayeredPuppetPolygon> source_polygons,
     absl::Span<const LayeredPuppetFill> fills);
 
-// Builds a regular triangulated deformation grid around the artwork's alpha
-// bounds. A joint-local blend band transitions weights between two connected
+// Builds a triangulated deformation grid over the artwork, keeping only cells
+// that carry opaque pixels plus one cell of transparent collar around the
+// contour. A joint-local blend band transitions weights between two connected
 // bones while keeping each outer endpoint rigidly attached. The grid is
 // source-only and reused across every pose.
+//
+// joint_blend_lateral_scale widens the blend band with distance from the bone.
+// Zero reproduces a band of constant width, where a thick part folds over
+// itself at the joint: rotating about the joint by an angle that changes at
+// rate g inverts the map at lateral distance d once g*d exceeds one. Spreading
+// the same angle change over a longer stretch away from the bone lowers g
+// exactly where d is large, leaving the band on the bone axis unchanged.
 absl::StatusOr<LayeredPuppetMesh> BuildLayeredPuppetMesh(
     const RgbaImage& artwork, absl::Span<const size_t> bone_indices,
     absl::Span<const ProfileControlBone> bones, absl::Span<const ProfileControlPoint> source_joints,
-    int spacing, double joint_blend_radius);
+    int spacing, double joint_blend_radius, double joint_blend_lateral_scale = 0.0);
+
+// How far from its bone chain a part may claim source pixels. Reach is
+// interpolated along the chain from its outer start joint to its outer end.
+//
+// A limb is not equally attached along its length. At the shoulder a sleeve is
+// part of the garment, so a wide reach is correct. At the hand the limb is free,
+// so a tight reach keeps a neighbouring body part from being claimed by a
+// candidate layer whose alpha happens to spill onto it.
+struct LayeredPuppetOwnershipReach {
+  double start = 0.0;
+  double end = 0.0;
+  // Pixels of dilation applied to the candidate alpha, so a soft painted edge
+  // is claimed whole rather than leaving a fringe behind on the body.
+  int grow = 1;
+};
+
+// Derives which source pixels a skinned part owns, from the part's own
+// candidate artwork rather than an authored outline. A pixel is owned when the
+// grown candidate paints it, the approved source paints it, and it lies within
+// reach of the bone chain.
+//
+// The returned image is opaque white where owned and transparent elsewhere, on
+// the source canvas. Use it both to cut the part's visible artwork out of the
+// source and to subtract that region from whatever layer owned it before.
+absl::StatusOr<RgbaImage> BuildLayeredPuppetOwnershipMask(
+    const RgbaImage& candidate, const RgbaImage& source, absl::Span<const size_t> bone_indices,
+    absl::Span<const ProfileControlBone> bones, absl::Span<const ProfileControlPoint> source_joints,
+    const LayeredPuppetOwnershipReach& reach);
+
+// Copies source pixels selected by mask onto a transparent canvas. This is the
+// ownership-mask counterpart of BuildLayeredPuppetPartArtwork's polygon path.
+absl::StatusOr<RgbaImage> BuildLayeredPuppetMaskedArtwork(const RgbaImage& source,
+                                                          const RgbaImage& mask);
+
+// Clears every pixel of artwork that mask selects.
+absl::Status SubtractLayeredPuppetMask(RgbaImage& artwork, const RgbaImage& mask);
 
 // Every part must use the common canvas and either one known bone or two known
 // connected bones with a valid mesh. Every pose must provide corresponding
 // joints and a permutation of all parts.
 absl::Status ValidateLayeredPuppet(const LayeredPuppet& puppet);
+
+// Returns the deformed mesh vertex positions one pose produces for a skinned
+// part, in mesh vertex order and without rasterizing. This is the input to
+// triangle-orientation diagnostics and to any future solver. part_index must
+// name an existing part that carries a mesh.
+absl::StatusOr<std::vector<ProfileControlPoint>> SolveLayeredPuppetMeshVertices(
+    const LayeredPuppet& puppet, const LayeredPuppetPose& pose, size_t part_index);
 
 // Renders one part alone with the same deformation path used by full
 // composition. This is the evidence boundary for component, joint, and

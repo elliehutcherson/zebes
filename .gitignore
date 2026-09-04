@@ -25,6 +25,28 @@ test_data/
 # proof tool and bounded Python ComfyUI runner.
 experiments/character_binding/out/
 
+# Two exceptions. These are pipeline INPUTS that happen to sit under out/, and
+# neither can be regenerated from anything in this repository: the approved
+# 256px reference is the one accepted identity out of a rejected fuzz set, and
+# the See-through layers came from a 520-second GPU run in a disposable
+# environment on another machine that no longer exists. 1.3 MB total.
+!experiments/character_binding/out/
+experiments/character_binding/out/*
+!experiments/character_binding/out/profile-binding-deformation-v2/
+experiments/character_binding/out/profile-binding-deformation-v2/*
+!experiments/character_binding/out/profile-binding-deformation-v2/source-color.png
+!experiments/character_binding/out/see-through-v1/
+experiments/character_binding/out/see-through-v1/*
+!experiments/character_binding/out/see-through-v1/optimized/
+# Two files from raw/ that optimized/ does not carry: the 1280px source, which
+# is the only high-resolution copy of the approved mouse and the only way to cut
+# the ears or tail by hand, and the head layer, which holds the real pixel-art
+# face and was dropped when optimized/ was cut.
+!experiments/character_binding/out/see-through-v1/raw/
+experiments/character_binding/out/see-through-v1/raw/*
+!experiments/character_binding/out/see-through-v1/raw/head.png
+!experiments/character_binding/out/see-through-v1/raw/src_img.png
+
 # Cross-process authoring locks contain per-machine process metadata.
 .zebes/
 

@@ -151,6 +151,172 @@ TEST(LayeredPuppetTest, CompleteArmMeshBendsWithoutNeutralReconstructionChanges)
   EXPECT_NE(bend->pixels[Offset(7, 7) + 3], 0);
 }
 
+// A thin horizontal bar in the middle of a wide canvas: a bounding-box grid
+// would cover the whole canvas, a trimmed one only the bar and its collar.
+struct BarMesh {
+  RgbaImage artwork;
+  std::vector<ProfileControlPoint> source_joints;
+  std::vector<ProfileControlBone> bones;
+};
+
+BarMesh MakeBar() {
+  BarMesh bar{
+      .artwork = {.width = kSize,
+                  .height = kSize,
+                  .pixels = std::vector<uint8_t>(kSize * kSize * 4, 0)},
+      .source_joints = {{.x = 1, .y = 5}, {.x = 6, .y = 5}, {.x = 11, .y = 5}},
+      .bones = {{.start_joint = 0, .end_joint = 1}, {.start_joint = 1, .end_joint = 2}},
+  };
+  for (int y = 4; y < 7; ++y) {
+    for (int x = 1; x < 12; ++x) SetPixel(bar.artwork, x, y, {208, 48, 48, 255});
+  }
+  return bar;
+}
+
+TEST(LayeredPuppetTest, OwnershipTakesCandidatePixelsWithinReach) {
+  const BarMesh bar = MakeBar();
+  RgbaImage candidate = bar.artwork;
+  const std::array<size_t, 2> bone_indices = {0, 1};
+  const absl::StatusOr<RgbaImage> mask =
+      BuildLayeredPuppetOwnershipMask(candidate, bar.artwork, bone_indices, bar.bones,
+                                      bar.source_joints, {.start = 4.0, .end = 4.0, .grow = 0});
+  ASSERT_TRUE(mask.ok()) << mask.status();
+  // The bar is the candidate and the source, and every bar pixel is within
+  // four of the bone, so ownership takes all of it.
+  size_t owned = 0;
+  for (size_t offset = 3; offset < mask->pixels.size(); offset += 4) {
+    if (mask->pixels[offset] != 0) ++owned;
+  }
+  EXPECT_EQ(owned, 33u);
+}
+
+TEST(LayeredPuppetTest, OwnershipRefusesCandidatePixelsBeyondReach) {
+  const BarMesh bar = MakeBar();
+  // A blob two rows below the bar, painted in the candidate but far from the
+  // bone: a neighbouring body part the layer's alpha happens to cover.
+  RgbaImage candidate = bar.artwork;
+  for (int y = 9; y < 11; ++y) {
+    for (int x = 8; x < 11; ++x) SetPixel(candidate, x, y, {120, 70, 40, 255});
+  }
+  RgbaImage source = candidate;
+  const std::array<size_t, 2> bone_indices = {0, 1};
+  const absl::StatusOr<RgbaImage> mask =
+      BuildLayeredPuppetOwnershipMask(candidate, source, bone_indices, bar.bones, bar.source_joints,
+                                      {.start = 2.0, .end = 2.0, .grow = 0});
+  ASSERT_TRUE(mask.ok()) << mask.status();
+  for (int y = 9; y < 11; ++y) {
+    for (int x = 8; x < 11; ++x) {
+      EXPECT_EQ(mask->pixels[(static_cast<size_t>(y) * kSize + x) * 4 + 3], 0)
+          << "blob pixel " << x << "," << y << " was claimed";
+    }
+  }
+}
+
+TEST(LayeredPuppetTest, OwnershipReachShrinksAlongTheChain) {
+  const BarMesh bar = MakeBar();
+  // Pixels three rows off the bone at both ends. Reach 3 at the start and 1 at
+  // the end must keep the near-shoulder one and drop the near-hand one.
+  RgbaImage candidate = bar.artwork;
+  SetPixel(candidate, 2, 8, {120, 70, 40, 255});
+  SetPixel(candidate, 10, 8, {120, 70, 40, 255});
+  RgbaImage source = candidate;
+  const std::array<size_t, 2> bone_indices = {0, 1};
+  const absl::StatusOr<RgbaImage> mask =
+      BuildLayeredPuppetOwnershipMask(candidate, source, bone_indices, bar.bones, bar.source_joints,
+                                      {.start = 3.5, .end = 1.0, .grow = 0});
+  ASSERT_TRUE(mask.ok()) << mask.status();
+  EXPECT_NE(mask->pixels[(static_cast<size_t>(8) * kSize + 2) * 4 + 3], 0);
+  EXPECT_EQ(mask->pixels[(static_cast<size_t>(8) * kSize + 10) * 4 + 3], 0);
+}
+
+TEST(LayeredPuppetTest, OwnershipIgnoresCandidatePixelsOutsideTheSource) {
+  const BarMesh bar = MakeBar();
+  RgbaImage candidate = bar.artwork;
+  SetPixel(candidate, 6, 8, {120, 70, 40, 255});
+  const absl::StatusOr<RgbaImage> mask = BuildLayeredPuppetOwnershipMask(
+      candidate, bar.artwork, std::array<size_t, 2>{0, 1}, bar.bones, bar.source_joints,
+      {.start = 8.0, .end = 8.0, .grow = 0});
+  ASSERT_TRUE(mask.ok()) << mask.status();
+  EXPECT_EQ(mask->pixels[(static_cast<size_t>(8) * kSize + 6) * 4 + 3], 0);
+}
+
+TEST(LayeredPuppetTest, OwnershipRejectsNonPositiveReach) {
+  const BarMesh bar = MakeBar();
+  EXPECT_FALSE(BuildLayeredPuppetOwnershipMask(bar.artwork, bar.artwork,
+                                               std::array<size_t, 2>{0, 1}, bar.bones,
+                                               bar.source_joints, {.start = 0.0, .end = 4.0})
+                   .ok());
+}
+
+TEST(LayeredPuppetTest, MaskedArtworkAndSubtractionArePixelComplements) {
+  const BarMesh bar = MakeBar();
+  const absl::StatusOr<RgbaImage> mask = BuildLayeredPuppetOwnershipMask(
+      bar.artwork, bar.artwork, std::array<size_t, 2>{0, 1}, bar.bones, bar.source_joints,
+      {.start = 1.0, .end = 1.0, .grow = 0});
+  ASSERT_TRUE(mask.ok()) << mask.status();
+  const absl::StatusOr<RgbaImage> taken = BuildLayeredPuppetMaskedArtwork(bar.artwork, *mask);
+  ASSERT_TRUE(taken.ok()) << taken.status();
+  RgbaImage left = bar.artwork;
+  ASSERT_TRUE(SubtractLayeredPuppetMask(left, *mask).ok());
+  for (size_t offset = 3; offset < bar.artwork.pixels.size(); offset += 4) {
+    const bool present = bar.artwork.pixels[offset] != 0;
+    const bool in_taken = taken->pixels[offset] != 0;
+    const bool in_left = left.pixels[offset] != 0;
+    EXPECT_EQ(present, in_taken || in_left);
+    EXPECT_FALSE(in_taken && in_left);
+  }
+}
+
+TEST(LayeredPuppetTest, MeshKeepsOnlyCellsCarryingArtwork) {
+  const BarMesh bar = MakeBar();
+  const std::array<size_t, 2> bone_indices = {0, 1};
+  const absl::StatusOr<LayeredPuppetMesh> mesh =
+      BuildLayeredPuppetMesh(bar.artwork, bone_indices, bar.bones, bar.source_joints, 1, 1.0);
+  ASSERT_TRUE(mesh.ok()) << mesh.status();
+
+  // The bar spans rows 4-6, so with one cell of collar no vertex may sit more
+  // than one row outside rows 3-7.
+  for (const LayeredPuppetMeshVertex& vertex : mesh->vertices) {
+    EXPECT_GE(vertex.source.y, 2.0);
+    EXPECT_LE(vertex.source.y, 8.0);
+  }
+  EXPECT_LT(mesh->triangles.size(), static_cast<size_t>((kSize - 1) * (kSize - 1) * 2));
+}
+
+TEST(LayeredPuppetTest, LateralScaleWidensTheBlendAwayFromTheBone) {
+  const BarMesh bar = MakeBar();
+  const std::array<size_t, 2> bone_indices = {0, 1};
+  const absl::StatusOr<LayeredPuppetMesh> narrow =
+      BuildLayeredPuppetMesh(bar.artwork, bone_indices, bar.bones, bar.source_joints, 1, 1.0, 0.0);
+  const absl::StatusOr<LayeredPuppetMesh> widened =
+      BuildLayeredPuppetMesh(bar.artwork, bone_indices, bar.bones, bar.source_joints, 1, 1.0, 2.0);
+  ASSERT_TRUE(narrow.ok()) << narrow.status();
+  ASSERT_TRUE(widened.ok()) << widened.status();
+  ASSERT_EQ(narrow->vertices.size(), widened->vertices.size());
+
+  // Two vertices one cell before the shared joint at (6,5): one on the bone,
+  // one two rows off it. Widening must move only the off-bone weight toward
+  // the midpoint, leaving the on-bone weight where it was.
+  const auto weight_at = [](const LayeredPuppetMesh& mesh, double x, double y) {
+    for (const LayeredPuppetMeshVertex& vertex : mesh.vertices) {
+      if (vertex.source.x == x && vertex.source.y == y) return vertex.first_bone_weight;
+    }
+    ADD_FAILURE() << "mesh has no vertex at " << x << "," << y;
+    return 0.0;
+  };
+  EXPECT_DOUBLE_EQ(weight_at(*narrow, 5, 5), weight_at(*widened, 5, 5));
+  EXPECT_LT(weight_at(*widened, 5, 3), weight_at(*narrow, 5, 3));
+  EXPECT_GT(weight_at(*widened, 5, 3), 0.5);
+}
+
+TEST(LayeredPuppetTest, MeshRejectsNegativeLateralScale) {
+  const BarMesh bar = MakeBar();
+  const std::array<size_t, 2> bone_indices = {0, 1};
+  EXPECT_FALSE(
+      BuildLayeredPuppetMesh(bar.artwork, bone_indices, bar.bones, bar.source_joints, 1, 1.0, -1.0)
+          .ok());
+}
+
 TEST(LayeredPuppetTest, RejectsIncompleteDrawOrder) {
   absl::StatusOr<LayeredPuppet> puppet = TestPuppet();
   ASSERT_TRUE(puppet.ok()) << puppet.status();

@@ -197,7 +197,7 @@ blender --background --python \
   experiments/character_binding/render_mouse_production.py -- \
   --out /tmp/zebes-mouse-production
 
-build/bin/import_animation_frame_sets \
+build/dev/bin/import_animation_frame_sets \
   --asset_root=assets \
   --manifest=/tmp/zebes-mouse-production/import.json
 ```
@@ -265,7 +265,8 @@ class before articulation.
 The C++ semantic importer restores the accepted See-through arm crop, reduces it
 to the 256px working canvas, and pastes original visible pixels back exactly.
 `mouse_semantic_arm_v1.json` binds that complete RGBA layer to
-shoulder/elbow/wrist through a reusable 286-vertex, 504-triangle grid.
+shoulder/elbow/wrist through a mesh trimmed to the arm's own alpha. Read the
+current vertex and triangle counts from the run manifest, not from here.
 
 ```bash
 build/dev/bin/render_layered_puppet \
@@ -282,18 +283,28 @@ pixels from the visible body. All 18,974 source pixels now have exactly one
 owner, neutral changes zero full-character pixels, and moved poses reveal coat
 underpaint rather than a ghost arm.
 
-Every arm pose remains one connected component, but human review rejects the
-deformation: most pixels still follow one rigid bone, and the narrow blend
-compresses contact/airborne to 87.1%/86.9% of neutral area. Connectivity and
-exact reconstruction are necessary but did not prove useful morphing.
+Every arm pose remains one connected component, but human review rejected the
+result. `layered_puppet_diagnostics` measured why, and it was mostly not
+deformation: arm pixels welded into `body_visible`, and body pixels with no
+artwork behind them. Those are the floating sliver and the coat gash a person
+sees.
+
+Skinning now blends the two bone rotation angles about the shared joint, the mesh
+is trimmed to the arm, the blend band widens away from the bone, and ownership is
+derived from the layer alpha plus a bone-reach limit. Correcting the shoulder
+joint afterwards exposed two gates that the old rig had been masking. Current
+numbers live in `out/semantic-arm-v5/manifest.json`; the run deliberately fails
+its hard gates.
 
 ## Next gate
 
-Run the fixed-input linear-versus-ARAP experiment specified in
-[`docs/character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md).
+Follow [`docs/character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md):
+close the backfill, then clear the two gates the shoulder correction exposed.
 Do not proceed to the second arm or legs until native 48px review accepts the
-shape deformation. If ARAP does not visibly improve the arm, test one authored
-elbow corrective rather than tuning another generic solver.
+result. Reach for MLS driving the existing mesh only if that fails.
+
+When reviewing, remember only 3 of the 10 bones drive a part. The legs and head
+do not move; the four poses are a standing mouse with one arm moving.
 
 ## Tests
 
@@ -301,5 +312,6 @@ elbow corrective rather than tuning another generic solver.
 scripts/test.sh profile_silhouette_test
 scripts/test.sh profile_deformation_test
 scripts/test.sh layered_puppet_test
+scripts/test.sh layered_puppet_diagnostics_test
 scripts/test.sh semantic_layer_import_test
 ```

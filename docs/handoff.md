@@ -17,10 +17,12 @@ Two tracks proceed independently:
   complete. The stable six-state mouse asset graph remains valid, but human
   review rejected the authored Blender mouse's flat primitive style. The C++
   layered path now restores one accepted See-through arm, enforces exclusive
-  ownership, removes the static ghost, and reproduces neutral exactly. Its
-  linear mesh remains rejected: most pixels follow rigid bone sections and the
-  narrow elbow blend compresses strong poses by roughly 13%. A bounded ARAP A/B
-  gate is next; the second arm and legs remain deferred.
+  ownership, removes the static ghost, and reproduces neutral exactly. Three
+  problems were measured and two are fixed. The elbow no longer folds, and
+  ownership now comes from the layer's own alpha plus a reach limit off the bone,
+  so no arm pixels stay stuck to the body and the tail no longer swings with the
+  arm. What remains is 598 px of body with nothing painted behind it. The second
+  arm and legs remain deferred.
 
 The reusable ordered-reference generation boundary remains supported for
 OpenAI, Codex, headless generation, and redraw; it is not an animation roadmap
@@ -37,19 +39,27 @@ The newer art-direction evidence is in
 [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) and
 `experiments/character_binding/FINDINGS.md`:
 
-1. Implement the fixed-input C++ ARAP comparison in
-   [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md).
-   Reuse the accepted arm, ownership, underpaint, skeleton, poses, and renderer
-   unchanged.
-2. Require exact neutral/ownership, connected output, joint targets, no triangle
-   inversion, deterministic digests, improved shape retention, and native 48px
-   preference over the linear baseline.
-3. If ARAP converges without visible improvement, stop solver tuning and test
-   one authored elbow corrective. Do not proceed to `handwear-r` first.
-4. Only after deformation passes, apply it to the second arm, split footwear,
-   acquire complete legs/tail, and bind legs through hip/knee/foot.
-5. Keep skeleton-conditioned ML deferred; deformation quality is the current
-   blocker. M4 remains blocked until replacement art passes.
+The ARAP-first plan is withdrawn; ARAP addressed the smallest of three problems.
+Steps 1 through 3 are done. Follow
+[`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md):
+
+1. **Done.** Diagnostics and four opt-in gates. Frame digests unchanged.
+2a. **Done.** Skinning blends the bone angle instead of averaging two rotated
+   positions.
+2b. **Done.** Mesh trimmed to the arm, blend band widened away from the bone via
+   `joint_blend_lateral_scale`. Zero folds, exact neutral, smooth elbow.
+   Retained area is retired as a gate: removing the folds lowered it to
+   81.9%/81.0% while the picture improved, because a bent tube covers less area
+   than a straight one.
+3. **Done.** Ownership derived from the layer's own alpha plus a reach limit off
+   the bone chain, wide at the shoulder and tight at the hand. Orphans 105 to 0,
+   backfill 876 to 598, and the tail no longer swings with the arm.
+4. Stop clipping the underpaint inside the ownership region, then stretch the
+   surrounding layer to close whatever is left.
+5. Review at 48px. If it still fails, drive the existing mesh with MLS rather
+   than replacing it, then bounded biharmonic weights, then ARAP.
+6. Only after that passes: second arm, split footwear, legs and tail.
+7. Skeleton-conditioned ML stays deferred. M4 blocked until the art passes.
 
 ### Track 4: finite content polish
 
@@ -81,7 +91,7 @@ order, and collider counts; finish with the complete route gate.
 - [`prop-artwork.md`](prop-artwork.md): current prop lifecycle and remaining
   provider/recovery follow-up.
 - [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md):
-  fixed-input ARAP A/B implementation and review contract.
+  the measured layered-puppet problems, the fix order, and the fallbacks.
 
 ## Non-blocking debt
 
@@ -92,19 +102,37 @@ order, and collider counts; finish with the complete route gate.
 - Finish credential-gated OpenAI and real Codex editor lifecycle checks before
   claiming those provider paths fully live-verified.
 - Windows Codex process transport remains unsupported.
+- Dead sprite/blueprint definitions still load at boot: `Player Airborne
+  Left/Right Proof`, `kSamusJumpingLeft`, eight `kGrass*` sprites and the whole
+  `Samus` blueprint chain. No level entity or blueprint state uses them; they
+  survive only as `previous_sprite_id` history. Deleting definitions touches the
+  serialized format, so it wants its own change with a migration.
+- Catacombs `spawn_point` is (256, 512) while player entity 4 sits at (256, 864),
+  so the camera opens 352 px above the mouse until follow corrects it. Content
+  fix, not a code fix.
+- `animation_artwork_spike`, `animation_artwork_run_manifest`,
+  `pose_conditioned_animation_batch` and `run_pose_conditioned_animation` are
+  still built and belong to the closed generated-animation experiment. Unlike
+  `stage_animation_live_proof`, which was removed because every asset it named
+  was gone, these still have live tests; check before removing.
 
 ## Last verification
 
-The semantic arm uses a 286-vertex/504-triangle C++ grid with a six-pixel elbow
-blend. All 18,974 source pixels are singly owned; none are unowned, multiply
-owned, or owned outside the source, and the complete neutral composite changes
-zero RGBA pixels. Neutral/contact/passing/airborne arm poses each remain one
-connected component and retain 100.0%/87.1%/98.7%/86.9% of neutral opaque area.
-The ownership and ghost-arm gates pass, but human review rejects the mesh
-deformation as too rigid. This visual verdict supersedes the objective
-connectivity result and triggers the ARAP comparison.
-`layered_puppet_test` passes four cases and `semantic_layer_import_test` passes
-seven; both affected-target gates and clang-tidy pass all four supported edited
-translation units.
+The semantic arm now uses a 235-vertex/402-triangle mesh trimmed to the artwork,
+with the blend band widening away from the bone. All 18,974 source pixels are
+singly owned, the neutral composite changes zero RGBA pixels, every pose is one
+connected component, and no pose folds a triangle. `require_no_triangle_inversion`
+is on and passing.
+
+Retained area is 100.0%/81.9%/97.8%/81.0% and is no longer a gate. Removing every
+fold lowered it while the elbow visibly improved, so it was rewarding rigidity.
+
+One fault remains: 598 of the arm's 1,723 px have no static layer behind them, so
+they go transparent when it moves. `require_backfill_coverage` stays off until
+step 4 lands. `require_no_triangle_inversion` and
+`require_part_ownership_isolation` are both on and passing.
+
+`layered_puppet_diagnostics_test` passes 25 cases and `layered_puppet_test` 13;
+the affected-target run and clang-tidy pass on both edited library sources.
 Live-transition recording remains blocked by Terminal Screen Recording
 permission and is deferred until the replacement art passes.

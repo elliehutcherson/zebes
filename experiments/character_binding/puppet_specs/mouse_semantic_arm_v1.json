@@ -6,6 +6,7 @@
     "head": [126, 76],
     "neck": [131, 106],
     "shoulder": [131, 129],
+    "shoulder_b": [156, 113],
     "hip": [122, 185],
     "elbow_a": [92, 143],
     "hand_a": [103, 166],
@@ -25,7 +26,7 @@
     {"name": "shin_b", "start": "knee_b", "end": "foot_b"},
     {"name": "upper_arm_a", "start": "shoulder", "end": "elbow_a"},
     {"name": "forearm_a", "start": "elbow_a", "end": "hand_a"},
-    {"name": "upper_arm_b", "start": "shoulder", "end": "elbow_b"},
+    {"name": "upper_arm_b", "start": "shoulder_b", "end": "elbow_b"},
     {"name": "forearm_b", "start": "elbow_b", "end": "hand_b"}
   ],
   "poses": {
@@ -33,6 +34,7 @@
       "head": [126, 76],
       "neck": [131, 106],
       "shoulder": [131, 129],
+      "shoulder_b": [156, 113],
       "hip": [122, 185],
       "elbow_a": [92, 143],
       "hand_a": [103, 166],
@@ -47,10 +49,11 @@
       "head": [126, 76],
       "neck": [131, 106],
       "shoulder": [131, 129],
+      "shoulder_b": [156, 113],
       "hip": [122, 185],
       "elbow_a": [98.347, 154.511],
       "hand_a": [74.39, 163.231],
-      "elbow_b": [154.42, 152.42],
+      "elbow_b": [157.772, 145.2],
       "hand_b": [185.92, 162.655],
       "knee_a": [101.161, 202.486],
       "foot_a": [82.043, 211.401],
@@ -61,11 +64,12 @@
       "head": [126, 76],
       "neck": [131, 106],
       "shoulder": [131, 129],
+      "shoulder_b": [156, 113],
       "hip": [122, 185],
       "elbow_a": [141.725, 169.025],
       "hand_a": [157.421, 189.115],
-      "elbow_b": [118.593, 159.709],
-      "hand_b": [93.979, 181.872],
+      "elbow_b": [137.587, 139.476],
+      "hand_b": [112.59, 161.205],
       "knee_a": [129.041, 211.276],
       "foot_a": [146.321, 223.376],
       "knee_b": [113.947, 215.053],
@@ -75,10 +79,11 @@
       "head": [126, 64],
       "neck": [131, 94],
       "shoulder": [131, 117],
+      "shoulder_b": [156, 101],
       "hip": [122, 173],
       "elbow_a": [90.469, 125.615],
       "hand_a": [65.531, 120.314],
-      "elbow_b": [162.5, 127.235],
+      "elbow_b": [163.986, 132.245],
       "hand_b": [194.897, 120.349],
       "knee_a": [101.161, 190.486],
       "foot_a": [80.387, 186.823],
@@ -88,6 +93,8 @@
   },
   "require_exclusive_visible_ownership": true,
   "require_exact_neutral_composite": true,
+  "require_no_triangle_inversion": true,
+  "require_part_ownership_isolation": true,
   "parts": [
     {
       "name": "body_underpaint",
@@ -102,10 +109,8 @@
       "clip_to_source_alpha": true,
       "mesh_spacing": 4,
       "joint_blend_radius": 6.0,
-      "source_polygons": [
-        [[153, 116], [174, 119], [182, 160], [169, 174], [153, 154]],
-        [[164, 154], [183, 156], [198, 184], [163, 188]]
-      ]
+      "joint_blend_lateral_scale": 1.0,
+      "source_from_semantic_reach": {"start": 22.0, "end": 10.0, "grow": 1}
     },
     {
       "name": "body_visible",
@@ -113,10 +118,7 @@
       "source_polygons": [
         [[0, 0], [256, 0], [256, 256], [0, 256]]
       ],
-      "source_exclude_polygons": [
-        [[153, 116], [174, 119], [182, 160], [169, 174], [153, 154]],
-        [[164, 154], [183, 156], [198, 184], [163, 188]]
-      ]
+      "source_exclude_parts": ["front_arm"]
     }
   ],
   "draw_order": {

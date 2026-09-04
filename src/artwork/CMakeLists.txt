@@ -156,6 +156,20 @@ target_link_libraries(layered_puppet
   status_macros
 )
 
+add_library(layered_puppet_diagnostics layered_puppet_diagnostics.cc)
+target_link_libraries(layered_puppet_diagnostics
+  PUBLIC
+  image_io
+  layered_puppet
+  profile_silhouette
+  absl::span
+  absl::statusor
+  PRIVATE
+  semantic_layer_import
+  status_macros
+  absl::status
+)
+
 add_library(semantic_layer_import semantic_layer_import.cc)
 target_link_libraries(semantic_layer_import
   PUBLIC

@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <numbers>
 #include <string>
 #include <vector>
 
@@ -89,8 +90,12 @@ SegmentProjection ProjectOntoSegment(ProfileControlPoint point, ProfileControlPo
   };
 }
 
-absl::StatusOr<std::array<size_t, 3>> ResolveBoneChain(const ProfileControlBone& first,
-                                                       const ProfileControlBone& second) {
+// The three joints of a two-bone chain: the first bone's outer end, the joint
+// both bones share, and the second bone's outer end.
+using BoneChain = std::array<size_t, 3>;
+
+absl::StatusOr<BoneChain> ResolveBoneChain(const ProfileControlBone& first,
+                                           const ProfileControlBone& second) {
   size_t shared = 0;
   if (first.start_joint == second.start_joint || first.start_joint == second.end_joint) {
     shared = first.start_joint;
@@ -104,7 +109,7 @@ absl::StatusOr<std::array<size_t, 3>> ResolveBoneChain(const ProfileControlBone&
   if (first_outer == second_outer) {
     return absl::InvalidArgumentError("layered puppet mesh bones must form a chain");
   }
-  return std::array<size_t, 3>{first_outer, shared, second_outer};
+  return BoneChain{first_outer, shared, second_outer};
 }
 
 bool BonesAreConnected(const ProfileControlBone& first, const ProfileControlBone& second) {
@@ -307,18 +312,73 @@ absl::Status RenderRigidPart(const LayeredPuppet& puppet, const LayeredPuppetPos
   return absl::OkStatus();
 }
 
-absl::StatusOr<Point> TransformMeshVertex(const LayeredPuppet& puppet,
-                                          const LayeredPuppetPose& pose,
-                                          const LayeredPuppetPart& part,
-                                          const LayeredPuppetMeshVertex& vertex) {
-  const Point source{.x = vertex.source.x, .y = vertex.source.y};
-  ASSIGN_OR_RETURN(const Point first, TransformPoint(source, puppet.bones[part.bone_indices[0]],
-                                                     puppet.source_joints, pose.joints, false));
-  ASSIGN_OR_RETURN(const Point second, TransformPoint(source, puppet.bones[part.bone_indices[1]],
-                                                      puppet.source_joints, pose.joints, false));
+absl::StatusOr<double> BoneRotation(const ProfileControlBone& bone,
+                                    absl::Span<const ProfileControlPoint> source_joints,
+                                    absl::Span<const ProfileControlPoint> target_joints) {
+  const double source_dx = source_joints[bone.end_joint].x - source_joints[bone.start_joint].x;
+  const double source_dy = source_joints[bone.end_joint].y - source_joints[bone.start_joint].y;
+  const double target_dx = target_joints[bone.end_joint].x - target_joints[bone.start_joint].x;
+  const double target_dy = target_joints[bone.end_joint].y - target_joints[bone.start_joint].y;
+  if (std::hypot(source_dx, source_dy) <= 1e-6 || std::hypot(target_dx, target_dy) <= 1e-6) {
+    return absl::InvalidArgumentError("layered puppet bone has zero length");
+  }
+  return std::atan2(target_dy, target_dx) - std::atan2(source_dy, source_dx);
+}
+
+// Everything a two-bone chain contributes to one pose that does not depend on
+// which vertex is being placed. Both bones are rigid, so each is fully
+// described by its rotation angle plus where it sends the chain's shared joint.
+struct SkinnedChainMotion {
+  Point pivot;
+  Point first_image;
+  Point second_image;
+  double first_angle = 0.0;
+  double second_angle = 0.0;
+};
+
+absl::StatusOr<SkinnedChainMotion> BuildSkinnedChainMotion(const LayeredPuppet& puppet,
+                                                           const LayeredPuppetPose& pose,
+                                                           const LayeredPuppetPart& part) {
+  const ProfileControlBone& first_bone = puppet.bones[part.bone_indices[0]];
+  const ProfileControlBone& second_bone = puppet.bones[part.bone_indices[1]];
+  ASSIGN_OR_RETURN(const BoneChain chain, ResolveBoneChain(first_bone, second_bone));
+  const ProfileControlPoint shared = puppet.source_joints[chain[1]];
+  const Point pivot{.x = shared.x, .y = shared.y};
+  SkinnedChainMotion motion{.pivot = pivot};
+  ASSIGN_OR_RETURN(motion.first_image,
+                   TransformPoint(pivot, first_bone, puppet.source_joints, pose.joints, false));
+  ASSIGN_OR_RETURN(motion.second_image,
+                   TransformPoint(pivot, second_bone, puppet.source_joints, pose.joints, false));
+  ASSIGN_OR_RETURN(motion.first_angle, BoneRotation(first_bone, puppet.source_joints, pose.joints));
+  ASSIGN_OR_RETURN(motion.second_angle,
+                   BoneRotation(second_bone, puppet.source_joints, pose.joints));
+  return motion;
+}
+
+// Places one vertex by blending the two bone rotations about the shared joint.
+//
+// Averaging the two transformed points instead is linear blend skinning: the
+// average of two rotation matrices is not a rotation, its determinant shrinks
+// toward cos^2(half the angle between them), and the joint visibly loses area
+// as it bends. Blending the angle keeps every intermediate transform rigid.
+// Both endpoints still reproduce their own bone exactly, because a rigid
+// motion is fully determined by its angle and the image of any one point.
+Point TransformMeshVertex(const SkinnedChainMotion& motion, const LayeredPuppetMeshVertex& vertex) {
+  const double weight = vertex.first_bone_weight;
+  // Take the shortest arc so a chain straddling +/-pi does not swing the long
+  // way round between its two bones.
+  const double difference =
+      std::remainder(motion.second_angle - motion.first_angle, 2.0 * std::numbers::pi);
+  const double angle = motion.first_angle + (1.0 - weight) * difference;
+  const double cosine = std::cos(angle);
+  const double sine = std::sin(angle);
+  const double offset_x = vertex.source.x - motion.pivot.x;
+  const double offset_y = vertex.source.y - motion.pivot.y;
+  const double origin_x = motion.first_image.x * weight + motion.second_image.x * (1.0 - weight);
+  const double origin_y = motion.first_image.y * weight + motion.second_image.y * (1.0 - weight);
   return Point{
-      .x = first.x * vertex.first_bone_weight + second.x * (1.0 - vertex.first_bone_weight),
-      .y = first.y * vertex.first_bone_weight + second.y * (1.0 - vertex.first_bone_weight),
+      .x = origin_x + cosine * offset_x - sine * offset_y,
+      .y = origin_y + sine * offset_x + cosine * offset_y,
   };
 }
 
@@ -328,11 +388,11 @@ double TriangleEdge(Point start, Point end, Point point) {
 
 absl::Status RenderSkinnedPart(const LayeredPuppet& puppet, const LayeredPuppetPose& pose,
                                const LayeredPuppetPart& part, RgbaImage& destination) {
+  ASSIGN_OR_RETURN(const SkinnedChainMotion motion, BuildSkinnedChainMotion(puppet, pose, part));
   std::vector<Point> targets;
   targets.reserve(part.mesh.vertices.size());
   for (const LayeredPuppetMeshVertex& vertex : part.mesh.vertices) {
-    ASSIGN_OR_RETURN(const Point target, TransformMeshVertex(puppet, pose, part, vertex));
-    targets.push_back(target);
+    targets.push_back(TransformMeshVertex(motion, vertex));
   }
   RgbaImage transformed{
       .width = puppet.width,
@@ -427,12 +487,126 @@ absl::StatusOr<RgbaImage> BuildLayeredPuppetPartArtwork(
   return result;
 }
 
+absl::StatusOr<RgbaImage> BuildLayeredPuppetOwnershipMask(
+    const RgbaImage& candidate, const RgbaImage& source, absl::Span<const size_t> bone_indices,
+    absl::Span<const ProfileControlBone> bones, absl::Span<const ProfileControlPoint> source_joints,
+    const LayeredPuppetOwnershipReach& reach) {
+  if (!candidate.IsValid() || !source.IsValid() || candidate.width != source.width ||
+      candidate.height != source.height) {
+    return absl::InvalidArgumentError("layered puppet ownership layers must share one canvas");
+  }
+  if (bone_indices.size() != 2 || bone_indices[0] == bone_indices[1] ||
+      bone_indices[0] >= bones.size() || bone_indices[1] >= bones.size()) {
+    return absl::InvalidArgumentError("layered puppet ownership requires two known bones");
+  }
+  if (!std::isfinite(reach.start) || !std::isfinite(reach.end) || reach.start <= 0.0 ||
+      reach.end <= 0.0 || reach.grow < 0) {
+    return absl::InvalidArgumentError("layered puppet ownership reach must be positive and finite");
+  }
+  ASSIGN_OR_RETURN(const BoneChain chain,
+                   ResolveBoneChain(bones[bone_indices[0]], bones[bone_indices[1]]));
+  for (const size_t joint : chain) {
+    if (joint >= source_joints.size()) {
+      return absl::InvalidArgumentError(
+          "layered puppet ownership bone references an unknown joint");
+    }
+  }
+  const ProfileControlPoint first_outer = source_joints[chain[0]];
+  const ProfileControlPoint shared = source_joints[chain[1]];
+  const ProfileControlPoint second_outer = source_joints[chain[2]];
+  const double first_length = std::hypot(shared.x - first_outer.x, shared.y - first_outer.y);
+  const double second_length = std::hypot(second_outer.x - shared.x, second_outer.y - shared.y);
+  const double chain_length = first_length + second_length;
+  if (chain_length <= 1e-6) {
+    return absl::InvalidArgumentError("layered puppet ownership bone chain has zero length");
+  }
+
+  RgbaImage mask{
+      .width = source.width,
+      .height = source.height,
+      .pixels = std::vector<uint8_t>(source.pixels.size(), 0),
+  };
+  const int grow = reach.grow;
+  for (int y = 0; y < source.height; ++y) {
+    for (int x = 0; x < source.width; ++x) {
+      const size_t offset = PixelIndex(source.width, x, y) * 4;
+      if (source.pixels[offset + 3] == 0) continue;
+      bool painted = false;
+      for (int sample_y = std::max(0, y - grow); sample_y <= std::min(source.height - 1, y + grow);
+           ++sample_y) {
+        for (int sample_x = std::max(0, x - grow); sample_x <= std::min(source.width - 1, x + grow);
+             ++sample_x) {
+          if (candidate.pixels[PixelIndex(source.width, sample_x, sample_y) * 4 + 3] != 0) {
+            painted = true;
+            break;
+          }
+        }
+        if (painted) break;
+      }
+      if (!painted) continue;
+      const ProfileControlPoint point{.x = static_cast<double>(x), .y = static_cast<double>(y)};
+      const SegmentProjection first_projection = ProjectOntoSegment(point, first_outer, shared);
+      const SegmentProjection second_projection = ProjectOntoSegment(point, shared, second_outer);
+      const bool nearer_first = first_projection.distance <= second_projection.distance;
+      const double distance = nearer_first ? first_projection.distance : second_projection.distance;
+      const double chain_position = nearer_first
+                                        ? first_projection.fraction * first_length
+                                        : first_length + second_projection.fraction * second_length;
+      const double along = chain_position / chain_length;
+      if (distance > reach.start + along * (reach.end - reach.start)) continue;
+      mask.pixels[offset] = 255;
+      mask.pixels[offset + 1] = 255;
+      mask.pixels[offset + 2] = 255;
+      mask.pixels[offset + 3] = 255;
+    }
+  }
+  if (!HasOpaquePixel(mask)) {
+    return absl::InvalidArgumentError("layered puppet ownership mask selected no source pixels");
+  }
+  return mask;
+}
+
+absl::StatusOr<RgbaImage> BuildLayeredPuppetMaskedArtwork(const RgbaImage& source,
+                                                          const RgbaImage& mask) {
+  if (!source.IsValid() || !mask.IsValid() || source.width != mask.width ||
+      source.height != mask.height) {
+    return absl::InvalidArgumentError("layered puppet masked artwork needs one shared canvas");
+  }
+  RgbaImage result{
+      .width = source.width,
+      .height = source.height,
+      .pixels = std::vector<uint8_t>(source.pixels.size(), 0),
+  };
+  for (size_t offset = 0; offset < source.pixels.size(); offset += 4) {
+    if (mask.pixels[offset + 3] == 0 || source.pixels[offset + 3] == 0) continue;
+    std::copy_n(source.pixels.begin() + static_cast<ptrdiff_t>(offset), 4,
+                result.pixels.begin() + static_cast<ptrdiff_t>(offset));
+  }
+  if (!HasOpaquePixel(result)) {
+    return absl::InvalidArgumentError("layered puppet masked artwork selected no source pixels");
+  }
+  return result;
+}
+
+absl::Status SubtractLayeredPuppetMask(RgbaImage& artwork, const RgbaImage& mask) {
+  if (!artwork.IsValid() || !mask.IsValid() || artwork.width != mask.width ||
+      artwork.height != mask.height) {
+    return absl::InvalidArgumentError("layered puppet mask subtraction needs one shared canvas");
+  }
+  for (size_t offset = 0; offset < artwork.pixels.size(); offset += 4) {
+    if (mask.pixels[offset + 3] == 0) continue;
+    std::fill_n(artwork.pixels.begin() + static_cast<ptrdiff_t>(offset), 4, 0);
+  }
+  return absl::OkStatus();
+}
+
 absl::StatusOr<LayeredPuppetMesh> BuildLayeredPuppetMesh(
     const RgbaImage& artwork, absl::Span<const size_t> bone_indices,
     absl::Span<const ProfileControlBone> bones, absl::Span<const ProfileControlPoint> source_joints,
-    int spacing, double joint_blend_radius) {
+    int spacing, double joint_blend_radius, double joint_blend_lateral_scale) {
   if (!artwork.IsValid() || bone_indices.size() != 2 || spacing <= 0 ||
       !std::isfinite(joint_blend_radius) || joint_blend_radius <= 0.0 ||
+      !std::isfinite(joint_blend_lateral_scale) || joint_blend_lateral_scale < 0.0 ||
       bone_indices[0] == bone_indices[1] || bone_indices[0] >= bones.size() ||
       bone_indices[1] >= bones.size()) {
     return absl::InvalidArgumentError(
@@ -446,7 +620,7 @@ absl::StatusOr<LayeredPuppetMesh> BuildLayeredPuppetMesh(
       second_bone.end_joint >= source_joints.size()) {
     return absl::InvalidArgumentError("layered puppet mesh bone references an unknown joint");
   }
-  absl::StatusOr<std::array<size_t, 3>> chain = ResolveBoneChain(first_bone, second_bone);
+  absl::StatusOr<BoneChain> chain = ResolveBoneChain(first_bone, second_bone);
   if (!chain.ok()) return chain.status();
   const ProfileControlPoint first_outer = source_joints[(*chain)[0]];
   const ProfileControlPoint shared = source_joints[(*chain)[1]];
@@ -456,7 +630,9 @@ absl::StatusOr<LayeredPuppetMesh> BuildLayeredPuppetMesh(
   if (first_length <= 1e-6 || second_length <= 1e-6) {
     return absl::InvalidArgumentError("layered puppet mesh bone has zero length");
   }
-  const double blend_radius = std::min(joint_blend_radius, std::min(first_length, second_length));
+  // Clamping to the shorter bone keeps each outer joint rigidly attached, so a
+  // widened band never reaches past the shoulder or the wrist.
+  const double shortest_bone = std::min(first_length, second_length);
   ASSIGN_OR_RETURN(const Bounds opaque, OpaqueBounds(artwork));
   const int minimum_x = std::max(0, opaque.minimum_x - 1);
   const int minimum_y = std::max(0, opaque.minimum_y - 1);
@@ -473,36 +649,77 @@ absl::StatusOr<LayeredPuppetMesh> BuildLayeredPuppetMesh(
   const std::vector<int> x_coordinates = make_axis(minimum_x, maximum_x);
   const std::vector<int> y_coordinates = make_axis(minimum_y, maximum_y);
 
-  LayeredPuppetMesh mesh;
-  mesh.vertices.reserve(x_coordinates.size() * y_coordinates.size());
+  const size_t columns = x_coordinates.size();
+  std::vector<LayeredPuppetMeshVertex> grid;
+  grid.reserve(columns * y_coordinates.size());
   for (const int y : y_coordinates) {
     for (const int x : x_coordinates) {
       const ProfileControlPoint point{.x = static_cast<double>(x), .y = static_cast<double>(y)};
       const SegmentProjection first_projection = ProjectOntoSegment(point, first_outer, shared);
       const SegmentProjection second_projection = ProjectOntoSegment(point, shared, second_outer);
-      const double chain_position = first_projection.distance <= second_projection.distance
+      const bool nearer_first = first_projection.distance <= second_projection.distance;
+      const double chain_position = nearer_first
                                         ? first_projection.fraction * first_length
                                         : first_length + second_projection.fraction * second_length;
+      // Widen the blend band with distance from the bone. Folding is driven by
+      // lateral offset, not by position along the chain: rotating about the
+      // joint by an angle that changes at rate g gives a Jacobian determinant
+      // of 1 - g*d at lateral distance d, so the far side of a thick sleeve
+      // crosses over while the axis is safe. Spreading the same angle change
+      // over a longer stretch out there lowers g exactly where d is large.
+      const double lateral = nearer_first ? first_projection.distance : second_projection.distance;
+      const double blend_radius =
+          std::min(joint_blend_radius + joint_blend_lateral_scale * lateral, shortest_bone);
       double first_weight = 1.0;
       if (chain_position >= first_length + blend_radius) {
         first_weight = 0.0;
       } else if (chain_position > first_length - blend_radius) {
         first_weight = 0.5 - (chain_position - first_length) / (2.0 * blend_radius);
       }
-      mesh.vertices.push_back({.source = point, .first_bone_weight = first_weight});
+      grid.push_back({.source = point, .first_bone_weight = first_weight});
     }
   }
-  const size_t columns = x_coordinates.size();
-  mesh.triangles.reserve((columns - 1) * (y_coordinates.size() - 1) * 2);
+
+  // Keep only cells that carry artwork, plus one cell of transparent collar so
+  // every opaque pixel stays covered at the contour. A grid over the whole
+  // bounding box wastes triangles on empty corners, and those corners sit far
+  // from the joint, so they fold under any real bend and make the inversion
+  // count meaningless.
+  const auto cell_carries_artwork = [&](size_t x, size_t y) {
+    const int left = std::max(0, x_coordinates[x] - spacing);
+    const int top = std::max(0, y_coordinates[y] - spacing);
+    const int right = std::min(artwork.width - 1, x_coordinates[x + 1] + spacing);
+    const int bottom = std::min(artwork.height - 1, y_coordinates[y + 1] + spacing);
+    for (int sample_y = top; sample_y <= bottom; ++sample_y) {
+      for (int sample_x = left; sample_x <= right; ++sample_x) {
+        if (artwork.pixels[PixelIndex(artwork.width, sample_x, sample_y) * 4 + 3] != 0) return true;
+      }
+    }
+    return false;
+  };
+  constexpr size_t kUnused = std::numeric_limits<size_t>::max();
+  std::vector<size_t> remapped(grid.size(), kUnused);
+  LayeredPuppetMesh mesh;
+  const auto retain = [&](size_t index) {
+    if (remapped[index] == kUnused) {
+      remapped[index] = mesh.vertices.size();
+      mesh.vertices.push_back(grid[index]);
+    }
+    return remapped[index];
+  };
   for (size_t y = 0; y + 1 < y_coordinates.size(); ++y) {
     for (size_t x = 0; x + 1 < columns; ++x) {
-      const size_t top_left = y * columns + x;
-      const size_t top_right = top_left + 1;
-      const size_t bottom_left = top_left + columns;
-      const size_t bottom_right = bottom_left + 1;
+      if (!cell_carries_artwork(x, y)) continue;
+      const size_t top_left = retain(y * columns + x);
+      const size_t top_right = retain(y * columns + x + 1);
+      const size_t bottom_left = retain((y + 1) * columns + x);
+      const size_t bottom_right = retain((y + 1) * columns + x + 1);
       mesh.triangles.push_back({.vertices = {top_left, top_right, bottom_left}});
       mesh.triangles.push_back({.vertices = {top_right, bottom_right, bottom_left}});
     }
+  }
+  if (mesh.triangles.empty()) {
+    return absl::InvalidArgumentError("layered puppet mesh covers no artwork");
   }
   return mesh;
 }
@@ -613,6 +830,26 @@ absl::Status ValidateLayeredPuppet(const LayeredPuppet& puppet) {
     }
   }
   return absl::OkStatus();
+}
+
+absl::StatusOr<std::vector<ProfileControlPoint>> SolveLayeredPuppetMeshVertices(
+    const LayeredPuppet& puppet, const LayeredPuppetPose& pose, size_t part_index) {
+  RETURN_IF_ERROR(ValidateLayeredPuppet(puppet));
+  if (part_index >= puppet.parts.size() || pose.joints.size() != puppet.source_joints.size()) {
+    return absl::InvalidArgumentError("requested layered puppet part pose is invalid");
+  }
+  const LayeredPuppetPart& part = puppet.parts[part_index];
+  if (part.mesh.vertices.empty() || part.bone_indices.size() != 2) {
+    return absl::InvalidArgumentError("requested layered puppet part carries no skinned mesh");
+  }
+  ASSIGN_OR_RETURN(const SkinnedChainMotion motion, BuildSkinnedChainMotion(puppet, pose, part));
+  std::vector<ProfileControlPoint> targets;
+  targets.reserve(part.mesh.vertices.size());
+  for (const LayeredPuppetMeshVertex& vertex : part.mesh.vertices) {
+    const Point target = TransformMeshVertex(motion, vertex);
+    targets.push_back({.x = target.x, .y = target.y});
+  }
+  return targets;
 }
 
 absl::StatusOr<RgbaImage> RenderLayeredPuppetPart(const LayeredPuppet& puppet,

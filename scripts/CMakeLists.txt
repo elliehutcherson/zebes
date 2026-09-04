@@ -89,6 +89,7 @@ target_link_libraries(render_layered_puppet
   image_digest
   image_io
   layered_puppet
+  layered_puppet_diagnostics
   semantic_layer_import
   status_macros
   absl::flat_hash_map
@@ -173,23 +174,6 @@ target_link_libraries(run_pose_conditioned_animation
   absl::strings
 )
 add_dependencies(run_pose_conditioned_animation copy_assets)
-
-add_executable(stage_animation_live_proof stage_animation_live_proof.cc)
-target_compile_definitions(stage_animation_live_proof
-  PRIVATE ZEBES_CHECKED_IN_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
-target_link_libraries(stage_animation_live_proof
-  PRIVATE
-  atomic_directory_publisher
-  utc_timestamp
-  absl::flags
-  absl::flags_parse
-  absl::log
-  absl::log_initialize
-  absl::status
-  absl::statusor
-  absl::strings
-  nlohmann_json::nlohmann_json
-)
 
 add_executable(process_generated_artwork process_generated_artwork.cc)
 target_link_libraries(process_generated_artwork

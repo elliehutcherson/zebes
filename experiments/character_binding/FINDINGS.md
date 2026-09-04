@@ -31,14 +31,21 @@ arm through a shoulder/elbow/wrist chain with a reusable triangulated mesh.
 The first isolated arm gate passed, but full-character motion exposed a static
 ghost. Exclusive ownership and torso underpaint fixed that defect: all 18,974
 source pixels are singly owned and neutral changes zero pixels. Human review
-then rejected the remaining deformation quality. The 286-vertex grid transports
-texture, but six-pixel linear blending leaves most pixels attached to one rigid
-bone and compresses contact/airborne arm area to 87.1%/86.9%. It does not create
-the intended cage-like morph around the skeleton.
+then rejected the remaining deformation quality.
 
-The next experiment is a direct linear-versus-ARAP comparison over identical
-artwork, ownership, poses, and composition. Do not proceed to the second arm or
-legs until native 48px review accepts the deformation.
+Sections 23 and 24 measured why, and it is mostly not deformation. The elbow is fixed:
+angle-blended skinning plus a trimmed mesh and a laterally widened blend band
+give zero folds and a smooth bend, with neutral still pixel-exact. Retained area
+is retired as a gate, because removing the folds lowered it while the picture
+improved.
+
+The layer cut is fixed too. Ownership is derived from the layer's own alpha plus
+a reach limit off the bone chain, so the stuck pixels are gone and the tail no
+longer swings with the arm.
+
+What remains is 598 px of body with nothing painted behind it. Next: stop
+clipping the underpaint, then stretch to close what is left. Do not proceed to
+the second arm or legs until 48px review accepts the result.
 
 Inference supplies candidate RGBA only. C++ owns crop restoration, original
 pixel preservation, semantic acceptance, skeleton mapping, deformation,
@@ -71,6 +78,10 @@ articulation scoring, and rejection.
 | 21 | Isolated skeleton-skinned arm | Exact part neutral and connected bend; full composite ghosts | Add ownership gate |
 | 22 | Exclusive ownership and torso underpaint | 18,974 singly owned pixels; exact neutral; no ghost | Ownership pass |
 | 23 | Human mesh-deformation review | Grid reads as rigid sections; ~13% area compression | Reject linear deformation |
+| 24 | Measured diagnosis | 105 stuck px, 876 unbacked px, 14 folds on artwork | Fix the layer cut before the solver |
+| 25 | Angle-blended skinning | Neutral exact; 88.1%/87.8%; folds unchanged | Keep; not enough alone |
+| 26 | Trimmed mesh, laterally widened blend | Zero folds, exact neutral, smooth elbow; area fell to 81.9%/81.0% | Accept; retire the area gate |
+| 27 | Ownership from layer alpha plus bone reach | Orphans 105 to 0, backfill 876 to 598, tail no longer swings with the arm | Accept; gate on |
 
 ---
 
@@ -597,10 +608,147 @@ joint. The visual verdict supersedes the earlier conclusion that ARAP was not
 needed.
 
 Verdict: freeze the accepted semantic arm, ownership masks, underpaint, skeleton,
-poses, and renderer. Compare the current baseline directly with a C++ ARAP solve
-over an active alpha mesh. The complete implementation and review contract lives
-in [`docs/character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md).
+poses, and renderer, then measure before changing the solver. Section 23
+supersedes the ARAP recommendation.
 
+## 23. Measured diagnosis — three problems, not one
+
+Section 22's review named the smallest of three. `layered_puppet_diagnostics`
+measured all three on the frozen `semantic-arm-v5` inputs; frame digests were
+byte-identical, so nothing about the render moved.
+
+| problem | measure | value |
+|---|---|---|
+| old arm pixels stuck to the body | orphan islands inside the arm bounds | 105 px, 3 clumps |
+| the tail and a belt sliver ride along with the arm | visual | see `parts/front_arm.png` |
+| nothing painted behind the arm | backfill uncovered | 876 of 1,975 px |
+| elbow folds when it bends | folded triangles on artwork | 14 of 504 |
+
+The tail has the same cause as the stuck pixels, in the other direction. The
+hand-drawn polygon reaches x198 while `handwear-l` ends at x186. One polygon
+leaves arm pixels behind, the other takes body pixels along. It is why the
+airborne arm reads as a stick.
+
+The first two are what human review actually saw: a floating sliver, and a white
+gash down the coat. Neither is a deformation problem.
+
+Both existing gates were blind to them. Ownership only asks whether each pixel
+has one owner, and a leftover arm pixel owned by the body has one owner. Neutral
+is exact only while the arm still covers its own hole.
+
+Bend angle predicts the area loss. Passing bends 6 degrees, folds nothing, keeps
+98.7%. Contact and airborne bend 59 and 62, fold 43 and 44, keep 87.1% and 86.9%.
+
+Two fixes removed both causes of the elbow damage.
+
+Skinning now averages the two bone angles instead of two rotated positions, which
+is what a rotation blend should be. The mesh is trimmed to the arm plus one cell
+of collar, and the blend band widens with distance from the bone
+(`joint_blend_lateral_scale`, 1.0). Folding is driven by lateral offset:
+rotating about the joint by an angle changing at rate `g` gives a Jacobian
+determinant of `1 - g*d` at lateral distance `d`, so the sleeve's far side
+crosses over while the axis is safe. Widening only out there lowers `g` where `d`
+is large. Threshold is `scale > bend/2`; the 62-degree pose predicts 0.54 and
+folds measured zero at 0.5.
+
+Every pose now has zero folds, stays one connected component, and neutral is
+still pixel-exact.
+
+**Retained area went down, and that is correct.** Contact 87.1% to 81.9%,
+airborne 86.9% to 81.0%. The picture improved: before, the elbow had a notch
+bitten out of it and the upper sleeve read as a detached blob; after, it is a
+smooth continuous bend. A bent tube covers less area than a straight one, so the
+95% area target was rewarding rigidity. Area is retired as a gate. What remains:
+zero folds, one component, exact neutral, and review at 48px.
+
+The two versions are near-indistinguishable in the 48px composite, which is the
+expected size of the effect on a ~70-pixel arm.
+
+## 24. Ownership from the layer alpha plus bone reach — pass
+
+A skinned part now derives what it owns instead of being given an outline. A
+pixel is owned when the grown candidate alpha paints it, the source paints it,
+and it is within `reach` of the bone chain, where reach runs from a wide value at
+the shoulder to a tight one at the hand. Wide at the shoulder because a sleeve
+really is part of the coat; tight at the hand because the limb is free. The body
+then subtracts exactly that region by name rather than repeating an outline.
+
+Orphans fell 105 to 0, backfill 876 to 598, and the tail stopped swinging with
+the arm. Neutral is still pixel-exact and all 18,974 pixels stay singly owned.
+
+The tail is what justified the reach term. Alpha alone already drops it, since
+`handwear-l` ends at x186 and the tail sits at x186-200. But the first reach
+tried, 12 at the hand, cut through where the hand and tail root touch and severed
+the tail into an 83 px floating island; the orphan gate caught it. 10 is the
+largest value that passes, and it matches the hand's radius from the wrist.
+
+One bug worth remembering: subtracting the mask from the ownership record but not
+from the rendered artwork made every gate report a clean decomposition over a
+composite that still drew the ghost arm. Ownership records and rendered pixels
+must lose the same region.
+
+## 25. Audit of earlier assumptions — four things we had wrong
+
+**The legs never move.** Zero pixels differ in the leg, boot, head and ear
+regions between neutral, contact and passing. Only 3 of the 10 bones are bound to
+a part: `torso` carries the whole body rigidly, and the two arm-B bones carry the
+arm. The poses declare `knee_a`, `foot_a`, `knee_b`, `foot_b`, `elbow_a` and
+`hand_a` positions that nothing consumes. The earlier 10-part `mouse_profile_v1`
+run did move legs, ~2,500 px per pose. Every "four-pose" review of
+`semantic-arm-v5` has therefore been reviewing a standing mouse with one arm
+moving. Airborne differs only because the body translates up 12 px.
+
+**Interior holes were dismissed on a stale reading.** This document claimed all
+four poses report 174-175 holes, so the count was the source art's own gaps. That
+was read once on the first diagnostic run and never re-read. Neutral, passing and
+airborne sit at 174; contact is 355. Those 181 extra are enclosed tears — a slash
+at the shoulder and a hole between the hand and the tail. The metric works;
+compare each pose against the neutral count.
+
+**Ledger row 22 overclaimed.** "18,974 singly owned pixels; exact neutral; no
+ghost" passed on a check that only asks whether each pixel has exactly one owner.
+105 arm pixels welded to the body satisfy that. A decomposition gate that never
+looks at the composite will keep passing over visible damage — the same shape of
+error recurred later when an ownership mask was subtracted from the record but
+not from the rendered artwork.
+
+**The inputs were one `git clean` from gone.** `experiments/character_binding/out/`
+was fully git-ignored, including `source-color.png` and the See-through layers.
+Neither is reproducible from anything in the repository: the reference is the one
+accepted identity out of a rejected fuzz set, and See-through ran for 520 seconds
+in a disposable environment on another machine. `.gitignore` now excepts those
+20 files, 880 KB.
+
+**See-through gives less than section 19 implies.** Compositing all nine kept
+layers leaves 21% of the source uncovered, 100,994 of 480,187 px. The two largest
+gaps are the mouse's own ears, 43,568 px and 39,432 px, which appear in no layer
+raw or optimized — `raw/ears.png` is the hallucinated human ears at the face
+sides. A 2,748 px brown appendage beside the right paw, most likely the tail, is
+also in no layer and extends past `handwear-l`'s crop box.
+
+`raw/head.png` holds the genuine pixel-art mouse face, 71,416 px with the eye,
+muzzle and pink nose in the correct palette, and it was dropped when `optimized/`
+was cut — `info.json` part ids skip 2 and 5. It is recoverable and should be if a
+head part is ever wanted. The ears are not recoverable from any layer.
+
+Also: `back hair`, `headwear`, `ears-l` and `ears-r` are smooth antialiased
+renders rather than pixel art, so anything assuming a uniform pixel grid across
+`optimized/` is wrong for those four. `src_img.png` carries a white gap and a
+ground shadow, so its alpha is not a character mask. The red scarf is baked into
+`topwear` and cannot move separately. The raw-to-optimized crop is otherwise
+lossless; opaque counts match exactly for every retained layer.
+
+Two smaller items: `frame_size` is read as `[height, width]` and See-through's
+canvas is square, so a non-square canvas would silently transpose every layer;
+and the approved source reaches 256 px by an exact ÷4 while the See-through
+layers go 1024 → 1280 → 256, so completed pixels are interpolated relative to the
+source. `PreserveSemanticVisiblePixels` hides that at neutral, and it shows only
+in the sleeve exposed when the arm moves.
+
+Verdict: pass, gate on. Remaining work is the 745 px with nothing behind them.
+Stop clipping the underpaint, then stretch to close what is left. Plan and
+fallbacks in
+[`docs/character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md).
 ---
 
 # The one rule that explains most failures
@@ -683,20 +831,23 @@ caches remain outside the repository.
 
 # What I would do next, in order
 
-1. **Run the bounded ARAP A/B experiment.** Reuse the accepted arm, ownership,
-   underpaint, joints, poses, and native reduction unchanged. Build an active
-   alpha mesh, constrain shoulder/elbow/wrist, and compare ARAP directly against
-   the rejected linear baseline.
-2. **Require native visual acceptance.** Preserve exact neutral composition,
-   exclusive ownership, connectivity, joint targets, triangle orientation, and
-   deterministic digests. ARAP must preserve sleeve shape and visibly read as a
-   bending painted arm at 48px.
-3. **Stop on no visible improvement.** If ARAP converges but still reads rigid,
-   test one authored elbow corrective instead of tuning the solver repeatedly.
-4. **Only after a pass, apply the method to `handwear-r`.** Then split footwear,
-   obtain complete legs/tail, and bind legs through hip/knee/foot.
-5. **Defer skeleton-conditioned ML.** The current blocker is deterministic
-   deformation quality, not semantic parsing.
-6. **Finish production after the complete-character gate.** Render/import the
+The ARAP A/B that used to head this list is withdrawn; see sections 23 and 24.
+
+1. **Close the backfill.** 745 px of the arm has no static layer behind it. Use
+   every pixel the See-through coat paints, then stretch to cover the rest.
+2. **Clear the two gates the shoulder correction exposed.** 149 orphan pixels and
+   4 folded triangles, neither tunable with the current knobs. The tail needs to
+   become its own part.
+3. **Bind more than one arm before believing a pose review.** Only 3 of the 10
+   bones drive a part today, so the legs and head are frozen; the four-pose
+   evidence is a standing mouse with one arm moving.
+4. **Reach for MLS driving the existing mesh** if the weight and reach heuristics
+   keep failing. Do not delete the mesh; it is the rasterizer and it holds the
+   exact-neutral proof.
+5. **Then apply the method to `handwear-r`,** split footwear, obtain complete
+   legs/tail, and bind legs through hip/knee/foot.
+6. **Defer skeleton-conditioned ML.** The blocker is the layer cut, not semantic
+   parsing.
+7. **Finish production after the complete-character gate.** Render/import the
    six replacement clips, expose editor import controls, record live
    transitions, then unblock runtime M4.
