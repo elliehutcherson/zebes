@@ -12,7 +12,7 @@ Current work and dependency order only. Completed narratives are indexed in
 | 2 | Repository hygiene | Done |
 | 3 | Terrain carry-overs | Done |
 | 4 | Layers and production environment/content | In progress: finite content polish remains |
-| 5 | Game runtime | In progress: M1–M3 and pure frame-set processing complete; recipe lifecycle next |
+| 5 | Game runtime | In progress: M1–M3, processing, recipe lifecycle, and curation complete; player art gate reopened |
 
 Tracks 4 and 5 may proceed in parallel when they do not edit the same production
 level, player Blueprint, or review evidence.
