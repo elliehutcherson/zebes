@@ -15,6 +15,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "artwork/layered_puppet.h"
+#include "artwork/semantic_layer_import.h"
 #include "common/image_digest.h"
 #include "common/image_io.h"
 #include "common/status_macros.h"
@@ -22,6 +23,8 @@
 
 ABSL_FLAG(std::string, source, "", "Approved working-resolution RGBA source PNG.");
 ABSL_FLAG(std::string, spec, "", "Explicit layered puppet JSON specification.");
+ABSL_FLAG(std::string, semantic_root, "",
+          "Optional See-through optimized PNG and info.json directory.");
 ABSL_FLAG(std::string, output, "", "Destination evidence directory.");
 ABSL_FLAG(int, frame_size, 48, "Native square output frame size.");
 ABSL_FLAG(int, zoom, 8, "Integer nearest-neighbor evidence zoom.");
@@ -125,8 +128,64 @@ bool IsSafePartName(const std::string& name) {
   return true;
 }
 
+zebes::RgbaImage EmptyCanvasLike(const zebes::RgbaImage& source) {
+  return {
+      .width = source.width,
+      .height = source.height,
+      .pixels = std::vector<uint8_t>(source.pixels.size(), 0),
+  };
+}
+
+absl::Status ClearVisiblePolygons(zebes::RgbaImage& visible, const zebes::RgbaImage& source,
+                                  absl::Span<const zebes::LayeredPuppetPolygon> exclusions) {
+  if (exclusions.empty()) return absl::OkStatus();
+  ASSIGN_OR_RETURN(zebes::RgbaImage excluded,
+                   zebes::BuildLayeredPuppetPartArtwork(source, exclusions, {}));
+  for (size_t offset = 0; offset < visible.pixels.size(); offset += 4) {
+    if (excluded.pixels[offset + 3] == 0) continue;
+    std::fill_n(visible.pixels.begin() + static_cast<ptrdiff_t>(offset), 4, 0);
+  }
+  return absl::OkStatus();
+}
+
+absl::StatusOr<zebes::RgbaImage> LoadSemanticPart(
+    const zebes::RgbaImage& source, const zebes::RgbaImage& visible_artwork, const std::string& tag,
+    const std::filesystem::path& root, const nlohmann::json& metadata, bool clip_to_source_alpha) {
+  if (!IsSafePartName(tag) || root.empty()) {
+    return absl::InvalidArgumentError("semantic puppet part tag or root is invalid");
+  }
+  const nlohmann::json& frame_size = metadata.at("frame_size");
+  const nlohmann::json& part = metadata.at("parts").at(tag);
+  const nlohmann::json& coordinates = part.at("xyxy");
+  if (!frame_size.is_array() || frame_size.size() != 2 || !coordinates.is_array() ||
+      coordinates.size() != 4) {
+    return absl::InvalidArgumentError("semantic layer metadata dimensions are invalid");
+  }
+  const int canvas_height = frame_size.at(0).get<int>();
+  const int canvas_width = frame_size.at(1).get<int>();
+  const int left = coordinates.at(0).get<int>();
+  const int top = coordinates.at(1).get<int>();
+  const int right = coordinates.at(2).get<int>();
+  const int bottom = coordinates.at(3).get<int>();
+  const absl::StatusOr<zebes::RgbaImage> cropped = zebes::ReadPng((root / (tag + ".png")).string());
+  if (!cropped.ok()) return cropped.status();
+  ASSIGN_OR_RETURN(
+      zebes::RgbaImage restored,
+      zebes::RestoreSemanticLayer(
+          *cropped, {.x = left, .y = top, .width = right - left, .height = bottom - top},
+          canvas_width, canvas_height));
+  ASSIGN_OR_RETURN(zebes::RgbaImage candidate,
+                   zebes::DownsampleSemanticLayer(restored, source.width, source.height));
+  if (clip_to_source_alpha) {
+    ASSIGN_OR_RETURN(candidate, zebes::ClipSemanticLayerToMask(candidate, source));
+  }
+  return zebes::PreserveSemanticVisiblePixels(candidate, source, visible_artwork);
+}
+
 absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
-                                                 const nlohmann::json& spec) {
+                                                 const nlohmann::json& spec,
+                                                 const std::filesystem::path& semantic_root,
+                                                 const nlohmann::json* semantic_metadata) {
   if (spec.at("version").get<int>() != 1) {
     return absl::InvalidArgumentError("layered puppet spec version must be 1");
   }
@@ -178,10 +237,27 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
     const nlohmann::json& part = parts[part_index];
     const std::string label = "spec.parts[" + std::to_string(part_index) + "]";
     const std::string name = part.at("name").get<std::string>();
-    const std::string bone_name = part.at("bone").get<std::string>();
-    const auto bone = bone_indices.find(bone_name);
-    if (!IsSafePartName(name) || bone == bone_indices.end() || part_indices.contains(name)) {
-      return absl::InvalidArgumentError("puppet part name or bone is invalid");
+    std::vector<size_t> part_bones;
+    if (part.contains("bone")) {
+      const std::string bone_name = part.at("bone").get<std::string>();
+      const auto bone = bone_indices.find(bone_name);
+      if (bone == bone_indices.end()) {
+        return absl::InvalidArgumentError("puppet part references an unknown bone");
+      }
+      part_bones.push_back(bone->second);
+    } else if (part.contains("bones") && part.at("bones").is_array()) {
+      for (const nlohmann::json& bone_name_json : part.at("bones")) {
+        const std::string bone_name = bone_name_json.get<std::string>();
+        const auto bone = bone_indices.find(bone_name);
+        if (bone == bone_indices.end()) {
+          return absl::InvalidArgumentError("puppet part references an unknown bone");
+        }
+        part_bones.push_back(bone->second);
+      }
+    }
+    if (!IsSafePartName(name) || part_indices.contains(name) || part_bones.empty() ||
+        part_bones.size() > 2) {
+      return absl::InvalidArgumentError("puppet part name or bone chain is invalid");
     }
 
     std::vector<zebes::LayeredPuppetPolygon> source_polygons;
@@ -196,6 +272,28 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
                                      label + ".source_polygons[" + std::to_string(index) + "]"));
         source_polygons.push_back(std::move(polygon));
       }
+    }
+
+    std::vector<zebes::LayeredPuppetPolygon> source_exclusions;
+    if (part.contains("source_exclude_polygons")) {
+      const nlohmann::json& polygons = part.at("source_exclude_polygons");
+      if (!polygons.is_array()) {
+        return absl::InvalidArgumentError(label + ".source_exclude_polygons must be an array");
+      }
+      for (size_t index = 0; index < polygons.size(); ++index) {
+        ASSIGN_OR_RETURN(zebes::LayeredPuppetPolygon polygon,
+                         ReadPolygon(polygons[index], label + ".source_exclude_polygons[" +
+                                                          std::to_string(index) + "]"));
+        source_exclusions.push_back(std::move(polygon));
+      }
+    }
+    zebes::RgbaImage visible_artwork = EmptyCanvasLike(source);
+    if (!source_polygons.empty()) {
+      ASSIGN_OR_RETURN(visible_artwork,
+                       zebes::BuildLayeredPuppetPartArtwork(source, source_polygons, {}));
+      RETURN_IF_ERROR(ClearVisiblePolygons(visible_artwork, source, source_exclusions));
+    } else if (!source_exclusions.empty()) {
+      return absl::InvalidArgumentError("source exclusions require source ownership polygons");
     }
 
     std::vector<zebes::LayeredPuppetFill> fills;
@@ -215,11 +313,34 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
         fills.push_back({.polygon = std::move(polygon), .color = *color});
       }
     }
-    ASSIGN_OR_RETURN(zebes::RgbaImage artwork,
-                     zebes::BuildLayeredPuppetPartArtwork(source, source_polygons, fills));
+    zebes::RgbaImage artwork;
+    if (part.contains("semantic_tag")) {
+      if (semantic_metadata == nullptr || !fills.empty()) {
+        return absl::InvalidArgumentError(
+            "semantic puppet part requires metadata and forbids solid fills");
+      }
+      ASSIGN_OR_RETURN(
+          artwork, LoadSemanticPart(source, visible_artwork,
+                                    part.at("semantic_tag").get<std::string>(), semantic_root,
+                                    *semantic_metadata, part.value("clip_to_source_alpha", false)));
+    } else {
+      ASSIGN_OR_RETURN(artwork,
+                       zebes::BuildLayeredPuppetPartArtwork(source, source_polygons, fills));
+      RETURN_IF_ERROR(ClearVisiblePolygons(artwork, source, source_exclusions));
+    }
+    zebes::LayeredPuppetMesh mesh;
+    if (part_bones.size() == 2) {
+      ASSIGN_OR_RETURN(
+          mesh, zebes::BuildLayeredPuppetMesh(artwork, part_bones, puppet.bones,
+                                              puppet.source_joints, part.value("mesh_spacing", 4),
+                                              part.value("joint_blend_radius", 12.0)));
+    }
     part_indices.emplace(name, puppet.parts.size());
-    puppet.parts.push_back(
-        {.name = name, .bone_index = bone->second, .artwork = std::move(artwork)});
+    puppet.parts.push_back({.name = name,
+                            .bone_indices = std::move(part_bones),
+                            .artwork = std::move(artwork),
+                            .visible_artwork = std::move(visible_artwork),
+                            .mesh = std::move(mesh)});
   }
 
   const nlohmann::json& poses = spec.at("poses");
@@ -252,9 +373,30 @@ absl::Status WriteImage(const std::filesystem::path& path, const zebes::RgbaImag
   return zebes::WritePng(path.string(), image.width, image.height, image.pixels);
 }
 
+size_t OpaquePixelCount(const zebes::RgbaImage& image) {
+  size_t count = 0;
+  for (size_t offset = 3; offset < image.pixels.size(); offset += 4) {
+    if (image.pixels[offset] != 0) ++count;
+  }
+  return count;
+}
+
+size_t PixelDifferenceCount(const zebes::RgbaImage& first, const zebes::RgbaImage& second) {
+  size_t count = 0;
+  for (size_t offset = 0; offset < first.pixels.size(); offset += 4) {
+    if (!std::equal(first.pixels.begin() + static_cast<ptrdiff_t>(offset),
+                    first.pixels.begin() + static_cast<ptrdiff_t>(offset + 4),
+                    second.pixels.begin() + static_cast<ptrdiff_t>(offset))) {
+      ++count;
+    }
+  }
+  return count;
+}
+
 int Run() {
   const std::string source_path = absl::GetFlag(FLAGS_source);
   const std::string spec_path = absl::GetFlag(FLAGS_spec);
+  const std::filesystem::path semantic_root = absl::GetFlag(FLAGS_semantic_root);
   const std::filesystem::path output = absl::GetFlag(FLAGS_output);
   if (source_path.empty() || spec_path.empty() || output.empty()) {
     std::cerr << "--source, --spec, and --output are required\n";
@@ -269,8 +411,22 @@ int Run() {
     return 1;
   }
 
+  nlohmann::json semantic_metadata;
+  const nlohmann::json* semantic_metadata_pointer = nullptr;
+  if (!semantic_root.empty()) {
+    const absl::StatusOr<nlohmann::json> loaded =
+        ReadJson((semantic_root / "info.json").string(), "semantic layer metadata");
+    if (!loaded.ok()) {
+      std::cerr << loaded.status().message() << '\n';
+      return 1;
+    }
+    semantic_metadata = *loaded;
+    semantic_metadata_pointer = &semantic_metadata;
+  }
+
   try {
-    absl::StatusOr<zebes::LayeredPuppet> puppet = ParsePuppet(*source, *spec);
+    absl::StatusOr<zebes::LayeredPuppet> puppet =
+        ParsePuppet(*source, *spec, semantic_root, semantic_metadata_pointer);
     if (!puppet.ok()) {
       std::cerr << puppet.status().message() << '\n';
       return 1;
@@ -278,10 +434,12 @@ int Run() {
     const std::filesystem::path parts_directory = output / "parts";
     const std::filesystem::path working_directory = output / "working";
     const std::filesystem::path frames_directory = output / "frames";
+    const std::filesystem::path part_poses_directory = output / "part-poses";
     std::error_code error;
     std::filesystem::create_directories(parts_directory, error);
     std::filesystem::create_directories(working_directory, error);
     std::filesystem::create_directories(frames_directory, error);
+    std::filesystem::create_directories(part_poses_directory, error);
     if (error) {
       std::cerr << "could not create layered puppet evidence directories: " << error.message()
                 << '\n';
@@ -295,15 +453,91 @@ int Run() {
         std::cerr << written.message() << '\n';
         return 1;
       }
-      int opaque_pixels = 0;
-      for (size_t offset = 3; offset < part.artwork.pixels.size(); offset += 4) {
-        if (part.artwork.pixels[offset] != 0) ++opaque_pixels;
+      part_pixel_counts[part.name] = OpaquePixelCount(part.artwork);
+    }
+
+    nlohmann::json skinned_part_diagnostics = nlohmann::json::object();
+    nlohmann::json validation_errors = nlohmann::json::array();
+    std::vector<zebes::RgbaImage> visible_layers;
+    visible_layers.reserve(puppet->parts.size());
+    for (const zebes::LayeredPuppetPart& part : puppet->parts) {
+      visible_layers.push_back(part.visible_artwork);
+    }
+    absl::StatusOr<zebes::SemanticVisibleOwnership> ownership =
+        zebes::MeasureSemanticVisibleOwnership(*source, visible_layers);
+    if (!ownership.ok()) {
+      std::cerr << ownership.status().message() << '\n';
+      return 1;
+    }
+    if (spec->value("require_exclusive_visible_ownership", false) &&
+        (ownership->unowned_pixels != 0 || ownership->multiply_owned_pixels != 0 ||
+         ownership->ownership_outside_source_pixels != 0)) {
+      validation_errors.push_back("source-visible pixels do not have exclusive complete ownership");
+    }
+    for (size_t part_index = 0; part_index < puppet->parts.size(); ++part_index) {
+      const zebes::LayeredPuppetPart& part = puppet->parts[part_index];
+      if (part.bone_indices.size() != 2) continue;
+      const size_t source_opaque_pixels = OpaquePixelCount(part.artwork);
+      const std::filesystem::path part_directory = part_poses_directory / part.name;
+      std::filesystem::create_directories(part_directory, error);
+      if (error) {
+        std::cerr << "could not create skinned-part evidence directory: " << error.message()
+                  << '\n';
+        return 1;
       }
-      part_pixel_counts[part.name] = opaque_pixels;
+      nlohmann::json pose_diagnostics = nlohmann::json::object();
+      for (const zebes::LayeredPuppetPose& pose : puppet->poses) {
+        absl::StatusOr<zebes::RgbaImage> rendered =
+            zebes::RenderLayeredPuppetPart(*puppet, pose, part_index);
+        if (!rendered.ok()) {
+          std::cerr << rendered.status().message() << '\n';
+          return 1;
+        }
+        const absl::Status written = WriteImage(part_directory / (pose.name + ".png"), *rendered);
+        if (!written.ok()) {
+          std::cerr << written.message() << '\n';
+          return 1;
+        }
+        absl::StatusOr<std::vector<zebes::SemanticLayerComponent>> components =
+            zebes::SplitSemanticLayerComponents(*rendered);
+        if (!components.ok()) {
+          std::cerr << components.status().message() << '\n';
+          return 1;
+        }
+        const size_t rendered_opaque_pixels = OpaquePixelCount(*rendered);
+        const size_t reconstruction_difference =
+            pose.name == "neutral" ? PixelDifferenceCount(part.artwork, *rendered) : 0;
+        if (pose.name == "neutral" && reconstruction_difference != 0) {
+          validation_errors.push_back(part.name + " neutral reconstruction changed source pixels");
+        }
+        if (components->size() != 1) {
+          validation_errors.push_back(part.name + " " + pose.name +
+                                      " is not one connected component");
+        }
+        const absl::StatusOr<std::string> digest = zebes::RgbaImageDigest(*rendered);
+        if (!digest.ok()) {
+          std::cerr << digest.status().message() << '\n';
+          return 1;
+        }
+        pose_diagnostics[pose.name] = {
+            {"components", components->size()},
+            {"opaque_pixels", rendered_opaque_pixels},
+            {"retained_area_ratio",
+             static_cast<double>(rendered_opaque_pixels) / source_opaque_pixels},
+            {"neutral_reconstruction_difference", reconstruction_difference},
+            {"rgba_digest", *digest},
+        };
+      }
+      skinned_part_diagnostics[part.name] = {
+          {"mesh_vertices", part.mesh.vertices.size()},
+          {"mesh_triangles", part.mesh.triangles.size()},
+          {"poses", std::move(pose_diagnostics)},
+      };
     }
 
     std::vector<zebes::RgbaImage> frames;
     nlohmann::json frame_digests = nlohmann::json::object();
+    size_t neutral_composite_difference = 0;
     for (const zebes::LayeredPuppetPose& pose : puppet->poses) {
       absl::StatusOr<zebes::RgbaImage> working = zebes::RenderLayeredPuppetPose(*puppet, pose);
       if (!working.ok()) {
@@ -315,6 +549,13 @@ int Run() {
       if (!working_written.ok()) {
         std::cerr << working_written.message() << '\n';
         return 1;
+      }
+      if (pose.name == "neutral") {
+        neutral_composite_difference = PixelDifferenceCount(*source, *working);
+        if (spec->value("require_exact_neutral_composite", false) &&
+            neutral_composite_difference != 0) {
+          validation_errors.push_back("neutral composite changed approved source pixels");
+        }
       }
       absl::StatusOr<zebes::RgbaImage> frame =
           zebes::DownsampleLayeredPuppetFrame(*working, absl::GetFlag(FLAGS_frame_size));
@@ -364,6 +605,7 @@ int Run() {
       std::cerr << source_digest.status().message() << '\n';
       return 1;
     }
+    const bool validation_passed = validation_errors.empty();
     const nlohmann::json manifest = {
         {"version", 1},
         {"poses", kPoseNames},
@@ -372,6 +614,16 @@ int Run() {
         {"frame_digests", std::move(frame_digests)},
         {"part_pixel_counts", std::move(part_pixel_counts)},
         {"source_rgba_digest", *source_digest},
+        {"visible_ownership",
+         {{"source_pixels", ownership->source_pixels},
+          {"singly_owned_pixels", ownership->singly_owned_pixels},
+          {"unowned_pixels", ownership->unowned_pixels},
+          {"multiply_owned_pixels", ownership->multiply_owned_pixels},
+          {"ownership_outside_source_pixels", ownership->ownership_outside_source_pixels}}},
+        {"neutral_composite_difference", neutral_composite_difference},
+        {"skinned_parts", std::move(skinned_part_diagnostics)},
+        {"hard_validation",
+         {{"passed", validation_passed}, {"errors", std::move(validation_errors)}}},
     };
     const absl::Status manifest_written = WriteJson(output / "manifest.json", manifest);
     if (!manifest_written.ok()) {
@@ -380,6 +632,10 @@ int Run() {
     }
     std::cout << "wrote " << puppet->poses.size() << "-pose layered puppet proof to " << output
               << "; " << puppet->parts.size() << " authored parts\n";
+    if (!validation_passed) {
+      std::cerr << "layered puppet hard validation failed; see manifest.json\n";
+      return 1;
+    }
   } catch (const nlohmann::json::exception& error) {
     std::cerr << "invalid layered puppet input: " << error.what() << '\n';
     return 1;

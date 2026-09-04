@@ -36,8 +36,10 @@ experiments/character_binding/
   FINDINGS.md
 
 src/artwork/layered_puppet.{h,cc}
+src/artwork/semantic_layer_import.{h,cc}
 scripts/render_layered_puppet.cc
 tests/artwork/layered_puppet_test.cc
+tests/artwork/semantic_layer_import_test.cc
 ```
 
 See-through is evaluated from an isolated temporary checkout on `derry`. Its
@@ -258,15 +260,40 @@ engine dependency. C++ must map and validate accepted RGBA layers, split the
 boots, preserve original visible pixels, and reject every semantically invalid
 class before articulation.
 
-## Next gate: skeleton-driven complete layers
+## 10. Skeleton-driven semantic arm
 
-The explicit skeleton is already the correct production boundary. C++ should
-map each completed arm to shoulder/elbow/wrist and each completed leg to
-hip/knee/foot, then deform one semantic RGBA layer with deterministic two-bone
-mesh weights. This removes artificial upper/lower image seams. Start with
-linear skinning; add ARAP only if the four-pose evidence shows joint collapse.
-Do not add skeleton conditioning to the neural model until repeated inputs show
-that semantic ownership, rather than missing source artwork, is still blocking.
+The C++ semantic importer restores the accepted See-through arm crop, reduces it
+to the 256px working canvas, and pastes original visible pixels back exactly.
+`mouse_semantic_arm_v1.json` binds that complete RGBA layer to
+shoulder/elbow/wrist through a reusable 286-vertex, 504-triangle grid.
+
+```bash
+build/dev/bin/render_layered_puppet \
+  --source=experiments/character_binding/out/profile-binding-deformation-v2/source-color.png \
+  --spec=experiments/character_binding/puppet_specs/mouse_semantic_arm_v1.json \
+  --semantic_root=experiments/character_binding/out/see-through-v1/optimized \
+  --output=experiments/character_binding/out/semantic-arm-v5
+```
+
+The isolated arm initially passed but full-character motion exposed a static
+copy still owned by the torso. The corrected three-layer stack places generated
+coat underpaint behind the complete arm and removes the arm's authoritative
+pixels from the visible body. All 18,974 source pixels now have exactly one
+owner, neutral changes zero full-character pixels, and moved poses reveal coat
+underpaint rather than a ghost arm.
+
+Every arm pose remains one connected component, but human review rejects the
+deformation: most pixels still follow one rigid bone, and the narrow blend
+compresses contact/airborne to 87.1%/86.9% of neutral area. Connectivity and
+exact reconstruction are necessary but did not prove useful morphing.
+
+## Next gate
+
+Run the fixed-input linear-versus-ARAP experiment specified in
+[`docs/character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md).
+Do not proceed to the second arm or legs until native 48px review accepts the
+shape deformation. If ARAP does not visibly improve the arm, test one authored
+elbow corrective rather than tuning another generic solver.
 
 ## Tests
 
@@ -274,4 +301,5 @@ that semantic ownership, rather than missing source artwork, is still blocking.
 scripts/test.sh profile_silhouette_test
 scripts/test.sh profile_deformation_test
 scripts/test.sh layered_puppet_test
+scripts/test.sh semantic_layer_import_test
 ```

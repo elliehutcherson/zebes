@@ -156,6 +156,16 @@ target_link_libraries(layered_puppet
   status_macros
 )
 
+add_library(semantic_layer_import semantic_layer_import.cc)
+target_link_libraries(semantic_layer_import
+  PUBLIC
+  image_io
+  absl::span
+  absl::statusor
+  PRIVATE
+  absl::status
+)
+
 add_library(repetition_review repetition_review.cc)
 target_link_libraries(repetition_review
   PUBLIC

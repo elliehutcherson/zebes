@@ -66,8 +66,8 @@ absl::StatusOr<LayeredPuppet> TestPuppet() {
       .bones = {{.start_joint = 0, .end_joint = 1}, {.start_joint = 0, .end_joint = 2}},
       .parts =
           {
-              {.name = "torso", .bone_index = 0, .artwork = std::move(*torso)},
-              {.name = "arm", .bone_index = 1, .artwork = std::move(*arm)},
+              {.name = "torso", .bone_indices = {0}, .artwork = std::move(*torso)},
+              {.name = "arm", .bone_indices = {1}, .artwork = std::move(*arm)},
           },
       .poses =
           {
@@ -101,6 +101,54 @@ TEST(LayeredPuppetTest, SeparatedArmMovesWithoutWarpingTorso) {
   EXPECT_EQ(std::vector<uint8_t>(contact->pixels.begin() + Offset(5, 8),
                                  contact->pixels.begin() + Offset(5, 8) + 4),
             (std::vector<uint8_t>{48, 144, 80, 255}));
+}
+
+TEST(LayeredPuppetTest, CompleteArmMeshBendsWithoutNeutralReconstructionChanges) {
+  RgbaImage artwork{
+      .width = kSize,
+      .height = kSize,
+      .pixels = std::vector<uint8_t>(kSize * kSize * 4, 0),
+  };
+  for (int y = 4; y < 7; ++y) {
+    for (int x = 4; x < 10; ++x) SetPixel(artwork, x, y, {208, 48, 48, 255});
+  }
+  const std::vector<ProfileControlPoint> source_joints = {
+      {.x = 5, .y = 5}, {.x = 7, .y = 5}, {.x = 9, .y = 5}};
+  const std::vector<ProfileControlBone> bones = {{.start_joint = 0, .end_joint = 1},
+                                                 {.start_joint = 1, .end_joint = 2}};
+  const std::array<size_t, 2> bone_indices = {0, 1};
+  const absl::StatusOr<LayeredPuppetMesh> mesh =
+      BuildLayeredPuppetMesh(artwork, bone_indices, bones, source_joints, 1, 1.0);
+  ASSERT_TRUE(mesh.ok()) << mesh.status();
+  const RgbaImage expected = artwork;
+  const LayeredPuppet puppet{
+      .width = kSize,
+      .height = kSize,
+      .source_joints = source_joints,
+      .bones = bones,
+      .parts =
+          {{.name = "arm", .bone_indices = {0, 1}, .artwork = std::move(artwork), .mesh = *mesh}},
+      .poses =
+          {
+              {.name = "neutral", .joints = source_joints, .draw_order = {0}},
+              {.name = "bend",
+               .joints = {{.x = 5, .y = 5}, {.x = 7, .y = 5}, {.x = 7, .y = 7}},
+               .draw_order = {0}},
+          },
+  };
+
+  const absl::StatusOr<RgbaImage> neutral = RenderLayeredPuppetPose(puppet, puppet.poses[0]);
+  const absl::StatusOr<RgbaImage> bend = RenderLayeredPuppetPose(puppet, puppet.poses[1]);
+
+  ASSERT_TRUE(neutral.ok()) << neutral.status();
+  ASSERT_TRUE(bend.ok()) << bend.status();
+  EXPECT_EQ(neutral->pixels, expected.pixels);
+  EXPECT_NE(bend->pixels, expected.pixels);
+  EXPECT_NE(bend->pixels[Offset(5, 5) + 3], 0);
+  EXPECT_NE(bend->pixels[Offset(6, 5) + 3], 0);
+  EXPECT_NE(bend->pixels[Offset(7, 5) + 3], 0);
+  EXPECT_NE(bend->pixels[Offset(7, 6) + 3], 0);
+  EXPECT_NE(bend->pixels[Offset(7, 7) + 3], 0);
 }
 
 TEST(LayeredPuppetTest, RejectsIncompleteDrawOrder) {

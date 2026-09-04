@@ -1,6 +1,6 @@
 # Active handoff
 
-Updated 2026-09-03. [`roadmap.md`](roadmap.md) owns sequencing; this file is the
+Updated 2026-09-04. [`roadmap.md`](roadmap.md) owns sequencing; this file is the
 short resume point. Completed narratives live in [`history/`](history/README.md).
 
 ## Current state
@@ -15,12 +15,12 @@ Two tracks proceed independently:
 - **Track 5 — runtime/animation.** Runtime Milestones 1–3, pure frame-set
   processing, recipe/bundle lifecycle, and headless animation curation are
   complete. The stable six-state mouse asset graph remains valid, but human
-  review rejected the authored Blender mouse's flat primitive style. The layered
-  2D renderer and proof publication now live in C++; obsolete Python binding and
-  ComfyUI animation-control code is removed. See-through V3 produced useful
-  completed arm, boot, and coat layers from the approved mouse, but failed legs,
-  tail, ears, and hair. This passes a targeted candidate-generation gate, not
-  the production-player gate.
+  review rejected the authored Blender mouse's flat primitive style. The C++
+  layered path now restores one accepted See-through arm, enforces exclusive
+  ownership, removes the static ghost, and reproduces neutral exactly. Its
+  linear mesh remains rejected: most pixels follow rigid bone sections and the
+  narrow elbow blend compresses strong poses by roughly 13%. A bounded ARAP A/B
+  gate is next; the second arm and legs remain deferred.
 
 The reusable ordered-reference generation boundary remains supported for
 OpenAI, Codex, headless generation, and redraw; it is not an animation roadmap
@@ -37,20 +37,19 @@ The newer art-direction evidence is in
 [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) and
 `experiments/character_binding/FINDINGS.md`:
 
-1. Add a C++ adapter for See-through's RGBA/JSON output. Accept only the two arm
-   layers, footwear, and coat candidate; preserve original visible pixels and
-   reject the human-ear, hair, and headwear hallucinations.
-2. Split footwear by connected component. Skin each complete arm to
-   shoulder/elbow/wrist and each complete leg to hip/knee/foot with deterministic
-   two-bone mesh weights. Add ARAP only if the four-pose evidence shows joint
-   collapse.
-3. Obtain missing leg and tail layers through targeted completion or authored
-   correction, then run the neutral/contact/passing/airborne C++ gate. Do not
-   add skeleton-conditioned ML until repeated characters prove semantic
-   ownership remains the blocker.
-4. Render and import replacement clips without changing the stable Blueprint,
-   state keys, timings, playback, or 32×64 collider. Add editor import controls,
-   then record live-transition acceptance. M4 remains blocked until art passes.
+1. Implement the fixed-input C++ ARAP comparison in
+   [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md).
+   Reuse the accepted arm, ownership, underpaint, skeleton, poses, and renderer
+   unchanged.
+2. Require exact neutral/ownership, connected output, joint targets, no triangle
+   inversion, deterministic digests, improved shape retention, and native 48px
+   preference over the linear baseline.
+3. If ARAP converges without visible improvement, stop solver tuning and test
+   one authored elbow corrective. Do not proceed to `handwear-r` first.
+4. Only after deformation passes, apply it to the second arm, split footwear,
+   acquire complete legs/tail, and bind legs through hip/knee/foot.
+5. Keep skeleton-conditioned ML deferred; deformation quality is the current
+   blocker. M4 remains blocked until replacement art passes.
 
 ### Track 4: finite content polish
 
@@ -81,6 +80,8 @@ order, and collider counts; finish with the complete route gate.
   complete level-review procedure.
 - [`prop-artwork.md`](prop-artwork.md): current prop lifecycle and remaining
   provider/recovery follow-up.
+- [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md):
+  fixed-input ARAP A/B implementation and review contract.
 
 ## Non-blocking debt
 
@@ -94,12 +95,16 @@ order, and collider counts; finish with the complete route gate.
 
 ## Last verification
 
-The C++ layered-puppet proof reproduces all four prior Python frame buffers
-pixel-for-pixel; `layered_puppet_test` passes three focused cases and supported
-translation units pass clang-tidy. See-through revision
-`7f139bb25c46a0c8ac720d95ddab185fcda5451c` completed the exact mouse at
-1280px in 520.87 seconds after stale ComfyUI weights were unloaded. Visual
-review accepts its arm, footwear, and coat candidates and rejects its empty or
-human-anatomy layers.
+The semantic arm uses a 286-vertex/504-triangle C++ grid with a six-pixel elbow
+blend. All 18,974 source pixels are singly owned; none are unowned, multiply
+owned, or owned outside the source, and the complete neutral composite changes
+zero RGBA pixels. Neutral/contact/passing/airborne arm poses each remain one
+connected component and retain 100.0%/87.1%/98.7%/86.9% of neutral opaque area.
+The ownership and ghost-arm gates pass, but human review rejects the mesh
+deformation as too rigid. This visual verdict supersedes the objective
+connectivity result and triggers the ARAP comparison.
+`layered_puppet_test` passes four cases and `semantic_layer_import_test` passes
+seven; both affected-target gates and clang-tidy pass all four supported edited
+translation units.
 Live-transition recording remains blocked by Terminal Screen Recording
 permission and is deferred until the replacement art passes.

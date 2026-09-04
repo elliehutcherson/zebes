@@ -24,16 +24,24 @@ active route is explicit layered artwork rendered and validated in C++.
 ## Current status
 
 The production import/runtime graph is complete, but the Blender mouse failed
-the reopened art-direction gate. A ten-part C++ puppet preserves the approved
-generated face, clothing texture, and palette across four poses. See-through V3
-improves the source material by completing both arms, both boots, and the coat,
-but fails the mouse's legs and tail and hallucinates human ears and hair.
+the reopened art-direction gate. The active C++ pipeline now restores accepted
+See-through crops, preserves original visible pixels, and drives one complete
+arm through a shoulder/elbow/wrist chain with a reusable triangulated mesh.
 
-The skeleton is already explicit in `mouse_profile_v1.json`; the next gate must
-make it operational across complete semantic layers. One arm layer should be
-skinned by shoulder, elbow, and wrist influences rather than cut into rigid
-upper/lower pieces. The same applies to each leg. Inference supplies candidate
-RGBA only; C++ owns mapping, original-pixel preservation, deformation,
+The first isolated arm gate passed, but full-character motion exposed a static
+ghost. Exclusive ownership and torso underpaint fixed that defect: all 18,974
+source pixels are singly owned and neutral changes zero pixels. Human review
+then rejected the remaining deformation quality. The 286-vertex grid transports
+texture, but six-pixel linear blending leaves most pixels attached to one rigid
+bone and compresses contact/airborne arm area to 87.1%/86.9%. It does not create
+the intended cage-like morph around the skeleton.
+
+The next experiment is a direct linear-versus-ARAP comparison over identical
+artwork, ownership, poses, and composition. Do not proceed to the second arm or
+legs until native 48px review accepts the deformation.
+
+Inference supplies candidate RGBA only. C++ owns crop restoration, original
+pixel preservation, semantic acceptance, skeleton mapping, deformation,
 articulation scoring, and rejection.
 
 ## Decision ledger
@@ -60,6 +68,9 @@ articulation scoring, and rejection.
 | 18 | Authored Blender mouse | Runtime/pipeline pass; style rejected | Keep as pipeline proof |
 | 19 | Explicit layered 2D puppet | Style and four-pose direction pass; rigid seams | Continue |
 | 20 | See-through V3 decomposition | Arms/boots/coat pass; legs/tail/anatomy fail | Candidate generator only |
+| 21 | Isolated skeleton-skinned arm | Exact part neutral and connected bend; full composite ghosts | Add ownership gate |
+| 22 | Exclusive ownership and torso underpaint | 18,974 singly owned pixels; exact neutral; no ghost | Ownership pass |
+| 23 | Human mesh-deformation review | Grid reads as rigid sections; ~13% area compression | Reject linear deformation |
 
 ---
 
@@ -527,6 +538,69 @@ legs and tail through targeted completion or authored corrections. The external
 PyTorch checkout, environment, and model cache are disposable and do not enter
 the repository.
 
+## 20. Skeleton-skinned semantic arm — isolated pass, composite fail
+
+`semantic_layer_import` restores a See-through crop to its declared 1280px
+canvas, downsamples by an exact integer factor, and copies authoritative source
+pixels over generated visible pixels. `mouse_semantic_arm_v1.json` maps the
+accepted `handwear-l` candidate to `upper_arm_b` and `forearm_b`. A 4px regular
+grid produces 286 vertices and 504 triangles; joint-local linear weights blend
+across six pixels around the elbow.
+
+The isolated part passed: neutral changed zero pixels and neutral, contact,
+passing, and airborne each remained one connected component while retaining
+100.0%, 87.1%, 98.7%, and 86.9% of neutral opaque area. Tightening the visible
+mask also removed belt pixels that initially moved with the arm.
+
+The full composite nevertheless failed human review. The static torso artwork
+still contained the original arm, so moving the semantic arm revealed a ghost
+copy. The automated gate had measured the isolated arm but not exclusive
+ownership across the complete character.
+
+## 21. Exclusive ownership and torso underpaint — pass
+
+The corrected spec uses three deliberate layers:
+
+1. generated `topwear` underpaint behind the original arm location;
+2. the complete skinned semantic arm; and
+3. authoritative body pixels with the arm ownership region removed.
+
+Pose-specific order keeps hidden sleeve pixels behind the body until the arm
+crosses the foreground. C++ now clips generated completion to the approved
+source alpha, subtracts explicit ownership regions, measures the full visible
+stack, and optionally requires exact neutral composition.
+
+The final gate reports all 18,974 source pixels singly owned, with zero unowned,
+multiply-owned, or outside-source pixels. The complete neutral composite changes
+zero RGBA pixels. Moving poses expose coat underpaint rather than the source arm;
+the intended other anatomical arm remains, but the duplicated moving arm does
+not. The isolated mesh retains its prior component and area results. Native
+48px evidence passes, and focused Catacombs review at 0.5x, 1x, and 2x reports
+no objective findings.
+
+Verdict: the ghost was an ownership/compositing defect, and that boundary
+passes. It does not accept the deformation solver; exclusive ownership and
+underpaint must remain fixed inputs to the next A/B experiment.
+
+## 22. Human mesh-deformation review — linear blend rejected
+
+Human review found that the mesh does not visibly morph the painted sleeve
+around the skeleton. This matches the implementation: vertices outside a
+six-pixel elbow band follow one rigid bone, and only the narrow transition
+interpolates. Triangle rasterization moves the texture correctly, but no solver
+propagates the joint constraints through neighboring mesh geometry.
+
+The connectivity and exact-neutral gates therefore proved only structural
+correctness. They did not prove useful deformation. Contact and airborne each
+lose roughly 13% of neutral arm area, consistent with a compressed linear-blend
+joint. The visual verdict supersedes the earlier conclusion that ARAP was not
+needed.
+
+Verdict: freeze the accepted semantic arm, ownership masks, underpaint, skeleton,
+poses, and renderer. Compare the current baseline directly with a C++ ARAP solve
+over an active alpha mesh. The complete implementation and review contract lives
+in [`docs/character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md).
+
 ---
 
 # The one rule that explains most failures
@@ -593,41 +667,36 @@ when the subject covers two of them. It samples the whole border ring now.
 # Evidence
 
 The current shipped Blender source remains reproducible, but it is a pipeline
-proof rather than accepted art. The C++ layered-puppet implementation,
-`mouse_profile_v1.json`, four native/working poses, and focused Catacombs review
-own the replacement direction evidence. C++ output reproduces the superseded
-Python proof pixel-for-pixel.
+proof rather than accepted art. The C++ layered-puppet and semantic-import
+implementations, `mouse_semantic_arm_v1.json`, isolated part poses, native
+frames, manifests, focused Catacombs review, and
+[`character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md)
+own the replacement direction evidence.
 
-See-through output remains gitignored experiment evidence under
-`out/see-through-v1`; revision, settings, input digest, runtime, accepted parts,
-and rejection reasons are recorded above. Its temporary checkout, Python
-environment, and model cache were removed after evidence capture.
+See-through and generated review output remains gitignored under
+`out/see-through-v1` and `out/semantic-arm-v5`; revision, settings, input
+digest, mesh dimensions, pose digests, component counts, pixel counts, and
+rejection reasons are recorded above. External Python environments and model
+caches remain outside the repository.
 
 ---
 
 # What I would do next, in order
 
-1. **Ingest candidate layers in C++.** Read See-through's PNG/JSON export,
-   restore every accepted crop to the working canvas, preserve original visible
-   pixels exactly, and reject unapproved semantic classes. Split the two boots
-   by connected component.
-2. **Make the skeleton drive complete layers.** Change each arm from two rigid
-   images to one RGBA layer influenced by shoulder, elbow, and wrist; do the
-   same for each leg with hip, knee, and foot. Start with deterministic
-   two-bone linear skinning over a triangulated 2D mesh and joint-local blend
-   weights. Add ARAP only if articulation evidence shows unacceptable elbow or
-   knee collapse.
-3. **Complete only missing source art.** Keep the approved head and coat.
-   Obtain left/right leg and tail layers through targeted completion or authored
-   correction; do not accept See-through's human ears, hair, or headwear.
-4. **Run analysis by synthesis.** Render neutral, contact, passing, and airborne
-   through the C++ rig. Score reconstruction mismatch, holes, disconnected
-   components, outline breaks, intersections, palette changes, and layer-order
-   inversions before human review.
-5. **Defer skeleton-conditioned ML.** The skeleton belongs in the deterministic
-   mapping, deformation, and scoring pipeline now. Add skeleton conditioning to
-   the neural parser only if several representative characters prove semantic
-   ownership remains the bottleneck.
-6. **Finish production only after the gate passes.** Render/import the six
-   replacement clips, expose editor import controls, record live transitions,
-   then unblock runtime M4.
+1. **Run the bounded ARAP A/B experiment.** Reuse the accepted arm, ownership,
+   underpaint, joints, poses, and native reduction unchanged. Build an active
+   alpha mesh, constrain shoulder/elbow/wrist, and compare ARAP directly against
+   the rejected linear baseline.
+2. **Require native visual acceptance.** Preserve exact neutral composition,
+   exclusive ownership, connectivity, joint targets, triangle orientation, and
+   deterministic digests. ARAP must preserve sleeve shape and visibly read as a
+   bending painted arm at 48px.
+3. **Stop on no visible improvement.** If ARAP converges but still reads rigid,
+   test one authored elbow corrective instead of tuning the solver repeatedly.
+4. **Only after a pass, apply the method to `handwear-r`.** Then split footwear,
+   obtain complete legs/tail, and bind legs through hip/knee/foot.
+5. **Defer skeleton-conditioned ML.** The current blocker is deterministic
+   deformation quality, not semantic parsing.
+6. **Finish production after the complete-character gate.** Render/import the
+   six replacement clips, expose editor import controls, record live
+   transitions, then unblock runtime M4.

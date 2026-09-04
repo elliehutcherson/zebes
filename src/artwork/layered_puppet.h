@@ -29,13 +29,35 @@ struct LayeredPuppetFill {
   std::array<uint8_t, 4> color{};
 };
 
-// One independently composited animation layer bound to one skeleton bone.
-// Artwork uses the complete puppet canvas so source joints and pixels share one
-// coordinate system. Overlap between parts is intentional and hides joint gaps.
+// One vertex in a source-space deformation grid. For a two-bone part,
+// first_bone_weight selects the first listed bone and the remainder selects the
+// second. Neutral transforms therefore reproduce the original texture exactly.
+struct LayeredPuppetMeshVertex {
+  ProfileControlPoint source;
+  double first_bone_weight = 1.0;
+};
+
+struct LayeredPuppetMeshTriangle {
+  std::array<size_t, 3> vertices{};
+};
+
+struct LayeredPuppetMesh {
+  std::vector<LayeredPuppetMeshVertex> vertices;
+  std::vector<LayeredPuppetMeshTriangle> triangles;
+};
+
+// One independently composited animation layer. A one-bone part is rigid. A
+// two-bone part must provide a mesh whose vertex weights blend the two bone
+// transforms. Artwork uses the complete puppet canvas so joints and pixels
+// share one coordinate system.
 struct LayeredPuppetPart {
   std::string name;
-  size_t bone_index = 0;
+  std::vector<size_t> bone_indices;
   RgbaImage artwork;
+  // Original source pixels owned by this part. It may be empty for generated
+  // underpaint that owns no visible source pixels.
+  RgbaImage visible_artwork;
+  LayeredPuppetMesh mesh;
 };
 
 // One target pose. draw_order contains every part index exactly once, from back
@@ -65,14 +87,29 @@ absl::StatusOr<RgbaImage> BuildLayeredPuppetPartArtwork(
     const RgbaImage& source, absl::Span<const LayeredPuppetPolygon> source_polygons,
     absl::Span<const LayeredPuppetFill> fills);
 
-// Rejects incomplete or ambiguous puppet state before any evidence is written.
-// Every part must use the common canvas and a known bone; every pose must provide
-// corresponding joints and a permutation of all parts.
+// Builds a regular triangulated deformation grid around the artwork's alpha
+// bounds. A joint-local blend band transitions weights between two connected
+// bones while keeping each outer endpoint rigidly attached. The grid is
+// source-only and reused across every pose.
+absl::StatusOr<LayeredPuppetMesh> BuildLayeredPuppetMesh(
+    const RgbaImage& artwork, absl::Span<const size_t> bone_indices,
+    absl::Span<const ProfileControlBone> bones, absl::Span<const ProfileControlPoint> source_joints,
+    int spacing, double joint_blend_radius);
+
+// Every part must use the common canvas and either one known bone or two known
+// connected bones with a valid mesh. Every pose must provide corresponding
+// joints and a permutation of all parts.
 absl::Status ValidateLayeredPuppet(const LayeredPuppet& puppet);
 
-// Rigidly inverse-samples each separated part through its bone, then composites
-// parts in authored back-to-front order. Hidden underpaint and overlap come only
-// from the supplied artwork; rendering does not synthesize pixels.
+// Renders one part alone with the same deformation path used by full
+// composition. This is the evidence boundary for component, joint, and
+// reconstruction diagnostics; part_index must name an existing part.
+absl::StatusOr<RgbaImage> RenderLayeredPuppetPart(const LayeredPuppet& puppet,
+                                                  const LayeredPuppetPose& pose, size_t part_index);
+
+// Rigidly inverse-samples one-bone parts and triangle-rasterizes two-bone
+// skinned parts, then composites in authored back-to-front order. Hidden
+// underpaint and overlap come only from supplied artwork.
 absl::StatusOr<RgbaImage> RenderLayeredPuppetPose(const LayeredPuppet& puppet,
                                                   const LayeredPuppetPose& pose);
 

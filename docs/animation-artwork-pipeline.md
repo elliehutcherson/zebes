@@ -460,14 +460,17 @@ overwrites collider work or silently invokes a remote provider.
    controls. Do not add remote animation generation.
 7. **Production player set — art gate reopened.** The authored Blender mouse
    remains a valid persisted pipeline proof, but human review rejected its flat
-   primitive style. The replacement layered-puppet renderer and evidence
-   publisher now live in C++. See-through V3 supplies candidate arm, footwear,
-   and coat completion, but its empty leg/tail layers and human-anatomy
-   hallucinations are rejected. Map only accepted RGBA through C++ validation,
-   preserve original visible pixels, and skin each complete limb layer through
-   its three-joint skeleton chain. Start with deterministic two-bone linear
-   weights; add ARAP only on measured joint collapse. Complete missing parts,
-   render the six replacement clips, then record interactive transitions.
+   primitive style. C++ now restores an accepted See-through arm crop and skins
+   one complete RGBA arm through its shoulder/elbow/wrist chain. Isolated motion
+   first exposed a static torso-owned ghost; the corrected underpaint/arm/
+   visible-body stack assigns every source pixel exactly once and reproduces the
+   full neutral source exactly. Connectivity and Catacombs presentation pass,
+   but human review rejects the linear mesh as two rigid sections with a narrow
+   compressed blend. Run the fixed-input C++ ARAP comparison in
+   [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md)
+   before applying deformation to the second arm or legs. If ARAP passes, finish
+   missing parts, render the replacement clips, and record interactive
+   transitions.
 
 Only after milestone 7 should the runtime plan proceed to M4. The finite cave
 environment variation pass can continue independently when it does not modify

@@ -78,27 +78,29 @@ and the six-state player asset graph are complete. The first authored Blender
 mouse proved identity, registration, import, playback, and Catacombs
 integration, but human review rejected its flat primitive style.
 
-The layered 2D renderer and evidence path now live in C++. Its first four-pose
-proof retains the generated reference style but still exposes rigid seams.
-See-through V3 subsequently produced useful complete arm, footwear, and coat
-layers while failing or hallucinating the mouse's legs, tail, ears, and hair.
-It is accepted only as an offline candidate generator.
+The C++ layered path restores one accepted See-through arm, enforces exclusive
+ownership, removes the static ghost, and reproduces neutral exactly. Human
+review rejects its remaining linear deformation: most pixels still follow two
+rigid sections, and strong bends compress roughly 13% of arm area. See-through
+also fails or hallucinates the mouse's legs, tail, ears, and hair.
 
 Follow [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md):
 
-1. **Finish the layered source gate.** In C++, ingest only accepted See-through
-   RGBA layers, preserve original visible pixels, and split footwear by
-   connected component. Skin one complete arm layer to shoulder/elbow/wrist and
-   one complete leg layer to hip/knee/foot with deterministic two-bone mesh
-   weights; add ARAP only if the four-pose evidence shows collapse. Obtain
-   missing legs and tail through targeted completion or authored correction.
-   Defer skeleton-conditioned ML until several characters prove parsing remains
-   the blocker.
-2. **Render and import the replacement clips.** Preserve the stable Blueprint,
+1. **Resolve deformation quality.** Run the fixed-input C++ linear-versus-ARAP
+   experiment in
+   [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md).
+   Keep artwork, ownership, underpaint, joints, poses, and rasterization fixed.
+   Require native 48px preference in addition to exact-neutral, ownership,
+   connectivity, joint, inversion, and determinism gates. If ARAP does not
+   visibly improve the arm, test one authored elbow corrective instead.
+2. **Finish the layered source gate after deformation passes.** Apply the method
+   to the second arm, split footwear, obtain complete legs/tail, and bind legs
+   through hip/knee/foot. Keep skeleton-conditioned ML deferred.
+3. **Render and import the replacement clips.** Preserve the stable Blueprint,
    six state keys, 32×64 collider, timing, and playback contracts.
-3. **Editor import flow.** Expose the proven headless import boundary without
+4. **Editor import flow.** Expose the proven headless import boundary without
    adding remote animation generation.
-4. **Human gate.** Record idle, locomotion, direction, jump/fall, landing,
+5. **Human gate.** Record idle, locomotion, direction, jump/fall, landing,
    slopes, walls, and ceilings in Catacombs.
 
 ### M4 — thread split

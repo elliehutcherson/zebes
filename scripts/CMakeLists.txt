@@ -89,6 +89,7 @@ target_link_libraries(render_layered_puppet
   image_digest
   image_io
   layered_puppet
+  semantic_layer_import
   status_macros
   absl::flat_hash_map
   absl::flags
