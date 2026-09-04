@@ -19,6 +19,7 @@ active backlog.
 | [`architecture-through-2026-08-30.md`](architecture-through-2026-08-30.md) | 2026-08-30 | Cross-system implementation narrative | [`../architecture.md`](../architecture.md) |
 | [`environment-artwork-plan-through-2026-08-30.md`](environment-artwork-plan-through-2026-08-30.md) | 2026-08-30 | Accepted environment milestones and gate history | [`../environment-artwork-plan.md`](../environment-artwork-plan.md) |
 | [`prop-artwork-plan-through-2026-08-30.md`](prop-artwork-plan-through-2026-08-30.md) | 2026-08-30 | Implemented prop milestones and measurements | [`../prop-artwork.md`](../prop-artwork.md) |
+| [`mouse-player-production-2026-09-03.md`](mouse-player-production-2026-09-03.md) | 2026-09-03 | Production mouse asset persisted; interactive transition capture pending | [`../animation-artwork-pipeline.md`](../animation-artwork-pipeline.md) |
 
 Use [`../handoff.md`](../handoff.md) for the active resume points,
 [`../roadmap.md`](../roadmap.md) for current sequencing,

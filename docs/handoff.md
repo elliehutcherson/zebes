@@ -1,6 +1,6 @@
 # Active handoff
 
-Updated 2026-08-31. [`roadmap.md`](roadmap.md) owns sequencing; this file is the
+Updated 2026-09-03. [`roadmap.md`](roadmap.md) owns sequencing; this file is the
 short resume point. Completed narratives live in [`history/`](history/README.md).
 
 ## Current state
@@ -30,8 +30,10 @@ item. The deprecated evidence is indexed under
 ### Track 5: finish the production-player gate
 
 The mouse asset set and headless review pass
-[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) Milestones 5
-and the asset portion of 7:
+[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) Milestone 5
+and the asset portion of 7. Detailed findings, IDs, tests, and the exact resume
+procedure are in
+[`history/mouse-player-production-2026-09-03.md`](history/mouse-player-production-2026-09-03.md):
 
 1. Add the Milestone 6 editor import controls over the proven headless import
    and transactional lifecycle.
