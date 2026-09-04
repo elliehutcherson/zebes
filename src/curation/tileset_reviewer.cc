@@ -21,8 +21,6 @@ constexpr size_t kMaximumTileArtifacts = 4096;
 constexpr size_t kMaximumContextTiles = 1024;
 constexpr int64_t kMaximumTileArtifactPixels = 256LL * 1024 * 1024;
 constexpr RgbaColor8 kTransparent{.red = 0, .green = 0, .blue = 0, .alpha = 0};
-constexpr RgbaColor8 kCheckerLight{.red = 55, .green = 55, .blue = 65, .alpha = 255};
-constexpr RgbaColor8 kCheckerDark{.red = 35, .green = 35, .blue = 45, .alpha = 255};
 
 absl::Status ValidateTileFrame(const Tileset& tileset, const Tile& tile, const RgbaImage& atlas) {
   if (static_cast<size_t>(tile.shape) >= std::size(kTileShapeIdentifiers)) {
@@ -65,7 +63,7 @@ absl::StatusOr<RgbaImage> RenderPlacementContext(const Tileset& tileset, const R
   const int cell_height = rendered_height + 8;
   ASSIGN_OR_RETURN(RgbaImage context,
                    CreateCheckerboardRgbaImage(columns * cell_width + 8, rows * cell_height + 8, 8,
-                                               kCheckerLight, kCheckerDark));
+                                               kReviewCheckerLight, kReviewCheckerDark));
   for (size_t index = 0; index < count; ++index) {
     const Tile& tile = tileset.tiles[index];
     RETURN_IF_ERROR(ValidateTileFrame(tileset, tile, atlas));

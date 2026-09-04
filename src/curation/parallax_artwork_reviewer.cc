@@ -24,8 +24,6 @@ namespace zebes {
 namespace {
 
 constexpr size_t kMaximumRepeatPreviewPixels = 64ULL * 1024 * 1024;
-constexpr RgbaColor8 kCheckerLight{.red = 55, .green = 55, .blue = 65, .alpha = 255};
-constexpr RgbaColor8 kCheckerDark{.red = 35, .green = 35, .blue = 45, .alpha = 255};
 
 absl::StatusOr<ParallaxArtworkRecipe> ParseCandidate(const CurationReviewRequest& request,
                                                      const nlohmann::json& candidate) {
@@ -157,8 +155,9 @@ LateralEdgeOccupancy MeasureLateralEdgeOccupancy(const RgbaImage& image) {
 absl::StatusOr<RgbaImage> RenderDetail(const RgbaImage& texture) {
   const int width = std::clamp(texture.width, 640, 1280);
   const int height = std::clamp(texture.height, 360, 720);
-  ASSIGN_OR_RETURN(RgbaImage detail,
-                   CreateCheckerboardRgbaImage(width, height, 16, kCheckerLight, kCheckerDark));
+  ASSIGN_OR_RETURN(
+      RgbaImage detail,
+      CreateCheckerboardRgbaImage(width, height, 16, kReviewCheckerLight, kReviewCheckerDark));
   const double scale = std::min(static_cast<double>(width) / texture.width,
                                 static_cast<double>(height) / texture.height);
   const double rendered_width = texture.width * scale;

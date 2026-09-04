@@ -103,6 +103,19 @@ class MockApi : public Api {
   MOCK_METHOD(absl::Status, DeleteGeneratedProp, (const std::string&), (override));
   MOCK_METHOD(absl::Status, RegenerateGeneratedProp, (const PreparedPropRegeneration&), (override));
 
+  // Imported and manually authored animation frame sets
+  MOCK_METHOD(absl::StatusOr<AnimationFrameSetRecipe*>, GetAnimationFrameSetRecipe,
+              (const std::string&), (override));
+  MOCK_METHOD(std::vector<AnimationFrameSetRecipe>, GetAllAnimationFrameSetRecipes, (),
+              (const, override));
+  MOCK_METHOD(absl::StatusOr<std::string>, CreateAnimationFrameSet,
+              (const PreparedAnimationFrameSetAsset&), (override));
+  MOCK_METHOD(absl::Status, RegenerateAnimationFrameSet,
+              (const PreparedAnimationFrameSetRegeneration&), (override));
+  MOCK_METHOD(absl::Status, CheckAnimationFrameSetDeletable, (const std::string&), (override));
+  MOCK_METHOD(absl::Status, DeleteAnimationFrameSet, (const PreparedAnimationFrameSetDeletion&),
+              (override));
+
   // Generated parallax artwork recipes and bundles
   MOCK_METHOD(absl::StatusOr<std::string>, CreateParallaxArtworkRecipe, (ParallaxArtworkRecipe),
               (override));

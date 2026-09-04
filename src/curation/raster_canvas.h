@@ -17,6 +17,11 @@ struct RgbaColor8 {
   bool operator==(const RgbaColor8& other) const = default;
 };
 
+// Every reviewer renders transparency against this ground, so evidence from
+// different asset kinds stays visually comparable side by side.
+inline constexpr RgbaColor8 kReviewCheckerLight{.red = 55, .green = 55, .blue = 65, .alpha = 255};
+inline constexpr RgbaColor8 kReviewCheckerDark{.red = 35, .green = 35, .blue = 45, .alpha = 255};
+
 struct RasterSourceRect {
   int x = 0;
   int y = 0;

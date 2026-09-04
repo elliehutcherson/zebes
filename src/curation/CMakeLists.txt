@@ -10,6 +10,13 @@ target_link_libraries(curation_review
   PRIVATE atomic_directory_publisher image_digest resource_utils status_macros
 )
 
+add_library(curation_frame_set_evidence frame_set_evidence.cc)
+target_link_libraries(curation_frame_set_evidence
+  PUBLIC curation_review image_io sprite absl::status absl::statusor
+  PRIVATE curation_raster status_macros absl::flat_hash_set absl::strings
+          nlohmann_json::nlohmann_json
+)
+
 add_library(curation_registry registry.cc)
 target_link_libraries(curation_registry
   PUBLIC curation_review
@@ -120,6 +127,7 @@ target_link_libraries(prop_reviewer
   PUBLIC curation_registry
   PRIVATE
   api
+  curation_frame_set_evidence
   curation_raster
   image_digest
   prop_candidate
@@ -140,8 +148,24 @@ target_link_libraries(tileset_reviewer
 add_library(sprite_reviewer sprite_reviewer.cc)
 target_link_libraries(sprite_reviewer
   PUBLIC curation_registry
-  PRIVATE api curation_raster status_macros absl::flat_hash_set absl::status absl::statusor
-          absl::strings
+  PRIVATE api curation_frame_set_evidence status_macros absl::status absl::statusor
+)
+
+add_library(animation_frame_set_reviewer animation_frame_set_reviewer.cc)
+target_link_libraries(animation_frame_set_reviewer
+  PUBLIC curation_registry
+  PRIVATE
+  animation_frame_set_recipe
+  api
+  blueprint
+  curation_frame_set_evidence
+  image_digest
+  sprite
+  status_macros
+  absl::status
+  absl::statusor
+  absl::strings
+  nlohmann_json::nlohmann_json
 )
 
 add_library(terrain_reviewer terrain_reviewer.cc)

@@ -40,8 +40,6 @@ constexpr int kLayoutMaximumHeight = 1024;
 
 constexpr RgbaColor8 kBackground{.red = 7, .green = 0, .blue = 13, .alpha = 255};
 constexpr RgbaColor8 kTransparent{.red = 0, .green = 0, .blue = 0, .alpha = 0};
-constexpr RgbaColor8 kCheckerLight{.red = 55, .green = 55, .blue = 65, .alpha = 255};
-constexpr RgbaColor8 kCheckerDark{.red = 35, .green = 35, .blue = 45, .alpha = 255};
 constexpr RgbaColor8 kPlaceholder{.red = 100, .green = 100, .blue = 200, .alpha = 180};
 constexpr RgbaColor8 kZoneOutline{.red = 230, .green = 185, .blue = 40, .alpha = 255};
 constexpr RgbaColor8 kSpawn{.red = 80, .green = 255, .blue = 120, .alpha = 255};
@@ -596,7 +594,7 @@ absl::StatusOr<RenderedLevelFrame> RenderCompleteFrame(
       environment.has_value()
           ? CreateSolidRgbaImage(camera.viewport_width, camera.viewport_height, kBackground)
           : CreateCheckerboardRgbaImage(camera.viewport_width, camera.viewport_height, 16,
-                                        kCheckerLight, kCheckerDark);
+                                        kReviewCheckerLight, kReviewCheckerDark);
   if (!canvas.ok()) return canvas.status();
 
   RenderedLevelFrame result{.image = std::move(*canvas), .environment = environment};
@@ -730,7 +728,7 @@ absl::StatusOr<ContactSheetAccumulator> CreateContactSheet(size_t frame_count,
                                                game_view.height / game_view.width)));
   const int width = columns * kContactWidth + (columns + 1) * kContactGutter;
   const int height = rows * thumbnail_height + (rows + 1) * kContactGutter;
-  ASSIGN_OR_RETURN(RgbaImage image, CreateSolidRgbaImage(width, height, kCheckerDark));
+  ASSIGN_OR_RETURN(RgbaImage image, CreateSolidRgbaImage(width, height, kReviewCheckerDark));
   return ContactSheetAccumulator{
       .image = std::move(image),
       .frame_count = frame_count,

@@ -1,9 +1,7 @@
 #include "curation/prop_reviewer.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -11,6 +9,7 @@
 #include "artwork/prop_recipe.h"
 #include "common/image_digest.h"
 #include "common/status_macros.h"
+#include "curation/frame_set_evidence.h"
 #include "curation/prop_candidate.h"
 #include "curation/raster_canvas.h"
 #include "objects/blueprint.h"
@@ -19,27 +18,15 @@
 namespace zebes {
 namespace {
 
-constexpr RgbaColor8 kCheckerLight{.red = 55, .green = 55, .blue = 65, .alpha = 255};
-constexpr RgbaColor8 kCheckerDark{.red = 35, .green = 35, .blue = 45, .alpha = 255};
 constexpr RgbaColor8 kGuide{.red = 255, .green = 190, .blue = 50, .alpha = 255};
 constexpr RgbaColor8 kAnchor{.red = 80, .green = 220, .blue = 255, .alpha = 255};
-
-absl::Status ValidateFrame(const SpriteFrame& frame, const RgbaImage& texture) {
-  const int64_t source_right = static_cast<int64_t>(frame.texture_x) + frame.texture_w;
-  const int64_t source_bottom = static_cast<int64_t>(frame.texture_y) + frame.texture_h;
-  if (frame.texture_x < 0 || frame.texture_y < 0 || frame.texture_w <= 0 || frame.texture_h <= 0 ||
-      frame.render_w <= 0 || frame.render_h <= 0 || source_right > texture.width ||
-      source_bottom > texture.height) {
-    return absl::FailedPreconditionError("prop sprite frame exceeds its texture or render bounds");
-  }
-  return absl::OkStatus();
-}
 
 absl::StatusOr<RgbaImage> RenderPlacementContext(const RgbaImage& texture, const SpriteFrame& frame,
                                                  BlueprintPlacementMode placement_mode,
                                                  const GameViewSize& game_view) {
-  ASSIGN_OR_RETURN(RgbaImage image, CreateCheckerboardRgbaImage(game_view.width, game_view.height,
-                                                                16, kCheckerLight, kCheckerDark));
+  ASSIGN_OR_RETURN(RgbaImage image,
+                   CreateCheckerboardRgbaImage(game_view.width, game_view.height, 16,
+                                               kReviewCheckerLight, kReviewCheckerDark));
   const int origin_x = game_view.width / 2;
   int origin_y = game_view.height / 2;
   if (placement_mode == BlueprintPlacementMode::kGrounded) {
@@ -65,8 +52,9 @@ absl::StatusOr<RgbaImage> RenderPlacementContext(const RgbaImage& texture, const
 
 absl::StatusOr<RgbaImage> RenderPixelDetail(const RgbaImage& texture, const SpriteFrame& frame,
                                             const GameViewSize& game_view) {
-  ASSIGN_OR_RETURN(RgbaImage image, CreateCheckerboardRgbaImage(game_view.width, game_view.height,
-                                                                16, kCheckerLight, kCheckerDark));
+  ASSIGN_OR_RETURN(RgbaImage image,
+                   CreateCheckerboardRgbaImage(game_view.width, game_view.height, 16,
+                                               kReviewCheckerLight, kReviewCheckerDark));
   const int fit_x = std::max(1, (game_view.width - 64) / frame.render_w);
   const int fit_y = std::max(1, (game_view.height - 64) / frame.render_h);
   const int scale = std::clamp(std::min(fit_x, fit_y), 1, 8);
@@ -105,7 +93,7 @@ absl::StatusOr<CurationReview> BuildReview(const PropRecipe& recipe, const RgbaI
                                            const GameViewSize& game_view,
                                            const PreparedPropCandidate* candidate) {
   RETURN_IF_ERROR(ValidatePropRecipe(recipe));
-  RETURN_IF_ERROR(ValidateFrame(frame, texture));
+  RETURN_IF_ERROR(ValidateSpriteFrameGeometry(frame, texture));
   ASSIGN_OR_RETURN(const std::string digest, RgbaImageDigest(texture));
   if (digest != recipe.final_pixel_digest) {
     return absl::FailedPreconditionError("prop texture pixels do not match the recipe digest");

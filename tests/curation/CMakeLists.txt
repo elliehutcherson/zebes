@@ -53,6 +53,11 @@ add_executable(sprite_reviewer_test sprite_reviewer_test.cc)
 target_link_libraries(sprite_reviewer_test sprite_reviewer api macros gtest_main gmock)
 gtest_discover_tests(sprite_reviewer_test)
 
+add_executable(animation_frame_set_reviewer_test animation_frame_set_reviewer_test.cc)
+target_link_libraries(animation_frame_set_reviewer_test
+  animation_frame_set_reviewer animation_frame_set_recipe api image_digest macros gtest_main gmock)
+gtest_discover_tests(animation_frame_set_reviewer_test)
+
 add_executable(terrain_reviewer_test terrain_reviewer_test.cc)
 target_link_libraries(terrain_reviewer_test
   terrain_reviewer terrain_style api macros gtest_main gmock)

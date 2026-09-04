@@ -19,6 +19,7 @@
 #include "api/asset_workspace.h"
 #include "common/config.h"
 #include "common/status_macros.h"
+#include "curation/animation_frame_set_reviewer.h"
 #include "curation/candidate_commit.h"
 #include "curation/level_reviewer.h"
 #include "curation/parallax_artwork_reviewer.h"
@@ -113,6 +114,7 @@ absl::StatusOr<AssetWorkspace::LoadProfile> ParseLoadProfile(
 }
 
 absl::Status RegisterReviewers(CurationRegistry& registry) {
+  RETURN_IF_ERROR(registry.Add(std::make_unique<AnimationFrameSetReviewer>()));
   RETURN_IF_ERROR(registry.Add(std::make_unique<LevelReviewer>()));
   RETURN_IF_ERROR(registry.Add(std::make_unique<ParallaxArtworkReviewer>()));
   RETURN_IF_ERROR(registry.Add(std::make_unique<ParallaxThemeReviewer>()));

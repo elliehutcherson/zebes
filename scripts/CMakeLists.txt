@@ -204,6 +204,7 @@ target_link_libraries(process_generated_artwork
 add_executable(curate_assets curate_assets.cc)
 target_link_libraries(curate_assets
   PRIVATE
+  animation_frame_set_reviewer
   asset_workspace
   curation_candidate_commit
   curation_registry

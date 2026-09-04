@@ -10,6 +10,9 @@ of asset references.
 
 `curate_assets` registers these visual kinds:
 
+- `animation-frame-set` publishes the same frame evidence as `sprite` for the
+  clip a recipe built, and additionally fails when the persisted Texture,
+  Sprite, or Blueprint binding has drifted from that recipe;
 - `level` renders persisted integrated parallax, tile, and entity composition
   over deterministic 0.5x, 1x, and 2x routes, with contact sheets, isolated
   depth passes, a layout map, and measured coverage/distribution evidence;
@@ -20,7 +23,9 @@ of asset references.
   repeat-seam frames, coverage findings, and measured wrap separation;
 - `prop` resolves the recipe-owned Texture/Sprite/Blueprint graph and renders
   native, pixel-detail, and logical placement-context frames;
-- `sprite` renders native and enlarged frames plus an animation strip;
+- `sprite` renders native and enlarged frames, the ordered animation strip, a
+  contact sheet, an origin/contact-line/bounds alignment overlay, and
+  adjacent-frame differences closed by loop-closure or hold-last evidence;
 - `terrain` renders its recipe/tileset/texture graph, slope matrix, atlas, and
   owned frames;
 - `tileset` renders its atlas, native tile frames, and placement context.
@@ -158,6 +163,43 @@ candidate, use focused integrated evidence before promotion, and stop to
 revisit the asset type when two candidates fail for the same structural
 reason. Promote only after the focused 0.5×, 1×, and 2× frames pass; run the
 complete level route once after the accepted content is persisted.
+
+## Reviewing an animation frame set against its recipe
+
+`--kind=sprite` answers what a clip looks like. `--kind=animation-frame-set`
+answers whether the clip is still the one its recipe built, and takes the
+recipe ID rather than the Sprite ID:
+
+```bash
+build/dev/bin/curate_assets \
+  --asset_root="$PWD/assets" \
+  --kind=animation-frame-set \
+  --id=<recipe-id> \
+  --output=/tmp/mouse-run-left-review
+```
+
+The published pictures are the same ones the Sprite review publishes; the
+reviewers share their rendering. What the recipe adds is verification that
+fails the review outright rather than reporting a finding:
+
+- the Texture pixels no longer digest to `final_pixel_digest`;
+- the Sprite frames or playback mode no longer match `expected_frames`;
+- a bound Blueprint state is missing, or now binds a different Sprite.
+
+Each of those leaves a Sprite review looking healthy while the recipe has
+quietly stopped describing the asset, and regeneration from retained source
+would no longer reproduce what is on disk. Failing is the useful outcome.
+
+Registration findings also come from the recipe, not the Sprite. A Sprite
+records an origin in its frame offsets, but only the recipe declares which
+frames are planted, how close a planted subject must sit to the contact line,
+and how far a subject may drift sideways. So a floating planted foot or a clip
+that walks sideways during playback is a warning here and invisible under
+`--kind=sprite`.
+
+Findings measure registration only. Identity, anatomy, pose phase, and whether
+the clip reads as a run stay visible judgements — the 2026-08-29 gate settled
+that structural checks pass locomotion that fails live playback.
 
 ## Quarantining rejected generated assets
 
