@@ -95,7 +95,6 @@
   "require_exact_neutral_composite": true,
   "require_no_triangle_inversion": true,
   "require_part_ownership_isolation": true,
-  "require_backfill_coverage": true,
   "shadows": [
     {
       "caster": "front_arm",
@@ -112,18 +111,7 @@
       "bone": "torso",
       "semantic_tag": "topwear",
       "clip_to_source_alpha": true,
-      "stretch_to_cover_parts": {
-        "parts": ["front_arm"],
-        "distance": 24,
-        "clear_outside_required": true,
-        "within_polygons": [
-          [[105, 102], [158, 102], [177, 124], [180, 203], [82, 203], [82, 128]]
-        ],
-        "attachment_falloff": {
-          "fully_connected_until": 0.08,
-          "disconnected_at": 0.35
-        }
-      }
+      "immutable_semantic_layer": true
     },
     {
       "name": "front_arm",

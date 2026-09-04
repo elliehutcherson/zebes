@@ -134,6 +134,31 @@ TEST(SemanticLayerImportTest, MeasuresExclusiveVisibleOwnership) {
   EXPECT_EQ(rejected->ownership_outside_source_pixels, 1);
 }
 
+TEST(SemanticLayerImportTest, MeasuresImmutableLayerMutation) {
+  RgbaImage source = EmptyImage(3, 1);
+  SetPixel(source, 0, 0, {10, 20, 30, 255});
+  SetPixel(source, 2, 0, {40, 50, 60, 255});
+
+  const absl::StatusOr<SemanticLayerMutation> exact = MeasureSemanticLayerMutation(source, source);
+
+  ASSERT_TRUE(exact.ok()) << exact.status();
+  EXPECT_EQ(exact->changed_pixels, 0);
+  EXPECT_EQ(exact->alpha_added_pixels, 0);
+  EXPECT_EQ(exact->alpha_removed_pixels, 0);
+
+  RgbaImage changed = source;
+  SetPixel(changed, 0, 0, {11, 20, 30, 255});
+  SetPixel(changed, 1, 0, {70, 80, 90, 255});
+  SetPixel(changed, 2, 0, {0, 0, 0, 0});
+  const absl::StatusOr<SemanticLayerMutation> mutation =
+      MeasureSemanticLayerMutation(source, changed);
+
+  ASSERT_TRUE(mutation.ok()) << mutation.status();
+  EXPECT_EQ(mutation->changed_pixels, 3);
+  EXPECT_EQ(mutation->alpha_added_pixels, 1);
+  EXPECT_EQ(mutation->alpha_removed_pixels, 1);
+}
+
 TEST(SemanticLayerImportTest, SplitsAndOrdersOpaqueComponents) {
   RgbaImage source = EmptyImage(8, 5);
   SetPixel(source, 1, 1, {200, 20, 20, 255});

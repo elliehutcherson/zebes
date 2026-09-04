@@ -464,14 +464,16 @@ overwrites collider work or silently invokes a remote provider.
    one complete RGBA arm through its shoulder/elbow/wrist chain. Isolated motion
    first exposed a static torso-owned ghost; the corrected underpaint/arm/
    visible-body stack assigns every source pixel exactly once and reproduces the
-   full neutral source exactly. Connectivity and Catacombs presentation pass,
-   but human review rejected the linear mesh. The ARAP plan that followed is
-   withdrawn: measurement showed the visible damage was the layer cut, not the
-   solver. Follow
-   [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md)
-   — close the backfill, clear the two gates the shoulder correction exposed,
-   then finish missing parts, render the replacement clips, and record
-   interactive transitions.
+   full neutral source exactly. Measurement withdrew the ARAP-first response:
+   the dominant failures were layer semantics and pose authorship. User review
+   then established that the generated coat-without-arms layer was already
+   correct and stretching only made it too wide. The latest candidate keeps
+   that coat byte-for-byte immutable, preserves exact neutral, and renders arm
+   shadow as a separate tonal effect. Review the immutable coat and native
+   passing pose, then separate the tail and clear the remaining
+   orphan/airborne-fold gates before completing other limbs, replacement clips,
+   and interactive transitions. See
+   [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md).
 
 Only after milestone 7 should the runtime plan proceed to M4. The finite cave
 environment variation pass can continue independently when it does not modify

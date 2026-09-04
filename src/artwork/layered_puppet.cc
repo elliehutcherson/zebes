@@ -567,6 +567,71 @@ absl::StatusOr<RgbaImage> BuildLayeredPuppetOwnershipMask(
   return mask;
 }
 
+absl::StatusOr<RgbaImage> BuildLayeredPuppetAttachmentMask(
+    const RgbaImage& ownership, absl::Span<const size_t> bone_indices,
+    absl::Span<const ProfileControlBone> bones, absl::Span<const ProfileControlPoint> source_joints,
+    const LayeredPuppetAttachmentFalloff& falloff) {
+  if (!ownership.IsValid() || bone_indices.size() != 2 || bone_indices[0] == bone_indices[1] ||
+      bone_indices[0] >= bones.size() || bone_indices[1] >= bones.size() ||
+      !std::isfinite(falloff.fully_connected_until) || !std::isfinite(falloff.disconnected_at) ||
+      falloff.fully_connected_until < 0.0 ||
+      falloff.fully_connected_until >= falloff.disconnected_at || falloff.disconnected_at > 1.0) {
+    return absl::InvalidArgumentError("layered puppet attachment falloff or bone chain is invalid");
+  }
+  ASSIGN_OR_RETURN(const BoneChain chain,
+                   ResolveBoneChain(bones[bone_indices[0]], bones[bone_indices[1]]));
+  for (const size_t joint : chain) {
+    if (joint >= source_joints.size()) {
+      return absl::InvalidArgumentError(
+          "layered puppet attachment bone references an unknown joint");
+    }
+  }
+  const ProfileControlPoint first_outer = source_joints[chain[0]];
+  const ProfileControlPoint shared = source_joints[chain[1]];
+  const ProfileControlPoint second_outer = source_joints[chain[2]];
+  const double first_length = std::hypot(shared.x - first_outer.x, shared.y - first_outer.y);
+  const double second_length = std::hypot(second_outer.x - shared.x, second_outer.y - shared.y);
+  const double chain_length = first_length + second_length;
+  if (chain_length <= 1e-6) {
+    return absl::InvalidArgumentError("layered puppet attachment bone chain has zero length");
+  }
+
+  RgbaImage mask{
+      .width = ownership.width,
+      .height = ownership.height,
+      .pixels = std::vector<uint8_t>(ownership.pixels.size(), 0),
+  };
+  for (int y = 0; y < ownership.height; ++y) {
+    for (int x = 0; x < ownership.width; ++x) {
+      const size_t offset = PixelIndex(ownership.width, x, y) * 4;
+      if (ownership.pixels[offset + 3] == 0) continue;
+      const ProfileControlPoint point{.x = static_cast<double>(x), .y = static_cast<double>(y)};
+      const SegmentProjection first_projection = ProjectOntoSegment(point, first_outer, shared);
+      const SegmentProjection second_projection = ProjectOntoSegment(point, shared, second_outer);
+      const double chain_position = first_projection.distance <= second_projection.distance
+                                        ? first_projection.fraction * first_length
+                                        : first_length + second_projection.fraction * second_length;
+      const double along = chain_position / chain_length;
+      if (along >= falloff.disconnected_at) continue;
+      double weight = 1.0;
+      if (along > falloff.fully_connected_until) {
+        const double normalized = (falloff.disconnected_at - along) /
+                                  (falloff.disconnected_at - falloff.fully_connected_until);
+        weight = normalized * normalized * (3.0 - 2.0 * normalized);
+      }
+      const uint8_t alpha = static_cast<uint8_t>(std::clamp(std::lround(weight * 255.0), 1L, 255L));
+      mask.pixels[offset] = 255;
+      mask.pixels[offset + 1] = 255;
+      mask.pixels[offset + 2] = 255;
+      mask.pixels[offset + 3] = alpha;
+    }
+  }
+  if (!HasOpaquePixel(mask)) {
+    return absl::InvalidArgumentError("layered puppet attachment mask selected no pixels");
+  }
+  return mask;
+}
+
 absl::StatusOr<LayeredPuppetStretchReport> StretchLayeredPuppetBackfill(RgbaImage& layer,
                                                                         const RgbaImage& required,
                                                                         int maximum_distance,
@@ -663,6 +728,53 @@ absl::StatusOr<LayeredPuppetStretchReport> StretchLayeredPuppetBackfill(RgbaImag
     }
   }
   return report;
+}
+
+absl::Status ApplyLayeredPuppetShadow(RgbaImage& composite, const RgbaImage& caster,
+                                      const RgbaImage& receiver,
+                                      const LayeredPuppetShadowConfig& config) {
+  if (!composite.IsValid() || !caster.IsValid() || !receiver.IsValid() ||
+      composite.width != caster.width || composite.height != caster.height ||
+      receiver.width != caster.width || receiver.height != caster.height || config.spread < 0 ||
+      config.opacity == 0) {
+    return absl::InvalidArgumentError("layered puppet shadow images or settings are invalid");
+  }
+  const size_t count = static_cast<size_t>(composite.width) * composite.height;
+  std::vector<bool> shadow(count, false);
+  for (int y = 0; y < caster.height; ++y) {
+    for (int x = 0; x < caster.width; ++x) {
+      if (caster.pixels[PixelIndex(caster.width, x, y) * 4 + 3] == 0) continue;
+      const int center_x = x + config.offset_x;
+      const int center_y = y + config.offset_y;
+      for (int offset_y = -config.spread; offset_y <= config.spread; ++offset_y) {
+        for (int offset_x = -config.spread; offset_x <= config.spread; ++offset_x) {
+          if (offset_x * offset_x + offset_y * offset_y > config.spread * config.spread) {
+            continue;
+          }
+          const int target_x = center_x + offset_x;
+          const int target_y = center_y + offset_y;
+          if (target_x < 0 || target_y < 0 || target_x >= composite.width ||
+              target_y >= composite.height) {
+            continue;
+          }
+          shadow[PixelIndex(composite.width, target_x, target_y)] = true;
+        }
+      }
+    }
+  }
+  const int retained = 255 - config.opacity;
+  for (size_t index = 0; index < count; ++index) {
+    const size_t offset = index * 4;
+    if (!shadow[index] || receiver.pixels[offset + 3] == 0 || caster.pixels[offset + 3] != 0 ||
+        composite.pixels[offset + 3] == 0) {
+      continue;
+    }
+    for (int channel = 0; channel < 3; ++channel) {
+      composite.pixels[offset + channel] =
+          static_cast<uint8_t>((composite.pixels[offset + channel] * retained + 127) / 255);
+    }
+  }
+  return absl::OkStatus();
 }
 
 absl::StatusOr<RgbaImage> BuildLayeredPuppetMaskedArtwork(const RgbaImage& source,
@@ -964,6 +1076,30 @@ absl::StatusOr<RgbaImage> RenderLayeredPuppetPart(const LayeredPuppet& puppet,
       .pixels = std::vector<uint8_t>(static_cast<size_t>(puppet.width) * puppet.height * 4, 0),
   };
   RETURN_IF_ERROR(RenderPart(puppet, pose, puppet.parts[part_index], output));
+  return output;
+}
+
+absl::StatusOr<RgbaImage> RenderLayeredPuppetPoseWithoutPart(const LayeredPuppet& puppet,
+                                                             const LayeredPuppetPose& pose,
+                                                             size_t omitted_part_index) {
+  RETURN_IF_ERROR(ValidateLayeredPuppet(puppet));
+  if (omitted_part_index >= puppet.parts.size() ||
+      pose.joints.size() != puppet.source_joints.size() ||
+      pose.draw_order.size() != puppet.parts.size()) {
+    return absl::InvalidArgumentError("requested layered puppet omitted-part pose is invalid");
+  }
+  RgbaImage output{
+      .width = puppet.width,
+      .height = puppet.height,
+      .pixels = std::vector<uint8_t>(static_cast<size_t>(puppet.width) * puppet.height * 4, 0),
+  };
+  for (const size_t part_index : pose.draw_order) {
+    if (part_index >= puppet.parts.size()) {
+      return absl::InvalidArgumentError("requested layered puppet pose references an unknown part");
+    }
+    if (part_index == omitted_part_index) continue;
+    RETURN_IF_ERROR(RenderPart(puppet, pose, puppet.parts[part_index], output));
+  }
   return output;
 }
 

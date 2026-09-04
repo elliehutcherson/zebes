@@ -15,15 +15,13 @@ Two tracks proceed independently:
 - **Track 5 — runtime/animation.** Runtime Milestones 1–3, pure frame-set
   processing, recipe/bundle lifecycle, and headless animation curation are
   complete. The stable six-state mouse asset graph remains valid, but human
-  review rejected the authored Blender mouse's flat primitive style. The C++
-  layered path now restores one accepted See-through arm, enforces exclusive
-  ownership, removes the static ghost, and reproduces neutral exactly. Three
-  problems were measured and two are fixed. The elbow no longer folds, and
-  ownership now comes from the layer's own alpha plus a reach limit off the bone,
-  so no arm pixels stay stuck to the body and the tail no longer swings with the
-  arm. Backfill is closed by stretching the coat outward. Correcting the shoulder
-  joint then exposed two gates that the old rig had masked. The second arm and
-  legs remain deferred.
+  review rejected the authored Blender mouse's flat primitive style. The latest
+  `semantic-arm-immutable-coat-v1` candidate keeps the accepted generated coat
+  byte-for-byte unchanged instead of stretching it into the arm footprint.
+  Coat RGB/alpha and digest match exactly, neutral remains exact, passing is a
+  reachable bent arm, and its shadow is a separate tonal effect. The existing
+  149-orphan and four-airborne-fold gates remain intentionally red; the second
+  arm and legs remain deferred.
 
 The reusable ordered-reference generation boundary remains supported for
 OpenAI, Codex, headless generation, and redraw; it is not an animation roadmap
@@ -40,39 +38,24 @@ The newer art-direction evidence is in
 [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) and
 `experiments/character_binding/FINDINGS.md`:
 
-The ARAP-first plan is withdrawn; ARAP addressed the smallest of three problems.
-Steps 1-4 are done, step 5 review failed. Follow
+The ARAP-first plan remains withdrawn. The latest candidate follows
 [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md):
 
-1. **Done.** Diagnostics and four opt-in gates. Frame digests unchanged.
-2a. **Done.** Skinning blends the bone angle instead of averaging two rotated
-   positions.
-2b. **Done.** Mesh trimmed to the arm, blend band widened away from the bone via
-   `joint_blend_lateral_scale`. Zero folds, exact neutral, smooth elbow.
-   Retained area is retired as a gate: removing the folds lowered it to
-   81.9%/81.0% while the picture improved, because a bent tube covers less area
-   than a straight one.
-3. **Done.** Ownership derived from the layer's own alpha plus a reach limit off
-   the bone chain, wide at the shoulder and tight at the hand. Orphans 105 to 0,
-   backfill 876 to 598, and the tail no longer swings with the arm.
-4. **Done.** Backfill by stretching. "Stop clipping" turned out to change
-   nothing — the clip never removed those pixels, `topwear` just does not paint
-   there. `StretchLayeredPuppetBackfill` grows the underpaint outward from its
-   interior, not its contour, so the fill carries coat colour rather than the
-   dark outline. Uncovered 745 to 0, contact interior holes 355 to 194.
-   `require_backfill_coverage` is on.
-5. **Failed.** The moved arm reads as a slab across the chest, not an arm. Two
-   causes, neither deformation: `source_from_semantic_reach` starts at 22 px and
-   takes a piece of chest along with the sleeve, so rotating the arm sweeps torso
-   across the body; and the passing pose sends the arm over the front when a
-   side-on run swings it fore and aft beside the body.
-6. Pull the shoulder reach in until the moving layer is a sleeve, not a sleeve
-   plus chest. Measurable, and the first thing to try.
-7. Re-author the four poses for a real two-shoulder rig. They were drawn against
-   the old midline pivot. Art decision.
-8. Then the second arm, then the tail, then split footwear and legs. Neither of
-   those is what a viewer notices first.
-9. Skeleton-conditioned ML stays deferred. M4 blocked until the art passes.
+1. **Done.** Preserve useful diagnostics, corrected `shoulder_b`, reachable
+   passing pose, moved-part tint, arm-hidden output, and separate shadow.
+2. **Rejected.** Relationship-aware stretching still added 592 pixels to a coat
+   layer that was already correct.
+3. **Done.** Add immutable semantic-layer evidence and a hard gate over decoded
+   RGB, alpha additions/removals, and source/final digests.
+4. **Done.** Add `mouse_immutable_coat_v1.json` with no coat stretching.
+   Source/final coat digests match
+   `0400b5084a83957f727c2292d52f481f1af07e29331c628b07c69c2561351fc4`.
+5. Review `semantic-arm-immutable-coat-v1` at 48px: immutable coat alone,
+   arm-hidden body, moved-arm tint, shadow tint, and current Catacombs bundle.
+6. If accepted, keep the coat immutable, separate the tail, then clear the
+   149-orphan and four-airborne-fold hard failures.
+7. Then second arm, split footwear, legs and tail. Skeleton-conditioned ML stays
+   deferred. M4 remains blocked until replacement art passes.
 
 Review frames by tinting the moved part, never by eye — see "How to review this
 without getting it wrong" in the experiment doc.
@@ -134,22 +117,21 @@ order, and collider counts; finish with the complete route gate.
 
 ## Last verification
 
-The semantic arm uses a mesh trimmed to its artwork with the blend band widening
-away from the bone. All 18,974 source pixels are singly owned and the neutral
-composite changes zero RGBA pixels. Read vertex, triangle and area figures from
-`out/semantic-arm-v5/manifest.json`; they move whenever ownership changes.
+The immutable-coat proof reports zero changed coat pixels, zero alpha additions,
+zero alpha removals, and identical source/final digests. Neutral composite
+difference remains zero. No attachment or backfill mask is created; the old
+full-arm metric reports 745 uncovered pixels and is deliberately not a gate
+because pixels outside the coat silhouette may reveal background.
 
-Retained area is no longer a gate. Removing every fold lowered it while the elbow
-visibly improved, so it was rewarding rigidity.
+The corrected passing pose casts a separate 288-pixel shadow without mutating
+the stored coat. Focused Catacombs review at 0.5×, 1×, and 2× reports no
+objective findings.
 
-Backfill now covers every pixel the arm exposes, 745 of them by stretching rather
-than painted artwork — that count is reported each run and should fall when real
-artwork arrives. Two gates still fail on purpose after the shoulder correction:
-149 orphan pixels and 4 folded triangles on airborne, neither tunable with the
-current knobs. `require_no_interior_holes` stays off; the source art has 174
-enclosed gaps of its own.
-
-`layered_puppet_diagnostics_test` passes 25 cases and `layered_puppet_test` 13;
-the affected-target run and clang-tidy pass on both edited library sources.
+Hard validation still rejects 149 body-visible orphan pixels and four airborne
+folds. Contact has 355 interior holes against 174 neutral and passing has 177.
+`layered_puppet_test` passes 23 cases,
+`layered_puppet_diagnostics_test` passes 25, and
+`semantic_layer_import_test` passes eight; both affected-target gates and
+clang-tidy pass.
 Live-transition recording remains blocked by Terminal Screen Recording
 permission and is deferred until the replacement art passes.

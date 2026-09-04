@@ -36,6 +36,12 @@ struct SemanticVisibleOwnership {
   size_t ownership_outside_source_pixels = 0;
 };
 
+struct SemanticLayerMutation {
+  size_t changed_pixels = 0;
+  size_t alpha_added_pixels = 0;
+  size_t alpha_removed_pixels = 0;
+};
+
 // Restores a model-produced cropped layer to its declared full canvas. The crop
 // and image dimensions must agree exactly; clipping or implicit scaling fails.
 absl::StatusOr<RgbaImage> RestoreSemanticLayer(const RgbaImage& cropped,
@@ -67,6 +73,12 @@ absl::StatusOr<RgbaImage> ClipSemanticLayerToMask(const RgbaImage& candidate,
 // ownership outside the source alpha.
 absl::StatusOr<SemanticVisibleOwnership> MeasureSemanticVisibleOwnership(
     const RgbaImage& source, absl::Span<const RgbaImage> visible_layers);
+
+// Measures any decoded RGBA or silhouette change between an accepted semantic
+// source and a processed layer. Immutable artwork passes only when every count
+// is zero.
+absl::StatusOr<SemanticLayerMutation> MeasureSemanticLayerMutation(const RgbaImage& source,
+                                                                   const RgbaImage& processed);
 
 // Splits nontransparent artwork into deterministic four-connected components,
 // discards components smaller than minimum_pixels, and returns the remainder in

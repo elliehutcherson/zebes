@@ -78,34 +78,35 @@ and the six-state player asset graph are complete. The first authored Blender
 mouse proved identity, registration, import, playback, and Catacombs
 integration, but human review rejected its flat primitive style.
 
-The C++ layered path restores one accepted See-through arm, enforces exclusive
-ownership, removes the static ghost, and reproduces neutral exactly. See-through
-also fails or hallucinates the mouse's legs, tail, ears, and hair.
+The C++ layered path restores one accepted See-through arm and separates moving
+arm, static coat, and cast shadow. User review showed that See-through had
+already generated the desired coat-without-arms layer; stretching it to satisfy
+full-arm backfill only made the coat too wide. The latest immutable-coat
+candidate changes zero coat pixels and no alpha while retaining exact neutral
+and a separate reachable passing shadow.
 
-The ARAP-first plan is withdrawn. Measurement showed the visible damage was in
-how the layers were cut apart, not in the solver. Follow
+The ARAP-first plan remains withdrawn. Follow
 [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md):
 
-1. **Close the backfill.** Use every pixel the See-through coat paints, then
-   stretch the surrounding layer to cover what is left. 745 px of the arm still
-   has nothing behind it.
-2. **Clear the two failing gates.** Correcting the shoulder joint left 149 orphan
-   pixels and 4 folded triangles, and neither is tunable with the current knobs.
-   The tail needs to become its own part. Reach for MLS driving the existing mesh
-   before any other solver.
-3. **Finish the layered source gate.** Apply the method to the second arm, split
-   footwear, obtain complete legs/tail, and bind legs through hip/knee/foot.
-   Keep skeleton-conditioned ML deferred.
-
-Note when reviewing: only 3 of the 10 bones are bound to a part, so the legs and
-head do not move in any pose. The four-pose evidence is a standing mouse with one
-arm moving, not a gait test.
-3. **Render and import the replacement clips.** Preserve the stable Blueprint,
-   six state keys, 32×64 collider, timing, and playback contracts.
-4. **Editor import flow.** Expose the proven headless import boundary without
+1. **Review the immutable coat candidate.** Compare imported/final coat,
+   arm-hidden body, moved-arm tint, shadow tint, native passing frame, and
+   current Catacombs evidence. Do not re-enable stretching for pixels outside
+   the approved coat alpha.
+2. **Clear the remaining one-arm gates after acceptance.** Separate the tail,
+   remove 149 static orphan pixels, re-author airborne, and use MLS only if its
+   four artwork folds remain. Resolve pose-local holes relative to neutral.
+3. **Finish the layered source gate.** Apply the accepted method to the second
+   arm, split footwear, obtain complete legs/tail, and bind legs through
+   hip/knee/foot. Keep skeleton-conditioned ML deferred.
+4. **Render and import replacement clips.** Preserve the stable Blueprint, six
+   state keys, 32×64 collider, timing, and playback contracts.
+5. **Editor import flow.** Expose the proven headless import boundary without
    adding remote animation generation.
-5. **Human gate.** Record idle, locomotion, direction, jump/fall, landing,
+6. **Human gate.** Record idle, locomotion, direction, jump/fall, landing,
    slopes, walls, and ceilings in Catacombs.
+
+Only torso and one arm currently consume artwork. The four-pose evidence remains
+a one-arm stress test, not a gait test.
 
 ### M4 — thread split
 

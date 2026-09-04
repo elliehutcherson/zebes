@@ -36,14 +36,17 @@ experiments/character_binding/
   FINDINGS.md
 
 src/artwork/layered_puppet.{h,cc}
+src/artwork/layered_puppet_diagnostics.{h,cc}
 src/artwork/semantic_layer_import.{h,cc}
 scripts/render_layered_puppet.cc
 tests/artwork/layered_puppet_test.cc
+tests/artwork/layered_puppet_diagnostics_test.cc
 tests/artwork/semantic_layer_import_test.cc
 ```
 
-See-through is evaluated from an isolated temporary checkout on `derry`. Its
-virtual environment, model cache, and outputs do not enter this repository.
+See-through was evaluated from an isolated temporary checkout on `derry`.
+Accepted source-of-truth inputs are retained under `out/`; derived renders,
+virtual environments, and model caches are not repository dependencies.
 
 ## Build the C++ proof tools
 
@@ -264,44 +267,39 @@ class before articulation.
 
 The C++ semantic importer restores the accepted See-through arm crop, reduces it
 to the 256px working canvas, and pastes original visible pixels back exactly.
-`mouse_semantic_arm_v1.json` binds that complete RGBA layer to
-shoulder/elbow/wrist through a mesh trimmed to the arm's own alpha. Read the
-current vertex and triangle counts from the run manifest, not from here.
+`mouse_immutable_coat_v1.json` binds the accepted arm to
+shoulder/elbow/wrist while importing See-through `topwear` as immutable
+coat-without-arms artwork.
 
 ```bash
 build/dev/bin/render_layered_puppet \
   --source=experiments/character_binding/out/profile-binding-deformation-v2/source-color.png \
-  --spec=experiments/character_binding/puppet_specs/mouse_semantic_arm_v1.json \
+  --spec=experiments/character_binding/puppet_specs/mouse_immutable_coat_v1.json \
   --semantic_root=experiments/character_binding/out/see-through-v1/optimized \
-  --output=experiments/character_binding/out/semantic-arm-v5
+  --output=experiments/character_binding/out/semantic-arm-immutable-coat-v1
 ```
 
-The isolated arm initially passed but full-character motion exposed a static
-copy still owned by the torso. The corrected three-layer stack places generated
-coat underpaint behind the complete arm and removes the arm's authoritative
-pixels from the visible body. All 18,974 source pixels now have exactly one
-owner, neutral changes zero full-character pixels, and moved poses reveal coat
-underpaint rather than a ghost arm.
+The relationship-stretch candidate was rejected: the generated coat was already
+correct, and adding 592 pixels made it too wide. The immutable proof saves the
+imported coat beside the final part and gates decoded RGB, alpha additions,
+alpha removals, and digest equality.
 
-Every arm pose remains one connected component, but human review rejected the
-result. `layered_puppet_diagnostics` measured why, and it was mostly not
-deformation: arm pixels welded into `body_visible`, and body pixels with no
-artwork behind them. Those are the floating sliver and the coat gash a person
-sees.
+Source and final coat digests match
+(`0400b5084a83957f727c2292d52f481f1af07e29331c628b07c69c2561351fc4`);
+changed pixels, added alpha, and removed alpha are all zero. Neutral remains
+exact. Passing keeps the reachable bent pose and casts a separate 288-pixel
+shadow without mutating the coat.
 
-Skinning now blends the two bone rotation angles about the shared joint, the mesh
-is trimmed to the arm, the blend band widens away from the bone, and ownership is
-derived from the layer alpha plus a bone-reach limit. Correcting the shoulder
-joint afterwards exposed two gates that the old rig had been masking. Current
-numbers live in `out/semantic-arm-v5/manifest.json`; the run deliberately fails
-its hard gates.
+The old full-arm backfill metric reports 745 uncovered pixels but is deliberately
+not a gate: pixels outside the approved coat silhouette may reveal background.
+Existing blockers remain 149 body-visible orphan pixels, four airborne folds,
+and contact/passing hole counts of 355/177 against 174 neutral.
 
 ## Next gate
 
-Follow [`docs/character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md):
-close the backfill, then clear the two gates the shoulder correction exposed.
-Do not proceed to the second arm or legs until native 48px review accepts the
-result. Reach for MLS driving the existing mesh only if that fails.
+Review the immutable coat alone, arm-hidden body, moved-arm tint, shadow tint,
+and native passing frame. If the coat is accepted, keep it immutable; then
+separate the tail and clear the orphan/fold gates.
 
 When reviewing, remember only 3 of the 10 bones drive a part. The legs and head
 do not move; the four poses are a standing mouse with one arm moving.

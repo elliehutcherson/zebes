@@ -171,6 +171,27 @@ absl::StatusOr<SemanticVisibleOwnership> MeasureSemanticVisibleOwnership(
   return result;
 }
 
+absl::StatusOr<SemanticLayerMutation> MeasureSemanticLayerMutation(const RgbaImage& source,
+                                                                   const RgbaImage& processed) {
+  if (!source.IsValid() || !processed.IsValid() || source.width != processed.width ||
+      source.height != processed.height) {
+    return absl::InvalidArgumentError("semantic mutation images must share valid dimensions");
+  }
+  SemanticLayerMutation result;
+  for (size_t offset = 0; offset < source.pixels.size(); offset += 4) {
+    if (!std::equal(source.pixels.begin() + static_cast<ptrdiff_t>(offset),
+                    source.pixels.begin() + static_cast<ptrdiff_t>(offset + 4),
+                    processed.pixels.begin() + static_cast<ptrdiff_t>(offset))) {
+      ++result.changed_pixels;
+    }
+    const bool before = source.pixels[offset + 3] != 0;
+    const bool after = processed.pixels[offset + 3] != 0;
+    if (!before && after) ++result.alpha_added_pixels;
+    if (before && !after) ++result.alpha_removed_pixels;
+  }
+  return result;
+}
+
 absl::StatusOr<std::vector<SemanticLayerComponent>> SplitSemanticLayerComponents(
     const RgbaImage& source, size_t minimum_pixels) {
   if (!source.IsValid() || minimum_pixels == 0) {

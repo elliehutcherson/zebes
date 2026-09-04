@@ -33,39 +33,34 @@ ghost. Exclusive ownership and torso underpaint fixed that defect: all 18,974
 source pixels are singly owned and neutral changes zero pixels. Human review
 then rejected the remaining deformation quality.
 
-Sections 23 and 24 measured why, and it is mostly not deformation. The elbow is fixed:
-angle-blended skinning plus a trimmed mesh and a laterally widened blend band
-give zero folds and a smooth bend, with neutral still pixel-exact. Retained area
-is retired as a gate, because removing the folds lowered it while the picture
-improved.
+Sections 23-25 measured why the first review failed. Angle-blended skinning,
+mesh trimming, corrected shoulder geometry, and alpha/reach ownership remain
+useful. The later backfill work encoded the wrong invariant: it required every
+moving-arm pixel to have coat behind it.
 
-The layer cut is fixed too. Ownership is derived from the layer's own alpha plus
-a reach limit off the bone chain, so the stuck pixels are gone and the tail no
-longer swings with the arm, and the backfill is closed by stretching the coat
-outward from its interior.
+The user-provided target made the error explicit. See-through's generated
+`topwear` already is the desired coat with the arms absent. Stretching 592 or
+745 extra pixels did not repair it; it enlarged a correct coat into the shadow
+arm.
 
-Correcting the shoulder joint then exposed two gates the old rig had masked: 149
-orphan pixels and 4 folded triangles, neither tunable with the current knobs.
-That failure is the signal.
+`semantic-arm-immutable-coat-v1` now imports that coat without stretching and
+marks it immutable. Source and final digests are identical
+(`0400b508...351fc4`), with zero changed pixels, zero alpha additions, and zero
+alpha removals. Neutral remains exact. Passing keeps the reachable bent pose and
+casts a separate 288-pixel shadow without mutating stored coat artwork.
 
-48px review then rejected the moved arm for a reason none of the gates measure.
-It reads as a wide slab lying across the chest rather than an arm, because
-`source_from_semantic_reach` starts at 22 px and takes a piece of chest coat
-along with the sleeve. Standing still that is invisible; rotating the arm sweeps
-torso across the body. The reach was chosen while the pivot was still at the
-midline, where 22 px covered a plausible sleeve.
+This is the bounded review candidate. The former full-arm backfill report shows
+745 uncovered pixels and is intentionally not a gate; those pixels lie outside
+the approved coat silhouette and may reveal background. The pre-existing 149
+body-visible orphan pixels and four airborne folds still fail hard validation.
+Contact has 355 interior holes against 174 neutral; passing has 177. The second
+arm and legs remain deferred.
 
-The passing pose compounds it by sending the arm over the front, when a side-on
-run swings each arm fore and aft beside the body. The four poses were authored
-against the midline pivot and want re-authoring.
+Inference supplies candidate RGBA only. C++ owns crop restoration, source-pixel
+preservation, immutable-layer enforcement, skeleton mapping, shadow,
+deformation, articulation scoring, and rejection.
 
-Next: narrow the shoulder reach until the moving layer is a sleeve rather than a
-sleeve plus chest, then re-author the poses. Only after that, the second arm and
-the tail — neither is what a viewer notices first.
 
-Inference supplies candidate RGBA only. C++ owns crop restoration, original
-pixel preservation, semantic acceptance, skeleton mapping, deformation,
-articulation scoring, and rejection.
 
 ## Decision ledger
 
@@ -101,6 +96,8 @@ articulation scoring, and rejection.
 | 28 | Corrected shoulder joint | Arm pivots at its socket; poses re-solved by IK, passing clamped; 149 orphans and 4 folds appear | Accept; failure is the signal |
 | 29 | Backfill by stretching | Uncovered 745 to 0, contact tears 355 to 194; 47% of the region behind the arm is invented | Accept; gate on |
 | 30 | 48px review of the moved arm | Reads as a slab across the chest: the layer owns chest coat, and the pose sweeps it over the front | Reject; narrow the reach and re-author the poses |
+| 31 | Relationship-aware coat and corrected passing pose | Arm-hidden coat no longer reads as a full sleeve; passing arm is bent; shadow is separate | Review candidate; hard gates remain |
+| 32 | Immutable generated coat A/B | Coat digest/alpha unchanged; no stretch; neutral exact; shadow separate | Review candidate; keep coat immutable |
 
 ---
 
@@ -787,6 +784,78 @@ planned and measured to do nothing; and the arm draped across the chest was
 called the static one when it is the moved one. Each was a conclusion formed
 before the measurement existed.
 
+## 27. Relationship-aware coat and arm shadow — candidate
+
+The backfill target was conceptually wrong. It equated the whole moving-arm
+footprint with coat that must remain after the arm moved. Coverage could pass
+while the static layer still looked like another arm.
+
+The corrected target intersects ownership with an authored coat silhouette and
+unions a graded shoulder attachment. Connection is strongest at `shoulder_b`,
+fades along the bone chain, and reaches zero before the hand. The hand and lower
+arm no longer define the coat shape. The static coat target contains 1,429
+pixels; 592 are stretched from coat interior and none are uncovered. The
+attachment relationship contains 595 pixels.
+
+Arm shadow is now independent artwork behavior rather than part ownership. In
+the foreground passing pose, a small offset projection darkens 349 receiver
+pixels while preserving alpha. Neutral, contact, and airborne cast none because
+the arm is behind the body in their declared order.
+
+The proof tool publishes:
+
+- `diagnostics/*-front_arm-hidden.png`, the coat/body with the arm removed;
+- `diagnostics/*-front_arm-tint.png`, the pixels changed by the moving part;
+- `diagnostics/passing-shadow-tint.png`, the shadow footprint;
+- `attachment-masks/front_arm.png`; and
+- `backfill-masks/front_arm.png`.
+
+The instrumentation corrected another visual ambiguity: the old passing target
+really did move the arm across the chest. Re-authoring it with constant bone
+lengths reduced shoulder-to-hand reach from 64.870 to 42.544 pixels and produces
+a bent U-shaped arm. The coat underneath now reads continuously when viewed
+alone.
+
+Hard validation intentionally remains red: 149 pixels are still reported as one
+static orphan component, and airborne folds four triangles over artwork.
+Contact also adds 80 interior holes over neutral. Those failures predate this
+coat relationship and are not suppressed.
+
+Verdict: rejected. The generated `topwear` layer was already the correct
+coat-without-arms source; adding 592 stretched pixels still made it too wide.
+Keep the diagnostics, corrected passing pose, and separate shadow, but do not
+modify the coat.
+
+## 28. Immutable generated coat — candidate
+
+`mouse_immutable_coat_v1.json` removes `stretch_to_cover_parts` and marks
+`body_underpaint` immutable. The proof tool saves the imported source beside the
+final part and compares decoded RGBA, alpha additions, alpha removals, and
+digests after every processing step.
+
+The imported and final coat both digest to
+`0400b5084a83957f727c2292d52f481f1af07e29331c628b07c69c2561351fc4`.
+Changed pixels, added alpha, and removed alpha are all zero. No attachment or
+backfill mask is created. Neutral composite difference remains zero.
+
+The separate passing shadow changes 288 displayed working pixels while leaving
+the stored coat untouched. The arm-hidden diagnostic now reviews the exact
+generated coat rather than a repaired derivative. Focused Catacombs review at
+0.5x, 1x, and 2x reports no objective findings.
+
+This experiment deliberately does not require full moving-arm backfill. It
+reports 745 arm pixels without static coverage because the old metric still
+measures the complete arm footprint; those pixels are not evidence of missing
+coat when they lie outside the immutable coat alpha.
+
+Hard validation remains red for unrelated existing work: 149 body-visible
+orphan pixels and four airborne folds. Contact has 355 interior holes against
+174 neutral and passing has 177.
+
+Verdict: this is the correct coat A/B candidate. Human review must compare the
+immutable coat, arm-hidden composite, moving-arm tint, shadow tint, and native
+frame before any more coat processing.
+
 ---
 
 # The one rule that explains most failures
@@ -854,16 +923,14 @@ when the subject covers two of them. It samples the whole border ring now.
 
 The current shipped Blender source remains reproducible, but it is a pipeline
 proof rather than accepted art. The C++ layered-puppet and semantic-import
-implementations, `mouse_semantic_arm_v1.json`, isolated part poses, native
-frames, manifests, focused Catacombs review, and
+implementations, `mouse_immutable_coat_v1.json`, immutable source/final coat
+evidence, isolated part poses, native frames, current Catacombs review, and
 [`character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md)
 own the replacement direction evidence.
 
-See-through and generated review output remains gitignored under
-`out/see-through-v1` and `out/semantic-arm-v5`; revision, settings, input
-digest, mesh dimensions, pose digests, component counts, pixel counts, and
-rejection reasons are recorded above. External Python environments and model
-caches remain outside the repository.
+Current review output is under `out/semantic-arm-immutable-coat-v1`; accepted
+See-through inputs remain under `out/see-through-v1`. External Python
+environments and model caches remain outside the repository.
 
 ---
 
@@ -871,21 +938,24 @@ caches remain outside the repository.
 
 The ARAP A/B that used to head this list is withdrawn; see sections 23 and 24.
 
-1. **Done.** Backfill closed by stretching, 745 px to 0. Removing the clip did
-   nothing; `topwear` simply does not paint there.
-2. **Clear the two gates the shoulder correction exposed.** 149 orphan pixels and
-   4 folded triangles, neither tunable with the current knobs. The tail needs to
-   become its own part.
-3. **Bind more than one arm before believing a pose review.** Only 3 of the 10
-   bones drive a part today, so the legs and head are frozen; the four-pose
-   evidence is a standing mouse with one arm moving.
-4. **Reach for MLS driving the existing mesh** if the weight and reach heuristics
-   keep failing. Do not delete the mesh; it is the rasterizer and it holds the
-   exact-neutral proof.
-5. **Then apply the method to `handwear-r`,** split footwear, obtain complete
+1. **Review the immutable-coat candidate.** Compare immutable source and final
+   coat, arm-hidden body, moved-arm tint, shadow tint, native passing frame, and
+   current Catacombs bundle.
+2. **Keep the coat immutable if accepted.** Do not re-enable stretching to
+   satisfy the obsolete full-arm backfill metric.
+3. **Separate the tail and clear the orphan gate.** The remaining 149-pixel
+   static component overlaps the arm footprint. Make the tail independently
+   owned before changing arm reach.
+4. **Clear the four airborne folds.** Re-author airborne against `shoulder_b`
+   first. If valid pose geometry still folds, drive the existing mesh with MLS.
+5. **Resolve pose-local holes.** Contact is 355 versus 174 neutral and passing
+   is 177. Gate the increase only after the coat target is visually accepted.
+6. **Bind more than one arm before believing character-pose evidence.** Only
+   torso and one arm consume artwork today.
+7. **Then apply the method to `handwear-r`,** split footwear, obtain complete
    legs/tail, and bind legs through hip/knee/foot.
-6. **Defer skeleton-conditioned ML.** The blocker is the layer cut, not semantic
-   parsing.
-7. **Finish production after the complete-character gate.** Render/import the
+8. **Keep skeleton-conditioned ML deferred.** The blocker is layer structure and
+   pose authorship, not parsing.
+9. **Finish production after the complete-character gate.** Render/import the
    six replacement clips, expose editor import controls, record live
    transitions, then unblock runtime M4.

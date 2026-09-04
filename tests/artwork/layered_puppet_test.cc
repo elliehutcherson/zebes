@@ -103,6 +103,20 @@ TEST(LayeredPuppetTest, SeparatedArmMovesWithoutWarpingTorso) {
             (std::vector<uint8_t>{48, 144, 80, 255}));
 }
 
+TEST(LayeredPuppetTest, OmittedPartEvidenceShowsTheStaticLayersAlone) {
+  const absl::StatusOr<LayeredPuppet> puppet = TestPuppet();
+  ASSERT_TRUE(puppet.ok()) << puppet.status();
+
+  const absl::StatusOr<RgbaImage> without_arm =
+      RenderLayeredPuppetPoseWithoutPart(*puppet, puppet->poses[0], 1);
+
+  ASSERT_TRUE(without_arm.ok()) << without_arm.status();
+  EXPECT_EQ(without_arm->pixels[Offset(9, 5) + 3], 0);
+  EXPECT_EQ(std::vector<uint8_t>(without_arm->pixels.begin() + Offset(5, 8),
+                                 without_arm->pixels.begin() + Offset(5, 8) + 4),
+            (std::vector<uint8_t>{48, 144, 80, 255}));
+}
+
 TEST(LayeredPuppetTest, CompleteArmMeshBendsWithoutNeutralReconstructionChanges) {
   RgbaImage artwork{
       .width = kSize,
@@ -248,6 +262,31 @@ TEST(LayeredPuppetTest, OwnershipRejectsNonPositiveReach) {
                    .ok());
 }
 
+TEST(LayeredPuppetTest, AttachmentFadesFromShoulderBeforeHand) {
+  const BarMesh bar = MakeBar();
+  const std::array<size_t, 2> bone_indices = {0, 1};
+  const absl::StatusOr<RgbaImage> attachment =
+      BuildLayeredPuppetAttachmentMask(bar.artwork, bone_indices, bar.bones, bar.source_joints,
+                                       {.fully_connected_until = 0.1, .disconnected_at = 0.5});
+
+  ASSERT_TRUE(attachment.ok()) << attachment.status();
+  const uint8_t shoulder = attachment->pixels[Offset(1, 5) + 3];
+  const uint8_t middle = attachment->pixels[Offset(4, 5) + 3];
+  const uint8_t hand = attachment->pixels[Offset(10, 5) + 3];
+  EXPECT_EQ(shoulder, 255);
+  EXPECT_GT(middle, 0);
+  EXPECT_LT(middle, shoulder);
+  EXPECT_EQ(hand, 0);
+}
+
+TEST(LayeredPuppetTest, AttachmentRejectsReversedFalloff) {
+  const BarMesh bar = MakeBar();
+  EXPECT_FALSE(BuildLayeredPuppetAttachmentMask(
+                   bar.artwork, std::array<size_t, 2>{0, 1}, bar.bones, bar.source_joints,
+                   {.fully_connected_until = 0.6, .disconnected_at = 0.4})
+                   .ok());
+}
+
 TEST(LayeredPuppetTest, MaskedArtworkAndSubtractionArePixelComplements) {
   const BarMesh bar = MakeBar();
   const absl::StatusOr<RgbaImage> mask = BuildLayeredPuppetOwnershipMask(
@@ -364,6 +403,29 @@ TEST(LayeredPuppetTest, StretchRejectsNonPositiveDistance) {
   RgbaImage required = BlankImage();
   Fill(required, 6, 2, 9, 10);
   EXPECT_FALSE(StretchLayeredPuppetBackfill(layer, required, 0, 0).ok());
+}
+
+TEST(LayeredPuppetTest, ShadowDarkensReceiverOutsideCaster) {
+  RgbaImage composite = BlankImage();
+  RgbaImage receiver = BlankImage();
+  RgbaImage caster = BlankImage();
+  Fill(composite, 2, 2, 10, 10);
+  Fill(receiver, 2, 2, 10, 10);
+  for (int y = 4; y < 6; ++y) {
+    for (int x = 4; x < 6; ++x) {
+      SetPixel(caster, x, y, {200, 100, 80, 255});
+      SetPixel(composite, x, y, {200, 100, 80, 255});
+    }
+  }
+
+  ASSERT_TRUE(ApplyLayeredPuppetShadow(composite, caster, receiver,
+                                       {.offset_x = 2, .offset_y = 0, .spread = 0, .opacity = 128})
+                  .ok());
+
+  EXPECT_EQ(composite.pixels[Offset(2, 4)], 90);
+  EXPECT_EQ(composite.pixels[Offset(6, 4)], 45);
+  EXPECT_EQ(composite.pixels[Offset(6, 4) + 1], 70);
+  EXPECT_EQ(composite.pixels[Offset(4, 4)], 200);
 }
 
 TEST(LayeredPuppetTest, MeshKeepsOnlyCellsCarryingArtwork) {

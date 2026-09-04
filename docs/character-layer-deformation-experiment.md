@@ -1,13 +1,13 @@
 # Character layer deformation
 
-**Status:** 2026-09-04. Steps 1-4 done, joints corrected. Step 5 review failed:
-the moved arm reads as a slab across the chest, because it owns too much coat and
-the pose sweeps it across the body. The render also **fails two hard gates on
-purpose** — see "Known failing gates". Read "How to review this without getting
-it wrong" before judging any frame.
+**Status:** 2026-09-04. Immutable-coat A/B proof implemented in
+`semantic-arm-immutable-coat-v1`; human review pending. The imported
+See-through `topwear` survives with zero RGB changes, zero alpha additions, and
+zero alpha removals. The relationship-stretch candidate is rejected because it
+modified a coat layer that was already correct.
 
-The earlier plan was to add an ARAP solver. Withdrawn: measurement showed the
-visible damage is in how the layers were cut apart, not in the solver.
+Two pre-existing hard gates still fail intentionally: 149 static orphan pixels
+and four airborne triangle folds. The earlier ARAP-first plan remains withdrawn.
 
 ## The problems
 
@@ -30,16 +30,16 @@ Same cause as problem 1, opposite direction: the hand-drawn polygon reached x198
 while `handwear-l` ends at x186. One polygon left arm pixels behind, the other
 took body pixels along. Step 3 fixed both.
 
-**2. Nothing painted behind the arm — 876 px, later 745, now 0.** Those coat
-pixels existed only in the arm layer, so they went transparent when it moved.
-That was the white gash in `working/passing.png`. Step 4 closed it by stretching.
+**2. We damaged a correct coat layer.** See-through's generated `topwear`
+already represents the coat with both arms absent. The pipeline then required
+every moving-arm pixel to have static coverage and stretched hundreds of pixels
+into that footprint. Coverage passed while the coat became too wide and read as
+another arm.
 
-See-through's `topwear` does paint the coat behind the arm, but not far enough
-out. The original diagnosis blamed `clip_to_source_alpha`; that was wrong, and
-step 4 records why.
-
-The exact-neutral check missed this because neutral is exact only while the arm
-still covers the hole.
+The correct invariant is simpler: imported coat RGB and alpha are immutable.
+Arm pixels outside that silhouette reveal background. Shoulder attachment, if
+needed, is a separate local deformation effect; cast shadow is a separate
+pose-local tonal effect that may not change coat alpha.
 
 **3. The elbow loses area.** Two causes, both fixed in steps 2a and 2b.
 
@@ -272,30 +272,59 @@ let body pixels near the shoulder partially follow the arm, using the same
 Do not build this pre-emptively. It breaks "every pixel has exactly one owner",
 which is the gate that has caught the most real bugs so far.
 
-### Step 5 — review at 48px. Failed, with a clear cause.
+### Step 4c — relationship-aware stretch. Rejected.
 
-The moved arm does not read as an arm. In the passing pose it is a wide slab
-lying across the chest and belt. Two causes, neither of them deformation:
+This candidate separated coat silhouette, shoulder relationship, and shadow,
+but still stretched 592 pixels into the generated coat. User review showed the
+result had more coat than the intended image. The diagnosis that the coat was
+cut away was backwards.
 
-**The arm owns too much coat.** `source_from_semantic_reach` starts at 22 px at
-the shoulder, wide enough to take a large piece of the chest along with the
-sleeve. Standing still that is invisible, because the coat it took is exactly
-where the coat already was. As soon as the arm rotates, that chest piece rotates
-with it and a chunk of torso sweeps across the body.
+Keep the useful infrastructure from this step:
 
-Reach was chosen when the pivot was still at the body midline, where 22 px
-covered a plausible sleeve. With the pivot at the real socket it covers far more.
-Pull it in until the moving layer is a sleeve rather than a sleeve plus chest,
-and re-check.
+- reachable bent passing pose with invariant 32.249/33.121-pixel bone lengths;
+- arm-hidden and moved-part tint evidence;
+- separate shadow rendering and shadow tint;
+- attachment and backfill masks.
 
-**The pose sends the arm across the chest.** A side-on run swings each arm
-forward and back beside the body. This one sweeps over the front, and the passing
-draw order puts it on top, so it covers the belt. The four poses were authored
-against the midline pivot and want re-authoring for a real two-shoulder rig. That
-is an art decision, not a solver decision.
+Do not keep the stretched coat as the target.
 
-Next after that: the second arm, then the tail. Neither is what a viewer notices
-first.
+### Step 4d — immutable generated coat. Candidate ready.
+
+`mouse_immutable_coat_v1.json` removes `stretch_to_cover_parts` and marks
+`body_underpaint` as an immutable semantic layer. The proof tool retains the
+restored source layer separately and fails if processing changes RGB, adds
+alpha, or removes alpha.
+
+Measured result:
+
+- source and final coat digest:
+  `0400b5084a83957f727c2292d52f481f1af07e29331c628b07c69c2561351fc4`;
+- changed coat pixels: 0;
+- alpha additions: 0;
+- alpha removals: 0;
+- neutral composite difference: 0;
+- passing shadow changes 288 displayed pixels but does not mutate stored coat
+  RGB or alpha.
+
+The former full-arm backfill report now shows 745 uncovered pixels and is not a
+gate. Those pixels lie outside the approved coat silhouette and may correctly
+reveal background. Contact has 355 interior holes against 174 neutral; passing
+has 177. The unchanged 149-orphan and four-airborne-fold failures remain.
+
+### Step 5 — review at 48px. Immutable candidate pending.
+
+Review `semantic-arm-immutable-coat-v1` in this order:
+
+1. `immutable-sources/body_underpaint.png`: the accepted generated coat.
+2. `parts/body_underpaint.png`: must be byte-identical.
+3. `diagnostics/working/passing-front_arm-hidden.png`: coat plus static body,
+   with no invented sleeve.
+4. `diagnostics/working/passing-front_arm-tint.png`: one bent moving arm.
+5. `diagnostics/working/passing-shadow-tint.png`: shadow only.
+6. `frames/passing.png` and `proof.png`: native 48px result.
+
+Do not reintroduce coat stretching to make the old backfill number green.
+
 
 ## If step 5 fails
 

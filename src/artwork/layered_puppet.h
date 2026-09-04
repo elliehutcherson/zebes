@@ -132,6 +132,38 @@ absl::StatusOr<RgbaImage> BuildLayeredPuppetOwnershipMask(
     absl::Span<const ProfileControlBone> bones, absl::Span<const ProfileControlPoint> source_joints,
     const LayeredPuppetOwnershipReach& reach);
 
+// How strongly a garment remains attached to a moving limb along its source
+// bone chain. Weight is one near the shoulder, fades between the two normalized
+// positions, and reaches zero before the hand. This distinguishes coat that
+// must remain behind the shoulder from lower-arm pixels that should reveal
+// background when the arm moves.
+struct LayeredPuppetAttachmentFalloff {
+  double fully_connected_until = 0.0;
+  double disconnected_at = 1.0;
+};
+
+// Converts moving-part ownership into a graded attachment mask. Output alpha is
+// the relationship weight; RGB is white. Pixels at or beyond disconnected_at
+// are transparent and must not be treated as required static backfill.
+absl::StatusOr<RgbaImage> BuildLayeredPuppetAttachmentMask(
+    const RgbaImage& ownership, absl::Span<const size_t> bone_indices,
+    absl::Span<const ProfileControlBone> bones, absl::Span<const ProfileControlPoint> source_joints,
+    const LayeredPuppetAttachmentFalloff& falloff);
+
+struct LayeredPuppetShadowConfig {
+  int offset_x = 0;
+  int offset_y = 0;
+  int spread = 0;
+  uint8_t opacity = 0;
+};
+
+// Applies a pose-local shadow cast by a rendered moving part onto rendered
+// receiver layers. Only receiver pixels outside the caster are darkened; alpha
+// and ownership are unchanged.
+absl::Status ApplyLayeredPuppetShadow(RgbaImage& composite, const RgbaImage& caster,
+                                      const RgbaImage& receiver,
+                                      const LayeredPuppetShadowConfig& config);
+
 struct LayeredPuppetStretchReport {
   size_t required_pixels = 0;
   size_t filled_pixels = 0;
@@ -185,6 +217,13 @@ absl::StatusOr<std::vector<ProfileControlPoint>> SolveLayeredPuppetMeshVertices(
 // reconstruction diagnostics; part_index must name an existing part.
 absl::StatusOr<RgbaImage> RenderLayeredPuppetPart(const LayeredPuppet& puppet,
                                                   const LayeredPuppetPose& pose, size_t part_index);
+
+// Renders a complete pose while omitting one part. This exposes whether the
+// static layers contain a ghost of the moving part and whether the underpaint
+// represents the body that should remain after the part moves away.
+absl::StatusOr<RgbaImage> RenderLayeredPuppetPoseWithoutPart(const LayeredPuppet& puppet,
+                                                             const LayeredPuppetPose& pose,
+                                                             size_t omitted_part_index);
 
 // Rigidly inverse-samples one-bone parts and triangle-rasterizes two-bone
 // skinned parts, then composites in authored back-to-front order. Hidden
