@@ -17,28 +17,49 @@ Two structural causes, neither fixable by prompting:
 2. **There was no hard conditioning channel.** The OpenAI and Codex image APIs
    accept reference images, not control maps.
 
-This experiment tests whether freely generated reference art can be bound to
-deterministic geometry, posed, and used as identity/style evidence without
-reintroducing frame drift. Generation runs on local ComfyUI.
+This experiment tests whether approved 2D character art can become deterministic
+animation input without identity drift. Remote pose generation is closed; the
+active route is explicit layered artwork rendered and validated in C++.
 
-## Current status in one paragraph
+## Current status
 
-The reference-first route now has a target-view binder. A freely generated
-profile mouse is isolated exactly, thinned to a pruned medial axis, assigned
-semantic head, trunk, arm, hip, knee, and foot joints, and bound to ten bones.
-The neutral deformation retains 97.3% silhouette IoU at the 256px working size.
-Contact, passing, and airborne proofs remain recognizably the same large-eared,
-long-coated mouse at 48px and expose different poses. These are conditioning
-guides, not final art: the neutral coat hides leg surfaces that no single-image
-deformation can recover.
+The production import/runtime graph is complete, but the Blender mouse failed
+the reopened art-direction gate. A ten-part C++ puppet preserves the approved
+generated face, clothing texture, and palette across four poses. See-through V3
+improves the source material by completing both arms, both boots, and the coat,
+but fails the mouse's legs and tail and hallucinates human ears and hair.
 
-The follow-up body-plan matrix shows what can be automated without pretending
-that character design is a scalar prompt. Humanoid and mouse reuse one biped
-builder; badger, rabbit, fox, and cat reuse one quadruped builder; bat uses a
-flyer builder. Each JSON specimen renders neutral and action poses in one
-validated batch. The result passes reuse, framing, pose-change, and coarse
-species-readability gates, but remains a structural prototype rather than final
-art.
+The skeleton is already explicit in `mouse_profile_v1.json`; the next gate must
+make it operational across complete semantic layers. One arm layer should be
+skinned by shoulder, elbow, and wrist influences rather than cut into rigid
+upper/lower pieces. The same applies to each leg. Inference supplies candidate
+RGBA only; C++ owns mapping, original-pixel preservation, deformation,
+articulation scoring, and rejection.
+
+## Decision ledger
+
+| # | Attempt | Result | Decision |
+|---:|---|---|---|
+| 1 | Weak depth, prompted identity | 337% head drift | Reject |
+| 2 | Strong depth, prompted identity | 33.8% drift; grey mannequin | Reject |
+| 3 | Depth plus IP-Adapter | 11/12 frames at 1.3% drift; head outlier and identity collapse | Reject guide geometry |
+| 4 | Review at native 48px | Painterly output became unreadable | Native-size review required |
+| 5 | Pixel-art LoRA, chunky proportions | Front view readable; profile failed | Partial |
+| 6 | Canny plus LoRA/IP-Adapter | Profiles and local pose changes readable | Retain as evidence |
+| 7 | Unconstrained pixel generation | Best identity and style | Reference quality bar |
+| 8 | Primitive complete-rig fitting | 68.8% IoU against 80% gate | Reject |
+| 9 | Profile silhouette binding | 97.3% neutral IoU; hidden limbs absent | Structural proof only |
+| 10 | Deterministic C++ silhouette core | Isolation/topology pass across fuzz set | Retain |
+| 11 | Four-pose Canny generation | Identity pass; elevation/order fail | Reject |
+| 12 | Ordinal depth generation | Pose/style strength conflict repeated | Reject |
+| 13 | Dual Canny/depth generation | Airborne still grounded | Close diffusion animation control |
+| 14 | Direct C++ deformation | Exact neutral; bad ownership remains | Renderer pass, source fail |
+| 15 | Direct low-poly 3D | Stable identity/pose; crude art | Structural pass only |
+| 16 | Generated model sheet for 3D | 75.5% silhouette IoU | Mapping pass, art fail |
+| 17 | Shared body-plan builders | Reuse/species pass; generic art | Automation boundary established |
+| 18 | Authored Blender mouse | Runtime/pipeline pass; style rejected | Keep as pipeline proof |
+| 19 | Explicit layered 2D puppet | Style and four-pose direction pass; rigid seams | Continue |
+| 20 | See-through V3 decomposition | Arms/boots/coat pass; legs/tail/anatomy fail | Candidate generator only |
 
 ---
 
@@ -256,8 +277,9 @@ production `IsolateSubject` output, reduces the exact alpha mask, performs
 Zhang-Suen thinning, prunes short branches, reports topology, and renders neutral
 and posed binary controls. The active experiment was renamed and flattened to
 `experiments/character_binding`; rejected mannequin geometry code was removed.
-Python retains only unsettled semantic-joint/deformation policy and ComfyUI
-orchestration, neither of which is an engine dependency.
+The rejected semantic-joint and ComfyUI animation-control Python prototypes were
+removed after their stop rules fired. Stable silhouette, deformation, and
+layered-puppet processing now live in C++.
 
 Three independently generated mouse identities exercised different failure
 classes rather than competing for final-art selection:
@@ -449,6 +471,62 @@ The runtime has no Texture or Sprite normal-map channel, so this production
 asset deliberately ships RGBA color frames only. An unconsumed normal sidecar
 would not be a production feature.
 
+## 18. Explicit layered 2D puppet — direction pass
+
+The generated profile was split into ten authored head, torso, arm, and leg
+parts. `mouse_profile_v1.json` replaces inferred semantic joints with explicit
+joint positions, supplies dark hidden-leg underpaint, and declares front/rear
+draw order per pose. C++ `layered_puppet` inverse-samples each rigid part
+through the existing four-pose skeleton and publishes working, native 48px,
+enlarged, part, digest, and manifest evidence.
+
+The neutral silhouette retains 95.3% IoU against the generated source. Neutral,
+contact, passing, and airborne produce four unique frame digests; airborne ends
+four pixels above the grounded contact band. The generated face, ears, hood,
+scarf, coat texture, and palette survive all four poses. A disposable-asset-root
+Catacombs review at 0.5x, 1x, and 2x reports no objective findings.
+
+This passes the direction gate: separated 2D artwork retains the target style
+that the primitive Blender model lost, while explicit skeleton ownership
+produces readable pose changes. It does not pass a production animation gate.
+The polygon-extracted sleeves and boots still carry pixels from the flattened
+coat, and rigid upper/lower pieces expose seams at large joint rotations. The
+next input must be a genuinely painted part sheet with joint overlap and small
+pose-specific corrective pieces. More topology inference or another whole-image
+deformer is not justified.
+
+## 19. See-through semantic decomposition — partial pass
+
+The upstream See-through V3 model at revision
+`7f139bb25c46a0c8ac720d95ddab185fcda5451c` processed the exact isolated
+1024px mouse
+(`97bce0d9892ace41f822f8aa3ecb33281fc09e43e51602bda76dad051a540b45`)
+at 1280px, seed 42, bf16 on the 24GB RTX 3090. After stale ComfyUI
+weights were unloaded, the full layer and depth pass
+completed in 520.87 seconds and exported PSD, RGBA, crop, and pseudo-depth
+evidence.
+
+The useful outputs are substantial: left and right `handwear` layers reconstruct
+complete sleeves and hands behind the coat; `footwear` preserves both boots; and
+`topwear` preserves the hood, scarf, belt, pockets, and coat texture. These are
+better hidden-surface candidates than the solid and polygon-cropped underpaint
+in the first puppet proof.
+
+The model is not a complete mouse decomposer. `bottomwear`, `legwear`, and
+`tail` are empty. The ear layers become human ears, while `headwear` and `back
+hair` hallucinate human anatomy. This is the expected domain gap from a
+human-anime Live2D taxonomy. Original head/torso pixels must therefore remain
+authoritative, and every inferred layer needs a C++ semantic and articulation
+gate.
+
+Verdict: retain See-through as an offline candidate generator for arms, boots,
+and coat completion; reject automatic whole-character acceptance. Do not train
+a custom parser or add graph-cut complexity yet. First map only the useful RGBA
+layers into the C++ puppet, split footwear by connected component, and obtain
+legs and tail through targeted completion or authored corrections. The external
+PyTorch checkout, environment, and model cache are disposable and do not enter
+the repository.
+
 ---
 
 # The one rule that explains most failures
@@ -490,7 +568,6 @@ reason. Anything needing orientation must be a capsule between two joints.
 overlap each other, so the guide carries little information. Run poses separate
 the limbs and do not have this problem.
 
-**The SSH tunnel dies on idle.** `./tunnel.sh` before any run.
 
 **Isolation is a stand-in.** It floods background inward by colour distance from
 the sampled border. It fails on a figure touching the frame edge, and it counted
@@ -515,31 +592,42 @@ when the subject covers two of them. It samples the whole border ring now.
 
 # Evidence
 
-The production source renderer is `render_mouse_production.py`. Local Blender
-outputs remain gitignored and reproducible. Persistent source strips, processed
-textures, Sprite definitions, recipes, and Blueprint bindings live under the
-normal `assets/` catalogs.
+The current shipped Blender source remains reproducible, but it is a pipeline
+proof rather than accepted art. The C++ layered-puppet implementation,
+`mouse_profile_v1.json`, four native/working poses, and focused Catacombs review
+own the replacement direction evidence. C++ output reproduces the superseded
+Python proof pixel-for-pixel.
 
-Focused verification covers `animation_frame_set_recipe_test` and
-`sprite_reviewer_test`. Runtime evidence includes a successful game launch
-against the committed asset root and focused Catacombs route reviews at every
-supported zoom.
+See-through output remains gitignored experiment evidence under
+`out/see-through-v1`; revision, settings, input digest, runtime, accepted parts,
+and rejection reasons are recorded above. Its temporary checkout, Python
+environment, and model cache were removed after evidence capture.
 
 ---
 
 # What I would do next, in order
 
-1. **Complete the visible transition acceptance.** Screen capture is currently
-   blocked by macOS Screen Recording permission for Terminal. Exercise and
-   record idle, direction change, run, jump/fall, and landing once that external
-   permission is available; the runtime already loads and presents the new
-   production graph.
-
-2. **Add editor import controls.** The headless importer proves the production
-   API and rollback path. Editor controls should now expose retained source,
-   sheet geometry, timing, origin, playback, and state bindings without adding
-   remote animation generation.
-
-3. **Proceed to runtime M4 after the visible gate.** The production mouse no
-   longer blocks the runtime architecture, but the explicit human transition
-   acceptance remains part of that milestone boundary.
+1. **Ingest candidate layers in C++.** Read See-through's PNG/JSON export,
+   restore every accepted crop to the working canvas, preserve original visible
+   pixels exactly, and reject unapproved semantic classes. Split the two boots
+   by connected component.
+2. **Make the skeleton drive complete layers.** Change each arm from two rigid
+   images to one RGBA layer influenced by shoulder, elbow, and wrist; do the
+   same for each leg with hip, knee, and foot. Start with deterministic
+   two-bone linear skinning over a triangulated 2D mesh and joint-local blend
+   weights. Add ARAP only if articulation evidence shows unacceptable elbow or
+   knee collapse.
+3. **Complete only missing source art.** Keep the approved head and coat.
+   Obtain left/right leg and tail layers through targeted completion or authored
+   correction; do not accept See-through's human ears, hair, or headwear.
+4. **Run analysis by synthesis.** Render neutral, contact, passing, and airborne
+   through the C++ rig. Score reconstruction mismatch, holes, disconnected
+   components, outline breaks, intersections, palette changes, and layer-order
+   inversions before human review.
+5. **Defer skeleton-conditioned ML.** The skeleton belongs in the deterministic
+   mapping, deformation, and scoring pipeline now. Add skeleton conditioning to
+   the neural parser only if several representative characters prove semantic
+   ownership remains the bottleneck.
+6. **Finish production only after the gate passes.** Render/import the six
+   replacement clips, expose editor import controls, record live transitions,
+   then unblock runtime M4.

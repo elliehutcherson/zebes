@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "width": 256,
+  "height": 256,
+  "joints": {
+    "head": [126, 76],
+    "neck": [131, 106],
+    "shoulder": [131, 129],
+    "hip": [122, 185],
+    "elbow_a": [92, 143],
+    "hand_a": [103, 166],
+    "elbow_b": [160, 145],
+    "hand_b": [176, 174],
+    "knee_a": [106, 207],
+    "foot_a": [108, 228],
+    "knee_b": [144, 207],
+    "foot_b": [151, 229]
+  },
+  "bones": [
+    {"name": "head", "start": "neck", "end": "head"},
+    {"name": "torso", "start": "shoulder", "end": "hip"},
+    {"name": "thigh_a", "start": "hip", "end": "knee_a"},
+    {"name": "shin_a", "start": "knee_a", "end": "foot_a"},
+    {"name": "thigh_b", "start": "hip", "end": "knee_b"},
+    {"name": "shin_b", "start": "knee_b", "end": "foot_b"},
+    {"name": "upper_arm_a", "start": "shoulder", "end": "elbow_a"},
+    {"name": "forearm_a", "start": "elbow_a", "end": "hand_a"},
+    {"name": "upper_arm_b", "start": "shoulder", "end": "elbow_b"},
+    {"name": "forearm_b", "start": "elbow_b", "end": "hand_b"}
+  ],
+  "poses": {
+    "neutral": {
+      "head": [126, 76],
+      "neck": [131, 106],
+      "shoulder": [131, 129],
+      "hip": [122, 185],
+      "elbow_a": [92, 143],
+      "hand_a": [103, 166],
+      "elbow_b": [160, 145],
+      "hand_b": [176, 174],
+      "knee_a": [106, 207],
+      "foot_a": [108, 228],
+      "knee_b": [144, 207],
+      "foot_b": [151, 229]
+    },
+    "contact": {
+      "head": [126, 76],
+      "neck": [131, 106],
+      "shoulder": [131, 129],
+      "hip": [122, 185],
+      "elbow_a": [98.347, 154.511],
+      "hand_a": [74.39, 163.231],
+      "elbow_b": [154.42, 152.42],
+      "hand_b": [185.92, 162.655],
+      "knee_a": [101.161, 202.486],
+      "foot_a": [82.043, 211.401],
+      "knee_b": [145.121, 205.818],
+      "foot_b": [166.045, 215.575]
+    },
+    "passing": {
+      "head": [126, 76],
+      "neck": [131, 106],
+      "shoulder": [131, 129],
+      "hip": [122, 185],
+      "elbow_a": [141.725, 169.025],
+      "hand_a": [157.421, 189.115],
+      "elbow_b": [118.593, 159.709],
+      "hand_b": [93.979, 181.872],
+      "knee_a": [129.041, 211.276],
+      "foot_a": [146.321, 223.376],
+      "knee_b": [113.947, 215.053],
+      "foot_b": [95.036, 228.295]
+    },
+    "airborne": {
+      "head": [126, 64],
+      "neck": [131, 94],
+      "shoulder": [131, 117],
+      "hip": [122, 173],
+      "elbow_a": [90.469, 125.615],
+      "hand_a": [65.531, 120.314],
+      "elbow_b": [162.5, 127.235],
+      "hand_b": [194.897, 120.349],
+      "knee_a": [101.161, 190.486],
+      "foot_a": [80.387, 186.823],
+      "knee_b": [145.834, 192.999],
+      "foot_b": [168.57, 188.99]
+    }
+  },
+  "parts": [
+    {
+      "name": "rear_thigh",
+      "bone": "thigh_a",
+      "fill_polygons": [
+        {
+          "points": [[114, 178], [128, 182], [115, 216], [98, 211]],
+          "sample": [151, 214]
+        }
+      ]
+    },
+    {
+      "name": "rear_shin",
+      "bone": "shin_a",
+      "fill_polygons": [
+        {
+          "points": [[99, 202], [116, 202], [108, 226], [91, 226]],
+          "sample": [151, 214]
+        }
+      ],
+      "source_polygons": [
+        [[88, 203], [133, 203], [133, 236], [88, 236]]
+      ]
+    },
+    {
+      "name": "rear_upper_arm",
+      "bone": "upper_arm_a",
+      "fill_polygons": [
+        {
+          "points": [[119, 122], [133, 128], [126, 150], [110, 151]],
+          "sample": [111, 151]
+        }
+      ],
+      "source_polygons": [
+        [[108, 117], [134, 124], [116, 153], [88, 158], [79, 142]]
+      ]
+    },
+    {
+      "name": "rear_forearm",
+      "bone": "forearm_a",
+      "fill_polygons": [
+        {
+          "points": [[113, 137], [128, 143], [117, 163], [102, 158]],
+          "sample": [111, 151]
+        }
+      ],
+      "source_polygons": [
+        [[82, 137], [110, 141], [116, 172], [97, 181], [77, 158]]
+      ]
+    },
+    {
+      "name": "head",
+      "bone": "head",
+      "source_polygons": [
+        [[52, 18], [204, 18], [204, 120], [52, 120]]
+      ]
+    },
+    {
+      "name": "torso",
+      "bone": "torso",
+      "fill_polygons": [
+        {
+          "points": [[109, 108], [154, 105], [174, 126], [180, 190], [164, 204], [93, 204], [82, 185], [84, 132]],
+          "sample": [140, 180]
+        }
+      ],
+      "source_polygons": [
+        [[105, 102], [158, 102], [177, 124], [180, 203], [82, 203], [82, 128]]
+      ]
+    },
+    {
+      "name": "front_thigh",
+      "bone": "thigh_b",
+      "fill_polygons": [
+        {
+          "points": [[116, 180], [132, 178], [148, 211], [132, 218]],
+          "sample": [151, 214]
+        }
+      ]
+    },
+    {
+      "name": "front_shin",
+      "bone": "shin_b",
+      "fill_polygons": [
+        {
+          "points": [[132, 202], [149, 202], [161, 228], [143, 231]],
+          "sample": [151, 214]
+        }
+      ],
+      "source_polygons": [
+        [[126, 203], [172, 203], [172, 236], [126, 236]]
+      ]
+    },
+    {
+      "name": "front_upper_arm",
+      "bone": "upper_arm_b",
+      "fill_polygons": [
+        {
+          "points": [[132, 122], [148, 119], [163, 158], [148, 163]],
+          "sample": [150, 145]
+        }
+      ],
+      "source_polygons": [
+        [[130, 115], [171, 113], [181, 160], [157, 173], [142, 154]]
+      ]
+    },
+    {
+      "name": "front_forearm",
+      "bone": "forearm_b",
+      "fill_polygons": [
+        {
+          "points": [[146, 149], [163, 145], [181, 176], [166, 184]],
+          "sample": [160, 170]
+        }
+      ],
+      "source_polygons": [
+        [[143, 142], [174, 137], [198, 184], [162, 187]]
+      ]
+    }
+  ],
+  "draw_order": {
+    "neutral": [
+      "rear_thigh",
+      "rear_shin",
+      "front_thigh",
+      "front_shin",
+      "rear_upper_arm",
+      "rear_forearm",
+      "torso",
+      "head",
+      "front_upper_arm",
+      "front_forearm"
+    ],
+    "contact": [
+      "front_thigh",
+      "front_shin",
+      "rear_thigh",
+      "rear_shin",
+      "front_upper_arm",
+      "front_forearm",
+      "torso",
+      "head",
+      "rear_upper_arm",
+      "rear_forearm"
+    ],
+    "passing": [
+      "rear_thigh",
+      "rear_shin",
+      "front_thigh",
+      "front_shin",
+      "rear_upper_arm",
+      "rear_forearm",
+      "torso",
+      "head",
+      "front_upper_arm",
+      "front_forearm"
+    ],
+    "airborne": [
+      "front_thigh",
+      "front_shin",
+      "rear_thigh",
+      "rear_shin",
+      "front_upper_arm",
+      "front_forearm",
+      "torso",
+      "head",
+      "rear_upper_arm",
+      "rear_forearm"
+    ]
+  }
+}

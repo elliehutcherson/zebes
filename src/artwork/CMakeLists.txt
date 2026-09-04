@@ -144,6 +144,18 @@ target_link_libraries(profile_deformation
   status_macros
 )
 
+add_library(layered_puppet layered_puppet.cc)
+target_link_libraries(layered_puppet
+  PUBLIC
+  image_io
+  profile_silhouette
+  absl::span
+  absl::status
+  absl::statusor
+  PRIVATE
+  status_macros
+)
+
 add_library(repetition_review repetition_review.cc)
 target_link_libraries(repetition_review
   PUBLIC

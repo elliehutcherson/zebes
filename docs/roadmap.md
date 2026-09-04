@@ -71,24 +71,35 @@ evidence and is not a dependency or follow-up.
 
 Imported and manually authored sheets are the only production animation source.
 
-### Production animation asset complete; acceptance remains
+### Production pipeline complete; player art gate reopened
 
 Pure frame-set processing, retained-source recipe lifecycle, headless curation,
-and the first production player asset are complete. The authored mouse supplies
-left/right idle, run, and airborne clips while preserving the exact 32×64
-collider. Review now includes native/enlarged frames, contact and alignment
-sheets, adjacent differences, loop or hold evidence, focused Catacombs context,
-and byte-stable re-review.
+and the six-state player asset graph are complete. The first authored Blender
+mouse proved identity, registration, import, playback, and Catacombs
+integration, but human review rejected its flat primitive style.
+
+The layered 2D renderer and evidence path now live in C++. Its first four-pose
+proof retains the generated reference style but still exposes rigid seams.
+See-through V3 subsequently produced useful complete arm, footwear, and coat
+layers while failing or hallucinating the mouse's legs, tail, ears, and hair.
+It is accepted only as an offline candidate generator.
 
 Follow [`animation-artwork-pipeline.md`](animation-artwork-pipeline.md):
 
-1. **Editor import flow.** Expose sheet layout, timing, origin/contact line,
-   playback mode, and stable Blueprint state bindings over the proven headless
-   import boundary. Do not add remote animation generation.
-2. **Human gate.** Grant Terminal Screen Recording permission, then record idle,
-   locomotion, direction, jump/fall, landing, slopes, walls, and ceilings in
-   Catacombs. Runtime boot and focused 0.5×/1×/2× route presentation already
-   pass.
+1. **Finish the layered source gate.** In C++, ingest only accepted See-through
+   RGBA layers, preserve original visible pixels, and split footwear by
+   connected component. Skin one complete arm layer to shoulder/elbow/wrist and
+   one complete leg layer to hip/knee/foot with deterministic two-bone mesh
+   weights; add ARAP only if the four-pose evidence shows collapse. Obtain
+   missing legs and tail through targeted completion or authored correction.
+   Defer skeleton-conditioned ML until several characters prove parsing remains
+   the blocker.
+2. **Render and import the replacement clips.** Preserve the stable Blueprint,
+   six state keys, 32×64 collider, timing, and playback contracts.
+3. **Editor import flow.** Expose the proven headless import boundary without
+   adding remote animation generation.
+4. **Human gate.** Record idle, locomotion, direction, jump/fall, landing,
+   slopes, walls, and ceilings in Catacombs.
 
 ### M4 — thread split
 

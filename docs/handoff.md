@@ -14,11 +14,13 @@ Two tracks proceed independently:
   findings. Remaining silhouette variation is non-blocking content polish.
 - **Track 5 — runtime/animation.** Runtime Milestones 1–3, pure frame-set
   processing, recipe/bundle lifecycle, and headless animation curation are
-  complete. The first production player asset is an authored mouse with
-  left/right idle, run, and airborne clips. Six retained-source recipes own its
-  Texture, Sprite, timing, playback, and stable Blueprint bindings. Generated
-  animation remains deprecated; imported/manual frame sheets are the only
-  production source path.
+  complete. The stable six-state mouse asset graph remains valid, but human
+  review rejected the authored Blender mouse's flat primitive style. The layered
+  2D renderer and proof publication now live in C++; obsolete Python binding and
+  ComfyUI animation-control code is removed. See-through V3 produced useful
+  completed arm, boot, and coat layers from the approved mouse, but failed legs,
+  tail, ears, and hair. This passes a targeted candidate-generation gate, not
+  the production-player gate.
 
 The reusable ordered-reference generation boundary remains supported for
 OpenAI, Codex, headless generation, and redraw; it is not an animation roadmap
@@ -27,20 +29,28 @@ item. The deprecated evidence is indexed under
 
 ## Pick up next
 
-### Track 5: finish the production-player gate
+### Track 5: finish the layered player-art gate
 
-The mouse asset set and headless review pass
-[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) Milestone 5
-and the asset portion of 7. Detailed findings, IDs, tests, and the exact resume
-procedure are in
-[`history/mouse-player-production-2026-09-03.md`](history/mouse-player-production-2026-09-03.md):
+The technical mouse import and runtime record remains in
+[`history/mouse-player-production-2026-09-03.md`](history/mouse-player-production-2026-09-03.md).
+The newer art-direction evidence is in
+[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md) and
+`experiments/character_binding/FINDINGS.md`:
 
-1. Add the Milestone 6 editor import controls over the proven headless import
-   and transactional lifecycle.
-2. Grant Terminal macOS Screen Recording permission, then record the remaining
-   interactive idle, direction, run, jump/fall, and landing acceptance in
-   Catacombs. The runtime already loads and presents the production graph.
-3. Commit/restart acceptance then unblocks Runtime M4.
+1. Add a C++ adapter for See-through's RGBA/JSON output. Accept only the two arm
+   layers, footwear, and coat candidate; preserve original visible pixels and
+   reject the human-ear, hair, and headwear hallucinations.
+2. Split footwear by connected component. Skin each complete arm to
+   shoulder/elbow/wrist and each complete leg to hip/knee/foot with deterministic
+   two-bone mesh weights. Add ARAP only if the four-pose evidence shows joint
+   collapse.
+3. Obtain missing leg and tail layers through targeted completion or authored
+   correction, then run the neutral/contact/passing/airborne C++ gate. Do not
+   add skeleton-conditioned ML until repeated characters prove semantic
+   ownership remains the blocker.
+4. Render and import replacement clips without changing the stable Blueprint,
+   state keys, timings, playback, or 32×64 collider. Add editor import controls,
+   then record live-transition acceptance. M4 remains blocked until art passes.
 
 ### Track 4: finite content polish
 
@@ -84,10 +94,12 @@ order, and collider counts; finish with the complete route gate.
 
 ## Last verification
 
-`animation_frame_set_recipe_test` passes all seven cases and
-`sprite_reviewer_test` passes all three. The six-clip mouse import passed every
-pipeline and persistence gate; repeated persisted run-right review output was
-byte-identical. Focused Catacombs review resolves the mouse at 0.5×, 1×, and 2×,
-and `run_game` loaded the production graph continuously before a clean stop.
-Interactive screen evidence remains blocked only by the Terminal Screen
-Recording permission described above.
+The C++ layered-puppet proof reproduces all four prior Python frame buffers
+pixel-for-pixel; `layered_puppet_test` passes three focused cases and supported
+translation units pass clang-tidy. See-through revision
+`7f139bb25c46a0c8ac720d95ddab185fcda5451c` completed the exact mouse at
+1280px in 520.87 seconds after stale ComfyUI weights were unloaded. Visual
+review accepts its arm, footwear, and coat candidates and rejects its empty or
+human-anatomy layers.
+Live-transition recording remains blocked by Terminal Screen Recording
+permission and is deferred until the replacement art passes.

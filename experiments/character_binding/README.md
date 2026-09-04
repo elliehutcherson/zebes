@@ -7,61 +7,41 @@ and backgrounds expose assumptions in isolation, topology, binding, and control.
 Generated animation remains outside the production roadmap. This experiment may
 produce evidence; it does not delay the imported/manual frame-set pipeline.
 
-## Stage goals and owners
+## Active boundary
 
-| Stage | Goal | Owner |
-|---|---|---|
-| Generate varied references | Fuzz the algorithms across different identities | Local ComfyUI orchestration in Python |
-| Isolate subject | Preserve the exact character boundary and reject ambiguous backgrounds | C++ `IsolateSubject` |
-| Extract topology | Produce a deterministic medial axis and topology diagnostics | C++ `profile_silhouette` |
-| Render neutral edge control | Emit exact contour plus medial axis as binary Canny input | C++ `profile_silhouette` |
-| Infer semantic joints | Explore head, trunk, arm, hip, knee, and foot rules | Python prototype; not stable enough to port |
-| Deform and pose | Expose ownership, hidden-surface, and layering failures | Python diagnostic prototype; known-bad hard binding |
-| Four-pose generation gate | Test identity retention separately from pose obedience | Python ComfyUI runner |
-| Full animation | Test timing, registration, loop, palette, and live playback | Existing C++ frame-set pipeline, only after the gate passes |
+| Stage | Owner |
+|---|---|
+| Subject isolation and topology | C++ `IsolateSubject` and `profile_silhouette` |
+| Explicit layered-puppet source, rendering, and evidence | C++ `layered_puppet` and `render_layered_puppet` |
+| Imported frame processing and persistence | Existing C++ frame-set pipeline |
+| Blender-authored historical 3D sources | Blender Python API adapters |
+| See-through semantic-layer inference | External offline PyTorch adapter; never an engine dependency |
 
-Python is not an engine dependency. Stable pixel processing moves to C++; failed
-or unsettled algorithms stay disposable until their observable rules survive the
-identity fuzz set.
+Rejected semantic inference and ComfyUI animation-control prototypes were
+removed rather than ported. Python remains only where Blender or an external ML
+runtime requires its own Python host.
 
 ## Layout
 
-The experiment is one flat Python package rather than a package nested inside a
-same-named directory:
-
 ```text
 experiments/character_binding/
-  cli.py                thin command-line orchestration
-  comfy_client.py       local ComfyUI HTTP bridge
-  profile_bind.py       experimental semantic binding/deformation
-  profile_proof.py      bounded four-pose generation runner
-  workflow.py           exported workflow patching
-  png.py                experiment-only preview PNG I/O
   render_mouse_production.py
-                        authored 48px mouse player clip renderer
+                        Blender adapter for the current shipped source
   render_character_family.py
-                        data-driven biped/quadruped/flyer renderer
-  character_specs/     one JSON specimen per reusable family member
-  workflows/            exported ComfyUI API templates
-  evidence/             committed historical verdicts
+                        Blender adapter for body-plan evidence
+  character_specs/     Blender family inputs
+  puppet_specs/        explicit C++ layered-puppet inputs
+  evidence/            committed historical verdicts
   README.md
   FINDINGS.md
+
+src/artwork/layered_puppet.{h,cc}
+scripts/render_layered_puppet.cc
+tests/artwork/layered_puppet_test.cc
 ```
 
-Stable C++ implementation:
-
-```text
-src/artwork/profile_silhouette.h
-src/artwork/profile_silhouette.cc
-src/artwork/profile_deformation.h
-src/artwork/profile_deformation.cc
-scripts/extract_profile_silhouette.cc
-scripts/render_profile_pose_control.cc
-scripts/render_profile_pose_depth.cc
-scripts/render_profile_deformation.cc
-tests/artwork/profile_silhouette_test.cc
-tests/artwork/profile_deformation_test.cc
-```
+See-through is evaluated from an isolated temporary checkout on `derry`. Its
+virtual environment, model cache, and outputs do not enter this repository.
 
 ## Build the C++ proof tools
 
@@ -69,7 +49,7 @@ tests/artwork/profile_deformation_test.cc
 cmake --preset dev
 cmake --build build/dev --target extract_profile_silhouette \
   render_profile_pose_control render_profile_pose_depth \
-  render_profile_deformation
+  render_profile_deformation render_layered_puppet
 ```
 
 ## 1. Isolate and extract topology in C++
@@ -94,104 +74,16 @@ Outputs answer distinct questions:
 - `control.png`: is the neutral contour/axis suitable as binary edge control?
 - console diagnostics: components, endpoints, and branch pixels for fuzz comparison.
 
-## 2. Prototype semantic binding
+## 2. Closed generation-control gates
 
-The prototype consumes the C++-isolated PNG and C++ skeleton evidence. Python no
-longer duplicates background isolation, mask reduction, thinning, branch
-pruning, binary posed-control rendering, or ordinal-depth pixel encoding. The
-thin CLI invokes `render_profile_pose_control` and `render_profile_pose_depth`
-after experimental joint inference and front/rear layer policy.
+Canny-only, ordinal-depth-only, and combined Canny/depth diffusion controls all
+failed the bounded neutral/contact/passing/airborne pose gate. Weak structural
+control preserved identity but ignored elevation and limb order; strong control
+obeyed pose while destroying identity and pixel style. The Python ComfyUI
+orchestration and workflow templates were removed after the stop rule fired.
+Measured settings, digests, and visual findings remain in `FINDINGS.md`.
 
-```bash
-PYTHONPATH=experiments python3 -m character_binding.cli bind-profile \
-  experiments/character_binding/out/profile/isolated.png \
-  experiments/character_binding/out/profile/skeleton.png \
-  --out experiments/character_binding/out/profile-binding
-```
-
-Important outputs:
-
-- `skeleton.png`: semantic joints over the isolated silhouette;
-- `binding-regions.png`: current hard pixel-to-bone ownership;
-- `pose-*-layers.png`: experimental 1-based front/rear bone ownership;
-- `pose-*-control.png`: C++ binary contour plus semantic bones and joints;
-- `pose-*-depth.png`: C++ ordinal grayscale depth;
-- `pose-*-color.png`: recognizable diagnostics showing deformation failures;
-- `binding.json`: reproducible joints, bones, poses, and depth policy.
-
-The color previews are not proposed frames. They expose known issues: coat/hip
-ownership, hidden legs, boot intersections, hard cut-and-paste boundaries, and
-missing front/back layers.
-
-## 3. Run the bounded four-pose gate
-
-```bash
-cd experiments/character_binding
-./tunnel.sh
-cd ../..
-
-PYTHONPATH=experiments python3 -m character_binding.cli generate-profile-proof \
-  --binding experiments/character_binding/out/profile-binding \
-  --identity profile-reference.png \
-  --workflow experiments/character_binding/workflows/pixelart-canny-ipadapter.json \
-  --prompt 'the same character, following the supplied pose guide exactly' \
-  --control-strength 0.9 \
-  --control-end-percent 0.95 \
-  --out experiments/character_binding/out/profile-proof
-```
-
-This asks exactly four questions: neutral, contact, passing, and airborne. It is
-an identity/pose gate, not an animation-cycle claim.
-
-Current result: IP-Adapter retains a recognizable identity; Canny-only controls
-improve local limb differences but fail airborne elevation, facing, and reliable
-front/back limb order. The next model experiment needs a depth-bearing control
-channel rather than more Canny tuning.
-
-## 4. Ordinal-depth-only gate
-
-The same runner can select C++ depth guides and the exported depth/IP-Adapter
-workflow:
-
-```bash
-PYTHONPATH=experiments python3 -m character_binding.cli generate-profile-proof \
-  --binding experiments/character_binding/out/profile-binding \
-  --identity profile-reference.png \
-  --workflow experiments/character_binding/workflows/depth-controlnet-ipadapter.json \
-  --guide-kind depth \
-  --prompt 'the same character, following the supplied pose and elevation exactly' \
-  --control-strength 0.45 \
-  --control-end-percent 0.70 \
-  --out experiments/character_binding/out/profile-depth-proof
-```
-
-Weak depth preserves identity but returns four standing poses. Strong depth
-finally raises airborne and changes limb order, but destroys face, facing, coat
-construction, and pixel style. Depth-only is rejected.
-
-## 5. Final dual-control gate
-
-The dual workflow was assembled in the ComfyUI editor and exported as API JSON:
-
-```bash
-PYTHONPATH=experiments python3 -m character_binding.cli generate-profile-proof \
-  --binding experiments/character_binding/out/profile-binding \
-  --identity profile-reference.png \
-  --workflow experiments/character_binding/workflows/pixelart-canny-depth-ipadapter.json \
-  --guide-kind dual \
-  --prompt 'the same character, following the supplied pose and elevation exactly' \
-  --control-strength 0.90 \
-  --control-end-percent 0.95 \
-  --depth-strength 0.25 \
-  --depth-end-percent 0.70 \
-  --out experiments/character_binding/out/profile-dual-proof
-```
-
-Identity and style remain recognizable, but airborne is still grounded and turns
-toward the camera. The pre-registered stop rule closes diffusion-based animation
-control.
-
-## 6. Direct C++ deformation gate
+## 3. Direct C++ deformation gate
 
 `profile_deformation` inverse-maps the target layer map into the isolated source.
 Pixels keep their primary bone layer; transforms blend near shared joints, and
@@ -218,7 +110,7 @@ The next input experiment needs separated limb artwork—either a bind-pose
 reference with visible limbs or fixed supplemental rear/front limb patches—not
 another deformation algorithm over the same occluded source.
 
-## 7. Direct low-poly 3D gate
+## 4. Direct low-poly 3D gate
 
 The initial Blender 4.0.2 spike on `derry` established that one reusable model
 could preserve identity while changing pose. It used a fixed orthographic
@@ -231,7 +123,7 @@ not: the face was minimal, hands were tiny, and legs read too human. That result
 closed the structural gate and became the input to the production renderer
 below; the obsolete two-pose proxy entry point was removed.
 
-## 8. Generated model-sheet mapping
+## 5. Generated model-sheet mapping
 
 The generated profile was used as a native model sheet rather than projected
 onto the mesh. Its 30×44 visible bounds drove a 27×45 neutral model at 75.5%
@@ -240,7 +132,7 @@ cheek and eye construction, coat lapels and pockets, hands, and mouse-like
 boots. Keeping the pixels off the mesh preserved real hidden geometry for later
 poses.
 
-## 9. Reusable body-plan automation
+## 6. Reusable body-plan automation
 
 `render_character_family.py` separates reusable model construction from
 character-specific values. Version 1 defines three body plans:
@@ -283,7 +175,7 @@ This is evidence that body-plan automation removes repeated rig/render setup.
 It is not evidence that seven production character models can be generated from
 names or palettes alone.
 
-## 10. Production mouse player
+## 7. Production mouse player
 
 `render_mouse_production.py` implements the art work identified by the prior
 gates. It renders six complete 48×48 RGBA source sheets from one model:
@@ -325,23 +217,61 @@ The engine has no normal-map field on Texture or Sprite definitions. This asset
 therefore ships color frames only rather than introducing an unused sidecar
 format.
 
-## Other commands
+## 8. Explicit layered 2D puppet
+
+The C++ `layered_puppet` library tests the source contract rejected by the
+flattened-image deformation gate. One explicit spec owns bones, joints, per-part
+source masks, hidden-surface underpaint, and pose-specific draw order; no
+inferred semantic ownership crosses into rendering.
 
 ```bash
-PYTHONPATH=experiments python3 -m character_binding.cli comfy
-PYTHONPATH=experiments python3 -m character_binding.cli template \
-  experiments/character_binding/workflows/pixelart-canny-ipadapter.json
+build/dev/bin/render_layered_puppet \
+  --source=experiments/character_binding/out/profile-binding-deformation-v2/source-color.png \
+  --spec=experiments/character_binding/puppet_specs/mouse_profile_v1.json \
+  --output=experiments/character_binding/out/layered-puppet-cpp
 ```
 
-ComfyUI remains loopback-only on `derry`; `tunnel.sh` uses authenticated SSH.
-Do not expose port 8188 to the LAN.
+The bounded output contains ten separated parts plus neutral, contact, passing,
+and airborne working/native frames. The first mouse proof retains the generated
+head, face, hood, scarf, and coat at 48px while producing four distinct poses.
+Its neutral silhouette IoU against the source is 95.3%; the airborne frame
+finishes four pixels above the grounded contact band. Focused Catacombs review
+at 0.5x, 1x, and 2x reports no objective findings.
+
+This passes the direction gate, not final animation acceptance. Rigid arm and
+leg pieces still expose joint seams and source-paint contamination. The next art
+input should be a genuinely separated painted sheet with overlap under each
+joint; more automatic ownership inference over the flattened reference is not
+the fix.
+
+## 9. See-through layer-decomposition gate
+
+The external [See-through](https://github.com/shitagaki-lab/see-through) V3
+model was run once from an isolated temporary environment on the approved mouse.
+It completed both RGBA decomposition and pseudo-depth inference on `derry`.
+
+This is a partial pass. Its two completed arm layers, combined boot layer, and
+coat layer preserve useful style and hidden surfaces. Leg, tail, and bottomwear
+layers are empty; ear and hair classes hallucinate human anatomy. See-through
+therefore remains an offline candidate generator, not a trusted parser or an
+engine dependency. C++ must map and validate accepted RGBA layers, split the
+boots, preserve original visible pixels, and reject every semantically invalid
+class before articulation.
+
+## Next gate: skeleton-driven complete layers
+
+The explicit skeleton is already the correct production boundary. C++ should
+map each completed arm to shoulder/elbow/wrist and each completed leg to
+hip/knee/foot, then deform one semantic RGBA layer with deterministic two-bone
+mesh weights. This removes artificial upper/lower image seams. Start with
+linear skinning; add ARAP only if the four-pose evidence shows joint collapse.
+Do not add skeleton conditioning to the neural model until repeated inputs show
+that semantic ownership, rather than missing source artwork, is still blocking.
 
 ## Tests
 
 ```bash
 scripts/test.sh profile_silhouette_test
 scripts/test.sh profile_deformation_test
-python3 -m unittest tests.character_binding_test tests.character_binding_comfy_test
+scripts/test.sh layered_puppet_test
 ```
-
-The ComfyUI suite uses an in-process HTTP stub and does not require `derry`.

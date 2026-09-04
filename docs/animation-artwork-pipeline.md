@@ -1,8 +1,8 @@
 # Animation artwork pipeline plan
 
-**Status: pure frame-set processing is complete; recipe and bundle lifecycle is
-next. The production player set remains required before the Milestone 4 runtime
-thread split.**
+**Status: frame-set processing, recipe/bundle lifecycle, and headless curation
+are complete. The first Blender player proved the pipeline but failed the
+reopened art-direction gate; replacement art remains required before M4.**
 
 ## Goal and sequencing
 
@@ -458,11 +458,16 @@ overwrites collider work or silently invokes a remote provider.
 6. **Editor import flow.** Reuse retained-source lifecycle controls and add
    animation-specific imported-sheet, clip, timing, origin, and state-binding
    controls. Do not add remote animation generation.
-7. **Production player set — asset complete, live transition gate pending.**
-   The authored mouse left/right idle, run, and airborne set is processed,
-   retained, persisted, bound, and visible in focused Catacombs reviews. The
-   executable loads and presents it; record the full interactive transition
-   sequence after macOS Screen Recording permission is available.
+7. **Production player set — art gate reopened.** The authored Blender mouse
+   remains a valid persisted pipeline proof, but human review rejected its flat
+   primitive style. The replacement layered-puppet renderer and evidence
+   publisher now live in C++. See-through V3 supplies candidate arm, footwear,
+   and coat completion, but its empty leg/tail layers and human-anatomy
+   hallucinations are rejected. Map only accepted RGBA through C++ validation,
+   preserve original visible pixels, and skin each complete limb layer through
+   its three-joint skeleton chain. Start with deterministic two-bone linear
+   weights; add ARAP only on measured joint collapse. Complete missing parts,
+   render the six replacement clips, then record interactive transitions.
 
 Only after milestone 7 should the runtime plan proceed to M4. The finite cave
 environment variation pass can continue independently when it does not modify

@@ -14,6 +14,14 @@ target_link_libraries(profile_deformation_test
 target_include_directories(profile_deformation_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(profile_deformation_test)
 
+add_executable(layered_puppet_test layered_puppet_test.cc)
+target_link_libraries(layered_puppet_test
+  layered_puppet
+  gtest_main
+)
+target_include_directories(layered_puppet_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(layered_puppet_test)
+
 add_executable(prop_artwork_pipeline_test prop_artwork_pipeline_test.cc)
 target_link_libraries(prop_artwork_pipeline_test
   gtest_main

@@ -83,6 +83,21 @@ target_link_libraries(render_profile_deformation
   nlohmann_json::nlohmann_json
 )
 
+add_executable(render_layered_puppet render_layered_puppet.cc)
+target_link_libraries(render_layered_puppet
+  PRIVATE
+  image_digest
+  image_io
+  layered_puppet
+  status_macros
+  absl::flat_hash_map
+  absl::flags
+  absl::flags_parse
+  absl::status
+  absl::statusor
+  nlohmann_json::nlohmann_json
+)
+
 add_library(animation_artwork_run_manifest animation_artwork_run_manifest.cc)
 target_include_directories(animation_artwork_run_manifest PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(animation_artwork_run_manifest
