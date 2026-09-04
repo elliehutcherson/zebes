@@ -21,8 +21,9 @@ Two tracks proceed independently:
   problems were measured and two are fixed. The elbow no longer folds, and
   ownership now comes from the layer's own alpha plus a reach limit off the bone,
   so no arm pixels stay stuck to the body and the tail no longer swings with the
-  arm. What remains is 598 px of body with nothing painted behind it. The second
-  arm and legs remain deferred.
+  arm. Backfill is closed by stretching the coat outward. Correcting the shoulder
+  joint then exposed two gates that the old rig had masked. The second arm and
+  legs remain deferred.
 
 The reusable ordered-reference generation boundary remains supported for
 OpenAI, Codex, headless generation, and redraw; it is not an animation roadmap
@@ -40,7 +41,7 @@ The newer art-direction evidence is in
 `experiments/character_binding/FINDINGS.md`:
 
 The ARAP-first plan is withdrawn; ARAP addressed the smallest of three problems.
-Steps 1 through 3 are done. Follow
+Steps 1 through 4 are done. Follow
 [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md):
 
 1. **Done.** Diagnostics and four opt-in gates. Frame digests unchanged.
@@ -54,8 +55,12 @@ Steps 1 through 3 are done. Follow
 3. **Done.** Ownership derived from the layer's own alpha plus a reach limit off
    the bone chain, wide at the shoulder and tight at the hand. Orphans 105 to 0,
    backfill 876 to 598, and the tail no longer swings with the arm.
-4. Stop clipping the underpaint inside the ownership region, then stretch the
-   surrounding layer to close whatever is left.
+4. **Done.** Backfill by stretching. "Stop clipping" turned out to change
+   nothing — the clip never removed those pixels, `topwear` just does not paint
+   there. `StretchLayeredPuppetBackfill` grows the underpaint outward from its
+   interior, not its contour, so the fill carries coat colour rather than the
+   dark outline. Uncovered 745 to 0, contact interior holes 355 to 194.
+   `require_backfill_coverage` is on.
 5. Review at 48px. If it still fails, drive the existing mesh with MLS rather
    than replacing it, then bounded biharmonic weights, then ARAP.
 6. Only after that passes: second arm, split footwear, legs and tail.
@@ -118,19 +123,20 @@ order, and collider counts; finish with the complete route gate.
 
 ## Last verification
 
-The semantic arm now uses a 235-vertex/402-triangle mesh trimmed to the artwork,
-with the blend band widening away from the bone. All 18,974 source pixels are
-singly owned, the neutral composite changes zero RGBA pixels, every pose is one
-connected component, and no pose folds a triangle. `require_no_triangle_inversion`
-is on and passing.
+The semantic arm uses a mesh trimmed to its artwork with the blend band widening
+away from the bone. All 18,974 source pixels are singly owned and the neutral
+composite changes zero RGBA pixels. Read vertex, triangle and area figures from
+`out/semantic-arm-v5/manifest.json`; they move whenever ownership changes.
 
-Retained area is 100.0%/81.9%/97.8%/81.0% and is no longer a gate. Removing every
-fold lowered it while the elbow visibly improved, so it was rewarding rigidity.
+Retained area is no longer a gate. Removing every fold lowered it while the elbow
+visibly improved, so it was rewarding rigidity.
 
-One fault remains: 598 of the arm's 1,723 px have no static layer behind them, so
-they go transparent when it moves. `require_backfill_coverage` stays off until
-step 4 lands. `require_no_triangle_inversion` and
-`require_part_ownership_isolation` are both on and passing.
+Backfill now covers every pixel the arm exposes, 745 of them by stretching rather
+than painted artwork — that count is reported each run and should fall when real
+artwork arrives. Two gates still fail on purpose after the shoulder correction:
+149 orphan pixels and 4 folded triangles on airborne, neither tunable with the
+current knobs. `require_no_interior_holes` stays off; the source art has 174
+enclosed gaps of its own.
 
 `layered_puppet_diagnostics_test` passes 25 cases and `layered_puppet_test` 13;
 the affected-target run and clang-tidy pass on both edited library sources.

@@ -1,6 +1,6 @@
 # Character layer deformation
 
-**Status:** 2026-09-04. Steps 1 through 3 done, joints corrected, and the render
+**Status:** 2026-09-04. Steps 1 through 4 done, joints corrected, and the render
 **currently fails two hard gates on purpose** — see "Known failing gates".
 
 The earlier plan was to add an ARAP solver. Withdrawn: measurement showed the
@@ -27,15 +27,15 @@ Same cause as problem 1, opposite direction: the hand-drawn polygon reached x198
 while `handwear-l` ends at x186. One polygon left arm pixels behind, the other
 took body pixels along. Step 3 fixed both.
 
-**2. Nothing painted behind the arm — 876 px, now 745.** Those coat pixels exist
-only in the arm layer, so they go transparent when it moves. That is the white
-gash in `working/passing.png`. Step 4 is the fix.
+**2. Nothing painted behind the arm — 876 px, later 745, now 0.** Those coat
+pixels existed only in the arm layer, so they went transparent when it moved.
+That was the white gash in `working/passing.png`. Step 4 closed it by stretching.
 
-See-through's `topwear` did paint the coat behind the arm. `clip_to_source_alpha`
-trims it, and the trim stops ~18 px short of the cut. The hole is wider than the
-patch.
+See-through's `topwear` does paint the coat behind the arm, but not far enough
+out. The original diagnosis blamed `clip_to_source_alpha`; that was wrong, and
+step 4 records why.
 
-The exact-neutral check missed it because neutral is exact only while the arm
+The exact-neutral check missed this because neutral is exact only while the arm
 still covers the hole.
 
 **3. The elbow loses area.** Two causes, both fixed in steps 2a and 2b.
@@ -79,10 +79,11 @@ it without a solver.
 and interior holes. `SolveLayeredPuppetMeshVertices` exposes deformed vertices.
 25 tests. Frame digests unchanged, so nothing about the render moved.
 
-Four gates, each turned on with its fix. `require_no_triangle_inversion` on
-after 2b, `require_part_ownership_isolation` on after 3. Still off:
-`require_backfill_coverage` (598 px), `require_no_interior_holes` (unusable as
-written, see caveats).
+Four gates, each turned on with its fix: `require_no_triangle_inversion` after
+2b, `require_part_ownership_isolation` after 3, `require_backfill_coverage` after
+4. `require_no_interior_holes` stays off — it cannot be turned on as written,
+because the source art itself has 174 enclosed gaps. Gate it against the neutral
+count instead.
 
 Two things this corrected:
 
@@ -99,7 +100,7 @@ transparent holes that are not in the source. Rendered, they are a slash at the
 shoulder and a tear between the hand and the tail.
 
 The metric works. Compare each pose against the neutral count, not against zero.
-Do not turn the gate on until step 4, which should close most of them.
+Step 4 took contact from 355 to 194, so 20 tears remain above the baseline.
 
 ### Step 2a — blend the angle. Done.
 
@@ -232,20 +233,31 @@ heuristics turned out to be brittle to the rig they sit on.
 The tail also needs to be its own part. It connects to the body through the
 region the hand occupies, so any clean cut of the hand severs it.
 
-### Step 4 — backfill
+### Step 4 — backfill. Done.
 
-Two mechanisms, in order.
+**"Stop clipping the underpaint" turned out to do nothing.** Rendering with
+`clip_to_source_alpha` off leaves the uncovered count at exactly 745, unchanged.
+Ownership is already intersected with the source alpha, so the clip never removed
+any of it — `topwear` simply does not paint there. That half of the plan is
+withdrawn.
 
-**Use the painted underpaint.** Stop clipping it inside the ownership region.
-See-through's coat is real artwork and beats anything we can invent. Turn on
-`require_backfill_coverage`.
+So the whole gap is stretching. `StretchLayeredPuppetBackfill` grows a static
+layer outward into the region a moving part will expose, copying each pixel from
+the nearest already-painted one by breadth-first distance. Spec:
+`stretch_to_cover_parts: {parts, distance, edge_inset}` on the underpaint.
 
-**Stretch to cover the rest.** Where nothing is painted behind a part, pull the
-surrounding layer inward to close the gap rather than leaving a hole. This is the
-only option for the legs and tail, where See-through returned empty layers.
+`edge_inset` earns its place. Seeding from the layer's outermost ring propagates
+the coat's dark contour into the hole and produces a black slab where coat should
+be. Eroding the seed set by 2 first makes the fill carry body colour, and the
+belt band continues outward instead of stopping. The real contour is never
+overwritten, because only transparent pixels are filled.
 
-Report how much area the stretch had to cover. A large number means artwork is
-missing, not that the stretch is working.
+Results: backfill uncovered 745 to 0, contact interior holes 355 to 194 against a
+174 baseline. Neutral still pixel-exact. `require_backfill_coverage` is on.
+
+`filled_pixels` is 745 of a 1,582 px ownership region, so 47% of what sits behind
+the arm is invented rather than painted. That number is reported every run and is
+the honest signal: it should fall when real artwork arrives, not be tuned away.
 
 ### Step 4b — graded attachment at the shoulder, only if a seam shows
 

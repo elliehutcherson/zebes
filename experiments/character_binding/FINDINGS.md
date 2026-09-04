@@ -41,11 +41,13 @@ improved.
 
 The layer cut is fixed too. Ownership is derived from the layer's own alpha plus
 a reach limit off the bone chain, so the stuck pixels are gone and the tail no
-longer swings with the arm.
+longer swings with the arm, and the backfill is closed by stretching the coat
+outward from its interior.
 
-What remains is 598 px of body with nothing painted behind it. Next: stop
-clipping the underpaint, then stretch to close what is left. Do not proceed to
-the second arm or legs until 48px review accepts the result.
+Correcting the shoulder joint then exposed two gates the old rig had masked: 149
+orphan pixels and 4 folded triangles, neither tunable with the current knobs.
+That failure is the signal. Do not proceed to the second arm or legs until 48px
+review accepts the result.
 
 Inference supplies candidate RGBA only. C++ owns crop restoration, original
 pixel preservation, semantic acceptance, skeleton mapping, deformation,
@@ -82,6 +84,8 @@ articulation scoring, and rejection.
 | 25 | Angle-blended skinning | Neutral exact; 88.1%/87.8%; folds unchanged | Keep; not enough alone |
 | 26 | Trimmed mesh, laterally widened blend | Zero folds, exact neutral, smooth elbow; area fell to 81.9%/81.0% | Accept; retire the area gate |
 | 27 | Ownership from layer alpha plus bone reach | Orphans 105 to 0, backfill 876 to 598, tail no longer swings with the arm | Accept; gate on |
+| 28 | Corrected shoulder joint | Arm pivots at its socket; poses re-solved by IK, passing clamped; 149 orphans and 4 folds appear | Accept; failure is the signal |
+| 29 | Backfill by stretching | Uncovered 745 to 0, contact tears 355 to 194; 47% of the region behind the arm is invented | Accept; gate on |
 
 ---
 
@@ -745,7 +749,7 @@ layers go 1024 → 1280 → 256, so completed pixels are interpolated relative t
 source. `PreserveSemanticVisiblePixels` hides that at neutral, and it shows only
 in the sleeve exposed when the arm moves.
 
-Verdict: pass, gate on. Remaining work is the 745 px with nothing behind them.
+Verdict: pass, gate on.
 Stop clipping the underpaint, then stretch to close what is left. Plan and
 fallbacks in
 [`docs/character-layer-deformation-experiment.md`](../../docs/character-layer-deformation-experiment.md).
@@ -833,8 +837,8 @@ caches remain outside the repository.
 
 The ARAP A/B that used to head this list is withdrawn; see sections 23 and 24.
 
-1. **Close the backfill.** 745 px of the arm has no static layer behind it. Use
-   every pixel the See-through coat paints, then stretch to cover the rest.
+1. **Done.** Backfill closed by stretching, 745 px to 0. Removing the clip did
+   nothing; `topwear` simply does not paint there.
 2. **Clear the two gates the shoulder correction exposed.** 149 orphan pixels and
    4 folded triangles, neither tunable with the current knobs. The tail needs to
    become its own part.

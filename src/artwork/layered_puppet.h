@@ -132,6 +132,34 @@ absl::StatusOr<RgbaImage> BuildLayeredPuppetOwnershipMask(
     absl::Span<const ProfileControlBone> bones, absl::Span<const ProfileControlPoint> source_joints,
     const LayeredPuppetOwnershipReach& reach);
 
+struct LayeredPuppetStretchReport {
+  size_t required_pixels = 0;
+  size_t filled_pixels = 0;
+  // Pixels still uncovered because they were further than maximum_distance from
+  // anything painted. These stay transparent and will show as holes.
+  size_t unreachable_pixels = 0;
+};
+
+// Grows a static layer outward into pixels that a moving part will expose but
+// that no static layer paints, copying each from the nearest already-painted
+// pixel by breadth-first distance.
+//
+// This is the fallback for a part with no amodal artwork behind it. It repeats
+// neighbouring texture rather than inventing structure, so it suits a flat
+// garment and will never produce a belt buckle or a boot. Prefer real painted
+// underpaint wherever it exists.
+//
+// filled_pixels is the honest measure of how much was invented. A large count
+// means the artwork is missing, not that the stretch is doing its job.
+//
+// edge_inset erodes the seed set before propagating. A painted layer's outermost
+// ring is its dark outline, and seeding from there smears that outline into the
+// hole; eroding first means the fill carries the garment's body colour instead.
+absl::StatusOr<LayeredPuppetStretchReport> StretchLayeredPuppetBackfill(RgbaImage& layer,
+                                                                        const RgbaImage& required,
+                                                                        int maximum_distance,
+                                                                        int edge_inset = 2);
+
 // Copies source pixels selected by mask onto a transparent canvas. This is the
 // ownership-mask counterpart of BuildLayeredPuppetPartArtwork's polygon path.
 absl::StatusOr<RgbaImage> BuildLayeredPuppetMaskedArtwork(const RgbaImage& source,

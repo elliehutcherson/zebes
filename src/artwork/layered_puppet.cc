@@ -8,6 +8,7 @@
 #include <limits>
 #include <numbers>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -564,6 +565,104 @@ absl::StatusOr<RgbaImage> BuildLayeredPuppetOwnershipMask(
     return absl::InvalidArgumentError("layered puppet ownership mask selected no source pixels");
   }
   return mask;
+}
+
+absl::StatusOr<LayeredPuppetStretchReport> StretchLayeredPuppetBackfill(RgbaImage& layer,
+                                                                        const RgbaImage& required,
+                                                                        int maximum_distance,
+                                                                        int edge_inset) {
+  if (!layer.IsValid() || !required.IsValid() || layer.width != required.width ||
+      layer.height != required.height) {
+    return absl::InvalidArgumentError("layered puppet stretch layers must share one canvas");
+  }
+  if (maximum_distance <= 0 || edge_inset < 0) {
+    return absl::InvalidArgumentError("layered puppet stretch distance must be positive");
+  }
+  const size_t count = static_cast<size_t>(layer.width) * layer.height;
+  LayeredPuppetStretchReport report;
+  for (size_t index = 0; index < count; ++index) {
+    if (required.pixels[index * 4 + 3] != 0) ++report.required_pixels;
+  }
+
+  // Seed from the garment's interior, not its contour. A painted layer's
+  // outermost ring is its dark outline, and seeding from there propagates the
+  // outline colour into the hole, producing a black slab where coat should be.
+  // Eroding by edge_inset first means the wave carries body colour instead. The
+  // contour pixels stay traversable so the wave can still reach past them, and
+  // they are never overwritten because only transparent pixels are filled.
+  std::vector<bool> painted(count, false);
+  for (size_t index = 0; index < count; ++index) painted[index] = layer.pixels[index * 4 + 3] != 0;
+  std::vector<bool> interior = painted;
+  for (int ring = 0; ring < edge_inset; ++ring) {
+    std::vector<bool> next = interior;
+    for (int y = 0; y < layer.height; ++y) {
+      for (int x = 0; x < layer.width; ++x) {
+        const size_t index = PixelIndex(layer.width, x, y);
+        if (!interior[index]) continue;
+        const std::array<std::pair<int, int>, 4> neighbors = {
+            std::pair{x - 1, y}, std::pair{x + 1, y}, std::pair{x, y - 1}, std::pair{x, y + 1}};
+        for (const auto [neighbor_x, neighbor_y] : neighbors) {
+          if (neighbor_x < 0 || neighbor_y < 0 || neighbor_x >= layer.width ||
+              neighbor_y >= layer.height ||
+              !interior[PixelIndex(layer.width, neighbor_x, neighbor_y)]) {
+            next[index] = false;
+            break;
+          }
+        }
+      }
+    }
+    interior = std::move(next);
+  }
+
+  std::vector<size_t> frontier;
+  std::vector<bool> settled(count, false);
+  std::vector<size_t> sources(count, 0);
+  for (size_t index = 0; index < count; ++index) {
+    if (!interior[index]) continue;
+    settled[index] = true;
+    sources[index] = index;
+    frontier.push_back(index);
+  }
+  if (frontier.empty()) {
+    return absl::InvalidArgumentError("layered puppet stretch layer has no interior to draw from");
+  }
+
+  for (int step = 0; step < maximum_distance && !frontier.empty(); ++step) {
+    std::vector<size_t> next;
+    for (const size_t index : frontier) {
+      const int x = static_cast<int>(index % layer.width);
+      const int y = static_cast<int>(index / layer.width);
+      const std::array<std::pair<int, int>, 4> neighbors = {
+          std::pair{x - 1, y}, std::pair{x + 1, y}, std::pair{x, y - 1}, std::pair{x, y + 1}};
+      for (const auto [neighbor_x, neighbor_y] : neighbors) {
+        if (neighbor_x < 0 || neighbor_y < 0 || neighbor_x >= layer.width ||
+            neighbor_y >= layer.height) {
+          continue;
+        }
+        const size_t neighbor = PixelIndex(layer.width, neighbor_x, neighbor_y);
+        if (settled[neighbor]) continue;
+        const bool traversable = painted[neighbor] || required.pixels[neighbor * 4 + 3] != 0;
+        if (!traversable) continue;
+        settled[neighbor] = true;
+        sources[neighbor] = sources[index];
+        next.push_back(neighbor);
+      }
+    }
+    for (const size_t index : next) {
+      if (painted[index]) continue;
+      const size_t from = sources[index] * 4;
+      std::copy_n(layer.pixels.begin() + static_cast<ptrdiff_t>(from), 4,
+                  layer.pixels.begin() + static_cast<ptrdiff_t>(index * 4));
+      ++report.filled_pixels;
+    }
+    frontier = std::move(next);
+  }
+  for (size_t index = 0; index < count; ++index) {
+    if (required.pixels[index * 4 + 3] != 0 && layer.pixels[index * 4 + 3] == 0) {
+      ++report.unreachable_pixels;
+    }
+  }
+  return report;
 }
 
 absl::StatusOr<RgbaImage> BuildLayeredPuppetMaskedArtwork(const RgbaImage& source,

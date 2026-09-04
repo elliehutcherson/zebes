@@ -95,12 +95,14 @@
   "require_exact_neutral_composite": true,
   "require_no_triangle_inversion": true,
   "require_part_ownership_isolation": true,
+  "require_backfill_coverage": true,
   "parts": [
     {
       "name": "body_underpaint",
       "bone": "torso",
       "semantic_tag": "topwear",
-      "clip_to_source_alpha": true
+      "clip_to_source_alpha": true,
+      "stretch_to_cover_parts": {"parts": ["front_arm"], "distance": 24}
     },
     {
       "name": "front_arm",

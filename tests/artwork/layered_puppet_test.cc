@@ -267,6 +267,105 @@ TEST(LayeredPuppetTest, MaskedArtworkAndSubtractionArePixelComplements) {
   }
 }
 
+RgbaImage BlankImage() {
+  return RgbaImage{
+      .width = kSize,
+      .height = kSize,
+      .pixels = std::vector<uint8_t>(kSize * kSize * 4, 0),
+  };
+}
+
+void Fill(RgbaImage& image, int left, int top, int right, int bottom) {
+  for (int y = top; y < bottom; ++y) {
+    for (int x = left; x < right; ++x) SetPixel(image, x, y, {90, 140, 70, 255});
+  }
+}
+
+TEST(LayeredPuppetTest, StretchFillsTheRequiredRegionFromNeighbouringPixels) {
+  RgbaImage layer = BlankImage();
+  Fill(layer, 2, 2, 6, 10);
+  RgbaImage required = BlankImage();
+  Fill(required, 6, 2, 9, 10);
+  const absl::StatusOr<LayeredPuppetStretchReport> report =
+      StretchLayeredPuppetBackfill(layer, required, 8, 0);
+  ASSERT_TRUE(report.ok()) << report.status();
+  EXPECT_EQ(report->required_pixels, 24u);
+  EXPECT_EQ(report->filled_pixels, 24u);
+  EXPECT_EQ(report->unreachable_pixels, 0u);
+  for (int y = 2; y < 10; ++y) {
+    for (int x = 6; x < 9; ++x) {
+      EXPECT_NE(layer.pixels[(static_cast<size_t>(y) * kSize + x) * 4 + 3], 0)
+          << x << "," << y << " was not filled";
+    }
+  }
+}
+
+TEST(LayeredPuppetTest, StretchNeverOverwritesPaintedPixels) {
+  RgbaImage layer = BlankImage();
+  Fill(layer, 2, 2, 6, 10);
+  const size_t probe = (static_cast<size_t>(4) * kSize + 3) * 4;
+  layer.pixels[probe] = 7;
+  layer.pixels[probe + 1] = 9;
+  layer.pixels[probe + 2] = 11;
+  RgbaImage required = BlankImage();
+  Fill(required, 2, 2, 9, 10);
+  ASSERT_TRUE(StretchLayeredPuppetBackfill(layer, required, 8, 0).ok());
+  EXPECT_EQ(layer.pixels[probe], 7);
+  EXPECT_EQ(layer.pixels[probe + 1], 9);
+  EXPECT_EQ(layer.pixels[probe + 2], 11);
+}
+
+// A layer's outermost ring is its dark contour. Seeding from it smears that
+// contour into the hole, which is what edge_inset exists to prevent.
+TEST(LayeredPuppetTest, StretchDrawsBodyColourNotContourColour) {
+  RgbaImage layer = BlankImage();
+  Fill(layer, 2, 2, 7, 10);
+  for (int y = 2; y < 10; ++y) {
+    const size_t edge = (static_cast<size_t>(y) * kSize + 6) * 4;
+    layer.pixels[edge] = 0;
+    layer.pixels[edge + 1] = 0;
+    layer.pixels[edge + 2] = 0;
+  }
+  RgbaImage required = BlankImage();
+  Fill(required, 7, 2, 9, 10);
+
+  RgbaImage from_contour = layer;
+  ASSERT_TRUE(StretchLayeredPuppetBackfill(from_contour, required, 8, 0).ok());
+  RgbaImage from_interior = layer;
+  ASSERT_TRUE(StretchLayeredPuppetBackfill(from_interior, required, 8, 1).ok());
+
+  const size_t probe = (static_cast<size_t>(5) * kSize + 7) * 4;
+  EXPECT_EQ(from_contour.pixels[probe + 1], 0) << "contour seed should carry the black edge";
+  EXPECT_EQ(from_interior.pixels[probe + 1], 140) << "interior seed should carry the body colour";
+}
+
+TEST(LayeredPuppetTest, StretchReportsWhatItCouldNotReach) {
+  RgbaImage layer = BlankImage();
+  Fill(layer, 2, 2, 4, 4);
+  RgbaImage required = BlankImage();
+  Fill(required, 4, 2, 11, 4);
+  const absl::StatusOr<LayeredPuppetStretchReport> report =
+      StretchLayeredPuppetBackfill(layer, required, 2, 0);
+  ASSERT_TRUE(report.ok()) << report.status();
+  EXPECT_EQ(report->filled_pixels, 4u);
+  EXPECT_EQ(report->unreachable_pixels, 10u);
+}
+
+TEST(LayeredPuppetTest, StretchRejectsAnUnpaintedLayer) {
+  RgbaImage layer = BlankImage();
+  RgbaImage required = BlankImage();
+  Fill(required, 4, 4, 8, 8);
+  EXPECT_FALSE(StretchLayeredPuppetBackfill(layer, required, 8, 0).ok());
+}
+
+TEST(LayeredPuppetTest, StretchRejectsNonPositiveDistance) {
+  RgbaImage layer = BlankImage();
+  Fill(layer, 2, 2, 6, 10);
+  RgbaImage required = BlankImage();
+  Fill(required, 6, 2, 9, 10);
+  EXPECT_FALSE(StretchLayeredPuppetBackfill(layer, required, 0, 0).ok());
+}
+
 TEST(LayeredPuppetTest, MeshKeepsOnlyCellsCarryingArtwork) {
   const BarMesh bar = MakeBar();
   const std::array<size_t, 2> bone_indices = {0, 1};

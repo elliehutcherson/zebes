@@ -199,7 +199,8 @@ absl::StatusOr<zebes::RgbaImage> LoadSemanticCandidate(const zebes::RgbaImage& s
 absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
                                                  const nlohmann::json& spec,
                                                  const std::filesystem::path& semantic_root,
-                                                 const nlohmann::json* semantic_metadata) {
+                                                 const nlohmann::json* semantic_metadata,
+                                                 nlohmann::json& stretch_reports) {
   if (spec.at("version").get<int>() != 1) {
     return absl::InvalidArgumentError("layered puppet spec version must be 1");
   }
@@ -246,6 +247,13 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
   // Derived ownership regions, so a later part can subtract exactly what an
   // earlier one claimed instead of repeating an outline that can drift.
   absl::flat_hash_map<std::string, zebes::RgbaImage> ownership_masks;
+  // Stretches run after every part is parsed, so a layer may stretch to cover a
+  // part declared after it and spec order stays free.
+  struct PendingStretch {
+    std::string part_name;
+    nlohmann::json settings;
+  };
+  std::vector<PendingStretch> pending_stretches;
   const nlohmann::json& parts = spec.at("parts");
   if (!parts.is_array() || parts.empty()) {
     return absl::InvalidArgumentError("puppet spec parts must be a non-empty array");
@@ -411,6 +419,14 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
     for (const zebes::RgbaImage* excluded : excluded_masks) {
       RETURN_IF_ERROR(zebes::SubtractLayeredPuppetMask(artwork, *excluded));
     }
+    if (part.contains("stretch_to_cover_parts")) {
+      const nlohmann::json& settings = part.at("stretch_to_cover_parts");
+      if (!settings.is_object() || !settings.contains("parts") ||
+          !settings.at("parts").is_array()) {
+        return absl::InvalidArgumentError(label + ".stretch_to_cover_parts needs a parts list");
+      }
+      pending_stretches.push_back({.part_name = name, .settings = settings});
+    }
     zebes::LayeredPuppetMesh mesh;
     if (part_bones.size() == 2) {
       ASSIGN_OR_RETURN(
@@ -448,6 +464,34 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(const zebes::RgbaImage& source,
       pose.draw_order.push_back(part->second);
     }
     puppet.poses.push_back(std::move(pose));
+  }
+  for (const PendingStretch& pending : pending_stretches) {
+    zebes::RgbaImage required = EmptyCanvasLike(source);
+    for (const nlohmann::json& entry : pending.settings.at("parts")) {
+      if (!entry.is_string()) {
+        return absl::InvalidArgumentError("stretch_to_cover_parts must contain part names");
+      }
+      const auto owner = ownership_masks.find(entry.get<std::string>());
+      if (owner == ownership_masks.end()) {
+        return absl::InvalidArgumentError(pending.part_name + " stretches to cover " +
+                                          entry.get<std::string>() +
+                                          ", which does not derive its ownership");
+      }
+      for (size_t offset = 0; offset < required.pixels.size(); offset += 4) {
+        if (owner->second.pixels[offset + 3] == 0) continue;
+        std::fill_n(required.pixels.begin() + static_cast<ptrdiff_t>(offset), 4, 255);
+      }
+    }
+    ASSIGN_OR_RETURN(
+        const zebes::LayeredPuppetStretchReport stretch,
+        zebes::StretchLayeredPuppetBackfill(
+            puppet.parts[part_indices.at(pending.part_name)].artwork, required,
+            pending.settings.value("distance", 24), pending.settings.value("edge_inset", 2)));
+    stretch_reports[pending.part_name] = {
+        {"required_pixels", stretch.required_pixels},
+        {"filled_pixels", stretch.filled_pixels},
+        {"unreachable_pixels", stretch.unreachable_pixels},
+    };
   }
   RETURN_IF_ERROR(zebes::ValidateLayeredPuppet(puppet));
   return puppet;
@@ -509,8 +553,9 @@ int Run() {
   }
 
   try {
+    nlohmann::json stretch_reports = nlohmann::json::object();
     absl::StatusOr<zebes::LayeredPuppet> puppet =
-        ParsePuppet(*source, *spec, semantic_root, semantic_metadata_pointer);
+        ParsePuppet(*source, *spec, semantic_root, semantic_metadata_pointer, stretch_reports);
     if (!puppet.ok()) {
       std::cerr << puppet.status().message() << '\n';
       return 1;
@@ -782,6 +827,7 @@ int Run() {
           {"ownership_outside_source_pixels", ownership->ownership_outside_source_pixels}}},
         {"neutral_composite_difference", neutral_composite_difference},
         {"interior_holes", std::move(interior_holes)},
+        {"backfill_stretch", std::move(stretch_reports)},
         {"skinned_parts", std::move(skinned_part_diagnostics)},
         {"hard_validation",
          {{"passed", validation_passed}, {"errors", std::move(validation_errors)}}},
