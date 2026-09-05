@@ -62,6 +62,107 @@ deformation, articulation scoring, and rejection.
 
 
 
+## Codex pose conditioning, 2026-09-05
+
+Evidence: `out/codex-pose-conditioning-v1/`. Metrics come from
+`tools/measure_sheet.py`, which reports the same five numbers for every run so
+attempts stay comparable.
+
+### The layered puppet is a still image at ship size
+
+Three versions were argued over at 256px. At 48px they are the same sprite:
+neutral is byte-identical across `semantic-arm-v5`, `semantic-arm-attachment-v6`
+and `semantic-arm-immutable-coat-v1`, and the other poses differ by 5-21 pixels
+of 717 opaque. Within a version, contact changes the silhouette by 11 pixels and
+passing by 13. Every gate the track has been fighting — 149 orphans, four folds,
+355/177 hole counts, coat digest equality — measures something invisible at the
+size the sprite ships.
+
+The cause is structural, not a tuning problem: only `front_arm` is bound to
+bones (`upper_arm_b`, `forearm_b`). Everything else rides the static `torso`, so
+**eight of ten bones drive nothing**. The `passing` pose swaps the feet across
+the body in the pose data and produces zero pixels of leg movement.
+
+### What generation is good at, and what it is not
+
+Two Codex runs, measured identically:
+
+| | attempt 1 | attempt 2 model output | attempt 2 after its own tooling |
+|---|---|---|---|
+| canvas | 1774x887 | 1983x793 | 2400x480 |
+| height spread | 12.8% | 6.9% | 0.0% |
+| baseline spread | 49 px | 71 px | 0 px |
+| distinct colours | 135,939 | 149,785 | 28 |
+| pixel block | none | none | 10 px |
+
+Attempt 2 stated an exact canvas, figure height, ground row, block size and
+palette limit. The model honoured none of them; Codex reached for
+`magick ... +dither -remap ... -filter point` and satisfied the numbers with
+tooling. So the split is measured twice and is not a prompting problem:
+**generation supplies pose and limb separation, deterministic code supplies
+registration.**
+
+What generation does supply is the thing the layered puppet cannot invent. Every
+frame has legs striding clear of the coat with visible boots and arms swinging
+clear of the torso with visible paws.
+
+### Registration must align on the ground, not on the figure
+
+The pixel targets in attempt 2 asked for one figure height and one sole row.
+Codex's tooling obeyed, and in doing so deleted the animation: the raw render
+had frame 4 airborne — feet 67 px off the ground, body 37 px higher — and the
+registered sheet reports zero vertical oscillation across all five frames.
+
+A run cycle is defined by the body rising and falling. Registration may align
+frames to a shared world ground line; it must never normalise a figure's
+bounding box.
+
+### Skeleton conditioning works through the reference channel
+
+`skeleton-test/` sends four images: the character reference, an existing frame,
+that frame's skeleton, and a target skeleton differing only by the far leg
+rotated 20 degrees about its hip. The matched image/skeleton pair is what makes
+it work — it shows the model what a skeleton means for this character before
+asking it to apply a new one.
+
+| | foot separation | far foot below near |
+|---|---|---|
+| the example pose it was shown | 0.582 | +0.049 |
+| the target skeleton | 0.484 | +0.115 |
+| what Codex drew | 0.456 | +0.070 |
+
+Horizontal obedience is complete and it did not copy the example. Vertical
+obedience is about a third of the requested travel. Canvas and palette were
+ignored again, consistently with attempts 1 and 2.
+
+### Twelve reference poses are authored and accepted
+
+`rig-bench.json` now maps one complete 27-point mouse skeleton to each of the
+twelve supplied running silhouettes, in reading order. The poses retain the
+traced mouse proportions while changing the pelvis, spine, head, arms, feet,
+and tail; they are not copies of one bind pose. The new repository-owned C++
+`render_skeleton_rig_review` tool validates the Rig Bench schema and topology,
+then renders an animated standalone HTML review.
+
+The current review metrics are 17 px of hip oscillation, both lead-foot states,
+and 1.07 px maximum bone-length drift from integer coordinate rounding. Human
+review accepted the skeleton set on 2026-09-05. No Codex generation has been
+run from it yet.
+
+### Two measurements about pixel grids
+
+`tools/virtual_grid.py` scores a candidate block size by what fraction of
+colour edges share one phase. Codex's raw renders are **not** faked pixel art:
+53-59% of colour edges are one pixel apart, and the flat-block fraction decays
+smoothly from 64.8% at block 3 to 31.2% at block 16 with no peak. The 10 px
+blocks in the registered sheet came from ImageMagick, whose edge-gap histogram
+is exclusively 10 and 20 with nothing between.
+
+The approved source art, by contrast, **is** on a hard 2 px grid: 88.9% of
+x-edges and 89.2% of y-edges land on even coordinates against 50% by chance.
+`source-color.png` is a 128x128 sprite stored at 256x256, so the rig's
+coordinates are in doubled space.
+
 ## Decision ledger
 
 | # | Attempt | Result | Decision |
@@ -98,6 +199,12 @@ deformation, articulation scoring, and rejection.
 | 30 | 48px review of the moved arm | Reads as a slab across the chest: the layer owns chest coat, and the pose sweeps it over the front | Reject; narrow the reach and re-author the poses |
 | 31 | Relationship-aware coat and corrected passing pose | Arm-hidden coat no longer reads as a full sleeve; passing arm is bent; shadow is separate | Review candidate; hard gates remain |
 | 32 | Immutable generated coat A/B | Coat digest/alpha unchanged; no stretch; neutral exact; shadow separate | Review candidate; keep coat immutable |
+| 33 | 48px A/B of v5, v6 and immutable-coat | Neutral identical; other poses differ by 5-21 px of 717 | Reject the gates; they measure invisible things |
+| 34 | Silhouette-change measurement | Contact 11 px, passing 13 px of 717 changed | The layered puppet is a still image at ship size |
+| 35 | Codex five-pose sheet, prose only | Limbs separated in every frame; 12.8% height spread, 49 px baseline drift | Generation solves pose, not registration |
+| 36 | Codex sheet with exact pixel targets | Model output 6.9% spread, 71 px drift, 149,785 colours; the perfect sheet was Codex's own ImageMagick pass | Registration cannot come from the generator |
+| 37 | Bbox-normalised registration | Flattened the model's real flight frame to zero oscillation | Reject; align on a shared ground line, never per figure |
+| 38 | Skeleton conditioning with a matched example pair | Foot separation 0.582 to 0.456 against a 0.484 target; vertical undershoot | Pose conditioning works through the reference channel |
 
 ---
 

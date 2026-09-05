@@ -1,0 +1,19 @@
+You are given four images, in order:
+
+1. ref.png — the character reference: a mouse in a green hooded coat, red scarf, brown belt with a square buckle, brown boots, long tail.
+2. frame-up.png — an existing animation frame of that same character, mid-run, both feet off the ground, facing right.
+3. skel-up.png — the pose skeleton of image 2. Coloured stick figure: magenta = head and ears, red = spine, orange = near arm, blue = far arm, green = near leg, purple = far leg, tan = tail. The dashed grey line is the ground.
+4. skel-target.png — a DIFFERENT pose skeleton for the same character, drawn the same way on the same canvas.
+
+Images 2 and 3 are a matched pair: they show you exactly how a skeleton corresponds to a drawing of this character.
+
+Your task: draw the character from image 2 in the pose given by image 4.
+
+Requirements:
+- Same character, same costume, same colours, same art style and line quality as image 2.
+- Same canvas size as images 2 and 4 (256 x 256), same character scale, same framing.
+- The ground line is in the same place. Place the feet relative to it exactly as image 4 shows: in image 4 the feet are closer to the ground than in image 3.
+- Follow image 4's skeleton for every limb. The far leg (purple) has swung forward and down compared to image 3. Everything else is essentially unchanged.
+- Plain white background. No text, no labels, no skeleton lines drawn on the output, no grid.
+
+Do NOT post-process the image with ImageMagick, sips, or any other tool. Do not rescale, recolour, quantise, or re-canvas it. Save exactly what the image model returns, as output.png in the current directory.

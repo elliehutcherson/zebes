@@ -121,6 +121,20 @@ target_link_libraries(animation_artwork_feasibility
   absl::strings
 )
 
+add_library(skeleton_rig_review skeleton_rig_review.cc)
+target_link_libraries(skeleton_rig_review
+  PUBLIC
+  absl::flat_hash_map
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::flat_hash_set
+  absl::status
+  absl::strings
+  absl::str_format
+  nlohmann_json::nlohmann_json
+)
+
 add_library(profile_silhouette profile_silhouette.cc)
 target_link_libraries(profile_silhouette
   PUBLIC

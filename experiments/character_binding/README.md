@@ -38,10 +38,13 @@ experiments/character_binding/
 src/artwork/layered_puppet.{h,cc}
 src/artwork/layered_puppet_diagnostics.{h,cc}
 src/artwork/semantic_layer_import.{h,cc}
+src/artwork/skeleton_rig_review.{h,cc}
 scripts/render_layered_puppet.cc
+scripts/render_skeleton_rig_review.cc
 tests/artwork/layered_puppet_test.cc
 tests/artwork/layered_puppet_diagnostics_test.cc
 tests/artwork/semantic_layer_import_test.cc
+tests/artwork/skeleton_rig_review_test.cc
 ```
 
 See-through was evaluated from an isolated temporary checkout on `derry`.

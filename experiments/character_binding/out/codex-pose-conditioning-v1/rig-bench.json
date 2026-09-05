@@ -1,0 +1,625 @@
+{
+  "bones": [
+    {
+      "end": "head_top",
+      "start": "neck"
+    },
+    {
+      "end": "nose",
+      "start": "neck"
+    },
+    {
+      "end": "ear_l",
+      "start": "head_top"
+    },
+    {
+      "end": "ear_r",
+      "start": "head_top"
+    },
+    {
+      "end": "chest",
+      "start": "neck"
+    },
+    {
+      "end": "hip_c",
+      "start": "chest"
+    },
+    {
+      "end": "hip_l",
+      "start": "hip_c"
+    },
+    {
+      "end": "hip_r",
+      "start": "hip_c"
+    },
+    {
+      "end": "shoulder_l",
+      "start": "chest"
+    },
+    {
+      "end": "elbow_l",
+      "start": "shoulder_l"
+    },
+    {
+      "end": "wrist_l",
+      "start": "elbow_l"
+    },
+    {
+      "end": "paw_l",
+      "start": "wrist_l"
+    },
+    {
+      "end": "shoulder_r",
+      "start": "chest"
+    },
+    {
+      "end": "elbow_r",
+      "start": "shoulder_r"
+    },
+    {
+      "end": "wrist_r",
+      "start": "elbow_r"
+    },
+    {
+      "end": "paw_r",
+      "start": "wrist_r"
+    },
+    {
+      "end": "knee_l",
+      "start": "hip_l"
+    },
+    {
+      "end": "ankle_l",
+      "start": "knee_l"
+    },
+    {
+      "end": "heel_l",
+      "start": "ankle_l"
+    },
+    {
+      "end": "toe_l",
+      "start": "ankle_l"
+    },
+    {
+      "end": "knee_r",
+      "start": "hip_r"
+    },
+    {
+      "end": "ankle_r",
+      "start": "knee_r"
+    },
+    {
+      "end": "heel_r",
+      "start": "ankle_r"
+    },
+    {
+      "end": "toe_r",
+      "start": "ankle_r"
+    },
+    {
+      "end": "tail_base",
+      "start": "hip_c"
+    },
+    {
+      "end": "tail_tip",
+      "start": "tail_base"
+    }
+  ],
+  "clips": {
+    "run": {
+      "fps": 8,
+      "frames": [
+        {
+          "label": "reference_01",
+          "pose": {
+            "ankle_l": [184, 193],
+            "ankle_r": [71, 189],
+            "chest": [146, 123],
+            "ear_l": [158, 33],
+            "ear_r": [91, 51],
+            "elbow_l": [139, 127],
+            "elbow_r": [133, 118],
+            "head_top": [156, 45],
+            "heel_l": [177, 190],
+            "heel_r": [74, 182],
+            "hip_c": [139, 151],
+            "hip_l": [153, 151],
+            "hip_r": [116, 156],
+            "knee_l": [181, 159],
+            "knee_r": [104, 179],
+            "neck": [151, 105],
+            "nose": [177, 89],
+            "paw_l": [167, 111],
+            "paw_r": [156, 102],
+            "shoulder_l": [158, 118],
+            "shoulder_r": [116, 101],
+            "tail_base": [86, 166],
+            "tail_tip": [63, 162],
+            "toe_l": [205, 202],
+            "toe_r": [63, 209],
+            "wrist_l": [156, 117],
+            "wrist_r": [147, 108]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_02",
+          "pose": {
+            "ankle_l": [180, 200],
+            "ankle_r": [82, 189],
+            "chest": [148, 121],
+            "ear_l": [160, 31],
+            "ear_r": [92, 48],
+            "elbow_l": [145, 131],
+            "elbow_r": [133, 118],
+            "head_top": [158, 43],
+            "heel_l": [172, 197],
+            "heel_r": [84, 181],
+            "hip_c": [140, 148],
+            "hip_l": [154, 148],
+            "hip_r": [117, 152],
+            "knee_l": [177, 166],
+            "knee_r": [115, 178],
+            "neck": [153, 103],
+            "nose": [179, 87],
+            "paw_l": [176, 123],
+            "paw_r": [158, 106],
+            "shoulder_l": [160, 116],
+            "shoulder_r": [119, 98],
+            "tail_base": [87, 163],
+            "tail_tip": [64, 161],
+            "toe_l": [202, 208],
+            "toe_r": [75, 210],
+            "wrist_l": [164, 126],
+            "wrist_r": [148, 111]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_03",
+          "pose": {
+            "ankle_l": [154, 217],
+            "ankle_r": [91, 199],
+            "chest": [145, 126],
+            "ear_l": [154, 35],
+            "ear_r": [87, 54],
+            "elbow_l": [149, 140],
+            "elbow_r": [120, 130],
+            "head_top": [152, 47],
+            "heel_l": [146, 215],
+            "heel_r": [92, 191],
+            "hip_c": [140, 154],
+            "hip_l": [154, 154],
+            "hip_r": [117, 159],
+            "knee_l": [157, 183],
+            "knee_r": [122, 184],
+            "neck": [148, 107],
+            "nose": [174, 90],
+            "paw_l": [181, 145],
+            "paw_r": [148, 128],
+            "shoulder_l": [156, 120],
+            "shoulder_r": [114, 106],
+            "tail_base": [87, 169],
+            "tail_tip": [64, 168],
+            "toe_l": [176, 223],
+            "toe_r": [87, 221],
+            "wrist_l": [168, 143],
+            "wrist_r": [137, 129]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_04",
+          "pose": {
+            "ankle_l": [130, 221],
+            "ankle_r": [98, 194],
+            "chest": [141, 134],
+            "ear_l": [147, 43],
+            "ear_r": [81, 63],
+            "elbow_l": [156, 148],
+            "elbow_r": [103, 140],
+            "head_top": [146, 55],
+            "heel_l": [122, 220],
+            "heel_r": [98, 186],
+            "hip_c": [138, 162],
+            "hip_l": [152, 161],
+            "hip_r": [115, 167],
+            "knee_l": [143, 189],
+            "knee_r": [132, 187],
+            "neck": [143, 115],
+            "nose": [169, 98],
+            "paw_l": [182, 166],
+            "paw_r": [129, 150],
+            "shoulder_l": [152, 127],
+            "shoulder_r": [109, 116],
+            "tail_base": [85, 177],
+            "tail_tip": [62, 178],
+            "toe_l": [153, 224],
+            "toe_r": [98, 216],
+            "wrist_l": [172, 159],
+            "wrist_r": [119, 146]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_05",
+          "pose": {
+            "ankle_l": [110, 189],
+            "ankle_r": [119, 187],
+            "chest": [147, 117],
+            "ear_l": [157, 26],
+            "ear_r": [90, 44],
+            "elbow_l": [171, 128],
+            "elbow_r": [100, 113],
+            "head_top": [155, 38],
+            "heel_l": [102, 187],
+            "heel_r": [114, 181],
+            "hip_c": [141, 145],
+            "hip_l": [155, 145],
+            "hip_r": [118, 150],
+            "knee_l": [137, 168],
+            "knee_r": [142, 161],
+            "neck": [151, 98],
+            "nose": [177, 81],
+            "paw_l": [203, 133],
+            "paw_r": [110, 139],
+            "shoulder_l": [159, 111],
+            "shoulder_r": [117, 96],
+            "tail_base": [88, 160],
+            "tail_tip": [65, 162],
+            "toe_l": [132, 196],
+            "toe_r": [134, 203],
+            "wrist_l": [190, 131],
+            "wrist_r": [106, 129]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_06",
+          "pose": {
+            "ankle_l": [108, 190],
+            "ankle_r": [150, 194],
+            "chest": [151, 124],
+            "ear_l": [163, 34],
+            "ear_r": [95, 51],
+            "elbow_l": [180, 131],
+            "elbow_r": [100, 111],
+            "head_top": [161, 46],
+            "heel_l": [101, 187],
+            "heel_r": [143, 191],
+            "hip_c": [143, 151],
+            "hip_l": [157, 151],
+            "hip_r": [120, 155],
+            "knee_l": [131, 165],
+            "knee_r": [146, 160],
+            "neck": [156, 106],
+            "nose": [182, 90],
+            "paw_l": [206, 113],
+            "paw_r": [98, 139],
+            "shoulder_l": [163, 119],
+            "shoulder_r": [122, 101],
+            "tail_base": [90, 166],
+            "tail_tip": [67, 170],
+            "toe_l": [129, 199],
+            "toe_r": [170, 203],
+            "wrist_l": [196, 120],
+            "wrist_r": [99, 128]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_07",
+          "pose": {
+            "ankle_l": [98, 177],
+            "ankle_r": [149, 197],
+            "chest": [151, 126],
+            "ear_l": [165, 36],
+            "ear_r": [97, 53],
+            "elbow_l": [181, 132],
+            "elbow_r": [101, 112],
+            "head_top": [163, 48],
+            "heel_l": [101, 169],
+            "heel_r": [142, 194],
+            "hip_c": [142, 153],
+            "hip_l": [156, 153],
+            "hip_r": [119, 157],
+            "knee_l": [130, 166],
+            "knee_r": [144, 163],
+            "neck": [157, 108],
+            "nose": [183, 92],
+            "paw_l": [206, 112],
+            "paw_r": [96, 140],
+            "shoulder_l": [163, 121],
+            "shoulder_r": [123, 102],
+            "tail_base": [89, 168],
+            "tail_tip": [67, 173],
+            "toe_l": [90, 199],
+            "toe_r": [169, 206],
+            "wrist_l": [196, 120],
+            "wrist_r": [98, 129]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_08",
+          "pose": {
+            "ankle_l": [102, 183],
+            "ankle_r": [140, 203],
+            "chest": [149, 122],
+            "ear_l": [161, 32],
+            "ear_r": [93, 49],
+            "elbow_l": [175, 133],
+            "elbow_r": [103, 116],
+            "head_top": [159, 44],
+            "heel_l": [104, 175],
+            "heel_r": [133, 200],
+            "hip_c": [141, 149],
+            "hip_l": [155, 149],
+            "hip_r": [118, 153],
+            "knee_l": [134, 170],
+            "knee_r": [138, 169],
+            "neck": [154, 104],
+            "nose": [180, 88],
+            "paw_l": [204, 120],
+            "paw_r": [108, 144],
+            "shoulder_l": [161, 117],
+            "shoulder_r": [120, 99],
+            "tail_base": [88, 164],
+            "tail_tip": [65, 167],
+            "toe_l": [96, 205],
+            "toe_r": [160, 211],
+            "wrist_l": [192, 125],
+            "wrist_r": [106, 133]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_09",
+          "pose": {
+            "ankle_l": [119, 201],
+            "ankle_r": [115, 220],
+            "chest": [145, 127],
+            "ear_l": [154, 36],
+            "ear_r": [87, 55],
+            "elbow_l": [161, 141],
+            "elbow_r": [106, 130],
+            "head_top": [152, 48],
+            "heel_l": [120, 193],
+            "heel_r": [107, 218],
+            "hip_c": [140, 155],
+            "hip_l": [154, 155],
+            "hip_r": [117, 160],
+            "knee_l": [148, 183],
+            "knee_r": [119, 186],
+            "neck": [148, 108],
+            "nose": [174, 91],
+            "paw_l": [193, 141],
+            "paw_r": [129, 146],
+            "shoulder_l": [156, 121],
+            "shoulder_r": [114, 107],
+            "tail_base": [87, 170],
+            "tail_tip": [64, 171],
+            "toe_l": [116, 224],
+            "toe_r": [136, 227],
+            "wrist_l": [180, 141],
+            "wrist_r": [120, 140]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_10",
+          "pose": {
+            "ankle_l": [136, 191],
+            "ankle_r": [92, 222],
+            "chest": [141, 133],
+            "ear_l": [147, 42],
+            "ear_r": [81, 62],
+            "elbow_l": [148, 147],
+            "elbow_r": [113, 139],
+            "head_top": [146, 54],
+            "heel_l": [136, 183],
+            "heel_r": [84, 221],
+            "hip_c": [138, 161],
+            "hip_l": [152, 160],
+            "hip_r": [115, 166],
+            "knee_l": [169, 184],
+            "knee_r": [106, 190],
+            "neck": [143, 114],
+            "nose": [169, 97],
+            "paw_l": [176, 163],
+            "paw_r": [141, 141],
+            "shoulder_l": [152, 126],
+            "shoulder_r": [109, 115],
+            "tail_base": [85, 176],
+            "tail_tip": [62, 175],
+            "toe_l": [136, 214],
+            "toe_r": [114, 225],
+            "wrist_l": [165, 157],
+            "wrist_r": [130, 140]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_11",
+          "pose": {
+            "ankle_l": [157, 182],
+            "ankle_r": [73, 191],
+            "chest": [146, 117],
+            "ear_l": [156, 26],
+            "ear_r": [89, 44],
+            "elbow_l": [146, 128],
+            "elbow_r": [130, 116],
+            "head_top": [154, 38],
+            "heel_l": [151, 176],
+            "heel_r": [65, 189],
+            "hip_c": [140, 145],
+            "hip_l": [154, 145],
+            "hip_r": [117, 150],
+            "knee_l": [180, 157],
+            "knee_r": [100, 170],
+            "neck": [150, 98],
+            "nose": [176, 81],
+            "paw_l": [178, 128],
+            "paw_r": [156, 106],
+            "shoulder_l": [158, 111],
+            "shoulder_r": [116, 96],
+            "tail_base": [87, 160],
+            "tail_tip": [64, 158],
+            "toe_l": [173, 198],
+            "toe_r": [94, 198],
+            "wrist_l": [165, 128],
+            "wrist_r": [146, 110]
+          },
+          "underlay": ""
+        },
+        {
+          "label": "reference_12",
+          "pose": {
+            "ankle_l": [185, 192],
+            "ankle_r": [69, 193],
+            "chest": [146, 124],
+            "ear_l": [158, 34],
+            "ear_r": [90, 52],
+            "elbow_l": [140, 130],
+            "elbow_r": [134, 119],
+            "head_top": [156, 46],
+            "heel_l": [178, 189],
+            "heel_r": [72, 185],
+            "hip_c": [139, 152],
+            "hip_l": [153, 152],
+            "hip_r": [116, 156],
+            "knee_l": [181, 158],
+            "knee_r": [93, 168],
+            "neck": [151, 106],
+            "nose": [177, 90],
+            "paw_l": [168, 114],
+            "paw_r": [157, 103],
+            "shoulder_l": [158, 119],
+            "shoulder_r": [117, 102],
+            "tail_base": [86, 167],
+            "tail_tip": [63, 163],
+            "toe_l": [206, 202],
+            "toe_r": [61, 214],
+            "wrist_l": [157, 120],
+            "wrist_r": [148, 109]
+          },
+          "underlay": ""
+        }
+      ],
+      "name": "run"
+    }
+  },
+  "floor_y": 236,
+  "points": [
+    {
+      "chain": "head",
+      "name": "head_top"
+    },
+    {
+      "chain": "head",
+      "name": "ear_l"
+    },
+    {
+      "chain": "head",
+      "name": "ear_r"
+    },
+    {
+      "chain": "head",
+      "name": "nose"
+    },
+    {
+      "chain": "spine",
+      "name": "neck"
+    },
+    {
+      "chain": "spine",
+      "name": "chest"
+    },
+    {
+      "chain": "spine",
+      "name": "hip_c"
+    },
+    {
+      "chain": "arm_l",
+      "name": "shoulder_l"
+    },
+    {
+      "chain": "arm_l",
+      "name": "elbow_l"
+    },
+    {
+      "chain": "arm_l",
+      "name": "wrist_l"
+    },
+    {
+      "chain": "arm_l",
+      "name": "paw_l"
+    },
+    {
+      "chain": "arm_r",
+      "name": "shoulder_r"
+    },
+    {
+      "chain": "arm_r",
+      "name": "elbow_r"
+    },
+    {
+      "chain": "arm_r",
+      "name": "wrist_r"
+    },
+    {
+      "chain": "arm_r",
+      "name": "paw_r"
+    },
+    {
+      "chain": "leg_l",
+      "name": "hip_l"
+    },
+    {
+      "chain": "leg_l",
+      "name": "knee_l"
+    },
+    {
+      "chain": "leg_l",
+      "name": "ankle_l"
+    },
+    {
+      "chain": "leg_l",
+      "name": "heel_l"
+    },
+    {
+      "chain": "leg_l",
+      "name": "toe_l"
+    },
+    {
+      "chain": "leg_r",
+      "name": "hip_r"
+    },
+    {
+      "chain": "leg_r",
+      "name": "knee_r"
+    },
+    {
+      "chain": "leg_r",
+      "name": "ankle_r"
+    },
+    {
+      "chain": "leg_r",
+      "name": "heel_r"
+    },
+    {
+      "chain": "leg_r",
+      "name": "toe_r"
+    },
+    {
+      "chain": "tail",
+      "name": "tail_base"
+    },
+    {
+      "chain": "tail",
+      "name": "tail_tip"
+    }
+  ],
+  "updated_at": "2026-09-05T13:24:24Z",
+  "version": 2
+}

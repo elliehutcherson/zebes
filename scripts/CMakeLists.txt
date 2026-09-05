@@ -100,6 +100,15 @@ target_link_libraries(render_layered_puppet
   nlohmann_json::nlohmann_json
 )
 
+add_executable(render_skeleton_rig_review render_skeleton_rig_review.cc)
+target_link_libraries(render_skeleton_rig_review
+  PRIVATE
+  skeleton_rig_review
+  status_macros
+  absl::flags
+  absl::flags_parse
+)
+
 add_library(animation_artwork_run_manifest animation_artwork_run_manifest.cc)
 target_include_directories(animation_artwork_run_manifest PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(animation_artwork_run_manifest

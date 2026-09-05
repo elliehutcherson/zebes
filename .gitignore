@@ -47,6 +47,24 @@ experiments/character_binding/out/see-through-v1/raw/*
 !experiments/character_binding/out/see-through-v1/raw/head.png
 !experiments/character_binding/out/see-through-v1/raw/src_img.png
 
+# Codex pose-conditioning evidence. Only what a provider turn produced and what
+# was authored by hand: three model renders (3.4 MB) that cost quota to make
+# again, the hand-traced skeleton, the exact prompt, and the measurement
+# scripts. Everything else in that directory is derived from these by a
+# transform documented in FINDINGS.md and is deliberately left untracked.
+!experiments/character_binding/out/codex-pose-conditioning-v1/
+experiments/character_binding/out/codex-pose-conditioning-v1/*
+!experiments/character_binding/out/codex-pose-conditioning-v1/rig-bench.json
+!experiments/character_binding/out/codex-pose-conditioning-v1/sheets/
+experiments/character_binding/out/codex-pose-conditioning-v1/sheets/*
+!experiments/character_binding/out/codex-pose-conditioning-v1/sheets/attempt-1-model-output.png
+!experiments/character_binding/out/codex-pose-conditioning-v1/sheets/attempt-2-model-output.png
+!experiments/character_binding/out/codex-pose-conditioning-v1/skeleton-test/
+experiments/character_binding/out/codex-pose-conditioning-v1/skeleton-test/*
+!experiments/character_binding/out/codex-pose-conditioning-v1/skeleton-test/output.png
+!experiments/character_binding/out/codex-pose-conditioning-v1/skeleton-test/prompt.txt
+!experiments/character_binding/out/codex-pose-conditioning-v1/tools/
+
 # Cross-process authoring locks contain per-machine process metadata.
 .zebes/
 
