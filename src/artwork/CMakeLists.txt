@@ -108,21 +108,6 @@ target_link_libraries(delete_animation_frame_set_asset
   absl::strings
 )
 
-add_library(animation_artwork_feasibility animation_artwork_feasibility.cc)
-target_link_libraries(animation_artwork_feasibility
-  PUBLIC
-  image_io
-  sprite
-  terrain_palette
-  absl::status
-  absl::statusor
-  PRIVATE
-  generated_artwork_postprocessor
-  image_digest
-  status_macros
-  absl::strings
-)
-
 add_library(skeleton_rig_review skeleton_rig_review.cc)
 target_link_libraries(skeleton_rig_review
   PRIVATE
