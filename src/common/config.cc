@@ -1,9 +1,11 @@
 #include "config.h"
 
+#include <exception>
 #include <fstream>
 
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "common/status_macros.h"
@@ -57,15 +59,21 @@ absl::StatusOr<EngineConfig> EngineConfig::Load(const std::string& path) {
   file_contents << file.rdbuf();
   file.close();
 
-  nlohmann::json j;
-  j = nlohmann::json::parse(file_contents.str());
-
+  // nlohmann reports both malformed JSON and a missing field by throwing. This
+  // is the adapter that owns the library, so the exception is translated here
+  // and every caller stays in the status error model.
   EngineConfig config;
-  nlohmann::from_json(j, config);
+  try {
+    const nlohmann::json j = nlohmann::json::parse(file_contents.str());
+    nlohmann::from_json(j, config);
+  } catch (const std::exception& error) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Failed to read config at ", path, ": ", error.what()));
+  }
   RETURN_IF_ERROR(config.Validate());
 
   LOG(INFO) << __func__ << ": "
-            << "Successfully imported: " << j.dump(2);
+            << "Successfully imported config from " << path;
 
   return config;
 }

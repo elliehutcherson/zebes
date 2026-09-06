@@ -1,5 +1,7 @@
-#include "common/config.h"
+#include <filesystem>
+#include <fstream>
 
+#include "common/config.h"
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
 
@@ -33,22 +35,11 @@ TEST(WindowConfigTest, RoundTripsPlatformNeutralFields) {
   EXPECT_EQ(parsed.high_dpi, source.high_dpi);
 }
 
-TEST(WindowConfigTest, MigratesLegacySdlValuesWithoutExposingSdlTypes) {
-  const nlohmann::json legacy = {
-      {"title", "Legacy"},
-      {"xpos", 0x2FFF0000u},
-      {"ypos", 0x2FFF0000u},
-      {"width", 1400},
-      {"height", 640},
-      {"flags", 0x00002020u},
-  };
+TEST(WindowConfigTest, RefusesAMissingFieldRatherThanDefaultingIt) {
+  nlohmann::json serialized = WindowConfig{};
+  serialized.erase("high_dpi");
 
-  const WindowConfig parsed = legacy.get<WindowConfig>();
-
-  EXPECT_TRUE(parsed.centered);
-  EXPECT_FALSE(parsed.fullscreen);
-  EXPECT_TRUE(parsed.resizable);
-  EXPECT_TRUE(parsed.high_dpi);
+  EXPECT_THROW(serialized.get<WindowConfig>(), nlohmann::json::exception);
 }
 
 TEST(EngineConfigTest, RoundTripsConfiguredGameView) {
@@ -62,15 +53,41 @@ TEST(EngineConfigTest, RoundTripsConfiguredGameView) {
   EXPECT_EQ(parsed.game_view.height, 180);
 }
 
-TEST(EngineConfigTest, DefaultsGameViewWhenLoadingOlderConfig) {
-  EngineConfig source;
-  nlohmann::json serialized = source;
+TEST(EngineConfigTest, RefusesAMissingGameViewRatherThanDefaultingIt) {
+  nlohmann::json serialized = EngineConfig{};
   serialized.erase("game_view");
 
-  const EngineConfig parsed = serialized.get<EngineConfig>();
+  EXPECT_THROW(serialized.get<EngineConfig>(), nlohmann::json::exception);
+}
 
-  EXPECT_EQ(parsed.game_view.width, 640);
-  EXPECT_EQ(parsed.game_view.height, 360);
+// A corrupt config must come back as a status. Load owns the nlohmann API, so
+// it is the one place allowed to catch, and nothing above it sees an exception.
+TEST(EngineConfigTest, LoadReportsMalformedJsonAsAStatus) {
+  const std::filesystem::path path =
+      std::filesystem::temp_directory_path() / "zebes-malformed-config.json";
+  std::ofstream out(path);
+  out << "{ \"window\": ";
+  out.close();
+
+  const absl::StatusOr<EngineConfig> config = EngineConfig::Load(path.string());
+
+  EXPECT_EQ(config.status().code(), absl::StatusCode::kInvalidArgument);
+  std::filesystem::remove(path);
+}
+
+TEST(EngineConfigTest, LoadReportsAMissingFieldAsAStatus) {
+  const std::filesystem::path path =
+      std::filesystem::temp_directory_path() / "zebes-incomplete-config.json";
+  nlohmann::json serialized = EngineConfig{};
+  serialized.erase("fps");
+  std::ofstream out(path);
+  out << serialized.dump();
+  out.close();
+
+  const absl::StatusOr<EngineConfig> config = EngineConfig::Load(path.string());
+
+  EXPECT_EQ(config.status().code(), absl::StatusCode::kInvalidArgument);
+  std::filesystem::remove(path);
 }
 
 TEST(EngineConfigTest, RejectsInvalidGameView) {

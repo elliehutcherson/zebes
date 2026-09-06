@@ -92,7 +92,6 @@ class Notification {
   // publishes breaks that guarantee and can hang the waiter.
   void Notify() noexcept { sink_.SignalIfArmed(); }
 
-  bool IsExternal() const { return native_wait_handle_.has_value(); }
   const NativeWaitHandle* native_wait_handle() const {
     return native_wait_handle_ ? &*native_wait_handle_ : nullptr;
   }

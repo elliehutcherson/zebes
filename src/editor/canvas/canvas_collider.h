@@ -16,11 +16,6 @@ class CanvasCollider {
   // Returns true if the collider was modified (dragged).
   absl::StatusOr<bool> Render(Canvas& canvas, bool input_allowed);
 
-  void ResetDragIndex() {
-    drag_polygon_index_ = -1;
-    drag_vertex_index_ = -1;
-  }
-
   void Clear() {
     is_dragging_ = false;
     drag_acc_x_ = 0.0;

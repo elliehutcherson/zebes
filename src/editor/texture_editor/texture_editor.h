@@ -26,12 +26,9 @@ class TextureEditor {
 
   void Render();
 
-  const std::vector<Texture>& GetTextureList() const { return model_.textures(); }
-
  private:
   TextureEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui);
 
-  void RenderImport();
   void RenderTextureList();
   void RenderTextureDetails();
   void RenderZoom();

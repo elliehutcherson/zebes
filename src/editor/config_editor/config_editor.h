@@ -22,8 +22,6 @@ class ConfigEditor {
 
   void Render();
 
-  const EngineConfig& GetEditorConfig() const { return local_config_; }
-
  private:
   ConfigEditor(Api* api, SdlWrapper* sdl, GuiInterface* gui);
 

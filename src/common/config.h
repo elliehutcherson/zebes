@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <string>
 
 #include "absl/log/log.h"
@@ -48,37 +47,14 @@ struct WindowConfig {
 
   friend void from_json(const nlohmann::json& j, WindowConfig& s) {
     j.at("title").get_to(s.title);
+    j.at("centered").get_to(s.centered);
+    j.at("x").get_to(s.x);
+    j.at("y").get_to(s.y);
     j.at("width").get_to(s.width);
     j.at("height").get_to(s.height);
-
-    if (j.contains("centered")) {
-      j.at("centered").get_to(s.centered);
-      s.x = j.value("x", 0);
-      s.y = j.value("y", 0);
-      s.fullscreen = j.value("fullscreen", false);
-      s.resizable = j.value("resizable", true);
-      s.high_dpi = j.value("high_dpi", true);
-      return;
-    }
-
-    // Migration for configs written before WindowConfig stopped persisting
-    // SDL constants. These numeric values are read-only legacy file-format
-    // details; current engine state remains platform-neutral.
-    constexpr uint32_t kLegacyCenteredPosition = 0x2FFF0000u;
-    constexpr uint32_t kLegacyFullscreenDesktop = 0x00001001u;
-    constexpr uint32_t kLegacyResizable = 0x00000020u;
-    constexpr uint32_t kLegacyHighDpi = 0x00002000u;
-    const uint32_t legacy_x = j.value("xpos", kLegacyCenteredPosition);
-    const uint32_t legacy_y = j.value("ypos", kLegacyCenteredPosition);
-    const uint32_t legacy_flags = j.value("flags", 0u);
-    s.centered = legacy_x == kLegacyCenteredPosition && legacy_y == kLegacyCenteredPosition;
-    if (!s.centered) {
-      s.x = static_cast<int>(legacy_x);
-      s.y = static_cast<int>(legacy_y);
-    }
-    s.fullscreen = (legacy_flags & kLegacyFullscreenDesktop) != 0;
-    s.resizable = (legacy_flags & kLegacyResizable) != 0;
-    s.high_dpi = (legacy_flags & kLegacyHighDpi) != 0;
+    j.at("fullscreen").get_to(s.fullscreen);
+    j.at("resizable").get_to(s.resizable);
+    j.at("high_dpi").get_to(s.high_dpi);
   }
 };
 
@@ -148,11 +124,9 @@ class EngineConfig {
 
   friend void from_json(const nlohmann::json& j, EngineConfig& s) {
     j.at("window").get_to(s.window);
-    if (j.contains("game_view")) {
-      const nlohmann::json& game_view = j.at("game_view");
-      game_view.at("width").get_to(s.game_view.width);
-      game_view.at("height").get_to(s.game_view.height);
-    }
+    const nlohmann::json& game_view = j.at("game_view");
+    game_view.at("width").get_to(s.game_view.width);
+    game_view.at("height").get_to(s.game_view.height);
     j.at("paths").get_to(s.paths);
 
     j.at("fps").get_to(s.fps);
