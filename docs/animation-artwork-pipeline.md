@@ -218,26 +218,20 @@ harder to interpret.
   research inputs may be copied to `notes/` after review, but the normative
   contract and conclusion stay in this document.
 
-### Disposable processor implementation
+### Disposable processor — deleted 2026-09-06
 
-Build only the narrow platform-neutral seam needed to make the comparison
-repeatable:
+`animation_artwork_feasibility` and `animation_artwork_spike` were the throwaway
+seam for this gate, named `Feasibility` so they could not quietly become the
+production contract. They stayed built after the gate closed and were deleted
+with the rest of the generated-animation experiment.
 
-- `src/artwork/animation_artwork_feasibility.{h,cc}` owns typed in-memory gate
-  contracts, cell extraction, shared transforms, packing, and diagnostics over
-  copied `RgbaImage` values. It has no filesystem, SDL, API, resource-manager,
-  generation-client, or JSON dependency. The deliberately explicit
-  `Feasibility` name prevents this experiment from silently becoming the
-  production recipe contract.
-- `scripts/animation_artwork_spike.cc` owns flags, bounded PNG reads and writes,
-  fixed idle/run presets, the timestamped output directory, provenance input,
-  and the review manifest. It refuses an existing output directory rather than
-  mixing runs.
-- `tests/artwork/animation_artwork_feasibility_test.cc` uses small synthetic
-  sheets to cover exact layout and count, dimension and byte-safe arithmetic,
-  clipped and empty cells, shared rather than per-frame scale, origin/contact
-  placement, palette reuse, deterministic packing, and byte-stable diagnostics.
-  No remote generation belongs in this test.
+They are not missed. The production `animation_frame_set_pipeline` does every
+check they did, and the one place they differed it is the correct check: the
+feasibility processor required square source cells and never compared them to
+the output canvas, so it passed a square cell drawn onto a 48x24 canvas and
+rejected a 100x50 cell drawn onto a 100x50 one. The pipeline requires the cell
+and the canvas to have the same shape, which is the actual condition for a frame
+not being squashed.
 
 The spike hard-rejects malformed RGBA storage, unexpected dimensions or cell
 count, ambiguous matte removal, empty or border-clipped foreground, a shared
@@ -364,7 +358,7 @@ research cannot be used to delay or redefine that path.
    feasibility code when milestone 3 begins; do not leave two processors.
 
 During implementation, format the edited C++ files and run the focused
-`animation_artwork_feasibility_test`, then the complete affected artwork test
+`animation_frame_set_pipeline_test`, then the complete affected artwork test
 executable and `git diff --check`. The gate does not justify the broad suite,
 resource migration checks, or UI tests because it changes no serialized or SDL
 contract.

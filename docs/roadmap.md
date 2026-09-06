@@ -66,20 +66,29 @@ Detailed runtime threading and ownership decisions remain in
 
 Coherent generated sheets failed live motion review. Independently generated
 pose-conditioned frames failed identity, proportion, and pose-phase consistency,
-even with separated identity views. The experiment is deprecated historical
-evidence and is not a dependency or follow-up.
+even with separated identity views.
 
-Imported and manually authored sheets are the only production animation source.
+Skeleton conditioning closed the same way on 2026-09-06: the generator draws
+legs far apart because that is what reads as running, and ignores a skeleton
+asking for legs together. Measured across two runs
+([`history/codex-pose-conditioning-2026-09-06.md`](history/codex-pose-conditioning-2026-09-06.md)).
 
-### Animation experiment cleanup next
+Generation is no longer asked to infer a pose. The interactive editor poses the
+character directly and generation is asked only to clean up the result.
+Imported and manually authored sheets remain the only production animation
+source.
 
-The interactive rough-authoring proof is complete and accepted as experiment
-tooling, not production art. The next Track 5 change is bounded technical-debt
-cleanup: remove superseded generated-animation artifacts and diagnostics,
-consolidate the editor's reference/deformation boundary, and retain only tools
-with live CMake consumers and focused tests. Preserve the tracked editor
-source/spec/state, exact Rig Bench clip, and deterministic export contract.
-Provider requests and new editor features remain out of scope.
+### Animation experiment cleanup complete
+
+Done 2026-09-06, about 7,000 lines removed. The closed generated-animation and
+skeleton-conditioning tooling is gone, the strict JSON readers have one
+implementation, the editor page is a real HTML file, and tracked inputs are
+separated from generated output. Narrative in
+[`history/repository-cleanup-2026-09-06.md`](history/repository-cleanup-2026-09-06.md).
+
+Two decisions were deferred rather than made, and are listed under "Open
+decisions" in [`handoff.md`](handoff.md): whether the layered-puppet hard gates
+measure anything visible at 48px, and who should own `kReferenceJointMapping`.
 
 ### Production pipeline complete; player art gate reopened
 
