@@ -3,7 +3,9 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/image_digest.h"
@@ -21,6 +23,31 @@ absl::StatusOr<size_t> FindState(const Blueprint& blueprint, std::string_view st
     if (blueprint.states[index].key == state_key) return index;
   }
   return absl::NotFoundError(absl::StrCat("Blueprint has no state with key '", state_key, "'"));
+}
+
+// The restore set has to cover the recipe's states exactly. A missing entry
+// would silently leave a state pointing at the Sprite being deleted, and an
+// extra one would move a state the recipe never bound.
+absl::Status ValidateStateRestore(const AnimationFrameSetRecipe& recipe,
+                                  const std::vector<AnimationFrameSetStateRestore>& restore) {
+  if (restore.size() != recipe.blueprint_state_keys.size()) {
+    return absl::InvalidArgumentError(
+        "animation frame-set deletion must restore exactly the states the recipe bound");
+  }
+  absl::flat_hash_set<std::string> expected(recipe.blueprint_state_keys.begin(),
+                                            recipe.blueprint_state_keys.end());
+  for (const AnimationFrameSetStateRestore& entry : restore) {
+    if (!expected.erase(entry.state_key)) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("animation frame-set deletion restores state '", entry.state_key,
+                       "', which the recipe does not bind"));
+    }
+    if (entry.sprite_id == recipe.sprite_id) {
+      return absl::InvalidArgumentError(
+          "animation frame-set deletion cannot restore the Sprite it is deleting");
+    }
+  }
+  return absl::OkStatus();
 }
 
 absl::Status ValidateGraph(const PreparedAnimationFrameSetDeletion& prepared) {
@@ -45,15 +72,16 @@ absl::Status ValidateGraph(const PreparedAnimationFrameSetDeletion& prepared) {
         "animation frame-set deletion Sprite differs from its recipe");
   }
 
+  RETURN_IF_ERROR(ValidateStateRestore(recipe, prepared.state_restore));
   Blueprint expected = prepared.blueprint_snapshot;
-  for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
-    ASSIGN_OR_RETURN(const size_t state_index, FindState(expected, binding.state_key));
+  for (const AnimationFrameSetStateRestore& restore : prepared.state_restore) {
+    ASSIGN_OR_RETURN(const size_t state_index, FindState(expected, restore.state_key));
     if (expected.states[state_index].sprite_id != recipe.sprite_id) {
       return absl::FailedPreconditionError(
-          absl::StrCat("Blueprint state '", binding.state_key,
+          absl::StrCat("Blueprint state '", restore.state_key,
                        "' no longer has the recipe-owned animation Sprite binding"));
     }
-    expected.states[state_index].sprite_id = binding.previous_sprite_id;
+    expected.states[state_index].sprite_id = restore.sprite_id;
   }
   if (prepared.updated_blueprint != expected) {
     return absl::InvalidArgumentError(
@@ -66,16 +94,18 @@ absl::Status ValidateGraph(const PreparedAnimationFrameSetDeletion& prepared) {
 
 absl::StatusOr<PreparedAnimationFrameSetDeletion> PrepareAnimationFrameSetDeletion(
     const SourceArtwork& source, const AnimationFrameSetRecipe& recipe, const Texture& texture,
-    const RgbaImage& texture_pixels, const Sprite& sprite, const Blueprint& blueprint) {
+    const RgbaImage& texture_pixels, const Sprite& sprite, const Blueprint& blueprint,
+    const std::vector<AnimationFrameSetStateRestore>& restore) {
+  RETURN_IF_ERROR(ValidateStateRestore(recipe, restore));
   Blueprint updated_blueprint = blueprint;
-  for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
-    ASSIGN_OR_RETURN(const size_t state_index, FindState(updated_blueprint, binding.state_key));
+  for (const AnimationFrameSetStateRestore& entry : restore) {
+    ASSIGN_OR_RETURN(const size_t state_index, FindState(updated_blueprint, entry.state_key));
     if (updated_blueprint.states[state_index].sprite_id != recipe.sprite_id) {
       return absl::FailedPreconditionError(
-          absl::StrCat("Blueprint state '", binding.state_key,
+          absl::StrCat("Blueprint state '", entry.state_key,
                        "' no longer has the recipe-owned animation Sprite binding"));
     }
-    updated_blueprint.states[state_index].sprite_id = binding.previous_sprite_id;
+    updated_blueprint.states[state_index].sprite_id = entry.sprite_id;
   }
   PreparedAnimationFrameSetDeletion prepared{
       .source_snapshot = source,
@@ -85,6 +115,7 @@ absl::StatusOr<PreparedAnimationFrameSetDeletion> PrepareAnimationFrameSetDeleti
       .sprite_snapshot = sprite,
       .blueprint_snapshot = blueprint,
       .updated_blueprint = std::move(updated_blueprint),
+      .state_restore = restore,
   };
   RETURN_IF_ERROR(ValidatePreparedAnimationFrameSetDeletion(prepared));
   return prepared;

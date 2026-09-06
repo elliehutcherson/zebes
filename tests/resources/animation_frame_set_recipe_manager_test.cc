@@ -54,10 +54,7 @@ AnimationFrameSetRecipe CompleteRecipe(std::string name = "Run Left") {
       .texture_id = "texture-id",
       .sprite_id = "sprite-id",
       .blueprint_id = "blueprint-id",
-      .blueprint_bindings = {{
-          .state_key = "run-left",
-          .previous_sprite_id = "placeholder-id",
-      }},
+      .blueprint_state_keys = {"run-left"},
       .expected_frames = {{
           .index = 0,
           .texture_x = 0,

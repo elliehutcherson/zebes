@@ -171,12 +171,6 @@ std::vector<AssetReference> FindSpriteReferrers(const AssetCatalog& catalog,
     if (Names(recipe.sprite_id, sprite_id)) {
       Add(referrers, AssetKind::kAnimationFrameSetRecipe, recipe.id, recipe.name, "sprite_id");
     }
-    for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
-      if (Names(binding.previous_sprite_id, sprite_id)) {
-        Add(referrers, AssetKind::kAnimationFrameSetRecipe, recipe.id, recipe.name,
-            absl::StrCat("Blueprint state '", binding.state_key, "' previous_sprite_id"));
-      }
-    }
   }
   return referrers;
 }

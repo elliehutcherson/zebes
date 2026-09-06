@@ -1,11 +1,8 @@
 {
-  "blueprint_bindings": [
-    {
-      "previous_sprite_id": "61370e3c-25ca-438c-9b7f-0f978eb2dd4b",
-      "state_key": "idle-left"
-    }
-  ],
   "blueprint_id": "1be81945-b011-4342-9109-a10c4040078c",
+  "blueprint_state_keys": [
+    "idle-left"
+  ],
   "expected_frames": [
     {
       "frames_per_cycle": 15,

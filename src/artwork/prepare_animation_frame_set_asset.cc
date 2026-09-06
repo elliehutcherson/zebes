@@ -61,16 +61,13 @@ absl::StatusOr<size_t> FindState(const Blueprint& blueprint, std::string_view st
   return absl::NotFoundError(absl::StrCat("Blueprint has no state with key '", state_key, "'"));
 }
 
-absl::StatusOr<std::vector<AnimationFrameSetBlueprintBinding>> BuildBindings(
-    const Blueprint& blueprint, const std::vector<std::string>& state_keys,
-    std::string_view sprite_id, Blueprint* updated_blueprint) {
+absl::Status BindStates(const Blueprint& blueprint, const std::vector<std::string>& state_keys,
+                        std::string_view sprite_id, Blueprint* updated_blueprint) {
   if (state_keys.empty()) {
     return absl::InvalidArgumentError(
         "prepared animation frame set must bind at least one Blueprint state");
   }
   std::set<std::string> unique_keys;
-  std::vector<AnimationFrameSetBlueprintBinding> bindings;
-  bindings.reserve(state_keys.size());
   *updated_blueprint = blueprint;
   for (const std::string& state_key : state_keys) {
     if (!unique_keys.insert(state_key).second) {
@@ -78,18 +75,13 @@ absl::StatusOr<std::vector<AnimationFrameSetBlueprintBinding>> BuildBindings(
           "prepared animation frame-set Blueprint state keys must be unique");
     }
     ASSIGN_OR_RETURN(const size_t state_index, FindState(blueprint, state_key));
-    const std::string& previous_sprite_id = blueprint.states[state_index].sprite_id;
-    if (previous_sprite_id == sprite_id) {
+    if (blueprint.states[state_index].sprite_id == sprite_id) {
       return absl::InvalidArgumentError(
           "prepared animation frame-set Sprite is already bound before it exists");
     }
-    bindings.push_back({
-        .state_key = state_key,
-        .previous_sprite_id = previous_sprite_id,
-    });
     updated_blueprint->states[state_index].sprite_id = std::string(sprite_id);
   }
-  return bindings;
+  return absl::OkStatus();
 }
 
 absl::Status ValidateTexture(const PreparedAnimationFrameSetAsset& prepared) {
@@ -130,12 +122,8 @@ absl::Status ValidateBlueprintChange(const PreparedAnimationFrameSetAsset& prepa
         "prepared animation frame-set recipe names a different Blueprint");
   }
   Blueprint expected = prepared.blueprint_snapshot;
-  for (const AnimationFrameSetBlueprintBinding& binding : prepared.recipe.blueprint_bindings) {
-    ASSIGN_OR_RETURN(const size_t state_index, FindState(expected, binding.state_key));
-    if (expected.states[state_index].sprite_id != binding.previous_sprite_id) {
-      return absl::InvalidArgumentError(
-          "prepared animation frame-set binding does not retain the prior Sprite ID");
-    }
+  for (const std::string& state_key : prepared.recipe.blueprint_state_keys) {
+    ASSIGN_OR_RETURN(const size_t state_index, FindState(expected, state_key));
     expected.states[state_index].sprite_id = prepared.sprite.id;
   }
   if (prepared.updated_blueprint != expected) {
@@ -185,9 +173,8 @@ absl::StatusOr<PreparedAnimationFrameSetAsset> PrepareAnimationFrameSetAsset(
   ASSIGN_OR_RETURN(AnimationFrameSetPipelineResult artwork,
                    RunAnimationFrameSetPipeline(source_pixels, request.style, request.pipeline));
   Blueprint updated_blueprint;
-  ASSIGN_OR_RETURN(std::vector<AnimationFrameSetBlueprintBinding> bindings,
-                   BuildBindings(blueprint_snapshot, request.blueprint_state_keys,
-                                 request.ids.sprite_id, &updated_blueprint));
+  RETURN_IF_ERROR(BindStates(blueprint_snapshot, request.blueprint_state_keys,
+                             request.ids.sprite_id, &updated_blueprint));
 
   PreparedAnimationFrameSetAsset prepared{
       .source_snapshot = source,
@@ -217,7 +204,7 @@ absl::StatusOr<PreparedAnimationFrameSetAsset> PrepareAnimationFrameSetAsset(
               .texture_id = request.ids.texture_id,
               .sprite_id = request.ids.sprite_id,
               .blueprint_id = blueprint_snapshot.id,
-              .blueprint_bindings = std::move(bindings),
+              .blueprint_state_keys = request.blueprint_state_keys,
               .final_pixel_digest = "",
               .pipeline_version = kAnimationFrameSetPipelineVersion,
           },

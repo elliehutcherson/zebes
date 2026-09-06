@@ -27,43 +27,44 @@ absl::StatusOr<size_t> FindState(const Blueprint& blueprint, std::string_view st
   return absl::NotFoundError(absl::StrCat("Blueprint has no state with key '", state_key, "'"));
 }
 
-absl::Status RestoreBindings(const AnimationFrameSetRecipe& recipe,
-                             const Blueprint& blueprint_snapshot, Blueprint* restored) {
-  *restored = blueprint_snapshot;
-  for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
-    ASSIGN_OR_RETURN(const size_t state_index, FindState(*restored, binding.state_key));
-    if (restored->states[state_index].sprite_id != recipe.sprite_id) {
-      return absl::FailedPreconditionError(
-          absl::StrCat("Blueprint state '", binding.state_key,
-                       "' no longer has the recipe-owned animation Sprite binding"));
-    }
-    restored->states[state_index].sprite_id = binding.previous_sprite_id;
-  }
-  return absl::OkStatus();
-}
-
-absl::StatusOr<std::vector<AnimationFrameSetBlueprintBinding>> ApplyBindings(
-    const std::vector<std::string>& state_keys, std::string_view sprite_id, Blueprint* blueprint) {
+// Regeneration replaces a frame set's pixels, not what it is bound to. Moving
+// a state out of the set would need to know what that state pointed at before
+// the original import, which is not recorded -- so this refuses instead of
+// guessing. Changing the binding is a delete and re-import.
+absl::Status RequireUnchangedStateKeys(const AnimationFrameSetRecipe& recipe,
+                                       const std::vector<std::string>& state_keys) {
   if (state_keys.empty()) {
     return absl::InvalidArgumentError(
         "animation frame-set regeneration must bind at least one Blueprint state");
   }
-  std::set<std::string> unique_keys;
-  std::vector<AnimationFrameSetBlueprintBinding> bindings;
-  bindings.reserve(state_keys.size());
-  for (const std::string& state_key : state_keys) {
-    if (!unique_keys.insert(state_key).second) {
-      return absl::InvalidArgumentError(
-          "animation frame-set regeneration Blueprint state keys must be unique");
-    }
-    ASSIGN_OR_RETURN(const size_t state_index, FindState(*blueprint, state_key));
-    bindings.push_back({
-        .state_key = state_key,
-        .previous_sprite_id = blueprint->states[state_index].sprite_id,
-    });
-    blueprint->states[state_index].sprite_id = std::string(sprite_id);
+  std::set<std::string> unique_keys(state_keys.begin(), state_keys.end());
+  if (unique_keys.size() != state_keys.size()) {
+    return absl::InvalidArgumentError(
+        "animation frame-set regeneration Blueprint state keys must be unique");
   }
-  return bindings;
+  const std::set<std::string> recipe_keys(recipe.blueprint_state_keys.begin(),
+                                          recipe.blueprint_state_keys.end());
+  if (unique_keys != recipe_keys) {
+    return absl::InvalidArgumentError(
+        "animation frame-set regeneration cannot change which Blueprint states are bound; "
+        "delete the frame set and import it again");
+  }
+  return absl::OkStatus();
+}
+
+// Every bound state must still hold this recipe's Sprite, or something else
+// rebound it and regeneration would silently take the state back.
+absl::Status RequireStatesStillBound(const AnimationFrameSetRecipe& recipe,
+                                     const Blueprint& blueprint) {
+  for (const std::string& state_key : recipe.blueprint_state_keys) {
+    ASSIGN_OR_RETURN(const size_t state_index, FindState(blueprint, state_key));
+    if (blueprint.states[state_index].sprite_id != recipe.sprite_id) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("Blueprint state '", state_key,
+                       "' no longer has the recipe-owned animation Sprite binding"));
+    }
+  }
+  return absl::OkStatus();
 }
 
 absl::Status ValidateInputGraph(const PreparedAnimationFrameSetRegeneration& prepared) {
@@ -89,8 +90,7 @@ absl::Status ValidateInputGraph(const PreparedAnimationFrameSetRegeneration& pre
     return absl::FailedPreconditionError(
         "animation frame-set regeneration Sprite snapshot differs from its recipe");
   }
-  Blueprint restored;
-  return RestoreBindings(prepared.recipe_snapshot, prepared.blueprint_snapshot, &restored);
+  return RequireStatesStillBound(prepared.recipe_snapshot, prepared.blueprint_snapshot);
 }
 
 absl::Status ValidateOutputGraph(const PreparedAnimationFrameSetRegeneration& prepared) {
@@ -114,21 +114,12 @@ absl::Status ValidateOutputGraph(const PreparedAnimationFrameSetRegeneration& pr
         "animation frame-set regeneration output Sprite is inconsistent");
   }
 
-  Blueprint expected;
-  RETURN_IF_ERROR(
-      RestoreBindings(prepared.recipe_snapshot, prepared.blueprint_snapshot, &expected));
-  for (const AnimationFrameSetBlueprintBinding& binding :
-       prepared.updated_recipe.blueprint_bindings) {
-    ASSIGN_OR_RETURN(const size_t state_index, FindState(expected, binding.state_key));
-    if (expected.states[state_index].sprite_id != binding.previous_sprite_id) {
-      return absl::InvalidArgumentError(
-          "animation frame-set regeneration did not retain the prior state binding");
-    }
-    expected.states[state_index].sprite_id = prepared.updated_recipe.sprite_id;
-  }
-  if (prepared.updated_blueprint != expected) {
-    return absl::InvalidArgumentError(
-        "animation frame-set regeneration modifies non-binding Blueprint state");
+  RETURN_IF_ERROR(RequireUnchangedStateKeys(prepared.recipe_snapshot,
+                                            prepared.updated_recipe.blueprint_state_keys));
+  // The same states stay bound to the same Sprite ID, so regeneration must
+  // leave the Blueprint byte-identical. Only pixels and frames change.
+  if (prepared.updated_blueprint != prepared.blueprint_snapshot) {
+    return absl::InvalidArgumentError("animation frame-set regeneration modifies the Blueprint");
   }
   return absl::OkStatus();
 }
@@ -172,20 +163,17 @@ absl::StatusOr<PreparedAnimationFrameSetRegeneration> PrepareAnimationFrameSetRe
 
   ASSIGN_OR_RETURN(prepared.artwork,
                    RunAnimationFrameSetPipeline(source_pixels, settings.style, settings.pipeline));
-  Blueprint restored_blueprint;
-  RETURN_IF_ERROR(RestoreBindings(recipe, blueprint, &restored_blueprint));
-  ASSIGN_OR_RETURN(
-      std::vector<AnimationFrameSetBlueprintBinding> bindings,
-      ApplyBindings(settings.blueprint_state_keys, recipe.sprite_id, &restored_blueprint));
+  RETURN_IF_ERROR(RequireUnchangedStateKeys(recipe, settings.blueprint_state_keys));
+  RETURN_IF_ERROR(RequireStatesStillBound(recipe, blueprint));
 
   prepared.updated_sprite = sprite;
   prepared.updated_sprite.playback_mode = prepared.artwork.playback_mode;
   prepared.updated_sprite.frames = prepared.artwork.sprite_frames;
-  prepared.updated_blueprint = std::move(restored_blueprint);
+  prepared.updated_blueprint = blueprint;
   prepared.updated_recipe = recipe;
   prepared.updated_recipe.style = settings.style;
   prepared.updated_recipe.pipeline = settings.pipeline;
-  prepared.updated_recipe.blueprint_bindings = std::move(bindings);
+  prepared.updated_recipe.blueprint_state_keys = settings.blueprint_state_keys;
   prepared.updated_recipe.expected_frames = prepared.artwork.sprite_frames;
   prepared.updated_recipe.final_pixel_digest = prepared.artwork.packed_digest;
   prepared.updated_recipe.pipeline_version = kAnimationFrameSetPipelineVersion;

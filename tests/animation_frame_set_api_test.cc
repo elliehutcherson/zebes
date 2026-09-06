@@ -395,7 +395,8 @@ class AnimationFrameSetDeleteApiTest : public AnimationFrameSetRegenerationApiTe
     ASSERT_OK_AND_ASSIGN(deletion_,
                          PrepareAnimationFrameSetDeletion(
                              created_.source_snapshot, current_recipe_, current_texture_,
-                             created_.artwork.packed_texture, current_sprite_, current_blueprint_));
+                             created_.artwork.packed_texture, current_sprite_, current_blueprint_,
+                             {{.state_key = "run-left", .sprite_id = "placeholder-id"}}));
     ON_CALL(blueprint_manager_, GetAllBlueprints())
         .WillByDefault(Return(std::vector<Blueprint>{current_blueprint_}));
     ON_CALL(sprite_manager_, GetAllSprites())

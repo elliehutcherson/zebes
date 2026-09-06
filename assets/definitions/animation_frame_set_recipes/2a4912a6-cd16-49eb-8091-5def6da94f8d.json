@@ -1,11 +1,8 @@
 {
-  "blueprint_bindings": [
-    {
-      "previous_sprite_id": "11f2dee4-0ca7-4132-baf6-0ca5dd67784b",
-      "state_key": "run-left"
-    }
-  ],
   "blueprint_id": "1be81945-b011-4342-9109-a10c4040078c",
+  "blueprint_state_keys": [
+    "run-left"
+  ],
   "expected_frames": [
     {
       "frames_per_cycle": 4,

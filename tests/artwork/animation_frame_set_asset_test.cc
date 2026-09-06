@@ -141,9 +141,7 @@ TEST(AnimationFrameSetAssetTest, PreparationReturnsCompleteBindingChange) {
   EXPECT_EQ(prepared.sprite.texture_id, prepared.texture.id);
   EXPECT_EQ(prepared.sprite.playback_mode, SpritePlaybackMode::kLoop);
   EXPECT_EQ(prepared.sprite.frames, prepared.artwork.sprite_frames);
-  ASSERT_EQ(prepared.recipe.blueprint_bindings.size(), 1);
-  EXPECT_EQ(prepared.recipe.blueprint_bindings[0].state_key, "run-left");
-  EXPECT_EQ(prepared.recipe.blueprint_bindings[0].previous_sprite_id, "run-placeholder");
+  EXPECT_EQ(prepared.recipe.blueprint_state_keys, std::vector<std::string>{"run-left"});
   EXPECT_EQ(prepared.updated_blueprint.states[0].sprite_id, "sprite-id");
   EXPECT_EQ(prepared.updated_blueprint.states[0].collider_id, "body-collider");
   EXPECT_EQ(prepared.updated_blueprint.states[1], prepared.blueprint_snapshot.states[1]);
@@ -165,7 +163,7 @@ TEST(AnimationFrameSetAssetTest, RejectsGeneratedRetainedSource) {
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
 }
 
-TEST(AnimationFrameSetAssetTest, RegenerationPreservesIdsAndMovesOnlyOwnedBinding) {
+TEST(AnimationFrameSetAssetTest, RegenerationPreservesIdsAndLeavesTheBlueprintAlone) {
   ASSERT_OK_AND_ASSIGN(const PreparedAnimationFrameSetAsset created, PreparedCreate());
   AnimationFrameSetPipelineConfig updated_pipeline = Pipeline();
   updated_pipeline.playback_mode = SpritePlaybackMode::kHoldLast;
@@ -179,7 +177,7 @@ TEST(AnimationFrameSetAssetTest, RegenerationPreservesIdsAndMovesOnlyOwnedBindin
                                            AnimationFrameSetRegenerationSettings{
                                                .style = Style(),
                                                .pipeline = updated_pipeline,
-                                               .blueprint_state_keys = {"idle-left"},
+                                               .blueprint_state_keys = {"run-left"},
                                            }));
 
   EXPECT_EQ(regenerated.updated_recipe.id, created.recipe.id);
@@ -187,14 +185,27 @@ TEST(AnimationFrameSetAssetTest, RegenerationPreservesIdsAndMovesOnlyOwnedBindin
   EXPECT_EQ(regenerated.updated_recipe.sprite_id, created.recipe.sprite_id);
   EXPECT_EQ(regenerated.updated_recipe.blueprint_id, created.recipe.blueprint_id);
   EXPECT_EQ(regenerated.updated_sprite.playback_mode, SpritePlaybackMode::kHoldLast);
-  EXPECT_EQ(regenerated.updated_blueprint.states[0].sprite_id, "run-placeholder");
-  EXPECT_EQ(regenerated.updated_blueprint.states[1].sprite_id, "sprite-id");
-  EXPECT_EQ(regenerated.updated_blueprint.states[0].collider_id, "body-collider");
-  EXPECT_EQ(regenerated.updated_blueprint.states[1].collider_id, "body-collider");
-  ASSERT_EQ(regenerated.updated_recipe.blueprint_bindings.size(), 1);
-  EXPECT_EQ(regenerated.updated_recipe.blueprint_bindings[0].state_key, "idle-left");
-  EXPECT_EQ(regenerated.updated_recipe.blueprint_bindings[0].previous_sprite_id,
-            "idle-placeholder");
+  EXPECT_EQ(regenerated.updated_blueprint, created.updated_blueprint);
+  EXPECT_EQ(regenerated.updated_recipe.blueprint_state_keys, std::vector<std::string>{"run-left"});
+}
+
+// Moving a frame set onto a different state would have to know what that state
+// held before the original import, which the recipe no longer records.
+TEST(AnimationFrameSetAssetTest, RegenerationRefusesToChangeWhichStatesAreBound) {
+  ASSERT_OK_AND_ASSIGN(const PreparedAnimationFrameSetAsset created, PreparedCreate());
+
+  const absl::Status status =
+      PrepareAnimationFrameSetRegeneration(created.source_snapshot, SourcePixels(), created.recipe,
+                                           created.texture, created.artwork.packed_texture,
+                                           created.sprite, created.updated_blueprint,
+                                           AnimationFrameSetRegenerationSettings{
+                                               .style = Style(),
+                                               .pipeline = Pipeline(),
+                                               .blueprint_state_keys = {"idle-left"},
+                                           })
+          .status();
+
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
 }
 
 TEST(AnimationFrameSetAssetTest, DeletionPreparationRestoresPriorBindingOnly) {
@@ -202,9 +213,10 @@ TEST(AnimationFrameSetAssetTest, DeletionPreparationRestoresPriorBindingOnly) {
 
   ASSERT_OK_AND_ASSIGN(
       const PreparedAnimationFrameSetDeletion deletion,
-      PrepareAnimationFrameSetDeletion(created.source_snapshot, created.recipe, created.texture,
-                                       created.artwork.packed_texture, created.sprite,
-                                       created.updated_blueprint));
+      PrepareAnimationFrameSetDeletion(
+          created.source_snapshot, created.recipe, created.texture, created.artwork.packed_texture,
+          created.sprite, created.updated_blueprint,
+          {{.state_key = "run-left", .sprite_id = "run-placeholder"}}));
 
   EXPECT_EQ(deletion.updated_blueprint, created.blueprint_snapshot);
 }

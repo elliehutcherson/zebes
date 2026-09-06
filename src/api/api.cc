@@ -1047,12 +1047,6 @@ absl::StatusOr<std::string> Api::CreateAnimationFrameSet(
     return absl::FailedPreconditionError(
         "Blueprint changed while the animation frame set was prepared");
   }
-  for (const AnimationFrameSetBlueprintBinding& binding : prepared.recipe.blueprint_bindings) {
-    if (!binding.previous_sprite_id.empty()) {
-      RETURN_IF_ERROR(sprite_manager_->GetSprite(binding.previous_sprite_id).status());
-    }
-  }
-
   RETURN_IF_ERROR(RequireAbsent(texture_manager_->GetTexture(prepared.texture.id).status(),
                                 "texture", prepared.texture.id));
   RETURN_IF_ERROR(RequireAbsent(sprite_manager_->GetSprite(prepared.sprite.id).status(), "sprite",
@@ -1155,13 +1149,6 @@ absl::Status Api::RegenerateAnimationFrameSet(
     return absl::FailedPreconditionError(
         "Blueprint changed while the animation frame set was regenerating");
   }
-  for (const AnimationFrameSetBlueprintBinding& binding :
-       prepared.updated_recipe.blueprint_bindings) {
-    if (!binding.previous_sprite_id.empty()) {
-      RETURN_IF_ERROR(sprite_manager_->GetSprite(binding.previous_sprite_id).status());
-    }
-  }
-
   const RgbaImage& image = prepared.artwork.packed_texture;
   RETURN_IF_ERROR(texture_manager_->ReplaceTexturePixels(prepared.texture_snapshot.id, image.width,
                                                          image.height, image.pixels));
@@ -1228,14 +1215,13 @@ absl::Status Api::CheckAnimationFrameSetDeletable(const AnimationFrameSetRecipe&
   }
 
   std::set<std::string> owned_state_keys;
-  for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
-    owned_state_keys.insert(binding.state_key);
-    const std::optional<int> state_index = target_blueprint->state_index(binding.state_key);
+  for (const std::string& state_key : recipe.blueprint_state_keys) {
+    owned_state_keys.insert(state_key);
+    const std::optional<int> state_index = target_blueprint->state_index(state_key);
     if (!state_index.has_value() ||
         target_blueprint->states[*state_index].sprite_id != recipe.sprite_id) {
       return absl::FailedPreconditionError(absl::StrCat("animation frame-set Blueprint binding '",
-                                                        binding.state_key,
-                                                        "' changed before deletion"));
+                                                        state_key, "' changed before deletion"));
     }
   }
 
@@ -1325,10 +1311,11 @@ absl::Status Api::DeleteAnimationFrameSet(const PreparedAnimationFrameSetDeletio
     return absl::FailedPreconditionError(
         "Blueprint changed while animation frame-set deletion was prepared");
   }
-  for (const AnimationFrameSetBlueprintBinding& binding :
-       prepared.recipe_snapshot.blueprint_bindings) {
-    if (!binding.previous_sprite_id.empty()) {
-      RETURN_IF_ERROR(sprite_manager_->GetSprite(binding.previous_sprite_id).status());
+  // Every state the deletion restores to a named Sprite must resolve, or the
+  // Blueprint would come out of the transaction pointing at nothing.
+  for (const AnimationFrameSetStateRestore& restore : prepared.state_restore) {
+    if (!restore.sprite_id.empty()) {
+      RETURN_IF_ERROR(sprite_manager_->GetSprite(restore.sprite_id).status());
     }
   }
 

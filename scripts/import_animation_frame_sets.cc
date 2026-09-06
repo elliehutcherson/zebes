@@ -231,8 +231,32 @@ AnimationFrameSetPipelineConfig ProductionPipeline(const ClipImport& clip) {
   };
 }
 
-absl::Status DeleteImportedRecipe(Api& api, const std::string& recipe_id) {
-  ASSIGN_OR_RETURN(AnimationFrameSetRecipe * recipe, api.GetAnimationFrameSetRecipe(recipe_id));
+// One clip that already committed, and what its Blueprint state pointed at
+// before this run rebound it. The recipe does not record the prior Sprite: a
+// partially applied import is undone within the same run, so keeping it here
+// for the length of Run() is the whole lifetime it needs.
+struct CommittedClip {
+  std::string recipe_id;
+  std::vector<AnimationFrameSetStateRestore> restore;
+};
+
+absl::StatusOr<AnimationFrameSetStateRestore> CaptureStateRestore(Api& api,
+                                                                  const std::string& blueprint_id,
+                                                                  const std::string& state_key) {
+  ASSIGN_OR_RETURN(Blueprint * blueprint, api.GetBlueprint(blueprint_id));
+  const std::optional<int> state_index = blueprint->state_index(state_key);
+  if (!state_index.has_value()) {
+    return absl::NotFoundError(absl::StrCat("Blueprint has no state with key '", state_key, "'"));
+  }
+  return AnimationFrameSetStateRestore{
+      .state_key = state_key,
+      .sprite_id = blueprint->states[*state_index].sprite_id,
+  };
+}
+
+absl::Status DeleteImportedRecipe(Api& api, const CommittedClip& committed) {
+  ASSIGN_OR_RETURN(AnimationFrameSetRecipe * recipe,
+                   api.GetAnimationFrameSetRecipe(committed.recipe_id));
   ASSIGN_OR_RETURN(SourceArtwork * source, api.GetSourceArtwork(recipe->source_artwork_id));
   ASSIGN_OR_RETURN(Texture * texture, api.GetTexture(recipe->texture_id));
   ASSIGN_OR_RETURN(RgbaImage texture_pixels, api.ReadTexturePixels(texture->id));
@@ -240,16 +264,17 @@ absl::Status DeleteImportedRecipe(Api& api, const std::string& recipe_id) {
   ASSIGN_OR_RETURN(Blueprint * blueprint, api.GetBlueprint(recipe->blueprint_id));
   ASSIGN_OR_RETURN(PreparedAnimationFrameSetDeletion deletion,
                    PrepareAnimationFrameSetDeletion(*source, *recipe, *texture, texture_pixels,
-                                                    *sprite, *blueprint));
+                                                    *sprite, *blueprint, committed.restore));
   return api.DeleteAnimationFrameSet(deletion);
 }
 
-absl::Status RollBack(Api& api, const std::vector<std::string>& recipe_ids) {
+absl::Status RollBack(Api& api, const std::vector<CommittedClip>& committed) {
   absl::Status result = absl::OkStatus();
-  for (auto iterator = recipe_ids.rbegin(); iterator != recipe_ids.rend(); ++iterator) {
+  for (auto iterator = committed.rbegin(); iterator != committed.rend(); ++iterator) {
     const absl::Status status = DeleteImportedRecipe(api, *iterator);
     if (status.ok()) continue;
-    LOG(ERROR) << "Could not roll back animation frame set " << *iterator << ": " << status;
+    LOG(ERROR) << "Could not roll back animation frame set " << iterator->recipe_id << ": "
+               << status;
     if (result.ok()) result = status;
   }
   return result;
@@ -313,18 +338,22 @@ absl::Status Run() {
                        .load_profile = AssetWorkspace::LoadProfile::kComplete,
                    }));
 
-  std::vector<std::string> committed_recipes;
+  std::vector<CommittedClip> committed;
   for (const ClipImport& clip : manifest.clips) {
+    // Read the state before the import rebinds it; afterwards it names the new
+    // Sprite and the prior one is unrecoverable.
+    ASSIGN_OR_RETURN(const AnimationFrameSetStateRestore restore,
+                     CaptureStateRestore(workspace->api(), manifest.blueprint_id, clip.state_key));
     const absl::Status status = ImportClip(workspace->api(), manifest, clip);
     if (!status.ok()) {
-      const absl::Status rollback = RollBack(workspace->api(), committed_recipes);
+      const absl::Status rollback = RollBack(workspace->api(), committed);
       if (!rollback.ok()) {
         return absl::InternalError(absl::StrCat("import failed: ", status.message(),
                                                 "; rollback failed: ", rollback.message()));
       }
       return status;
     }
-    committed_recipes.push_back(clip.recipe_id);
+    committed.push_back({.recipe_id = clip.recipe_id, .restore = {restore}});
   }
   return absl::OkStatus();
 }

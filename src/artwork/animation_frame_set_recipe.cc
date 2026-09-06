@@ -255,22 +255,6 @@ absl::StatusOr<SpriteFrame> FrameFromJson(const nlohmann::json& json) {
   return frame;
 }
 
-nlohmann::json BindingToJson(const AnimationFrameSetBlueprintBinding& binding) {
-  return {
-      {"state_key", binding.state_key},
-      {"previous_sprite_id", binding.previous_sprite_id},
-  };
-}
-
-absl::StatusOr<AnimationFrameSetBlueprintBinding> BindingFromJson(const nlohmann::json& json) {
-  RETURN_IF_ERROR(RequireExactObject(json, {"state_key", "previous_sprite_id"},
-                                     "animation frame-set recipe Blueprint binding"));
-  AnimationFrameSetBlueprintBinding binding;
-  ASSIGN_OR_RETURN(binding.state_key, Required<std::string>(json, "state_key"));
-  ASSIGN_OR_RETURN(binding.previous_sprite_id, Required<std::string>(json, "previous_sprite_id"));
-  return binding;
-}
-
 absl::Status ValidateExpectedFrames(const AnimationFrameSetRecipe& recipe) {
   const size_t frame_count = recipe.pipeline.frames_per_cycle.size();
   if (recipe.expected_frames.size() != frame_count) {
@@ -331,23 +315,19 @@ absl::Status ValidateAnimationFrameSetRecipe(const AnimationFrameSetRecipe& reci
   if (owned_ids.size() != 3) {
     return absl::InvalidArgumentError("animation frame-set recipe owned IDs must be distinct");
   }
-  if (recipe.blueprint_bindings.empty()) {
+  if (recipe.blueprint_state_keys.empty()) {
     return absl::InvalidArgumentError(
         "animation frame-set recipe must bind at least one Blueprint state");
   }
   std::set<std::string> state_keys;
-  for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
-    if (!IsValidBlueprintStateKey(binding.state_key)) {
+  for (const std::string& state_key : recipe.blueprint_state_keys) {
+    if (!IsValidBlueprintStateKey(state_key)) {
       return absl::InvalidArgumentError(
           "animation frame-set recipe Blueprint state key is invalid");
     }
-    if (!state_keys.insert(binding.state_key).second) {
+    if (!state_keys.insert(state_key).second) {
       return absl::InvalidArgumentError(
           "animation frame-set recipe Blueprint state keys must be unique");
-    }
-    if (binding.previous_sprite_id == recipe.sprite_id) {
-      return absl::InvalidArgumentError(
-          "animation frame-set recipe cannot restore its owned Sprite");
     }
   }
   RETURN_IF_ERROR(ValidateAnimationFrameSetPipelineConfig(recipe.pipeline, recipe.style));
@@ -365,9 +345,9 @@ absl::Status ValidateAnimationFrameSetRecipe(const AnimationFrameSetRecipe& reci
 }
 
 nlohmann::json AnimationFrameSetRecipeToJson(const AnimationFrameSetRecipe& recipe) {
-  nlohmann::json bindings = nlohmann::json::array();
-  for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
-    bindings.push_back(BindingToJson(binding));
+  nlohmann::json state_keys = nlohmann::json::array();
+  for (const std::string& state_key : recipe.blueprint_state_keys) {
+    state_keys.push_back(state_key);
   }
   nlohmann::json expected_frames = nlohmann::json::array();
   for (const SpriteFrame& frame : recipe.expected_frames) {
@@ -383,7 +363,7 @@ nlohmann::json AnimationFrameSetRecipeToJson(const AnimationFrameSetRecipe& reci
       {"texture_id", recipe.texture_id},
       {"sprite_id", recipe.sprite_id},
       {"blueprint_id", recipe.blueprint_id},
-      {"blueprint_bindings", std::move(bindings)},
+      {"blueprint_state_keys", std::move(state_keys)},
       {"expected_frames", std::move(expected_frames)},
       {"final_pixel_digest", recipe.final_pixel_digest},
       {"pipeline_version", recipe.pipeline_version},
@@ -395,7 +375,7 @@ absl::StatusOr<AnimationFrameSetRecipe> AnimationFrameSetRecipeFromJson(
   RETURN_IF_ERROR(
       RequireExactObject(json,
                          {"schema_version", "id", "name", "source_artwork_id", "style", "pipeline",
-                          "texture_id", "sprite_id", "blueprint_id", "blueprint_bindings",
+                          "texture_id", "sprite_id", "blueprint_id", "blueprint_state_keys",
                           "expected_frames", "final_pixel_digest", "pipeline_version"},
                          "animation frame-set recipe"));
   ASSIGN_OR_RETURN(const int schema_version, Required<int>(json, "schema_version"));
@@ -417,16 +397,19 @@ absl::StatusOr<AnimationFrameSetRecipe> AnimationFrameSetRecipeFromJson(
   ASSIGN_OR_RETURN(recipe.sprite_id, Required<std::string>(json, "sprite_id"));
   ASSIGN_OR_RETURN(recipe.blueprint_id, Required<std::string>(json, "blueprint_id"));
 
-  ASSIGN_OR_RETURN(const nlohmann::json bindings,
-                   Required<nlohmann::json>(json, "blueprint_bindings"));
-  if (!bindings.is_array()) {
+  ASSIGN_OR_RETURN(const nlohmann::json state_keys,
+                   Required<nlohmann::json>(json, "blueprint_state_keys"));
+  if (!state_keys.is_array()) {
     return absl::InvalidArgumentError(
-        "animation frame-set recipe Blueprint bindings must be an array");
+        "animation frame-set recipe Blueprint state keys must be an array");
   }
-  recipe.blueprint_bindings.reserve(bindings.size());
-  for (const nlohmann::json& binding_json : bindings) {
-    ASSIGN_OR_RETURN(AnimationFrameSetBlueprintBinding binding, BindingFromJson(binding_json));
-    recipe.blueprint_bindings.push_back(std::move(binding));
+  recipe.blueprint_state_keys.reserve(state_keys.size());
+  for (const nlohmann::json& state_key_json : state_keys) {
+    if (!state_key_json.is_string()) {
+      return absl::InvalidArgumentError(
+          "animation frame-set recipe Blueprint state key must be a string");
+    }
+    recipe.blueprint_state_keys.push_back(state_key_json.get<std::string>());
   }
 
   ASSIGN_OR_RETURN(const nlohmann::json expected_frames,

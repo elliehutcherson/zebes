@@ -117,10 +117,7 @@ AnimationFrameSetRecipe TestRecipe(const RgbaImage& texture) {
       .texture_id = "texture-id",
       .sprite_id = "sprite-id",
       .blueprint_id = "blueprint-id",
-      .blueprint_bindings = {{
-          .state_key = "run-left",
-          .previous_sprite_id = "placeholder-id",
-      }},
+      .blueprint_state_keys = {"run-left"},
       .expected_frames = PackedFrames(),
       .final_pixel_digest = digest.value(),
       .pipeline_version = kAnimationFrameSetPipelineVersion,

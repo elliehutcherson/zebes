@@ -130,7 +130,7 @@ TEST(AssetReferencesTest, FindsPropAuthoringAndOutputReferences) {
               ElementsAre(Field(&AssetReference::field, "blueprint_id")));
 }
 
-TEST(AssetReferencesTest, FindsAnimationFrameSetGraphAndRollbackReferences) {
+TEST(AssetReferencesTest, FindsAnimationFrameSetGraphReferences) {
   Catalogs c;
   c.animation_frame_set_recipes.push_back(AnimationFrameSetRecipe{
       .id = "animation",
@@ -139,10 +139,7 @@ TEST(AssetReferencesTest, FindsAnimationFrameSetGraphAndRollbackReferences) {
       .texture_id = "texture",
       .sprite_id = "sprite",
       .blueprint_id = "blueprint",
-      .blueprint_bindings = {{
-          .state_key = "run-left",
-          .previous_sprite_id = "previous",
-      }},
+      .blueprint_state_keys = {"run-left"},
   });
 
   EXPECT_THAT(FindSourceArtworkReferrers(c.View(), "source"),
@@ -151,8 +148,6 @@ TEST(AssetReferencesTest, FindsAnimationFrameSetGraphAndRollbackReferences) {
               ElementsAre(Field(&AssetReference::field, "texture_id")));
   EXPECT_THAT(FindSpriteReferrers(c.View(), "sprite"),
               ElementsAre(Field(&AssetReference::field, "sprite_id")));
-  EXPECT_THAT(FindSpriteReferrers(c.View(), "previous"),
-              ElementsAre(Field(&AssetReference::field, HasSubstr("previous_sprite_id"))));
   EXPECT_THAT(FindBlueprintReferrers(c.View(), "blueprint"),
               ElementsAre(Field(&AssetReference::field, "blueprint_id")));
 }

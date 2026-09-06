@@ -318,38 +318,31 @@ TEST(ShippedAssetsTest, EveryShippedBlueprintStateReferenceResolves) {
   }
 }
 
-// A recipe's blueprint_bindings record what each Blueprint state pointed at
-// before the recipe took the slot, and deleting the frame set puts that sprite
-// back. So a previous_sprite_id is a live reference, not history: delete the
-// sprite it names and the frame set can no longer be deleted, because both
-// PrepareAnimationFrameSetDeletion and the Api recipe checks require it to
-// resolve. Nothing else walks this edge -- the sprite is reachable from no
-// Blueprint state and no level -- so without this test an unreferenced-looking
-// sprite can be removed and every other shipped-asset check still passes.
-TEST(ShippedAssetsTest, EveryRecipeRollbackSpriteStillResolves) {
-  FakeTextureResourceStore store;
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<TextureManager> textures,
-                       TextureManager::Create(&store, kAssetsRoot));
-  ASSERT_OK(textures->LoadAllTextures());
-  ASSERT_OK_AND_ASSIGN(std::unique_ptr<SpriteManager> sprites,
-                       SpriteManager::Create(textures.get(), kAssetsRoot));
-  ASSERT_OK(sprites->LoadAllSprites());
+// A recipe names the Blueprint states its Sprite is bound to. If one of those
+// states is renamed or dropped from the Blueprint, nothing else notices: the
+// Blueprint still loads, the Sprite still loads, and only a later delete or
+// regenerate fails.
+TEST(ShippedAssetsTest, EveryRecipeBoundStateExistsOnItsBlueprint) {
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<BlueprintManager> blueprints,
+                       BlueprintManager::Create(kAssetsRoot));
+  ASSERT_OK(blueprints->LoadAllBlueprints());
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<AnimationFrameSetRecipeManager> recipes,
                        AnimationFrameSetRecipeManager::Create(kAssetsRoot));
   ASSERT_OK(recipes->LoadAllRecipes());
 
   for (const AnimationFrameSetRecipe& recipe : recipes->GetAllRecipes()) {
-    ASSERT_FALSE(recipe.blueprint_bindings.empty())
+    ASSERT_FALSE(recipe.blueprint_state_keys.empty())
         << "recipe '" << recipe.name << "' binds no Blueprint state";
-    for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
-      // An empty id is the recorded absence of a prior sprite, which restores
-      // the state to unbound. Only a named one has to resolve.
-      if (binding.previous_sprite_id.empty()) continue;
-      EXPECT_OK(sprites->GetSprite(binding.previous_sprite_id).status())
-          << "recipe '" << recipe.name << "' state '" << binding.state_key
-          << "' cannot be rolled back: previous sprite " << binding.previous_sprite_id
-          << " is missing";
+    ASSERT_OK_AND_ASSIGN(const Blueprint* blueprint, blueprints->GetBlueprint(recipe.blueprint_id));
+    for (const std::string& state_key : recipe.blueprint_state_keys) {
+      const std::optional<int> index = blueprint->state_index(state_key);
+      ASSERT_TRUE(index.has_value())
+          << "recipe '" << recipe.name << "' binds state '" << state_key << "', which Blueprint '"
+          << blueprint->name << "' does not have";
+      EXPECT_EQ(blueprint->states[*index].sprite_id, recipe.sprite_id)
+          << "recipe '" << recipe.name << "' state '" << state_key
+          << "' no longer points at the recipe's Sprite";
     }
   }
 }

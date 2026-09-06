@@ -1,11 +1,8 @@
 {
-  "blueprint_bindings": [
-    {
-      "previous_sprite_id": "b94e66f3-11b6-43b8-94e1-818a863c4bae",
-      "state_key": "airborne-left"
-    }
-  ],
   "blueprint_id": "1be81945-b011-4342-9109-a10c4040078c",
+  "blueprint_state_keys": [
+    "airborne-left"
+  ],
   "expected_frames": [
     {
       "frames_per_cycle": 4,

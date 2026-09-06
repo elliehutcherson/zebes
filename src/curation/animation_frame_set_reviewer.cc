@@ -43,16 +43,15 @@ absl::Status CheckPersistedGraph(const AnimationFrameSetRecipe& recipe, const Te
     return absl::FailedPreconditionError(
         "animation frame set sprite playback mode no longer matches the recipe");
   }
-  for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
-    const std::optional<int> index = blueprint.state_index(binding.state_key);
+  for (const std::string& state_key : recipe.blueprint_state_keys) {
+    const std::optional<int> index = blueprint.state_index(state_key);
     if (!index.has_value()) {
-      return absl::FailedPreconditionError(absl::StrCat(
-          "animation frame set recipe binds missing Blueprint state ", binding.state_key));
+      return absl::FailedPreconditionError(
+          absl::StrCat("animation frame set recipe binds missing Blueprint state ", state_key));
     }
     if (blueprint.sprite_id(*index) != recipe.sprite_id) {
-      return absl::FailedPreconditionError(
-          absl::StrCat("Blueprint state ", binding.state_key,
-                       " no longer binds the animation frame set sprite"));
+      return absl::FailedPreconditionError(absl::StrCat(
+          "Blueprint state ", state_key, " no longer binds the animation frame set sprite"));
     }
   }
   return absl::OkStatus();

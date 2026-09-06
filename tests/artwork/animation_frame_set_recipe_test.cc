@@ -56,10 +56,7 @@ AnimationFrameSetRecipe ValidRecipe() {
       .texture_id = "texture-id",
       .sprite_id = "sprite-id",
       .blueprint_id = "blueprint-id",
-      .blueprint_bindings = {{
-          .state_key = "run-left",
-          .previous_sprite_id = "placeholder-id",
-      }},
+      .blueprint_state_keys = {"run-left"},
       .expected_frames = {{
           .index = 0,
           .texture_x = 0,
@@ -91,7 +88,7 @@ TEST(AnimationFrameSetRecipeTest, WriterEmitsEmptyCollections) {
   recipe.style.palette.clear();
   recipe.pipeline.frames_per_cycle.clear();
   recipe.pipeline.planted_frames.clear();
-  recipe.blueprint_bindings.clear();
+  recipe.blueprint_state_keys.clear();
   recipe.expected_frames.clear();
 
   const nlohmann::json json = AnimationFrameSetRecipeToJson(recipe);
@@ -99,7 +96,7 @@ TEST(AnimationFrameSetRecipeTest, WriterEmitsEmptyCollections) {
   EXPECT_EQ(json.at("style").at("palette"), nlohmann::json::array());
   EXPECT_EQ(json.at("pipeline").at("frames_per_cycle"), nlohmann::json::array());
   EXPECT_EQ(json.at("pipeline").at("planted_frames"), nlohmann::json::array());
-  EXPECT_EQ(json.at("blueprint_bindings"), nlohmann::json::array());
+  EXPECT_EQ(json.at("blueprint_state_keys"), nlohmann::json::array());
   EXPECT_EQ(json.at("expected_frames"), nlohmann::json::array());
 }
 
@@ -115,7 +112,7 @@ TEST(AnimationFrameSetRecipeTest, RejectsEveryMissingTopLevelField) {
       "texture_id",
       "sprite_id",
       "blueprint_id",
-      "blueprint_bindings",
+      "blueprint_state_keys",
       "expected_frames",
       "final_pixel_digest",
       "pipeline_version",
@@ -188,13 +185,6 @@ TEST(AnimationFrameSetRecipeTest, RejectsMissingNestedFields) {
               absl::StatusCode::kInvalidArgument)
         << field;
   }
-  for (const char* field : {"state_key", "previous_sprite_id"}) {
-    nlohmann::json missing = complete;
-    missing.at("blueprint_bindings").at(0).erase(field);
-    EXPECT_EQ(AnimationFrameSetRecipeFromJson(missing).status().code(),
-              absl::StatusCode::kInvalidArgument)
-        << field;
-  }
   for (const char* field : {"index", "texture_x", "texture_y", "texture_w", "texture_h", "render_w",
                             "render_h", "frames_per_cycle", "offset_x", "offset_y"}) {
     nlohmann::json missing = complete;
@@ -224,14 +214,18 @@ TEST(AnimationFrameSetRecipeTest, KeepsTextureGeometryNativeWhenRenderScaleExcee
   EXPECT_TRUE(ValidateAnimationFrameSetRecipe(recipe).ok());
 }
 
-TEST(AnimationFrameSetRecipeTest, RejectsCollidingAndSelfRestoringOwnedIds) {
+TEST(AnimationFrameSetRecipeTest, RejectsCollidingOwnedIds) {
   AnimationFrameSetRecipe recipe = ValidRecipe();
   recipe.sprite_id = recipe.texture_id;
   EXPECT_EQ(ValidateAnimationFrameSetRecipe(recipe).code(), absl::StatusCode::kInvalidArgument);
+}
 
-  recipe = ValidRecipe();
-  recipe.blueprint_bindings[0].previous_sprite_id = recipe.sprite_id;
-  EXPECT_EQ(ValidateAnimationFrameSetRecipe(recipe).code(), absl::StatusCode::kInvalidArgument);
+TEST(AnimationFrameSetRecipeTest, RejectsANonStringBlueprintStateKey) {
+  nlohmann::json json = AnimationFrameSetRecipeToJson(ValidRecipe());
+  json.at("blueprint_state_keys").at(0) = 7;
+
+  EXPECT_EQ(AnimationFrameSetRecipeFromJson(json).status().code(),
+            absl::StatusCode::kInvalidArgument);
 }
 
 }  // namespace

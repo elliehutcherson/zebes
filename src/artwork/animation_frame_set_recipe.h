@@ -11,16 +11,6 @@
 
 namespace zebes {
 
-// Records one stable Blueprint-state binding replaced by a frame-set Sprite.
-// The previous Sprite ID is retained so bundle deletion can restore the exact
-// authored binding instead of clearing or guessing it.
-struct AnimationFrameSetBlueprintBinding {
-  std::string state_key;
-  std::string previous_sprite_id;
-
-  bool operator==(const AnimationFrameSetBlueprintBinding& other) const = default;
-};
-
 // Strict retained-source build authority for one imported or manually authored
 // frame set and its Texture, Sprite, and Blueprint-state bindings.
 struct AnimationFrameSetRecipe {
@@ -32,7 +22,11 @@ struct AnimationFrameSetRecipe {
   std::string texture_id;
   std::string sprite_id;
   std::string blueprint_id;
-  std::vector<AnimationFrameSetBlueprintBinding> blueprint_bindings;
+  // Stable keys of the Blueprint states this frame set's Sprite is bound to.
+  // What each state pointed at beforehand is deliberately not recorded: it is
+  // only needed to undo an import that fails partway, which happens inside one
+  // run, so the caller holds it in memory. See RestoreAnimationFrameSetStates.
+  std::vector<std::string> blueprint_state_keys;
   std::vector<SpriteFrame> expected_frames;
   std::string final_pixel_digest;
   int pipeline_version = kAnimationFrameSetPipelineVersion;
