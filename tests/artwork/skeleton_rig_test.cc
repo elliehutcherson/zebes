@@ -70,9 +70,8 @@ TEST(SkeletonRigTest, RejectsIncompletePose) {
 }
 
 TEST(SkeletonRigTest, CheckedInRunOwnsTwelveStableReferencePoses) {
-  const std::filesystem::path path =
-      std::filesystem::path(ZEBES_SOURCE_DIR) /
-      "experiments/character_binding/out/codex-pose-conditioning-v1/rig-bench.json";
+  const std::filesystem::path path = std::filesystem::path(ZEBES_SOURCE_DIR) /
+                                     "experiments/character_binding/inputs/rig-bench.json";
   ASSERT_OK_AND_ASSIGN(const SkeletonRig rig, LoadSkeletonRig(path));
   ASSERT_OK_AND_ASSIGN(const SkeletonRigClip* clip, FindSkeletonRigClip(rig, "run"));
   ASSERT_OK_AND_ASSIGN(const SkeletonRigClipMetrics metrics, MeasureSkeletonRigClip(rig, *clip));

@@ -125,7 +125,7 @@ run.
 ### Track 5: Codex pose conditioning (parallel experiment)
 
 Opened 2026-09-05. Evidence and metrics live in
-`experiments/character_binding/out/codex-pose-conditioning-v1/` and the new
+`experiments/character_binding/evidence/codex-pose-conditioning/` and the new
 section of `experiments/character_binding/FINDINGS.md`. This does not block the
 layered-puppet gate above; it is a candidate replacement for its *input*.
 
@@ -231,7 +231,7 @@ order, and collider counts; finish with the complete route gate.
   before supporting another rig; preserve current names and image-space arm
   ownership during the cleanup.
 - `build/codex-run-sheet/` duplicates what now lives in
-  `experiments/character_binding/out/codex-pose-conditioning-v1/`. `build/` is
+  `experiments/character_binding/evidence/codex-pose-conditioning/`. `build/` is
   generated output and can be deleted.
 - The Rig Bench artifact still carries its diagnostics: an on-page log panel,
   pointer counters, per-move logging, and a `diag/log` document written to the

@@ -21,53 +21,13 @@ imgui.ini
 # Scratch directories that tests create and populate at run time
 test_data/
 
-# Character-binding renders are review evidence generated locally by the C++
-# proof tool and bounded Python ComfyUI runner.
+# Character-binding renders, written locally and regenerable from inputs/.
+# Nothing under here is tracked. The files the tools consume live in
+# experiments/character_binding/inputs/ and the records of closed experiments in
+# experiments/character_binding/evidence/, both fully tracked. That split is why
+# this is one line instead of an allowlist threading exceptions through an
+# ignored tree, which is what it was until 2026-09-06.
 experiments/character_binding/out/
-
-# Retained pipeline INPUTS that happen to sit under out/: the approved 256px
-# identity, the expensive See-through semantic layers, and the exact isolated
-# 256px running source whose coordinates own the interactive cutout masks.
-!experiments/character_binding/out/
-experiments/character_binding/out/*
-!experiments/character_binding/out/profile-binding-deformation-v2/
-experiments/character_binding/out/profile-binding-deformation-v2/*
-!experiments/character_binding/out/profile-binding-deformation-v2/source-color.png
-!experiments/character_binding/out/interactive-run-source-v1.png
-!experiments/character_binding/out/see-through-v1/
-experiments/character_binding/out/see-through-v1/*
-!experiments/character_binding/out/see-through-v1/optimized/
-# Two files from raw/ that optimized/ does not carry: the 1280px source, which
-# is the only high-resolution copy of the approved mouse and the only way to cut
-# the ears or tail by hand, and the head layer, which holds the real pixel-art
-# face and was dropped when optimized/ was cut.
-!experiments/character_binding/out/see-through-v1/raw/
-experiments/character_binding/out/see-through-v1/raw/*
-!experiments/character_binding/out/see-through-v1/raw/head.png
-!experiments/character_binding/out/see-through-v1/raw/src_img.png
-
-# Codex pose-conditioning evidence. Retain provider outputs that cost quota,
-# their immutable self-contained input bundle and manifest, the hand-authored
-# rig, exact prompts, and measurement scripts. Deterministic intermediate
-# renders outside retained evidence bundles remain untracked.
-!experiments/character_binding/out/codex-pose-conditioning-v1/
-experiments/character_binding/out/codex-pose-conditioning-v1/*
-!experiments/character_binding/out/codex-pose-conditioning-v1/rig-bench.json
-!experiments/character_binding/out/codex-pose-conditioning-v1/sheets/
-experiments/character_binding/out/codex-pose-conditioning-v1/sheets/*
-!experiments/character_binding/out/codex-pose-conditioning-v1/sheets/attempt-1-model-output.png
-!experiments/character_binding/out/codex-pose-conditioning-v1/sheets/attempt-2-model-output.png
-!experiments/character_binding/out/codex-pose-conditioning-v1/skeleton-test/
-experiments/character_binding/out/codex-pose-conditioning-v1/skeleton-test/*
-!experiments/character_binding/out/codex-pose-conditioning-v1/skeleton-test/output.png
-!experiments/character_binding/out/codex-pose-conditioning-v1/skeleton-test/prompt.txt
-!experiments/character_binding/out/codex-pose-conditioning-v1/tools/
-!experiments/character_binding/out/codex-pose-conditioning-v1/matched-pilot-v1/
-!experiments/character_binding/out/codex-pose-conditioning-v1/matched-pilot-v1/**
-!experiments/character_binding/out/codex-pose-conditioning-v1/matched-pilot-v2-simplified/
-!experiments/character_binding/out/codex-pose-conditioning-v1/matched-pilot-v2-simplified/**
-!experiments/character_binding/out/codex-pose-conditioning-v1/standing-skeleton-pilot-v3/
-!experiments/character_binding/out/codex-pose-conditioning-v1/standing-skeleton-pilot-v3/**
 
 # Cross-process authoring locks contain per-machine process metadata.
 .zebes/

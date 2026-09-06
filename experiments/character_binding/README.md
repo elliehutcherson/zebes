@@ -29,10 +29,12 @@ experiments/character_binding/
                         Blender adapter for the current shipped source
   render_character_family.py
                         Blender adapter for body-plan evidence
+  inputs/              tracked artwork and rigs the tools consume
   character_specs/     Blender family inputs
   puppet_specs/        explicit C++ layered-puppet inputs
   editor_states/       tracked browser-editor authoring state
-  evidence/            committed historical verdicts
+  evidence/            committed records of closed experiments
+  out/                 generated renders; ignored whole, regenerable
   README.md
   FINDINGS.md
 
@@ -52,9 +54,17 @@ tests/artwork/semantic_layer_import_test.cc
 tests/artwork/skeleton_rig_test.cc
 ```
 
-See-through was evaluated from an isolated temporary checkout on `derry`.
-Accepted source-of-truth inputs are retained under `out/`; derived renders,
-virtual environments, and model caches are not repository dependencies.
+See-through was evaluated from an isolated temporary checkout on `derry`. Its
+accepted layers are tracked in `inputs/see-through-v1/`; the virtual
+environments and model caches that produced them are not repository
+dependencies.
+
+`inputs/` and `out/` are the split that matters. Everything in `inputs/` is
+tracked and either irreplaceable or expensive to reproduce: the approved mouse,
+the isolated running source whose coordinates own the cutout masks, the
+See-through layers, and the 23-point rig. Everything in `out/` is a render a
+tool wrote and can write again, so the whole directory is ignored. A new file
+goes in whichever one answers "would losing this cost anything?"
 
 ## Finding the latest run
 
@@ -68,9 +78,8 @@ ls -t experiments/character_binding/out | head
 
 Name new output directories with a number, `042-immutable-coat`, so ordering is
 visible in a plain listing too. The tools take the directory as `--output`, so
-this is a convention rather than something they enforce. Four paths under `out/`
-are tracked inputs rather than output and keep their existing names: the rig,
-the approved mouse, the isolated running source, and the See-through layers.
+this is a convention rather than something they enforce. Renaming anything under
+`out/` is free: nothing there is tracked.
 
 ## Build the C++ proof tools
 
@@ -85,9 +94,9 @@ The preferred interactive run editor is generated and served with:
 
 ```bash
 build/dev/bin/render_layered_puppet \
-  --source=experiments/character_binding/out/interactive-run-source-v1.png \
+  --source=experiments/character_binding/inputs/interactive-run-source-v1.png \
   --spec=experiments/character_binding/puppet_specs/mouse_interactive_run_v1.json \
-  --editor_reference_rig=experiments/character_binding/out/codex-pose-conditioning-v1/rig-bench.json \
+  --editor_reference_rig=experiments/character_binding/inputs/rig-bench.json \
   --output=experiments/character_binding/out/interactive-run-editor-v1 \
   --frame_size=48 \
   --zoom=8
@@ -291,7 +300,7 @@ inferred semantic ownership crosses into rendering.
 
 ```bash
 build/dev/bin/render_layered_puppet \
-  --source=experiments/character_binding/out/profile-binding-deformation-v2/source-color.png \
+  --source=experiments/character_binding/inputs/profile-binding-deformation-v2/source-color.png \
   --spec=experiments/character_binding/puppet_specs/mouse_profile_v1.json \
   --output=experiments/character_binding/out/layered-puppet-cpp
 ```
@@ -333,9 +342,9 @@ coat-without-arms artwork.
 
 ```bash
 build/dev/bin/render_layered_puppet \
-  --source=experiments/character_binding/out/profile-binding-deformation-v2/source-color.png \
+  --source=experiments/character_binding/inputs/profile-binding-deformation-v2/source-color.png \
   --spec=experiments/character_binding/puppet_specs/mouse_immutable_coat_v1.json \
-  --semantic_root=experiments/character_binding/out/see-through-v1/optimized \
+  --semantic_root=experiments/character_binding/inputs/see-through-v1/optimized \
   --output=experiments/character_binding/out/semantic-arm-immutable-coat-v1
 ```
 
