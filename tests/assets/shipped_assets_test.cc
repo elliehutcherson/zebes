@@ -318,6 +318,42 @@ TEST(ShippedAssetsTest, EveryShippedBlueprintStateReferenceResolves) {
   }
 }
 
+// A recipe's blueprint_bindings record what each Blueprint state pointed at
+// before the recipe took the slot, and deleting the frame set puts that sprite
+// back. So a previous_sprite_id is a live reference, not history: delete the
+// sprite it names and the frame set can no longer be deleted, because both
+// PrepareAnimationFrameSetDeletion and the Api recipe checks require it to
+// resolve. Nothing else walks this edge -- the sprite is reachable from no
+// Blueprint state and no level -- so without this test an unreferenced-looking
+// sprite can be removed and every other shipped-asset check still passes.
+TEST(ShippedAssetsTest, EveryRecipeRollbackSpriteStillResolves) {
+  FakeTextureResourceStore store;
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<TextureManager> textures,
+                       TextureManager::Create(&store, kAssetsRoot));
+  ASSERT_OK(textures->LoadAllTextures());
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<SpriteManager> sprites,
+                       SpriteManager::Create(textures.get(), kAssetsRoot));
+  ASSERT_OK(sprites->LoadAllSprites());
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<AnimationFrameSetRecipeManager> recipes,
+                       AnimationFrameSetRecipeManager::Create(kAssetsRoot));
+  ASSERT_OK(recipes->LoadAllRecipes());
+
+  for (const AnimationFrameSetRecipe& recipe : recipes->GetAllRecipes()) {
+    ASSERT_FALSE(recipe.blueprint_bindings.empty())
+        << "recipe '" << recipe.name << "' binds no Blueprint state";
+    for (const AnimationFrameSetBlueprintBinding& binding : recipe.blueprint_bindings) {
+      // An empty id is the recorded absence of a prior sprite, which restores
+      // the state to unbound. Only a named one has to resolve.
+      if (binding.previous_sprite_id.empty()) continue;
+      EXPECT_OK(sprites->GetSprite(binding.previous_sprite_id).status())
+          << "recipe '" << recipe.name << "' state '" << binding.state_key
+          << "' cannot be rolled back: previous sprite " << binding.previous_sprite_id
+          << " is missing";
+    }
+  }
+}
+
 TEST(ShippedAssetsTest, MousePlayerKeepsOneColliderInsideOneByTwoTileEnvelope) {
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<BlueprintManager> blueprints,
                        BlueprintManager::Create(kAssetsRoot));
