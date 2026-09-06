@@ -7,7 +7,7 @@
 #include "absl/status/statusor.h"
 #include "artwork/layered_puppet.h"
 #include "artwork/layered_puppet_editor_state.h"
-#include "artwork/skeleton_rig_review.h"
+#include "artwork/skeleton_rig.h"
 
 namespace zebes {
 

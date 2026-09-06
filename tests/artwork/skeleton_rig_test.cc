@@ -1,4 +1,4 @@
-#include "artwork/skeleton_rig_review.h"
+#include "artwork/skeleton_rig.h"
 
 #include <filesystem>
 #include <string>
@@ -44,33 +44,19 @@ constexpr std::string_view kValidRig = R"json({
   "version": 2
 })json";
 
-TEST(SkeletonRigReviewTest, ParsesAndMeasuresAlternatingCycle) {
+TEST(SkeletonRigTest, ParsesAndMeasuresAlternatingCycle) {
   ASSERT_OK_AND_ASSIGN(const SkeletonRig rig, ParseSkeletonRig(kValidRig));
   ASSERT_OK_AND_ASSIGN(const SkeletonRigClip* clip, FindSkeletonRigClip(rig, "run"));
   ASSERT_OK_AND_ASSIGN(const SkeletonRigClipMetrics metrics, MeasureSkeletonRigClip(rig, *clip));
-  ASSERT_OK_AND_ASSIGN(const std::string html, RenderSkeletonRigReviewHtml(rig, *clip, 16, 16));
-  ASSERT_OK_AND_ASSIGN(const RgbaImage frame_image,
-                       RenderSkeletonRigFrameImage(rig, clip->frames.front(), 16, 16, 2));
-  ASSERT_OK_AND_ASSIGN(const RgbaImage sheet_image,
-                       RenderSkeletonRigSheetImage(rig, *clip, 16, 16, 2, 2));
 
   EXPECT_EQ(clip->frames.size(), 2);
   EXPECT_DOUBLE_EQ(metrics.hip_oscillation, 2.0);
   EXPECT_TRUE(metrics.left_foot_leads);
   EXPECT_TRUE(metrics.right_foot_leads);
   EXPECT_DOUBLE_EQ(metrics.maximum_bone_length_drift, 0.0);
-  EXPECT_NE(html.find("const labels = [\"first\",\"second\"];"), std::string::npos);
-  ASSERT_TRUE(frame_image.IsValid());
-  EXPECT_EQ(frame_image.width, 32);
-  EXPECT_EQ(frame_image.height, 32);
-  const size_t hip_pixel = (static_cast<size_t>(10) * frame_image.width + 10) * 4;
-  EXPECT_EQ(frame_image.pixels[hip_pixel + 0], 0xEB);
-  EXPECT_EQ(frame_image.pixels[hip_pixel + 1], 0x46);
-  EXPECT_EQ(sheet_image.width, 64);
-  EXPECT_EQ(sheet_image.height, 32);
 }
 
-TEST(SkeletonRigReviewTest, RejectsIncompletePose) {
+TEST(SkeletonRigTest, RejectsIncompletePose) {
   std::string invalid(kValidRig);
   const std::string complete = "\"toe_l\": [1, 11], \"toe_r\": [9, 11]";
   const size_t position = invalid.find(complete);
@@ -83,7 +69,7 @@ TEST(SkeletonRigReviewTest, RejectsIncompletePose) {
   EXPECT_NE(status.message().find("does not contain every point"), std::string_view::npos);
 }
 
-TEST(SkeletonRigReviewTest, CheckedInRunOwnsTwelveStableReferencePoses) {
+TEST(SkeletonRigTest, CheckedInRunOwnsTwelveStableReferencePoses) {
   const std::filesystem::path path =
       std::filesystem::path(ZEBES_SOURCE_DIR) /
       "experiments/character_binding/out/codex-pose-conditioning-v1/rig-bench.json";

@@ -160,10 +160,9 @@ It exports the clip and a COCO-18 form and persists at `rig/bench`.
 `out/codex-pose-conditioning-v1/rig-bench.json` is now the repository snapshot;
 its current simplified topology has 23 points and 22 bones.
 
-The repository-owned `render_skeleton_rig_review` C++ tool parses and validates
-that snapshot, measures cycle invariants, emits a standalone animated HTML
-review, and renders 512px PNG guides with the successful matched skeleton's
-exact palette and marker convention.
+The repository-owned `skeleton_rig` C++ library parses and validates that
+snapshot and measures cycle invariants. Its HTML review page and PNG guide
+renderers were deleted when the experiment closed on 2026-09-06.
 
 The bind pose was traced by hand from the generated `up` frame and verified
 against the art; it owns the character's proportions and every new frame starts

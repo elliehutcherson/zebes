@@ -1,12 +1,12 @@
-add_executable(skeleton_rig_review_test skeleton_rig_review_test.cc)
-target_link_libraries(skeleton_rig_review_test
-  skeleton_rig_review
+add_executable(skeleton_rig_test skeleton_rig_test.cc)
+target_link_libraries(skeleton_rig_test
+  skeleton_rig
   macros
   gtest_main
 )
-target_compile_definitions(skeleton_rig_review_test PRIVATE ZEBES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-target_include_directories(skeleton_rig_review_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(skeleton_rig_review_test)
+target_compile_definitions(skeleton_rig_test PRIVATE ZEBES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_include_directories(skeleton_rig_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(skeleton_rig_test)
 
 add_executable(profile_silhouette_test profile_silhouette_test.cc)
 target_link_libraries(profile_silhouette_test

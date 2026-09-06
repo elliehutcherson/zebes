@@ -108,12 +108,11 @@ target_link_libraries(delete_animation_frame_set_asset
   absl::strings
 )
 
-add_library(skeleton_rig_review skeleton_rig_review.cc)
-target_link_libraries(skeleton_rig_review
+add_library(skeleton_rig skeleton_rig.cc)
+target_link_libraries(skeleton_rig
   PRIVATE
   json_schema
   PUBLIC
-  image_io
   absl::flat_hash_map
   absl::statusor
   PRIVATE
@@ -121,7 +120,6 @@ target_link_libraries(skeleton_rig_review
   absl::flat_hash_set
   absl::status
   absl::strings
-  absl::str_format
   nlohmann_json::nlohmann_json
 )
 
@@ -165,7 +163,7 @@ target_link_libraries(layered_puppet_editor
   PUBLIC
   layered_puppet
   layered_puppet_editor_state
-  skeleton_rig_review
+  skeleton_rig
   absl::statusor
   PRIVATE
   image_digest

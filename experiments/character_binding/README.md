@@ -41,21 +41,36 @@ src/artwork/layered_puppet_diagnostics.{h,cc}
 src/artwork/layered_puppet_editor.{h,cc}
 src/artwork/layered_puppet_editor_state.{h,cc}
 src/artwork/semantic_layer_import.{h,cc}
-src/artwork/skeleton_rig_review.{h,cc}
+src/artwork/skeleton_rig.{h,cc}
 scripts/render_layered_puppet.cc
 scripts/serve_layered_puppet_editor.cc
-scripts/render_skeleton_rig_review.cc
 tests/artwork/layered_puppet_test.cc
 tests/artwork/layered_puppet_diagnostics_test.cc
 tests/artwork/layered_puppet_editor_test.cc
 tests/artwork/layered_puppet_editor_state_test.cc
 tests/artwork/semantic_layer_import_test.cc
-tests/artwork/skeleton_rig_review_test.cc
+tests/artwork/skeleton_rig_test.cc
 ```
 
 See-through was evaluated from an isolated temporary checkout on `derry`.
 Accepted source-of-truth inputs are retained under `out/`; derived renders,
 virtual environments, and model caches are not repository dependencies.
+
+## Finding the latest run
+
+`out/` holds every render this experiment has produced, and its names sort
+badly: `blender-proxy-v10` lands before `blender-proxy-v2`, and unrelated
+families interleave. To see what was made most recently:
+
+```bash
+ls -t experiments/character_binding/out | head
+```
+
+Name new output directories with a number, `042-immutable-coat`, so ordering is
+visible in a plain listing too. The tools take the directory as `--output`, so
+this is a convention rather than something they enforce. Four paths under `out/`
+are tracked inputs rather than output and keep their existing names: the rig,
+the approved mouse, the isolated running source, and the See-through layers.
 
 ## Build the C++ proof tools
 
@@ -120,6 +135,18 @@ control preserved identity but ignored elevation and limb order; strong control
 obeyed pose while destroying identity and pixel style. The Python ComfyUI
 orchestration and workflow templates were removed after the stop rule fired.
 Measured settings, digests, and visual findings remain in `FINDINGS.md`.
+
+Skeleton conditioning closed the same way on 2026-09-06. Three requests asked
+for compressed-support, contact, and high-recovery poses; all three came back as
+conventional split strides, and two that should have looked very different
+stayed 0.745 similar. The model has learned that running means legs far apart,
+so it draws that and ignores a skeleton asking for legs together. Two runs, same
+wall. The skeleton PNG renderers and the HTML review page were deleted with it;
+`skeleton_rig` keeps only the parser and the cycle metrics, which the
+interactive editor needs.
+
+Generation is no longer asked to infer a pose. Section 10 poses the character
+directly and asks only for cleanup.
 
 ## 3. Direct C++ deformation gate
 

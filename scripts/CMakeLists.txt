@@ -115,16 +115,6 @@ target_link_libraries(serve_layered_puppet_editor
   absl::strings
 )
 
-add_executable(render_skeleton_rig_review render_skeleton_rig_review.cc)
-target_link_libraries(render_skeleton_rig_review
-  PRIVATE
-  skeleton_rig_review
-  status_macros
-  absl::flags
-  absl::flags_parse
-  absl::str_format
-)
-
 add_executable(process_generated_artwork process_generated_artwork.cc)
 target_link_libraries(process_generated_artwork
   PRIVATE

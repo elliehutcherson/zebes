@@ -64,9 +64,15 @@ deformation, articulation scoring, and rejection.
 
 ## Codex pose conditioning, 2026-09-05
 
-Evidence: `out/codex-pose-conditioning-v1/`. Metrics come from
-`tools/measure_sheet.py`, which reports the same five numbers for every run so
-attempts stay comparable.
+Evidence: `out/codex-pose-conditioning-v1/`. Metrics came from
+`tools/measure_sheet.py`, which reported the same five numbers for every run so
+attempts stayed comparable. It was deleted with the experiment on 2026-09-06;
+the numbers it produced are recorded below.
+
+**Closed 2026-09-06.** The generator will not obey a skeleton that contradicts
+what it has learned running looks like. It draws legs far apart because that is
+what reads as running, and a target skeleton asking for legs together does not
+change that. Measured twice, in `matched-pilot-v1` and `standing-skeleton-pilot-v3`.
 
 ### The layered puppet is a still image at ship size
 
@@ -140,9 +146,12 @@ ignored again, consistently with attempts 1 and 2.
 `rig-bench.json` maps one complete mouse skeleton to each of the twelve supplied
 running silhouettes, in reading order. The poses retain the traced mouse
 proportions while changing the pelvis, spine, head, arms, feet, and tail; they
-are not copies of one bind pose. The repository-owned C++
-`render_skeleton_rig_review` tool validates the Rig Bench schema and topology,
-then renders an animated standalone HTML review and exact matched-style PNGs.
+are not copies of one bind pose. The repository-owned C++ `skeleton_rig` library
+validates the Rig Bench schema and topology and measures cycle invariants. It
+also rendered an animated HTML review and matched-style PNG guides until the
+skeleton-conditioning experiment closed on 2026-09-06; the interactive editor
+draws the same skeleton over the real artwork, and the PNG guides fed provider
+requests that are no longer made.
 
 Human review accepted the initial 27-point / 26-bone poses on 2026-09-05. After
 the matched pilot below failed, the rig was simplified to 23 points / 22 bones:
