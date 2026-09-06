@@ -158,7 +158,29 @@ target_link_libraries(layered_puppet
   status_macros
 )
 
-add_library(layered_puppet_editor layered_puppet_editor.cc)
+# The browser editor is authored as real HTML so it gets an editor, a formatter
+# and a linter, then embedded so the tool remains one binary with no runtime
+# dependency on where the file lives.
+set(LAYERED_PUPPET_EDITOR_HTML_HEADER
+    ${CMAKE_CURRENT_BINARY_DIR}/layered_puppet_editor_html.h)
+add_custom_command(
+  OUTPUT ${LAYERED_PUPPET_EDITOR_HTML_HEADER}
+  COMMAND ${CMAKE_COMMAND}
+          -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/layered_puppet_editor.html
+          -DOUTPUT=${LAYERED_PUPPET_EDITOR_HTML_HEADER}
+          -DSYMBOL=kLayeredPuppetEditorHtml
+          -P ${CMAKE_SOURCE_DIR}/cmake/embed_text_file.cmake
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/layered_puppet_editor.html
+          ${CMAKE_SOURCE_DIR}/cmake/embed_text_file.cmake
+  COMMENT "Embedding layered_puppet_editor.html"
+  VERBATIM
+)
+
+add_library(layered_puppet_editor
+  layered_puppet_editor.cc
+  ${LAYERED_PUPPET_EDITOR_HTML_HEADER}
+)
+target_include_directories(layered_puppet_editor PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(layered_puppet_editor
   PUBLIC
   layered_puppet

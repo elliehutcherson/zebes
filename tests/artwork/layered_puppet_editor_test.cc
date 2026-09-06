@@ -93,6 +93,9 @@ TEST(LayeredPuppetEditorTest, PreservesAuthoredBackToFrontOrderAndExportControl)
   EXPECT_NE(html.find("\"reference_rig\":{\"bones\""), std::string::npos);
   EXPECT_NE(html.find("Save to Repo"), std::string::npos);
   EXPECT_NE(html.find("Set anchor and regenerate"), std::string::npos);
+  // A placeholder left in the page would reach the browser as an undefined
+  // name and break the editor on load rather than at build time.
+  EXPECT_EQ(html.find("@ZEBES_"), std::string::npos);
   EXPECT_NE(html.find("Play 8 FPS"), std::string::npos);
   EXPECT_NE(html.find("/api/state"), std::string::npos);
   EXPECT_NE(html.find("pointermove"), std::string::npos);
