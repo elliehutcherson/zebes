@@ -1,14 +1,12 @@
 #include "scripts/pose_conditioned_animation_batch.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
-#include <limits>
-#include <memory>
 #include <numeric>
 #include <optional>
 #include <string>
@@ -46,8 +44,7 @@ constexpr int64_t kMaximumBatchOutputPixels = 64 * 1024 * 1024;
 constexpr size_t kFrameCount = 12;
 constexpr int kColumns = 6;
 constexpr int kRows = 2;
-constexpr int kPilotFirstFrame = 0;
-constexpr int kPilotSecondFrame = 6;
+constexpr std::array<int, 3> kPilotFrameIndices{3, 6, 10};
 constexpr absl::Duration kGenerationTimeout = absl::Minutes(10);
 
 struct LockedExperiment {
@@ -262,8 +259,8 @@ absl::StatusOr<LockedExperiment> LoadLockedExperiment(const std::filesystem::pat
       "pose batch manifest"));
   ASSIGN_OR_RETURN(const int schema_version,
                    Required<int>(document, "schema_version", "pose batch manifest"));
-  if (schema_version != 1) {
-    return absl::FailedPreconditionError("unsupported pose batch manifest schema; expected 1");
+  if (schema_version != 3) {
+    return absl::FailedPreconditionError("unsupported pose batch manifest schema; expected 3");
   }
 
   LockedExperiment result{.manifest_path = canonical_path};
@@ -544,10 +541,14 @@ absl::StatusOr<LockedInputs> ResolveLockedInputs(Api& api, const LockedExperimen
 }
 
 std::string FramePrompt(std::string_view prompt, int frame_index) {
-  return absl::StrCat(prompt, "\n\nAnimation frame ", frame_index,
-                      " of 12. Render exactly one fresh right-facing character image for this "
-                      "pose. Do not return a sheet, turnaround, wireframe, or edited reference "
-                      "board.");
+  return absl::StrCat(
+      prompt,
+      "\n\nThe two reference images are ordered: (1) the standing character identity and "
+      "(2) the target skeleton. Preserve the character only from image 1 and use image 2 only "
+      "for the complete body pose.\nAnimation frame ",
+      frame_index + 1,
+      " of 12. Render exactly one fresh right-facing character image. Do not return multiple "
+      "images, a sheet, turnaround, wireframe, skeleton, or edited reference board.");
 }
 
 ImageGenerationSpec MakeSpec(const LockedExperiment& experiment, const LockedInputs& inputs,
@@ -573,7 +574,7 @@ ImageGenerationSpec MakeSpec(const LockedExperiment& experiment, const LockedInp
 absl::Status PreflightService(ImageGenerationService& service, const LockedExperiment& experiment,
                               const LockedInputs& inputs) {
   const ImageGenerationCapabilities capabilities = service.engine().Capabilities();
-  ImageGenerationSpec spec = MakeSpec(experiment, inputs, 0);
+  ImageGenerationSpec spec = MakeSpec(experiment, inputs, kPilotFrameIndices.front());
   RETURN_IF_ERROR(ValidateImageGenerationSpec(spec, capabilities));
   const int64_t reference_pixels =
       static_cast<int64_t>(inputs.identity.image.width) * inputs.identity.image.height +
@@ -581,7 +582,7 @@ absl::Status PreflightService(ImageGenerationService& service, const LockedExper
   if (capabilities.maximum_reference_images < 2 ||
       capabilities.maximum_reference_pixels < reference_pixels) {
     return absl::FailedPreconditionError(
-        "image provider cannot accept the locked identity-first, pose-second request shape");
+        "image provider cannot accept the locked standing-identity and target-skeleton request");
   }
   return absl::OkStatus();
 }
@@ -592,8 +593,10 @@ absl::Status AwaitFrame(ImageGenerationService& service, const LockedExperiment&
   record.frame_index = frame_index;
   record.started_at_utc = CurrentUtcTimestamp();
   record.request_prompt = FramePrompt(experiment.prompt, frame_index);
-  record.reference_digests = {inputs.identity.content_digest,
-                              inputs.pose_digests[static_cast<size_t>(frame_index)]};
+  record.reference_digests = {
+      inputs.identity.content_digest,
+      inputs.pose_digests[static_cast<size_t>(frame_index)],
+  };
   ImageGenerationSpec spec = MakeSpec(experiment, inputs, frame_index);
   record.composed_prompt = ComposeImageGenerationPrompt(spec);
   absl::StatusOr<uint64_t> submitted = service.engine().Submit(std::move(spec));
@@ -688,6 +691,53 @@ absl::StatusOr<AnimationArtworkFeasibilityConfig> GeneratedSheetConfig(
   return config;
 }
 
+absl::Status ValidatePilotApprovalChecks(const nlohmann::json& checks) {
+  if (!checks.is_array() || checks.size() != kPilotFrameIndices.size()) {
+    return absl::FailedPreconditionError(
+        "pilot approval needs one check record for every diagnostic frame");
+  }
+  constexpr std::array<std::string_view, 3> kBooleanChecks{"fresh_single_render",
+                                                           "identity_preserved", "pose_obeyed"};
+  for (size_t index = 0; index < checks.size(); ++index) {
+    const nlohmann::json& check = checks[index];
+    const std::string context = absl::StrCat("pilot approval check ", index);
+    RETURN_IF_ERROR(RequireExactObject(
+        check, {"frame_index", "fresh_single_render", "identity_preserved", "pose_obeyed"},
+        context));
+    ASSIGN_OR_RETURN(const int frame_index, Required<int>(check, "frame_index", context));
+    if (frame_index != kPilotFrameIndices[index]) {
+      return absl::FailedPreconditionError(
+          absl::StrCat(context, " does not identify its diagnostic frame"));
+    }
+    for (const std::string_view field : kBooleanChecks) {
+      const nlohmann::json& value = check.at(field);
+      if (!value.is_boolean() || !value.get<bool>()) {
+        return absl::FailedPreconditionError(
+            absl::StrCat(context, " field '", field, "' must be true"));
+      }
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidatePilotRequests(const nlohmann::json& requests) {
+  if (!requests.is_array() || requests.size() != kPilotFrameIndices.size()) {
+    return absl::FailedPreconditionError(
+        "approved pilot needs every fresh diagnostic-frame request");
+  }
+  for (size_t index = 0; index < requests.size(); ++index) {
+    const std::string context = absl::StrCat("approved pilot request ", index);
+    ASSIGN_OR_RETURN(const int frame_index, Required<int>(requests[index], "frame_index", context));
+    ASSIGN_OR_RETURN(const std::string status,
+                     Required<std::string>(requests[index], "status", context));
+    if (frame_index != kPilotFrameIndices[index] || status != "complete") {
+      return absl::FailedPreconditionError(
+          absl::StrCat(context, " is not its complete diagnostic frame"));
+    }
+  }
+  return absl::OkStatus();
+}
+
 absl::StatusOr<PilotApproval> ValidatePilotApproval(const std::filesystem::path& approval_path,
                                                     const nlohmann::json& request_shape) {
   if (approval_path.empty()) {
@@ -715,23 +765,12 @@ absl::StatusOr<PilotApproval> ValidatePilotApproval(const std::filesystem::path&
                    Required<std::string>(approval, "reviewed_at_utc", "pilot approval"));
   ASSIGN_OR_RETURN(const std::string pilot_run_id,
                    Required<std::string>(approval, "pilot_run_id", "pilot approval"));
-  if (schema_version != 1 || decision != "approved" || reviewer.empty() || reviewed_at.empty() ||
+  if (schema_version != 2 || decision != "approved" || reviewer.empty() || reviewed_at.empty() ||
       pilot_run_id.empty()) {
     return absl::FailedPreconditionError(
-        "pilot approval must be schema 1, explicitly approved, reviewed, and identify its run");
+        "pilot approval must be schema 2, explicitly approved, reviewed, and identify its run");
   }
-  const nlohmann::json& checks = approval.at("checks");
-  RETURN_IF_ERROR(RequireExactObject(
-      checks,
-      {"frame_0_fresh_single_render", "frame_0_identity_preserved", "frame_0_pose_obeyed",
-       "frame_6_fresh_single_render", "frame_6_identity_preserved", "frame_6_pose_obeyed"},
-      "pilot approval checks"));
-  for (const auto& [name, value] : checks.items()) {
-    if (!value.is_boolean() || !value.get<bool>()) {
-      return absl::FailedPreconditionError(
-          absl::StrCat("pilot approval check must be true: ", name));
-    }
-  }
+  RETURN_IF_ERROR(ValidatePilotApprovalChecks(approval.at("checks")));
 
   ASSIGN_OR_RETURN(const std::string pilot_manifest_relative,
                    Required<std::string>(approval, "pilot_manifest", "pilot approval"));
@@ -755,24 +794,7 @@ absl::StatusOr<PilotApproval> ValidatePilotApproval(const std::filesystem::path&
     return absl::FailedPreconditionError(
         "pilot approval does not identify a complete non-candidate pilot for this request shape");
   }
-  if (!pilot.at("requests").is_array() || pilot.at("requests").size() != 2) {
-    return absl::FailedPreconditionError(
-        "approved pilot must contain fresh complete frame-0 and frame-6 requests");
-  }
-  const nlohmann::json& pilot_requests = pilot.at("requests");
-  ASSIGN_OR_RETURN(const int first_index,
-                   Required<int>(pilot_requests[0], "frame_index", "approved pilot request 0"));
-  ASSIGN_OR_RETURN(const int second_index,
-                   Required<int>(pilot_requests[1], "frame_index", "approved pilot request 1"));
-  ASSIGN_OR_RETURN(const std::string first_status,
-                   Required<std::string>(pilot_requests[0], "status", "approved pilot request 0"));
-  ASSIGN_OR_RETURN(const std::string second_status,
-                   Required<std::string>(pilot_requests[1], "status", "approved pilot request 1"));
-  if (first_index != kPilotFirstFrame || second_index != kPilotSecondFrame ||
-      first_status != "complete" || second_status != "complete") {
-    return absl::FailedPreconditionError(
-        "approved pilot must contain fresh complete frame-0 and frame-6 requests");
-  }
+  RETURN_IF_ERROR(ValidatePilotRequests(pilot.at("requests")));
   return PilotApproval{
       .approval_path = canonical_approval,
       .pilot_manifest_path = pilot_manifest_path,
@@ -944,7 +966,7 @@ absl::Status PublishEvidence(const PoseConditionedAnimationRunRequest& request,
               {"composed_prompt", record.composed_prompt},
               {"submitted_prompt", std::move(submitted_prompt)},
               {"revised_prompt", std::move(revised_prompt)},
-              {"reference_order", {"subject-identity", "pose"}},
+              {"reference_order", {"standing-subject-identity", "target-skeleton"}},
               {"reference_rgba_sha256", record.reference_digests},
               {"raw_outputs", std::move(raw_outputs)},
           });
@@ -1051,7 +1073,7 @@ absl::Status RunPoseConditionedAnimationBatch(Api& api, ImageGenerationService& 
 
   const std::vector<int> requested_frames =
       request.phase == PoseConditionedAnimationPhase::kPilot
-          ? std::vector<int>{kPilotFirstFrame, kPilotSecondFrame}
+          ? std::vector<int>(kPilotFrameIndices.begin(), kPilotFrameIndices.end())
           : std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
   const std::string run_id = GenerateGuid();
   const std::string created_at_utc = CurrentUtcTimestamp();

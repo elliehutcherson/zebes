@@ -124,6 +124,7 @@ target_link_libraries(animation_artwork_feasibility
 add_library(skeleton_rig_review skeleton_rig_review.cc)
 target_link_libraries(skeleton_rig_review
   PUBLIC
+  image_io
   absl::flat_hash_map
   absl::statusor
   PRIVATE
@@ -168,6 +169,35 @@ target_link_libraries(layered_puppet
   absl::statusor
   PRIVATE
   status_macros
+)
+
+add_library(layered_puppet_editor layered_puppet_editor.cc)
+target_link_libraries(layered_puppet_editor
+  PUBLIC
+  layered_puppet
+  layered_puppet_editor_state
+  skeleton_rig_review
+  absl::statusor
+  PRIVATE
+  image_digest
+  status_macros
+  absl::status
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
+add_library(layered_puppet_editor_state layered_puppet_editor_state.cc)
+target_link_libraries(layered_puppet_editor_state
+  PUBLIC
+  profile_silhouette
+  absl::flat_hash_map
+  absl::status
+  absl::statusor
+  PRIVATE
+  status_macros
+  absl::flat_hash_set
+  absl::strings
+  nlohmann_json::nlohmann_json
 )
 
 add_library(layered_puppet_diagnostics layered_puppet_diagnostics.cc)

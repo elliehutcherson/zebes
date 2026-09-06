@@ -32,6 +32,24 @@ target_link_libraries(layered_puppet_test
 target_include_directories(layered_puppet_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(layered_puppet_test)
 
+add_executable(layered_puppet_editor_test layered_puppet_editor_test.cc)
+target_link_libraries(layered_puppet_editor_test
+  layered_puppet_editor
+  macros
+  gtest_main
+)
+target_include_directories(layered_puppet_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(layered_puppet_editor_test)
+
+add_executable(layered_puppet_editor_state_test layered_puppet_editor_state_test.cc)
+target_link_libraries(layered_puppet_editor_state_test
+  layered_puppet_editor_state
+  macros
+  gtest_main
+)
+target_include_directories(layered_puppet_editor_state_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(layered_puppet_editor_state_test)
+
 add_executable(layered_puppet_diagnostics_test layered_puppet_diagnostics_test.cc)
 target_link_libraries(layered_puppet_diagnostics_test
   layered_puppet_diagnostics

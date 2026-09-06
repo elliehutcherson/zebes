@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "clip": "locomotion-right",
+  "sheet": {
+    "grid_x": 0,
+    "grid_y": 0,
+    "cell_width": 1254,
+    "cell_height": 1254,
+    "column_gap": 0,
+    "row_gap": 0,
+    "columns": 6,
+    "rows": 2
+  },
+  "timing": {
+    "uniform_frames_per_cycle": 4
+  },
+  "planted_frames": [
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    false,
+    true
+  ]
+}

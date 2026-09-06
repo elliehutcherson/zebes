@@ -12,6 +12,10 @@ namespace zebes {
 // RgbaImageDigest.
 bool IsLowercaseSha256Digest(std::string_view digest);
 
+// Returns lowercase SHA-256 over the supplied bytes without dimensions or
+// content-type framing. Callers own the encoded contract being identified.
+std::string Sha256Digest(std::string_view bytes);
+
 // Returns lowercase SHA-256 over a canonical big-endian width/height header
 // followed by the decoded RGBA bytes. Encoder metadata therefore cannot change
 // the identity of otherwise identical source artwork.

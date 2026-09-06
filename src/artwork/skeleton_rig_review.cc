@@ -1,8 +1,10 @@
 #include "artwork/skeleton_rig_review.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <fstream>
 #include <initializer_list>
@@ -268,15 +270,46 @@ std::string EscapeHtml(std::string_view value) {
   return result;
 }
 
+struct PixelColor {
+  uint8_t r = 0;
+  uint8_t g = 0;
+  uint8_t b = 0;
+  uint8_t a = 255;
+};
+
+struct ChainStyle {
+  std::string_view chain;
+  std::string_view html;
+  PixelColor raster;
+};
+
+constexpr std::array<ChainStyle, 7> kChainStyles{{
+    {.chain = "head", .html = "#e66ee6", .raster = {0xE6, 0x6E, 0xE6, 0xFF}},
+    {.chain = "spine", .html = "#eb4637", .raster = {0xEB, 0x46, 0x37, 0xFF}},
+    {.chain = "arm_l", .html = "#faa532", .raster = {0xFA, 0xA5, 0x32, 0xFF}},
+    {.chain = "arm_r", .html = "#3ca5fa", .raster = {0x3C, 0xA5, 0xFA, 0xFF}},
+    {.chain = "leg_l", .html = "#46c864", .raster = {0x46, 0xC8, 0x64, 0xFF}},
+    {.chain = "leg_r", .html = "#a582f5", .raster = {0xA5, 0x82, 0xF5, 0xFF}},
+    {.chain = "tail", .html = "#beaa6e", .raster = {0xBE, 0xAA, 0x6E, 0xFF}},
+}};
+constexpr PixelColor kUnknownChainColor{0xB7, 0xBE, 0xC8, 0xFF};
+constexpr PixelColor kCanvasColor{0xFF, 0xFF, 0xFF, 0xFF};
+constexpr PixelColor kJointOutlineColor{0x14, 0x14, 0x14, 0xFF};
+constexpr PixelColor kFloorColor{0x78, 0x78, 0x78, 0xFF};
+constexpr int64_t kMaximumRasterPixels = 64 * 1024 * 1024;
+
 std::string_view ChainColor(std::string_view chain) {
-  if (chain == "head") return "#e85dde";
-  if (chain == "spine") return "#ed493d";
-  if (chain == "arm_l") return "#f29a24";
-  if (chain == "arm_r") return "#3498e8";
-  if (chain == "leg_l") return "#41bd6a";
-  if (chain == "leg_r") return "#9680e8";
-  if (chain == "tail") return "#c8a967";
+  for (const ChainStyle& style : kChainStyles) {
+    if (style.chain == chain) return style.html;
+  }
   return "#b7bec8";
+}
+
+PixelColor ChainRasterColor(std::string_view chain) {
+  for (const ChainStyle& style : kChainStyles) {
+    if (style.chain == chain) return style.raster;
+  }
+  return kUnknownChainColor;
 }
 
 absl::flat_hash_map<std::string, std::string> PointChains(const SkeletonRig& rig) {
@@ -284,6 +317,125 @@ absl::flat_hash_map<std::string, std::string> PointChains(const SkeletonRig& rig
   chains.reserve(rig.points.size());
   for (const SkeletonRigPoint& point : rig.points) chains.emplace(point.name, point.chain);
   return chains;
+}
+
+void SetPixel(RgbaImage& image, int x, int y, PixelColor color) {
+  if (x < 0 || y < 0 || x >= image.width || y >= image.height) return;
+  const size_t offset = (static_cast<size_t>(y) * image.width + x) * 4;
+  image.pixels[offset + 0] = color.r;
+  image.pixels[offset + 1] = color.g;
+  image.pixels[offset + 2] = color.b;
+  image.pixels[offset + 3] = color.a;
+}
+
+void FillCircle(RgbaImage& image, int center_x, int center_y, int radius, PixelColor color) {
+  const int radius_squared = radius * radius;
+  for (int y = center_y - radius; y <= center_y + radius; ++y) {
+    for (int x = center_x - radius; x <= center_x + radius; ++x) {
+      const int delta_x = x - center_x;
+      const int delta_y = y - center_y;
+      if (delta_x * delta_x + delta_y * delta_y <= radius_squared) {
+        SetPixel(image, x, y, color);
+      }
+    }
+  }
+}
+
+void DrawLine(RgbaImage& image, int start_x, int start_y, int end_x, int end_y, int radius,
+              PixelColor color) {
+  const int delta_x = std::abs(end_x - start_x);
+  const int step_x = start_x < end_x ? 1 : -1;
+  const int delta_y = -std::abs(end_y - start_y);
+  const int step_y = start_y < end_y ? 1 : -1;
+  int error = delta_x + delta_y;
+  while (true) {
+    FillCircle(image, start_x, start_y, radius, color);
+    if (start_x == end_x && start_y == end_y) return;
+    const int doubled_error = error * 2;
+    if (doubled_error >= delta_y) {
+      error += delta_y;
+      start_x += step_x;
+    }
+    if (doubled_error <= delta_x) {
+      error += delta_x;
+      start_y += step_y;
+    }
+  }
+}
+
+void FillRectangle(RgbaImage& image, int left, int top, int width, int height, PixelColor color) {
+  for (int y = top; y < top + height; ++y) {
+    for (int x = left; x < left + width; ++x) SetPixel(image, x, y, color);
+  }
+}
+
+absl::Status ValidateRasterGeometry(const SkeletonRigFrame& frame, int canvas_width,
+                                    int canvas_height, int render_scale) {
+  if (canvas_width <= 0 || canvas_height <= 0 || render_scale <= 0) {
+    return absl::InvalidArgumentError("skeleton raster dimensions and scale must be positive");
+  }
+  const int64_t width = static_cast<int64_t>(canvas_width) * render_scale;
+  const int64_t height = static_cast<int64_t>(canvas_height) * render_scale;
+  if (width > std::numeric_limits<int>::max() || height > std::numeric_limits<int>::max() ||
+      width > kMaximumRasterPixels / height) {
+    return absl::ResourceExhaustedError("skeleton raster exceeds its decoded-pixel limit");
+  }
+  for (const auto& [name, joint] : frame.pose) {
+    if (joint.x < 0.0 || joint.y < 0.0 || joint.x >= canvas_width || joint.y >= canvas_height) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("skeleton raster point '", name, "' lies outside the canvas"));
+    }
+  }
+  return absl::OkStatus();
+}
+
+RgbaImage BlankImage(int width, int height) {
+  RgbaImage image{
+      .width = width,
+      .height = height,
+      .pixels = std::vector<uint8_t>(static_cast<size_t>(width) * height * 4),
+  };
+  for (size_t offset = 0; offset < image.pixels.size(); offset += 4) {
+    image.pixels[offset + 0] = kCanvasColor.r;
+    image.pixels[offset + 1] = kCanvasColor.g;
+    image.pixels[offset + 2] = kCanvasColor.b;
+    image.pixels[offset + 3] = kCanvasColor.a;
+  }
+  return image;
+}
+
+void RenderFrameIntoImage(const SkeletonRig& rig, const SkeletonRigFrame& frame,
+                          const absl::flat_hash_map<std::string, std::string>& chains,
+                          int canvas_width, int canvas_height, int render_scale, int offset_x,
+                          int offset_y, RgbaImage& image) {
+  const int floor_y = offset_y + static_cast<int>(std::lround(rig.floor_y * render_scale));
+  const int rendered_width = canvas_width * render_scale;
+  const int dash_width = 5 * render_scale;
+  for (int x = 0; x < rendered_width; ++x) {
+    if ((x / dash_width) % 2 == 0) SetPixel(image, offset_x + x, floor_y, kFloorColor);
+  }
+
+  const int bone_radius = std::max(1, render_scale + 1);
+  for (const SkeletonRigBone& bone : rig.bones) {
+    const SkeletonRigJoint& start = frame.pose.at(bone.start);
+    const SkeletonRigJoint& end = frame.pose.at(bone.end);
+    DrawLine(image, offset_x + static_cast<int>(std::lround(start.x * render_scale)),
+             offset_y + static_cast<int>(std::lround(start.y * render_scale)),
+             offset_x + static_cast<int>(std::lround(end.x * render_scale)),
+             offset_y + static_cast<int>(std::lround(end.y * render_scale)), bone_radius,
+             ChainRasterColor(chains.at(bone.end)));
+  }
+
+  const int joint_radius = render_scale + 1;
+  for (const SkeletonRigPoint& point : rig.points) {
+    const SkeletonRigJoint& joint = frame.pose.at(point.name);
+    const int center_x = offset_x + static_cast<int>(std::lround(joint.x * render_scale));
+    const int center_y = offset_y + static_cast<int>(std::lround(joint.y * render_scale));
+    FillRectangle(image, center_x - joint_radius - 1, center_y - joint_radius - 1,
+                  joint_radius * 2 + 3, joint_radius * 2 + 3, kJointOutlineColor);
+    FillRectangle(image, center_x - joint_radius, center_y - joint_radius, joint_radius * 2 + 1,
+                  joint_radius * 2 + 1, ChainRasterColor(point.chain));
+  }
 }
 
 std::string RenderFrameSvg(const SkeletonRig& rig, const SkeletonRigFrame& frame,
@@ -422,6 +574,62 @@ absl::StatusOr<SkeletonRigClipMetrics> MeasureSkeletonRigClip(const SkeletonRig&
         std::max(metrics.maximum_bone_length_drift, maximum_length - minimum_length);
   }
   return metrics;
+}
+
+absl::StatusOr<RgbaImage> RenderSkeletonRigFrameImage(const SkeletonRig& rig,
+                                                      const SkeletonRigFrame& frame,
+                                                      int canvas_width, int canvas_height,
+                                                      int render_scale) {
+  RETURN_IF_ERROR(ValidateRasterGeometry(frame, canvas_width, canvas_height, render_scale));
+  if (rig.floor_y < 0.0 || rig.floor_y >= canvas_height) {
+    return absl::InvalidArgumentError("skeleton raster floor lies outside the canvas");
+  }
+  const int output_width = canvas_width * render_scale;
+  const int output_height = canvas_height * render_scale;
+  RgbaImage image = BlankImage(output_width, output_height);
+  RenderFrameIntoImage(rig, frame, PointChains(rig), canvas_width, canvas_height, render_scale, 0,
+                       0, image);
+  return image;
+}
+
+absl::StatusOr<RgbaImage> RenderSkeletonRigSheetImage(const SkeletonRig& rig,
+                                                      const SkeletonRigClip& clip, int canvas_width,
+                                                      int canvas_height, int render_scale,
+                                                      int columns) {
+  if (clip.frames.empty() || columns <= 0) {
+    return absl::InvalidArgumentError("skeleton raster sheet needs frames and positive columns");
+  }
+  if (rig.floor_y < 0.0 || rig.floor_y >= canvas_height) {
+    return absl::InvalidArgumentError("skeleton raster floor lies outside the canvas");
+  }
+  for (const SkeletonRigFrame& frame : clip.frames) {
+    RETURN_IF_ERROR(ValidateRasterGeometry(frame, canvas_width, canvas_height, render_scale));
+  }
+  if (clip.frames.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    return absl::ResourceExhaustedError("skeleton raster sheet has too many frames");
+  }
+
+  const int frame_count = static_cast<int>(clip.frames.size());
+  const int64_t rows = (static_cast<int64_t>(frame_count) + columns - 1) / columns;
+  const int cell_width = canvas_width * render_scale;
+  const int cell_height = canvas_height * render_scale;
+  const int64_t output_width = static_cast<int64_t>(cell_width) * columns;
+  const int64_t output_height = static_cast<int64_t>(cell_height) * rows;
+  if (output_width > std::numeric_limits<int>::max() ||
+      output_height > std::numeric_limits<int>::max() ||
+      output_width > kMaximumRasterPixels / output_height) {
+    return absl::ResourceExhaustedError("skeleton raster sheet exceeds its decoded-pixel limit");
+  }
+
+  RgbaImage image = BlankImage(static_cast<int>(output_width), static_cast<int>(output_height));
+  const absl::flat_hash_map<std::string, std::string> chains = PointChains(rig);
+  for (size_t index = 0; index < clip.frames.size(); ++index) {
+    const int column = static_cast<int>(index) % columns;
+    const int row = static_cast<int>(index) / columns;
+    RenderFrameIntoImage(rig, clip.frames[index], chains, canvas_width, canvas_height, render_scale,
+                         column * cell_width, row * cell_height, image);
+  }
+  return image;
 }
 
 absl::StatusOr<std::string> RenderSkeletonRigReviewHtml(const SkeletonRig& rig,

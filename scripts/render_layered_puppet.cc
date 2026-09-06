@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,8 +15,10 @@
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "artwork/layered_puppet.h"
 #include "artwork/layered_puppet_diagnostics.h"
+#include "artwork/layered_puppet_editor.h"
 #include "artwork/semantic_layer_import.h"
 #include "common/image_digest.h"
 #include "common/image_io.h"
@@ -27,12 +30,15 @@ ABSL_FLAG(std::string, spec, "", "Explicit layered puppet JSON specification.");
 ABSL_FLAG(std::string, semantic_root, "",
           "Optional See-through optimized PNG and info.json directory.");
 ABSL_FLAG(std::string, output, "", "Destination evidence directory.");
+ABSL_FLAG(std::string, editor_reference_rig, "",
+          "Optional Rig Bench JSON whose ordered frames are shown as canonical references.");
 ABSL_FLAG(int, frame_size, 48, "Native square output frame size.");
 ABSL_FLAG(int, zoom, 8, "Integer nearest-neighbor evidence zoom.");
 
 namespace {
 
-constexpr std::array<const char*, 4> kPoseNames = {"neutral", "contact", "passing", "airborne"};
+constexpr std::array<const char*, 4> kLegacyPoseNames = {"neutral", "contact", "passing",
+                                                         "airborne"};
 
 absl::StatusOr<nlohmann::json> ReadJson(const std::string& path, const std::string& label) {
   std::ifstream stream(path);
@@ -49,6 +55,14 @@ absl::Status WriteJson(const std::filesystem::path& path, const nlohmann::json& 
   if (!stream.is_open()) return absl::InternalError("could not create puppet manifest");
   stream << value.dump(2) << '\n';
   if (!stream.good()) return absl::InternalError("could not write puppet manifest");
+  return absl::OkStatus();
+}
+
+absl::Status WriteText(const std::filesystem::path& path, std::string_view text) {
+  std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+  if (!stream.is_open()) return absl::InternalError("could not create puppet editor");
+  stream.write(text.data(), static_cast<std::streamsize>(text.size()));
+  if (!stream.good()) return absl::InternalError("could not write puppet editor");
   return absl::OkStatus();
 }
 
@@ -156,6 +170,7 @@ absl::StatusOr<zebes::RgbaImage> LoadSemanticCandidate(const zebes::RgbaImage& s
                                                        const std::string& tag,
                                                        const std::filesystem::path& root,
                                                        const nlohmann::json& metadata,
+                                                       std::optional<size_t> component_index,
                                                        bool clip_to_source_alpha) {
   if (!IsSafePartName(tag) || root.empty()) {
     return absl::InvalidArgumentError("semantic puppet part tag or root is invalid");
@@ -190,6 +205,14 @@ absl::StatusOr<zebes::RgbaImage> LoadSemanticCandidate(const zebes::RgbaImage& s
           canvas_width, canvas_height));
   ASSIGN_OR_RETURN(zebes::RgbaImage candidate,
                    zebes::DownsampleSemanticLayer(restored, source.width, source.height));
+  if (component_index.has_value()) {
+    ASSIGN_OR_RETURN(std::vector<zebes::SemanticLayerComponent> components,
+                     zebes::SplitSemanticLayerComponents(candidate));
+    if (*component_index >= components.size()) {
+      return absl::InvalidArgumentError("semantic puppet component index is out of range");
+    }
+    candidate = std::move(components[*component_index].artwork);
+  }
   if (clip_to_source_alpha) {
     ASSIGN_OR_RETURN(candidate, zebes::ClipSemanticLayerToMask(candidate, source));
   }
@@ -332,8 +355,12 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(
       const nlohmann::json& settings = part.at("source_from_semantic_reach");
       ASSIGN_OR_RETURN(
           semantic_candidate,
-          LoadSemanticCandidate(source, part.at("semantic_tag").get<std::string>(), semantic_root,
-                                *semantic_metadata, part.value("clip_to_source_alpha", false)));
+          LoadSemanticCandidate(
+              source, part.at("semantic_tag").get<std::string>(), semantic_root, *semantic_metadata,
+              part.contains("semantic_component")
+                  ? std::optional<size_t>(part.at("semantic_component").get<size_t>())
+                  : std::nullopt,
+              part.value("clip_to_source_alpha", false)));
       ASSIGN_OR_RETURN(ownership_mask, zebes::BuildLayeredPuppetOwnershipMask(
                                            semantic_candidate, source, part_bones, puppet.bones,
                                            puppet.source_joints,
@@ -376,7 +403,12 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(
                                           ", which has no derived ownership yet");
       }
       excluded_masks.push_back(&owner->second);
-      RETURN_IF_ERROR(zebes::SubtractLayeredPuppetMask(visible_artwork, owner->second));
+      const absl::Status subtracted =
+          zebes::SubtractLayeredPuppetMask(visible_artwork, owner->second);
+      if (!subtracted.ok()) {
+        return absl::Status(subtracted.code(), absl::StrCat(label, " could not exclude ", excluded,
+                                                            ": ", subtracted.message()));
+      }
     }
 
     std::vector<zebes::LayeredPuppetFill> fills;
@@ -405,8 +437,13 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(
       if (!semantic_candidate.IsValid()) {
         ASSIGN_OR_RETURN(
             semantic_candidate,
-            LoadSemanticCandidate(source, part.at("semantic_tag").get<std::string>(), semantic_root,
-                                  *semantic_metadata, part.value("clip_to_source_alpha", false)));
+            LoadSemanticCandidate(
+                source, part.at("semantic_tag").get<std::string>(), semantic_root,
+                *semantic_metadata,
+                part.contains("semantic_component")
+                    ? std::optional<size_t>(part.at("semantic_component").get<size_t>())
+                    : std::nullopt,
+                part.value("clip_to_source_alpha", false)));
       }
       if (part.value("immutable_semantic_layer", false)) {
         immutable_semantic_layers.insert_or_assign(name, semantic_candidate);
@@ -422,8 +459,14 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(
     // or the part keeps drawing pixels it no longer owns and the ownership gate
     // reports a clean decomposition over a composite that still ghosts.
     for (const zebes::RgbaImage* excluded : excluded_masks) {
-      RETURN_IF_ERROR(zebes::SubtractLayeredPuppetMask(artwork, *excluded));
+      const absl::Status subtracted = zebes::SubtractLayeredPuppetMask(artwork, *excluded);
+      if (!subtracted.ok()) {
+        return absl::Status(
+            subtracted.code(),
+            absl::StrCat(label, " could not exclude rendered artwork: ", subtracted.message()));
+      }
     }
+    if (!ownership_masks.contains(name)) ownership_masks.emplace(name, visible_artwork);
     if (part.contains("stretch_to_cover_parts")) {
       const nlohmann::json& settings = part.at("stretch_to_cover_parts");
       if (!settings.is_object() || !settings.contains("parts") ||
@@ -450,7 +493,31 @@ absl::StatusOr<zebes::LayeredPuppet> ParsePuppet(
 
   const nlohmann::json& poses = spec.at("poses");
   const nlohmann::json& draw_orders = spec.at("draw_order");
-  for (const std::string pose_name : kPoseNames) {
+  if (!poses.is_object() || poses.empty() || !draw_orders.is_object() ||
+      draw_orders.size() != poses.size()) {
+    return absl::InvalidArgumentError("puppet poses and draw_order must be matching objects");
+  }
+  std::vector<std::string> pose_names;
+  if (spec.contains("pose_order")) {
+    const nlohmann::json& pose_order = spec.at("pose_order");
+    if (!pose_order.is_array() || pose_order.size() != poses.size()) {
+      return absl::InvalidArgumentError("puppet pose_order must name every pose exactly once");
+    }
+    for (const nlohmann::json& name : pose_order) {
+      if (!name.is_string()) {
+        return absl::InvalidArgumentError("puppet pose_order must contain names");
+      }
+      const std::string pose_name = name.get<std::string>();
+      if (!poses.contains(pose_name) || !draw_orders.contains(pose_name) ||
+          std::find(pose_names.begin(), pose_names.end(), pose_name) != pose_names.end()) {
+        return absl::InvalidArgumentError("puppet pose_order is duplicate or unknown");
+      }
+      pose_names.push_back(pose_name);
+    }
+  } else {
+    pose_names.assign(kLegacyPoseNames.begin(), kLegacyPoseNames.end());
+  }
+  for (const std::string& pose_name : pose_names) {
     const nlohmann::json& pose_json = poses.at(pose_name);
     zebes::LayeredPuppetPose pose{.name = pose_name};
     pose.joints.reserve(joint_names.size());
@@ -678,6 +745,24 @@ int Run() {
     std::cerr << status.message() << '\n';
     return 1;
   }
+  std::optional<zebes::SkeletonRig> editor_reference_rig;
+  const zebes::SkeletonRigClip* editor_reference_clip = nullptr;
+  const std::string editor_reference_path = absl::GetFlag(FLAGS_editor_reference_rig);
+  if (!editor_reference_path.empty()) {
+    absl::StatusOr<zebes::SkeletonRig> loaded = zebes::LoadSkeletonRig(editor_reference_path);
+    if (!loaded.ok()) {
+      std::cerr << loaded.status().message() << '\n';
+      return 1;
+    }
+    editor_reference_rig = std::move(*loaded);
+    absl::StatusOr<const zebes::SkeletonRigClip*> clip =
+        zebes::FindSkeletonRigClip(*editor_reference_rig, "run");
+    if (!clip.ok()) {
+      std::cerr << clip.status().message() << '\n';
+      return 1;
+    }
+    editor_reference_clip = *clip;
+  }
 
   nlohmann::json semantic_metadata;
   const nlohmann::json* semantic_metadata_pointer = nullptr;
@@ -737,6 +822,57 @@ int Run() {
         return 1;
       }
       part_pixel_counts[part.name] = OpaquePixelCount(part.artwork);
+    }
+    const absl::Status source_written = WriteImage(output / "source.png", *source);
+    if (!source_written.ok()) {
+      std::cerr << source_written.message() << '\n';
+      return 1;
+    }
+    const absl::StatusOr<std::string> editor_source_digest = zebes::RgbaImageDigest(*source);
+    if (!editor_source_digest.ok()) {
+      std::cerr << editor_source_digest.status().message() << '\n';
+      return 1;
+    }
+    size_t editor_initial_pose = 0;
+    if (spec->contains("editor_initial_pose")) {
+      const std::string initial_pose = spec->at("editor_initial_pose").get<std::string>();
+      const auto found = std::find_if(puppet->poses.begin(), puppet->poses.end(),
+                                      [&initial_pose](const zebes::LayeredPuppetPose& pose) {
+                                        return pose.name == initial_pose;
+                                      });
+      if (found == puppet->poses.end()) {
+        std::cerr << "editor_initial_pose does not name a puppet pose\n";
+        return 1;
+      }
+      editor_initial_pose = static_cast<size_t>(found - puppet->poses.begin());
+    }
+    const absl::StatusOr<zebes::LayeredPuppetEditorStateContract> editor_contract =
+        zebes::BuildLayeredPuppetEditorStateContract(
+            *puppet, *editor_source_digest,
+            editor_reference_rig.has_value() ? &*editor_reference_rig : nullptr,
+            editor_reference_clip);
+    if (!editor_contract.ok()) {
+      std::cerr << editor_contract.status().message() << '\n';
+      return 1;
+    }
+    const absl::StatusOr<std::string> editor = zebes::RenderLayeredPuppetEditorHtml(
+        *puppet, editor_initial_pose, *editor_contract,
+        editor_reference_rig.has_value() ? &*editor_reference_rig : nullptr, editor_reference_clip);
+    if (!editor.ok()) {
+      std::cerr << editor.status().message() << '\n';
+      return 1;
+    }
+    const absl::Status editor_written = WriteText(output / "editor.html", *editor);
+    if (!editor_written.ok()) {
+      std::cerr << editor_written.message() << '\n';
+      return 1;
+    }
+    const absl::Status contract_written =
+        WriteText(output / "editor-contract.json",
+                  zebes::LayeredPuppetEditorStateContractToJson(*editor_contract));
+    if (!contract_written.ok()) {
+      std::cerr << contract_written.message() << '\n';
+      return 1;
     }
     for (const auto& [part_name, original] : immutable_semantic_layers) {
       const absl::Status written = WriteImage(immutable_directory / (part_name + ".png"), original);
@@ -823,6 +959,7 @@ int Run() {
     const bool require_part_ownership_isolation =
         spec->value("require_part_ownership_isolation", false);
     const bool require_no_triangle_inversion = spec->value("require_no_triangle_inversion", false);
+    const bool require_single_component = spec->value("require_single_component", true);
     std::vector<size_t> skinned_part_indices;
     for (size_t part_index = 0; part_index < puppet->parts.size(); ++part_index) {
       const zebes::LayeredPuppetPart& part = puppet->parts[part_index];
@@ -900,7 +1037,7 @@ int Run() {
         if (pose.name == "neutral" && reconstruction_difference != 0) {
           validation_errors.push_back(part.name + " neutral reconstruction changed source pixels");
         }
-        if (components->size() != 1) {
+        if (require_single_component && components->size() != 1) {
           validation_errors.push_back(part.name + " " + pose.name +
                                       " is not one connected component");
         }
@@ -1103,9 +1240,13 @@ int Run() {
       return 1;
     }
     const bool validation_passed = validation_errors.empty();
+    nlohmann::json pose_names = nlohmann::json::array();
+    for (const zebes::LayeredPuppetPose& pose : puppet->poses) {
+      pose_names.push_back(pose.name);
+    }
     const nlohmann::json manifest = {
         {"version", 1},
-        {"poses", kPoseNames},
+        {"poses", std::move(pose_names)},
         {"working_size", {puppet->width, puppet->height}},
         {"frame_size", {absl::GetFlag(FLAGS_frame_size), absl::GetFlag(FLAGS_frame_size)}},
         {"frame_digests", std::move(frame_digests)},

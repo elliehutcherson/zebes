@@ -71,6 +71,16 @@ evidence and is not a dependency or follow-up.
 
 Imported and manually authored sheets are the only production animation source.
 
+### Animation experiment cleanup next
+
+The interactive rough-authoring proof is complete and accepted as experiment
+tooling, not production art. The next Track 5 change is bounded technical-debt
+cleanup: remove superseded generated-animation artifacts and diagnostics,
+consolidate the editor's reference/deformation boundary, and retain only tools
+with live CMake consumers and focused tests. Preserve the tracked editor
+source/spec/state, exact Rig Bench clip, and deterministic export contract.
+Provider requests and new editor features remain out of scope.
+
 ### Production pipeline complete; player art gate reopened
 
 Pure frame-set processing, retained-source recipe lifecycle, headless curation,

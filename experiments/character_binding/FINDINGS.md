@@ -135,19 +135,168 @@ Horizontal obedience is complete and it did not copy the example. Vertical
 obedience is about a third of the requested travel. Canvas and palette were
 ignored again, consistently with attempts 1 and 2.
 
-### Twelve reference poses are authored and accepted
+### Twelve reference poses are authored; simplified topology awaits review
 
-`rig-bench.json` now maps one complete 27-point mouse skeleton to each of the
-twelve supplied running silhouettes, in reading order. The poses retain the
-traced mouse proportions while changing the pelvis, spine, head, arms, feet,
-and tail; they are not copies of one bind pose. The new repository-owned C++
+`rig-bench.json` maps one complete mouse skeleton to each of the twelve supplied
+running silhouettes, in reading order. The poses retain the traced mouse
+proportions while changing the pelvis, spine, head, arms, feet, and tail; they
+are not copies of one bind pose. The repository-owned C++
 `render_skeleton_rig_review` tool validates the Rig Bench schema and topology,
-then renders an animated standalone HTML review.
+then renders an animated standalone HTML review and exact matched-style PNGs.
 
-The current review metrics are 17 px of hip oscillation, both lead-foot states,
-and 1.07 px maximum bone-length drift from integer coordinate rounding. Human
-review accepted the skeleton set on 2026-09-05. No Codex generation has been
-run from it yet.
+Human review accepted the initial 27-point / 26-bone poses on 2026-09-05. After
+the matched pilot below failed, the rig was simplified to 23 points / 22 bones:
+the two lateral hip points and both heel markers were removed, both knees now
+connect directly to `hip_c`, and toes retain foot direction. The revised
+metrics are 17 px of hip oscillation, both lead-foot states, and 1.00 px maximum
+bone-length drift. The simplified topology has not been sent to Codex and
+awaits human review.
+
+### The first four-reference pilot was not the requested experiment
+
+`matched-pilot-v1/` retains three independent `gpt-5.6-sol` results for
+`reference_04`, `reference_07`, and `reference_11`. Every request used four
+ordered images: approved identity, existing generated frame, that frame's
+matched skeleton, and the target skeleton. The C++ rasterizer emitted the same
+512px canvas, ten RGBA colours, floor style, and marker convention as the
+successful single-joint proof. All requests completed with native 1254x1254
+outputs and no post-processing.
+
+The character design is recognizably consistent, but the requested motion is
+not. All three results converge on an ordinary split stride with essentially
+the same arm arrangement. The high recovery target remains grounded. Against
+the shared raw canvas, frame 6 and frame 10 silhouettes have 0.811 IoU even
+though their target legs and arms differ substantially. Their dark-pixel
+bounding boxes are 669x706, 763x784, and 778x766 with only 2px of baseline
+spread: 11.0% figure-height drift caused by scale, not the requested vertical
+travel.
+
+Raw output digests are
+`30b85325f2088ec8202b8e1cf413d129034045c4f7c88b2125399c65f13bcce5`,
+`39419109438474ba961fb4e7fd5246ed07f851102d2d8d41e0af989bcd343b42`,
+and
+`12e41f003c812191e945226d812b5423de19c04fc111d1a73570c7d8f7c8f00d`.
+These results are retained, but they do not gate the requested workflow: the
+request incorrectly included a running character image and its matched skeleton.
+
+The retained pilot used the earlier 27-point topology.
+
+### The simplified four-reference pilot repeated the wrong input contract
+
+`matched-pilot-v2-simplified/` repeats the identical three requests with the
+accepted identity, example frame, example skeleton, prompts, model, and output
+contract. Only the target skeletons changed: lateral hips and heels are absent,
+knees connect directly to `hip_c`, and toes retain foot direction. All three
+requests again completed as untouched native 1254x1254 outputs.
+
+The results remain ordinary split strides. Frame 3 and frame 10 have 0.820
+shared-canvas silhouette IoU even though the compressed-support and high
+recovery targets differ strongly. Dark-pixel bounding boxes are 790x881,
+767x784, and 822x876: 12.4% height spread. Their bottom rows are 1061, 986, and
+1058, a 75px baseline spread in the wrong phase order; the high recovery frame
+is grounded while frame 6 rises. Removing four joints changed generation
+variance but did not improve target obedience.
+
+Raw output digests are
+`7ce385fc24e2044e4d5110ef640e4abe1e389e73d2b108f07620d917581af6ab`,
+`8165c8cbd55afc82eece58ae42bc48e2c2fa131cd87c87c122d348a199a5834a`,
+and
+`406d37ffdb8c02e1af9525e9bddc3f145b7f350d26673242ca04809c946d2f02`.
+These results also do not gate the requested workflow because the same running
+frame and example skeleton were still supplied.
+
+### Standing subject plus target skeleton still misses the requested poses
+
+`standing-skeleton-pilot-v3/` corrects the input contract. It ran three
+sequential requests for `reference_04`, `reference_07`, and `reference_11`.
+Each request supplied exactly two images in order—standing subject identity,
+then one simplified target skeleton—and requested exactly one candidate. No
+running character image or example skeleton was submitted. All three
+`gpt-5.6-sol` requests completed with untouched native 1254x1254 outputs.
+
+The outputs remain conventional split strides rather than the three skeleton
+poses. Dark-pixel bounding boxes are 816x829, 726x742, and 756x873: 17.7%
+height spread. Their bottom rows are 1015, 969, and 1043, a 74px baseline
+spread in the wrong phase order. Frame 3 and frame 10 retain 0.745
+shared-canvas silhouette IoU even though their compressed-support and high
+recovery targets differ strongly. Removing the running reference changes the
+rendering and scale, but does not establish skeleton obedience.
+
+Raw output digests are
+`2d3d0df8beb634a968453531ced6014a48ccd63df8abe8cdca2753ea0b167e93`,
+`9bcb0f5751320a51f81ed3d9ee49557eead0145e1f921ac6bb1a66a7af244301`,
+and
+`ed6a08daaa4698680cd41a71d0ab1cf3626b5707cb7218e87c19bd94eb54293b`.
+This is the first valid test of the requested two-input contract. Engineering
+review rejects pose obedience and blocks the remaining nine requests; human
+comparison review is pending.
+
+### Interactive layered posing supplies the geometry directly
+
+The next input experiment no longer asks generation to infer pose from a
+skeleton. The first `mouse_interactive_limbs_v1.json` proof split the standing
+mouse's semantic arms and footwear and established browser-side deformation,
+depth order, persistence, and export.
+
+Human review selected the generated `reference_07` run image as the source. Its
+immutable provider output was isolated and resized in C++ tooling to
+`interactive-run-source-v1.png`; `mouse_interactive_run_v1.json` traces its
+visible arms and legs. A later correction reversed the original depth labels:
+the screen-left arm is front and the screen-right arm is rear. Part ownership,
+bone mappings, and fixed draw order encode rear arm, both legs, visible
+body/coat, then front arm. The canonical blue/orange tracks stay on their
+original physical limbs; relabeling depth did not swap their motion.
+
+The C++ `layered_puppet_editor` exporter serializes source pixels, seed meshes,
+bone chains, twelve canonical poses, initial pose, and draw order into the
+browser editor. Pose mode deforms target joints. Source calibration moves bind
+joints over an unchanged image. Mesh mode supplies a full-canvas 4px grid per
+limb: painting creates mesh anywhere, erasing removes it, and only painted
+source triangles leave the static body and follow that bone chain. A scrollable
+1–6× zoom preserves pointer mapping.
+
+The exact simplified Rig Bench clip is now the only visible authoring skeleton.
+All 23 original points, 22 bones, chain colors, and twelve frame poses follow
+frame selection in pose, source-calibration, and mesh modes. Thirteen mapped
+points are circular drag handles that drive the internal deformation controls;
+the other exact reference points remain colored squares. The reduced 13-joint
+control has no separate blue overlay. An untouched frame is `Canonical`;
+moving one mapped pose joint marks only that frame `Authored`.
+
+Authored source joints, anchor frame, painted meshes, and only explicitly
+authored per-frame offsets persist at `editor_states/mouse_run_v1.json`. The C++
+loopback server validates strict schema-version-1 state against generated source
+and puppet-contract digests and atomically replaces that fixed file. Local
+storage is crash recovery only; the editor exposes **Save to Repo** and
+**Revert from Repo**.
+
+The user assigns the source to one of the twelve canonical frames. Derived
+joint position is authored anchor plus that frame's canonical delta from the
+selected anchor plus an optional per-frame override. Re-anchoring clears
+overrides after confirmation while retaining source calibration and painted
+meshes. Previous/next controls, keyboard navigation, and 8 FPS playback show
+the same authored mesh across all twelve results.
+
+Browser evidence set `reference_04` as anchor, proved its joints equal the
+authored source exactly, checked another frame's vector delta, navigated and
+played frames, saved and reloaded a painted mesh through the repository
+service, and rejected a mismatched contract with HTTP 409 without changing
+state. It then selected `reference_01` while source calibration remained active:
+the embedded original skeleton changed from the exact `reference_07` joints to
+the exact `reference_01` joints while the calibrated source rig stayed fixed.
+Editing one pose marked and persisted only that frame as `Authored`; its
+untouched neighbor remained `Canonical`. The tracked baseline was restored to
+`reference_07`. Rough deformation remains cleanup input rather than candidate
+art.
+
+**Verdict.** Accept the editor as a completed rough-authoring experiment. The
+exact 23-point skeleton is now the sole visible control; the reduced driver is
+an internal deformation detail, not a second authoring rig. Browser review
+confirmed corrected arm ownership, canonical frame switching, one-frame
+authoring, repository save/reload, stale-contract rejection, and visible image
+deformation from a mapped reference handle. No provider request or production
+asset claim follows from this result. The next workstream is technical-debt
+cleanup around the closed animation experiments.
 
 ### Two measurements about pixel grids
 
@@ -205,6 +354,9 @@ coordinates are in doubled space.
 | 36 | Codex sheet with exact pixel targets | Model output 6.9% spread, 71 px drift, 149,785 colours; the perfect sheet was Codex's own ImageMagick pass | Registration cannot come from the generator |
 | 37 | Bbox-normalised registration | Flattened the model's real flight frame to zero oscillation | Reject; align on a shared ground line, never per figure |
 | 38 | Skeleton conditioning with a matched example pair | Foot separation 0.582 to 0.456 against a 0.484 target; vertical undershoot | Pose conditioning works through the reference channel |
+| 39 | Four-reference matched skeleton pilot | Included an unintended running frame and matched skeleton | Invalid request shape; retain only as evidence |
+| 40 | Simplified four-reference pilot | Repeated the unintended running-frame contract | Invalid request shape; retain only as evidence |
+| 41 | Standing subject plus target skeleton | Correct two-input, one-output requests still produce generic split strides; 17.7% height and 74px baseline spread | Reject pose obedience; do not run remaining nine |
 
 ---
 

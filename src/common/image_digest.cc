@@ -117,6 +117,13 @@ class Sha256 {
   uint64_t total_bytes_ = 0;
 };
 
+std::string EncodeDigest(const std::array<uint8_t, 32>& digest) {
+  std::ostringstream encoded;
+  encoded << std::hex << std::setfill('0');
+  for (const uint8_t byte : digest) encoded << std::setw(2) << static_cast<int>(byte);
+  return encoded.str();
+}
+
 }  // namespace
 
 bool IsLowercaseSha256Digest(std::string_view digest) {
@@ -128,6 +135,12 @@ bool IsLowercaseSha256Digest(std::string_view digest) {
     }
   }
   return true;
+}
+
+std::string Sha256Digest(std::string_view bytes) {
+  Sha256 sha256;
+  sha256.Update(reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size());
+  return EncodeDigest(sha256.Final());
 }
 
 absl::StatusOr<std::string> RgbaImageDigest(const RgbaImage& image) {
@@ -146,12 +159,7 @@ absl::StatusOr<std::string> RgbaImageDigest(const RgbaImage& image) {
   Sha256 sha256;
   sha256.Update(header.data(), header.size());
   sha256.Update(image.pixels.data(), image.pixels.size());
-  const std::array<uint8_t, 32> digest = sha256.Final();
-
-  std::ostringstream encoded;
-  encoded << std::hex << std::setfill('0');
-  for (const uint8_t byte : digest) encoded << std::setw(2) << static_cast<int>(byte);
-  return encoded.str();
+  return EncodeDigest(sha256.Final());
 }
 
 }  // namespace zebes

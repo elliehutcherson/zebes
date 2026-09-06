@@ -31,18 +31,24 @@ experiments/character_binding/
                         Blender adapter for body-plan evidence
   character_specs/     Blender family inputs
   puppet_specs/        explicit C++ layered-puppet inputs
+  editor_states/       tracked browser-editor authoring state
   evidence/            committed historical verdicts
   README.md
   FINDINGS.md
 
 src/artwork/layered_puppet.{h,cc}
 src/artwork/layered_puppet_diagnostics.{h,cc}
+src/artwork/layered_puppet_editor.{h,cc}
+src/artwork/layered_puppet_editor_state.{h,cc}
 src/artwork/semantic_layer_import.{h,cc}
 src/artwork/skeleton_rig_review.{h,cc}
 scripts/render_layered_puppet.cc
+scripts/serve_layered_puppet_editor.cc
 scripts/render_skeleton_rig_review.cc
 tests/artwork/layered_puppet_test.cc
 tests/artwork/layered_puppet_diagnostics_test.cc
+tests/artwork/layered_puppet_editor_test.cc
+tests/artwork/layered_puppet_editor_state_test.cc
 tests/artwork/semantic_layer_import_test.cc
 tests/artwork/skeleton_rig_review_test.cc
 ```
@@ -57,8 +63,32 @@ virtual environments, and model caches are not repository dependencies.
 cmake --preset dev
 cmake --build build/dev --target extract_profile_silhouette \
   render_profile_pose_control render_profile_pose_depth \
-  render_profile_deformation render_layered_puppet
+  render_profile_deformation render_layered_puppet serve_layered_puppet_editor
 ```
+
+The preferred interactive run editor is generated and served with:
+
+```bash
+build/dev/bin/render_layered_puppet \
+  --source=experiments/character_binding/out/interactive-run-source-v1.png \
+  --spec=experiments/character_binding/puppet_specs/mouse_interactive_run_v1.json \
+  --editor_reference_rig=experiments/character_binding/out/codex-pose-conditioning-v1/rig-bench.json \
+  --output=experiments/character_binding/out/interactive-run-editor-v1 \
+  --frame_size=48 \
+  --zoom=8
+build/dev/bin/serve_layered_puppet_editor \
+  --root=experiments/character_binding/out/interactive-run-editor-v1 \
+  --state=experiments/character_binding/editor_states/mouse_run_v1.json \
+  --contract=experiments/character_binding/out/interactive-run-editor-v1/editor-contract.json \
+  --port=8769
+```
+
+Open `http://127.0.0.1:8769/editor.html`. The 23-point Rig Bench skeleton is the
+only visible authoring rig; circular mapped joints drive the internal
+deformation controls. Browser storage is crash recovery, not repository state.
+Use **Save to Repo** to persist a validated change and **Revert from Repo** to
+discard the local draft. Keep the server bound to loopback and do not commit the
+generated editor directory.
 
 ## 1. Isolate and extract topology in C++
 

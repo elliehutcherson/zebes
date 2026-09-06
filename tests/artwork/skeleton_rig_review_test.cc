@@ -49,6 +49,10 @@ TEST(SkeletonRigReviewTest, ParsesAndMeasuresAlternatingCycle) {
   ASSERT_OK_AND_ASSIGN(const SkeletonRigClip* clip, FindSkeletonRigClip(rig, "run"));
   ASSERT_OK_AND_ASSIGN(const SkeletonRigClipMetrics metrics, MeasureSkeletonRigClip(rig, *clip));
   ASSERT_OK_AND_ASSIGN(const std::string html, RenderSkeletonRigReviewHtml(rig, *clip, 16, 16));
+  ASSERT_OK_AND_ASSIGN(const RgbaImage frame_image,
+                       RenderSkeletonRigFrameImage(rig, clip->frames.front(), 16, 16, 2));
+  ASSERT_OK_AND_ASSIGN(const RgbaImage sheet_image,
+                       RenderSkeletonRigSheetImage(rig, *clip, 16, 16, 2, 2));
 
   EXPECT_EQ(clip->frames.size(), 2);
   EXPECT_DOUBLE_EQ(metrics.hip_oscillation, 2.0);
@@ -56,6 +60,14 @@ TEST(SkeletonRigReviewTest, ParsesAndMeasuresAlternatingCycle) {
   EXPECT_TRUE(metrics.right_foot_leads);
   EXPECT_DOUBLE_EQ(metrics.maximum_bone_length_drift, 0.0);
   EXPECT_NE(html.find("const labels = [\"first\",\"second\"];"), std::string::npos);
+  ASSERT_TRUE(frame_image.IsValid());
+  EXPECT_EQ(frame_image.width, 32);
+  EXPECT_EQ(frame_image.height, 32);
+  const size_t hip_pixel = (static_cast<size_t>(10) * frame_image.width + 10) * 4;
+  EXPECT_EQ(frame_image.pixels[hip_pixel + 0], 0xEB);
+  EXPECT_EQ(frame_image.pixels[hip_pixel + 1], 0x46);
+  EXPECT_EQ(sheet_image.width, 64);
+  EXPECT_EQ(sheet_image.height, 32);
 }
 
 TEST(SkeletonRigReviewTest, RejectsIncompletePose) {
@@ -79,6 +91,8 @@ TEST(SkeletonRigReviewTest, CheckedInRunOwnsTwelveStableReferencePoses) {
   ASSERT_OK_AND_ASSIGN(const SkeletonRigClip* clip, FindSkeletonRigClip(rig, "run"));
   ASSERT_OK_AND_ASSIGN(const SkeletonRigClipMetrics metrics, MeasureSkeletonRigClip(rig, *clip));
 
+  EXPECT_EQ(rig.points.size(), 23);
+  EXPECT_EQ(rig.bones.size(), 22);
   ASSERT_EQ(clip->frames.size(), 12);
   EXPECT_EQ(clip->frames.front().label, "reference_01");
   EXPECT_EQ(clip->frames.back().label, "reference_12");
@@ -86,6 +100,12 @@ TEST(SkeletonRigReviewTest, CheckedInRunOwnsTwelveStableReferencePoses) {
   EXPECT_LE(metrics.maximum_bone_length_drift, 1.5);
   EXPECT_TRUE(metrics.left_foot_leads);
   EXPECT_TRUE(metrics.right_foot_leads);
+  for (const SkeletonRigFrame& frame : clip->frames) {
+    EXPECT_FALSE(frame.pose.contains("hip_l"));
+    EXPECT_FALSE(frame.pose.contains("hip_r"));
+    EXPECT_FALSE(frame.pose.contains("heel_l"));
+    EXPECT_FALSE(frame.pose.contains("heel_r"));
+  }
 }
 
 }  // namespace

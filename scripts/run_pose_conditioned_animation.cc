@@ -23,11 +23,11 @@
 
 ABSL_FLAG(std::string, asset_root, "assets",
           "Root containing config.json and managed SourceArtwork catalogs");
-ABSL_FLAG(std::string, manifest, "", "Locked schema-v1 pose-conditioned experiment manifest");
+ABSL_FLAG(std::string, manifest, "", "Locked schema-v3 pose-conditioned experiment manifest");
 ABSL_FLAG(std::string, phase, "", "Experiment phase: pilot or batch");
 ABSL_FLAG(std::string, output, "", "New directory for immutable experiment evidence");
 ABSL_FLAG(std::string, pilot_approval, "",
-          "Reviewed schema-v1 pilot approval; required only for batch");
+          "Reviewed schema-v2 pilot approval; required only for batch");
 
 namespace zebes {
 namespace {

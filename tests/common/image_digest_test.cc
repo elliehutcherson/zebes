@@ -28,6 +28,11 @@ TEST(ImageDigestTest, RejectsInvalidStorage) {
   EXPECT_FALSE(RgbaImageDigest(invalid).ok());
 }
 
+TEST(ImageDigestTest, DigestsCallerOwnedEncodedContracts) {
+  EXPECT_EQ(Sha256Digest("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+}
+
 TEST(ImageDigestTest, RecognizesOnlyCanonicalLowercaseSha256Text) {
   EXPECT_TRUE(IsLowercaseSha256Digest(std::string(64, '0')));
   EXPECT_TRUE(IsLowercaseSha256Digest(std::string(64, 'f')));

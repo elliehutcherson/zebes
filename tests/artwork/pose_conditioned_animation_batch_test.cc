@@ -220,7 +220,7 @@ absl::StatusOr<InputKit> WriteInputKit(const std::filesystem::path& root, int ou
   RETURN_IF_ERROR(WriteJson(
       manifest,
       {
-          {"schema_version", 1},
+          {"schema_version", 3},
           {"experiment_id", "pose-conditioned-run-v1"},
           {"animation_run_manifest", "animation-run.json"},
           {"identity_source", {{"path", "identity.png"}}},
@@ -266,21 +266,27 @@ absl::StatusOr<std::filesystem::path> RunPilotAndApprove(const std::filesystem::
                                         .phase = PoseConditionedAnimationPhase::kPilot}));
   ASSIGN_OR_RETURN(const nlohmann::json pilot_manifest, ReadJson(pilot / "manifest.json"));
   const std::filesystem::path approval = root / "pilot-approval.json";
-  RETURN_IF_ERROR(WriteJson(approval, {
-                                          {"schema_version", 1},
-                                          {"decision", "approved"},
-                                          {"reviewer", "test-reviewer"},
-                                          {"reviewed_at_utc", "2026-08-30T12:00:00Z"},
-                                          {"pilot_manifest", "pilot/manifest.json"},
-                                          {"pilot_run_id", pilot_manifest.at("run_id")},
-                                          {"checks",
-                                           {{"frame_0_fresh_single_render", true},
-                                            {"frame_0_identity_preserved", true},
-                                            {"frame_0_pose_obeyed", true},
-                                            {"frame_6_fresh_single_render", true},
-                                            {"frame_6_identity_preserved", true},
-                                            {"frame_6_pose_obeyed", true}}},
-                                      }));
+  RETURN_IF_ERROR(
+      WriteJson(approval, {
+                              {"schema_version", 2},
+                              {"decision", "approved"},
+                              {"reviewer", "test-reviewer"},
+                              {"reviewed_at_utc", "2026-08-30T12:00:00Z"},
+                              {"pilot_manifest", "pilot/manifest.json"},
+                              {"pilot_run_id", pilot_manifest.at("run_id")},
+                              {"checks", nlohmann::json::array({{{"frame_index", 3},
+                                                                 {"fresh_single_render", true},
+                                                                 {"identity_preserved", true},
+                                                                 {"pose_obeyed", true}},
+                                                                {{"frame_index", 6},
+                                                                 {"fresh_single_render", true},
+                                                                 {"identity_preserved", true},
+                                                                 {"pose_obeyed", true}},
+                                                                {{"frame_index", 10},
+                                                                 {"fresh_single_render", true},
+                                                                 {"identity_preserved", true},
+                                                                 {"pose_obeyed", true}}})},
+                          }));
   return approval;
 }
 
@@ -321,7 +327,7 @@ TEST_F(PoseConditionedAnimationBatchTest, MapsTheCodexAdapterToCanonicalResultPr
   EXPECT_EQ(evidence.at("requests")[0].at("provider"), "openai-codex");
 }
 
-TEST_F(PoseConditionedAnimationBatchTest, PilotSubmitsOnlyFreshFramesZeroAndSix) {
+TEST_F(PoseConditionedAnimationBatchTest, PilotSubmitsThreeSequentialTwoReferenceRequests) {
   ASSERT_OK_AND_ASSIGN(const InputKit inputs, WriteInputKit(root_));
   auto state = std::make_shared<FakeState>();
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<ImageGenerationService> service,
@@ -333,7 +339,7 @@ TEST_F(PoseConditionedAnimationBatchTest, PilotSubmitsOnlyFreshFramesZeroAndSix)
                                               .phase = PoseConditionedAnimationPhase::kPilot}));
 
   std::lock_guard lock(state->mutex);
-  ASSERT_EQ(state->requests.size(), 2);
+  ASSERT_EQ(state->requests.size(), 3);
   for (const ImageGenerationSpec& request : state->requests) {
     ASSERT_EQ(request.references.size(), 2);
     EXPECT_EQ(request.references[0].role, ImageGenerationReferenceRole::kSubjectIdentity);
@@ -341,14 +347,21 @@ TEST_F(PoseConditionedAnimationBatchTest, PilotSubmitsOnlyFreshFramesZeroAndSix)
     EXPECT_FALSE(request.negative_prompt.has_value());
     ASSERT_TRUE(request.instructions.has_value());
     EXPECT_NE(request.instructions->find("Negative requirements"), std::string::npos);
+    EXPECT_NE(request.prompt.find("The two reference images are ordered"), std::string::npos);
   }
   ASSERT_OK_AND_ASSIGN(const nlohmann::json manifest, ReadJson(root_ / "pilot/manifest.json"));
   EXPECT_EQ(manifest.at("phase"), "pilot");
   EXPECT_EQ(manifest.at("classification"), "non-candidate-evidence");
   EXPECT_FALSE(manifest.at("animation_candidate").get<bool>());
-  ASSERT_EQ(manifest.at("requests").size(), 2);
-  EXPECT_EQ(manifest.at("requests")[0].at("frame_index"), 0);
+  ASSERT_EQ(manifest.at("requests").size(), 3);
+  EXPECT_EQ(manifest.at("requests")[0].at("frame_index"), 3);
   EXPECT_EQ(manifest.at("requests")[1].at("frame_index"), 6);
+  EXPECT_EQ(manifest.at("requests")[2].at("frame_index"), 10);
+  EXPECT_FALSE(manifest.at("locked_request").contains("example_frame"));
+  EXPECT_FALSE(manifest.at("locked_request").contains("example_skeleton"));
+  EXPECT_EQ(manifest.at("requests")[0].at("reference_order"),
+            nlohmann::json::array({"standing-subject-identity", "target-skeleton"}));
+  EXPECT_EQ(manifest.at("requests")[0].at("reference_rgba_sha256").size(), 2);
   ASSERT_EQ(manifest.at("locked_request").at("pose_sheet").at("cells").size(), 12);
   EXPECT_EQ(manifest.at("locked_request").at("pose_sheet").at("width"), inputs.pose_sheet.width);
 }
@@ -375,7 +388,7 @@ TEST_F(PoseConditionedAnimationBatchTest, ApprovedBatchSubmitsAndAssemblesAllTwe
   ASSERT_EQ(manifest.at("requests").size(), 12);
   const nlohmann::json& cells = manifest.at("locked_request").at("pose_sheet").at("cells");
   for (size_t index = 0; index < state->requests.size(); ++index) {
-    EXPECT_NE(state->requests[index].prompt.find("Animation frame " + std::to_string(index)),
+    EXPECT_NE(state->requests[index].prompt.find("Animation frame " + std::to_string(index + 1)),
               std::string::npos);
     ASSERT_OK_AND_ASSIGN(const std::string pose_digest,
                          RgbaImageDigest(state->requests[index].references[1].image));
@@ -540,7 +553,7 @@ TEST_F(PoseConditionedAnimationBatchTest, ProviderMismatchRetainsRawFailureEvide
   EXPECT_EQ(manifest.at("requests")[0].at("provider"), "unexpected-fake");
   ASSERT_EQ(manifest.at("requests")[0].at("raw_outputs").size(), 1);
   EXPECT_TRUE(
-      std::filesystem::exists(root_ / "provider-mismatch/raw-outputs/frame-00-candidate-0.png"));
+      std::filesystem::exists(root_ / "provider-mismatch/raw-outputs/frame-03-candidate-0.png"));
 }
 
 TEST_F(PoseConditionedAnimationBatchTest,
@@ -560,19 +573,24 @@ TEST_F(PoseConditionedAnimationBatchTest,
                        ReadJson(root_ / "portrait-pilot/manifest.json"));
   ASSERT_OK(WriteJson(root_ / "portrait-approval.json",
                       {
-                          {"schema_version", 1},
+                          {"schema_version", 2},
                           {"decision", "approved"},
                           {"reviewer", "test-reviewer"},
                           {"reviewed_at_utc", "2026-08-30T12:00:00Z"},
                           {"pilot_manifest", "portrait-pilot/manifest.json"},
                           {"pilot_run_id", pilot.at("run_id")},
-                          {"checks",
-                           {{"frame_0_fresh_single_render", true},
-                            {"frame_0_identity_preserved", true},
-                            {"frame_0_pose_obeyed", true},
-                            {"frame_6_fresh_single_render", true},
-                            {"frame_6_identity_preserved", true},
-                            {"frame_6_pose_obeyed", true}}},
+                          {"checks", nlohmann::json::array({{{"frame_index", 3},
+                                                             {"fresh_single_render", true},
+                                                             {"identity_preserved", true},
+                                                             {"pose_obeyed", true}},
+                                                            {{"frame_index", 6},
+                                                             {"fresh_single_render", true},
+                                                             {"identity_preserved", true},
+                                                             {"pose_obeyed", true}},
+                                                            {{"frame_index", 10},
+                                                             {"fresh_single_render", true},
+                                                             {"identity_preserved", true},
+                                                             {"pose_obeyed", true}}})},
                       }));
   auto batch_state = std::make_shared<FakeState>();
   batch_state->output_width = 12;

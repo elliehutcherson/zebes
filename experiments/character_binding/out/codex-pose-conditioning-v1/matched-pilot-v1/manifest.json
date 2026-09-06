@@ -1,0 +1,649 @@
+{
+  "animation_candidate": false,
+  "artifacts": [
+    {
+      "height": 256,
+      "id": "subject-identity",
+      "metadata": {
+        "origin": {
+          "kind": "path",
+          "path": "skeleton-test/input-1-reference.png"
+        },
+        "role": "subject-identity"
+      },
+      "path": "inputs/subject-identity.png",
+      "rgba_sha256": "3e1794072458139017f5c667ffb8de5c8ae84ae3d860115ff4da573cc8151775",
+      "width": 256
+    },
+    {
+      "height": 256,
+      "id": "example-frame",
+      "metadata": {
+        "origin": {
+          "kind": "path",
+          "path": "skeleton-test/input-2-frame-up.png"
+        },
+        "pair": "example",
+        "role": "subject-identity"
+      },
+      "path": "inputs/example-frame.png",
+      "rgba_sha256": "cebb3d9208ff6e66fb5fc28d1355be8b2f967dfe02b33b271bfd12cc8aae2f96",
+      "width": 256
+    },
+    {
+      "height": 512,
+      "id": "example-skeleton",
+      "metadata": {
+        "origin": {
+          "kind": "path",
+          "path": "skeleton-test/input-3-skeleton-up.png"
+        },
+        "pair": "example",
+        "role": "pose"
+      },
+      "path": "inputs/example-skeleton.png",
+      "rgba_sha256": "5ade6242206c6c26d0448735fab436e9aa0d16361e9cfda38f25e73699eb8aa5",
+      "width": 512
+    },
+    {
+      "height": 1024,
+      "id": "pose-sheet",
+      "metadata": {
+        "origin": {
+          "kind": "path",
+          "path": "pilot-inputs/pose-sheet.png"
+        },
+        "role": "pose"
+      },
+      "path": "inputs/pose-sheet.png",
+      "rgba_sha256": "97f2817f2540c68911be26881db06486be2a4b4cd117cbbd19ed2164b64dc28a",
+      "width": 3072
+    },
+    {
+      "height": 512,
+      "id": "pose-0",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 0,
+          "y": 0
+        },
+        "frame_index": 0
+      },
+      "path": "inputs/poses/pose-00.png",
+      "rgba_sha256": "ed0ee1fbda473a0692b95229c269839e672749d6b29099a2bcd4b6839be9734b",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-1",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 512,
+          "y": 0
+        },
+        "frame_index": 1
+      },
+      "path": "inputs/poses/pose-01.png",
+      "rgba_sha256": "8ee1edcf3d1c75e9621db1b66d971114243bcbbdf06cca11f28a1803dba9cbb0",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-2",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 1024,
+          "y": 0
+        },
+        "frame_index": 2
+      },
+      "path": "inputs/poses/pose-02.png",
+      "rgba_sha256": "7b03c097451477310369b6627164f2e6f39d1646d16d41dc7c8e2157870b4982",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-3",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 1536,
+          "y": 0
+        },
+        "frame_index": 3
+      },
+      "path": "inputs/poses/pose-03.png",
+      "rgba_sha256": "d7ab5c1c3a6a443d29aa1ffaaedb42ad8874d28540141f94052047757e9845f4",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-4",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 2048,
+          "y": 0
+        },
+        "frame_index": 4
+      },
+      "path": "inputs/poses/pose-04.png",
+      "rgba_sha256": "49c9d7cece1c12f3ee7d5ada75c9b47b34cf30cf716ed3d633c2b41ebf85ef2b",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-5",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 2560,
+          "y": 0
+        },
+        "frame_index": 5
+      },
+      "path": "inputs/poses/pose-05.png",
+      "rgba_sha256": "fb2ca0a71a8dedba25fcce88f83d8a210b711e07443fa8e432738be7077e3821",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-6",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 0,
+          "y": 512
+        },
+        "frame_index": 6
+      },
+      "path": "inputs/poses/pose-06.png",
+      "rgba_sha256": "4c02092b3de7aef981446c69437aa194db6cb94548786d319312a0f80792d5fd",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-7",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 512,
+          "y": 512
+        },
+        "frame_index": 7
+      },
+      "path": "inputs/poses/pose-07.png",
+      "rgba_sha256": "9b6947054b668a72b743adad8791ebc2d1167af9f9f5d2e06ccecad8351d6d91",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-8",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 1024,
+          "y": 512
+        },
+        "frame_index": 8
+      },
+      "path": "inputs/poses/pose-08.png",
+      "rgba_sha256": "51b12277704d65001720aec79deb11048ce64be77340928f94407a3c71297cc3",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-9",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 1536,
+          "y": 512
+        },
+        "frame_index": 9
+      },
+      "path": "inputs/poses/pose-09.png",
+      "rgba_sha256": "a937a5b4b91a40452537f16f338ab9f5dce2313ef1f31077062690fe35bff422",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-10",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 2048,
+          "y": 512
+        },
+        "frame_index": 10
+      },
+      "path": "inputs/poses/pose-10.png",
+      "rgba_sha256": "f3481e6ea739b37c0613d8879dce38427bd0da628d4b25272aabcbde5a868708",
+      "width": 512
+    },
+    {
+      "height": 512,
+      "id": "pose-11",
+      "metadata": {
+        "crop": {
+          "height": 512,
+          "width": 512,
+          "x": 2560,
+          "y": 512
+        },
+        "frame_index": 11
+      },
+      "path": "inputs/poses/pose-11.png",
+      "rgba_sha256": "e307f555e7198ca89cbd0bfdd968ce4d0bf55386da75e0f4ba3f657ae5dd14ae",
+      "width": 512
+    },
+    {
+      "height": 1254,
+      "id": "raw-output-3-candidate-0",
+      "metadata": {
+        "candidate_index": 0,
+        "frame_index": 3,
+        "unmodified_provider_pixels": true
+      },
+      "path": "raw-outputs/frame-03-candidate-0.png",
+      "rgba_sha256": "30b85325f2088ec8202b8e1cf413d129034045c4f7c88b2125399c65f13bcce5",
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "id": "raw-output-6-candidate-0",
+      "metadata": {
+        "candidate_index": 0,
+        "frame_index": 6,
+        "unmodified_provider_pixels": true
+      },
+      "path": "raw-outputs/frame-06-candidate-0.png",
+      "rgba_sha256": "39419109438474ba961fb4e7fd5246ed07f851102d2d8d41e0af989bcd343b42",
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "id": "raw-output-10-candidate-0",
+      "metadata": {
+        "candidate_index": 0,
+        "frame_index": 10,
+        "unmodified_provider_pixels": true
+      },
+      "path": "raw-outputs/frame-10-candidate-0.png",
+      "rgba_sha256": "12e41f003c812191e945226d812b5423de19c04fc111d1a73570c7d8f7c8f00d",
+      "width": 1254
+    }
+  ],
+  "bundle": "pose-conditioned-animation-evidence",
+  "classification": "non-candidate-evidence",
+  "completed_at_utc": "2026-09-05T14:05:35Z",
+  "created_at_utc": "2026-09-05T14:02:45Z",
+  "failure": null,
+  "locked_request": {
+    "animation": {
+      "clip": "locomotion-right",
+      "frames_per_cycle": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "planted_frames": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "sheet": {
+        "cell_height": 1254,
+        "cell_width": 1254,
+        "column_gap": 0,
+        "columns": 6,
+        "grid_x": 0,
+        "grid_y": 0,
+        "row_gap": 0,
+        "rows": 2
+      }
+    },
+    "example_frame": {
+      "height": 256,
+      "origin": {
+        "kind": "path",
+        "path": "skeleton-test/input-2-frame-up.png"
+      },
+      "rgba_sha256": "cebb3d9208ff6e66fb5fc28d1355be8b2f967dfe02b33b271bfd12cc8aae2f96",
+      "role": "subject-identity",
+      "width": 256
+    },
+    "example_skeleton": {
+      "height": 512,
+      "origin": {
+        "kind": "path",
+        "path": "skeleton-test/input-3-skeleton-up.png"
+      },
+      "rgba_sha256": "5ade6242206c6c26d0448735fab436e9aa0d16361e9cfda38f25e73699eb8aa5",
+      "role": "pose",
+      "width": 512
+    },
+    "experiment_id": "codex-matched-skeleton-pilot-v1",
+    "generation": {
+      "expected_output": {
+        "height": 1254,
+        "width": 1254
+      },
+      "instructions": "Generate one untouched image-model result for a controlled character-pose experiment. Treat the ordered existing-frame and skeleton pair as the exact mapping between this character and the skeleton convention. Preserve the mouse identity, proportions, costume, palette, line quality, viewing direction, and scale. Follow the target skeleton for the pelvis, spine, head, both arms, both legs, and feet. Use the image-generation tool once and return its native pixels without any post-processing.",
+      "model": "gpt-5.6-sol",
+      "negative_requirements": "Do not copy the example pose. Do not omit, merge, or invent limbs. Do not draw skeleton lines, labels, text, a sprite sheet, a turnaround, scenery, shadows, or extra characters. Do not use ImageMagick, sips, Python imaging libraries, resizing, recanvasing, recoloring, quantization, or any other post-processing.",
+      "prompt": "Draw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.",
+      "provider": "codex",
+      "requested_candidates": 1,
+      "result_provider": "openai-codex",
+      "target_aspect": {
+        "height": 1,
+        "width": 1
+      },
+      "transparency": "no-preference"
+    },
+    "identity": {
+      "height": 256,
+      "origin": {
+        "kind": "path",
+        "path": "skeleton-test/input-1-reference.png"
+      },
+      "rgba_sha256": "3e1794072458139017f5c667ffb8de5c8ae84ae3d860115ff4da573cc8151775",
+      "role": "subject-identity",
+      "width": 256
+    },
+    "pose_sheet": {
+      "cells": [
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 0,
+            "y": 0
+          },
+          "frame_index": 0,
+          "rgba_sha256": "ed0ee1fbda473a0692b95229c269839e672749d6b29099a2bcd4b6839be9734b"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 512,
+            "y": 0
+          },
+          "frame_index": 1,
+          "rgba_sha256": "8ee1edcf3d1c75e9621db1b66d971114243bcbbdf06cca11f28a1803dba9cbb0"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 1024,
+            "y": 0
+          },
+          "frame_index": 2,
+          "rgba_sha256": "7b03c097451477310369b6627164f2e6f39d1646d16d41dc7c8e2157870b4982"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 1536,
+            "y": 0
+          },
+          "frame_index": 3,
+          "rgba_sha256": "d7ab5c1c3a6a443d29aa1ffaaedb42ad8874d28540141f94052047757e9845f4"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 2048,
+            "y": 0
+          },
+          "frame_index": 4,
+          "rgba_sha256": "49c9d7cece1c12f3ee7d5ada75c9b47b34cf30cf716ed3d633c2b41ebf85ef2b"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 2560,
+            "y": 0
+          },
+          "frame_index": 5,
+          "rgba_sha256": "fb2ca0a71a8dedba25fcce88f83d8a210b711e07443fa8e432738be7077e3821"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 0,
+            "y": 512
+          },
+          "frame_index": 6,
+          "rgba_sha256": "4c02092b3de7aef981446c69437aa194db6cb94548786d319312a0f80792d5fd"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 512,
+            "y": 512
+          },
+          "frame_index": 7,
+          "rgba_sha256": "9b6947054b668a72b743adad8791ebc2d1167af9f9f5d2e06ccecad8351d6d91"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 1024,
+            "y": 512
+          },
+          "frame_index": 8,
+          "rgba_sha256": "51b12277704d65001720aec79deb11048ce64be77340928f94407a3c71297cc3"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 1536,
+            "y": 512
+          },
+          "frame_index": 9,
+          "rgba_sha256": "a937a5b4b91a40452537f16f338ab9f5dce2313ef1f31077062690fe35bff422"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 2048,
+            "y": 512
+          },
+          "frame_index": 10,
+          "rgba_sha256": "f3481e6ea739b37c0613d8879dce38427bd0da628d4b25272aabcbde5a868708"
+        },
+        {
+          "crop": {
+            "height": 512,
+            "width": 512,
+            "x": 2560,
+            "y": 512
+          },
+          "frame_index": 11,
+          "rgba_sha256": "e307f555e7198ca89cbd0bfdd968ce4d0bf55386da75e0f4ba3f657ae5dd14ae"
+        }
+      ],
+      "height": 1024,
+      "layout": {
+        "cell_height": 512,
+        "cell_width": 512,
+        "column_gap": 0,
+        "columns": 6,
+        "grid_x": 0,
+        "grid_y": 0,
+        "row_gap": 0,
+        "rows": 2
+      },
+      "origin": {
+        "kind": "path",
+        "path": "pilot-inputs/pose-sheet.png"
+      },
+      "rgba_sha256": "97f2817f2540c68911be26881db06486be2a4b4cd117cbbd19ed2164b64dc28a",
+      "role": "pose",
+      "width": 3072
+    }
+  },
+  "phase": "pilot",
+  "pilot_approval": null,
+  "processing": null,
+  "requests": [
+    {
+      "completed_at_utc": "2026-09-05T14:03:38Z",
+      "composed_prompt": "Generate one untouched image-model result for a controlled character-pose experiment. Treat the ordered existing-frame and skeleton pair as the exact mapping between this character and the skeleton convention. Preserve the mouse identity, proportions, costume, palette, line quality, viewing direction, and scale. Follow the target skeleton for the pelvis, spine, head, both arms, both legs, and feet. Use the image-generation tool once and return its native pixels without any post-processing.\n\nNegative requirements:\nDo not copy the example pose. Do not omit, merge, or invent limbs. Do not draw skeleton lines, labels, text, a sprite sheet, a turnaround, scenery, shadows, or extra characters. Do not use ImageMagick, sips, Python imaging libraries, resizing, recanvasing, recoloring, quantization, or any other post-processing.\n\nReference inputs:\nReference 1 (subject-identity): preserve this subject's identity, proportions, design, palette, and identifying landmarks; do not copy the reference layout or pose.\nReference 2 (subject-identity): preserve this subject's identity, proportions, design, palette, and identifying landmarks; do not copy the reference layout or pose.\nReference 3 (pose): use only its pose, facing, limb geometry, and ground contact; do not copy its appearance, line style, or background.\nReference 4 (pose): use only its pose, facing, limb geometry, and ground contact; do not copy its appearance, line style, or background.\n\nSubject request:\nDraw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.\n\nThe four reference images are ordered: (1) approved character identity, (2) an existing frame of that character, (3) the skeleton matched to image 2, and (4) the target skeleton. Images 2 and 3 define how this skeleton maps to the character. Draw the character from image 2 in image 4's pose.\nAnimation frame 4 of 12. Render exactly one fresh right-facing character image. Do not return a sheet, turnaround, wireframe, skeleton, or edited reference board.",
+      "engine_request_id": 1,
+      "failure": null,
+      "frame_index": 3,
+      "model": "gpt-5.6-sol",
+      "provider": "openai-codex",
+      "provider_request_id": "01a071e1-0388-79a0-b0d3-19902b9cefca",
+      "raw_outputs": [
+        {
+          "candidate_index": 0,
+          "height": 1254,
+          "path": "raw-outputs/frame-03-candidate-0.png",
+          "revised_prompt": "Use case: stylized-concept\nAsset type: one square pixel-art animation frame, frame 4 of 12\nPrimary request: Generate exactly one fresh image of the same right-facing mouse character from Images 1 and 2, redrawn in the complete target running pose from Image 4.\nInput images:\n- Image 1: approved subject-identity reference. Preserve the mouse identity, proportions, character design, palette, identifying landmarks, costume, pixel-art line quality, viewing direction, and character scale. Do not copy its pose or layout.\n- Image 2: existing approved animation frame and subject-identity reference. Preserve this exact character. Together with Image 3, it defines the exact mapping between the character anatomy/costume and the skeleton convention. Do not copy Image 2's pose.\n- Image 3: pose skeleton matched to Image 2. Use only to understand how every skeleton joint and segment maps to this mouse's pelvis, spine, head, arms, legs, and feet. Do not render this skeleton and do not copy its pose.\n- Image 4: sole target pose. Follow its right-facing running pose exactly for pelvis position, torso/spine lean, head location and facing, both shoulders/arms/hands, both hips/legs/knees, both feet, and ground contact.\nScene/backdrop: plain solid white background only.\nSubject: one small anthropomorphic mouse facing right, with tan-brown fur, very large rounded pink inner ears, pointed muzzle, long thin tail, green hooded coat, red scarf, brown belt with small buckle, brown boots; identical design to Images 1 and 2.\nStyle/medium: crisp low-resolution hand-pixeled game sprite aesthetic matching Images 1 and 2 exactly; preserve their palette, clustered pixel shading, dark pixel outlines, proportions, detail density, and scale.\nComposition/framing: 1:1 square canvas; one complete character; no cropping; place the character according to the target skeleton and its ground line while keeping the sprite scale consistent with Images 1 and 2.\nPose fidelity: Treat the ordered Image 2 + Image 3 pair as the exact anatomical mapping, then transfer the character unchanged onto Image 4's pose. This is a controlled pose experiment. The target skeleton overrides the example-frame pose. Represent all four limbs distinctly and completely, including both arms, both hands/paws, both legs, and both boots/feet, with their bends and overlaps matching Image 4.\nConstraints: Output exactly one PNG image and one animation frame only. Preserve identity, proportions, costume, colors, line quality, right-facing view, and scale. Change the complete body pose to Image 4. Keep the long tail.\nAvoid: do not copy the example pose; do not omit, merge, duplicate, or invent limbs; no skeleton lines, joint markers, guides, labels, text, sprite sheet, turnaround, wireframe, reference board, scenery, cast shadows, extra characters, watermark, border, or transparent/checkerboard background.",
+          "rgba_sha256": "30b85325f2088ec8202b8e1cf413d129034045c4f7c88b2125399c65f13bcce5",
+          "width": 1254
+        }
+      ],
+      "reference_order": [
+        "subject-identity",
+        "example-frame",
+        "example-skeleton",
+        "target-skeleton"
+      ],
+      "reference_rgba_sha256": [
+        "3e1794072458139017f5c667ffb8de5c8ae84ae3d860115ff4da573cc8151775",
+        "cebb3d9208ff6e66fb5fc28d1355be8b2f967dfe02b33b271bfd12cc8aae2f96",
+        "5ade6242206c6c26d0448735fab436e9aa0d16361e9cfda38f25e73699eb8aa5",
+        "d7ab5c1c3a6a443d29aa1ffaaedb42ad8874d28540141f94052047757e9845f4"
+      ],
+      "request_prompt": "Draw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.\n\nThe four reference images are ordered: (1) approved character identity, (2) an existing frame of that character, (3) the skeleton matched to image 2, and (4) the target skeleton. Images 2 and 3 define how this skeleton maps to the character. Draw the character from image 2 in image 4's pose.\nAnimation frame 4 of 12. Render exactly one fresh right-facing character image. Do not return a sheet, turnaround, wireframe, skeleton, or edited reference board.",
+      "revised_prompt": "Use case: stylized-concept\nAsset type: one square pixel-art animation frame, frame 4 of 12\nPrimary request: Generate exactly one fresh image of the same right-facing mouse character from Images 1 and 2, redrawn in the complete target running pose from Image 4.\nInput images:\n- Image 1: approved subject-identity reference. Preserve the mouse identity, proportions, character design, palette, identifying landmarks, costume, pixel-art line quality, viewing direction, and character scale. Do not copy its pose or layout.\n- Image 2: existing approved animation frame and subject-identity reference. Preserve this exact character. Together with Image 3, it defines the exact mapping between the character anatomy/costume and the skeleton convention. Do not copy Image 2's pose.\n- Image 3: pose skeleton matched to Image 2. Use only to understand how every skeleton joint and segment maps to this mouse's pelvis, spine, head, arms, legs, and feet. Do not render this skeleton and do not copy its pose.\n- Image 4: sole target pose. Follow its right-facing running pose exactly for pelvis position, torso/spine lean, head location and facing, both shoulders/arms/hands, both hips/legs/knees, both feet, and ground contact.\nScene/backdrop: plain solid white background only.\nSubject: one small anthropomorphic mouse facing right, with tan-brown fur, very large rounded pink inner ears, pointed muzzle, long thin tail, green hooded coat, red scarf, brown belt with small buckle, brown boots; identical design to Images 1 and 2.\nStyle/medium: crisp low-resolution hand-pixeled game sprite aesthetic matching Images 1 and 2 exactly; preserve their palette, clustered pixel shading, dark pixel outlines, proportions, detail density, and scale.\nComposition/framing: 1:1 square canvas; one complete character; no cropping; place the character according to the target skeleton and its ground line while keeping the sprite scale consistent with Images 1 and 2.\nPose fidelity: Treat the ordered Image 2 + Image 3 pair as the exact anatomical mapping, then transfer the character unchanged onto Image 4's pose. This is a controlled pose experiment. The target skeleton overrides the example-frame pose. Represent all four limbs distinctly and completely, including both arms, both hands/paws, both legs, and both boots/feet, with their bends and overlaps matching Image 4.\nConstraints: Output exactly one PNG image and one animation frame only. Preserve identity, proportions, costume, colors, line quality, right-facing view, and scale. Change the complete body pose to Image 4. Keep the long tail.\nAvoid: do not copy the example pose; do not omit, merge, duplicate, or invent limbs; no skeleton lines, joint markers, guides, labels, text, sprite sheet, turnaround, wireframe, reference board, scenery, cast shadows, extra characters, watermark, border, or transparent/checkerboard background.",
+      "started_at_utc": "2026-09-05T14:02:45Z",
+      "status": "complete",
+      "submitted_prompt": "Draw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.\n\nThe four reference images are ordered: (1) approved character identity, (2) an existing frame of that character, (3) the skeleton matched to image 2, and (4) the target skeleton. Images 2 and 3 define how this skeleton maps to the character. Draw the character from image 2 in image 4's pose.\nAnimation frame 4 of 12. Render exactly one fresh right-facing character image. Do not return a sheet, turnaround, wireframe, skeleton, or edited reference board."
+    },
+    {
+      "completed_at_utc": "2026-09-05T14:04:35Z",
+      "composed_prompt": "Generate one untouched image-model result for a controlled character-pose experiment. Treat the ordered existing-frame and skeleton pair as the exact mapping between this character and the skeleton convention. Preserve the mouse identity, proportions, costume, palette, line quality, viewing direction, and scale. Follow the target skeleton for the pelvis, spine, head, both arms, both legs, and feet. Use the image-generation tool once and return its native pixels without any post-processing.\n\nNegative requirements:\nDo not copy the example pose. Do not omit, merge, or invent limbs. Do not draw skeleton lines, labels, text, a sprite sheet, a turnaround, scenery, shadows, or extra characters. Do not use ImageMagick, sips, Python imaging libraries, resizing, recanvasing, recoloring, quantization, or any other post-processing.\n\nReference inputs:\nReference 1 (subject-identity): preserve this subject's identity, proportions, design, palette, and identifying landmarks; do not copy the reference layout or pose.\nReference 2 (subject-identity): preserve this subject's identity, proportions, design, palette, and identifying landmarks; do not copy the reference layout or pose.\nReference 3 (pose): use only its pose, facing, limb geometry, and ground contact; do not copy its appearance, line style, or background.\nReference 4 (pose): use only its pose, facing, limb geometry, and ground contact; do not copy its appearance, line style, or background.\n\nSubject request:\nDraw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.\n\nThe four reference images are ordered: (1) approved character identity, (2) an existing frame of that character, (3) the skeleton matched to image 2, and (4) the target skeleton. Images 2 and 3 define how this skeleton maps to the character. Draw the character from image 2 in image 4's pose.\nAnimation frame 7 of 12. Render exactly one fresh right-facing character image. Do not return a sheet, turnaround, wireframe, skeleton, or edited reference board.",
+      "engine_request_id": 2,
+      "failure": null,
+      "frame_index": 6,
+      "model": "gpt-5.6-sol",
+      "provider": "openai-codex",
+      "provider_request_id": "01a071e1-d1ee-7fe0-a84e-ec92371b036c",
+      "raw_outputs": [
+        {
+          "candidate_index": 0,
+          "height": 1254,
+          "path": "raw-outputs/frame-06-candidate-0.png",
+          "revised_prompt": "Use case: stylized-concept\nAsset type: single animation frame, frame 7 of 12\nPrimary request: Generate exactly one fresh square PNG of the same right-facing mouse character from Images 1 and 2, redrawn in the complete target running pose from Image 4.\nInput-image roles and ordered mapping:\n- Image 1: approved subject identity. Preserve the mouse identity, proportions, facial landmarks, costume design, palette, pixel-art linework, and scale; do not copy its pose or layout.\n- Image 2: existing approved character frame. Preserve this exact right-facing character appearance: small tan/brown mouse, large rounded pink inner ears, pointed snout and whiskers, dark green hooded knee-length coat, vivid red neck scarf, brown belt with small gold buckle, brown boots, and long thin tail. Do not copy its pose.\n- Image 3: skeleton matched exactly to Image 2. Use only to learn the precise mapping from skeleton joints/segments to this character’s pelvis, spine, head, both arms, both legs, feet, tail-bearing body, viewing direction, and ground contact. Do not render any of Image 3.\n- Image 4: target skeleton. Transfer the full learned character-to-skeleton mapping to this skeleton exactly. Follow its pelvis, angled spine, elevated head, both arms, both legs, bent knees, feet, facing direction, and ground contact.\nScene/backdrop: plain pure white background only.\nSubject: one complete, unobscured right-facing mouse, with exactly two ears, two arms/hands, two legs/feet in brown boots, and one long thin tail.\nStyle/medium: crisp low-resolution retro pixel-art animation sprite matching Images 1 and 2 exactly in palette, pixel size, edge treatment, outlines, shading, and line quality. Preserve the same compact character scale and proportions.\nComposition/framing: centered single character on a square 1:1 canvas, fully visible with comfortable white margins; target running pose must clearly differ from Image 2 and match Image 4.\nConstraints: Preserve identity, right-facing viewing direction, proportions, costume, palette, line quality, and scale. Use the ordered Image 2 + Image 3 pair as the exact character-to-skeleton convention, then pose the character from Image 2 according to Image 4. Coat and scarf should deform naturally with the pose without hiding limb placement. Keep all limbs distinct and anatomically connected.\nAvoid: copying either example character pose; omitted, merged, duplicated, or invented limbs; skeleton lines or joint squares; labels; text; sprite sheet; turnaround; wireframe; reference board; scenery; floor line; shadows; extra characters; extra objects; transparency; borders; watermark. Return one image only.",
+          "rgba_sha256": "39419109438474ba961fb4e7fd5246ed07f851102d2d8d41e0af989bcd343b42",
+          "width": 1254
+        }
+      ],
+      "reference_order": [
+        "subject-identity",
+        "example-frame",
+        "example-skeleton",
+        "target-skeleton"
+      ],
+      "reference_rgba_sha256": [
+        "3e1794072458139017f5c667ffb8de5c8ae84ae3d860115ff4da573cc8151775",
+        "cebb3d9208ff6e66fb5fc28d1355be8b2f967dfe02b33b271bfd12cc8aae2f96",
+        "5ade6242206c6c26d0448735fab436e9aa0d16361e9cfda38f25e73699eb8aa5",
+        "4c02092b3de7aef981446c69437aa194db6cb94548786d319312a0f80792d5fd"
+      ],
+      "request_prompt": "Draw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.\n\nThe four reference images are ordered: (1) approved character identity, (2) an existing frame of that character, (3) the skeleton matched to image 2, and (4) the target skeleton. Images 2 and 3 define how this skeleton maps to the character. Draw the character from image 2 in image 4's pose.\nAnimation frame 7 of 12. Render exactly one fresh right-facing character image. Do not return a sheet, turnaround, wireframe, skeleton, or edited reference board.",
+      "revised_prompt": "Use case: stylized-concept\nAsset type: single animation frame, frame 7 of 12\nPrimary request: Generate exactly one fresh square PNG of the same right-facing mouse character from Images 1 and 2, redrawn in the complete target running pose from Image 4.\nInput-image roles and ordered mapping:\n- Image 1: approved subject identity. Preserve the mouse identity, proportions, facial landmarks, costume design, palette, pixel-art linework, and scale; do not copy its pose or layout.\n- Image 2: existing approved character frame. Preserve this exact right-facing character appearance: small tan/brown mouse, large rounded pink inner ears, pointed snout and whiskers, dark green hooded knee-length coat, vivid red neck scarf, brown belt with small gold buckle, brown boots, and long thin tail. Do not copy its pose.\n- Image 3: skeleton matched exactly to Image 2. Use only to learn the precise mapping from skeleton joints/segments to this character’s pelvis, spine, head, both arms, both legs, feet, tail-bearing body, viewing direction, and ground contact. Do not render any of Image 3.\n- Image 4: target skeleton. Transfer the full learned character-to-skeleton mapping to this skeleton exactly. Follow its pelvis, angled spine, elevated head, both arms, both legs, bent knees, feet, facing direction, and ground contact.\nScene/backdrop: plain pure white background only.\nSubject: one complete, unobscured right-facing mouse, with exactly two ears, two arms/hands, two legs/feet in brown boots, and one long thin tail.\nStyle/medium: crisp low-resolution retro pixel-art animation sprite matching Images 1 and 2 exactly in palette, pixel size, edge treatment, outlines, shading, and line quality. Preserve the same compact character scale and proportions.\nComposition/framing: centered single character on a square 1:1 canvas, fully visible with comfortable white margins; target running pose must clearly differ from Image 2 and match Image 4.\nConstraints: Preserve identity, right-facing viewing direction, proportions, costume, palette, line quality, and scale. Use the ordered Image 2 + Image 3 pair as the exact character-to-skeleton convention, then pose the character from Image 2 according to Image 4. Coat and scarf should deform naturally with the pose without hiding limb placement. Keep all limbs distinct and anatomically connected.\nAvoid: copying either example character pose; omitted, merged, duplicated, or invented limbs; skeleton lines or joint squares; labels; text; sprite sheet; turnaround; wireframe; reference board; scenery; floor line; shadows; extra characters; extra objects; transparency; borders; watermark. Return one image only.",
+      "started_at_utc": "2026-09-05T14:03:39Z",
+      "status": "complete",
+      "submitted_prompt": "Draw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.\n\nThe four reference images are ordered: (1) approved character identity, (2) an existing frame of that character, (3) the skeleton matched to image 2, and (4) the target skeleton. Images 2 and 3 define how this skeleton maps to the character. Draw the character from image 2 in image 4's pose.\nAnimation frame 7 of 12. Render exactly one fresh right-facing character image. Do not return a sheet, turnaround, wireframe, skeleton, or edited reference board."
+    },
+    {
+      "completed_at_utc": "2026-09-05T14:05:34Z",
+      "composed_prompt": "Generate one untouched image-model result for a controlled character-pose experiment. Treat the ordered existing-frame and skeleton pair as the exact mapping between this character and the skeleton convention. Preserve the mouse identity, proportions, costume, palette, line quality, viewing direction, and scale. Follow the target skeleton for the pelvis, spine, head, both arms, both legs, and feet. Use the image-generation tool once and return its native pixels without any post-processing.\n\nNegative requirements:\nDo not copy the example pose. Do not omit, merge, or invent limbs. Do not draw skeleton lines, labels, text, a sprite sheet, a turnaround, scenery, shadows, or extra characters. Do not use ImageMagick, sips, Python imaging libraries, resizing, recanvasing, recoloring, quantization, or any other post-processing.\n\nReference inputs:\nReference 1 (subject-identity): preserve this subject's identity, proportions, design, palette, and identifying landmarks; do not copy the reference layout or pose.\nReference 2 (subject-identity): preserve this subject's identity, proportions, design, palette, and identifying landmarks; do not copy the reference layout or pose.\nReference 3 (pose): use only its pose, facing, limb geometry, and ground contact; do not copy its appearance, line style, or background.\nReference 4 (pose): use only its pose, facing, limb geometry, and ground contact; do not copy its appearance, line style, or background.\n\nSubject request:\nDraw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.\n\nThe four reference images are ordered: (1) approved character identity, (2) an existing frame of that character, (3) the skeleton matched to image 2, and (4) the target skeleton. Images 2 and 3 define how this skeleton maps to the character. Draw the character from image 2 in image 4's pose.\nAnimation frame 11 of 12. Render exactly one fresh right-facing character image. Do not return a sheet, turnaround, wireframe, skeleton, or edited reference board.",
+      "engine_request_id": 3,
+      "failure": null,
+      "frame_index": 10,
+      "model": "gpt-5.6-sol",
+      "provider": "openai-codex",
+      "provider_request_id": "01a071e2-adec-78b1-a577-de2ae17a6d4f",
+      "raw_outputs": [
+        {
+          "candidate_index": 0,
+          "height": 1254,
+          "path": "raw-outputs/frame-10-candidate-0.png",
+          "revised_prompt": "Use case: stylized-concept\nAsset type: single pixel-art game animation frame, frame 11 of 12\nPrimary request: Generate exactly one fresh, standalone image of the same right-facing mouse character from Images 1 and 2, redrawn in the complete target running pose encoded by Image 4.\nInput images and exact roles:\n- Image 1: approved subject-identity reference only. Preserve this mouse's identity, proportions, costume design, palette, pixel line quality, viewing direction, scale, and identifying landmarks; do not copy its pose or layout.\n- Image 2: existing approved character frame and subject-identity reference. Preserve this exact right-facing mouse design and rendering language; do not copy its pose.\n- Image 3: pose skeleton matched exactly to the character pose in Image 2. Together, Images 2 and 3 define the exact mapping from every colored skeleton segment and joint to this character's pelvis, spine, head, both arms, both legs, and feet. Use it only to learn that mapping.\n- Image 4: target pose skeleton. Apply the mapping learned from the ordered Image 2 + Image 3 pair to place the full character in Image 4's pose, facing direction, limb geometry, and ground-contact relationship. Do not render the skeleton.\nSubject: the identical small anthropomorphic mouse, right-facing side view, with tan-and-brown fur, very large rounded pink inner ears, pointed snout, tiny dark eye, whiskers, long thin tail, dark moss-green hooded coat, red scarf, brown buckled belt, brown gloves/paws, and brown boots. Maintain the same compact proportions, costume construction, folds, pixels, outlines, and limited palette as the approved frames.\nPose: follow Image 4 precisely for pelvis position, spine angle, head placement and facing, both shoulders and elbows, both hands, both hips and knees, both ankles and feet, and the long tail's body attachment. This must be the target running pose, not the example pose from Image 2 or Image 3. Keep every limb distinct, anatomically connected, and visible according to the target geometry.\nStyle/medium: crisp hand-authored retro pixel art matching Images 1 and 2 exactly; hard pixel clusters, compact sprite-scale detail, controlled limited colors, no smoothing, no painterly rendering, no vector look.\nScene/backdrop: plain solid white background only.\nComposition/framing: one complete full-body character, centered in a square 1:1 canvas with comfortable margins, matching the subject scale of the identity frames; no cropping.\nConstraints: one character only; preserve mouse identity, proportions, costume, palette, line quality, right-facing direction, and scale; use Image 4's complete pose; render all four limbs and both feet separately and correctly; output exactly one PNG at the image model's native pixels, untouched.\nAvoid: copying the example pose; omitted, merged, duplicated, or invented limbs; skeleton lines or joints; labels; any text; sprite sheet; animation strip; turnaround; reference board; wireframe; scenery; props; borders; shadows; reflections; extra characters; watermark; transparency; post-processing effects.",
+          "rgba_sha256": "12e41f003c812191e945226d812b5423de19c04fc111d1a73570c7d8f7c8f00d",
+          "width": 1254
+        }
+      ],
+      "reference_order": [
+        "subject-identity",
+        "example-frame",
+        "example-skeleton",
+        "target-skeleton"
+      ],
+      "reference_rgba_sha256": [
+        "3e1794072458139017f5c667ffb8de5c8ae84ae3d860115ff4da573cc8151775",
+        "cebb3d9208ff6e66fb5fc28d1355be8b2f967dfe02b33b271bfd12cc8aae2f96",
+        "5ade6242206c6c26d0448735fab436e9aa0d16361e9cfda38f25e73699eb8aa5",
+        "f3481e6ea739b37c0613d8879dce38427bd0da628d4b25272aabcbde5a868708"
+      ],
+      "request_prompt": "Draw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.\n\nThe four reference images are ordered: (1) approved character identity, (2) an existing frame of that character, (3) the skeleton matched to image 2, and (4) the target skeleton. Images 2 and 3 define how this skeleton maps to the character. Draw the character from image 2 in image 4's pose.\nAnimation frame 11 of 12. Render exactly one fresh right-facing character image. Do not return a sheet, turnaround, wireframe, skeleton, or edited reference board.",
+      "revised_prompt": "Use case: stylized-concept\nAsset type: single pixel-art game animation frame, frame 11 of 12\nPrimary request: Generate exactly one fresh, standalone image of the same right-facing mouse character from Images 1 and 2, redrawn in the complete target running pose encoded by Image 4.\nInput images and exact roles:\n- Image 1: approved subject-identity reference only. Preserve this mouse's identity, proportions, costume design, palette, pixel line quality, viewing direction, scale, and identifying landmarks; do not copy its pose or layout.\n- Image 2: existing approved character frame and subject-identity reference. Preserve this exact right-facing mouse design and rendering language; do not copy its pose.\n- Image 3: pose skeleton matched exactly to the character pose in Image 2. Together, Images 2 and 3 define the exact mapping from every colored skeleton segment and joint to this character's pelvis, spine, head, both arms, both legs, and feet. Use it only to learn that mapping.\n- Image 4: target pose skeleton. Apply the mapping learned from the ordered Image 2 + Image 3 pair to place the full character in Image 4's pose, facing direction, limb geometry, and ground-contact relationship. Do not render the skeleton.\nSubject: the identical small anthropomorphic mouse, right-facing side view, with tan-and-brown fur, very large rounded pink inner ears, pointed snout, tiny dark eye, whiskers, long thin tail, dark moss-green hooded coat, red scarf, brown buckled belt, brown gloves/paws, and brown boots. Maintain the same compact proportions, costume construction, folds, pixels, outlines, and limited palette as the approved frames.\nPose: follow Image 4 precisely for pelvis position, spine angle, head placement and facing, both shoulders and elbows, both hands, both hips and knees, both ankles and feet, and the long tail's body attachment. This must be the target running pose, not the example pose from Image 2 or Image 3. Keep every limb distinct, anatomically connected, and visible according to the target geometry.\nStyle/medium: crisp hand-authored retro pixel art matching Images 1 and 2 exactly; hard pixel clusters, compact sprite-scale detail, controlled limited colors, no smoothing, no painterly rendering, no vector look.\nScene/backdrop: plain solid white background only.\nComposition/framing: one complete full-body character, centered in a square 1:1 canvas with comfortable margins, matching the subject scale of the identity frames; no cropping.\nConstraints: one character only; preserve mouse identity, proportions, costume, palette, line quality, right-facing direction, and scale; use Image 4's complete pose; render all four limbs and both feet separately and correctly; output exactly one PNG at the image model's native pixels, untouched.\nAvoid: copying the example pose; omitted, merged, duplicated, or invented limbs; skeleton lines or joints; labels; any text; sprite sheet; animation strip; turnaround; reference board; wireframe; scenery; props; borders; shadows; reflections; extra characters; watermark; transparency; post-processing effects.",
+      "started_at_utc": "2026-09-05T14:04:35Z",
+      "status": "complete",
+      "submitted_prompt": "Draw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.\n\nThe four reference images are ordered: (1) approved character identity, (2) an existing frame of that character, (3) the skeleton matched to image 2, and (4) the target skeleton. Images 2 and 3 define how this skeleton maps to the character. Draw the character from image 2 in image 4's pose.\nAnimation frame 11 of 12. Render exactly one fresh right-facing character image. Do not return a sheet, turnaround, wireframe, skeleton, or edited reference board."
+    }
+  ],
+  "run_id": "16d0329d-265f-49ca-b9ba-27ec51809866",
+  "schema_version": 1,
+  "status": "complete"
+}

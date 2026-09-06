@@ -89,6 +89,7 @@ target_link_libraries(render_layered_puppet
   image_digest
   image_io
   layered_puppet
+  layered_puppet_editor
   layered_puppet_diagnostics
   semantic_layer_import
   status_macros
@@ -100,6 +101,20 @@ target_link_libraries(render_layered_puppet
   nlohmann_json::nlohmann_json
 )
 
+add_executable(serve_layered_puppet_editor serve_layered_puppet_editor.cc)
+target_link_libraries(serve_layered_puppet_editor
+  PRIVATE
+  layered_puppet_editor_state
+  resource_utils
+  status_macros
+  absl::flat_hash_map
+  absl::flags
+  absl::flags_parse
+  absl::status
+  absl::statusor
+  absl::strings
+)
+
 add_executable(render_skeleton_rig_review render_skeleton_rig_review.cc)
 target_link_libraries(render_skeleton_rig_review
   PRIVATE
@@ -107,6 +122,7 @@ target_link_libraries(render_skeleton_rig_review
   status_macros
   absl::flags
   absl::flags_parse
+  absl::str_format
 )
 
 add_library(animation_artwork_run_manifest animation_artwork_run_manifest.cc)

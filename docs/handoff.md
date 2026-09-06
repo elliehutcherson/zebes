@@ -1,6 +1,6 @@
 # Active handoff
 
-Updated 2026-09-04. [`roadmap.md`](roadmap.md) owns sequencing; this file is the
+Updated 2026-09-06. [`roadmap.md`](roadmap.md) owns sequencing; this file is the
 short resume point. Completed narratives live in [`history/`](history/README.md).
 
 ## Current state
@@ -14,14 +14,11 @@ Two tracks proceed independently:
   findings. Remaining silhouette variation is non-blocking content polish.
 - **Track 5 — runtime/animation.** Runtime Milestones 1–3, pure frame-set
   processing, recipe/bundle lifecycle, and headless animation curation are
-  complete. The stable six-state mouse asset graph remains valid, but human
-  review rejected the authored Blender mouse's flat primitive style. The latest
-  `semantic-arm-immutable-coat-v1` candidate keeps the accepted generated coat
-  byte-for-byte unchanged instead of stretching it into the arm footprint.
-  Coat RGB/alpha and digest match exactly, neutral remains exact, passing is a
-  reachable bent arm, and its shadow is a separate tonal effect. The existing
-  149-orphan and four-airborne-fold gates remain intentionally red; the second
-  arm and legs remain deferred.
+  complete. Human review still blocks the production player-art gate. The
+  separate interactive mangled-pose experiment is now complete: it binds both
+  arms and legs, uses the exact twelve-frame Rig Bench clip as its visible
+  authoring skeleton, persists validated repository state, and exports rough
+  cleanup inputs. It is experiment tooling, not a production puppet.
 
 The reusable ordered-reference generation boundary remains supported for
 OpenAI, Codex, headless generation, and redraw; it is not an animation roadmap
@@ -29,6 +26,19 @@ item. The deprecated evidence is indexed under
 [`history/`](history/README.md).
 
 ## Pick up next
+
+### Track 5: clean completed animation-experiment debt
+
+The next workstream is cleanup, owned by a fresh agent. Do not add editor
+features or resume provider requests. Preserve the accepted authoring contracts:
+the tracked source/spec/state triplet, exact 23-point Rig Bench clip, twelve
+canonical frames, front/rear arm ownership, repository save validation, and
+transparent PNG export.
+
+Start with **Cleanup owed from the animation experiments** below. Bound each
+deletion through CMake consumers and focused tests; generated outputs and
+diagnostic-only tools should not survive merely because this experiment used
+them.
 
 ### Track 5: finish the layered player-art gate
 
@@ -59,6 +69,58 @@ The ARAP-first plan remains withdrawn. The latest candidate follows
 
 Review frames by tinting the moved part, never by eye — see "How to review this
 without getting it wrong" in the experiment doc.
+
+### Track 5: interactive mangled-pose authoring
+
+The preferred `mouse_interactive_run_v1.json` uses the human-selected
+`reference_07` generated run frame retained as `interactive-run-source-v1.png`.
+Human correction established that the screen-left arm is the **front** arm and
+the screen-right arm is the **rear** arm. Part names, bone mappings, and draw
+order encode rear arm, both legs, visible body/coat, then front arm. The
+canonical blue/orange motion tracks remain attached to their original physical
+limbs across all twelve frames.
+
+`layered_puppet_editor` provides twelve-frame dropdown, previous/next controls,
+8 FPS playback, three edit modes, 1–6× zoom, mesh paint/erase, and transparent
+256px PNG export. `Move pose joints` deforms the composite.
+`Calibrate source joints` moves the bind skeleton over an unchanged source
+image. `Define attachment mesh` supplies a full-canvas 4px triangle grid for
+each arm or leg; the traced region is only an initial seed. Green means painted
+mesh and no overlay means no mesh. Pose rendering removes only painted
+triangles from the static source, then deforms those exact source pixels.
+
+The exact 23-point / 22-bone `rig-bench.json` clip is the only visible
+authoring skeleton and follows the selected frame in every edit mode. Thirteen
+mapped joints render as draggable circular handles and drive the internal mesh
+controls; the remaining exact reference points render as colored squares. The
+reduced 13-joint control still exists internally but has no separate blue
+overlay or UI toggle. Frames with no saved override show `Canonical`; the first
+pose-joint edit changes only that frame to `Authored`. Only authored frames are
+written under `frame_overrides`.
+
+Durable authored state lives at
+`experiments/character_binding/editor_states/mouse_run_v1.json`. The C++
+loopback `serve_layered_puppet_editor` validates it against generated source
+and puppet-contract digests and writes it atomically. Browser edits remain a
+local crash-recovery draft until **Save to Repo**; **Revert from Repo** restores
+the tracked state. Mismatched source/topology saves return 409 without changing
+the file.
+
+The user chooses which canonical frame the source represents. **Set anchor and
+regenerate** applies each canonical joint's vector delta from that anchor to the
+authored source joints. The anchor frame stays exact; individual frame edits
+are stored as offsets. Re-anchoring clears those offsets after confirmation but
+preserves source calibration and painted meshes.
+
+Browser verification re-anchored from `reference_07` to `reference_04`, checked
+the exact anchor and derived joint delta, navigated and played frames, saved and
+reloaded a painted mesh through the repository service, rejected a mismatched
+contract, and restored the tracked `reference_07` baseline. It verified all 23
+original points and 22 bones, exact per-frame reference changes, canonical
+versus authored state, corrected screen-left/front and screen-right/rear
+mapping, and image deformation through a mapped reference handle. The reduced
+blue skeleton and its toggle are absent. Only the 8769 C++ editor service should
+run.
 
 ### Track 5: Codex pose conditioning (parallel experiment)
 
@@ -91,32 +153,42 @@ bones drive nothing and the striding legs in the pose data render nothing.
 
 **The tool.** A skeleton animation editor is published as an Artifact:
 `https://claude.ai/code/artifact/6ad9861a-8782-4aaa-a7c3-3c1be17af5cb`
-("Puppet Rig Bench"). It owns named clips of ordered frames over one shared
-27-point / 26-bone skeleton, a draggable floor, add/delete for points and bones,
-bone lengths that apply across every frame of a clip, playback, per-frame
-tracing underlays, and a cycle check that reports hip oscillation and whether
-the lead foot alternates. It exports the clip and a COCO-18 form, and persists
-to the artifact's document store at `rig/bench`, so poses can be read back
-without pasting. `out/codex-pose-conditioning-v1/rig-bench.json` is a snapshot.
+("Puppet Rig Bench"). It originally owned named clips over one shared
+27-point / 26-bone skeleton, a draggable floor, point and bone editing,
+cross-frame length constraints, playback, tracing underlays, and cycle checks.
+It exports the clip and a COCO-18 form and persists at `rig/bench`.
+`out/codex-pose-conditioning-v1/rig-bench.json` is now the repository snapshot;
+its current simplified topology has 23 points and 22 bones.
 
-The repository-owned `render_skeleton_rig_review` C++ tool now parses and
-validates that snapshot, measures cycle invariants, and emits a standalone
-animated HTML review page. It is the reproducible review path when the external
-Artifact is unavailable.
+The repository-owned `render_skeleton_rig_review` C++ tool parses and validates
+that snapshot, measures cycle invariants, emits a standalone animated HTML
+review, and renders 512px PNG guides with the successful matched skeleton's
+exact palette and marker convention.
 
 The bind pose was traced by hand from the generated `up` frame and verified
 against the art; it owns the character's proportions and every new frame starts
 as a copy of it. The earlier procedural seeds were deleted — they produced 13px
 shins on a 195px figure.
 
-**Pick up here.** The `run` clip now has twelve complete poses mapped
-left-to-right across both rows of the supplied running reference. Every frame
-poses the head, spine, arms, legs, feet, and tail while retaining the traced
-mouse proportions. The C++ review gate reports 17 px of hip oscillation,
-alternating lead feet, and 1.07 px maximum integer-coordinate bone-length
-drift. Human review accepted the skeleton set on 2026-09-05. The next gate is
-a small Codex obedience pilot before spending quota on all twelve poses;
-production frame count remains a later runtime/content decision.
+**Pick up here.** The `run` clip has twelve complete poses mapped left-to-right
+across both rows of the supplied running reference. Its simplified 23-point /
+22-bone topology removes both lateral hips and both heels, connects knees
+directly to `hip_c`, and retains toes for foot direction. The C++ review gate
+reports 17 px of hip oscillation, alternating lead feet, and 1.00 px maximum
+integer-coordinate bone-length drift.
+
+The first two retained pilots are misconfigured for the intended experiment:
+`matched-pilot-v1/` and `matched-pilot-v2-simplified/` supplied an existing
+running frame and its skeleton in addition to the standing identity and target.
+They are retained as evidence but do not test the requested input contract.
+
+`standing-skeleton-pilot-v3/` corrects the boundary. Each of three sequential
+requests supplied exactly two images—standing subject, then target skeleton—and
+requested one output. All returned untouched native 1254px images. Pose control
+still fails: figure height varies by 17.7%, baseline by 74 px in the wrong phase
+order, frame 3 and frame 10 overlap at 0.745 IoU, and the high recovery target
+is another grounded split stride. Engineering review blocks the remaining nine
+requests; human comparison review is pending.
 
 ### Track 4: finite content polish
 
@@ -150,8 +222,15 @@ order, and collider counts; finish with the complete route gate.
 - [`character-layer-deformation-experiment.md`](character-layer-deformation-experiment.md):
   the measured layered-puppet problems, the fix order, and the fallbacks.
 
-## Cleanup owed from the Codex pose-conditioning session
+## Cleanup owed from the animation experiments
 
+- `layered_puppet_editor.cc` owns the generated browser client as one large raw
+  literal. Split only along an existing build boundary or introduce a tested
+  asset-embedding step; do not create a second hand-maintained client.
+- The exact 23-point authoring rig reaches the 13-joint deformation model
+  through `kReferenceJointMapping`. Give that mapping one validated data owner
+  before supporting another rig; preserve current names and image-space arm
+  ownership during the cleanup.
 - `build/codex-run-sheet/` duplicates what now lives in
   `experiments/character_binding/out/codex-pose-conditioning-v1/`. `build/` is
   generated output and can be deleted.
@@ -170,6 +249,11 @@ order, and collider counts; finish with the complete route gate.
 - The five tracing underlays are derived from a Codex render whose run cycle is
   wrong — the lead foot never alternates. They are useful for limb shape and
   body height only. Do not treat them as an authoring target.
+- `animation_artwork_spike`, `animation_artwork_run_manifest`,
+  `pose_conditioned_animation_batch` and `run_pose_conditioned_animation` are
+  still built and belong to the closed generated-animation experiment. Unlike
+  `stage_animation_live_proof`, which was removed because every asset it named
+  was gone, these still have live tests; check before removing.
 
 ## Non-blocking debt
 
@@ -188,11 +272,6 @@ order, and collider counts; finish with the complete route gate.
 - Catacombs `spawn_point` is (256, 512) while player entity 4 sits at (256, 864),
   so the camera opens 352 px above the mouse until follow corrects it. Content
   fix, not a code fix.
-- `animation_artwork_spike`, `animation_artwork_run_manifest`,
-  `pose_conditioned_animation_batch` and `run_pose_conditioned_animation` are
-  still built and belong to the closed generated-animation experiment. Unlike
-  `stage_animation_live_proof`, which was removed because every asset it named
-  was gone, these still have live tests; check before removing.
 
 ## Last verification
 
@@ -212,5 +291,13 @@ folds. Contact has 355 interior holes against 174 neutral and passing has 177.
 `layered_puppet_diagnostics_test` passes 25, and
 `semantic_layer_import_test` passes eight; both affected-target gates and
 clang-tidy pass.
+
+The interactive editor's final browser pass confirmed the sole 23-point
+authoring skeleton, corrected arm mapping, exact frame switching, mapped-handle
+deformation, canonical/authored state, and clean `reference_07` repository
+reload. `layered_puppet_editor_test`, its affected-target gate, clangd,
+clang-tidy, and `git diff --check` pass. The broader `image_digest`
+affected-target gate passed all 64 consumers after the shared SHA-256 helper was
+added.
 Live-transition recording remains blocked by Terminal Screen Recording
 permission and is deferred until the replacement art passes.

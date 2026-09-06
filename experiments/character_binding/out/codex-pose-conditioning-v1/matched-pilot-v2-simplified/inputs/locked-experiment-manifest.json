@@ -1,0 +1,43 @@
+{
+  "schema_version": 2,
+  "experiment_id": "codex-matched-skeleton-pilot-v1",
+  "animation_run_manifest": "pilot-inputs/animation-run.json",
+  "identity_source": {
+    "path": "skeleton-test/input-1-reference.png"
+  },
+  "example_frame_source": {
+    "path": "skeleton-test/input-2-frame-up.png"
+  },
+  "example_skeleton_source": {
+    "path": "skeleton-test/input-3-skeleton-up.png"
+  },
+  "pose_sheet_source": {
+    "path": "pilot-inputs/pose-sheet.png"
+  },
+  "pose_sheet_layout": {
+    "grid_x": 0,
+    "grid_y": 0,
+    "cell_width": 512,
+    "cell_height": 512,
+    "column_gap": 0,
+    "row_gap": 0,
+    "columns": 6,
+    "rows": 2
+  },
+  "generation": {
+    "provider": "codex",
+    "model": "gpt-5.6-sol",
+    "instructions": "Generate one untouched image-model result for a controlled character-pose experiment. Treat the ordered existing-frame and skeleton pair as the exact mapping between this character and the skeleton convention. Preserve the mouse identity, proportions, costume, palette, line quality, viewing direction, and scale. Follow the target skeleton for the pelvis, spine, head, both arms, both legs, and feet. Use the image-generation tool once and return its native pixels without any post-processing.",
+    "prompt": "Draw the same right-facing mouse in the green hooded coat, red scarf, brown belt, brown boots, and long tail in the target running pose. Keep the character design identical to the matched existing frame while changing the complete body pose to follow the target skeleton. Use a plain white background.",
+    "negative_requirements": "Do not copy the example pose. Do not omit, merge, or invent limbs. Do not draw skeleton lines, labels, text, a sprite sheet, a turnaround, scenery, shadows, or extra characters. Do not use ImageMagick, sips, Python imaging libraries, resizing, recanvasing, recoloring, quantization, or any other post-processing.",
+    "target_aspect": {
+      "width": 1,
+      "height": 1
+    },
+    "transparency": "no-preference",
+    "expected_output": {
+      "width": 1254,
+      "height": 1254
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": 3,
+  "experiment_id": "codex-standing-subject-skeleton-pilot-v1",
+  "animation_run_manifest": "pilot-inputs/animation-run.json",
+  "identity_source": {
+    "path": "skeleton-test/input-1-reference.png"
+  },
+  "pose_sheet_source": {
+    "path": "pilot-inputs/pose-sheet.png"
+  },
+  "pose_sheet_layout": {
+    "grid_x": 0,
+    "grid_y": 0,
+    "cell_width": 512,
+    "cell_height": 512,
+    "column_gap": 0,
+    "row_gap": 0,
+    "columns": 6,
+    "rows": 2
+  },
+  "generation": {
+    "provider": "codex",
+    "model": "gpt-5.6-sol",
+    "instructions": "Generate exactly one untouched image-model result for a controlled character-pose experiment. The only references are a standing subject identity and one target skeleton. Preserve the mouse identity, proportions, costume, palette, line quality, viewing direction, and scale from the standing subject. Follow the target skeleton for the pelvis, spine, head, both arms, both legs, and feet. Use the image-generation tool once and return its native pixels without any post-processing.",
+    "prompt": "Draw the same right-facing mouse from the standing subject reference in the target skeleton's running pose. Preserve the green hooded coat, red scarf, brown belt, brown boots, long tail, facial design, and body proportions. Use a plain white background and return one image.",
+    "negative_requirements": "Do not generate multiple images. Do not invent a pose from a running reference because no running character image is supplied. Do not omit, merge, or invent limbs. Do not draw skeleton lines, labels, text, a sprite sheet, a turnaround, scenery, shadows, or extra characters. Do not use ImageMagick, sips, Python imaging libraries, resizing, recanvasing, recoloring, quantization, or any other post-processing.",
+    "target_aspect": {
+      "width": 1,
+      "height": 1
+    },
+    "transparency": "no-preference",
+    "expected_output": {
+      "width": 1254,
+      "height": 1254
+    }
+  }
+}

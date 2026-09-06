@@ -1,5 +1,5 @@
-#ifndef ZEBES_SCRIPTS_SKELETON_RIG_REVIEW_H_
-#define ZEBES_SCRIPTS_SKELETON_RIG_REVIEW_H_
+#ifndef ZEBES_ARTWORK_SKELETON_RIG_REVIEW_H_
+#define ZEBES_ARTWORK_SKELETON_RIG_REVIEW_H_
 
 #include <filesystem>
 #include <string>
@@ -8,6 +8,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
+#include "common/image_io.h"
 
 namespace zebes {
 
@@ -70,6 +71,21 @@ absl::StatusOr<const SkeletonRigClip*> FindSkeletonRigClip(const SkeletonRig& ri
 absl::StatusOr<SkeletonRigClipMetrics> MeasureSkeletonRigClip(const SkeletonRig& rig,
                                                               const SkeletonRigClip& clip);
 
+// Renders one pose to an RGBA guide image. Coordinates and line widths are
+// multiplied by render_scale so the 256-space rig can reproduce the 512px
+// matched-pair skeleton references without changing joint locations.
+absl::StatusOr<RgbaImage> RenderSkeletonRigFrameImage(const SkeletonRig& rig,
+                                                      const SkeletonRigFrame& frame,
+                                                      int canvas_width, int canvas_height,
+                                                      int render_scale);
+
+// Renders every clip frame in order to a tightly packed sheet. Rows are derived
+// from the positive column count; unused cells in the final row remain white.
+absl::StatusOr<RgbaImage> RenderSkeletonRigSheetImage(const SkeletonRig& rig,
+                                                      const SkeletonRigClip& clip, int canvas_width,
+                                                      int canvas_height, int render_scale,
+                                                      int columns);
+
 // Produces a standalone review page with an animated stage, selectable frame
 // strip, chain legend, floor, and measured cycle diagnostics. The document has
 // no external runtime dependencies and may be served by any static file server.
@@ -79,4 +95,4 @@ absl::StatusOr<std::string> RenderSkeletonRigReviewHtml(const SkeletonRig& rig,
 
 }  // namespace zebes
 
-#endif  // ZEBES_SCRIPTS_SKELETON_RIG_REVIEW_H_
+#endif  // ZEBES_ARTWORK_SKELETON_RIG_REVIEW_H_
