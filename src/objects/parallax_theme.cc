@@ -106,9 +106,9 @@ absl::StatusOr<ParallaxTheme> ParallaxThemeFromJson(const nlohmann::json& json) 
     ParallaxTheme theme;
     const int schema_version = json.at("schema_version").get<int>();
     if (schema_version != kParallaxThemeSchemaVersion) {
-      return absl::InvalidArgumentError(absl::StrCat("unsupported parallax theme schema version ",
-                                                     schema_version,
-                                                     "; run scripts/migrate_definitions.py"));
+      return absl::InvalidArgumentError(
+          absl::StrCat("unsupported parallax theme schema version ", schema_version,
+                       "; write a one-off migration to bring it forward"));
     }
     json.at("id").get_to(theme.id);
     json.at("name").get_to(theme.name);

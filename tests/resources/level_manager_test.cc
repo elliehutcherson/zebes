@@ -371,7 +371,7 @@ TEST_F(LevelManagerTest, LoadLevelRefusesEmbeddedParallaxThemes) {
 
   const absl::Status status = manager_->LoadLevel("Embedded-embedded.json").status();
   EXPECT_EQ(status.code(), absl::StatusCode::kFailedPrecondition);
-  EXPECT_THAT(status.message(), HasSubstr("migrate_definitions.py"));
+  EXPECT_THAT(status.message(), HasSubstr("themes are separate definitions now"));
 }
 
 TEST_F(LevelManagerTest, SaveLevelZoneOutsideBoundsFails) {

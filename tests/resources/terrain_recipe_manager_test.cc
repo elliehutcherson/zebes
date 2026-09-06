@@ -108,11 +108,10 @@ TEST_F(TerrainRecipeManagerTest, RoundTripsEveryConfigurationField) {
   EXPECT_EQ(TerrainRecipeToJson(*loaded), TerrainRecipeToJson(recipe));
 }
 
-// Only the current version is read. An older document is brought forward by
-// scripts/migrate_definitions.py, so the parser has exactly one shape rather
-// than one per version that has ever existed. Refusing by name is what points
-// the author at the migration instead of leaving them with a parse error.
-TEST_F(TerrainRecipeManagerTest, RejectsASupersededSchemaAndNamesTheMigration) {
+// Only the current version is read, so the parser has exactly one shape rather
+// than one per version that has ever existed. Naming the remedy is what points
+// the author at writing a migration instead of leaving them with a parse error.
+TEST_F(TerrainRecipeManagerTest, RejectsASupersededSchemaAndNamesTheRemedy) {
   for (const int superseded : {1, 2}) {
     TerrainRecipe recipe = CompleteRecipe();
     recipe.id = "legacy";
@@ -123,8 +122,7 @@ TEST_F(TerrainRecipeManagerTest, RejectsASupersededSchemaAndNamesTheMigration) {
 
     ASSERT_FALSE(parsed.ok()) << "schema version " << superseded;
     EXPECT_EQ(parsed.status().code(), absl::StatusCode::kFailedPrecondition);
-    EXPECT_THAT(std::string(parsed.status().message()),
-                ::testing::HasSubstr("migrate_definitions.py"));
+    EXPECT_THAT(std::string(parsed.status().message()), ::testing::HasSubstr("one-off migration"));
   }
 }
 
@@ -172,7 +170,7 @@ TEST_F(TerrainRecipeManagerTest, RejectsAnUnknownFutureSchema) {
                        TerrainRecipeManager::Create(path_.string()));
   const absl::Status status = reloaded->LoadAllRecipes();
   EXPECT_EQ(status.code(), absl::StatusCode::kDataLoss);
-  EXPECT_THAT(std::string(status.message()), ::testing::HasSubstr("migrate_definitions.py"));
+  EXPECT_THAT(std::string(status.message()), ::testing::HasSubstr("one-off migration"));
 }
 
 TEST_F(TerrainRecipeManagerTest, RejectsMissingConfigurationInsteadOfUsingDefaults) {

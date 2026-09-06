@@ -310,9 +310,9 @@ nlohmann::json PropRecipeToJson(const PropRecipe& recipe) {
 absl::StatusOr<PropRecipe> PropRecipeFromJson(const nlohmann::json& json) {
   ASSIGN_OR_RETURN(const int schema_version, Required<int>(json, "schema_version"));
   if (schema_version != kPropRecipeSchemaVersion) {
-    return absl::FailedPreconditionError(absl::StrCat(
-        "prop recipe schema version ", schema_version, " is not version ", kPropRecipeSchemaVersion,
-        "; run scripts/migrate_definitions.py to bring it forward"));
+    return absl::FailedPreconditionError(
+        absl::StrCat("prop recipe schema version ", schema_version, " is not version ",
+                     kPropRecipeSchemaVersion, "; write a one-off migration to bring it forward"));
   }
   PropRecipe recipe;
   ASSIGN_OR_RETURN(recipe.id, Required<std::string>(json, "id"));

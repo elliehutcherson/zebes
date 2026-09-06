@@ -199,7 +199,7 @@ TEST_F(PropRecipeManagerTest, RejectsUnknownSchemaAndNamesTheMigration) {
                        PropRecipeManager::Create(path_.string()));
   const absl::Status status = reloaded->LoadAllRecipes();
   EXPECT_EQ(status.code(), absl::StatusCode::kDataLoss);
-  EXPECT_THAT(std::string(status.message()), HasSubstr("migrate_definitions.py"));
+  EXPECT_THAT(std::string(status.message()), HasSubstr("one-off migration"));
 }
 
 TEST_F(PropRecipeManagerTest, RejectsAFrameThatDoesNotMatchTheAuthoredCanvas) {

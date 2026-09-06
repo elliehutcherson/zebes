@@ -20,11 +20,19 @@ Every field is required. There are no optional fields in this format.
 Add a migration, not a default:
 
 1. Add the field to the writer and the reader.
-2. Extend `scripts/migrate_definitions.py` to populate it in existing files.
-3. Run the migration once and commit the migrated definitions.
+2. Write a one-off script that fills the field in existing files with the value
+   reproducing what the old file did. Match the indentation the manager writes
+   with, or every later save produces a whole-file diff.
+3. Run it once, commit the migrated definitions, and delete the script.
 
 A tolerant reader reinterprets old data forever. A migration moves it once and
-the invariant holds afterward.
+the invariant holds afterward, which is why the script does not survive the
+commit. Past migrations are recorded in
+`docs/history/definition-migrations.md`.
+
+If a rename changes what a name *means*, give the new names spellings that
+share nothing with the old ones. A file that escapes migration then fails the
+lookup instead of loading as something else.
 
 ## Tagged unions
 

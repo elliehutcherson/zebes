@@ -204,7 +204,7 @@ nlohmann::json SerializeLevel(const Level& level) {
 absl::StatusOr<Level> ParseLevel(const nlohmann::json& j) {
   if (j.contains("themes")) {
     return absl::FailedPreconditionError(
-        "Level still contains embedded parallax themes; run scripts/migrate_definitions.py.");
+        "Level still contains embedded parallax themes; themes are separate definitions now.");
   }
   Level level;
   j.at("id").get_to(level.id);

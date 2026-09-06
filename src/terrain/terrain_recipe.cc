@@ -212,7 +212,7 @@ absl::StatusOr<TerrainRecipe> TerrainRecipeFromJson(const nlohmann::json& json) 
   if (schema_version != kTerrainRecipeSchemaVersion) {
     return absl::FailedPreconditionError(absl::StrCat(
         "terrain recipe schema version ", schema_version, " is not version ",
-        kTerrainRecipeSchemaVersion, "; run scripts/migrate_definitions.py to bring it forward"));
+        kTerrainRecipeSchemaVersion, "; write a one-off migration to bring it forward"));
   }
 
   TerrainRecipe recipe;

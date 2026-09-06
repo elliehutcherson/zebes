@@ -183,7 +183,7 @@ absl::StatusOr<SourceArtwork> SourceArtworkFromJson(const nlohmann::json& json) 
   if (schema_version != kSourceArtworkSchemaVersion) {
     return absl::FailedPreconditionError(absl::StrCat(
         "source artwork schema version ", schema_version, " is not version ",
-        kSourceArtworkSchemaVersion, "; run scripts/migrate_definitions.py to bring it forward"));
+        kSourceArtworkSchemaVersion, "; write a one-off migration to bring it forward"));
   }
   SourceArtwork artwork;
   ASSIGN_OR_RETURN(artwork.id, Required<std::string>(json, "id"));

@@ -426,10 +426,9 @@ absl::StatusOr<AnimationFrameSetRecipe> AnimationFrameSetRecipeFromJson(
                          "animation frame-set recipe"));
   ASSIGN_OR_RETURN(const int schema_version, Required<int>(json, "schema_version"));
   if (schema_version != kAnimationFrameSetRecipeSchemaVersion) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("animation frame-set recipe schema version ", schema_version,
-                     " is not version ", kAnimationFrameSetRecipeSchemaVersion,
-                     "; run scripts/migrate_definitions.py to bring it forward"));
+    return absl::FailedPreconditionError(absl::StrCat(
+        "animation frame-set recipe schema version ", schema_version, " is not version ",
+        kAnimationFrameSetRecipeSchemaVersion, "; write a one-off migration to bring it forward"));
   }
 
   AnimationFrameSetRecipe recipe;

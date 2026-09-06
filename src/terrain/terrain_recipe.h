@@ -22,10 +22,9 @@ struct TerrainRecipe {
   TerrainGenConfig config;
 };
 
-// Only the current version is read. Versions 1 and 2 were migrated in
-// `scripts/migrate_definitions.py`, which is where an older document is brought
-// forward; carrying a translation for a version no file uses would mean the
-// parser's shape was decided by data that no longer exists.
+// Only the current version is read. Versions 1 and 2 were migrated once and no
+// file uses them; carrying a translation for a version no file uses would mean
+// the parser's shape was decided by data that no longer exists.
 inline constexpr int kOldestTerrainRecipeSchemaVersion = 3;
 inline constexpr int kTerrainRecipeSchemaVersion = 3;
 

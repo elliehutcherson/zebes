@@ -342,10 +342,9 @@ absl::StatusOr<ParallaxArtworkRecipe> ParallaxArtworkRecipeFromJson(const nlohma
   ASSIGN_OR_RETURN(const int schema_version,
                    Required<int>(json, "schema_version", "parallax artwork recipe"));
   if (schema_version != kParallaxArtworkRecipeSchemaVersion) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("parallax artwork recipe schema version ", schema_version, " is not version ",
-                     kParallaxArtworkRecipeSchemaVersion,
-                     "; run scripts/migrate_definitions.py to bring it forward"));
+    return absl::FailedPreconditionError(absl::StrCat(
+        "parallax artwork recipe schema version ", schema_version, " is not version ",
+        kParallaxArtworkRecipeSchemaVersion, "; write a one-off migration to bring it forward"));
   }
 
   ParallaxArtworkRecipe recipe;
