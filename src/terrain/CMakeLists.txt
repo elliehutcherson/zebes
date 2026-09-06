@@ -141,6 +141,7 @@ target_link_libraries(terrain_recipe
   absl::statusor
   nlohmann_json::nlohmann_json
   PRIVATE
+  json_schema
   status_macros
   absl::status
   absl::strings

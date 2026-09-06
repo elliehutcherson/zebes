@@ -28,6 +28,11 @@ target_link_libraries(image_io_test image_io gtest_main)
 
 gtest_discover_tests(image_io_test)
 
+add_executable(json_schema_test common/json_schema_test.cc)
+target_link_libraries(json_schema_test json_schema macros gmock gtest_main)
+target_include_directories(json_schema_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+gtest_discover_tests(json_schema_test)
+
 add_executable(image_digest_test common/image_digest_test.cc)
 target_link_libraries(image_digest_test image_digest macros gtest_main)
 gtest_discover_tests(image_digest_test)

@@ -127,6 +127,17 @@ target_link_libraries(atomic_directory_publisher
 add_library(utc_timestamp utc_timestamp.cc)
 target_link_libraries(utc_timestamp PUBLIC absl::time)
 
+add_library(json_schema json_schema.cc)
+target_link_libraries(json_schema
+  PUBLIC
+  nlohmann_json::nlohmann_json
+  absl::status
+  absl::statusor
+  absl::strings
+  PRIVATE
+  absl::flat_hash_set
+)
+
 add_library(sdl_wrapper sdl_wrapper.cc)
 target_link_libraries(sdl_wrapper config)
 target_link_libraries(sdl_wrapper absl::status)

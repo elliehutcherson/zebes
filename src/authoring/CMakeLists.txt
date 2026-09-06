@@ -1,5 +1,7 @@
 add_library(environment_builder environment_builder.cc)
 target_link_libraries(environment_builder
+  PRIVATE
+  json_schema
   PUBLIC
   api
   level
@@ -20,6 +22,8 @@ target_link_libraries(environment_builder
 
 add_library(terrain_builder terrain_builder.cc)
 target_link_libraries(terrain_builder
+  PRIVATE
+  json_schema
   PUBLIC
   api
   terrain_creation

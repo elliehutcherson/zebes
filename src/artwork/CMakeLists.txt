@@ -39,6 +39,8 @@ target_link_libraries(animation_frame_set_pipeline
 
 add_library(animation_frame_set_recipe animation_frame_set_recipe.cc)
 target_link_libraries(animation_frame_set_recipe
+  PRIVATE
+  json_schema
   PUBLIC
   animation_frame_set_pipeline
   sprite
@@ -123,6 +125,8 @@ target_link_libraries(animation_artwork_feasibility
 
 add_library(skeleton_rig_review skeleton_rig_review.cc)
 target_link_libraries(skeleton_rig_review
+  PRIVATE
+  json_schema
   PUBLIC
   image_io
   absl::flat_hash_map
@@ -188,6 +192,8 @@ target_link_libraries(layered_puppet_editor
 
 add_library(layered_puppet_editor_state layered_puppet_editor_state.cc)
 target_link_libraries(layered_puppet_editor_state
+  PRIVATE
+  json_schema
   PUBLIC
   profile_silhouette
   absl::flat_hash_map
@@ -251,6 +257,8 @@ target_link_libraries(parallax_artwork_pipeline
 
 add_library(parallax_artwork_recipe parallax_artwork_recipe.cc)
 target_link_libraries(parallax_artwork_recipe
+  PRIVATE
+  json_schema
   PUBLIC
   parallax_artwork_pipeline
   nlohmann_json::nlohmann_json
@@ -335,6 +343,8 @@ target_link_libraries(prop_artwork_style
 
 add_library(source_artwork source_artwork.cc)
 target_link_libraries(source_artwork
+  PRIVATE
+  json_schema
   PUBLIC
   image_io
   absl::status
@@ -348,6 +358,8 @@ target_link_libraries(source_artwork
 
 add_library(prop_recipe prop_recipe.cc)
 target_link_libraries(prop_recipe
+  PRIVATE
+  json_schema
   PUBLIC
   prop_artwork_style
   sprite

@@ -11,23 +11,17 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/image_digest.h"
+#include "common/json_schema.h"
 #include "common/status_macros.h"
 #include "nlohmann/json.hpp"
 
 namespace zebes {
 namespace {
 
+// Every record in this file is one prop recipe, so the context is fixed.
 template <typename T>
-absl::StatusOr<T> Required(const nlohmann::json& json, const char* key) {
-  if (!json.contains(key)) {
-    return absl::InvalidArgumentError(absl::StrCat("prop recipe is missing '", key, "'"));
-  }
-  try {
-    return json.at(key).get<T>();
-  } catch (const std::exception& error) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("prop recipe field '", key, "' is invalid: ", error.what()));
-  }
+absl::StatusOr<T> Required(const nlohmann::json& json, std::string_view key) {
+  return json_schema::Required<T>(json, key, "prop recipe");
 }
 
 nlohmann::json ColorToJson(const RgbaColor& color) {

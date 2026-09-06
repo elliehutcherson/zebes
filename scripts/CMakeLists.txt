@@ -249,6 +249,7 @@ target_link_libraries(import_animation_frame_sets
   prepare_animation_frame_set_asset
   headless_texture_store
   image_io
+  json_schema
   utc_timestamp
   status_macros
   absl::flags

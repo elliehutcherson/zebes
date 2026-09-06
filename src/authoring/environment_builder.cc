@@ -15,6 +15,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "api/api.h"
+#include "common/json_schema.h"
 #include "common/status_macros.h"
 #include "editor/level_editor/derived_terrain_session.h"
 #include "editor/level_editor/terrain_brush.h"
@@ -27,40 +28,8 @@
 namespace zebes {
 namespace {
 
-template <typename T>
-absl::StatusOr<T> Required(const nlohmann::json& json, const char* key, std::string_view context) {
-  if (!json.contains(key)) {
-    return absl::InvalidArgumentError(absl::StrCat(context, " is missing '", key, "'"));
-  }
-  try {
-    return json.at(key).get<T>();
-  } catch (const nlohmann::json::exception& error) {
-    return absl::InvalidArgumentError(
-        absl::StrCat(context, " field '", key, "' is invalid: ", error.what()));
-  }
-}
-
-absl::Status RequireExactObject(const nlohmann::json& json, std::initializer_list<const char*> keys,
-                                std::string_view context) {
-  if (!json.is_object()) {
-    return absl::InvalidArgumentError(absl::StrCat(context, " must be an object"));
-  }
-  absl::flat_hash_set<std::string> expected;
-  for (const char* key : keys) expected.emplace(key);
-  for (const auto& [key, unused] : json.items()) {
-    static_cast<void>(unused);
-    if (!expected.contains(key)) {
-      return absl::InvalidArgumentError(
-          absl::StrCat(context, " contains unknown field '", key, "'"));
-    }
-  }
-  for (const std::string& key : expected) {
-    if (!json.contains(key)) {
-      return absl::InvalidArgumentError(absl::StrCat(context, " is missing '", key, "'"));
-    }
-  }
-  return absl::OkStatus();
-}
+using json_schema::Required;
+using json_schema::RequireExactObject;
 
 absl::StatusOr<Vec> VecFromJson(const nlohmann::json& json, std::string_view context) {
   if (!json.is_array() || json.size() != 2 || !json[0].is_number() || !json[1].is_number()) {

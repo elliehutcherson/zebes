@@ -15,45 +15,17 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/json_schema.h"
 #include "common/status_macros.h"
 #include "nlohmann/json.hpp"
 
 namespace zebes {
 namespace {
 
+using json_schema::Required;
+using json_schema::RequireExactObject;
+
 constexpr int kStateVersion = 1;
-
-absl::Status RequireExactObject(const nlohmann::json& value,
-                                std::initializer_list<std::string_view> fields,
-                                std::string_view context) {
-  if (!value.is_object()) {
-    return absl::InvalidArgumentError(absl::StrCat(context, " must be an object"));
-  }
-  for (const auto& [field, unused] : value.items()) {
-    static_cast<void>(unused);
-    if (std::find(fields.begin(), fields.end(), field) == fields.end()) {
-      return absl::InvalidArgumentError(
-          absl::StrCat(context, " contains unknown field '", field, "'"));
-    }
-  }
-  for (const std::string_view field : fields) {
-    if (!value.contains(std::string(field))) {
-      return absl::InvalidArgumentError(absl::StrCat(context, " is missing '", field, "'"));
-    }
-  }
-  return absl::OkStatus();
-}
-
-template <typename T>
-absl::StatusOr<T> Required(const nlohmann::json& value, std::string_view field,
-                           std::string_view context) {
-  try {
-    return value.at(std::string(field)).get<T>();
-  } catch (const std::exception& error) {
-    return absl::InvalidArgumentError(
-        absl::StrCat(context, " field '", field, "' is invalid: ", error.what()));
-  }
-}
 
 absl::StatusOr<ProfileControlPoint> ParsePoint(const nlohmann::json& value,
                                                std::string_view context) {

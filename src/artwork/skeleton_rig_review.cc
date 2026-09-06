@@ -9,7 +9,6 @@
 #include <fstream>
 #include <initializer_list>
 #include <limits>
-#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -21,49 +20,18 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "common/json_schema.h"
 #include "common/status_macros.h"
 #include "nlohmann/json.hpp"
 
 namespace zebes {
 namespace {
 
+using json_schema::Required;
+using json_schema::RequireExactObject;
+
 constexpr int kSupportedVersion = 2;
 constexpr double kJointRadius = 3.0;
-
-absl::Status RequireExactObject(const nlohmann::json& json, std::initializer_list<const char*> keys,
-                                std::string_view context) {
-  if (!json.is_object()) {
-    return absl::InvalidArgumentError(absl::StrCat(context, " must be an object"));
-  }
-  std::set<std::string> expected;
-  for (const char* key : keys) expected.emplace(key);
-  for (const auto& [key, unused_value] : json.items()) {
-    static_cast<void>(unused_value);
-    if (!expected.contains(key)) {
-      return absl::InvalidArgumentError(
-          absl::StrCat(context, " contains unknown field '", key, "'"));
-    }
-  }
-  for (const std::string& key : expected) {
-    if (!json.contains(key)) {
-      return absl::InvalidArgumentError(absl::StrCat(context, " is missing '", key, "'"));
-    }
-  }
-  return absl::OkStatus();
-}
-
-template <typename T>
-absl::StatusOr<T> Required(const nlohmann::json& json, const char* key, std::string_view context) {
-  if (!json.contains(key)) {
-    return absl::InvalidArgumentError(absl::StrCat(context, " is missing '", key, "'"));
-  }
-  try {
-    return json.at(key).get<T>();
-  } catch (const std::exception& error) {
-    return absl::InvalidArgumentError(
-        absl::StrCat(context, " field '", key, "' is invalid: ", error.what()));
-  }
-}
 
 absl::StatusOr<SkeletonRigJoint> ParseJoint(const nlohmann::json& json, std::string_view context) {
   if (!json.is_array() || json.size() != 2) {

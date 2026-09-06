@@ -22,6 +22,7 @@
 #include "artwork/prepare_animation_frame_set_asset.h"
 #include "common/config.h"
 #include "common/image_io.h"
+#include "common/json_schema.h"
 #include "common/status_macros.h"
 #include "common/utc_timestamp.h"
 #include "nlohmann/json.hpp"
@@ -32,6 +33,9 @@ ABSL_FLAG(std::string, manifest, "", "Versioned animation frame-set import manif
 
 namespace zebes {
 namespace {
+
+using json_schema::Required;
+using json_schema::RequireExactObject;
 
 constexpr int kFrameSize = 48;
 constexpr int kOriginX = 24;
@@ -65,40 +69,6 @@ absl::StatusOr<std::string> ReadText(const std::filesystem::path& path) {
     return absl::DataLossError(absl::StrCat("could not read import manifest: ", path.string()));
   }
   return contents;
-}
-
-template <typename T>
-absl::StatusOr<T> Required(const nlohmann::json& object, std::string_view key,
-                           std::string_view context) {
-  const std::string field(key);
-  if (!object.is_object() || !object.contains(field)) {
-    return absl::InvalidArgumentError(absl::StrCat(context, " is missing '", key, "'"));
-  }
-  try {
-    return object.at(field).get<T>();
-  } catch (const nlohmann::json::exception& error) {
-    return absl::InvalidArgumentError(
-        absl::StrCat(context, " field '", key, "' is invalid: ", error.what()));
-  }
-}
-
-absl::Status RequireExactObject(const nlohmann::json& object,
-                                std::initializer_list<std::string_view> fields,
-                                std::string_view context) {
-  if (!object.is_object()) {
-    return absl::InvalidArgumentError(absl::StrCat(context, " must be an object"));
-  }
-  std::set<std::string> expected;
-  for (std::string_view field : fields) expected.insert(std::string(field));
-  std::set<std::string> actual;
-  for (nlohmann::json::const_iterator iterator = object.begin(); iterator != object.end();
-       ++iterator) {
-    actual.insert(iterator.key());
-  }
-  if (actual != expected) {
-    return absl::InvalidArgumentError(absl::StrCat(context, " has unexpected or missing fields"));
-  }
-  return absl::OkStatus();
 }
 
 absl::StatusOr<SpritePlaybackMode> ParsePlaybackMode(std::string_view value) {

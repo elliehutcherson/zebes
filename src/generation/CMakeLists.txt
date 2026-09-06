@@ -15,6 +15,8 @@ add_library(artwork_generation_prompts artwork_generation_prompts.cc)
 
 add_library(generated_asset_candidate generated_asset_candidate.cc)
 target_link_libraries(generated_asset_candidate
+  PRIVATE
+  json_schema
   PUBLIC
   parallax_artwork_recipe
   prepare_parallax_artwork_asset

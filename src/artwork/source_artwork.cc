@@ -11,6 +11,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "common/image_digest.h"
+#include "common/json_schema.h"
 #include "common/status_macros.h"
 #include "nlohmann/json.hpp"
 
@@ -18,16 +19,8 @@ namespace zebes {
 namespace {
 
 template <typename T>
-absl::StatusOr<T> Required(const nlohmann::json& json, const char* key) {
-  if (!json.contains(key)) {
-    return absl::InvalidArgumentError(absl::StrCat("source artwork is missing '", key, "'"));
-  }
-  try {
-    return json.at(key).get<T>();
-  } catch (const std::exception& error) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("source artwork field '", key, "' is invalid: ", error.what()));
-  }
+absl::StatusOr<T> Required(const nlohmann::json& json, std::string_view key) {
+  return json_schema::Required<T>(json, key, "source artwork");
 }
 
 absl::StatusOr<std::optional<std::string>> RequiredNullableString(const nlohmann::json& json,
