@@ -131,7 +131,7 @@ TEST(ImageGenerationServiceTest, RunsASubmittedRequestOnItsOwnThread) {
 
   ASSERT_TRUE(event.has_value());
   EXPECT_EQ(event->id, id);
-  ASSERT_TRUE(event->result.ok());
+  ASSERT_OK(event->result);
   EXPECT_EQ(event->result->submitted_prompt, "a mossy boulder");
 }
 

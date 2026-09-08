@@ -7,9 +7,9 @@
 
 #include "absl/status/statusor.h"
 #include "api/api.h"
-#include "common/sdl_wrapper.h"
 #include "editor/gui_interface.h"
 #include "objects/texture.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 

@@ -141,7 +141,7 @@ TEST(ImageGenerationContractTest, ValidatesRequestedProviderCapabilities) {
                      Reference(ImageGenerationReferenceRole::kPose)},
   };
 
-  EXPECT_TRUE(ValidateImageGenerationSpec(spec, capabilities).ok());
+  EXPECT_OK(ValidateImageGenerationSpec(spec, capabilities));
 }
 
 TEST(ImageGenerationContractTest, RejectsUnsupportedRequestedCapabilities) {
@@ -410,7 +410,7 @@ TEST(HttpTransportContractTest, RequiresBoundedHttpsRequests) {
   };
   request.sensitive_headers.push_back(
       HttpSensitiveHeader{.name = "Authorization", .value = std::move(secret)});
-  EXPECT_TRUE(ValidateHttpRequest(request).ok());
+  EXPECT_OK(ValidateHttpRequest(request));
 
   request.url = "http://api.example.test/v1/images";
   EXPECT_EQ(ValidateHttpRequest(request).code(), absl::StatusCode::kInvalidArgument);

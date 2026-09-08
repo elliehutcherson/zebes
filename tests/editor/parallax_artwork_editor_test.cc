@@ -302,7 +302,7 @@ TEST_F(ParallaxArtworkEditorTest, GeneratedCandidateUsesTheRetainedSourceAndBund
           EXPECT_EQ(generated->submitted_prompt, "a distant cave plate");
         }
         absl::StatusOr<std::string> digest = RgbaImageDigest(image);
-        EXPECT_TRUE(digest.ok());
+        EXPECT_OK(digest);
         retained = SourceArtwork{
             .id = "generated-source",
             .name = name,
@@ -389,7 +389,7 @@ TEST_F(ParallaxArtworkEditorTest, ImportRetainsOnTheEditorThreadAndClearCompensa
   EXPECT_CALL(api_, CreateSourceArtwork(_, _, _))
       .WillOnce([&](std::string name, SourceArtworkProvenance provenance, const RgbaImage& image) {
         absl::StatusOr<std::string> digest = RgbaImageDigest(image);
-        EXPECT_TRUE(digest.ok());
+        EXPECT_OK(digest);
         imported = SourceArtwork{
             .id = "imported-source",
             .name = std::move(name),

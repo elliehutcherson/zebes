@@ -2,8 +2,8 @@
 
 #include "SDL.h"
 #include "absl/status/statusor.h"
-#include "common/sdl_wrapper.h"
 #include "editor/preview_texture_sink.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 

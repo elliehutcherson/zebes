@@ -1,7 +1,7 @@
 #pragma once
 
-#include "common/sdl_wrapper.h"
 #include "gmock/gmock.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 

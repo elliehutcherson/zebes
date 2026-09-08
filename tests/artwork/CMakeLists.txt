@@ -10,6 +10,7 @@ gtest_discover_tests(skeleton_rig_test)
 
 add_executable(profile_silhouette_test profile_silhouette_test.cc)
 target_link_libraries(profile_silhouette_test
+  macros
   profile_silhouette
   gtest_main
 )
@@ -18,6 +19,7 @@ gtest_discover_tests(profile_silhouette_test)
 
 add_executable(profile_deformation_test profile_deformation_test.cc)
 target_link_libraries(profile_deformation_test
+  macros
   profile_deformation
   gtest_main
 )
@@ -26,32 +28,88 @@ gtest_discover_tests(profile_deformation_test)
 
 add_executable(layered_puppet_test layered_puppet_test.cc)
 target_link_libraries(layered_puppet_test
+  macros
   layered_puppet
   gtest_main
 )
 target_include_directories(layered_puppet_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(layered_puppet_test)
 
-add_executable(layered_puppet_editor_test layered_puppet_editor_test.cc)
-target_link_libraries(layered_puppet_editor_test
-  layered_puppet_editor
+add_executable(puppet_document_test puppet_document_test.cc)
+target_link_libraries(puppet_document_test
   macros
+  puppet_document
   gtest_main
 )
-target_include_directories(layered_puppet_editor_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(layered_puppet_editor_test)
+target_include_directories(puppet_document_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(puppet_document_test)
 
-add_executable(layered_puppet_editor_state_test layered_puppet_editor_state_test.cc)
-target_link_libraries(layered_puppet_editor_state_test
-  layered_puppet_editor_state
+add_executable(puppet_editor_workspace_test puppet_editor_workspace_test.cc)
+target_link_libraries(puppet_editor_workspace_test
   macros
+  puppet_editor_workspace
+  puppet_document_json
+  skeleton_rig
   gtest_main
 )
-target_include_directories(layered_puppet_editor_state_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(layered_puppet_editor_state_test)
+target_include_directories(puppet_editor_workspace_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(puppet_editor_workspace_test)
+
+add_executable(puppet_editor_page_test puppet_editor_page_test.cc)
+target_link_libraries(puppet_editor_page_test
+  macros
+  puppet_editor_page
+  gtest_main
+)
+target_include_directories(puppet_editor_page_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(puppet_editor_page_test)
+
+add_executable(puppet_build_json_test puppet_build_json_test.cc)
+target_link_libraries(puppet_build_json_test
+  macros
+  puppet_build_json
+  nlohmann_json::nlohmann_json
+  gtest_main
+)
+target_include_directories(puppet_build_json_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(puppet_build_json_test)
+
+add_executable(puppet_editor_session_test puppet_editor_session_test.cc)
+target_link_libraries(puppet_editor_session_test
+  macros
+  puppet_editor_session
+  puppet_document_json
+  skeleton_rig
+  image_io
+  gtest_main
+)
+target_include_directories(puppet_editor_session_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(puppet_editor_session_test)
+
+add_executable(puppet_document_json_test puppet_document_json_test.cc)
+target_link_libraries(puppet_document_json_test
+  macros
+  puppet_document_json
+  skeleton_rig
+  nlohmann_json::nlohmann_json
+  gtest_main
+)
+target_compile_definitions(puppet_document_json_test PRIVATE ZEBES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_include_directories(puppet_document_json_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(puppet_document_json_test)
+
+add_executable(layered_puppet_spec_test layered_puppet_spec_test.cc)
+target_link_libraries(layered_puppet_spec_test
+  macros
+  layered_puppet_spec
+  gtest_main
+)
+target_include_directories(layered_puppet_spec_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(layered_puppet_spec_test)
 
 add_executable(layered_puppet_diagnostics_test layered_puppet_diagnostics_test.cc)
 target_link_libraries(layered_puppet_diagnostics_test
+  macros
   layered_puppet_diagnostics
   gtest_main
 )
@@ -60,6 +118,7 @@ gtest_discover_tests(layered_puppet_diagnostics_test)
 
 add_executable(semantic_layer_import_test semantic_layer_import_test.cc)
 target_link_libraries(semantic_layer_import_test
+  macros
   semantic_layer_import
   gtest_main
 )

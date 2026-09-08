@@ -5,10 +5,10 @@
 
 #include "SDL.h"
 #include "common/mock_imgui_wrapper.h"
-#include "common/mock_sdl_wrapper.h"
 #include "engine/input_types.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "platform/mock_sdl_wrapper.h"
 
 namespace zebes {
 namespace {

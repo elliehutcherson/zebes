@@ -1,3 +1,10 @@
+add_library(sdl_wrapper sdl_wrapper.cc)
+target_link_libraries(sdl_wrapper config)
+target_link_libraries(sdl_wrapper absl::status)
+target_link_libraries(sdl_wrapper absl::statusor)
+target_link_libraries(sdl_wrapper absl::strings)
+target_link_libraries(sdl_wrapper SDL2-static SDL2_image)
+
 add_library(sdl_input_source sdl_input_source.cc)
 target_link_libraries(sdl_input_source
   PUBLIC input_types sdl_wrapper SDL2-static absl::any_invocable

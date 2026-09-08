@@ -43,9 +43,15 @@ struct ProfileControlPoint {
   double y = 0.0;
 };
 
+// may_stretch decides what a change in this bone's length means to the artwork
+// bound to it. False, the default and what every render has always done, moves
+// pixels rigidly: they keep the distance from the joint they were drawn at and
+// only turn. True scales them along the bone, so a shorter bone is a shorter
+// limb.
 struct ProfileControlBone {
   size_t start_joint = 0;
   size_t end_joint = 0;
+  bool may_stretch = false;
 };
 
 absl::Status ValidateProfileSilhouetteConfig(const ProfileSilhouetteConfig& config);

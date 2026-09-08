@@ -8,7 +8,6 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "api/api.h"
-#include "common/sdl_wrapper.h"
 #include "common/status_macros.h"
 #include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
@@ -25,6 +24,7 @@
 #include "generation/image_generation_service.h"
 #include "generation/openai_image_client.h"
 #include "imgui.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 namespace {

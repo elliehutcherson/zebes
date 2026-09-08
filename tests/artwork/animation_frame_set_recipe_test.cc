@@ -211,7 +211,7 @@ TEST(AnimationFrameSetRecipeTest, KeepsTextureGeometryNativeWhenRenderScaleExcee
   recipe.expected_frames[0].offset_x = -2;
   recipe.expected_frames[0].offset_y = -4;
 
-  EXPECT_TRUE(ValidateAnimationFrameSetRecipe(recipe).ok());
+  EXPECT_OK(ValidateAnimationFrameSetRecipe(recipe));
 }
 
 TEST(AnimationFrameSetRecipeTest, RejectsCollidingOwnedIds) {

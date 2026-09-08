@@ -158,59 +158,6 @@ target_link_libraries(layered_puppet
   status_macros
 )
 
-# The browser editor is authored as real HTML so it gets an editor, a formatter
-# and a linter, then embedded so the tool remains one binary with no runtime
-# dependency on where the file lives.
-set(LAYERED_PUPPET_EDITOR_HTML_HEADER
-    ${CMAKE_CURRENT_BINARY_DIR}/layered_puppet_editor_html.h)
-add_custom_command(
-  OUTPUT ${LAYERED_PUPPET_EDITOR_HTML_HEADER}
-  COMMAND ${CMAKE_COMMAND}
-          -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/layered_puppet_editor.html
-          -DOUTPUT=${LAYERED_PUPPET_EDITOR_HTML_HEADER}
-          -DSYMBOL=kLayeredPuppetEditorHtml
-          -P ${CMAKE_SOURCE_DIR}/cmake/embed_text_file.cmake
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/layered_puppet_editor.html
-          ${CMAKE_SOURCE_DIR}/cmake/embed_text_file.cmake
-  COMMENT "Embedding layered_puppet_editor.html"
-  VERBATIM
-)
-
-add_library(layered_puppet_editor
-  layered_puppet_editor.cc
-  ${LAYERED_PUPPET_EDITOR_HTML_HEADER}
-)
-target_include_directories(layered_puppet_editor PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(layered_puppet_editor
-  PUBLIC
-  layered_puppet
-  layered_puppet_editor_state
-  skeleton_rig
-  absl::statusor
-  PRIVATE
-  image_digest
-  status_macros
-  absl::status
-  absl::strings
-  nlohmann_json::nlohmann_json
-)
-
-add_library(layered_puppet_editor_state layered_puppet_editor_state.cc)
-target_link_libraries(layered_puppet_editor_state
-  PRIVATE
-  json_schema
-  PUBLIC
-  profile_silhouette
-  absl::flat_hash_map
-  absl::status
-  absl::statusor
-  PRIVATE
-  status_macros
-  absl::flat_hash_set
-  absl::strings
-  nlohmann_json::nlohmann_json
-)
-
 add_library(layered_puppet_diagnostics layered_puppet_diagnostics.cc)
 target_link_libraries(layered_puppet_diagnostics
   PUBLIC
@@ -223,6 +170,112 @@ target_link_libraries(layered_puppet_diagnostics
   semantic_layer_import
   status_macros
   absl::status
+)
+
+add_library(puppet_document puppet_document.cc)
+target_link_libraries(puppet_document
+  PUBLIC
+  layered_puppet
+  profile_silhouette
+  skeleton_rig
+  absl::status
+  PRIVATE
+  status_macros
+  absl::flat_hash_set
+  absl::strings
+  absl::str_format
+)
+
+add_library(puppet_document_json puppet_document_json.cc)
+target_link_libraries(puppet_document_json
+  PUBLIC
+  puppet_document
+  absl::status
+  absl::statusor
+  PRIVATE
+  json_schema
+  layered_puppet
+  profile_silhouette
+  skeleton_rig
+  status_macros
+  utc_timestamp
+  absl::strings
+  nlohmann_json::nlohmann_json
+)
+
+# The editor page is authored as real HTML so it gets an editor, a formatter and
+# a linter, then embedded so the tool stays one binary. --page overrides it for
+# live editing without a rebuild.
+set(PUPPET_EDITOR_HTML_HEADER ${CMAKE_CURRENT_BINARY_DIR}/puppet_editor_html.h)
+add_custom_command(
+  OUTPUT ${PUPPET_EDITOR_HTML_HEADER}
+  COMMAND ${CMAKE_COMMAND}
+          -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/puppet_editor.html
+          -DOUTPUT=${PUPPET_EDITOR_HTML_HEADER}
+          -DSYMBOL=kPuppetEditorHtml
+          -P ${CMAKE_SOURCE_DIR}/cmake/embed_text_file.cmake
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/puppet_editor.html
+          ${CMAKE_SOURCE_DIR}/cmake/embed_text_file.cmake
+  COMMENT "Embedding puppet_editor.html"
+  VERBATIM
+)
+
+add_library(puppet_editor_page puppet_editor_page.cc ${PUPPET_EDITOR_HTML_HEADER})
+target_include_directories(puppet_editor_page PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+add_library(puppet_build_json puppet_build_json.cc)
+target_link_libraries(puppet_build_json
+  PUBLIC
+  layered_puppet
+  PRIVATE
+  profile_silhouette
+  nlohmann_json::nlohmann_json
+)
+
+add_library(puppet_editor_session puppet_editor_session.cc)
+target_link_libraries(puppet_editor_session
+  PUBLIC
+  image_io
+  layered_puppet
+  layered_puppet_spec
+  puppet_document
+  absl::span
+  absl::status
+  absl::statusor
+  PRIVATE
+  puppet_document_json
+  status_macros
+  absl::strings
+)
+
+add_library(puppet_editor_workspace puppet_editor_workspace.cc)
+target_link_libraries(puppet_editor_workspace
+  PUBLIC
+  puppet_editor_session
+  absl::status
+  absl::statusor
+  PRIVATE
+  puppet_document
+  puppet_document_json
+  status_macros
+  absl::strings
+)
+
+add_library(layered_puppet_spec layered_puppet_spec.cc)
+target_link_libraries(layered_puppet_spec
+  PUBLIC
+  image_io
+  layered_puppet
+  absl::flat_hash_map
+  absl::statusor
+  PRIVATE
+  semantic_layer_import
+  status_macros
+  absl::span
+  absl::status
+  absl::str_format
+  absl::strings
+  nlohmann_json::nlohmann_json
 )
 
 add_library(semantic_layer_import semantic_layer_import.cc)

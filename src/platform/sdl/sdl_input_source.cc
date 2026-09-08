@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "SDL.h"
-#include "common/sdl_wrapper.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 namespace {

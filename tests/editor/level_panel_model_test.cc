@@ -75,7 +75,7 @@ TEST(LevelPanelModelTest, NewLevelIsAnUnsavedDraftAndZeroAreaCannotBePublished) 
 
   model.active_level()->width = 1920;
   model.active_level()->height = 1088;
-  EXPECT_TRUE(model.BuildSaveRequest().ok());
+  EXPECT_OK(model.BuildSaveRequest());
 }
 
 TEST(LevelPanelModelTest, InvalidSelectionDoesNotOpenLevel) {

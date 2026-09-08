@@ -6,11 +6,11 @@
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/texture.h"
 #include "objects/tileset.h"
 #include "terrain/blob47_compose.h"
 #include "terrain/terrain_mask.h"
-#include "macros.h"
 
 namespace zebes {
 namespace {

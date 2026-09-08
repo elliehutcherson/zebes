@@ -40,7 +40,7 @@ std::string EncodedCandidate(int width, int height) {
     pixels[index + 2] = 60;
     pixels[index + 3] = 255;
   }
-  EXPECT_TRUE(WritePng(path, width, height, pixels).ok());
+  EXPECT_OK(WritePng(path, width, height, pixels));
   std::ifstream file(path, std::ios::binary);
   const std::string bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
   std::filesystem::remove(path);

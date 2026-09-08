@@ -89,8 +89,10 @@ target_link_libraries(render_layered_puppet
   image_digest
   image_io
   layered_puppet
-  layered_puppet_editor
   layered_puppet_diagnostics
+  layered_puppet_spec
+  puppet_document
+  puppet_document_json
   semantic_layer_import
   status_macros
   absl::flat_hash_map
@@ -99,20 +101,6 @@ target_link_libraries(render_layered_puppet
   absl::status
   absl::statusor
   nlohmann_json::nlohmann_json
-)
-
-add_executable(serve_layered_puppet_editor serve_layered_puppet_editor.cc)
-target_link_libraries(serve_layered_puppet_editor
-  PRIVATE
-  layered_puppet_editor_state
-  resource_utils
-  status_macros
-  absl::flat_hash_map
-  absl::flags
-  absl::flags_parse
-  absl::status
-  absl::statusor
-  absl::strings
 )
 
 add_executable(process_generated_artwork process_generated_artwork.cc)
@@ -284,3 +272,35 @@ target_link_libraries(build_terrain
   absl::strings
 )
 add_dependencies(build_terrain copy_assets)
+
+add_executable(puppet_edit puppet_edit.cc)
+target_link_libraries(puppet_edit
+  PRIVATE
+  puppet_document
+  puppet_document_json
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::status
+  absl::statusor
+  absl::strings
+)
+
+add_executable(serve_puppet_editor serve_puppet_editor.cc)
+target_link_libraries(serve_puppet_editor
+  PRIVATE
+  loopback_http_server
+  puppet_build_json
+  puppet_document
+  puppet_document_json
+  puppet_editor_page
+  puppet_editor_session
+  puppet_editor_workspace
+  status_macros
+  absl::flags
+  absl::flags_parse
+  absl::status
+  absl::statusor
+  absl::strings
+  nlohmann_json::nlohmann_json
+)

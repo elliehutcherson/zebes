@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "tests/macros.h"
 
 namespace zebes {
 namespace {
@@ -65,7 +66,7 @@ TEST(LayeredPuppetDiagnosticsTest, RestMeshHasNoInvertedTriangles) {
   const LayeredPuppetMesh mesh = UnitSquareMesh();
   const absl::StatusOr<LayeredPuppetTriangleReport> report =
       MeasureLayeredPuppetTriangles(mesh, RestVertices(mesh), OpaqueUnitSquare());
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->triangles, 2u);
   EXPECT_EQ(report->inverted, 0u);
   EXPECT_EQ(report->degenerate, 0u);
@@ -79,7 +80,7 @@ TEST(LayeredPuppetDiagnosticsTest, RigidRotationDoesNotInvertTriangles) {
   }
   const absl::StatusOr<LayeredPuppetTriangleReport> report =
       MeasureLayeredPuppetTriangles(mesh, rotated, OpaqueUnitSquare());
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->inverted, 0u);
 }
 
@@ -91,7 +92,7 @@ TEST(LayeredPuppetDiagnosticsTest, MirroredVerticesInvertEveryTriangle) {
   }
   const absl::StatusOr<LayeredPuppetTriangleReport> report =
       MeasureLayeredPuppetTriangles(mesh, mirrored, OpaqueUnitSquare());
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->inverted, 2u);
   EXPECT_EQ(report->inverted_over_artwork, 2u);
   EXPECT_EQ(report->degenerate, 0u);
@@ -107,7 +108,7 @@ TEST(LayeredPuppetDiagnosticsTest, FoldOverTransparentArtworkCostsNothing) {
   Fill(elsewhere, 8, 8, 10, 10);
   const absl::StatusOr<LayeredPuppetTriangleReport> report =
       MeasureLayeredPuppetTriangles(mesh, mirrored, elsewhere);
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->inverted, 2u);
   EXPECT_EQ(report->inverted_over_artwork, 0u);
 }
@@ -122,7 +123,7 @@ TEST(LayeredPuppetDiagnosticsTest, CollapsedVerticesCountAsDegenerate) {
   std::vector<ProfileControlPoint> collapsed(mesh.vertices.size(), {.x = 3.0, .y = 4.0});
   const absl::StatusOr<LayeredPuppetTriangleReport> report =
       MeasureLayeredPuppetTriangles(mesh, collapsed, OpaqueUnitSquare());
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->degenerate, 2u);
   EXPECT_EQ(report->inverted, 0u);
 }
@@ -159,7 +160,7 @@ TEST(LayeredPuppetDiagnosticsTest, FullyBackedMovingLayerLeavesNothingUncovered)
   const std::array<RgbaImage, 1> layers = {backing};
   const absl::StatusOr<LayeredPuppetBackfillReport> report =
       MeasureLayeredPuppetBackfill(moving, layers);
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->moving_pixels, 16u);
   EXPECT_EQ(report->uncovered_pixels, 0u);
 }
@@ -172,7 +173,7 @@ TEST(LayeredPuppetDiagnosticsTest, PartlyBackedMovingLayerCountsTheGap) {
   const std::array<RgbaImage, 1> layers = {backing};
   const absl::StatusOr<LayeredPuppetBackfillReport> report =
       MeasureLayeredPuppetBackfill(moving, layers);
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->uncovered_pixels, 8u);
 }
 
@@ -186,7 +187,7 @@ TEST(LayeredPuppetDiagnosticsTest, BackfillCombinesEveryStaticLayer) {
   const std::array<RgbaImage, 2> layers = {left, right};
   const absl::StatusOr<LayeredPuppetBackfillReport> report =
       MeasureLayeredPuppetBackfill(moving, layers);
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->uncovered_pixels, 0u);
 }
 
@@ -222,7 +223,7 @@ TEST(LayeredPuppetDiagnosticsTest, CleanStaticLayerReportsNoOrphans) {
   RgbaImage arm = BlankImage();
   Fill(arm, 6, 3, 10, 6);
   const absl::StatusOr<LayeredPuppetOrphanReport> report = MeasureLayeredPuppetOrphans(body, arm);
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->components, 0u);
   EXPECT_EQ(report->orphan_pixels, 0u);
 }
@@ -234,7 +235,7 @@ TEST(LayeredPuppetDiagnosticsTest, IslandInsideTheMovingFootprintIsAnOrphan) {
   RgbaImage arm = BlankImage();
   Fill(arm, 6, 3, 10, 6);
   const absl::StatusOr<LayeredPuppetOrphanReport> report = MeasureLayeredPuppetOrphans(body, arm);
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->components, 1u);
   EXPECT_EQ(report->orphan_pixels, 2u);
 }
@@ -246,7 +247,7 @@ TEST(LayeredPuppetDiagnosticsTest, IslandOutsideTheMovingFootprintIsLegitimateAr
   RgbaImage arm = BlankImage();
   Fill(arm, 6, 3, 10, 6);
   const absl::StatusOr<LayeredPuppetOrphanReport> report = MeasureLayeredPuppetOrphans(body, arm);
-  ASSERT_TRUE(report.ok()) << report.status();
+  ASSERT_OK(report);
   EXPECT_EQ(report->components, 0u);
 }
 
@@ -266,7 +267,7 @@ TEST(LayeredPuppetDiagnosticsTest, SolidShapeHasNoInteriorHoles) {
   RgbaImage pose = BlankImage();
   Fill(pose, 3, 3, 9, 9);
   const absl::StatusOr<size_t> holes = MeasureLayeredPuppetInteriorHoles(pose);
-  ASSERT_TRUE(holes.ok()) << holes.status();
+  ASSERT_OK(holes);
   EXPECT_EQ(*holes, 0u);
 }
 
@@ -279,7 +280,7 @@ TEST(LayeredPuppetDiagnosticsTest, EnclosedGapCountsAsAnInteriorHole) {
     }
   }
   const absl::StatusOr<size_t> holes = MeasureLayeredPuppetInteriorHoles(pose);
-  ASSERT_TRUE(holes.ok()) << holes.status();
+  ASSERT_OK(holes);
   EXPECT_EQ(*holes, 4u);
 }
 
@@ -292,7 +293,7 @@ TEST(LayeredPuppetDiagnosticsTest, NotchOpenToTheEdgeIsNotAnInteriorHole) {
     }
   }
   const absl::StatusOr<size_t> holes = MeasureLayeredPuppetInteriorHoles(pose);
-  ASSERT_TRUE(holes.ok()) << holes.status();
+  ASSERT_OK(holes);
   EXPECT_EQ(*holes, 0u);
 }
 

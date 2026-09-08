@@ -37,7 +37,7 @@ RgbaImage SourcePixels() {
 
 SourceArtwork SourceFor(const RgbaImage& pixels) {
   const absl::StatusOr<std::string> digest = RgbaImageDigest(pixels);
-  EXPECT_TRUE(digest.ok());
+  EXPECT_OK(digest);
   return {
       .id = "source-id",
       .name = "Run Source",

@@ -8,6 +8,7 @@
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 
 namespace zebes {
 namespace {
@@ -62,8 +63,8 @@ TEST_F(ResourceUtilsTest, MissingDirectoryIsNotAnEmptyCatalog) {
 TEST_F(ResourceUtilsTest, AtomicWriterCreatesParentsAndReplacesCompleteContents) {
   const std::filesystem::path path = directory_ / "nested" / "definition.json";
 
-  EXPECT_TRUE(WriteTextFileAtomically(path.string(), "first").ok());
-  EXPECT_TRUE(WriteTextFileAtomically(path.string(), "replacement").ok());
+  EXPECT_OK(WriteTextFileAtomically(path.string(), "first"));
+  EXPECT_OK(WriteTextFileAtomically(path.string(), "replacement"));
 
   std::ifstream stream(path);
   std::string contents;

@@ -1,4 +1,4 @@
-#include "common/sdl_wrapper.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 #include "SDL_image.h"
 #include "absl/memory/memory.h"
@@ -77,8 +77,7 @@ absl::StatusOr<std::unique_ptr<SdlWrapper>> SdlWrapper::Create(const WindowConfi
   const int window_x = config.centered ? SDL_WINDOWPOS_CENTERED : config.x;
   const int window_y = config.centered ? SDL_WINDOWPOS_CENTERED : config.y;
   SDL_Window* window = SDL_CreateWindow(config.title.c_str(), window_x, window_y, config.width,
-                                        config.height,
-                                        static_cast<SDL_WindowFlags>(window_flags));
+                                        config.height, static_cast<SDL_WindowFlags>(window_flags));
 
   if (window == nullptr) {
     return absl::InternalError(absl::StrCat("Failed to create SDL window: ", SDL_GetError()));

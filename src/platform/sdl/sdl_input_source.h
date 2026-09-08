@@ -2,8 +2,8 @@
 
 #include "SDL_events.h"
 #include "absl/functional/any_invocable.h"
-#include "common/sdl_wrapper.h"
 #include "engine/input_types.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 

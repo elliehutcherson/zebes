@@ -6,12 +6,12 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-#include "common/sdl_wrapper.h"
 #include "editor/anchor_gizmo_renderer.h"
 #include "editor/gui_interface.h"
 #include "editor/imgui_scoped.h"
 #include "imgui.h"
 #include "objects/level.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 

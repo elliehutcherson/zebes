@@ -6,7 +6,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "api/api.h"
-#include "common/sdl_wrapper.h"
 #include "editor/blueprint_editor/blueprint_editor.h"
 #include "editor/config_editor/config_editor.h"
 #include "editor/gui_interface.h"
@@ -21,6 +20,7 @@
 #include "editor/tileset_editor/tileset_editor.h"
 #include "generation/image_generation_request_controller.h"
 #include "generation/image_generation_service.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 

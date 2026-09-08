@@ -4,7 +4,6 @@
 
 #include "absl/status/statusor.h"
 #include "common/config.h"
-#include "common/sdl_wrapper.h"
 #include "engine/input_types.h"
 #include "game/game_renderer.h"
 #include "objects/game_view.h"
@@ -12,6 +11,7 @@
 #include "platform/sdl/sdl_input_source.h"
 #include "platform/sdl/sdl_subsystem.h"
 #include "platform/sdl/sdl_texture_store.h"
+#include "platform/sdl/sdl_wrapper.h"
 #include "resources/texture_resource_store.h"
 
 namespace zebes {

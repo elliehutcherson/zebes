@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "tests/macros.h"
 
 namespace zebes {
 namespace {
@@ -47,7 +48,7 @@ TEST(ProfileDeformationTest, NeutralPoseReproducesSourceExactly) {
   const absl::StatusOr<ProfileDeformationResult> result = DeformProfileArtwork(
       source, layers, layers, joints, joints, bones, ProfileDeformationConfig{});
 
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   EXPECT_EQ(result->image.pixels, source.pixels);
   EXPECT_EQ(result->mapped_pixels, 16 * 16);
   EXPECT_EQ(result->unmapped_pixels, 0);
@@ -89,7 +90,7 @@ TEST(ProfileDeformationTest, RotatedBoneSamplesItsOriginalLayer) {
       DeformProfileArtwork(source, source_layers, target_layers, source_joints, target_joints,
                            bones, ProfileDeformationConfig{.joint_blend_radius = 2.0});
 
-  ASSERT_TRUE(result.ok()) << result.status();
+  ASSERT_OK(result);
   EXPECT_EQ(result->mapped_pixels, 6);
   EXPECT_EQ(result->unmapped_pixels, 0);
   const size_t rotated_tip = (static_cast<size_t>(13) * kSize + 8) * 4;

@@ -41,7 +41,7 @@ TEST_F(AssetRootLockTest, AWriterCanAcquireAfterTheOwnerReleases) {
                        AssetRootLock::AcquireExclusive(root_, absl::ZeroDuration()));
   first.reset();
 
-  EXPECT_TRUE(AssetRootLock::AcquireExclusive(root_, absl::ZeroDuration()).ok());
+  EXPECT_OK(AssetRootLock::AcquireExclusive(root_, absl::ZeroDuration()));
 }
 
 TEST_F(AssetRootLockTest, SharedReadersCoexistButBlockAWriter) {

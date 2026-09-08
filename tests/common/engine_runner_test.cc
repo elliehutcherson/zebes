@@ -339,9 +339,9 @@ TEST(BlockingCallbackThreadTest, RunsTheCallbackAndSupportsRepeatedWaits) {
                          return absl::OkStatus();
                        }));
 
-  EXPECT_TRUE(thread.Wait().ok());
+  EXPECT_OK(thread.Wait());
   EXPECT_TRUE(ran.load(std::memory_order_acquire));
-  EXPECT_TRUE(thread.Wait().ok());
+  EXPECT_OK(thread.Wait());
 }
 
 TEST(BlockingCallbackThreadTest, TranslatesAnEscapedException) {

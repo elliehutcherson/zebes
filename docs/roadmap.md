@@ -86,9 +86,29 @@ implementation, the editor page is a real HTML file, and tracked inputs are
 separated from generated output. Narrative in
 [`history/repository-cleanup-2026-09-06.md`](history/repository-cleanup-2026-09-06.md).
 
-Two decisions were deferred rather than made, and are listed under "Open
-decisions" in [`handoff.md`](handoff.md): whether the layered-puppet hard gates
-measure anything visible at 48px, and who should own `kReferenceJointMapping`.
+One decision was deferred rather than made and is listed under "Open decisions"
+in [`handoff.md`](handoff.md): whether the layered-puppet hard gates measure
+anything visible at 48px. The second, who should own `kReferenceJointMapping`,
+was settled by deleting the file it lived in.
+
+### Puppet document editor
+
+Started 2026-09-07, uncommitted on `animation-recipe-lifecycle`. A puppet is now
+one document holding its artwork, skeleton, parts and frames, edited only
+through named commands. Three ways in share that one path: `puppet_edit` for an
+agent, `serve_puppet_editor` for a browser, and a five-step page. Two of the
+five legacy specs were migrated to documents and deleted, proven byte-identical
+first; the three See-through specs remain and render through `--spec`.
+
+The second editor was retired on 2026-09-07, so there is one now. Its tracked
+state held nothing the documents did not already have. The same day gave the
+server defaults for every flag, made a root joint drag slide the whole rig,
+added `scale_to_size` so a puppet can be stretched onto artwork at another
+resolution, and added `set_part_bones` so a part built on the wrong bone is
+re-pointed instead of retraced.
+
+Remaining work is listed under "what the puppet editor still needs" in
+[`handoff.md`](handoff.md). None of it blocks the art gate.
 
 ### Production pipeline complete; player art gate reopened
 
@@ -147,7 +167,8 @@ through validated `EngineConfig`. Do not preconfigure unmeasured knobs.
 
 ## Active non-blocking debt
 
-- Move `SdlWrapper` under `src/platform/sdl` when editor SDL composition changes.
+- Reuse `SdlSubsystem` for editor SDL ownership when that composition next
+  changes. `SdlWrapper` moved under `src/platform/sdl` on 2026-09-07.
 - Replace the Level Editor linear entity lookup only after profiling justifies a
   spatial index.
 - Add shared confirmation UI to tile deletion.

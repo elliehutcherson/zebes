@@ -138,13 +138,17 @@ target_link_libraries(json_schema
   absl::flat_hash_set
 )
 
-add_library(sdl_wrapper sdl_wrapper.cc)
-target_link_libraries(sdl_wrapper config)
-target_link_libraries(sdl_wrapper absl::status)
-target_link_libraries(sdl_wrapper absl::statusor)
-target_link_libraries(sdl_wrapper absl::strings)
-target_link_libraries(sdl_wrapper SDL2-static SDL2_image)
-
 add_library(imgui_wrapper imgui_wrapper.cc)
 target_link_libraries(imgui_wrapper SDL2-static)
 target_link_libraries(imgui_wrapper imgui)
+
+add_library(loopback_http_server loopback_http_server.cc)
+target_link_libraries(loopback_http_server
+  PUBLIC
+  absl::flat_hash_map
+  absl::status
+  PRIVATE
+  status_macros
+  absl::statusor
+  absl::strings
+)

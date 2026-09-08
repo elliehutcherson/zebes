@@ -350,7 +350,7 @@ TEST_F(PropArtworkEditorTest, ImportDecodesOnAWorkerThenAcceptsSourceOnTheEditor
   EXPECT_CALL(api_, CreateSourceArtwork(_, _, _))
       .WillOnce([&](std::string name, SourceArtworkProvenance provenance, const RgbaImage& image) {
         absl::StatusOr<std::string> digest = RgbaImageDigest(image);
-        EXPECT_TRUE(digest.ok());
+        EXPECT_OK(digest);
         imported = SourceArtwork{
             .id = "imported-source",
             .name = std::move(name),
@@ -512,7 +512,7 @@ TEST_F(PropArtworkEditorTest, AcceptedCandidateIsRetainedWithGeneratedProvenance
   EXPECT_CALL(api_, CreateSourceArtwork(_, _, _))
       .WillOnce([&](std::string name, SourceArtworkProvenance provenance, const RgbaImage& image) {
         absl::StatusOr<std::string> digest = RgbaImageDigest(image);
-        EXPECT_TRUE(digest.ok());
+        EXPECT_OK(digest);
         generated = SourceArtwork{
             .id = "generated-source",
             .name = std::move(name),

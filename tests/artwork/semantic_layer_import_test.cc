@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "tests/macros.h"
 
 namespace zebes {
 namespace {
@@ -38,7 +39,7 @@ TEST(SemanticLayerImportTest, RestoresCropAtExactCanvasPosition) {
   const absl::StatusOr<RgbaImage> restored =
       RestoreSemanticLayer(cropped, {.x = 3, .y = 2, .width = 2, .height = 2}, 8, 6);
 
-  ASSERT_TRUE(restored.ok()) << restored.status();
+  ASSERT_OK(restored);
   EXPECT_EQ(std::vector<uint8_t>(restored->pixels.begin() + Offset(*restored, 3, 2),
                                  restored->pixels.begin() + Offset(*restored, 3, 2) + 4),
             (std::vector<uint8_t>{10, 20, 30, 255}));
@@ -56,7 +57,7 @@ TEST(SemanticLayerImportTest, DownsamplesWithAlphaWeightedColorAndBinaryCoverage
 
   const absl::StatusOr<RgbaImage> output = DownsampleSemanticLayer(source, 2, 2, 0.2);
 
-  ASSERT_TRUE(output.ok()) << output.status();
+  ASSERT_OK(output);
   const size_t first = Offset(*output, 0, 0);
   EXPECT_EQ(output->pixels[first], 133);
   EXPECT_EQ(output->pixels[first + 1], 33);
@@ -77,7 +78,7 @@ TEST(SemanticLayerImportTest, VisibleMaskRestoresOriginalPixelsExactly) {
 
   const absl::StatusOr<RgbaImage> output = PreserveSemanticVisiblePixels(candidate, source, mask);
 
-  ASSERT_TRUE(output.ok()) << output.status();
+  ASSERT_OK(output);
   EXPECT_EQ(std::vector<uint8_t>(output->pixels.begin() + Offset(*output, 1, 0),
                                  output->pixels.begin() + Offset(*output, 1, 0) + 4),
             (std::vector<uint8_t>{17, 29, 43, 255}));
@@ -95,7 +96,7 @@ TEST(SemanticLayerImportTest, ClipsGeneratedCompletionToAllowedAlpha) {
 
   const absl::StatusOr<RgbaImage> clipped = ClipSemanticLayerToMask(candidate, mask);
 
-  ASSERT_TRUE(clipped.ok()) << clipped.status();
+  ASSERT_OK(clipped);
   EXPECT_EQ(clipped->pixels[Offset(*clipped, 0, 0) + 3], 0);
   EXPECT_EQ(std::vector<uint8_t>(clipped->pixels.begin() + Offset(*clipped, 2, 0),
                                  clipped->pixels.begin() + Offset(*clipped, 2, 0) + 4),
@@ -115,7 +116,7 @@ TEST(SemanticLayerImportTest, MeasuresExclusiveVisibleOwnership) {
   const absl::StatusOr<SemanticVisibleOwnership> accepted =
       MeasureSemanticVisibleOwnership(source, exclusive);
 
-  ASSERT_TRUE(accepted.ok()) << accepted.status();
+  ASSERT_OK(accepted);
   EXPECT_EQ(accepted->source_pixels, 3);
   EXPECT_EQ(accepted->singly_owned_pixels, 3);
   EXPECT_EQ(accepted->unowned_pixels, 0);
@@ -128,7 +129,7 @@ TEST(SemanticLayerImportTest, MeasuresExclusiveVisibleOwnership) {
   const absl::StatusOr<SemanticVisibleOwnership> rejected =
       MeasureSemanticVisibleOwnership(source, invalid);
 
-  ASSERT_TRUE(rejected.ok()) << rejected.status();
+  ASSERT_OK(rejected);
   EXPECT_EQ(rejected->singly_owned_pixels, 2);
   EXPECT_EQ(rejected->multiply_owned_pixels, 1);
   EXPECT_EQ(rejected->ownership_outside_source_pixels, 1);
@@ -141,7 +142,7 @@ TEST(SemanticLayerImportTest, MeasuresImmutableLayerMutation) {
 
   const absl::StatusOr<SemanticLayerMutation> exact = MeasureSemanticLayerMutation(source, source);
 
-  ASSERT_TRUE(exact.ok()) << exact.status();
+  ASSERT_OK(exact);
   EXPECT_EQ(exact->changed_pixels, 0);
   EXPECT_EQ(exact->alpha_added_pixels, 0);
   EXPECT_EQ(exact->alpha_removed_pixels, 0);
@@ -153,7 +154,7 @@ TEST(SemanticLayerImportTest, MeasuresImmutableLayerMutation) {
   const absl::StatusOr<SemanticLayerMutation> mutation =
       MeasureSemanticLayerMutation(source, changed);
 
-  ASSERT_TRUE(mutation.ok()) << mutation.status();
+  ASSERT_OK(mutation);
   EXPECT_EQ(mutation->changed_pixels, 3);
   EXPECT_EQ(mutation->alpha_added_pixels, 1);
   EXPECT_EQ(mutation->alpha_removed_pixels, 1);
@@ -170,7 +171,7 @@ TEST(SemanticLayerImportTest, SplitsAndOrdersOpaqueComponents) {
   const absl::StatusOr<std::vector<SemanticLayerComponent>> components =
       SplitSemanticLayerComponents(source, 2);
 
-  ASSERT_TRUE(components.ok()) << components.status();
+  ASSERT_OK(components);
   ASSERT_EQ(components->size(), 2);
   EXPECT_EQ((*components)[0].minimum_x, 1);
   EXPECT_EQ((*components)[0].maximum_x, 2);

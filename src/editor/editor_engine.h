@@ -7,12 +7,12 @@
 #include "api/asset_workspace.h"
 #include "common/config.h"
 #include "common/imgui_wrapper.h"
-#include "common/sdl_wrapper.h"
 #include "editor/editor_ui.h"
 #include "editor/gui.h"
 #include "engine/input_manager.h"
 #include "platform/sdl/sdl_input_source.h"
 #include "platform/sdl/sdl_texture_store.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 

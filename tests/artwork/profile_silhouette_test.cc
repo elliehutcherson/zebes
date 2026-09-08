@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "tests/macros.h"
 
 namespace zebes {
 namespace {
@@ -69,8 +70,8 @@ TEST(ProfileSilhouetteTest, ExtractsDeterministicConnectedMedialAxis) {
   const absl::StatusOr<ProfileSilhouette> first = ExtractProfileSilhouette(image, config);
   const absl::StatusOr<ProfileSilhouette> second = ExtractProfileSilhouette(image, config);
 
-  ASSERT_TRUE(first.ok()) << first.status();
-  ASSERT_TRUE(second.ok()) << second.status();
+  ASSERT_OK(first);
+  ASSERT_OK(second);
   EXPECT_TRUE(first->IsValid());
   EXPECT_EQ(first->source_scale, 1);
   EXPECT_GT(first->silhouette_pixels, 4000);
@@ -88,8 +89,8 @@ TEST(ProfileSilhouetteTest, PruningNeverAddsBranchesOrPixels) {
   const absl::StatusOr<ProfileSilhouette> pruned = ExtractProfileSilhouette(
       image, ProfileSilhouetteConfig{.working_size = 128, .minimum_branch_length = 8});
 
-  ASSERT_TRUE(raw.ok()) << raw.status();
-  ASSERT_TRUE(pruned.ok()) << pruned.status();
+  ASSERT_OK(raw);
+  ASSERT_OK(pruned);
   EXPECT_LE(pruned->medial_axis_pixels, raw->medial_axis_pixels);
   EXPECT_LE(pruned->endpoint_count, raw->endpoint_count);
   EXPECT_EQ(pruned->silhouette, raw->silhouette);
@@ -98,11 +99,11 @@ TEST(ProfileSilhouetteTest, PruningNeverAddsBranchesOrPixels) {
 TEST(ProfileSilhouetteTest, RendersEveryAxisPixelInRed) {
   const absl::StatusOr<ProfileSilhouette> profile =
       ExtractProfileSilhouette(ProfileMouse(), ProfileSilhouetteConfig{.working_size = 128});
-  ASSERT_TRUE(profile.ok()) << profile.status();
+  ASSERT_OK(profile);
 
   const absl::StatusOr<RgbaImage> evidence = RenderProfileSilhouetteEvidence(*profile);
 
-  ASSERT_TRUE(evidence.ok()) << evidence.status();
+  ASSERT_OK(evidence);
   int red_pixels = 0;
   for (size_t pixel = 0; pixel < evidence->pixels.size() / 4; ++pixel) {
     if (evidence->pixels[pixel * 4] == 255 && evidence->pixels[pixel * 4 + 1] == 70 &&
@@ -116,11 +117,11 @@ TEST(ProfileSilhouetteTest, RendersEveryAxisPixelInRed) {
 TEST(ProfileSilhouetteTest, RendersBinaryNeutralControl) {
   const absl::StatusOr<ProfileSilhouette> profile =
       ExtractProfileSilhouette(ProfileMouse(), ProfileSilhouetteConfig{.working_size = 128});
-  ASSERT_TRUE(profile.ok()) << profile.status();
+  ASSERT_OK(profile);
 
   const absl::StatusOr<RgbaImage> control = RenderProfileSilhouetteControl(*profile);
 
-  ASSERT_TRUE(control.ok()) << control.status();
+  ASSERT_OK(control);
   int white_pixels = 0;
   for (size_t pixel = 0; pixel < control->pixels.size() / 4; ++pixel) {
     const uint8_t red = control->pixels[pixel * 4];
@@ -137,7 +138,7 @@ TEST(ProfileSilhouetteTest, RendersBinaryNeutralControl) {
 TEST(ProfileSilhouetteTest, RendersBinarySemanticPoseControl) {
   const absl::StatusOr<ProfileSilhouette> profile =
       ExtractProfileSilhouette(ProfileMouse(), ProfileSilhouetteConfig{.working_size = 128});
-  ASSERT_TRUE(profile.ok()) << profile.status();
+  ASSERT_OK(profile);
   const std::vector<ProfileControlPoint> joints = {
       {.x = 64.0, .y = 45.0},
       {.x = 64.0, .y = 70.0},
@@ -151,7 +152,7 @@ TEST(ProfileSilhouetteTest, RendersBinarySemanticPoseControl) {
   const absl::StatusOr<RgbaImage> control =
       RenderProfilePoseControl(profile->silhouette, profile->width, profile->height, joints, bones);
 
-  ASSERT_TRUE(control.ok()) << control.status();
+  ASSERT_OK(control);
   const size_t shoulder = (static_cast<size_t>(70) * control->width + 64) * 4;
   EXPECT_EQ(control->pixels[shoulder], 255);
   for (size_t pixel = 0; pixel < control->pixels.size() / 4; ++pixel) {
@@ -182,7 +183,7 @@ TEST(ProfileSilhouetteTest, RendersOrdinalDepthFromExperimentLayers) {
 
   const absl::StatusOr<RgbaImage> image = RenderProfileOrdinalDepth(layers, 2, 2, depths);
 
-  ASSERT_TRUE(image.ok()) << image.status();
+  ASSERT_OK(image);
   EXPECT_EQ(image->pixels[0], 0);
   EXPECT_EQ(image->pixels[4], 70);
   EXPECT_EQ(image->pixels[8], 200);

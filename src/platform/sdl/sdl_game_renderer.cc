@@ -13,7 +13,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "common/sdl_wrapper.h"
 #include "common/status_macros.h"
 #include "engine/parallax_layout.h"
 #include "engine/scene_composition.h"
@@ -22,6 +21,7 @@
 #include "objects/camera.h"
 #include "objects/game_view.h"
 #include "platform/sdl/sdl_texture_handle.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 namespace {

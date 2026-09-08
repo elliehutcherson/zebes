@@ -9,8 +9,8 @@
 #include "macros.h"
 #include "objects/texture.h"
 #include "tests/api_mock.h"
-#include "tests/common/mock_sdl_wrapper.h"
 #include "tests/editor/mock_gui.h"
+#include "tests/platform/mock_sdl_wrapper.h"
 
 namespace zebes {
 

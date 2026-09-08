@@ -84,7 +84,7 @@ std::vector<uint8_t> EncodedPng(int width, int height) {
   const std::string path = TempPath("image_io_decode_fixture.png");
   std::filesystem::remove(path);
   const absl::Status written = WritePng(path, width, height, Checkerboard(width, height));
-  EXPECT_TRUE(written.ok()) << written;
+  EXPECT_OK(written);
   std::ifstream file(path, std::ios::binary);
   const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(file)),
                                    std::istreambuf_iterator<char>());
@@ -133,7 +133,7 @@ TEST(ImageIoTest, RefusesAnImageBeyondThePixelLimit) {
   const absl::Status status = DecodeImage(encoded, 47).status();
 
   EXPECT_EQ(status.code(), absl::StatusCode::kResourceExhausted);
-  EXPECT_TRUE(DecodeImage(encoded, 48).ok()) << "48 pixels is exactly an 8x6 image";
+  EXPECT_OK(DecodeImage(encoded, 48)) << ": 48 pixels is exactly an 8x6 image";
 }
 
 TEST(ImageIoTest, RejectsAnInvalidPixelLimit) {

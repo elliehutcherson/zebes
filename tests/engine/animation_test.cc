@@ -4,6 +4,7 @@
 
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
+#include "macros.h"
 #include "objects/sprite.h"
 
 namespace zebes {
@@ -15,13 +16,13 @@ TEST(AnimationCursorTest, ReadsFramesThatChangeAfterPlaybackStarts) {
       {.index = 0, .texture_x = 10, .frames_per_cycle = 1},
   };
 
-  ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
+  ASSERT_OK(cursor.GetCurrentFrame(frames));
   cursor.Update(frames, SpritePlaybackMode::kLoop);
 
   frames.push_back({.index = 1, .texture_x = 20, .frames_per_cycle = 1});
   cursor.Update(frames, SpritePlaybackMode::kLoop);
 
-  ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
+  ASSERT_OK(cursor.GetCurrentFrame(frames));
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 1);
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->texture_x, 20);
 }
@@ -34,7 +35,7 @@ TEST(AnimationCursorTest, UsesEachFramesDuration) {
   };
 
   cursor.Update(frames, SpritePlaybackMode::kLoop);
-  ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
+  ASSERT_OK(cursor.GetCurrentFrame(frames));
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 0);
 
   cursor.Update(frames, SpritePlaybackMode::kLoop);
@@ -52,7 +53,7 @@ TEST(AnimationCursorTest, TreatsNonPositiveDurationAsOneTick) {
   };
 
   cursor.Update(frames, SpritePlaybackMode::kLoop);
-  ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
+  ASSERT_OK(cursor.GetCurrentFrame(frames));
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 1);
 
   cursor.Update(frames, SpritePlaybackMode::kLoop);
@@ -70,7 +71,7 @@ TEST(AnimationCursorTest, HandlesFramesRemovedDuringPlayback) {
 
   frames.resize(1);
 
-  ASSERT_TRUE(cursor.GetCurrentFrame(frames).ok());
+  ASSERT_OK(cursor.GetCurrentFrame(frames));
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 0);
   cursor.Update(frames, SpritePlaybackMode::kLoop);
   EXPECT_EQ(cursor.GetCurrentFrame(frames)->index, 0);

@@ -5,10 +5,10 @@
 #include "SDL_render.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "common/sdl_wrapper.h"
 #include "game/game_renderer.h"
 #include "game/game_scene.h"
 #include "objects/game_view.h"
+#include "platform/sdl/sdl_wrapper.h"
 
 namespace zebes {
 

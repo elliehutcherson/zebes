@@ -157,7 +157,7 @@ TEST(ImageGenerationEngineTest, DeliversACompletedRequestUnderItsSubmittedId) {
   ASSERT_OK_AND_ASSIGN(const GenerationEvent event, RunUntilEvent(*fixture.engine, 4));
 
   EXPECT_EQ(event.id, id);
-  ASSERT_TRUE(event.result.ok());
+  ASSERT_OK(event.result);
   EXPECT_EQ(event.result->submitted_prompt, "a mossy boulder");
   ASSERT_EQ(event.result->candidates.size(), 1);
 }
@@ -170,12 +170,12 @@ TEST(ImageGenerationEngineTest, TargetedCollectionPreservesAnotherSurfacesEvent)
 
   std::optional<GenerationEvent> second_event = fixture.engine->NextEvent(second);
   ASSERT_TRUE(second_event.has_value());
-  ASSERT_TRUE(second_event->result.ok());
+  ASSERT_OK(second_event->result);
   EXPECT_EQ(second_event->result->submitted_prompt, "parallax");
 
   std::optional<GenerationEvent> first_event = fixture.engine->NextEvent(first);
   ASSERT_TRUE(first_event.has_value());
-  ASSERT_TRUE(first_event->result.ok());
+  ASSERT_OK(first_event->result);
   EXPECT_EQ(first_event->result->submitted_prompt, "prop");
 }
 
@@ -240,7 +240,7 @@ TEST(ImageGenerationEngineTest, ReportsARejectedSpecAsThatRequestsOutcome) {
 
   // Validation happens in Start, so the id is issued and the failure comes back
   // as this request's event rather than as an engine failure.
-  ASSERT_TRUE(status.ok()) << status;
+  ASSERT_OK(status);
   ASSERT_OK_AND_ASSIGN(const GenerationEvent event, RunUntilEvent(*fixture.engine, 4));
   EXPECT_EQ(event.result.status().code(), absl::StatusCode::kInvalidArgument);
 }
@@ -259,7 +259,7 @@ TEST(ImageGenerationEngineTest, ReportsAStartFailureWithoutEndingTheEngine) {
   fixture.client->set_start_failure(absl::OkStatus());
   ASSERT_OK(fixture.engine->Submit(SpecFor("second")).status());
   ASSERT_OK_AND_ASSIGN(const GenerationEvent second, RunUntilEvent(*fixture.engine, 4));
-  EXPECT_TRUE(second.result.ok());
+  EXPECT_OK(second.result);
 }
 
 TEST(ImageGenerationEngineTest, CancelReportsCancelledAndReleasesTheRequest) {
@@ -286,7 +286,7 @@ TEST(ImageGenerationEngineTest, CancelIsIgnoredForARequestThatAlreadyFinished) {
   ASSERT_OK_AND_ASSIGN(EngineFixture fixture, MakeEngine());
   ASSERT_OK_AND_ASSIGN(const uint64_t id, fixture.engine->Submit(SpecFor("done")));
   ASSERT_OK_AND_ASSIGN(const GenerationEvent event, RunUntilEvent(*fixture.engine, 4));
-  ASSERT_TRUE(event.result.ok());
+  ASSERT_OK(event.result);
 
   ASSERT_OK(fixture.engine->Cancel(id));
   ASSERT_OK(fixture.engine->Run().status());
@@ -320,9 +320,9 @@ TEST(ImageGenerationEngineTest, CollectingAnEventFreesItsOutstandingSlot) {
             absl::StatusCode::kResourceExhausted);
 
   ASSERT_OK_AND_ASSIGN(const GenerationEvent event, RunUntilEvent(*fixture.engine, 4));
-  ASSERT_TRUE(event.result.ok());
+  ASSERT_OK(event.result);
 
-  EXPECT_TRUE(fixture.engine->Submit(SpecFor("accepted")).ok());
+  EXPECT_OK(fixture.engine->Submit(SpecFor("accepted")));
 }
 
 // The whole point of the engine: submitting from another thread wakes a sleeping
@@ -345,7 +345,7 @@ TEST(ImageGenerationEngineTest, RunsUnderAnEngineRunnerAndWakesOnSubmit) {
 
   ASSERT_TRUE(event.has_value()) << "the runner never delivered the generation event";
   EXPECT_EQ(event->id, id);
-  EXPECT_TRUE(event->result.ok());
+  EXPECT_OK(event->result);
 }
 
 // Stopping does not drain: an unfinished request is abandoned rather than

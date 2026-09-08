@@ -256,6 +256,14 @@ bone mappings, and fixed draw order encode rear arm, both legs, visible
 body/coat, then front arm. The canonical blue/orange tracks stay on their
 original physical limbs; relabeling depth did not swap their motion.
 
+> Superseded 2026-09-07. The two sections below describe `layered_puppet_editor`
+> and `editor_states/mouse_run_v1.json`, both deleted when the two editors
+> became one. Nothing in them was lost: that state held thirteen source joints,
+> no frame overrides and no painted meshes, and those joints are exactly
+> `mouse_interactive_run_v1.json`'s rest pose. `serve_puppet_editor` and README
+> sections 11 to 14 are the current tool. Kept as the record of what the
+> experiment did at the time.
+
 The C++ `layered_puppet_editor` exporter serializes source pixels, seed meshes,
 bone chains, twelve canonical poses, initial pose, and draw order into the
 browser editor. Pose mode deforms target joints. Source calibration moves bind

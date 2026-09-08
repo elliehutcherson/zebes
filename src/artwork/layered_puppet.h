@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -199,6 +200,13 @@ absl::StatusOr<RgbaImage> BuildLayeredPuppetMaskedArtwork(const RgbaImage& sourc
 
 // Clears every pixel of artwork that mask selects.
 absl::Status SubtractLayeredPuppetMask(RgbaImage& artwork, const RgbaImage& mask);
+
+// Whether a part name is usable everywhere a part name is used. A part reaches
+// the filesystem as parts/<name>.png and reaches the browser as a URL segment,
+// so the set stays narrow enough for both: ASCII letters, digits, underscore,
+// and hyphen, and never empty. Authoring tools should reject a name here rather
+// than let it fail later at the point a file is written.
+bool IsSafeLayeredPuppetPartName(std::string_view name);
 
 // Every part must use the common canvas and either one known bone or two known
 // connected bones with a valid mesh. Every pose must provide corresponding

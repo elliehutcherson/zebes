@@ -56,7 +56,7 @@ TEST(NotificationSetTest, CoalescesSoftwareNotificationsIntoANativeWait) {
   first->Notify();
   second->Notify();
 
-  EXPECT_TRUE(notification_set->Wait().ok());
+  EXPECT_OK(notification_set->Wait());
   notification_set->Disarm();
 }
 
@@ -77,7 +77,7 @@ TEST(NotificationSetTest, WakesAgainAfterADisarmAndRearm) {
 
   ASSERT_OK(notification_set->Arm());
   notification->Notify();
-  EXPECT_TRUE(notification_set->Wait().ok());
+  EXPECT_OK(notification_set->Wait());
   notification_set->Disarm();
 }
 
@@ -92,7 +92,7 @@ TEST(NotificationSetTest, WaitUntilReturnsWhenTheDeadlinePasses) {
 
   constexpr absl::Duration kTimeout = absl::Milliseconds(50);
   const absl::Time started = absl::Now();
-  EXPECT_TRUE(notification_set->WaitUntil(started + kTimeout).ok());
+  EXPECT_OK(notification_set->WaitUntil(started + kTimeout));
   const absl::Duration elapsed = absl::Now() - started;
   notification_set->Disarm();
 
@@ -109,7 +109,7 @@ TEST(NotificationSetTest, WaitUntilPollsOnceForADeadlineAlreadyPassed) {
   ASSERT_OK(notification_set->Seal());
   ASSERT_OK(notification_set->Arm());
 
-  EXPECT_TRUE(notification_set->WaitUntil(absl::Now() - absl::Seconds(30)).ok());
+  EXPECT_OK(notification_set->WaitUntil(absl::Now() - absl::Seconds(30)));
   notification_set->Disarm();
 }
 
@@ -124,7 +124,7 @@ TEST(NotificationSetTest, WaitUntilReturnsEarlyWhenNotified) {
 
   notification->Notify();
 
-  EXPECT_TRUE(notification_set->WaitUntil(absl::Now() + absl::Hours(1)).ok());
+  EXPECT_OK(notification_set->WaitUntil(absl::Now() + absl::Hours(1)));
   notification_set->Disarm();
 }
 

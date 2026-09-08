@@ -8,8 +8,8 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
-#include "common/sdl_wrapper.h"
 #include "engine/texture_handle.h"
+#include "platform/sdl/sdl_wrapper.h"
 #include "resources/texture_resource_store.h"
 
 namespace zebes {

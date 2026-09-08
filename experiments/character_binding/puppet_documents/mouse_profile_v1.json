@@ -1,0 +1,966 @@
+{
+  "allow_overlap": true,
+  "anchor_frame": "neutral",
+  "bones": [
+    {
+      "end_joint": "head",
+      "may_stretch": false,
+      "name": "head",
+      "start_joint": "neck"
+    },
+    {
+      "end_joint": "hip",
+      "may_stretch": false,
+      "name": "torso",
+      "start_joint": "shoulder"
+    },
+    {
+      "end_joint": "knee_a",
+      "may_stretch": false,
+      "name": "thigh_a",
+      "start_joint": "hip"
+    },
+    {
+      "end_joint": "foot_a",
+      "may_stretch": false,
+      "name": "shin_a",
+      "start_joint": "knee_a"
+    },
+    {
+      "end_joint": "knee_b",
+      "may_stretch": false,
+      "name": "thigh_b",
+      "start_joint": "hip"
+    },
+    {
+      "end_joint": "foot_b",
+      "may_stretch": false,
+      "name": "shin_b",
+      "start_joint": "knee_b"
+    },
+    {
+      "end_joint": "elbow_a",
+      "may_stretch": false,
+      "name": "upper_arm_a",
+      "start_joint": "shoulder"
+    },
+    {
+      "end_joint": "hand_a",
+      "may_stretch": false,
+      "name": "forearm_a",
+      "start_joint": "elbow_a"
+    },
+    {
+      "end_joint": "elbow_b",
+      "may_stretch": false,
+      "name": "upper_arm_b",
+      "start_joint": "shoulder"
+    },
+    {
+      "end_joint": "hand_b",
+      "may_stretch": false,
+      "name": "forearm_b",
+      "start_joint": "elbow_b"
+    }
+  ],
+  "fps": 8,
+  "frames": [
+    {
+      "draw_order": [
+        "rear_thigh",
+        "rear_shin",
+        "front_thigh",
+        "front_shin",
+        "rear_upper_arm",
+        "rear_forearm",
+        "torso",
+        "head",
+        "front_upper_arm",
+        "front_forearm"
+      ],
+      "name": "neutral",
+      "pose": {
+        "elbow_a": [
+          92.0,
+          143.0
+        ],
+        "elbow_b": [
+          160.0,
+          145.0
+        ],
+        "foot_a": [
+          108.0,
+          228.0
+        ],
+        "foot_b": [
+          151.0,
+          229.0
+        ],
+        "hand_a": [
+          103.0,
+          166.0
+        ],
+        "hand_b": [
+          176.0,
+          174.0
+        ],
+        "head": [
+          126.0,
+          76.0
+        ],
+        "hip": [
+          122.0,
+          185.0
+        ],
+        "knee_a": [
+          106.0,
+          207.0
+        ],
+        "knee_b": [
+          144.0,
+          207.0
+        ],
+        "neck": [
+          131.0,
+          106.0
+        ],
+        "shoulder": [
+          131.0,
+          129.0
+        ]
+      }
+    },
+    {
+      "draw_order": [
+        "front_thigh",
+        "front_shin",
+        "rear_thigh",
+        "rear_shin",
+        "front_upper_arm",
+        "front_forearm",
+        "torso",
+        "head",
+        "rear_upper_arm",
+        "rear_forearm"
+      ],
+      "name": "contact",
+      "pose": {
+        "elbow_a": [
+          98.347,
+          154.511
+        ],
+        "elbow_b": [
+          154.42,
+          152.42
+        ],
+        "foot_a": [
+          82.043,
+          211.401
+        ],
+        "foot_b": [
+          166.045,
+          215.575
+        ],
+        "hand_a": [
+          74.39,
+          163.231
+        ],
+        "hand_b": [
+          185.92,
+          162.655
+        ],
+        "head": [
+          126.0,
+          76.0
+        ],
+        "hip": [
+          122.0,
+          185.0
+        ],
+        "knee_a": [
+          101.161,
+          202.486
+        ],
+        "knee_b": [
+          145.121,
+          205.818
+        ],
+        "neck": [
+          131.0,
+          106.0
+        ],
+        "shoulder": [
+          131.0,
+          129.0
+        ]
+      }
+    },
+    {
+      "draw_order": [
+        "rear_thigh",
+        "rear_shin",
+        "front_thigh",
+        "front_shin",
+        "rear_upper_arm",
+        "rear_forearm",
+        "torso",
+        "head",
+        "front_upper_arm",
+        "front_forearm"
+      ],
+      "name": "passing",
+      "pose": {
+        "elbow_a": [
+          141.725,
+          169.025
+        ],
+        "elbow_b": [
+          118.593,
+          159.709
+        ],
+        "foot_a": [
+          146.321,
+          223.376
+        ],
+        "foot_b": [
+          95.036,
+          228.295
+        ],
+        "hand_a": [
+          157.421,
+          189.115
+        ],
+        "hand_b": [
+          93.979,
+          181.872
+        ],
+        "head": [
+          126.0,
+          76.0
+        ],
+        "hip": [
+          122.0,
+          185.0
+        ],
+        "knee_a": [
+          129.041,
+          211.276
+        ],
+        "knee_b": [
+          113.947,
+          215.053
+        ],
+        "neck": [
+          131.0,
+          106.0
+        ],
+        "shoulder": [
+          131.0,
+          129.0
+        ]
+      }
+    },
+    {
+      "draw_order": [
+        "front_thigh",
+        "front_shin",
+        "rear_thigh",
+        "rear_shin",
+        "front_upper_arm",
+        "front_forearm",
+        "torso",
+        "head",
+        "rear_upper_arm",
+        "rear_forearm"
+      ],
+      "name": "airborne",
+      "pose": {
+        "elbow_a": [
+          90.469,
+          125.615
+        ],
+        "elbow_b": [
+          162.5,
+          127.235
+        ],
+        "foot_a": [
+          80.387,
+          186.823
+        ],
+        "foot_b": [
+          168.57,
+          188.99
+        ],
+        "hand_a": [
+          65.531,
+          120.314
+        ],
+        "hand_b": [
+          194.897,
+          120.349
+        ],
+        "head": [
+          126.0,
+          64.0
+        ],
+        "hip": [
+          122.0,
+          173.0
+        ],
+        "knee_a": [
+          101.161,
+          190.486
+        ],
+        "knee_b": [
+          145.834,
+          192.999
+        ],
+        "neck": [
+          131.0,
+          94.0
+        ],
+        "shoulder": [
+          131.0,
+          117.0
+        ]
+      }
+    }
+  ],
+  "guide_image": "",
+  "height": 256,
+  "joint_chains": {
+    "elbow_a": "arm_a",
+    "elbow_b": "arm_b",
+    "foot_a": "leg_a",
+    "foot_b": "leg_b",
+    "hand_a": "arm_a",
+    "hand_b": "arm_b",
+    "head": "head",
+    "hip": "spine",
+    "knee_a": "leg_a",
+    "knee_b": "leg_b",
+    "neck": "spine",
+    "shoulder": "spine"
+  },
+  "parts": [
+    {
+      "bones": [
+        "thigh_a"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [
+        {
+          "color": [
+            44,
+            18,
+            17,
+            255
+          ],
+          "polygon": [
+            [
+              114.0,
+              178.0
+            ],
+            [
+              128.0,
+              182.0
+            ],
+            [
+              115.0,
+              216.0
+            ],
+            [
+              98.0,
+              211.0
+            ]
+          ]
+        }
+      ],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "rear_thigh",
+      "outlines": []
+    },
+    {
+      "bones": [
+        "shin_a"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [
+        {
+          "color": [
+            44,
+            18,
+            17,
+            255
+          ],
+          "polygon": [
+            [
+              99.0,
+              202.0
+            ],
+            [
+              116.0,
+              202.0
+            ],
+            [
+              108.0,
+              226.0
+            ],
+            [
+              91.0,
+              226.0
+            ]
+          ]
+        }
+      ],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "rear_shin",
+      "outlines": [
+        [
+          [
+            88.0,
+            203.0
+          ],
+          [
+            133.0,
+            203.0
+          ],
+          [
+            133.0,
+            236.0
+          ],
+          [
+            88.0,
+            236.0
+          ]
+        ]
+      ]
+    },
+    {
+      "bones": [
+        "upper_arm_a"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [
+        {
+          "color": [
+            91,
+            111,
+            83,
+            255
+          ],
+          "polygon": [
+            [
+              119.0,
+              122.0
+            ],
+            [
+              133.0,
+              128.0
+            ],
+            [
+              126.0,
+              150.0
+            ],
+            [
+              110.0,
+              151.0
+            ]
+          ]
+        }
+      ],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "rear_upper_arm",
+      "outlines": [
+        [
+          [
+            108.0,
+            117.0
+          ],
+          [
+            134.0,
+            124.0
+          ],
+          [
+            116.0,
+            153.0
+          ],
+          [
+            88.0,
+            158.0
+          ],
+          [
+            79.0,
+            142.0
+          ]
+        ]
+      ]
+    },
+    {
+      "bones": [
+        "forearm_a"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [
+        {
+          "color": [
+            91,
+            111,
+            83,
+            255
+          ],
+          "polygon": [
+            [
+              113.0,
+              137.0
+            ],
+            [
+              128.0,
+              143.0
+            ],
+            [
+              117.0,
+              163.0
+            ],
+            [
+              102.0,
+              158.0
+            ]
+          ]
+        }
+      ],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "rear_forearm",
+      "outlines": [
+        [
+          [
+            82.0,
+            137.0
+          ],
+          [
+            110.0,
+            141.0
+          ],
+          [
+            116.0,
+            172.0
+          ],
+          [
+            97.0,
+            181.0
+          ],
+          [
+            77.0,
+            158.0
+          ]
+        ]
+      ]
+    },
+    {
+      "bones": [
+        "head"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "head",
+      "outlines": [
+        [
+          [
+            52.0,
+            18.0
+          ],
+          [
+            204.0,
+            18.0
+          ],
+          [
+            204.0,
+            120.0
+          ],
+          [
+            52.0,
+            120.0
+          ]
+        ]
+      ]
+    },
+    {
+      "bones": [
+        "torso"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [
+        {
+          "color": [
+            90,
+            111,
+            82,
+            255
+          ],
+          "polygon": [
+            [
+              109.0,
+              108.0
+            ],
+            [
+              154.0,
+              105.0
+            ],
+            [
+              174.0,
+              126.0
+            ],
+            [
+              180.0,
+              190.0
+            ],
+            [
+              164.0,
+              204.0
+            ],
+            [
+              93.0,
+              204.0
+            ],
+            [
+              82.0,
+              185.0
+            ],
+            [
+              84.0,
+              132.0
+            ]
+          ]
+        }
+      ],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "torso",
+      "outlines": [
+        [
+          [
+            105.0,
+            102.0
+          ],
+          [
+            158.0,
+            102.0
+          ],
+          [
+            177.0,
+            124.0
+          ],
+          [
+            180.0,
+            203.0
+          ],
+          [
+            82.0,
+            203.0
+          ],
+          [
+            82.0,
+            128.0
+          ]
+        ]
+      ]
+    },
+    {
+      "bones": [
+        "thigh_b"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [
+        {
+          "color": [
+            44,
+            18,
+            17,
+            255
+          ],
+          "polygon": [
+            [
+              116.0,
+              180.0
+            ],
+            [
+              132.0,
+              178.0
+            ],
+            [
+              148.0,
+              211.0
+            ],
+            [
+              132.0,
+              218.0
+            ]
+          ]
+        }
+      ],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "front_thigh",
+      "outlines": []
+    },
+    {
+      "bones": [
+        "shin_b"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [
+        {
+          "color": [
+            44,
+            18,
+            17,
+            255
+          ],
+          "polygon": [
+            [
+              132.0,
+              202.0
+            ],
+            [
+              149.0,
+              202.0
+            ],
+            [
+              161.0,
+              228.0
+            ],
+            [
+              143.0,
+              231.0
+            ]
+          ]
+        }
+      ],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "front_shin",
+      "outlines": [
+        [
+          [
+            126.0,
+            203.0
+          ],
+          [
+            172.0,
+            203.0
+          ],
+          [
+            172.0,
+            236.0
+          ],
+          [
+            126.0,
+            236.0
+          ]
+        ]
+      ]
+    },
+    {
+      "bones": [
+        "upper_arm_b"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [
+        {
+          "color": [
+            89,
+            109,
+            81,
+            255
+          ],
+          "polygon": [
+            [
+              132.0,
+              122.0
+            ],
+            [
+              148.0,
+              119.0
+            ],
+            [
+              163.0,
+              158.0
+            ],
+            [
+              148.0,
+              163.0
+            ]
+          ]
+        }
+      ],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "front_upper_arm",
+      "outlines": [
+        [
+          [
+            130.0,
+            115.0
+          ],
+          [
+            171.0,
+            113.0
+          ],
+          [
+            181.0,
+            160.0
+          ],
+          [
+            157.0,
+            173.0
+          ],
+          [
+            142.0,
+            154.0
+          ]
+        ]
+      ]
+    },
+    {
+      "bones": [
+        "forearm_b"
+      ],
+      "exclude_outlines": [],
+      "exclude_parts": [],
+      "fills": [
+        {
+          "color": [
+            46,
+            59,
+            47,
+            255
+          ],
+          "polygon": [
+            [
+              146.0,
+              149.0
+            ],
+            [
+              163.0,
+              145.0
+            ],
+            [
+              181.0,
+              176.0
+            ],
+            [
+              166.0,
+              184.0
+            ]
+          ]
+        }
+      ],
+      "joint_blend_lateral_scale": 0.0,
+      "joint_blend_radius": 12.0,
+      "mesh_spacing": 4,
+      "name": "front_forearm",
+      "outlines": [
+        [
+          [
+            143.0,
+            142.0
+          ],
+          [
+            174.0,
+            137.0
+          ],
+          [
+            198.0,
+            184.0
+          ],
+          [
+            162.0,
+            187.0
+          ]
+        ]
+      ]
+    }
+  ],
+  "require_single_component": true,
+  "rest_pose": {
+    "elbow_a": [
+      92.0,
+      143.0
+    ],
+    "elbow_b": [
+      160.0,
+      145.0
+    ],
+    "foot_a": [
+      108.0,
+      228.0
+    ],
+    "foot_b": [
+      151.0,
+      229.0
+    ],
+    "hand_a": [
+      103.0,
+      166.0
+    ],
+    "hand_b": [
+      176.0,
+      174.0
+    ],
+    "head": [
+      126.0,
+      76.0
+    ],
+    "hip": [
+      122.0,
+      185.0
+    ],
+    "knee_a": [
+      106.0,
+      207.0
+    ],
+    "knee_b": [
+      144.0,
+      207.0
+    ],
+    "neck": [
+      131.0,
+      106.0
+    ],
+    "shoulder": [
+      131.0,
+      129.0
+    ]
+  },
+  "skeleton_source": {
+    "clip_id": "",
+    "rig_path": ""
+  },
+  "source_image": "profile-binding-deformation-v2/source-color.png",
+  "version": 1,
+  "width": 256
+}

@@ -8,6 +8,7 @@
 #include <limits>
 #include <numbers>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -210,7 +211,10 @@ absl::StatusOr<Point> TransformPoint(Point point, const ProfileControlBone& bone
   const double source_unit_y = source_dy / source_length;
   const double relative_x = point.x - source_start.x;
   const double relative_y = point.y - source_start.y;
-  const double along = relative_x * source_unit_x + relative_y * source_unit_y;
+  // Only the distance along the bone takes the stretch. A limb that reaches
+  // further gets longer, not fatter, so its width stays what was drawn.
+  const double reach = relative_x * source_unit_x + relative_y * source_unit_y;
+  const double along = bone.may_stretch ? reach * (target_length / source_length) : reach;
   const double away = relative_x * -source_unit_y + relative_y * source_unit_x;
   const double target_unit_x = target_dx / target_length;
   const double target_unit_y = target_dy / target_length;
@@ -335,7 +339,26 @@ struct SkinnedChainMotion {
   Point second_image;
   double first_angle = 0.0;
   double second_angle = 0.0;
+  // 1.0 unless the bone may stretch, in which case its posed length over its
+  // bind length. A skinned chain scales uniformly about the shared joint rather
+  // than along one axis, because its two bones point different ways and there
+  // is no single direction to stretch along.
+  double first_stretch = 1.0;
+  double second_stretch = 1.0;
 };
+
+double BoneStretch(const ProfileControlBone& bone,
+                   absl::Span<const ProfileControlPoint> source_joints,
+                   absl::Span<const ProfileControlPoint> target_joints) {
+  if (!bone.may_stretch) return 1.0;
+  const double source =
+      std::hypot(source_joints[bone.end_joint].x - source_joints[bone.start_joint].x,
+                 source_joints[bone.end_joint].y - source_joints[bone.start_joint].y);
+  const double target =
+      std::hypot(target_joints[bone.end_joint].x - target_joints[bone.start_joint].x,
+                 target_joints[bone.end_joint].y - target_joints[bone.start_joint].y);
+  return source <= 1e-6 ? 1.0 : target / source;
+}
 
 absl::StatusOr<SkinnedChainMotion> BuildSkinnedChainMotion(const LayeredPuppet& puppet,
                                                            const LayeredPuppetPose& pose,
@@ -353,6 +376,8 @@ absl::StatusOr<SkinnedChainMotion> BuildSkinnedChainMotion(const LayeredPuppet& 
   ASSIGN_OR_RETURN(motion.first_angle, BoneRotation(first_bone, puppet.source_joints, pose.joints));
   ASSIGN_OR_RETURN(motion.second_angle,
                    BoneRotation(second_bone, puppet.source_joints, pose.joints));
+  motion.first_stretch = BoneStretch(first_bone, puppet.source_joints, pose.joints);
+  motion.second_stretch = BoneStretch(second_bone, puppet.source_joints, pose.joints);
   return motion;
 }
 
@@ -373,8 +398,16 @@ Point TransformMeshVertex(const SkinnedChainMotion& motion, const LayeredPuppetM
   const double angle = motion.first_angle + (1.0 - weight) * difference;
   const double cosine = std::cos(angle);
   const double sine = std::sin(angle);
-  const double offset_x = vertex.source.x - motion.pivot.x;
-  const double offset_y = vertex.source.y - motion.pivot.y;
+  // Skipped outright when neither bone stretches, rather than multiplying by a
+  // blend of two 1.0s: w + (1 - w) is not exactly 1.0 for every weight, and a
+  // rigid puppet must render bit-identically whether or not this exists.
+  const bool stretching = motion.first_stretch != 1.0 || motion.second_stretch != 1.0;
+  const double stretch =
+      stretching ? motion.first_stretch * weight + motion.second_stretch * (1.0 - weight) : 1.0;
+  const double offset_x =
+      stretching ? (vertex.source.x - motion.pivot.x) * stretch : vertex.source.x - motion.pivot.x;
+  const double offset_y =
+      stretching ? (vertex.source.y - motion.pivot.y) * stretch : vertex.source.y - motion.pivot.y;
   const double origin_x = motion.first_image.x * weight + motion.second_image.x * (1.0 - weight);
   const double origin_y = motion.first_image.y * weight + motion.second_image.y * (1.0 - weight);
   return Point{
@@ -933,6 +966,17 @@ absl::StatusOr<LayeredPuppetMesh> BuildLayeredPuppetMesh(
     return absl::InvalidArgumentError("layered puppet mesh covers no artwork");
   }
   return mesh;
+}
+
+bool IsSafeLayeredPuppetPartName(std::string_view name) {
+  if (name.empty()) return false;
+  for (const char character : name) {
+    if ((character < 'a' || character > 'z') && (character < 'A' || character > 'Z') &&
+        (character < '0' || character > '9') && character != '_' && character != '-') {
+      return false;
+    }
+  }
+  return true;
 }
 
 absl::Status ValidateLayeredPuppet(const LayeredPuppet& puppet) {
