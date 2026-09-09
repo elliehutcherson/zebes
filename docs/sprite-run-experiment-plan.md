@@ -29,6 +29,29 @@ recorded ComfyUI attempts did not test temporal conditioning.
 These are engineering judgments, not measured success probabilities. All three
 still depend on art review. Twelve frames alone do not guarantee smooth motion.
 
+## Immediate priority and proposed revision
+
+The user's 2026-09-09 direction is to resolve motion, foot attachment and
+missing artwork. Head flicker is deferred. Compare an established biped rig
+and motion source with the current tracing, and test rough completion before
+generation. This is a proposed refinement of the approved experiments; review
+the new actual inputs before inference. The accepted twelve-pose sheet remains
+the current control until an alternative is reviewed.
+
+Use an existing authoring rig for the independent comparison rather than
+expanding the custom editor. Retain Zebes' editable pose representation and
+import sampled joints through an adapter. A template must still be fitted to
+the mouse, and a rig template does not itself provide a run animation. Compare
+the supplied tracing with one identified, reusable run clip, sampled at twelve
+distinct phases without duplicating the closing endpoint. First inspect the
+plain skeleton and filled limb silhouettes; then attach the mouse artwork.
+
+Treat geometry and missing artwork separately. Fix an incorrectly placed cuff
+or sole through binding. Complete absent trouser/limb surfaces with artwork,
+including generated artwork. Prefer completing reusable parts once where
+possible, with overlap under the coat and boots. C++ should place and deform
+those parts; it does not need to synthesize their final painted texture.
+
 ## Future direction: resolution and equipment layers
 
 Recorded 2026-09-09; this is not the current experiment's implementation scope.
@@ -177,6 +200,52 @@ art. No single one of these operations performs all the others.
 | [AnimateDiff Evolved](https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved) | Temporal sampling with ControlNet/IP-Adapter integration | A possible later temporal A/B. Model families must match: existing SDXL assets cannot simply accompany an SD1.5 motion module. SDXL support has its own qualifications. |
 | [Wan VACE](https://github.com/ali-vilab/VACE) / [ComfyUI integration](https://docs.comfy.org/tutorials/video/wan/vace) | Reference-conditioned, controlled and masked video generation | Preferred optional temporal experiment. New mechanism relative to the recorded still-image tests; no promise of exact pose, pixel style or loop closure. |
 | [ToonCrafter](https://huggingface.co/Doubiiu/ToonCrafter/blob/main/README.md) / [RIFE](https://github.com/hzwer/ECCV2022-RIFE) | Cartoon interpolation / intermediate-flow interpolation | Defer. Neither establishes twelve specified poses from missing or incorrect keyframes. ToonCrafter's published model uses sixteen frames and notes VAE flicker. Interpolation is useful only after sound keys exist. |
+
+### Established rigs and relevant external experiments
+
+[Spineboy](https://en.esotericsoftware.com/spine-examples-spineboy) is the most
+direct 2D reference for the independent rig comparison: it has a published run
+animation and separate leg and foot IK controls, with foot targets independent
+of the hip. Use it to compare foot/contact behavior, not as a claim that its
+artwork or proportions fit the mouse automatically. Blender's
+[Rigify Basic Human template](https://docs.blender.org/manual/en/latest/addons/rigging/rigify/basics.html)
+is the available free rig starting point; its documented workflow explicitly
+requires fitting bones to the character. Check the installed Blender version
+and Rigify availability before selecting that route. A
+[Mixamo](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html) animation can
+supply a separate motion reference, but its humanoid auto-rigger does not bind
+our PNG and is sensitive to unusual proportions, tails and clothing.
+
+[OpenPose COCO/BODY_25](https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/doc/02_output.md)
+defines keypoint conventions; BODY_25 includes heels and toes. This is useful
+for interchange and foot landmarks, not a skinning rig. A learned pose-control
+model needs the particular joint layout and rendered convention it expects.
+Export that representation from the authored mouse rig instead of replacing
+tail, coat and equipment controls with a human pose-estimation schema.
+
+[Sprite Sheet Diffusion](https://arxiv.org/html/2412.03685v2) addresses almost the
+same task. It fine-tunes an Animate Anyone variant using reference appearance,
+pose guidance and temporal layers. Its generic ControlNet/IP-Adapter baseline
+often produced stylistic similarity without matching the actual character.
+The authors still report difficulties with props and fine details. Their
+[repository](https://github.com/chenganhsieh/Sprite-Sheet-Diffusion) links code
+and pretrained weights; local inference, twelve-frame handling and the
+green-coated mouse are unverified. This merits a later reproducibility pilot,
+not a promise that an unmodified video model solves our run. The paper's first
+training stage used over 30 GB VRAM; that is not an inference-memory estimate.
+
+A [2025 Surrey experiment](https://marcovolino.github.io/docs/papers/2025-wong-cvmp.pdf)
+found better results generating human motion before deterministic pixelation
+than generating from an already pixelated portrait. Its small human dataset
+does not establish the best pipeline for this mouse or for authored pixel art.
+It supports keeping generation resolution and final pixel-grid conversion
+separate experimental choices.
+
+[Spine's mix-and-match example](https://en.esotericsoftware.com/spine-examples-mix-and-match)
+demonstrates separately selectable clothing/accessories and prepared limb art.
+This is a concrete precedent for the longer-term equipment requirement.
+The current layered direction remains plausible; repeatedly repairing every
+posed frame should not substitute for completing a reusable underlying kit.
 
 Do not begin custom LoRA training from one reference image. The missing signal
 is a verified variety of poses and hidden surfaces; training on the failed
@@ -347,18 +416,45 @@ mixing pilot frames into a claimed complete batch.
 **Medium chance for small repairs.** Uses installed models and changes the
 mechanism from generating a mouse out of a sparse control map.
 
-Start each frame from its posed colored composite and use the same E3 repair
-masks. Use SDXL base, pixel-art-xl and IP-Adapter with one fixed identity.
-Export a working graph from the UI; validate the node inputs before queueing.
-Use real Canny edges computed from the posed color render if edge control is
-enabled. Do not feed colored skeletal diagnostics into a Canny checkpoint.
+**Proposed revision after the 2026-09-09 discussion:** compare actual image
+prefills before sweeping conditioning weights. The E3 preparation script drew
+bone-aligned missing-leg regions into the repair mask, but left the corresponding
+image pixels unchanged. Its region guide was an ordinary reference image, not
+an inpainting-mask input. Those results do not test painted gap completion.
 
-Run a small predeclared comparison: denoise **0.15 versus 0.30**, four stress
-poses, two fixed seeds: **16 pilot images**. Hold prompt, sampler, step count,
-LoRA/IP-Adapter settings, mask and any edge control constant. Record the actual
-graph and all settings; these denoise values are starting hypotheses, not
-established optima. Begin with one seed per setting and stop a setting early
-if it cannot preserve anatomy or offers no visible repair.
+For frames 5 and 10, prepare three inputs on the same fixed canvas: unchanged
+broken puppet; surrounding-color/blur fill in the gap; and a rough trouser
+shape connecting the correct knee/calf to the boot cuff. The shaped fill uses
+the intended contour and local material colors. Blur alone does not specify
+which limb owns the missing pixels. Show these inputs, the joint/cuff/sole
+overlay and the exact masks before inference. Include a narrow editable cuff
+transition; the old complete-boot protection plus collar may prevent useful
+seam changes. Keep the sole and foot placement protected.
+
+This follows a documented painting workflow:
+[Krita AI Diffusion](https://docs.interstice.cloud/selections/) supports blur,
+border-color and hand-painted prefill, plus separate denoising and blend masks.
+Use installed SDXL base, pixel-art-xl and IP-Adapter with one fixed identity
+for the first comparison. Use a real sampler noise mask and preserve the
+prefill in the encoded image. Check the installed graph implementation:
+upstream ComfyUI's
+[`VAEEncodeForInpaint`](https://github.com/comfyanonymous/ComfyUI/blob/master/nodes.py)
+replaces the masked image with neutral gray before encoding. Ordinary VAE
+encoding followed by `SetLatentNoiseMask` is the proposed base-model path for
+testing retained prefill. A dedicated inpainting model is a separate comparison.
+
+Keep edge/depth control off initially to isolate the prefill. In particular,
+edges extracted from the broken silhouette could encourage preservation of
+the defect. If introduced later, show actual edges from the intended completed
+shape and use the matching checkpoint; do not use a colored skeleton as Canny.
+
+Pilot allocation remains **16 images maximum**: two poses × three inputs ×
+denoise **0.35/0.60** × one fixed seed = twelve images. Repeat the selected
+input/strength on both poses with a second seed, then check pose 11 with both
+seeds, for four more images. These strengths are hypotheses, not established
+optima. Hold prompt, sampler, steps, LoRA/IP-Adapter settings and masks fixed.
+If neither strength improves the local anatomy, retain the failure instead of
+choosing a nominal winner. Record the actual graph and all settings.
 
 Apply the same outside-mask copy and separate raw/final scoring as E3; a VAE
 round trip can change supposedly protected pixels. Include the unchanged puppet

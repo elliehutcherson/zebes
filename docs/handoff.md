@@ -85,10 +85,15 @@ Do not reinterpret a clean render or passing code tests as accepted animation.
 
 ## Next
 
-1. Review the complete generated loop against the original puppet at 48px.
-   Inspect the feet, connections in frames 5/10/11 and identifying-detail
-   consistency. The pose set is accepted for experiments, not final art.
-2. Complete missing leg artwork and foot attachment using the current poses.
+1. The user's 2026-09-09 priority is motion and missing leg/boot connections;
+   head flicker is deferred. Compare an established biped rig and motion source
+   with the supplied tracing before expanding custom authoring tools. The
+   current pose set remains the accepted experimental control.
+2. Prepare a comparison of blank gaps, blur/color fill and rough connected
+   limb artwork for generator cleanup. E3 marked the gaps in a guide but did
+   not paint a prefill into the input. Review cuffs/soles separately from
+   missing artwork, and prefer reusable completed parts where possible.
+   See the plan's proposed E4 revision and linked external examples.
    Show the exact input maps for any subsequent generator trial. Distinguish
    an ordinal layer-order preview from real depth; never pass a diagnostic
    skeleton to an edge/depth model as though it were the expected input.
