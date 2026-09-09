@@ -1,8 +1,14 @@
 # Active handoff
 
-Updated 2026-09-08. **Get the twelve-frame green-coated mouse run working.**
+Updated 2026-09-09. **Get the twelve-frame green-coated mouse run working.**
 This is the project's current priority. Old track sequencing and art/experiment
 gates are suspended; they are not prerequisites for this work.
+
+The accumulated work was pushed to `main` on 2026-09-09 at `7695426`.
+The longer-term direction now explicitly includes a defined sprite resolution
+and removable clothing/equipment bound to a complete underlying character.
+See the future-direction section of the experiment plan; it does not displace
+the current run-animation work.
 
 The user approved [the experiment plan](sprite-run-experiment-plan.md), with one
 explicit requirement: show the actual source artwork, skeleton alignment,

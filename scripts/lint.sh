@@ -119,6 +119,10 @@ if [[ "${RUN_ALL}" == true ]]; then
     exit 2
   fi
 
+  # Configure-only CI has a compile database but not the embedded page header.
+  # This small target generates it before clang-tidy reads the wrapper source.
+  cmake --build "${BUILD_DIR}" --target puppet_editor_page
+
   SOURCE_REGEX="^${PROJECT_ROOT}/(src|tests)/.*\\.(c|cc|cpp|cxx)$"
   PATH="${CLANG_TIDY_DIR}:${PATH}" "${RUN_CLANG_TIDY}" \
     "${TIDY_ARGS[@]}" \
@@ -150,6 +154,13 @@ for file in "${FILES[@]}"; do
       exit 2
       ;;
   esac
+done
+
+for file in "${CANONICAL_FILES[@]}"; do
+  if [[ "${file}" == "${PROJECT_ROOT}/src/artwork/puppet_editor_page.cc" ]]; then
+    cmake --build "${BUILD_DIR}" --target puppet_editor_page
+    break
+  fi
 done
 
 CACHE_KEYS=()

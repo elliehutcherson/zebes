@@ -22,6 +22,21 @@ class LintScriptTest(unittest.TestCase):
         (self.root / "build" / "dev" / "compile_commands.json").touch()
         shutil.copy2(SCRIPT_PATH, self.root / "scripts" / "lint.sh")
         self.event_log = self.root / "events.log"
+        self.generated_header = self.root / "build" / "dev" / "puppet_editor_html.h"
+        self.fake_bin = self.root / "bin"
+        self.fake_bin.mkdir()
+        self.write_executable(
+            self.fake_bin / "cmake",
+            """
+            #!/usr/bin/env bash
+            printf 'prepare %s\\n' "${!#}" >>"${EVENT_LOG}"
+            if [[ "${FAIL_PREPARE:-}" == 1 ]]; then
+              printf 'generation failed\\n' >&2
+              exit 9
+            fi
+            touch "${GENERATED_HEADER}"
+            """,
+        )
         self.fake_tidy = self.root / "fake-clang-tidy"
         self.write_executable(
             self.fake_tidy,
@@ -29,6 +44,10 @@ class LintScriptTest(unittest.TestCase):
             #!/usr/bin/env bash
             source_file="${!#}"
             name="$(basename "${source_file}")"
+            if [[ "${name}" == puppet_editor_page.cc && ! -f "${GENERATED_HEADER}" ]]; then
+              printf 'missing generated header\\n' >&2
+              exit 8
+            fi
             printf 'start %s\n' "${name}" >>"${EVENT_LOG}"
             sleep 0.2
             printf 'finish %s\n' "${name}" >>"${EVENT_LOG}"
@@ -37,6 +56,17 @@ class LintScriptTest(unittest.TestCase):
               exit 7
             fi
             printf 'success detail for %s\n' "${name}"
+            """,
+        )
+        self.write_executable(
+            self.root / "run-clang-tidy",
+            """
+            #!/usr/bin/env bash
+            if [[ ! -f "${GENERATED_HEADER}" ]]; then
+              printf 'missing generated header\\n' >&2
+              exit 8
+            fi
+            printf 'analyze all\\n' >>"${EVENT_LOG}"
             """,
         )
         self.fake_cache_helper = self.root / "fake-lint-cache.py"
@@ -60,18 +90,21 @@ class LintScriptTest(unittest.TestCase):
         path.write_text(textwrap.dedent(contents).lstrip(), encoding="utf-8")
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
-    def run_script(self, names, extra_env=None):
+    def run_script(self, names, extra_env=None, options=()):
         env = os.environ.copy()
         env.update(
             {
                 "CLANG_TIDY": str(self.fake_tidy),
                 "EVENT_LOG": str(self.event_log),
+                "GENERATED_HEADER": str(self.generated_header),
+                "PATH": str(self.fake_bin) + os.pathsep + env.get("PATH", ""),
             }
         )
         if extra_env:
             env.update(extra_env)
         return subprocess.run(
             [str(self.root / "scripts" / "lint.sh")]
+            + list(options)
             + [f"src/{name}" for name in names],
             cwd=self.root,
             env=env,
@@ -150,6 +183,29 @@ class LintScriptTest(unittest.TestCase):
             ["start two.cc", "finish two.cc"],
         )
         self.assertNotIn("(cached)", second.stdout)
+
+    def test_scoped_page_lint_prepares_its_generated_header(self):
+        page = self.root / "src" / "artwork" / "puppet_editor_page.cc"
+        page.parent.mkdir()
+        page.touch()
+        result = self.run_script(["artwork/puppet_editor_page.cc"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.event_log.read_text().splitlines(),
+                         ["prepare puppet_editor_page", "start puppet_editor_page.cc",
+                          "finish puppet_editor_page.cc"])
+
+    def test_full_lint_prepares_generated_input_before_analysis(self):
+        result = self.run_script([], options=["--all"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.event_log.read_text().splitlines(),
+                         ["prepare puppet_editor_page", "analyze all"])
+
+    def test_failed_generation_stops_analysis(self):
+        result = self.run_script([], {"FAIL_PREPARE": "1"}, options=["--all"])
+        self.assertEqual(result.returncode, 9, result.stderr)
+        self.assertEqual(self.event_log.read_text().splitlines(),
+                         ["prepare puppet_editor_page"])
+        self.assertIn("generation failed", result.stderr)
 
 
 if __name__ == "__main__":

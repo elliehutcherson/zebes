@@ -29,6 +29,23 @@ recorded ComfyUI attempts did not test temporal conditioning.
 These are engineering judgments, not measured success probabilities. All three
 still depend on art review. Twelve frames alone do not guarantee smooth motion.
 
+## Future direction: resolution and equipment layers
+
+Recorded 2026-09-09; this is not the current experiment's implementation scope.
+The intended pipeline must produce a defined logical sprite resolution and
+pixel grid, with explicit registration and reproducible processing of whatever
+native canvas a generator returns. A requested canvas size alone is not a
+resolution contract.
+
+The character must eventually support adding and removing pauldrons, cloaks,
+swords, tiaras and other equipment. Keep a complete underlying character and
+poseable equipment/clothing artwork, with shared rig attachments, origins,
+timing and explicit front/back draw order. Removing clothing needs valid art
+underneath it. Whole-character redraws can be useful references, but baking all
+equipment into each independently generated frame is insufficient for that
+goal. Continue the run-animation experiments first, carrying this direction
+into later pipeline choices.
+
 ## 1. What was reviewed
 
 - [Current handoff](handoff.md), the relevant Track 5 roadmap and
