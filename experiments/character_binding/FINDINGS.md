@@ -1,5 +1,12 @@
 # Character-binding experiment: results and open problems
 
+**Historical experiment record.** The user approved renewed experiments on
+2026-09-08, beginning with a corrected source skeleton and limb mapping.
+Current work is in [the run plan](../../docs/sprite-run-experiment-plan.md) and
+[handoff](../../docs/handoff.md). Earlier gates and blanket closure decisions
+below are not active requirements. Actual input images and conditioning maps
+must be reviewed before generation. Numerical history is retained verbatim.
+
 Written 2026-09-01 as a handoff. Everything below is measured unless it says
 otherwise. Where a claim is a guess, it says so.
 

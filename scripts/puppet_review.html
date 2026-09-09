@@ -1,0 +1,127 @@
+<div id="mouse-run-review">
+  <div class="viz-controls">
+    <button class="btn" type="button" data-play>Play</button>
+    <label class="form-label">Frame <output data-frame-label>1 / 12</output>
+      <input class="form-range" data-frame type="range" min="0" max="11" value="0" step="1" aria-label="Animation frame">
+    </label>
+    <label class="form-label">Playback
+      <select class="form-select" data-rate aria-label="Playback rate"><option value="8">8 fps</option><option value="12" selected>12 fps</option><option value="15">15 fps</option></select>
+    </label>
+    <label class="form-check"><input class="form-check-input" type="checkbox" data-skeleton checked><span class="form-check-label">Skeleton</span></label>
+  </div>
+  <div class="viz-grid">
+    <div>
+      <div class="viz-controls"><label class="form-label">Compare against
+        <select class="form-select" data-binding aria-label="Compare against"><option value="rest">Mouse · source binding</option><option value="before">Mouse · previous binding</option></select>
+      </label></div>
+      <svg class="puppet-canvas" data-source viewBox="0 0 256 256" role="img" aria-label="Original mouse artwork with source skeleton; select a joint to read its name"><title>Source artwork and joint binding</title></svg>
+    </div>
+    <div>
+      <div class="viz-controls"><label class="form-label">Animation view
+        <select class="form-select" data-view aria-label="Animation view"><option value="working">Current mouse · 256 px</option><option value="native">Current mouse · 48 px</option><option value="before">Previous · 48 px</option><option value="order">Layer order · diagnostic</option></select>
+      </label></div>
+      <svg class="puppet-canvas" data-posed viewBox="0 0 256 256" role="img" aria-label="Actual C++ rendered animation frame with its skeleton"><title>Posed artwork and skeleton</title></svg>
+    </div>
+  </div>
+  <div class="viz-row text-small" data-legend></div>
+  <div class="viz-controls"><label class="form-label">Inspect joint
+    <select class="form-select" data-joint-select aria-label="Inspect joint"></select>
+  </label><span data-joint aria-live="polite"></span></div>
+  <div class="viz-row text-small"><span>Native 48 px:</span><img data-native width="48" height="48" alt="Selected frame at native game size"><span data-order-label hidden>Brighter layers draw in front. Not physical depth.</span></div>
+  <div class="pose-strip" data-strip aria-label="All twelve rendered frames"></div>
+</div>
+<style>
+#mouse-run-review .puppet-canvas { width:100%; height:auto; display:block; touch-action:manipulation; }
+#mouse-run-review image, #mouse-run-review img { image-rendering:pixelated; }
+#mouse-run-review .pose-strip { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin-top:16px; }
+#mouse-run-review .pose-strip img { width:100%; height:auto; display:block; }
+#mouse-run-review .joint-hit { cursor:pointer; }
+@media(max-width:480px) { #mouse-run-review .pose-strip { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+</style>
+<script type="application/json" id="mouse-run-data"><!-- PUPPET_REVIEW_DATA --></script>
+<script>
+(() => {
+  const root = document.getElementById('mouse-run-review');
+  const data = JSON.parse(document.getElementById('mouse-run-data').textContent);
+  const get = name => root.querySelector(`[data-${name}]`);
+  const ns = 'http://www.w3.org/2000/svg';
+  let index = data.guide ? 9 : 0, timer = null;
+  const categories = [
+    ['Near arm', '--viz-series-1'], ['Far arm', '--viz-series-2'],
+    ['Near leg', '--viz-series-3'], ['Far leg', '--viz-series-4'],
+    ['Head', '--viz-series-5'], ['Tail', '--viz-series-6'], ['Torso', '--foreground']
+  ];
+  function category(name) {
+    if (/shoulder_l|elbow_l|wrist_l|paw_l/.test(name)) return 0;
+    if (/shoulder_r|elbow_r|wrist_r|paw_r/.test(name)) return 1;
+    if (/knee_l|ankle_l|toe_l/.test(name)) return 2;
+    if (/knee_r|ankle_r|toe_r/.test(name)) return 3;
+    if (/head_top|ear_|nose/.test(name)) return 4;
+    if (/tail_/.test(name)) return 5;
+    return 6;
+  }
+  function element(name, attributes) {
+    const node = document.createElementNS(ns, name);
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+    return node;
+  }
+  function draw(svg, image, pose, overlay, guide=false, ground=false) {
+    svg.replaceChildren();
+    const cell=guide ? data.frames[index].trace.cell : [0,0,data.width,data.height];
+    svg.setAttribute('viewBox',`0 0 ${cell[2]} ${cell[3]}`);
+    svg.append(element('image', {href:image,x:-cell[0],y:-cell[1],width:guide?data.guide_size[0]:data.width,height:guide?data.guide_size[1]:data.height}));
+    if (!overlay) return;
+    if(ground)svg.append(element('line',{x1:0,y1:data.ground_y,x2:data.width,y2:data.ground_y,stroke:'var(--muted-foreground)','stroke-width':0.5,'stroke-dasharray':'2 2'}));
+    for (const bone of (guide?data.guide_bones:data.bones)) {
+      const a=pose[bone.start_joint], b=pose[bone.end_joint];
+      const color=categories[category(bone.end_joint)][1];
+      if(guide)svg.append(element('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:'var(--background)','stroke-width':1.8}));
+      svg.append(element('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:`var(${color})`,'stroke-width':0.9}));
+    }
+    for (const [name,p] of Object.entries(pose)) {
+      const color=categories[category(name)][1];
+      const group=element('g',{class:'joint-hit','aria-label':`${name}: ${p[0].toFixed(1)}, ${p[1].toFixed(1)}`});
+      group.append(element('circle',{cx:p[0],cy:p[1],r:4,fill:'transparent'}));
+      group.append(element('circle',{cx:p[0],cy:p[1],r:1.3,fill:'var(--background)',stroke:`var(${color})`,'stroke-width':0.7}));
+      group.addEventListener('click',()=>{get('joint-select').value=name;showJoint();});
+      svg.append(group);
+    }
+  }
+  function showJoint() {
+    const name=get('joint-select').value;
+    const point=get('binding').value==='guide'?data.frames[index].trace.pose[name]:data[get('binding').value][name];
+    get('joint').textContent=point?`Source x ${point[0].toFixed(1)}, y ${point[1].toFixed(1)}`:'Not traced in the human reference';
+  }
+  function update() {
+    const frame=data.frames[index], mode=get('view').value, overlay=get('skeleton').checked;
+    get('frame').value=index;
+    get('frame-label').textContent=`${index+1} / 12`;
+    const guide=get('binding').value==='guide';
+    draw(get('source'),guide?data.guide:data.source,guide?frame.trace.pose:data[get('binding').value],overlay,guide);
+    draw(get('posed'),frame[mode],frame.pose,overlay&&mode!=='before',false,mode!=='before');
+    get('native').src=frame.native;
+    get('order-label').hidden=mode!=='order';
+    showJoint();
+    for (const [i,button] of [...get('strip').children].entries()) button.setAttribute('aria-pressed',i===index?'true':'false');
+  }
+  function stop() { if(timer!==null) clearInterval(timer); timer=null; get('play').textContent='Play'; }
+  function start() { stop(); timer=setInterval(()=>{index=(index+1)%12;update();},1000/Number(get('rate').value)); get('play').textContent='Pause'; }
+  get('play').addEventListener('click',()=>timer===null?start():stop());
+  get('frame').addEventListener('input',()=>{stop();index=Number(get('frame').value);update();});
+  get('rate').addEventListener('change',()=>{if(timer!==null)start();});
+  if(data.guide){const option=document.createElement('option');option.value='guide';option.textContent='Your pose sheet · traced';get('binding').prepend(option);get('binding').value='guide';}
+  Object.keys(data.rest).forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=name;get('joint-select').append(option);});
+  get('joint-select').value='shoulder_l';
+  get('joint-select').addEventListener('change',showJoint);
+  for(const name of ['view','binding','skeleton'])get(name).addEventListener('change',update);
+  data.frames.forEach((frame,i)=>{
+    const button=document.createElement('button');button.className='btn viz-tile';button.type='button';button.setAttribute('aria-label',`Frame ${i+1}`);
+    const image=document.createElement('img');image.src=frame.native;image.alt='';
+    const content=document.createElement('div'), label=document.createElement('div');
+    label.textContent=String(i+1);content.append(image,label);button.append(content);
+    button.addEventListener('click',()=>{stop();index=i;update();});get('strip').append(button);
+  });
+  categories.forEach(([name,color])=>{const label=document.createElement('span');label.style.color=`var(${color})`;label.textContent=name;get('legend').append(label);});
+  update();
+})();
+</script>

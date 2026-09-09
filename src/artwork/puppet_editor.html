@@ -1291,20 +1291,25 @@ function framesStep() {
         command: 'rename_frame', name: frame.name, new_name: rename.value.trim()
       }])),
       note('Renaming carries the anchor and every draw order along with it.')),
-    button('Move every frame onto the rest pose', () => {
+    button('Match this frame to the source drawing', () => {
+      if (frame === null) return;
+      post([{command: 'retarget_frames', from_frame: frame.name}]);
+    }),
+    note('Choose the frame with the same gait phase as the drawing. This makes ' +
+         'that frame match the source skeleton exactly and carries each bone’s ' +
+         'angular motion through the other frames using the source bone lengths. ' +
+         'Check all twelve poses afterwards; matching a different phase changes the gait.'),
+    button('Center the clip on the source drawing', () => {
       if (frame === null) return;
       post([{command: 'rebase_frames', from_frame: frame.name}]);
     }),
     note(frame === null ? 'No frames yet.'
-      : `Shifts the whole clip so ${frame.name} lands exactly on the rest pose, ` +
-        'keeping every frame\u2019s motion. An imported clip is posed in the ' +
-        'rig\u2019s own coordinates, which have nothing to do with where this ' +
-        'drawing sits; without this every frame yanks the artwork across the ' +
-        'canvas. Use it once, on the frame closest to the drawing.'),
+      : `Aligns the joint centers of ${frame.name} and the source skeleton. ` +
+        'This only translates the clip; it does not match joint angles or bone lengths.'),
     note(stretch === null
       ? 'No bone to measure yet.'
       : `Worst bone stretch ${stretch.ratio.toFixed(2)}× — ${stretch.bone} in ` +
-        `${stretch.frame}. 1.00 means the frames still match the bind pose. ` +
+        `${stretch.frame}. 1.00 means bone lengths match; the pose can still differ. ` +
         (stretch.off > 1.25
           ? 'Far from 1 usually means a rest joint moved after these frames ' +
             'were posed, so every frame is now bent against proportions it ' +
@@ -1312,11 +1317,10 @@ function framesStep() {
           : 'That is close enough that nothing is being scaled by accident.')),
     button('Fit every frame to the rest bone lengths', () => post(
       frames().map(entry => ({command: 'fit_bone_lengths', frame: entry.name})))),
-    note('Keeps the direction each frame points a bone in, and forces the ' +
-         'length it has in the rest pose. A clip drawn flat foreshortens: a leg ' +
-         'swinging toward the viewer is drawn short, and the deformer reads a ' +
-         'short bone as a shrunk limb. This drops the shrinking and keeps the ' +
-         'turning.'),
+    note('Uses source bone lengths with each frame’s directions. This changes ' +
+         'joint positions and can remove intentional foreshortening from a ' +
+         'traced pose. Rigid parts only rotate; stretch-enabled parts also ' +
+         'scale to their posed bone lengths.'),
     rowOf(field('Frames per second', fps),
           button('Set', () => post([{command: 'set_frame_rate', fps: Number(fps.value)}]))),
     note('What the Play button runs at, and the rate a clip written out as a ' +

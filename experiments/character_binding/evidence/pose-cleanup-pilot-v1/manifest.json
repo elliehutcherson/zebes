@@ -1,0 +1,206 @@
+{
+  "method": "E3 built-in image_gen posed-frame local cleanup",
+  "status": "four-frame pilot completed; visual review pending",
+  "input_review": "User accepted current poses as an experiment starting point; foot directions remain a known issue.",
+  "provider_calls": 4,
+  "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+  "identity_sha256": "1946cadf51cee9979814806a8977aba57ba1311ec86545852c40b3965efa8af5",
+  "canvas_mapping": "whole-canvas uniform scale only; no per-figure crop, shift, or registration",
+  "repair_mask": "arms/legs dilated 3px plus missing leg connections along posed bones outside the coat; protect head, boots, tail, scarf and belt with 1px collar",
+  "prompt": "Use case: precise-object-edit\nAsset type: one pixel-art character cutout, one PNG.\nInput images: Image 1 is the exact posed image to edit. Image 2 shows the same character's finished texture and costume; use it only for appearance, never its pose. Image 3 is an editing-region guide: white permits repair, black means preserve.\nRepair only the white regions in Image 3: join torn sleeve and trouser edges at the shoulders, elbows, hips and knees; remove loose scraps; complete small missing areas of green coat or dark trousers behind the moving limbs. Match the existing pixel clusters, shading and outline style. Preserve the already drawn body geometry and limb positions.\nKeep the face, ears, hood, scarf, belt, both boots and tail unchanged. Keep the exact bends, overlapping order, hand locations, foot directions, apparent size and position from Image 1. Keep transparent space between limbs and outside the character. Do not extend the coat into the entire footprint of a moving arm.\nReturn only the edited Image 1 on its original 1024 x 1024 transparent canvas. Exactly one character, same placement and scale. No text, marks, guide colors, mask, sheet, extra limbs, scenery, shadow, new pose or redesign. Do not copy the pose from Image 2.\n",
+  "frames": [
+    {
+      "name": "reference_01",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/reference_01/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/reference_01/region-guide.png"
+      ],
+      "input_sha256": [
+        "e4f57e5e7550b2e2a0405032a6de9456de98dada92bf7feae1ee188c4f00f328",
+        "f02a724d43378144ae2970875684f0a9db3a8bf80afd393b6741ae2dd8f11506",
+        "4468373fe3371207d5476a10f44dc039749e6aaea394dc83f9049cd31a6d5686"
+      ],
+      "repair_mask_sha256": "2d388b0378acdb8737dfa7ddea9d9a157100a941d2a4a92ef95ae057c2871aa0",
+      "allowed_pixels": 3869,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "d752e2598d0f64ad27cac631edb981af84c688cdd50eff44dcd3d3e2c7ac375e",
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 3869,
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "matte_extraction": {
+        "rule": "alpha=0 where min(R,G,B)>=70 and max(R,G,B)-min(R,G,B)<=tolerance",
+        "tolerance": 8,
+        "note": "deterministic postprocessing of painted checkerboard; not native provider transparency"
+      },
+      "visible_changed_pixels": 3165,
+      "source_bounds": [
+        48,
+        38,
+        204,
+        216
+      ],
+      "extracted_model_bounds": [
+        49,
+        38,
+        204,
+        214
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-f1335983-df58-4cf3-b2b8-a69c58ef14d6.png"
+    },
+    {
+      "name": "reference_07",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/reference_07/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/reference_07/region-guide.png"
+      ],
+      "input_sha256": [
+        "afd327cf0884d258ac8581f2a0646dbe86287eb5efb7a8c025d9d12d5585d24c",
+        "f02a724d43378144ae2970875684f0a9db3a8bf80afd393b6741ae2dd8f11506",
+        "69cd7d6604d5686670a2fe901d1306534e498735335f383189a8e4625c107b24"
+      ],
+      "repair_mask_sha256": "8b6c97d21bcd6e2a67498184e1ca90e9c3baa8aa73a84250d876916beeeb6e97",
+      "allowed_pixels": 2641,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "c27b54be643732882f2f1f0acf104dded7eff9766534cf951227a5be835cfd79",
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 2641,
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "matte_extraction": {
+        "rule": "alpha=0 where min(R,G,B)>=70 and max(R,G,B)-min(R,G,B)<=tolerance",
+        "tolerance": 8,
+        "note": "deterministic postprocessing of painted checkerboard; not native provider transparency"
+      },
+      "visible_changed_pixels": 2271,
+      "source_bounds": [
+        48,
+        38,
+        205,
+        215
+      ],
+      "extracted_model_bounds": [
+        49,
+        39,
+        204,
+        215
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-ad27b301-ec4c-4332-8508-4404b45dc839.png"
+    },
+    {
+      "name": "reference_10",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/reference_10/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/reference_10/region-guide.png"
+      ],
+      "input_sha256": [
+        "135f791ed8d8975791d1c5e24202b723ff2d4111a285e73d3fadad836b26c0a0",
+        "f02a724d43378144ae2970875684f0a9db3a8bf80afd393b6741ae2dd8f11506",
+        "02c08cbb99330899535e9f09ac448a015b257846c5b4499a0924b563ad2b255c"
+      ],
+      "repair_mask_sha256": "5488d190a287c40d28d5c7858a2b1b1ab4a19cc4351fa8d83ab102cfcc9f4de1",
+      "allowed_pixels": 2909,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "e933a9a67b358f4230aa8fa556d018a5d51a1fceb528d9b93fd3d9478722ac07",
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 2909,
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "matte_extraction": {
+        "rule": "alpha=0 where min(R,G,B)>=70 and max(R,G,B)-min(R,G,B)<=tolerance",
+        "tolerance": 8,
+        "note": "deterministic postprocessing of painted checkerboard; not native provider transparency"
+      },
+      "visible_changed_pixels": 2272,
+      "source_bounds": [
+        48,
+        32,
+        203,
+        215
+      ],
+      "extracted_model_bounds": [
+        49,
+        32,
+        203,
+        214
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-3e0f0613-0f46-4039-9b1f-0a55c9cf8d2e.png"
+    },
+    {
+      "name": "reference_12",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/reference_12/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-pilot-v1/reference_12/region-guide.png"
+      ],
+      "input_sha256": [
+        "bf7a6d8a55a9cf6d90c4d591aad5a980fc0a03d1a1f54087e43d36d0ea8384de",
+        "f02a724d43378144ae2970875684f0a9db3a8bf80afd393b6741ae2dd8f11506",
+        "33bce3dbcae1309fbb2e1fb025bdd7349fe80adae05815388e17c7332e6b3eeb"
+      ],
+      "repair_mask_sha256": "f94d416308c28addf977a9abb70641dd7b9747e1dbfa90823c2e154c12ca1412",
+      "allowed_pixels": 3968,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "3a9a92eb07e8cd31a53fd577556771bb8e8ee4b73299d286910265a97d646ce1",
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 3968,
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "matte_extraction": {
+        "rule": "alpha=0 where min(R,G,B)>=70 and max(R,G,B)-min(R,G,B)<=tolerance",
+        "tolerance": 8,
+        "note": "deterministic postprocessing of painted checkerboard; not native provider transparency"
+      },
+      "visible_changed_pixels": 3265,
+      "source_bounds": [
+        48,
+        30,
+        206,
+        207
+      ],
+      "extracted_model_bounds": [
+        0,
+        7,
+        233,
+        228
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-919447b8-1a1f-4684-8a42-3ee549d2842b.png"
+    }
+  ],
+  "tool": "image_gen__imagegen",
+  "image_backend_model_id": null,
+  "observations": [
+    "Broad pose differences retained, including the folded-leg pose.",
+    "Whole-frame redraw changes identifying details despite region-guide instructions.",
+    "Protected-pixel composite preserves all pixels outside the fixed repair mask but retains seams.",
+    "Foot directions remain a known input issue; no pose changes or per-figure normalization.",
+    "All four outputs painted a checkerboard and had fully opaque alpha."
+  ]
+}

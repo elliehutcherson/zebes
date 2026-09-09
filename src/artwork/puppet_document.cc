@@ -9,8 +9,10 @@
 #include <variant>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "artwork/layered_puppet.h"
@@ -510,6 +512,81 @@ SkeletonTree ReadSkeletonTree(const PuppetDocument& document) {
   for (const std::string& joint : ambiguous) tree.parents.erase(joint);
   for (const auto& [child, parent] : tree.parents) tree.children[parent].push_back(child);
   return tree;
+}
+
+absl::StatusOr<PuppetPose> RetargetPose(
+    const PuppetDocument& document, const PuppetPose& reference, const PuppetPose& original,
+    const absl::flat_hash_map<std::string, const PuppetDocumentBone*>& incoming,
+    const SkeletonTree& tree) {
+  PuppetPose posed;
+  std::vector<std::string> pending;
+  for (const auto& [name, rest] : document.rest_pose) {
+    if (incoming.contains(name)) continue;
+    const ProfileControlPoint& point = original.at(name);
+    const ProfileControlPoint& anchor = reference.at(name);
+    posed.emplace(name, ProfileControlPoint{.x = rest.x + point.x - anchor.x,
+                                            .y = rest.y + point.y - anchor.y});
+    pending.push_back(name);
+  }
+  while (!pending.empty()) {
+    const std::string parent = pending.back();
+    pending.pop_back();
+    const auto children = tree.children.find(parent);
+    if (children == tree.children.end()) continue;
+    for (const std::string& child : children->second) {
+      const ProfileControlPoint rest{
+          .x = document.rest_pose.at(child).x - document.rest_pose.at(parent).x,
+          .y = document.rest_pose.at(child).y - document.rest_pose.at(parent).y};
+      const ProfileControlPoint anchor{.x = reference.at(child).x - reference.at(parent).x,
+                                       .y = reference.at(child).y - reference.at(parent).y};
+      const ProfileControlPoint motion{.x = original.at(child).x - original.at(parent).x,
+                                       .y = original.at(child).y - original.at(parent).y};
+      const double rest_length = std::hypot(rest.x, rest.y);
+      const double anchor_length = std::hypot(anchor.x, anchor.y);
+      const double motion_length = std::hypot(motion.x, motion.y);
+      if (rest_length <= 1e-6 || anchor_length <= 1e-6 || motion_length <= 1e-6) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("cannot retarget collapsed bone '", incoming.at(child)->name, "'"));
+      }
+      const double angle = std::atan2(rest.y, rest.x) - std::atan2(anchor.y, anchor.x);
+      const double scale =
+          rest_length / (incoming.at(child)->may_stretch ? anchor_length : motion_length);
+      const ProfileControlPoint point{
+          .x = posed.at(parent).x +
+               scale * (motion.x * std::cos(angle) - motion.y * std::sin(angle)),
+          .y = posed.at(parent).y +
+               scale * (motion.x * std::sin(angle) + motion.y * std::cos(angle))};
+      posed.emplace(child, point);
+      pending.push_back(child);
+    }
+  }
+  if (posed.size() != document.rest_pose.size()) {
+    return absl::InvalidArgumentError("retargeting requires an acyclic skeleton");
+  }
+  return posed;
+}
+
+absl::Status Apply(PuppetDocument& document, const puppet_edit::RetargetFrames& command) {
+  const PuppetDocumentFrame* const from = FindFrame(document, command.from_frame);
+  if (from == nullptr) {
+    return absl::NotFoundError(absl::StrCat("unknown frame '", command.from_frame, "'"));
+  }
+  absl::flat_hash_map<std::string, const PuppetDocumentBone*> incoming;
+  for (const PuppetDocumentBone& bone : document.bones) {
+    if (!incoming.emplace(bone.end_joint, &bone).second) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("retargeting needs one parent for joint '", bone.end_joint, "'"));
+    }
+  }
+  const SkeletonTree tree = ReadSkeletonTree(document);
+  const PuppetPose reference = from->pose;
+  for (PuppetDocumentFrame& frame : document.frames) {
+    ASSIGN_OR_RETURN(PuppetPose posed,
+                     RetargetPose(document, reference, frame.pose, incoming, tree));
+    frame.pose = frame.name == command.from_frame ? document.rest_pose : std::move(posed);
+  }
+  document.anchor_frame = command.from_frame;
+  return absl::OkStatus();
 }
 
 absl::Status Apply(PuppetDocument& document, const puppet_edit::FitBoneLengths& command) {

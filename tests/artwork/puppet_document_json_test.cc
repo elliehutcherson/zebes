@@ -392,6 +392,7 @@ TEST(PuppetDocumentJsonTest, ParsesEveryCommandKind) {
     {"command": "reorder_frames", "order": ["run_02", "run_01"]},
     {"command": "rename_frame", "name": "run_02", "new_name": "contact"},
     {"command": "rebase_frames", "from_frame": "run_02"},
+    {"command": "retarget_frames", "from_frame": "run_02"},
     {"command": "fit_bone_lengths", "frame": "run_02"},
     {"command": "set_anchor_frame", "name": "run_02"},
     {"command": "pose_joint", "frame": "run_02", "joint": "hip", "point": [5, 6],
@@ -412,7 +413,7 @@ TEST(PuppetDocumentJsonTest, ParsesEveryCommandKind) {
 
   const absl::StatusOr<std::vector<Command>> commands = ParsePuppetCommands(kCommands, ".");
   ASSERT_OK(commands);
-  EXPECT_EQ(commands->size(), 30u);
+  EXPECT_EQ(commands->size(), 31u);
 }
 
 TEST(PuppetDocumentJsonTest, PoseJointScopeIsReadFromTheCommand) {

@@ -278,30 +278,35 @@ struct RenameFrame {
   std::string new_name;
 };
 
-// Slides the whole clip so from_frame sits over the rest pose, moving every
-// joint of every frame by one shared amount.
+// Aligns the selected frame's joint centroid with the rest-pose centroid,
+// moving every joint of every frame by one shared amount. This does not match
+// poses whose bone angles differ.
 //
 // One shared amount is the point. A per-joint offset would land from_frame
 // exactly on the rest pose but would pull each joint independently, which
 // stretches and crushes the bones between them and destroys the skeleton. A
 // single slide leaves every bone the length it was.
 //
-// This is what makes an imported clip usable. A clip is posed in the rig's own
-// coordinates, which have nothing to do with where a particular drawing sits,
-// so without it every frame yanks the artwork across the canvas. It corrects
-// position only; use FitBoneLengths for proportions.
+// It corrects position only; RetargetFrames also calibrates angles and lengths.
 struct RebaseFrames {
+  std::string from_frame;
+};
+
+// Calibrates the clip's bone directions and lengths against the source drawing.
+// The selected frame becomes exactly rest_pose. Other frames keep their root
+// travel and each bone's angular change from that frame; rigid bones use bind
+// lengths, while stretchable bones retain their relative length changes.
+// Requires a forest with nonzero bones in the source and every frame.
+struct RetargetFrames {
   std::string from_frame;
 };
 
 // Rewrites one frame so every bone is the length it is in the rest pose, while
 // keeping the direction the frame points it in.
 //
-// A clip drawn in two dimensions foreshortens: a leg swinging toward the viewer
-// is drawn short, and the rig records that as a short bone. The deformer reads
-// a bone length change as a scale, so an imported clip stretches and shrinks
-// the artwork instead of only turning it. Fitting the lengths keeps the motion
-// and drops the scaling.
+// This changes projected geometry and may remove intentional foreshortening.
+// Rigid parts rotate without scaling; only may_stretch bones scale artwork
+// when a frame's bone length differs from its bind length.
 //
 // Joints are moved outward from the root, so a corrected upper arm carries the
 // forearm and paw with it. A joint that is the end of two bones has no single
@@ -391,8 +396,8 @@ using Command =
     std::variant<SetSourceImage, ScaleToSize, SetGuideImage, ImportSkeleton, AddJoint, RemoveJoint,
                  SetJointChain, SetFrameRate, SetAllowOverlap, SetBoneStretch, MoveRestJoint,
                  AddBone, RemoveBone, AddFrames, RemoveFrame, ReorderFrames, RenameFrame,
-                 RebaseFrames, FitBoneLengths, SetAnchorFrame, PoseJoint, AddPart, RemovePart,
-                 RenamePart, SetPartBones, SetPartOutline, SetPartExcludeOutlines,
+                 RebaseFrames, RetargetFrames, FitBoneLengths, SetAnchorFrame, PoseJoint, AddPart,
+                 RemovePart, RenamePart, SetPartBones, SetPartOutline, SetPartExcludeOutlines,
                  SetPartExcludeParts, SetPartFills, SetPartMesh, SetDrawOrder>;
 
 }  // namespace puppet_edit

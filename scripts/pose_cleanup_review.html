@@ -1,0 +1,76 @@
+<div id="mouse-cleanup-cycle">
+  <div class="viz-controls">
+    <button class="btn btn-primary" type="button" data-play>Play</button>
+    <label class="form-label">Frame <output data-count>1 / 12</output>
+      <input class="form-range" type="range" min="0" max="11" value="0" step="1" data-frame aria-label="Frame">
+    </label>
+    <label class="form-label">Playback
+      <select class="form-select" data-rate aria-label="Playback"><option value="8">8 fps</option><option value="12" selected>12 fps</option><option value="15">15 fps</option></select>
+    </label>
+    <label class="form-label">View
+      <select class="form-select" data-detail aria-label="View"><option value="native">Game pixels · 48 px</option><option value="detail">Detail · 128 px preview</option></select>
+    </label>
+  </div>
+  <div class="viz-grid">
+    <div>
+      <div class="comparison-heading"><div class="viz-row">Original puppet</div></div>
+      <div class="sprite-stage"><img data-before class="sprite-preview" alt="Original puppet, selected frame"><div class="ground-line" aria-hidden="true"></div></div>
+      <div class="viz-row text-small">Native size <img data-before-native width="48" height="48" alt="Original at native 48px"></div>
+    </div>
+    <div>
+      <div class="comparison-heading"><label class="form-label">Result
+        <select class="form-select" data-result aria-label="Result"><option value="model">Whole redraw · background removed</option><option value="composite">Only permitted repairs retained</option></select>
+      </label></div>
+      <div class="sprite-stage"><img data-after class="sprite-preview" alt="Generated result, selected frame"><div class="ground-line" aria-hidden="true"></div></div>
+      <div class="viz-row text-small">Native size <img data-after-native width="48" height="48" alt="Result at native 48px"></div>
+    </div>
+  </div>
+  <div class="viz-row text-small">Dashed line: shared input ground reference</div>
+  <div data-strip class="cleanup-strip" aria-label="Twelve generated frames"></div>
+</div>
+<style>
+#mouse-cleanup-cycle .sprite-stage { position:relative; width:288px; max-width:100%; margin:auto; }
+#mouse-cleanup-cycle .comparison-heading { min-height:70px; display:flex; flex-direction:column; justify-content:flex-end; }
+#mouse-cleanup-cycle .sprite-preview { display:block; width:100%; height:auto; }
+#mouse-cleanup-cycle img { image-rendering:pixelated; }
+#mouse-cleanup-cycle .ground-line { position:absolute; left:0; right:0; top:83.59375%; border-top:1px dashed var(--muted-foreground); pointer-events:none; }
+#mouse-cleanup-cycle .cleanup-strip { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin-top:16px; }
+#mouse-cleanup-cycle .cleanup-strip img { display:block; width:100%; height:auto; }
+@media(max-width:480px) { #mouse-cleanup-cycle .cleanup-strip { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+</style>
+<script type="application/json" id="mouse-cleanup-data"><!-- CLEANUP_DATA --></script>
+<script>
+(() => {
+  const root=document.getElementById('mouse-cleanup-cycle');
+  const data=JSON.parse(document.getElementById('mouse-cleanup-data').textContent);
+  const get=key=>root.querySelector(`[data-${key}]`);
+  let frame=0,timer=null;
+  const preload=[];
+  for(const record of data.frames)for(const variant of ['source','model','composite'])for(const size of ['native','detail']){
+    const image=new Image();image.src=record[variant][size];preload.push(image);
+  }
+  function draw(){
+    const record=data.frames[frame],variant=get('result').value,size=get('detail').value;
+    get('before').src=record.source[size];get('after').src=record[variant][size];
+    get('before-native').src=record.source.native;get('after-native').src=record[variant].native;
+    get('frame').value=frame;get('count').textContent=`${frame+1} / 12`;
+    [...get('strip').children].forEach((button,index)=>{
+      button.setAttribute('aria-pressed',index===frame?'true':'false');
+      button.querySelector('img').src=data.frames[index][variant].native;
+    });
+  }
+  function stop(){if(timer!==null)clearInterval(timer);timer=null;get('play').textContent='Play';}
+  function play(){stop();timer=setInterval(()=>{frame=(frame+1)%12;draw();},1000/Number(get('rate').value));get('play').textContent='Pause';}
+  get('play').addEventListener('click',()=>timer===null?play():stop());
+  get('frame').addEventListener('input',()=>{stop();frame=Number(get('frame').value);draw();});
+  get('rate').addEventListener('change',()=>{if(timer!==null)play();});
+  get('result').addEventListener('change',draw);get('detail').addEventListener('change',draw);
+  data.frames.forEach((record,index)=>{
+    const button=document.createElement('button');button.className='btn viz-tile';button.type='button';button.setAttribute('aria-label',`Frame ${index+1}`);
+    const content=document.createElement('div'),image=document.createElement('img'),label=document.createElement('div');
+    image.alt='';label.textContent=index+1;content.append(image,label);button.append(content);
+    button.addEventListener('click',()=>{stop();frame=index;draw();});get('strip').append(button);
+  });
+  draw();
+})();
+</script>

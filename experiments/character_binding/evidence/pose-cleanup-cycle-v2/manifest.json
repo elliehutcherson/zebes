@@ -1,0 +1,576 @@
+{
+  "method": "E3 built-in image_gen posed-frame local cleanup",
+  "status": "complete twelve-frame trial completed; visual review pending",
+  "input_review": "User accepted current poses as an experiment starting point; foot directions remain a known issue.",
+  "provider_calls": 12,
+  "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+  "identity_sha256": "1946cadf51cee9979814806a8977aba57ba1311ec86545852c40b3965efa8af5",
+  "canvas_mapping": "whole-canvas uniform scale only; no per-figure crop, shift, or registration",
+  "repair_mask": "arms/legs dilated 3px plus missing leg connections along posed bones outside the coat; protect head, boots, tail, scarf and belt with 1px collar",
+  "prompt": "Use case: precise-object-edit\nAsset type: one pixel-art character cutout, one PNG.\nInput images: Image 1 is the exact posed image to edit. Image 2 shows the same character's finished texture and costume; use it only for appearance, never its pose. Image 3 is an editing-region guide: white permits repair, black means preserve.\nRepair only the white regions in Image 3: join torn sleeve and trouser edges at the shoulders, elbows, hips and knees; remove loose scraps; complete small missing areas of green coat or dark trousers behind the moving limbs. Match the existing pixel clusters, shading and outline style. Preserve the already drawn body geometry and limb positions.\nKeep the face, ears, hood, scarf, belt, both boots and tail unchanged. Keep the exact bends, overlapping order, hand locations, foot directions, apparent size and position from Image 1. Keep white background space between limbs and outside the character. Do not extend the coat into the entire footprint of a moving arm.\nReturn only the edited Image 1 on its original 1024 x 1024 canvas with a perfectly plain solid white (#FFFFFF) background; no checkerboard or texture. Exactly one character, same placement and scale. No text, marks, guide colors, mask, sheet, extra limbs, scenery, shadow, new pose or redesign. Do not copy the pose from Image 2.\n",
+  "background": "plain white matte",
+  "scope": "complete twelve-frame trial",
+  "frames": [
+    {
+      "name": "reference_01",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_01/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_01/region-guide.png"
+      ],
+      "input_sha256": [
+        "cfb3db2518ebe4c7378cdf30aa889df77ed57e91ea08609daf320d92b263ddd6",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "4468373fe3371207d5476a10f44dc039749e6aaea394dc83f9049cd31a6d5686"
+      ],
+      "repair_mask_sha256": "2d388b0378acdb8737dfa7ddea9d9a157100a941d2a4a92ef95ae057c2871aa0",
+      "allowed_pixels": 3869,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "1f4aee8870c1999dc61bb17ec27a8bd87129dcc0ec232f9b17a1ccca86e5f3a2",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 3869,
+      "visible_changed_pixels": 3148,
+      "source_bounds": [
+        48,
+        38,
+        204,
+        216
+      ],
+      "extracted_model_bounds": [
+        49,
+        38,
+        204,
+        215
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-30fd6cb9-42a3-4aa3-bf38-82ba8aa8d80a.png"
+    },
+    {
+      "name": "reference_02",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_02/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_02/region-guide.png"
+      ],
+      "input_sha256": [
+        "d7c7c983b9c254593dd9de385ce89186abe74c3b013d65ae985aa41dbadcb137",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "b1619b15347a96976250839800ed7cdcb65cabc8ebee4b261fd1d83b17f4151a"
+      ],
+      "repair_mask_sha256": "8c8a9447a9189dceb9483f6e46f1bc1f294c56d5e1cfd2b7c65e61f5994f80e7",
+      "allowed_pixels": 3751,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "14ddfada6ada016355861c4751a805a53d0c00d48dfb1a02dd45ce6cad1d23e6",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 3749,
+      "visible_changed_pixels": 3082,
+      "source_bounds": [
+        49,
+        36,
+        212,
+        215
+      ],
+      "extracted_model_bounds": [
+        50,
+        36,
+        212,
+        212
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-b5006c3f-6f15-45d5-9b81-06a0d3d4fe0b.png"
+    },
+    {
+      "name": "reference_03",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_03/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_03/region-guide.png"
+      ],
+      "input_sha256": [
+        "4a01032988e19c105e414227a10a14499d4f42076073423e3b1a2916302d47b6",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "b9c14a6adfe0d67f72d7117200ade05ef6efcd86a8cf507b6aaf22b6797e4d74"
+      ],
+      "repair_mask_sha256": "1f449a16a23e9b4824099b6a65efdbd83f395bc23ac8b3b170d3e3588bce1e66",
+      "allowed_pixels": 3182,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "4d3439c1541e6ebcea0cb8d2eb6b1cf368f3acc7a366a7f96c1033def0c489fe",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 3182,
+      "visible_changed_pixels": 2670,
+      "source_bounds": [
+        48,
+        31,
+        206,
+        215
+      ],
+      "extracted_model_bounds": [
+        49,
+        31,
+        206,
+        210
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-69c3e29f-2ac9-48d3-affd-574a1a358f7a.png"
+    },
+    {
+      "name": "reference_04",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_04/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_04/region-guide.png"
+      ],
+      "input_sha256": [
+        "45dcc00638ba50cadfafeec182a39e9f61e15afb6e07a139eeea456affae861d",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "f5cc2ca5dd24f597ae5539bfb6f49a9ad4bc126d72f44fcf8a22f918acd0d56c"
+      ],
+      "repair_mask_sha256": "0df1994bca3ae4b7b9852196f2da539b20f9bdb28e7d3c6fc3b738e1f507f5e7",
+      "allowed_pixels": 2177,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "538668e9e4f706539ddbb7fb8f088b5b2cd3a32c987cfb73f3bb2ecdf642c129",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 2177,
+      "visible_changed_pixels": 1751,
+      "source_bounds": [
+        48,
+        37,
+        206,
+        215
+      ],
+      "extracted_model_bounds": [
+        49,
+        37,
+        206,
+        215
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-180c3308-ab34-479a-8a98-86d4f2e88cb1.png"
+    },
+    {
+      "name": "reference_05",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_05/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_05/region-guide.png"
+      ],
+      "input_sha256": [
+        "33e7ef2aa9bd35ae55bb05ec867ede69ef4ce6262a5476dd3828023560dd486e",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "5d43e6d1f36097f8bedf41335c363de5e28ebea89fc5d4badc68445042d452e3"
+      ],
+      "repair_mask_sha256": "831c51d41004b5cb723bcec5d1528532ce244112ec0358d97071525ebce91bcc",
+      "allowed_pixels": 1854,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "c829015f3ce55182fe3733306df9fa7c15efa36476dd6a22b7b9886263d52923",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 1853,
+      "visible_changed_pixels": 1551,
+      "source_bounds": [
+        48,
+        35,
+        208,
+        215
+      ],
+      "extracted_model_bounds": [
+        48,
+        35,
+        208,
+        214
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-2f83d21a-9421-424a-80e0-125fb45cddf4.png"
+    },
+    {
+      "name": "reference_06",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_06/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_06/region-guide.png"
+      ],
+      "input_sha256": [
+        "066f27b2e18cf2f9fb1ceb4e9e95c12d50d8b3e262cd0342c2cc7d868f4c0cca",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "57cba436232749bef9416a8e83d7b4bc9bf06913ca0aa3054c9afc676b0490dd"
+      ],
+      "repair_mask_sha256": "cff9240c4691ee84c38106106b2eed59a8eab38b66529b582c78fa657322055f",
+      "allowed_pixels": 2415,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "90933fd21c7c8d361d383d354b5cafcb02109ef10c577f1e69964bd022fd9d8c",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 2415,
+      "visible_changed_pixels": 2042,
+      "source_bounds": [
+        48,
+        31,
+        208,
+        207
+      ],
+      "extracted_model_bounds": [
+        49,
+        31,
+        208,
+        207
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-69985348-c5f2-487e-95b1-8a1b8bfb8f89.png"
+    },
+    {
+      "name": "reference_07",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_07/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_07/region-guide.png"
+      ],
+      "input_sha256": [
+        "12da7c8a85a3cacabbc4627a9cd17fc4eba18f48c04dbbf61a62a195ed6d6263",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "69cd7d6604d5686670a2fe901d1306534e498735335f383189a8e4625c107b24"
+      ],
+      "repair_mask_sha256": "8b6c97d21bcd6e2a67498184e1ca90e9c3baa8aa73a84250d876916beeeb6e97",
+      "allowed_pixels": 2641,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "fbe4831189ef75fc293890c2b332192418a0cfa46ceb94c12b6615a21cbc147d",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 2637,
+      "visible_changed_pixels": 2279,
+      "source_bounds": [
+        48,
+        38,
+        205,
+        215
+      ],
+      "extracted_model_bounds": [
+        49,
+        38,
+        205,
+        214
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-9ae00a5b-f622-4f65-9e6b-3eb20b044940.png"
+    },
+    {
+      "name": "reference_08",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_08/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_08/region-guide.png"
+      ],
+      "input_sha256": [
+        "2c4d8c6e2a59ebe3b221476a3e2cfa4ede6ae602667ef8ba06ddb37d355bd10e",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "21a7951b0e33b624095839c5e4b5133e1608bd18bfe8692d68b8234fa2ab316e"
+      ],
+      "repair_mask_sha256": "d9854d0a4b51078cc672b4475426be26f926c1b74934c940502ef552bba8d5c8",
+      "allowed_pixels": 2694,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "feef911fe317b8b348da604cce10a0afbf88cf5cb9ab7ce774252a831f9a532d",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 2693,
+      "visible_changed_pixels": 2132,
+      "source_bounds": [
+        48,
+        34,
+        208,
+        215
+      ],
+      "extracted_model_bounds": [
+        49,
+        35,
+        208,
+        214
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-f121d290-d02b-4804-9c5e-cfcaa0d0b775.png"
+    },
+    {
+      "name": "reference_09",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_09/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_09/region-guide.png"
+      ],
+      "input_sha256": [
+        "6a4d5bca529155c8f5488cf332cc3998f530f033be246d3b061a473e9d0b7deb",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "2ab90f60ecd13e784da77e8852dca405c8d7f048a708d0e417740307ccd4f8e9"
+      ],
+      "repair_mask_sha256": "db606d90ca23472dc3eb62a54224e401679f9b1659f890c396d83402e996fd3d",
+      "allowed_pixels": 2192,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "06b5be1f920f33aa81635df7bb9d95ce7858684ef3c59149a6c7413f1f666cd5",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 2192,
+      "visible_changed_pixels": 1744,
+      "source_bounds": [
+        48,
+        31,
+        204,
+        215
+      ],
+      "extracted_model_bounds": [
+        49,
+        31,
+        204,
+        214
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-63b0a192-ac8f-4409-9bf7-998ed2894a28.png"
+    },
+    {
+      "name": "reference_10",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_10/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_10/region-guide.png"
+      ],
+      "input_sha256": [
+        "d9d087f9f0ed9133bac61384ce5a4ee72236d132dd5f99bceadd2df854169384",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "02c08cbb99330899535e9f09ac448a015b257846c5b4499a0924b563ad2b255c"
+      ],
+      "repair_mask_sha256": "5488d190a287c40d28d5c7858a2b1b1ab4a19cc4351fa8d83ab102cfcc9f4de1",
+      "allowed_pixels": 2909,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "903776a4de8ed9f79a8dc84bac378d7785357aff8d9ea47e6798914363456329",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 2908,
+      "visible_changed_pixels": 2333,
+      "source_bounds": [
+        48,
+        32,
+        203,
+        215
+      ],
+      "extracted_model_bounds": [
+        49,
+        32,
+        203,
+        214
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-8733fddc-2a3e-45a4-b46c-df0593a1715c.png"
+    },
+    {
+      "name": "reference_11",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_11/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_11/region-guide.png"
+      ],
+      "input_sha256": [
+        "49cf07d78e4790ff209598a8d8fdb4d060ea771cf131f163c6784f3b84a9d520",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "876a34ea21cdc28a06489b02cdd8bb3024d3adff41f2a8e9590599f762468410"
+      ],
+      "repair_mask_sha256": "d61eb4eaf0374b372d2d4aef03e6c8f44ceae61dfbdbf29cda15fed78d833831",
+      "allowed_pixels": 3467,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "a0212d8446468476f92d371e9af4da267f3ca50a2e7e3881f7a2db9495b07af5",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 3467,
+      "visible_changed_pixels": 2833,
+      "source_bounds": [
+        48,
+        34,
+        207,
+        215
+      ],
+      "extracted_model_bounds": [
+        49,
+        35,
+        207,
+        215
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-065f8c15-bf6a-45b8-b73f-9421fe56f204.png"
+    },
+    {
+      "name": "reference_12",
+      "status": "rendered; visual review required",
+      "inputs": [
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_12/edit-input.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/identity.png",
+        "experiments/character_binding/evidence/pose-cleanup-cycle-v2/reference_12/region-guide.png"
+      ],
+      "input_sha256": [
+        "e23c17a7db44461fd59e58581aea5bdd776f19f26f8c5866f477bc40dfc969d4",
+        "201b4785d7a1a010098fcc7b84d5e73af0b7866ab5c2f405229bc8502dc61208",
+        "33bce3dbcae1309fbb2e1fb025bdd7349fe80adae05815388e17c7332e6b3eeb"
+      ],
+      "repair_mask_sha256": "f94d416308c28addf977a9abb70641dd7b9747e1dbfa90823c2e154c12ca1412",
+      "allowed_pixels": 3968,
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "4ce2edd259d075865d10d62acc455e758b0dbcd7e45c4051d40963f90ff2fbd7",
+      "matte_extraction": {
+        "rule": "connected near-white exterior plus white holes already transparent in the source",
+        "tolerance": null,
+        "note": "deterministic background extraction; not native provider transparency"
+      },
+      "outside_mask_changed_pixels": 0,
+      "changed_pixels": 3968,
+      "visible_changed_pixels": 3266,
+      "source_bounds": [
+        48,
+        30,
+        206,
+        207
+      ],
+      "extracted_model_bounds": [
+        48,
+        31,
+        205,
+        206
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "provider_saved_path": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-cab78299-5423-40f7-b66b-099405b297d7.png"
+    }
+  ],
+  "tool": "image_gen__imagegen",
+  "image_backend_model_id": null,
+  "observations": [
+    "Broad pose differences retained, including the folded-leg pose.",
+    "Whole-frame redraw changes identifying details despite region-guide instructions.",
+    "Protected-pixel composite preserves all pixels outside the fixed repair mask but retains seams.",
+    "Foot directions remain a known input issue; no pose changes or per-figure normalization.",
+    "Plain white input/output matte removed the checkerboard issue; frames 5, 10 and 11 still need leg-connection review."
+  ]
+}

@@ -756,6 +756,73 @@ TEST(PuppetDocumentTest, RebasingRejectsAnUnknownFrame) {
   EXPECT_EQ(applied.code(), absl::StatusCode::kNotFound);
 }
 
+TEST(PuppetDocumentTest, RetargetingMatchesSourceWhileKeepingAngularMotionAndRootTravel) {
+  PuppetDocument document = BuildableDocument();
+  ApplyOrDie(document, MoveRestJoint{.name = "elbow", .rest = {.x = 40, .y = 20}});
+  ApplyOrDie(document, MoveRestJoint{.name = "wrist", .rest = {.x = 40, .y = 30}});
+  ApplyOrDie(document,
+             PoseJoint{.frame = "run_02", .joint = "shoulder", .point = {.x = 25, .y = 17}});
+  ApplyOrDie(document, PoseJoint{.frame = "run_02", .joint = "elbow", .point = {.x = 25, .y = 37}});
+  ApplyOrDie(document, PoseJoint{.frame = "run_02", .joint = "wrist", .point = {.x = 15, .y = 37}});
+
+  ApplyOrDie(document, puppet_edit::RetargetFrames{.from_frame = "run_01"});
+
+  for (const auto& [name, rest] : document.rest_pose) {
+    EXPECT_DOUBLE_EQ(document.frames[0].pose.at(name).x, rest.x);
+    EXPECT_DOUBLE_EQ(document.frames[0].pose.at(name).y, rest.y);
+  }
+  const PuppetPose& moved = document.frames[1].pose;
+  EXPECT_DOUBLE_EQ(moved.at("shoulder").x, 25);
+  EXPECT_DOUBLE_EQ(moved.at("shoulder").y, 17);
+  // The upper arm's 45-degree motion is added to the horizontal source arm.
+  // Its child's motion is placed from the corrected elbow, not the old one.
+  EXPECT_NEAR(moved.at("elbow").x, 25 + 10 * std::sqrt(2.0), 1e-9);
+  EXPECT_NEAR(moved.at("elbow").y, 17 + 10 * std::sqrt(2.0), 1e-9);
+  EXPECT_NEAR(moved.at("wrist").x, 25 + 5 * std::sqrt(2.0), 1e-9);
+  EXPECT_NEAR(moved.at("wrist").y, 17 + 5 * std::sqrt(2.0), 1e-9);
+  EXPECT_EQ(document.frames.size(), 3u);
+  EXPECT_EQ(document.frames[1].name, "run_02");
+  EXPECT_EQ(document.frames[1].draw_order, (std::vector<std::string>{"arm", "body"}));
+  EXPECT_EQ(document.parts[0].outlines[0].points[0].x, 10);
+  EXPECT_EQ(document.anchor_frame, "run_01");
+}
+
+TEST(PuppetDocumentTest, RetargetingKeepsExplicitRelativeStretch) {
+  PuppetDocument document = BuildableDocument();
+  ApplyOrDie(document, MoveRestJoint{.name = "elbow", .rest = {.x = 40, .y = 20}});
+  ApplyOrDie(document, puppet_edit::SetBoneStretch{.name = "upper_arm", .may_stretch = true});
+  ApplyOrDie(document, PoseJoint{.frame = "run_02", .joint = "elbow", .point = {.x = 40, .y = 40}});
+  ApplyOrDie(document, PoseJoint{.frame = "run_02", .joint = "wrist", .point = {.x = 50, .y = 50}});
+
+  ApplyOrDie(document, puppet_edit::RetargetFrames{.from_frame = "run_01"});
+
+  EXPECT_NEAR(document.frames[1].pose.at("elbow").x, 60, 1e-9);
+  EXPECT_NEAR(document.frames[1].pose.at("elbow").y, 20, 1e-9);
+}
+
+TEST(PuppetDocumentTest, FailedRetargetingDoesNotPartiallyCalibrateEarlierFrames) {
+  PuppetDocument document = BuildableDocument();
+  ApplyOrDie(document, MoveRestJoint{.name = "elbow", .rest = {.x = 40, .y = 20}});
+  ApplyOrDie(document, PoseJoint{.frame = "run_03", .joint = "elbow", .point = {.x = 20, .y = 20}});
+  const absl::Status result =
+      ApplyPuppetCommand(document, puppet_edit::RetargetFrames{.from_frame = "run_01"});
+  EXPECT_EQ(result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_NE(result.message().find("collapsed bone"), std::string::npos);
+  EXPECT_DOUBLE_EQ(document.frames[0].pose.at("elbow").x, 30);
+  EXPECT_DOUBLE_EQ(document.frames[0].pose.at("elbow").y, 30);
+}
+
+TEST(PuppetDocumentTest, RetargetingRejectsAmbiguousParentsAndUnknownFrames) {
+  PuppetDocument document = BuildableDocument();
+  EXPECT_EQ(ApplyPuppetCommand(document, puppet_edit::RetargetFrames{.from_frame = "ghost"}).code(),
+            absl::StatusCode::kNotFound);
+  ApplyOrDie(document, AddBone{.name = "ambiguous", .start_joint = "hip", .end_joint = "elbow"});
+  const absl::Status result =
+      ApplyPuppetCommand(document, puppet_edit::RetargetFrames{.from_frame = "run_01"});
+  EXPECT_EQ(result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_NE(result.message().find("one parent"), std::string::npos);
+}
+
 TEST(PuppetDocumentTest, FittingBoneLengthsKeepsDirectionAndDropsScaling) {
   PuppetDocument document = BuildableDocument();
   // shoulder-elbow is 10*sqrt(2) at rest; elbow-wrist likewise. Squash the arm

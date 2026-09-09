@@ -1,0 +1,464 @@
+# Twelve-frame mouse run: proposed experiment plan
+
+Prepared and **approved 2026-09-08**, with the existing green-coated mouse as
+the target. Source calibration and deterministic rendering are in progress.
+The first generation experiment has now run: four cleanup pilots and twelve
+fresh white-matte frames. The [results](history/posed-mouse-cleanup-2026-09-08.md)
+include complete playback; final art review remains open.
+
+The user's amendment takes precedence over the original sequence: fix the
+source skeleton, limb assignments and twelve-frame puppet first; show the
+actual artwork, skeleton overlays, poses and any conditioning maps for review
+before every new generation setup. Old track/art/experiment gates are suspended
+until an animation works. Numerical screens below are diagnostic suggestions,
+not mandatory acceptance gates. Prior techniques may be retried with corrected
+inputs if the current approach leaves a visible problem.
+
+Later on 2026-09-08 the user supplied the actual twelve-pose drawing sheet and
+rejected the inherited rig's motion. That sheet, retained as
+`experiments/character_binding/inputs/run-pose-reference-12.png`, supersedes
+Rig Bench as the pose authority. Each drawing is traced directly and compared
+with the mouse; source binding and target gait are separate review views.
+
+The best prospect is a complete layered mouse driven by authored motion, with
+small corrective drawings and generation used to complete reusable parts. The
+next-best generative experiment is constrained cleanup of an already posed
+mouse. A temporal video model deserves a separate, bounded trial because the
+recorded ComfyUI attempts did not test temporal conditioning.
+
+These are engineering judgments, not measured success probabilities. All three
+still depend on art review. Twelve frames alone do not guarantee smooth motion.
+
+## 1. What was reviewed
+
+- [Current handoff](handoff.md), the relevant Track 5 roadmap and
+  [authoring boundaries](architecture/editor-and-authoring.md).
+- The entire [character-binding findings and 41-entry decision ledger](../experiments/character_binding/FINDINGS.md),
+  including the later corrections to earlier conclusions.
+- [Coherent-sheet gate](animation-artwork-pipeline.md#gate-run-record-2026-08-29),
+  [independent-frame pilots](history/animation-pose-conditioned-experiment.md),
+  and [Codex skeleton-conditioning closeout](history/codex-pose-conditioning-2026-09-06.md).
+- [Layer deformation diagnosis and fallback proposals](character-layer-deformation-experiment.md),
+  the current puppet README, skeleton/puppet interfaces, and all three tracked
+  puppet documents.
+- Representative retained images: the standing source, isolated running source,
+  twelve-pose skeleton sheet, and a rejected high-recovery provider output.
+  Historical numerical results below are recorded results, not rerun metrics.
+  Some older generated output and runners were deleted during cleanup.
+- Primary documentation and repositories linked in section 4.
+
+Read-only inspection also confirmed derry's live software inventory. No model
+was downloaded, environment changed, service restarted, render queued, or
+production asset modified.
+
+## 2. What the experiments establish
+
+The ledger numbers refer to FINDINGS.md. Together these rows cover its entire
+ledger, plus the preceding August experiments.
+
+| Experiment family | Recorded result | Interpretation for this retry |
+|---|---|---|
+| August coherent idle/run sheets | First attempts failed extraction; second run passed processing but failed live motion. Idle visibly oscillated about three native pixels. | Sheet consistency and valid extraction do not establish ordered gait or stable registration. |
+| August independent poses, composite identity and separated identity views | Six attempted provider turns included a transport failure, a canvas mismatch, and completed pairs rejected for body/helmet/waist changes and ambiguous opposing phases. | Separate plumbing failures from art failures. More identity views did not solve the completed pairs. |
+| 1–3: depth, then depth with IP-Adapter | Weak depth: 337% measured head drift. Strong depth: 33.8% and mannequin-like art. IP-Adapter: 11/12 heads within 1.3%, but a large outlier and missing facial identity. | Strong structural conditioning can preserve dimensions while destroying the identifying details absent from the proxy. Fixed seed is not an identity constraint. |
+| 4–7: native-size review, pixel LoRA, Canny, unconstrained generation | Native review exposed unreadable painterly output. Canny plus pixel LoRA improved profiles and local pose differences. Unconstrained images gave the best reference art. | Style and pose need separate evaluation. The successful local Canny examples were not twelve-frame evidence. |
+| 8–10: primitive fitting, silhouette binding, deterministic extraction | Complete primitive fit 68.8% IoU; profile bind 97.3% neutral IoU but missing hidden limbs. C++ extraction/topology passed focused cases. | A close neutral silhouette does not supply concealed legs, limb identity, or depth order. |
+| 11–13: four-pose Canny, ordinal depth, dual controls | Identity survived weak controls, but flight was grounded or facing changed. Strong depth improved elevation while damaging style. Dual controls repeated the failure. | Do not reopen the same strength sweep. Test a different input representation or temporal mechanism. |
+| 14: direct C++ deformation | Exact neutral and complete sampling, but coat/boots intersected and ownership was wrong. | The mapping implementation passed a narrow test; the input decomposition failed. |
+| 15–18: low-poly 3D, reference fitting, shared families, authored Blender mouse | Pose, identity, reusable species builders, import and runtime worked. Reference-fit silhouette reached 75.5%. Final art direction rejected the primitive style. | 3D animation was not disproved. The particular modeling/rendering approach failed the desired appearance. A 2D textured Blender rig would test a different mechanism. |
+| 19–22: explicit layers, See-through, skinned arm, exclusive ownership | Layered direction passed; rigid seams remained. See-through supplied useful sleeves/boots/coat but missed legs/tail and hallucinated human anatomy. Isolated-arm success concealed composite ghosts. | Build the whole character. Semantic segmentation, hidden-surface completion, ownership and skinning are separate tasks. |
+| 23–28: mesh diagnosis, angle blending, trimming, ownership and shoulder correction | Diagnosed 105 stuck pixels, 876 unbacked pixels and folds. Some fixes improved shapes despite reducing arm area. Corrected shoulder placement exposed other defects. | Freeze geometry and ownership before comparing solvers. Area preservation is not a visual-quality score. |
+| 29–32: stretched backfill, 48px review, coat relationship, immutable coat | Filling the entire arm footprint enlarged a correct coat. Immutable generated coat preserved its digest and alpha. | Complete surfaces that actually exist behind a limb; some newly exposed areas should be transparent background. |
+| 33–34: native motion audit | Versions differed by only 5–21 pixels at 48px; contact/passing silhouette changes were 11/13 of 717 pixels. Only one arm drove artwork. | Those semantic-arm variants were not full-body gait experiments. Tiny high-resolution diagnostic improvements had little shipped benefit. |
+| 35–37: Codex pose sheets and registration | Model ignored exact canvas/palette requests. Tooling could enforce them, but per-figure normalization removed real airborne motion. | Retain raw outputs. Use shared world coordinates and a fixed scale; never seat every generated frame on its own bottom row. |
+| 38: matched image/skeleton local edit | Horizontal foot separation followed a small requested change; vertical travel undershot. | Limited evidence of local pose sensitivity, not proof of arbitrary skeletal control. |
+| 39–40: matched and simplified four-reference pilots | Both included a running reference contrary to the intended two-input test; both converged on generic strides. | Useful failure evidence, but invalid as tests of the requested input contract. |
+| 41: corrected standing-source plus skeleton | All three outputs still gave generic split strides; recorded height spread 17.7%, baseline spread 74px in the wrong phase order. | Valid evidence against this reference-only mechanism; do not spend another full batch on it unchanged. |
+
+The most plausible causes are incomplete conditioning, conflicting appearance
+and geometry signals, missing hidden artwork, and evaluation that sometimes
+measured a proxy for the desired behavior. They are not all model failures.
+
+Two interpretations need qualification:
+
+- The repeated generic strides are **consistent with** a strong learned running
+  prior and weak skeleton interpretation. They do not prove that a model can
+  never represent the requested poses. The recorded tests cannot isolate the
+  model's internal cause.
+- Some corrected Canny guides still contained thick bones and joint dots, and
+  depth inputs used authored ordinal regions. These differ from ordinary image
+  edges and estimated depth. Distribution mismatch is a plausible additional
+  cause, not established causality. ControlNet's reference implementation treats
+  edges, depth and human pose as distinct trained conditions. Even a dedicated
+  ControlNet is learned conditioning, not a geometric constraint.
+  [ControlNet implementation](https://github.com/lllyasviel/ControlNet).
+
+The current snapshot also supersedes several historical status statements:
+
+- `mouse_interactive_run_v1.json` now has five parts, twelve distinct poses,
+  both arms and both legs bound; its head and tail remain in the body part.
+- `test-puppet.json` has ten parts, 23 joints, 22 bones and twelve distinct
+  poses. Inspection found essentially exact bind-relative bone lengths. The
+  interactive document's largest relative length difference is about 0.0025%.
+  Current bone stretch is therefore not an established cause of its appearance.
+- The six old layered-render hard gates became review notices on September 7.
+  Older claims that the same render remains blocked by hard validation are stale.
+  This plan evaluates visible defects without silently reinstating those gates.
+
+## 3. Available equipment and starting assets
+
+Live inspection on 2026-09-08 confirmed:
+
+| Resource | Status |
+|---|---|
+| derry | Reachable through SSH; RTX 3090, 24,576 MiB VRAM; about 64 GiB system RAM |
+| ComfyUI | Running at loopback port 8188, version 0.34.0; Python 3.12.3; PyTorch 2.13.0+cu130 |
+| Image checkpoints | SDXL base 1.0 |
+| Conditioning | xinsir SDXL Canny and depth; IP-Adapter and IP-Adapter Plus SDXL; `ComfyUI_IPAdapter_plus` custom nodes |
+| Style | `pixel-art-xl` LoRA |
+| Video | No video weights in the inspected `diffusion_models` directory; no AnimateDiff/Wan wrapper in the inspected custom-node directory |
+| Blender | 4.0.2 installed at `/usr/bin/blender` |
+| See-through | Prior 3090 execution and retained layers are documented; its disposable environment is not verified as still available |
+
+The inventory covers the normal ComfyUI directories and documented setup, not
+every storage location on the machine. A model file existing does not by itself
+verify that a new workflow runs.
+
+Use the previously selected
+[isolated running mouse](../experiments/character_binding/inputs/interactive-run-source-v1.png)
+as the proposed primary art source: its limbs are more exposed and the current
+interactive puppet was built against it. Keep the
+[standing source](../experiments/character_binding/inputs/profile-binding-deformation-v2/source-color.png)
+and its See-through layers as a separate reference kit. The two images differ
+in proportions and facing; do not silently combine them as interchangeable
+pixel sources. Any reused layer needs explicit fitting and art acceptance.
+
+Use the [user's twelve-pose sheet](../experiments/character_binding/inputs/run-pose-reference-12.png)
+and [its explicit joint traces](../experiments/character_binding/inputs/run-pose-trace-v1.json)
+as the motion starting point. Rig Bench and its generated tracing underlays
+are comparison evidence only.
+
+## 4. Skeleton, pose and image-binding options
+
+The roles matter: a pose estimator locates joints; a rig defines a hierarchy;
+IK solves joint positions; skinning moves pixels; completion supplies missing
+art. No single one of these operations performs all the others.
+
+| Tool or library | Relevant capability | Recommendation |
+|---|---|---|
+| Existing Zebes `skeleton_rig`, puppet document and renderer | Authored joints, chains, twelve poses, part ownership, rigid/two-bone mesh transforms, deterministic export | First baseline. Reuse existing tools and correct the part kit before building another editor. |
+| [Blender armatures](https://docs.blender.org/manual/en/latest/modeling/modifiers/deform/armature.html) | Mesh deformation with bone weights and optional volume preservation | Best already-installed independent binding comparison: textured 2D part meshes, orthographic camera, explicit weights and corrective shapes. Version-check features against installed 4.0.2. |
+| [Spine mesh attachments](https://en.esotericsoftware.com/spine-meshes), [weights](https://us.esotericsoftware.com/spine-weights), [IK](https://esotericsoftware.com/spine-ik-constraints) | Image meshes, bone binding, deform keys and one/two-bone IK | Strong purpose-built authoring alternative. Mesh functionality requires Professional. Useful if manual rig editing is the bottleneck; no purchase or runtime integration is proposed. |
+| [Moho](https://moho.lostmarble.com/pages/features) | Bitmap/PSD rigging, meshes, FK/IK and authored Smart Bone corrections | Strong alternative for an artist finishing the cycle; adds a new authoring workflow. |
+| [Live2D](https://docs.live2d.com/en/cubism-editor-manual/deformpath/) | ArtMesh deformation and authored deform paths | Useful for face, cloth and soft shape corrections; my preference for this whole-body gait is skeletal cutout tooling. |
+| [DragonBones](https://dragonbones.github.io/en/animation.html) | 2D skeletons, weighted meshes and layered-image import | Relevant functionality, but deployment/maintenance suitability has not been validated here. No reason to migrate for this first trial. |
+| [libigl](https://libigl.github.io/tutorial/) and [bounded biharmonic weights](https://igl.ethz.ch/projects/bbw/) | Geometry-aware weight computation and deformation algorithms for 2D/3D shapes | Candidate for an isolated solver comparison if a valid part visibly deforms badly. Computes weights, not missing anatomy or gait. Keep outside the engine initially. |
+| [Rigid MLS](https://people.engr.tamu.edu/schaefer/research/mls.pdf) | Fast point/line-handle image deformation | A bounded fallback, not the first work item. The paper explicitly permits foldbacks; the existing note saying it cannot fold is incorrect. |
+| [Animated Drawings](https://github.com/facebookresearch/AnimatedDrawings) | Image rigging and BVH motion retargeting; manually configurable skeletons | Useful reference implementation. Human-like assumptions and missing concealed artwork remain relevant; repository archived September 2025. Lower priority than the installed Blender route. |
+| [DWPose](https://github.com/IDEA-Research/DWPose) / [MMPose](https://github.com/open-mmlab/mmpose) | Pose estimation from images/video | Optional help extracting a motion reference. Do not use a human estimator as ground truth for this mouse or as an image-binding library. We already have authored joints. |
+| [See-through](https://github.com/shitagaki-lab/see-through) | Generated semantic layers and concealed-surface candidates | Reuse accepted layers selectively. Its own documentation distinguishes decomposition from rigging and artistic layer design. No whole-character automatic acceptance. |
+| [AnimateDiff Evolved](https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved) | Temporal sampling with ControlNet/IP-Adapter integration | A possible later temporal A/B. Model families must match: existing SDXL assets cannot simply accompany an SD1.5 motion module. SDXL support has its own qualifications. |
+| [Wan VACE](https://github.com/ali-vilab/VACE) / [ComfyUI integration](https://docs.comfy.org/tutorials/video/wan/vace) | Reference-conditioned, controlled and masked video generation | Preferred optional temporal experiment. New mechanism relative to the recorded still-image tests; no promise of exact pose, pixel style or loop closure. |
+| [ToonCrafter](https://huggingface.co/Doubiiu/ToonCrafter/blob/main/README.md) / [RIFE](https://github.com/hzwer/ECCV2022-RIFE) | Cartoon interpolation / intermediate-flow interpolation | Defer. Neither establishes twelve specified poses from missing or incorrect keyframes. ToonCrafter's published model uses sixteen frames and notes VAE flicker. Interpolation is useful only after sound keys exist. |
+
+Do not begin custom LoRA training from one reference image. The missing signal
+is a verified variety of poses and hidden surfaces; training on the failed
+outputs risks preserving their errors. A character LoRA could be reconsidered
+after this process supplies an accepted multi-pose dataset.
+
+## 5. Shared experiment contract
+
+Every branch uses one frozen identity kit, one motion specification, one fixed
+camera/scale and one review procedure. Changes create a new named revision.
+
+**Output.** Exactly twelve distinct, ordered RGBA frames of one complete
+right-facing cycle; fixed canvas, origin and ground datum. Native review begins
+at 48×48, matching earlier production evidence, with enlarged nearest-neighbor
+views and a Catacombs background. If the entire silhouette cannot fit at the
+chosen scale, widen the canvas consistently before freezing it.
+
+**Timing.** Retain the files' existing 8 fps as a slow diagnostic view. Compare
+12 and 15 fps during the motion-only setup, then freeze the preferred cadence
+for all art comparisons. Fifteen fps gives a 0.8-second twelve-frame cycle and
+matches the historical four-ticks-per-frame reference at 60 Hz. This is preview
+authoring, not permission to alter production timing. At integration, reconcile
+the stride with actual world speed and render scale explicitly.
+
+**Motion.** Label near/far limbs on an annotated source; do not infer them from
+`_l`/`_r`. Annotate support foot, sole/toe anchors, flight intervals, root height,
+limb order and intended limb crossings for all twelve frames. Preserve bone
+lengths for the planar baseline. If a pose requires foreshortening or a new
+visible surface, author a substitute drawing rather than stretching a limb.
+
+**Registration.** A single transform maps the whole kit to output coordinates.
+No per-frame bounding-box scale, bottom-row seating, automatic height matching,
+or phase reordering. A raw generator result that violates registration is scored
+as such. Any explicitly proposed registration correction is retained and scored
+separately; it must not remove intended body rise or flight.
+
+**Evaluation.** The original numerical screens below are retained as diagnostic
+references, not gates. The current priority is visibly correct binding and
+motion. Review actual inputs with the user before generation, and judge the
+complete animation visually instead of reinstating the old prerequisite chains.
+
+| Property | Evidence and proposed screen |
+|---|---|
+| Pose obedience | Manually identifiable wrists, knees, soles/toes and pelvis against target overlays. Mean error ≤3% and maximum ≤6% of fixed reference body height; approximately 1.3/2.6 pixels for a 44px-tall sprite. Mark concealed joints unobservable instead of guessing. Correct support/flight phase is required independently. |
+| Grounding | Support sole within one native pixel of its authored ground/contact target. Flight frames preserve their authored clearance. Do not compare an ankle directly with the ground. |
+| Identity | Same face, ears, muzzle, coat, belt, scarf, hands and boots. For rigid landmark comparisons, measure in local part coordinates; investigate >5% unrequested proportion change. Constant source digests establish asset reuse but do not alone establish good rendered anatomy. |
+| Whole-body motion | Part-tint playback proves both arms and both legs follow their assigned tracks. Head/torso rise and tail motion are deliberate. Twelve different file digests alone cannot pass this screen. |
+| Foot sliding | During support, compare foot displacement with the intended root/world translation. In a treadmill preview the planted foot moves backward in sprite coordinates; a fixed local foot is not the correct universal target. |
+| Loop closure | Review 11→0 at normal speed and frame-step across it. Compare pose/velocity discontinuity with the authored control and ordinary adjacent intervals. Do not demand that frames 11 and 0 be identical or append a repeated first frame. |
+| Flicker | Inspect motion-compensated face/coat regions and fixed palette behavior. Pixel differences caused by intended articulation are not identity drift. A global similarity score is secondary evidence only. |
+| Composite defects | Full-character and hidden-part/tint views at 48px: no visible duplicate limb, torn shoulder, boot swap or displaced coat patch. Keep high-resolution hole/fold counts diagnostic unless a visible failure or invalid geometry justifies a gate. |
+| Final acceptance | Side-by-side loops with method names hidden, native/enlarged and on Catacombs. Score identity, gait, continuity, pixel readability and artifacts separately; one unacceptable category cannot be averaged away. |
+
+Validate the measuring tools with a known static duplicate cycle, a deliberately
+phase-swapped cycle, and a deliberately shifted frame. Also measure the
+deterministic guides: they cannot acquire anatomical drift by construction.
+
+## 6. Experiments and execution order
+
+### E0 — repair source calibration and establish the controls
+
+No inference. Audit current documents and render the existing twelve-frame
+puppets through the current tools. Keep both as baselines; do not edit their
+tracked originals. Produce a skeleton/solid-part loop with visible foot contacts
+and limb colors, plus actual artwork playback.
+
+Check all chains against the selected source and current render, including the
+head and tail that the five-part puppet leaves in the body. Use the existing
+near-constant bone lengths as a starting point; do not invent a stretch fix.
+Resolve any incorrect pose, phase, attachment, ground datum or drawing order in
+the copied trial document. A silhouette can demonstrate gait without final
+texture, so settle motion before pursuing surface quality.
+
+Deliver one reviewable kit: source digests, twelve poses and phase labels, part
+inventory, shared transform, timing, reference loop and evaluation thresholds.
+If the control does not read as a run, spend the effort on motion authoring;
+image generation cannot validate an incorrect motion target. Show this kit to
+the user and wait for their input review before generation. The first repair
+used `mouse_run_calibrated_v1.json`: near/far arm tracks corrected against the
+leg phase, source joints retraced, rigid boots split from the legs, and
+`retarget_frames` matching `reference_01` to the source drawing exactly.
+The user then rejected its inherited gait. `mouse_run_reference_v2.json`
+instead takes the supplied sheet's limb angles directly and retains the
+source drawing as the separate bind pose. A shared scale for traced legs and
+explicit support/flight registration are part of this new input review.
+
+### E1 — complete layered puppet with reusable corrective artwork
+
+**Highest expected chance of a usable final cycle.** It preserves identity
+structurally and gives every required pose an explicit source.
+
+Finish the running-source part kit: rigid face/head with original ears; torso;
+two complete arms with hands; two complete legs with boots; independently owned
+tail; and coat/scarf pieces only where their movement is visible at 48px.
+Remove moving-part pixels from static artwork and complete actual surfaces
+revealed behind them. A stable coat texture can move with the torso without
+being repainted or stretched into an old arm footprint.
+
+Start with available pixels and accepted compatible completion. If a required
+surface is absent, allow up to **six static part-completion image requests**:
+at most two candidates for each of three explicitly missing part groups. These
+generate reusable drawings, not six independently styled animation frames.
+Review them at native size and in the extreme poses. Keep original visible
+identity pixels authoritative. Record which parts were authored or generated.
+
+Use existing rigid/angle-blended deformation. Add up to four explicit corrective
+drawings for the bends or limb overlaps that remain visibly wrong. Replacement
+attachments are allowed in this branch and must be recorded; inspect their
+switches during playback. Do not force one texture to represent a hidden side
+of a boot that it does not contain.
+
+Render all twelve frames. Permit one diagnosed revision of part ownership or
+corrective drawings, then review the full cycle. If completion fails its bounded
+budget, report the exact missing drawings and continue independent comparisons
+with the diagnostic kit; do not call a flat placeholder finished art.
+
+### E2 — independent image binding in Blender
+
+**Medium-high chance if E1's remaining defect is deformation.** This separates
+limitations of the current renderer from limitations of the artwork and pose.
+
+Use the same frozen RGBA parts and target joint positions in Blender 4.0.2.
+Build textured planar meshes with explicit weights, a fixed orthographic camera
+and unlit materials. Keep the head rigid. Use layer depth for occlusion and
+author corrective shapes only where required. This is a cutout mouse, not a
+rerun of the rejected primitive 3D mouse.
+
+Compare current rendering and Blender on four stress poses: opposite contacts,
+a tightly crossed passing pose, and an airborne/recovery pose. Select exact
+frame indices from E0's annotations before rendering. Match rasterization and
+native scaling; a filtering change must not be credited as better skinning.
+
+If the full composites visibly improve, render all twelve with the same kit.
+If they do not, stop after the four-pose A/B. Time-box the independent setup to
+one working day. MLS/BBW/ARAP are deferred unless this test identifies a specific
+shape defect that cannot be corrected more cheaply with a drawing.
+
+### E3 — Codex cleanup of already posed artwork
+
+**Medium chance as a finishing step; low confidence as a whole-frame redraw.**
+This tests a different input from the failed stick-skeleton requests.
+
+Supply the actual posed RGBA composite as the edit target, the frozen identity
+reference, and clearly bounded defect regions. Describe the local repair, not
+an instruction to invent a running pose. No previous generated frame becomes
+the next frame's identity source.
+
+Pilot the four E2 stress poses, one request per pose. Retain untouched provider
+outputs and provenance. The current image tool may not expose an exact numeric
+inpaint mask or reproducible seed: never imply that a prose mask is enforced.
+After generation, deterministic compositing may admit only pixels inside the
+predeclared repair regions. The region allowance can include a small silhouette
+collar; it is fixed before seeing the output.
+
+The model's raw pose/identity score and the masked composite's score are
+reported separately. Preserve the input outside the masks byte-for-byte.
+If a response changes canvas or shifts the local artwork so that the edit cannot
+be mapped reliably, reject it; do not conceal the failure with per-frame fitting.
+
+If all four repairs improve the native composite without moving landmarks or
+introducing style mismatch, run one fresh twelve-frame batch with the same
+policy, one candidate per frame. Otherwise stop. Maximum **16 frame-edit
+requests**, in addition to E1's possible six part requests. No blind rerolls or
+mixing pilot frames into a claimed complete batch.
+
+### E4 — ComfyUI masked img2img from the posed puppet
+
+**Medium chance for small repairs.** Uses installed models and changes the
+mechanism from generating a mouse out of a sparse control map.
+
+Start each frame from its posed colored composite and use the same E3 repair
+masks. Use SDXL base, pixel-art-xl and IP-Adapter with one fixed identity.
+Export a working graph from the UI; validate the node inputs before queueing.
+Use real Canny edges computed from the posed color render if edge control is
+enabled. Do not feed colored skeletal diagnostics into a Canny checkpoint.
+
+Run a small predeclared comparison: denoise **0.15 versus 0.30**, four stress
+poses, two fixed seeds: **16 pilot images**. Hold prompt, sampler, step count,
+LoRA/IP-Adapter settings, mask and any edge control constant. Record the actual
+graph and all settings; these denoise values are starting hypotheses, not
+established optima. Begin with one seed per setting and stop a setting early
+if it cannot preserve anatomy or offers no visible repair.
+
+Apply the same outside-mask copy and separate raw/final scoring as E3; a VAE
+round trip can change supposedly protected pixels. Include the unchanged puppet
+as a control so doing almost nothing cannot win the repair comparison.
+
+If a setting passes, run one complete twelve-frame batch at that setting and
+one predeclared seed policy. Maximum **28 images** including the pilots. Compare
+the resulting loop with E1/E2 and E3. Stop if noise reduction preserves defects
+while more noise introduces drift; do not extend this into another weight sweep.
+
+### E5 — optional temporal video trial with Wan VACE
+
+**Best untested generative mechanism in this shortlist, but lower confidence
+than E1 for an exact twelve-frame pixel-art loop.** Temporal processing may
+reduce independent-frame drift; it does not guarantee contact states or a
+seamless cycle. This is an optional add-on to the recommended first round.
+
+Use the accepted posed puppet sequence as motion-bearing video and the same
+identity source. Follow an official VACE reference/control or masked-edit
+template, verifying that every input path actually reaches the sampler. If the
+selected path expects depth or edges, supply the matching representation rather
+than pretending RGBA is depth. Use the masked-video path for colored cleanup.
+
+Download compatible weights only after this branch is approved. First profile
+VACE 1.3B with a short 480-class, 49-frame input on the 3090, using offload as
+needed. It is a setup/conditioning check, not a verdict on 14B quality. If
+resources permit, use a documented quantized/offloaded 14B configuration for
+the quality comparison. The full 14B file alone is around 32 GB, so native full
+GPU residency is not a credible 24 GB plan. Quantization support is available
+through [WanVideoWrapper](https://github.com/kijai/ComfyUI-WanVideoWrapper);
+prefer native nodes where the verified workflow permits them.
+
+Keep new environments isolated from the working ComfyUI installation. Do not
+upgrade shared packages to satisfy an optional trial. Record peak VRAM, host
+RAM, wall time, model hashes and exact graph. Weight file size is not a VRAM
+benchmark; actual fit is an open question until profiled.
+
+The proposed 49-frame control contains two cycles at two samples per each of
+the twelve phases, plus the final endpoint. Intermediate controls come from
+the E0 skeleton, not optical interpolation of pixels. Export exactly the
+predeclared second-cycle indices **24, 26, …, 46** as the twelve-frame candidate.
+Compare phase-equivalent frames across both cycles and endpoint 48 for drift
+and closure. The model's frame-count rules are handled in the control input;
+no authored phase is dropped and no generated frame is selected after viewing
+the output. Record the video rate and final sprite cadence separately.
+
+Cap this branch at **four clips total and four GPU-hours**, whichever comes
+first, including the initial profile. Reserve at least two complete clips for
+the selected quality configuration with two fixed seeds. A memory-limited or
+underpowered 1.3B result is not a blanket rejection of temporal methods. If no
+configuration fits, report a resource limit. If pose, native readability or loop
+closure fails, retain that conclusion without optical-flow repair or rerolls.
+
+## 7. Scope, budgets and implementation boundaries
+
+Recommended first approval: **E0 and E1, E2 if visible deformation warrants the
+comparison, then E3/E4 as paired cleanup trials if visible cleanup remains.**
+Stop when a complete loop is accepted; skip branches that no longer address an
+observed problem. Add E5 explicitly if exploring a temporal model is desired
+even when the deterministic route is already promising.
+
+| Work | Maximum planned scope |
+|---|---|
+| Motion and complete part kit | Twelve-frame control; one diagnosed kit revision; up to four corrective drawings |
+| Codex generation | Six reusable-part candidates plus four cleanup pilots plus one twelve-frame cleanup batch: **22 requests maximum** |
+| Installed ComfyUI image trial | Sixteen pilot images plus one twelve-frame batch: **28 images maximum** |
+| Independent Blender comparison | Four stress poses, then twelve frames only if visibly useful; one working day setup cap |
+| Optional VACE | Four clips / four GPU-hours; new weights and isolated setup needed |
+
+These are maximum experiment scopes, not promises to consume the budget. Part
+authoring is likely the largest human/agent effort: allow roughly one to three
+working days for the first complete kit and review, with substantial uncertainty
+about missing surfaces. Inference time is measured on the first approved run;
+there is no unsupported per-image price or 3090 throughput estimate here.
+
+Use existing `puppet_edit`, `render_layered_puppet` and frame-set processing
+entry points. No second editor, engine-side Python/PyTorch dependency, runtime
+rig format or new production provider path is part of the experiment.
+
+Keep first-party orchestration under `scripts/` if new tooling is necessary,
+and any reusable pure processing under `src/artwork/` only when justified.
+Self-contained external Blender/solver spikes may live under `experiments/`,
+with no CMake targets, imports from `src/`, or provider calls. Provider requests
+are made through the agent's image tool or the approved authoring/tool boundary;
+ComfyUI clients must not be added under `experiments/`.
+
+Prefer existing part data and offline corrective overlays before changing
+serialized formats. If an engine schema change becomes necessary, it requires
+its migration and shipped-definition tests; it is not a shortcut for the pilot.
+
+Retain valuable new inputs and raw inference evidence separately from disposable
+renders. Each run records input hashes, source/pose revision, frame order,
+generation backend identity when exposed, prompts/revised prompts, model/node
+versions, seeds where supported, transform/mask policy, timings, raw outputs,
+processed outputs and a result for every screen. A Codex orchestration model
+name is not sufficient evidence of which image backend produced an image.
+
+For modified C++: format, run focused tests, lint changed translation units, then
+the complete affected test executable and `git diff --check`. For new pure
+experiment helpers, add only meaningful tests of phase mapping, registration,
+mask preservation or measurement behavior. No broad suite merely to review art.
+
+## 8. Review deliverable and completion
+
+Every surviving branch delivers twelve PNGs, an ordered sheet, a looping
+preview with frame-step and ground/part overlays, native and enlarged evidence,
+and one comparison table identifying each failure category. Raw and corrected
+results remain distinguishable. Whole-character playback is reviewed before
+time is spent on subpixel mesh statistics.
+
+The requested experiment outcome is one twelve-frame mouse run accepted for
+identity, pose, continuity and game-size appearance, together with a repeatable
+way to recreate it. A technically valid import or attractive still does not
+complete it.
+
+Stage any game-context comparison in a copied asset root. Production import,
+the other five state clips, collider changes and runtime work remain separate
+from this experiment approval. After acceptance, plan that integration against
+the existing stable Blueprint, six state keys, 32×64 collider and timing
+contracts. Move this plan's completed findings into history at closeout.

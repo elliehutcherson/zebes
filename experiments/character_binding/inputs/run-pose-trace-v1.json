@@ -1,0 +1,1037 @@
+{
+  "version": 1,
+  "source_image": "run-pose-reference-12.png",
+  "source_size": [
+    1264,
+    580
+  ],
+  "notes": "Manual centerline tracing of all twelve supplied drawings. _l tracks the leg reaching forward in pose 1 and its opposing arm; _r is the other pair. Wrists are estimated along the elbow-to-palm line. Hip/shoulder locations hidden by overlaps are estimates for user review. Flight labels on poses 6 and 12 are phase interpretation, not measured ground in the sheet.",
+  "bones": [
+    {
+      "start_joint": "hip_c",
+      "end_joint": "neck"
+    },
+    {
+      "start_joint": "neck",
+      "end_joint": "head_top"
+    },
+    {
+      "start_joint": "neck",
+      "end_joint": "shoulder_l"
+    },
+    {
+      "start_joint": "shoulder_l",
+      "end_joint": "elbow_l"
+    },
+    {
+      "start_joint": "elbow_l",
+      "end_joint": "wrist_l"
+    },
+    {
+      "start_joint": "wrist_l",
+      "end_joint": "paw_l"
+    },
+    {
+      "start_joint": "hip_c",
+      "end_joint": "knee_l"
+    },
+    {
+      "start_joint": "knee_l",
+      "end_joint": "ankle_l"
+    },
+    {
+      "start_joint": "ankle_l",
+      "end_joint": "toe_l"
+    },
+    {
+      "start_joint": "neck",
+      "end_joint": "shoulder_r"
+    },
+    {
+      "start_joint": "shoulder_r",
+      "end_joint": "elbow_r"
+    },
+    {
+      "start_joint": "elbow_r",
+      "end_joint": "wrist_r"
+    },
+    {
+      "start_joint": "wrist_r",
+      "end_joint": "paw_r"
+    },
+    {
+      "start_joint": "hip_c",
+      "end_joint": "knee_r"
+    },
+    {
+      "start_joint": "knee_r",
+      "end_joint": "ankle_r"
+    },
+    {
+      "start_joint": "ankle_r",
+      "end_joint": "toe_r"
+    }
+  ],
+  "frames": [
+    {
+      "name": "reference_01",
+      "cell": [
+        0,
+        0,
+        210,
+        290
+      ],
+      "support": "near",
+      "pose": {
+        "hip_c": [
+          108,
+          151
+        ],
+        "neck": [
+          113,
+          73
+        ],
+        "head_top": [
+          127,
+          35
+        ],
+        "shoulder_l": [
+          105,
+          77
+        ],
+        "elbow_l": [
+          82,
+          69
+        ],
+        "paw_l": [
+          91,
+          98
+        ],
+        "wrist_l": [
+          89.02,
+          91.62
+        ],
+        "knee_l": [
+          160,
+          173
+        ],
+        "ankle_l": [
+          153,
+          246
+        ],
+        "toe_l": [
+          177,
+          250
+        ],
+        "shoulder_r": [
+          116,
+          85
+        ],
+        "elbow_r": [
+          131,
+          110
+        ],
+        "paw_r": [
+          149,
+          88
+        ],
+        "wrist_r": [
+          145.04,
+          92.84
+        ],
+        "knee_r": [
+          80,
+          201
+        ],
+        "ankle_r": [
+          30,
+          228
+        ],
+        "toe_r": [
+          24,
+          249
+        ]
+      }
+    },
+    {
+      "name": "reference_02",
+      "cell": [
+        210,
+        0,
+        210,
+        290
+      ],
+      "support": "near",
+      "pose": {
+        "hip_c": [
+          110,
+          150
+        ],
+        "neck": [
+          130,
+          73
+        ],
+        "head_top": [
+          141,
+          38
+        ],
+        "shoulder_l": [
+          112,
+          81
+        ],
+        "elbow_l": [
+          92,
+          89
+        ],
+        "paw_l": [
+          105,
+          117
+        ],
+        "wrist_l": [
+          102.14,
+          110.84
+        ],
+        "knee_l": [
+          150,
+          190
+        ],
+        "ankle_l": [
+          165,
+          255
+        ],
+        "toe_l": [
+          187,
+          259
+        ],
+        "shoulder_r": [
+          122,
+          85
+        ],
+        "elbow_r": [
+          125,
+          113
+        ],
+        "paw_r": [
+          150,
+          102
+        ],
+        "wrist_r": [
+          144.5,
+          104.42
+        ],
+        "knee_r": [
+          100,
+          199
+        ],
+        "ankle_r": [
+          44,
+          194
+        ],
+        "toe_r": [
+          30,
+          213
+        ]
+      }
+    },
+    {
+      "name": "reference_03",
+      "cell": [
+        420,
+        0,
+        210,
+        290
+      ],
+      "support": "near",
+      "pose": {
+        "hip_c": [
+          109,
+          150
+        ],
+        "neck": [
+          120,
+          79
+        ],
+        "head_top": [
+          128,
+          43
+        ],
+        "shoulder_l": [
+          108,
+          91
+        ],
+        "elbow_l": [
+          99,
+          113
+        ],
+        "paw_l": [
+          122,
+          133
+        ],
+        "wrist_l": [
+          116.94,
+          128.6
+        ],
+        "knee_l": [
+          139,
+          204
+        ],
+        "ankle_l": [
+          136,
+          266
+        ],
+        "toe_l": [
+          156,
+          270
+        ],
+        "shoulder_r": [
+          122,
+          93
+        ],
+        "elbow_r": [
+          118,
+          122
+        ],
+        "paw_r": [
+          139,
+          136
+        ],
+        "wrist_r": [
+          134.38,
+          132.92
+        ],
+        "knee_r": [
+          117,
+          205
+        ],
+        "ankle_r": [
+          64,
+          183
+        ],
+        "toe_r": [
+          52,
+          199
+        ]
+      }
+    },
+    {
+      "name": "reference_04",
+      "cell": [
+        630,
+        0,
+        210,
+        290
+      ],
+      "support": "near",
+      "pose": {
+        "hip_c": [
+          88,
+          163
+        ],
+        "neck": [
+          99,
+          80
+        ],
+        "head_top": [
+          109,
+          44
+        ],
+        "shoulder_l": [
+          98,
+          98
+        ],
+        "elbow_l": [
+          94,
+          134
+        ],
+        "paw_l": [
+          109,
+          144
+        ],
+        "wrist_l": [
+          105.7,
+          141.8
+        ],
+        "knee_l": [
+          89,
+          219
+        ],
+        "ankle_l": [
+          74,
+          267
+        ],
+        "toe_l": [
+          100,
+          273
+        ],
+        "shoulder_r": [
+          87,
+          96
+        ],
+        "elbow_r": [
+          68,
+          122
+        ],
+        "paw_r": [
+          78,
+          155
+        ],
+        "wrist_r": [
+          75.8,
+          147.74
+        ],
+        "knee_r": [
+          112,
+          202
+        ],
+        "ankle_r": [
+          63,
+          201
+        ],
+        "toe_r": [
+          52,
+          214
+        ]
+      }
+    },
+    {
+      "name": "reference_05",
+      "cell": [
+        840,
+        0,
+        210,
+        290
+      ],
+      "support": "near",
+      "pose": {
+        "hip_c": [
+          91,
+          153
+        ],
+        "neck": [
+          105,
+          75
+        ],
+        "head_top": [
+          115,
+          39
+        ],
+        "shoulder_l": [
+          106,
+          94
+        ],
+        "elbow_l": [
+          107,
+          123
+        ],
+        "paw_l": [
+          133,
+          121
+        ],
+        "wrist_l": [
+          127.28,
+          121.44
+        ],
+        "knee_l": [
+          79,
+          211
+        ],
+        "ankle_l": [
+          49,
+          260
+        ],
+        "toe_l": [
+          72,
+          270
+        ],
+        "shoulder_r": [
+          90,
+          90
+        ],
+        "elbow_r": [
+          62,
+          96
+        ],
+        "paw_r": [
+          69,
+          140
+        ],
+        "wrist_r": [
+          67.46,
+          130.32
+        ],
+        "knee_r": [
+          135,
+          182
+        ],
+        "ankle_r": [
+          91,
+          208
+        ],
+        "toe_r": [
+          98,
+          233
+        ]
+      }
+    },
+    {
+      "name": "reference_06",
+      "cell": [
+        1050,
+        0,
+        210,
+        290
+      ],
+      "support": "flight",
+      "pose": {
+        "hip_c": [
+          96,
+          151
+        ],
+        "neck": [
+          111,
+          75
+        ],
+        "head_top": [
+          117,
+          38
+        ],
+        "shoulder_l": [
+          116,
+          87
+        ],
+        "elbow_l": [
+          122,
+          111
+        ],
+        "paw_l": [
+          140,
+          92
+        ],
+        "wrist_l": [
+          136.04,
+          96.18
+        ],
+        "knee_l": [
+          65,
+          205
+        ],
+        "ankle_l": [
+          27,
+          239
+        ],
+        "toe_l": [
+          42,
+          263
+        ],
+        "shoulder_r": [
+          96,
+          76
+        ],
+        "elbow_r": [
+          68,
+          79
+        ],
+        "paw_r": [
+          70,
+          118
+        ],
+        "wrist_r": [
+          69.56,
+          109.42
+        ],
+        "knee_r": [
+          149,
+          170
+        ],
+        "ankle_r": [
+          139,
+          237
+        ],
+        "toe_r": [
+          162,
+          243
+        ]
+      }
+    },
+    {
+      "name": "reference_07",
+      "cell": [
+        0,
+        290,
+        210,
+        290
+      ],
+      "support": "far",
+      "pose": {
+        "hip_c": [
+          107,
+          151
+        ],
+        "neck": [
+          117,
+          77
+        ],
+        "head_top": [
+          122,
+          40
+        ],
+        "shoulder_l": [
+          121,
+          85
+        ],
+        "elbow_l": [
+          126,
+          110
+        ],
+        "paw_l": [
+          140,
+          85
+        ],
+        "wrist_l": [
+          136.92,
+          90.5
+        ],
+        "knee_l": [
+          76,
+          201
+        ],
+        "ankle_l": [
+          22,
+          222
+        ],
+        "toe_l": [
+          18,
+          241
+        ],
+        "shoulder_r": [
+          105,
+          78
+        ],
+        "elbow_r": [
+          76,
+          79
+        ],
+        "paw_r": [
+          80,
+          108
+        ],
+        "wrist_r": [
+          79.12,
+          101.62
+        ],
+        "knee_r": [
+          157,
+          181
+        ],
+        "ankle_r": [
+          170,
+          249
+        ],
+        "toe_r": [
+          187,
+          252
+        ]
+      }
+    },
+    {
+      "name": "reference_08",
+      "cell": [
+        210,
+        290,
+        210,
+        290
+      ],
+      "support": "far",
+      "pose": {
+        "hip_c": [
+          109,
+          153
+        ],
+        "neck": [
+          124,
+          79
+        ],
+        "head_top": [
+          129,
+          38
+        ],
+        "shoulder_l": [
+          127,
+          93
+        ],
+        "elbow_l": [
+          125,
+          110
+        ],
+        "paw_l": [
+          144,
+          103
+        ],
+        "wrist_l": [
+          139.82,
+          104.54
+        ],
+        "knee_l": [
+          99,
+          209
+        ],
+        "ankle_l": [
+          46,
+          187
+        ],
+        "toe_l": [
+          33,
+          203
+        ],
+        "shoulder_r": [
+          110,
+          91
+        ],
+        "elbow_r": [
+          81,
+          94
+        ],
+        "paw_r": [
+          90,
+          128
+        ],
+        "wrist_r": [
+          88.02,
+          120.52
+        ],
+        "knee_r": [
+          151,
+          199
+        ],
+        "ankle_r": [
+          170,
+          261
+        ],
+        "toe_r": [
+          189,
+          263
+        ]
+      }
+    },
+    {
+      "name": "reference_09",
+      "cell": [
+        420,
+        290,
+        210,
+        290
+      ],
+      "support": "far",
+      "pose": {
+        "hip_c": [
+          111,
+          149
+        ],
+        "neck": [
+          119,
+          77
+        ],
+        "head_top": [
+          125,
+          37
+        ],
+        "shoulder_l": [
+          123,
+          94
+        ],
+        "elbow_l": [
+          122,
+          123
+        ],
+        "paw_l": [
+          129,
+          126
+        ],
+        "wrist_l": [
+          127.46,
+          125.34
+        ],
+        "knee_l": [
+          118,
+          201
+        ],
+        "ankle_l": [
+          74,
+          167
+        ],
+        "toe_l": [
+          61,
+          184
+        ],
+        "shoulder_r": [
+          107,
+          90
+        ],
+        "elbow_r": [
+          86,
+          103
+        ],
+        "paw_r": [
+          108,
+          126
+        ],
+        "wrist_r": [
+          103.16,
+          120.94
+        ],
+        "knee_r": [
+          138,
+          203
+        ],
+        "ankle_r": [
+          135,
+          263
+        ],
+        "toe_r": [
+          154,
+          268
+        ]
+      }
+    },
+    {
+      "name": "reference_10",
+      "cell": [
+        630,
+        290,
+        210,
+        290
+      ],
+      "support": "far",
+      "pose": {
+        "hip_c": [
+          111,
+          153
+        ],
+        "neck": [
+          115,
+          79
+        ],
+        "head_top": [
+          128,
+          39
+        ],
+        "shoulder_l": [
+          105,
+          94
+        ],
+        "elbow_l": [
+          90,
+          110
+        ],
+        "paw_l": [
+          102,
+          128
+        ],
+        "wrist_l": [
+          99.36,
+          124.04
+        ],
+        "knee_l": [
+          141,
+          201
+        ],
+        "ankle_l": [
+          99,
+          184
+        ],
+        "toe_l": [
+          86,
+          199
+        ],
+        "shoulder_r": [
+          122,
+          94
+        ],
+        "elbow_r": [
+          113,
+          113
+        ],
+        "paw_r": [
+          140,
+          128
+        ],
+        "wrist_r": [
+          134.06,
+          124.7
+        ],
+        "knee_r": [
+          120,
+          207
+        ],
+        "ankle_r": [
+          104,
+          262
+        ],
+        "toe_r": [
+          129,
+          268
+        ]
+      }
+    },
+    {
+      "name": "reference_11",
+      "cell": [
+        840,
+        290,
+        210,
+        290
+      ],
+      "support": "far",
+      "pose": {
+        "hip_c": [
+          118,
+          153
+        ],
+        "neck": [
+          130,
+          77
+        ],
+        "head_top": [
+          139,
+          37
+        ],
+        "shoulder_l": [
+          119,
+          87
+        ],
+        "elbow_l": [
+          94,
+          96
+        ],
+        "paw_l": [
+          104,
+          122
+        ],
+        "wrist_l": [
+          101.8,
+          116.28
+        ],
+        "knee_l": [
+          164,
+          181
+        ],
+        "ankle_l": [
+          120,
+          209
+        ],
+        "toe_l": [
+          129,
+          233
+        ],
+        "shoulder_r": [
+          130,
+          94
+        ],
+        "elbow_r": [
+          133,
+          113
+        ],
+        "paw_r": [
+          168,
+          99
+        ],
+        "wrist_r": [
+          160.3,
+          102.08
+        ],
+        "knee_r": [
+          98,
+          205
+        ],
+        "ankle_r": [
+          69,
+          260
+        ],
+        "toe_r": [
+          92,
+          272
+        ]
+      }
+    },
+    {
+      "name": "reference_12",
+      "cell": [
+        1050,
+        290,
+        210,
+        290
+      ],
+      "support": "flight",
+      "pose": {
+        "hip_c": [
+          118,
+          151
+        ],
+        "neck": [
+          128,
+          75
+        ],
+        "head_top": [
+          137,
+          39
+        ],
+        "shoulder_l": [
+          115,
+          78
+        ],
+        "elbow_l": [
+          87,
+          82
+        ],
+        "paw_l": [
+          104,
+          107
+        ],
+        "wrist_l": [
+          100.26,
+          101.5
+        ],
+        "knee_l": [
+          171,
+          170
+        ],
+        "ankle_l": [
+          153,
+          233
+        ],
+        "toe_l": [
+          173,
+          240
+        ],
+        "shoulder_r": [
+          129,
+          88
+        ],
+        "elbow_r": [
+          143,
+          112
+        ],
+        "paw_r": [
+          160,
+          91
+        ],
+        "wrist_r": [
+          156.26,
+          95.62
+        ],
+        "knee_r": [
+          79,
+          201
+        ],
+        "ankle_r": [
+          35,
+          238
+        ],
+        "toe_r": [
+          49,
+          263
+        ]
+      }
+    }
+  ]
+}

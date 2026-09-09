@@ -54,8 +54,9 @@ Imported and generated prop/parallax workflows share:
 - explicit provenance and artifact publication.
 
 Remote generation is optional source acquisition, not a runtime dependency.
-Generated animation is deprecated; animation editor work accepts imported or
-manual frame sheets only.
+Animation editor work accepts imported frame sheets. Offline generation
+experiments may supply reviewable artwork without introducing a runtime
+dependency or a production generation transport.
 
 Background workers receive copied immutable inputs and return values/events.
 The editor thread alone mutates managers and GPU state. Cancelling a request does

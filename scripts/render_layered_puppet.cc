@@ -89,6 +89,26 @@ absl::Status WriteImage(const std::filesystem::path& path, const zebes::RgbaImag
   return zebes::WritePng(path.string(), image.width, image.height, image.pixels);
 }
 
+// Skinned parts are exported by the mesh diagnostics below. Rigid parts need
+// the same evidence so a review can reconstruct the actual full draw order.
+absl::Status WriteRigidPartEvidence(const zebes::LayeredPuppet& puppet,
+                                    const std::filesystem::path& directory) {
+  for (size_t index = 0; index < puppet.parts.size(); ++index) {
+    const zebes::LayeredPuppetPart& part = puppet.parts[index];
+    if (part.bone_indices.size() != 1) continue;
+    const std::filesystem::path destination = directory / part.name;
+    std::error_code error;
+    std::filesystem::create_directories(destination, error);
+    if (error) return absl::InternalError("could not create part evidence: " + error.message());
+    for (const zebes::LayeredPuppetPose& pose : puppet.poses) {
+      ASSIGN_OR_RETURN(const zebes::RgbaImage rendered,
+                       zebes::RenderLayeredPuppetPart(puppet, pose, index));
+      RETURN_IF_ERROR(WriteImage(destination / (pose.name + ".png"), rendered));
+    }
+  }
+  return absl::OkStatus();
+}
+
 size_t OpaquePixelCount(const zebes::RgbaImage& image) {
   size_t count = 0;
   for (size_t offset = 3; offset < image.pixels.size(); offset += 4) {
@@ -492,6 +512,11 @@ int Run() {
       };
     }
 
+    const absl::Status rigid_evidence = WriteRigidPartEvidence(*puppet, part_poses_directory);
+    if (!rigid_evidence.ok()) {
+      std::cerr << rigid_evidence.message() << '\n';
+      return 1;
+    }
     std::vector<zebes::RgbaImage> frames;
     nlohmann::json frame_digests = nlohmann::json::object();
     nlohmann::json interior_holes = nlohmann::json::object();

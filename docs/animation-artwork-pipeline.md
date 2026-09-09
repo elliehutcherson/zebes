@@ -1,8 +1,14 @@
 # Animation artwork pipeline plan
 
 **Status: frame-set processing, recipe/bundle lifecycle, and headless curation
-are complete. The first Blender player proved the pipeline but failed the
-reopened art-direction gate; replacement art remains required before M4.**
+are complete. The first Blender player proved the pipeline but its appearance
+was rejected. Current work is the [twelve-frame mouse run](sprite-run-experiment-plan.md).**
+
+As of 2026-09-08, old artwork/experiment gates and track sequencing are
+suspended while the animation is repaired. The feasibility attempts and gates
+recorded below are historical evidence, not prerequisites or prohibitions on
+the approved experiments. Imported frame-set format, ownership and persistence
+contracts remain applicable.
 
 ## Goal and sequencing
 
@@ -15,8 +21,8 @@ M3 established stable semantic Blueprint state keys, a game-owned player
 state-selection policy, explicit loop-or-hold Sprite playback, and visible
 playback using a deliberately small asset in the real Texture/Sprite format.
 That separates engine correctness from image-generation quality. The accepted
-proof is not the production animation workflow, and M4 does not begin until the
-pipeline feasibility and first production clip gates below pass.
+proof is not the desired final character art. Runtime expansion is parked while
+the run animation is repaired; no historical feasibility gate needs reopening.
 
 Animation is not an extension that runs the static Prop pipeline once per
 frame. Every candidate is one coherent retained source sheet; all frames pass

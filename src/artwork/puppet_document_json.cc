@@ -400,8 +400,9 @@ absl::StatusOr<puppet_edit::Command> ParseCommand(const nlohmann::json& value,
     ASSIGN_OR_RETURN(std::string prefix, Required<std::string>(value, "name_prefix", label));
     ASSIGN_OR_RETURN(const int count, Required<int>(value, "count", label));
     ASSIGN_OR_RETURN(std::string copy_from, Required<std::string>(value, "copy_from", label));
-    if (count < 1)
+    if (count < 1) {
       return absl::InvalidArgumentError(absl::StrCat(label, " count must be positive"));
+    }
     return puppet_edit::AddFrames{.name_prefix = std::move(prefix),
                                   .count = static_cast<size_t>(count),
                                   .copy_from = std::move(copy_from)};
@@ -432,6 +433,11 @@ absl::StatusOr<puppet_edit::Command> ParseCommand(const nlohmann::json& value,
     RETURN_IF_ERROR(RequireExactObject(value, {"command", "frame"}, label));
     ASSIGN_OR_RETURN(std::string frame, Required<std::string>(value, "frame", label));
     return puppet_edit::FitBoneLengths{.frame = std::move(frame)};
+  }
+  if (name == "retarget_frames") {
+    RETURN_IF_ERROR(RequireExactObject(value, {"command", "from_frame"}, label));
+    ASSIGN_OR_RETURN(std::string from, Required<std::string>(value, "from_frame", label));
+    return puppet_edit::RetargetFrames{.from_frame = std::move(from)};
   }
   if (name == "set_anchor_frame") {
     RETURN_IF_ERROR(RequireExactObject(value, {"command", "name"}, label));

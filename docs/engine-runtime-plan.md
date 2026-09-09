@@ -1,12 +1,9 @@
 # Game runtime plan
 
-**Status: Milestones 1, 2, and 3 are complete.
-`run_game` boots the shipped Catacombs level, advances the fixed-tick player
-through continuous sparse-tile collision, follows the player camera, and
-presents runtime transforms through the shared scene and SDL host. The live M2
-movement gate and M3 animation gate were accepted on 2026-08-29. The runtime
-and asset/content tracks proceed in parallel. The animation artwork pipeline is
-now the required follow-on before M4.**
+**Status: Milestones 1, 2, and 3 are complete. Runtime expansion is parked as of
+2026-09-08 while the [twelve-frame mouse run](sprite-run-experiment-plan.md) is
+repaired.** Earlier milestone gates below record verification history; they do
+not define the current animation work sequence.
 
 Design for the Zebes game runtime: the executable that loads a shipped level
 and plays it. The editor, curation, and generation stacks are out of scope
@@ -451,12 +448,11 @@ headlessly. Catacombs ships a six-state multi-frame proof with explicit
 loop-or-hold playback. Its corrected timing, transitions, landing reset, and
 collision stability were accepted live on 2026-08-29.
 
-**Post-M3 — Animation artwork pipeline.** Run the animation-generation
-feasibility gate, then build the deterministic frame-set processing, retained-source recipe,
-transactional asset bundle, headless curation, and provider/editor workflow.
-The first production player set must be processable, reviewable, regenerable
-byte-stably, and visibly accepted in Catacombs before M4 begins. See
-[`animation-artwork-pipeline.md`](animation-artwork-pipeline.md).
+**Post-M3 — Character animation.** Frame-set processing, retained recipes,
+transactional bundles and headless curation are implemented. The remaining
+problem is a convincing run animation. Follow
+[`sprite-run-experiment-plan.md`](sprite-run-experiment-plan.md), starting with
+source calibration and user review of the actual inputs before generation.
 
 **M4 — The thread split.** `GameEngine` moves onto its own `EngineRunner`
 with the D4 slots carrying input and frames; `AssetEngine` owns level

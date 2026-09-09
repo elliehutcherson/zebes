@@ -1,0 +1,115 @@
+{
+  "status": "user accepted as an experiment starting point; foot directions remain a known issue",
+  "source_sheet_sha256": "e8ad9dca2b2773167320fac5086ab25f81e604d5788358de91616ffc280fa502",
+  "trace_sha256": "1bb5764b43469806330e9cfbea3c84479569d1967fabdbe846d79ce8fdaf548a",
+  "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+  "frames": 12,
+  "maximum_limb_angle_error_degrees": 5.724998426634331e-14,
+  "part_composite_coverage_differences": 0,
+  "maximum_part_composite_channel_rounding_difference": 3,
+  "ground_row": 214,
+  "rendered_soles": [
+    {
+      "frame": "reference_01",
+      "support": "near",
+      "bottom_rows": {
+        "near": 214,
+        "far": 215
+      }
+    },
+    {
+      "frame": "reference_02",
+      "support": "near",
+      "bottom_rows": {
+        "near": 214,
+        "far": 192
+      }
+    },
+    {
+      "frame": "reference_03",
+      "support": "near",
+      "bottom_rows": {
+        "near": 214,
+        "far": 182
+      }
+    },
+    {
+      "frame": "reference_04",
+      "support": "near",
+      "bottom_rows": {
+        "near": 214,
+        "far": 190
+      }
+    },
+    {
+      "frame": "reference_05",
+      "support": "near",
+      "bottom_rows": {
+        "near": 214,
+        "far": 198
+      }
+    },
+    {
+      "frame": "reference_06",
+      "support": "flight",
+      "bottom_rows": {
+        "near": 206,
+        "far": 200
+      }
+    },
+    {
+      "frame": "reference_07",
+      "support": "far",
+      "bottom_rows": {
+        "near": 211,
+        "far": 214
+      }
+    },
+    {
+      "frame": "reference_08",
+      "support": "far",
+      "bottom_rows": {
+        "near": 188,
+        "far": 214
+      }
+    },
+    {
+      "frame": "reference_09",
+      "support": "far",
+      "bottom_rows": {
+        "near": 178,
+        "far": 214
+      }
+    },
+    {
+      "frame": "reference_10",
+      "support": "far",
+      "bottom_rows": {
+        "near": 186,
+        "far": 214
+      }
+    },
+    {
+      "frame": "reference_11",
+      "support": "far",
+      "bottom_rows": {
+        "near": 196,
+        "far": 214
+      }
+    },
+    {
+      "frame": "reference_12",
+      "support": "flight",
+      "bottom_rows": {
+        "near": 197,
+        "far": 206
+      }
+    }
+  ],
+  "notes": [
+    "Human skeleton points are manual estimates for review.",
+    "One scale is shared by the traced legs across every frame; projected lengths may vary.",
+    "The grayscale preview is ordinal draw order from C++ part rasters, not physical depth.",
+    "Artwork still needs joint and hidden-surface cleanup."
+  ]
+}

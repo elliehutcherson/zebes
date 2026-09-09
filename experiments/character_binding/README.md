@@ -1,11 +1,34 @@
 # Character-binding experiment
 
-Reference-first character animation research. Generated identities are fuzz inputs,
-not production-art candidates: varied ears, clothes, proportions, poses, scale,
-and backgrounds expose assumptions in isolation, topology, binding, and control.
+Current priority: repair the green-coated mouse's twelve-frame run. The
+[approved experiment plan](../../docs/sprite-run-experiment-plan.md) and
+[handoff](../../docs/handoff.md) own the current work. Old experiment gates are
+historical; the actual source, skeleton, posed artwork and conditioning maps
+must be shown to the user before generation.
 
-Generated animation remains outside the production roadmap. This experiment may
-produce evidence; it does not delay the imported/manual frame-set pipeline.
+`puppet_documents/mouse_run_reference_v2.json` is the current candidate. Its
+twelve target poses come from the user's `inputs/run-pose-reference-12.png`,
+traced in `inputs/run-pose-trace-v1.json`. The older rig motion and
+`mouse_run_calibrated_v1.json` were rejected as the pose authority. The source
+image remains the separate bind pose. The candidate retains the original
+running artwork, corrected near/far arms, rigid boots and a bound tail.
+
+`retarget_frames` matches a chosen gait phase to the source drawing and carries
+bone-angle changes through the clip; `rebase_frames` only centers it. Neither
+command can decide which gait phase or limb the drawing depicts.
+
+To reproduce the current target poses, run `scripts/retarget_run_reference.py`
+with `--document`, `--trace` and `--output`, then apply its emitted commands
+with `puppet_edit`. Render once, then use `--ground-from-render` to emit the
+support/flight registration commands and apply those before the final render.
+The transfer uses one common scale for both legs across all frames, preserving
+the reference's projected proportions. The four thigh/shin bones explicitly
+scale from the foreshortened bind artwork. This choice and the phase
+interpretation need visual review.
+
+`scripts/render_puppet_review.py` consumes the actual renderer output and the
+optional `--trace` / `--pose-sheet` pair. It writes a self-contained review;
+its grayscale layer-order view is a diagnostic, not physical depth.
 
 ## Active boundary
 
