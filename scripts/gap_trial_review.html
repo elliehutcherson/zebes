@@ -1,0 +1,118 @@
+<div id="run-gap-review">
+  <div class="viz-controls">
+    <label class="form-label">View
+      <select class="form-select" data-view>
+        <option value="gaps">Gap inputs</option>
+        <option value="binding">Source binding</option>
+        <option value="motion">Motion comparison</option>
+      </select>
+    </label>
+    <button type="button" class="btn" data-play>Play</button>
+    <label class="form-label" data-pose-label>Pose <span data-number class="tabular-nums">10 / 12</span>
+      <input class="form-range" data-frame type="range" min="0" max="11" step="1" value="9" aria-label="Pose">
+    </label>
+    <label class="form-label" data-zoom-label>Detail
+      <select class="form-select" data-zoom><option value="full">Whole character</option><option value="legs" selected>Legs close-up</option></select>
+    </label>
+    <label class="form-label" data-overlay-label>Overlay
+      <select class="form-select" data-overlay><option value="none">None</option><option value="joints">Joints and cuffs</option><option value="mask">Editable mask</option></select>
+    </label>
+  </div>
+  <div class="gap-columns" data-gaps>
+    <div><div class="text-small">Blank gap</div><canvas data-image="blank" width="256" height="256" aria-label="Original posed mouse"></canvas></div>
+    <div><div class="text-small">Blur / nearby color</div><canvas data-image="blur" width="256" height="256" aria-label="Blur prefill"></canvas></div>
+    <div><div class="text-small">Shaped trousers</div><canvas data-image="shaped" width="256" height="256" aria-label="Shaped trouser prefill"></canvas></div>
+  </div>
+  <div data-binding hidden>
+    <canvas data-source width="256" height="256" aria-label="Source mouse with boot cuff and skeleton annotations"></canvas>
+    <div class="text-small">Circles: joints · Thick bars: estimated boot openings · Dashed lines: intended calf connections</div>
+  </div>
+  <div data-motion hidden>
+    <div class="motion-columns">
+      <div><div class="text-small">Your traced reference · 12 poses</div><canvas data-trace width="256" height="290" aria-label="User reference motion"></canvas></div>
+      <div><div class="text-small">Spineboy run · 12 samples</div><canvas data-spine width="256" height="290" aria-label="Official Spineboy run motion"></canvas></div>
+    </div>
+    <div class="text-small">Shared playback: 12 fps · Spine’s original cycle: <span data-duration></span> · Each clip retains its own starting phase</div>
+  </div>
+  <div class="text-small" data-status aria-live="polite">Prepared inputs · No generation submitted</div>
+  <div class="text-small" data-legend hidden><span style="color:var(--blue)">Near limbs</span> · <span style="color:var(--orange)">Far limbs</span></div>
+  <div role="alert" data-error hidden></div>
+</div>
+<style>
+#run-gap-review .gap-columns {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+#run-gap-review .motion-columns {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:12px}
+#run-gap-review canvas {display:block;width:100%;height:auto;image-rendering:pixelated}
+#run-gap-review [data-source] {max-width:480px;margin:auto}
+#run-gap-review [data-status] {margin-top:12px}
+#run-gap-review [hidden] {display:none!important}
+@media(max-width:560px) {#run-gap-review .gap-columns,#run-gap-review .motion-columns {grid-template-columns:1fr} #run-gap-review canvas {max-width:360px;margin:auto}}
+</style>
+<script>
+(async()=>{
+const root=document.getElementById('run-gap-review');
+const data=/* GAP_TRIAL_DATA */ <!-- GAP_TRIAL_DATA -->;
+const $=s=>root.querySelector(s);
+const all=s=>Array.from(root.querySelectorAll(s));
+const load=url=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Review image failed to load'));im.src=url;});
+try {
+const source=await load(data.source);
+const images=await Promise.all(data.frames.map(async f=>({base:await load(f.base),blur:await load(f.blur),shaped:await load(f.shaped),mask:await load(f.mask)})));
+let index=9,playing=false,last=0;
+const swatch=document.createElement('span');swatch.hidden=true;root.appendChild(swatch);
+const color=name=>{swatch.style.color=`var(${name})`;return getComputedStyle(swatch).color;};
+const sides=[['far','r','--orange'],['near','l','--blue']];
+function stroke(ctx,a,b,c,w=1,dash=[]){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();ctx.setLineDash([]);}
+function dot(ctx,p,c,r=1.8){ctx.fillStyle=c;ctx.beginPath();ctx.arc(...p,r,0,Math.PI*2);ctx.fill();}
+function annotate(ctx,pose,annotations){
+  for(const [side,suffix,token] of sides){const c=color(token),a=annotations[side];
+    stroke(ctx,pose.hip_c,pose['knee_'+suffix],c);stroke(ctx,pose['knee_'+suffix],pose['ankle_'+suffix],c);
+    stroke(ctx,pose['ankle_'+suffix],pose['toe_'+suffix],c);
+    stroke(ctx,pose['knee_'+suffix],a.cuff_center,c,1,[2,2]);stroke(ctx,...a.cuff,c,2.2);
+    for(const key of ['knee_','ankle_','toe_']) dot(ctx,pose[key+suffix],c);
+  }
+}
+function paintInput(canvas,kind){
+  const ctx=canvas.getContext('2d'),im=images[index];ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,256,256);ctx.imageSmoothingEnabled=false;
+  // Only the viewing transform crops; submitted inputs remain whole 1024-square canvases.
+  const crop=$('[data-zoom]').value==='legs'?[65,137,145,90]:[0,0,256,256];
+  const scale=Math.min(256/crop[2],256/crop[3]);ctx.setTransform(scale,0,0,scale,(256-crop[2]*scale)/2-crop[0]*scale,(256-crop[3]*scale)/2-crop[1]*scale);
+  ctx.drawImage(im.base,0,0);if(kind!=='blank')ctx.drawImage(im[kind],0,0);
+  if($('[data-overlay]').value==='mask'){
+    const overlay=document.createElement('canvas');overlay.width=256;overlay.height=256;const ox=overlay.getContext('2d');ox.drawImage(im.mask,0,0);
+    const pixels=ox.getImageData(0,0,256,256);for(let k=0;k<pixels.data.length;k+=4)pixels.data[k+3]=pixels.data[k];ox.putImageData(pixels,0,0);
+    ox.globalCompositeOperation='source-in';ox.fillStyle=color('--orange');ox.fillRect(0,0,256,256);ctx.globalAlpha=.5;ctx.drawImage(overlay,0,0);ctx.globalAlpha=1;
+  }
+  if($('[data-overlay]').value==='joints')annotate(ctx,data.frames[index].pose,data.frames[index].annotations);
+}
+function paintSource(){const ctx=$('[data-source]').getContext('2d');ctx.clearRect(0,0,256,256);ctx.drawImage(source,0,0);
+  for(const b of data.bones)stroke(ctx,data.rest[b.start_joint],data.rest[b.end_joint],color('--muted-foreground'),.55);
+  const annotations=Object.fromEntries(Object.entries(data.config.sides).map(([side,s])=>[side,{cuff:s.cuff,cuff_center:[(s.cuff[0][0]+s.cuff[1][0])/2,(s.cuff[0][1]+s.cuff[1][1])/2]}]));
+  annotate(ctx,data.rest,annotations);
+}
+const common=['hip_c','neck','head_top','shoulder_l','elbow_l','wrist_l','shoulder_r','elbow_r','wrist_r','knee_l','ankle_l','toe_l','knee_r','ankle_r','toe_r'];
+function clipTransform(frames){const points=frames.flatMap(f=>[...common,'foot_tip_l','foot_tip_r'].filter(k=>f.pose[k]).map(k=>f.pose[k]));const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);const scale=Math.min(218/(maxX-minX),250/(maxY-minY));return p=>[128+(p[0]-(minX+maxX)/2)*scale,270+(p[1]-maxY)*scale];}
+const traceMap=clipTransform(data.trace.frames),spineMap=clipTransform(data.spine.frames);
+function paintMotion(canvas,frame,map){const ctx=canvas.getContext('2d');ctx.clearRect(0,0,256,290);const p=Object.fromEntries(Object.entries(frame.pose).map(([k,v])=>[k,map(v)]));
+  for(const [,s,token] of sides){const c=color(token),hip=p['hip_'+s]||p.hip_c;stroke(ctx,hip,p['knee_'+s],c,11);stroke(ctx,p['knee_'+s],p['ankle_'+s],c,8);stroke(ctx,p['ankle_'+s],p['toe_'+s],c,6);
+    if(p['foot_tip_'+s])stroke(ctx,p['toe_'+s],p['foot_tip_'+s],c,5);
+    stroke(ctx,p['shoulder_'+s],p['elbow_'+s],c,7);stroke(ctx,p['elbow_'+s],p['wrist_'+s],c,6);
+    for(const k of ['knee_','ankle_','elbow_','wrist_'])dot(ctx,p[k+s],color('--foreground'),2);
+  }
+  stroke(ctx,p.hip_c,p.neck,color('--foreground'),12);stroke(ctx,p.neck,p.head_top,color('--foreground'),5);dot(ctx,p.head_top,color('--foreground'),7);
+}
+function draw(){const view=$('[data-view]').value;for(const kind of ['gaps','binding','motion'])$('[data-'+kind+']').hidden=kind!==view;
+  $('[data-pose-label]').hidden=view==='binding';$('[data-play]').hidden=view==='binding';$('[data-legend]').hidden=view==='gaps'&&$('[data-overlay]').value!=='joints';
+  $('[data-zoom-label]').hidden=view!=='gaps';$('[data-overlay-label]').hidden=view!=='gaps';$('[data-number]').textContent=`${index+1} / 12`;$('[data-frame]').value=index;
+  if(view==='gaps'){for(const canvas of all('[data-image]'))paintInput(canvas,canvas.dataset.image);}
+  if(view==='binding')paintSource();
+  if(view==='motion'){paintMotion($('[data-trace]'),data.trace.frames[index],traceMap);paintMotion($('[data-spine]'),data.spine.frames[index],spineMap);}
+}
+$('[data-duration]').textContent=data.spine.duration_seconds.toFixed(3)+' s';
+$('[data-play]').onclick=()=>{playing=!playing;$('[data-play]').textContent=playing?'Pause':'Play';last=performance.now();};
+$('[data-frame]').oninput=e=>{index=Number(e.target.value);draw();};
+for(const el of all('select'))el.onchange=draw;
+function tick(now){if(playing&&now-last>=1000/12){index=(index+Math.floor((now-last)/(1000/12)))%12;last=now;draw();}requestAnimationFrame(tick);}draw();requestAnimationFrame(tick);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['class','data-theme','style']});
+}catch(error){$('[data-error]').hidden=false;$('[data-error]').textContent=error.message;}
+})();
+</script>

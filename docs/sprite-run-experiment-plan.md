@@ -38,6 +38,13 @@ generation. This is a proposed refinement of the approved experiments; review
 the new actual inputs before inference. The accepted twelve-pose sheet remains
 the current control until an alternative is reviewed.
 
+Implementation started 2026-09-09. The
+[prepared input review](../experiments/character_binding/evidence/run-gap-inputs-v1/review.html)
+contains the official Spineboy run benchmark, cuff annotations, twelve prefill
+comparisons and masks. Prepared ComfyUI graphs preserve the encoded prefill and
+use an actual grayscale-derived sampler mask. Generation awaits input review;
+[details and reproduction](../experiments/character_binding/evidence/run-gap-inputs-v1/README.md).
+
 Use an existing authoring rig for the independent comparison rather than
 expanding the custom editor. Retain Zebes' editable pose representation and
 import sampled joints through an adapter. A template must still be fitted to
@@ -251,6 +258,16 @@ Do not begin custom LoRA training from one reference image. The missing signal
 is a verified variety of poses and hidden surfaces; training on the failed
 outputs risks preserving their errors. A character LoRA could be reconsidered
 after this process supplies an accepted multi-pose dataset.
+
+The user reiterated post-training as a possible later route on 2026-09-09.
+Keep exact pose/image/mask pairs and provenance now, but label procedural
+prefills and unreviewed outputs as inputs, not correct targets. Define a
+specific failure to train against: character appearance, missing-part
+completion, pose control, or sequence consistency. These need different
+supervision; appearance LoRA training alone is not an established solution to
+pose obedience. Evaluate on held-out poses or entire sequences before accepting
+a trained model. Do not postpone the current input and binding experiments
+while collecting a speculative large training set.
 
 ## 5. Shared experiment contract
 

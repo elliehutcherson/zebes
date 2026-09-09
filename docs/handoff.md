@@ -85,6 +85,16 @@ Do not reinterpret a clean render or passing code tests as accepted animation.
 
 ## Next
 
+The [run/gap input review](../experiments/character_binding/evidence/run-gap-inputs-v1/review.html)
+is now prepared. It includes twelve sampled phases from the official Spineboy
+run, the unchanged mouse binding with estimated cuff landmarks, and all twelve
+blank/blur/shaped prefill comparisons. Twelve initial ComfyUI API graphs are
+prepared against the installed node schemas; nothing has been uploaded or
+queued. [Reproduction and limitations](../experiments/character_binding/evidence/run-gap-inputs-v1/README.md).
+The next user input is review of those actual cuffs, connected limb shapes
+and masks before generation. The Spine sample is a motion benchmark, not yet
+a replacement mouse binding. Head flicker remains deferred.
+
 1. The user's 2026-09-09 priority is motion and missing leg/boot connections;
    head flicker is deferred. Compare an established biped rig and motion source
    with the supplied tracing before expanding custom authoring tools. The
@@ -102,6 +112,13 @@ Do not reinterpret a clean render or passing code tests as accepted animation.
    input review; old stop decisions are historical evidence.
 4. Keep production imports and runtime changes separate until an animation
    works. Existing asset-format and lifetime invariants still apply.
+
+Post-training is a possible later branch, as the user reiterated on 2026-09-09.
+Keep exact inputs, model settings and accepted target artwork now. These
+procedural prefills and unreviewed generated frames are not training targets.
+Define whether training should improve reusable-part completion, pose obedience
+or temporal consistency before choosing a model and dataset. Reserve held-out
+poses/sequences to evaluate improvement rather than memorization.
 
 ## Tools and retained evidence
 

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "document": "mouse_run_reference_v2.json",
+  "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+  "canvas": [256, 256],
+  "generation_canvas": [1024, 1024],
+  "status": "draft cuff estimates and procedural prefills for input review",
+  "notes": "Source-space cuff endpoints are estimated from the actual boot openings, separately from the ankle joint. Endpoints follow the renderer's rigid ankle-to-toe transform. No pose or boot orientation is changed. Colors are rough trouser placeholders, not finished art.",
+  "sides": {
+    "near": {"joint_suffix": "l", "cuff": [[161, 173], [174, 165]], "thigh_width": 12, "calf_width": 9, "color": [55, 47, 37], "outline": [30, 27, 23]},
+    "far": {"joint_suffix": "r", "cuff": [[89, 163], [95, 176]], "thigh_width": 11, "calf_width": 8, "color": [48, 42, 33], "outline": [28, 25, 21]}
+  },
+  "blur_radius": 7,
+  "seam_margin": 2,
+  "stress_frames": ["reference_05", "reference_10", "reference_11"]
+}

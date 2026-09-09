@@ -1,0 +1,98 @@
+{
+  "status": "prepared only; input review required before upload or submission",
+  "node_schema_verified": "derry ComfyUI /object_info, 2026-09-09; no sampler executed",
+  "identity_source_sha256": "1946cadf51cee9979814806a8977aba57ba1311ec86545852c40b3965efa8af5",
+  "identity_input_sha256": "d5f638c33fc13f59d7abc234f1662ecba598dfc10fcbb1060d3db8433c0ef522",
+  "initial_jobs": [
+    {
+      "frame": "reference_05",
+      "variant": "blank",
+      "denoise": 0.35,
+      "seed": 17290401,
+      "graph": "reference_05-blank-0.35.json"
+    },
+    {
+      "frame": "reference_05",
+      "variant": "blank",
+      "denoise": 0.6,
+      "seed": 17290401,
+      "graph": "reference_05-blank-0.60.json"
+    },
+    {
+      "frame": "reference_05",
+      "variant": "blur",
+      "denoise": 0.35,
+      "seed": 17290401,
+      "graph": "reference_05-blur-0.35.json"
+    },
+    {
+      "frame": "reference_05",
+      "variant": "blur",
+      "denoise": 0.6,
+      "seed": 17290401,
+      "graph": "reference_05-blur-0.60.json"
+    },
+    {
+      "frame": "reference_05",
+      "variant": "shaped",
+      "denoise": 0.35,
+      "seed": 17290401,
+      "graph": "reference_05-shaped-0.35.json"
+    },
+    {
+      "frame": "reference_05",
+      "variant": "shaped",
+      "denoise": 0.6,
+      "seed": 17290401,
+      "graph": "reference_05-shaped-0.60.json"
+    },
+    {
+      "frame": "reference_10",
+      "variant": "blank",
+      "denoise": 0.35,
+      "seed": 17290401,
+      "graph": "reference_10-blank-0.35.json"
+    },
+    {
+      "frame": "reference_10",
+      "variant": "blank",
+      "denoise": 0.6,
+      "seed": 17290401,
+      "graph": "reference_10-blank-0.60.json"
+    },
+    {
+      "frame": "reference_10",
+      "variant": "blur",
+      "denoise": 0.35,
+      "seed": 17290401,
+      "graph": "reference_10-blur-0.35.json"
+    },
+    {
+      "frame": "reference_10",
+      "variant": "blur",
+      "denoise": 0.6,
+      "seed": 17290401,
+      "graph": "reference_10-blur-0.60.json"
+    },
+    {
+      "frame": "reference_10",
+      "variant": "shaped",
+      "denoise": 0.35,
+      "seed": 17290401,
+      "graph": "reference_10-shaped-0.35.json"
+    },
+    {
+      "frame": "reference_10",
+      "variant": "shaped",
+      "denoise": 0.6,
+      "seed": 17290401,
+      "graph": "reference_10-shaped-0.60.json"
+    }
+  ],
+  "reserved_checks": "chosen setting on frames 5/10 with seed 17290402; frame 11 with both seeds",
+  "maximum_pilot_images": 16,
+  "maximum_full_cycle_images": 12,
+  "remote_asset_prefix": "zebes-run-gap-v1",
+  "edge_depth_controls": "disabled",
+  "output": "1024 RGB white matte; raw and outside-mask-restored outputs retained separately"
+}
