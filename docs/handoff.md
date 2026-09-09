@@ -91,9 +91,16 @@ run, the unchanged mouse binding with estimated cuff landmarks, and all twelve
 blank/blur/shaped prefill comparisons. Twelve initial ComfyUI API graphs are
 prepared against the installed node schemas; nothing has been uploaded or
 queued. [Reproduction and limitations](../experiments/character_binding/evidence/run-gap-inputs-v1/README.md).
-The next user input is review of those actual cuffs, connected limb shapes
-and masks before generation. The Spine sample is a motion benchmark, not yet
-a replacement mouse binding. Head flicker remains deferred.
+The user considers trying the leg connection worthwhile, but identified a more
+fundamental boot-view problem: the leading boot in pose 1 exposes its underside
+while the trailing boot does not. The same two painted boot views cannot be
+reused in every pose. Cuff estimates remain uncertain. Keep this masked trial
+as a connection control; the next meaningful art candidate needs pose-dependent
+boot/lower-leg drawings and an editable region covering the entire boot.
+Review the new silhouettes/surface guides before that generation setup. See
+the experiment plan's boot-view amendment and artist reference sheets.
+The Spine sample is a motion benchmark, not yet a replacement mouse binding.
+Head flicker remains deferred.
 
 1. The user's 2026-09-09 priority is motion and missing leg/boot connections;
    head flicker is deferred. Compare an established biped rig and motion source

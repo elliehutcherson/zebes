@@ -1,6 +1,13 @@
 # Run and gap-input comparison
 
-Prepared 2026-09-09. **Awaiting review of actual inputs. No generation calls.**
+Prepared 2026-09-09. **Connection inputs reviewed with reservations. No generation calls.**
+
+Review response: the user considers testing the leg connection worthwhile,
+but has not accepted the cuff positions as correct. They identified that the
+boot must show different surfaces through the stride. This frozen setup
+protects most boot pixels, so it is only a connection-control experiment.
+See `docs/sprite-run-experiment-plan.md` for the revised whole-leg/boot approach;
+the next generation input review must include the intended boot views.
 
 Open `review.html` for source binding, all twelve blank/blur/shaped input
 variants, editable masks, and an independent motion benchmark. The inline

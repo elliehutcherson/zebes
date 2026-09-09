@@ -59,6 +59,60 @@ including generated artwork. Prefer completing reusable parts once where
 possible, with overlap under the coat and boots. C++ should place and deform
 those parts; it does not need to synthesize their final painted texture.
 
+### Boot views and lower-leg redraws
+
+The current one-image-per-boot representation is insufficient for the intended
+view. On 2026-09-09 the user identified that the leading boot in pose 1 shows
+its underside while the trailing boot does not. Reusing these painted views
+through all twelve phases preserves the wrong visible surfaces. Better joints
+or a filled calf gap cannot correct that. The user considers the connection
+prefill worth testing, without accepting the cuff estimates or rigid boot art
+as finished animation.
+
+Keep near/far limb identity separate from leading/trailing position: each leg
+changes its screen position through the cycle. Sole visibility depends on foot
+orientation relative to the camera, not simply which foot is farther forward.
+The source suggests an oblique view, while the human pose sheet primarily
+supplies side-view joint positions. That sheet does not supply the mouse's
+foot thickness, surface orientation or foreshortening.
+
+Use pose-dependent replacement artwork for the boots, and for the lower legs
+where a bend or overlap changes their visible shape. Start by defining the
+fixed camera and reviewing four lower-body key situations: forward extension,
+ground support, toe-off, and tucked recovery/passing. These are review cases,
+not an assumption that exactly four drawings will cover both feet. Track ankle,
+heel, toe/sole contact and cuff anchors alongside the intended visible surfaces.
+Small in-between changes can reuse/deform a compatible drawing; view changes
+need another drawing. Author a twelve-pose view assignment before expanding
+the finished art kit.
+
+The revised generative comparison should permit changes to the whole boot,
+cuff and adjoining calf, with enough silhouette margin for the intended view.
+Preserve the reviewed contact/pose targets and unrelated character regions.
+Do not preserve boot pixel identity as an acceptance condition for this branch.
+Generate or draw the connected lower-leg unit in difficult key poses, then
+separate reusable boot and trouser artwork with overlap where useful. Review
+the proposed silhouettes and surface-view guides before this new generation
+setup. A simple 3D boot/calf proxy is an optional way to obtain consistent
+perspective and genuine depth, without replacing the entire mouse with a 3D
+model. Ordinary 2D warping cannot reveal a hidden painted surface.
+
+The existing `run-gap-inputs-v1` masks remain a limited connection control.
+They protect most boot pixels and therefore cannot establish whether a model
+can redraw the required boot views. Do not interpret their outcome as a verdict
+on whole-leg/boot generation. Implement the first replacement drawings as
+offline corrective layers; a production attachment format is not yet needed.
+
+Reference inspection: the visible frame rows in
+[Slynyrd's run-cycle sheet](https://www.slynyrd.com/blog/2018/8/19/pixelblog-8-intro-to-animation)
+show distinct foot silhouettes for the different phases. His more detailed
+[clothed walk sheet](https://www.slynyrd.com/blog/2024/5/24/pixelblog-50-human-walk-cycle)
+shows changing shoe contours and trouser folds; the accompanying description
+explicitly adjusts the opposite half-cycle for implied perspective. These are
+visual/construction references, not a replacement run or training dataset.
+[Spine attachment keys](https://us.esotericsoftware.com/spine-attachments)
+provide an established mechanism for selecting different drawings on a bone.
+
 ## Future direction: resolution and equipment layers
 
 Recorded 2026-09-09; this is not the current experiment's implementation scope.
