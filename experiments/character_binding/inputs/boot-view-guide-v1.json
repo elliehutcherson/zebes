@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "status": "draft geometry and camera for visual review; not finished artwork",
+  "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+  "camera_yaw_degrees": 35,
+  "camera_elevation_degrees": 8,
+  "canvas": [256, 256],
+  "generation_canvas": [1024, 1024],
+  "ground_y": 214,
+  "support": ["near", "near", "near", "near", "near", "flight", "far", "far", "far", "far", "far", "flight"],
+  "sole_directions_degrees": {
+    "near": [-25, 0, 0, 0, 15, 65, 100, 115, 125, 115, 70, -20],
+    "far": [100, 115, 125, 115, 70, -20, -25, 0, 0, 0, 15, 65]
+  },
+  "near": {"suffix": "l", "sole_heel": [175, 197], "sole_toe": [195, 181]},
+  "far": {"suffix": "r", "sole_heel": [63, 176], "sole_toe": [68, 194]},
+  "notes": "Heel/toe anchors are estimated on the source boot soles, independently of ankle-to-toe rig rays. Proposed sole directions are authored from the contact/passing/recovery phases, not measured ground truth. The existing transform supplies heel travel and constant sole length; proposed directions replace inherited painted-boot angles. Support soles are placed at the ground using projected sole endpoints; other feet only move up if they would penetrate it, with six pixels of flight clearance. No whole-character bbox normalization is used. A three-dimensional boot is projected from one fixed camera; its opening determines the calf endpoint. The camera, anchors and new foot directions need review. Surface colors identify faces, not depth. No full-character depth map is claimed."
+}

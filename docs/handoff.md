@@ -85,12 +85,28 @@ Do not reinterpret a clean render or passing code tests as accepted animation.
 
 ## Next
 
-The [run/gap input review](../experiments/character_binding/evidence/run-gap-inputs-v1/review.html)
-is now prepared. It includes twelve sampled phases from the official Spineboy
-run, the unchanged mouse binding with estimated cuff landmarks, and all twelve
-blank/blur/shaped prefill comparisons. Twelve initial ComfyUI API graphs are
-prepared against the installed node schemas; nothing has been uploaded or
-queued. [Reproduction and limitations](../experiments/character_binding/evidence/run-gap-inputs-v1/README.md).
+The [connection experiment](../experiments/character_binding/evidence/run-gap-control-v1/review.html)
+is complete: twelve local ComfyUI requests, comparing blank/blur/shaped inputs
+for poses 5 and 10 at denoise 0.35/0.60. The prefill supplies most of the useful
+connection. Generated repairs change only 3–11 pixels beyond their input at
+48px and retain rough seams. The protected-boot control cannot fix perspective,
+so no complete-cycle batch was run. All outputs are 1024×1024, with original
+pixels restored exactly outside the mask. Requests totalled about 148 seconds
+including loading and polling. [Results and provenance](../experiments/character_binding/evidence/run-gap-control-v1/README.md).
+
+The same review's **New boot guides** view now shows twelve unsubmitted
+lower-body inputs. A small 3D boot proxy uses a fixed camera and changing sole
+directions, with a connected 2D calf placeholder. Pose 1 exposes the near sole
+and hides the far sole; support poses have flatter soles. Full-leg/boot masks
+and knee/cuff/sole anchors can be overlaid. These are boxy geometry guides,
+not final art or a validated replacement rig.
+[Configuration and reproduction](../experiments/character_binding/evidence/boot-view-guides-v1/README.md).
+The next user review concerns this new camera, foot orientation, boot proportions
+and leg shape before sending those new inputs for redraw. No generation has
+used the new boot guides. The original mouse puppet document is unchanged.
+
+The [earlier input review](../experiments/character_binding/evidence/run-gap-inputs-v1/review.html)
+retains the official Spineboy run benchmark and exact connection-test inputs.
 The user considers trying the leg connection worthwhile, but identified a more
 fundamental boot-view problem: the leading boot in pose 1 exposes its underside
 while the trailing boot does not. The same two painted boot views cannot be
@@ -106,11 +122,10 @@ Head flicker remains deferred.
    head flicker is deferred. Compare an established biped rig and motion source
    with the supplied tracing before expanding custom authoring tools. The
    current pose set remains the accepted experimental control.
-2. Prepare a comparison of blank gaps, blur/color fill and rough connected
-   limb artwork for generator cleanup. E3 marked the gaps in a guide but did
-   not paint a prefill into the input. Review cuffs/soles separately from
-   missing artwork, and prefer reusable completed parts where possible.
-   See the plan's proposed E4 revision and linked external examples.
+2. Use the completed connection comparison as evidence that input geometry
+   matters. Move to whole-leg/boot redraws after review of the new guides;
+   do not continue polishing the boot-protected control or head flicker.
+   Prefer reusable completed views where possible.
    Show the exact input maps for any subsequent generator trial. Distinguish
    an ordinal layer-order preview from real depth; never pass a diagnostic
    skeleton to an edge/depth model as though it were the expected input.

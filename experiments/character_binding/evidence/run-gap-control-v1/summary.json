@@ -1,0 +1,129 @@
+{
+  "provider": "local ComfyUI on derry RTX 3090",
+  "generation_calls": 12,
+  "seconds_total": 148.11042022705078,
+  "measurements": [
+    {
+      "frame": "reference_05",
+      "variant": "blank",
+      "denoise": 0.35,
+      "white_region_before": 60,
+      "white_region_after": 51,
+      "changed_pixels_at_48": 3,
+      "seconds": 10.25920295715332,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_05",
+      "variant": "blank",
+      "denoise": 0.6,
+      "white_region_before": 60,
+      "white_region_after": 44,
+      "changed_pixels_at_48": 3,
+      "seconds": 10.332973003387451,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_05",
+      "variant": "blur",
+      "denoise": 0.35,
+      "white_region_before": 0,
+      "white_region_after": 1,
+      "changed_pixels_at_48": 3,
+      "seconds": 10.290733098983765,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_05",
+      "variant": "blur",
+      "denoise": 0.6,
+      "white_region_before": 0,
+      "white_region_after": 3,
+      "changed_pixels_at_48": 3,
+      "seconds": 10.294234037399292,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_05",
+      "variant": "shaped",
+      "denoise": 0.35,
+      "white_region_before": 0,
+      "white_region_after": 1,
+      "changed_pixels_at_48": 3,
+      "seconds": 10.243478775024414,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_05",
+      "variant": "shaped",
+      "denoise": 0.6,
+      "white_region_before": 0,
+      "white_region_after": 2,
+      "changed_pixels_at_48": 3,
+      "seconds": 10.23696517944336,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_10",
+      "variant": "blank",
+      "denoise": 0.35,
+      "white_region_before": 74,
+      "white_region_after": 70,
+      "changed_pixels_at_48": 10,
+      "seconds": 10.321047067642212,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_10",
+      "variant": "blank",
+      "denoise": 0.6,
+      "white_region_before": 74,
+      "white_region_after": 42,
+      "changed_pixels_at_48": 11,
+      "seconds": 10.327388048171997,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_10",
+      "variant": "blur",
+      "denoise": 0.35,
+      "white_region_before": 0,
+      "white_region_after": 0,
+      "changed_pixels_at_48": 11,
+      "seconds": 10.287227869033813,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_10",
+      "variant": "blur",
+      "denoise": 0.6,
+      "white_region_before": 0,
+      "white_region_after": 5,
+      "changed_pixels_at_48": 10,
+      "seconds": 10.293689012527466,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_10",
+      "variant": "shaped",
+      "denoise": 0.35,
+      "white_region_before": 0,
+      "white_region_after": 0,
+      "changed_pixels_at_48": 11,
+      "seconds": 34.92777228355408,
+      "outside_mask_changed_pixels": 0
+    },
+    {
+      "frame": "reference_10",
+      "variant": "shaped",
+      "denoise": 0.6,
+      "white_region_before": 0,
+      "white_region_after": 4,
+      "changed_pixels_at_48": 11,
+      "seconds": 10.295708894729614,
+      "outside_mask_changed_pixels": 0
+    }
+  ],
+  "metric_limit": "Near-white pixels only inside proposed missing regions; not an anatomy score. Native changes use a fixed whole-canvas 1024\u2192256\u219248 nearest-neighbor mapping.",
+  "decision": "No full cycle: prefills supply the connection while this local repair contributes little at 48px; boots remain fixed by the control mask. Proceed to reviewed full-leg/boot guides."
+}

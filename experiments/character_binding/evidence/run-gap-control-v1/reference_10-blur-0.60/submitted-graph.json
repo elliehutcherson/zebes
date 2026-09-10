@@ -1,0 +1,223 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "1",
+        1
+      ],
+      "lora_name": "pixel-art-xl.safetensors",
+      "strength_model": 0.8,
+      "strength_clip": 0.8
+    }
+  },
+  "3": {
+    "class_type": "IPAdapterModelLoader",
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    }
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "zebes-run-gap-control-v1/identity-1024.png"
+    }
+  },
+  "6": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "model": [
+        "2",
+        0
+      ],
+      "ipadapter": [
+        "3",
+        0
+      ],
+      "clip_vision": [
+        "4",
+        0
+      ],
+      "image": [
+        "5",
+        0
+      ],
+      "weight": 0.45,
+      "weight_type": "linear",
+      "combine_embeds": "concat",
+      "start_at": 0.0,
+      "end_at": 1.0,
+      "embeds_scaling": "V only"
+    }
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "zebes-run-gap-control-v1/reference_10/blur-1024.png"
+    }
+  },
+  "8": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "zebes-run-gap-control-v1/reference_10/mask-1024.png"
+    }
+  },
+  "9": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": [
+        "8",
+        0
+      ],
+      "channel": "red"
+    }
+  },
+  "10": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "7",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    }
+  },
+  "11": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "mask": [
+        "9",
+        0
+      ]
+    }
+  },
+  "12": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "pixel art, side view of a running brown mouse in a green hooded coat, red scarf, dark brown trousers and brown leather boots, two anatomically connected legs, trouser fabric entering the boot openings, continuous calf silhouette, consistent dark outline and pixel clusters, plain white background",
+      "clip": [
+        "2",
+        1
+      ]
+    }
+  },
+  "13": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "detached boot, severed leg, extra leg, extra foot, merged legs, changed pose, changed boot direction, extended coat, white gap inside a leg, text, checkerboard, scenery, shadow, photorealistic",
+      "clip": [
+        "2",
+        1
+      ]
+    }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "6",
+        0
+      ],
+      "seed": 17290401,
+      "steps": 30,
+      "cfg": 5.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "positive": [
+        "12",
+        0
+      ],
+      "negative": [
+        "13",
+        0
+      ],
+      "latent_image": [
+        "11",
+        0
+      ],
+      "denoise": 0.6
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "15",
+        0
+      ],
+      "filename_prefix": "zebes-run-gap-v1/reference_10-blur-0.60-17290401-raw"
+    }
+  },
+  "17": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "zebes-run-gap-control-v1/reference_10/blank-1024.png"
+    }
+  },
+  "18": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "17",
+        0
+      ],
+      "source": [
+        "15",
+        0
+      ],
+      "mask": [
+        "9",
+        0
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    }
+  },
+  "19": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "18",
+        0
+      ],
+      "filename_prefix": "zebes-run-gap-v1/reference_10-blur-0.60-17290401-composite"
+    }
+  }
+}

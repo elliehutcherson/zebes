@@ -1,0 +1,63 @@
+<div id="mouse-boot-experiments">
+  <div class="viz-controls">
+    <label class="form-label">View<select class="form-select" data-view><option value="results">Connection results</option><option value="guides">New boot guides</option></select></label>
+    <label class="form-label" data-result-pose>Pose<select class="form-select" data-pose><option value="reference_10">10</option><option value="reference_05">5</option></select></label>
+    <label class="form-label" data-strength-label>Denoise<select class="form-select" data-strength><option>0.35</option><option>0.60</option></select></label>
+    <button type="button" class="btn" data-play hidden>Play</button>
+    <label class="form-label" data-guide-pose hidden>Pose <span data-number>1 / 12</span><input class="form-range" data-frame type="range" min="0" max="11" value="0" aria-label="Guide pose"></label>
+    <label class="form-label">Detail<select class="form-select" data-detail><option value="legs">Legs close-up</option><option value="full">Whole character</option><option value="native">48px sprite</option></select></label>
+  </div>
+  <div data-results class="columns">
+    <div><div>Blank gap</div><div class="text-small">Input</div><canvas data-in="blank" width="256" height="256" aria-label="Blank input"></canvas><div class="text-small">Generated repair</div><canvas data-out="blank" width="256" height="256" aria-label="Blank-input result"></canvas></div>
+    <div><div>Blur / nearby color</div><div class="text-small">Input</div><canvas data-in="blur" width="256" height="256" aria-label="Blur input"></canvas><div class="text-small">Generated repair</div><canvas data-out="blur" width="256" height="256" aria-label="Blur-input result"></canvas></div>
+    <div><div>Shaped trousers</div><div class="text-small">Input</div><canvas data-in="shaped" width="256" height="256" aria-label="Shaped input"></canvas><div class="text-small">Generated repair</div><canvas data-out="shaped" width="256" height="256" aria-label="Shaped-input result"></canvas></div>
+  </div>
+  <div data-guides hidden>
+    <div class="columns"><div><div>Puppet now</div><canvas data-guide="base" width="256" height="256" aria-label="Current puppet"></canvas></div><div><div>Boot geometry guide</div><canvas data-guide="geometry" width="256" height="256" aria-label="Proposed boot geometry"></canvas></div><div><div>Visible surfaces</div><canvas data-guide="surfaces" width="256" height="256" aria-label="Visible boot surfaces"></canvas></div></div>
+    <div class="text-small">Purple: sole · Green: cuff · Blue: side · Orange: toe · Yellow: leg</div>
+    <label class="form-check"><input type="checkbox" class="form-check-input" data-mask><span class="form-check-label">Show proposed editable region</span></label>
+    <label class="form-check"><input type="checkbox" class="form-check-input" data-pins><span class="form-check-label">Show knee, cuff and sole anchors</span></label>
+  </div>
+  <div class="text-small" data-status>12 completed tests · Original pixels restored outside the repair mask</div>
+  <div data-error role="alert" hidden></div>
+</div>
+<style>
+#mouse-boot-experiments .columns {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+#mouse-boot-experiments canvas {display:block;width:100%;height:auto;image-rendering:pixelated}
+#mouse-boot-experiments [hidden] {display:none!important}
+#mouse-boot-experiments [data-status] {margin-top:12px}
+#mouse-boot-experiments[data-native="true"] canvas {width:48px;margin:12px auto}
+@media(max-width:560px){#mouse-boot-experiments .columns {grid-template-columns:1fr} #mouse-boot-experiments canvas {max-width:320px;margin:auto}}
+</style>
+<script>
+(async()=>{
+const root=document.getElementById('mouse-boot-experiments'),$=s=>root.querySelector(s),all=s=>Array.from(root.querySelectorAll(s));
+const data=<!-- BOOT_EXPERIMENT_DATA -->;
+const load=url=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Image failed to load'));im.src=url;});
+try{
+const results={};for(const [name,row]of Object.entries(data.results)){results[name]={base:await load(row.base),variants:{}};for(const [variant,item]of Object.entries(row.variants)){results[name].variants[variant]={};for(const [kind,url]of Object.entries(item))results[name].variants[variant][kind]=await load(url);}}
+const guides=await Promise.all(data.guides.map(async row=>({base:await load(row.base),geometry:await load(row.geometry),surfaces:await load(row.surfaces),mask:await load(row.mask)})));
+let frame=0,playing=false,last=0;
+const swatch=document.createElement('span');swatch.hidden=true;root.appendChild(swatch);
+function color(name){swatch.style.color=`var(${name})`;return getComputedStyle(swatch).color;}
+function imageCanvas(base,delta,mask,pins){const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;const ctx=canvas.getContext('2d');ctx.drawImage(base,0,0);if(delta)ctx.drawImage(delta,0,0);if(mask){const overlay=document.createElement('canvas');overlay.width=256;overlay.height=256;const ox=overlay.getContext('2d');ox.drawImage(mask,0,0);const pixels=ox.getImageData(0,0,256,256);for(let i=0;i<pixels.data.length;i+=4)pixels.data[i+3]=pixels.data[i];ox.putImageData(pixels,0,0);ox.globalCompositeOperation='source-in';ox.fillStyle=color('--orange');ox.fillRect(0,0,256,256);ctx.globalAlpha=.45;ctx.drawImage(overlay,0,0);ctx.globalAlpha=1;}
+ if(pins){for(const [side,suffix,token]of [['near','l','--blue'],['far','r','--orange']]){const a=pins.annotations[side],knee=pins.pose['knee_'+suffix];ctx.strokeStyle=color(token);ctx.fillStyle=color(token);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(...pins.pose.hip_c);ctx.lineTo(...knee);ctx.lineTo(...a.cuff);ctx.stroke();ctx.beginPath();ctx.moveTo(...a.heel);ctx.lineTo(...a.toe);ctx.stroke();for(const point of [knee,a.cuff,a.heel,a.toe]){ctx.beginPath();ctx.arc(...point,1.6,0,Math.PI*2);ctx.fill();}}}return canvas;}
+function paint(canvas,base,delta=null,mask=null,pins=null){const image=imageCanvas(base,delta,mask,pins),detail=$('[data-detail]').value;canvas.width=detail==='native'?48:256;canvas.height=detail==='native'?48:detail==='legs'?161:256;const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;
+ if(detail==='native')ctx.drawImage(image,0,0,48,48);
+ else if(detail==='legs')ctx.drawImage(image,70,140,135,85,0,0,256,161);
+ else ctx.drawImage(image,0,0);
+}
+function draw(){const isGuide=$('[data-view]').value==='guides';$('[data-guides]').hidden=!isGuide;$('[data-results]').hidden=isGuide;for(const key of ['result-pose','strength-label'])$('[data-'+key+']').hidden=isGuide;for(const key of ['play','guide-pose'])$('[data-'+key+']').hidden=!isGuide;
+ root.dataset.native=String($('[data-detail]').value==='native');
+ $('[data-number]').textContent=`${frame+1} / 12`;$('[data-frame]').value=frame;
+ if(isGuide){const row=guides[frame];for(const c of all('[data-guide]'))paint(c,row.base,c.dataset.guide==='base'?null:row[c.dataset.guide],$('[data-mask]').checked?row.mask:null,$('[data-pins]').checked?data.guides[frame]:null);$('[data-status]').textContent='Draft geometry and camera · No generation submitted with these new guides';}
+ else{const row=results[$('[data-pose]').value],strength=$('[data-strength]').value;for(const c of all('[data-in]'))paint(c,row.base,row.variants[c.dataset.in].input);for(const c of all('[data-out]'))paint(c,row.base,row.variants[c.dataset.out][strength]);$('[data-status]').textContent='12 completed tests · Original pixels restored outside the repair mask';}
+}
+for(const el of all('select,input[type=checkbox]'))el.onchange=draw;
+$('[data-frame]').oninput=e=>{frame=Number(e.target.value);draw();};
+$('[data-play]').onclick=()=>{playing=!playing;$('[data-play]').textContent=playing?'Pause':'Play';last=performance.now();};
+function tick(now){if(playing&&$('[data-view]').value==='guides'&&now-last>=1000/12){frame=(frame+Math.floor((now-last)/(1000/12)))%12;last=now;draw();}requestAnimationFrame(tick);}draw();requestAnimationFrame(tick);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
+}catch(e){$('[data-error]').hidden=false;$('[data-error]').textContent=e.message;}
+})();
+</script>

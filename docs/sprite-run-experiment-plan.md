@@ -42,8 +42,12 @@ Implementation started 2026-09-09. The
 [prepared input review](../experiments/character_binding/evidence/run-gap-inputs-v1/review.html)
 contains the official Spineboy run benchmark, cuff annotations, twelve prefill
 comparisons and masks. Prepared ComfyUI graphs preserve the encoded prefill and
-use an actual grayscale-derived sampler mask. Generation awaits input review;
-[details and reproduction](../experiments/character_binding/evidence/run-gap-inputs-v1/README.md).
+use an actual grayscale-derived sampler mask. The user subsequently authorized
+continued experiments: twelve connection-control requests have now completed.
+[Results and new boot-guide review](../experiments/character_binding/evidence/run-gap-control-v1/review.html)
+show that the prefill supplies most of the connection; restricted generation
+adds little at 48px. No complete-cycle batch was run. The new guides allow
+changing boot surfaces and full-leg redraws; they await visual input review.
 
 Use an existing authoring rig for the independent comparison rather than
 expanding the custom editor. Retain Zebes' editable pose representation and
@@ -486,6 +490,17 @@ mixing pilot frames into a claimed complete batch.
 
 **Medium chance for small repairs.** Uses installed models and changes the
 mechanism from generating a mouse out of a sparse control map.
+
+**Connection-control result, 2026-09-09:** the twelve initial images completed
+in approximately 148 seconds of summed request wall time. At 48px, output
+differs from its prepared input in 3–11 pixels; most useful gap closure comes
+from the prefill. Blank inputs retain gaps and stronger denoise can reopen
+small light regions in filled inputs. No setting justified a full-cycle batch
+for the current boot-perspective problem. Four reserved checks and the
+twelve-image complete-cycle allowance were not used. See
+[retained evidence](../experiments/character_binding/evidence/run-gap-control-v1/README.md).
+The next input review is the whole-leg/boot guide described above, not another
+weight sweep on this frozen mask.
 
 **Proposed revision after the 2026-09-09 discussion:** compare actual image
 prefills before sweeping conditioning weights. The E3 preparation script drew

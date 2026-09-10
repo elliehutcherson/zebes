@@ -1,0 +1,145 @@
+{
+  "status": "complete",
+  "reviewed_graph_sha256": "3a23f844e03902643c4b2affdb5b5ef9827a2828875484d289272c77af9858be",
+  "client_id": "d178304a-e958-4118-9127-fc626ebd0b1b",
+  "input_hashes": {
+    "zebes-run-gap-v1/identity-1024.png": "d5f638c33fc13f59d7abc234f1662ecba598dfc10fcbb1060d3db8433c0ef522",
+    "zebes-run-gap-v1/reference_05/blank-1024.png": "a69e126d741dd38e010c203d80ffee5d7754cbfdaeb71201addc0252cb34dec3",
+    "zebes-run-gap-v1/reference_05/mask-1024.png": "935c3b895dcbcc66c3ccab13367e2893a09647cf71e19158421ee9a502497855"
+  },
+  "uploads": {
+    "zebes-run-gap-v1/identity-1024.png": "zebes-run-gap-control-v1/identity-1024.png",
+    "zebes-run-gap-v1/reference_05/blank-1024.png": "zebes-run-gap-control-v1/reference_05/blank-1024.png",
+    "zebes-run-gap-v1/reference_05/mask-1024.png": "zebes-run-gap-control-v1/reference_05/mask-1024.png"
+  },
+  "authorization": "user reviewed prefills and authorized continued experiments; connection-only control",
+  "system_before": {
+    "system": {
+      "os": "linux",
+      "ram_total": 67325104128,
+      "ram_free": 46020038656,
+      "comfyui_version": "0.34.0",
+      "required_frontend_version": "1.51.9",
+      "installed_templates_version": "0.11.50",
+      "required_templates_version": "0.11.50",
+      "comfy_package_versions": [
+        {
+          "name": "comfyui-frontend-package",
+          "installed": "1.51.9",
+          "required": "1.51.9"
+        },
+        {
+          "name": "comfyui-workflow-templates",
+          "installed": "0.11.50",
+          "required": "0.11.50"
+        },
+        {
+          "name": "comfyui-embedded-docs",
+          "installed": "0.5.10",
+          "required": "0.5.10"
+        },
+        {
+          "name": "comfy-kitchen",
+          "installed": "0.2.31",
+          "required": "0.2.31"
+        },
+        {
+          "name": "comfy-aimdo",
+          "installed": "0.4.15",
+          "required": "0.4.15"
+        }
+      ],
+      "python_version": "3.12.3 (main, Jul 15 2026, 23:46:41) [GCC 13.3.0]",
+      "pytorch_version": "2.13.0+cu130",
+      "embedded_python": false,
+      "deploy_environment": "local-git",
+      "argv": [
+        "main.py",
+        "--listen",
+        "127.0.0.1",
+        "--port",
+        "8188"
+      ]
+    },
+    "devices": [
+      {
+        "name": "cuda:0 NVIDIA GeForce RTX 3090 : cudaMallocAsync",
+        "type": "cuda",
+        "index": 0,
+        "vram_total": 25288769536,
+        "vram_free": 14789471482,
+        "torch_vram_total": 872415232,
+        "torch_vram_free": 13855994
+      }
+    ]
+  },
+  "submitted_at_epoch": 1788997774.460154,
+  "prompt_id": "feef4f43-5052-4c17-a3eb-400113ad19da",
+  "elapsed_seconds": 10.25920295715332,
+  "system_after": {
+    "system": {
+      "os": "linux",
+      "ram_total": 67325104128,
+      "ram_free": 46025637888,
+      "comfyui_version": "0.34.0",
+      "required_frontend_version": "1.51.9",
+      "installed_templates_version": "0.11.50",
+      "required_templates_version": "0.11.50",
+      "comfy_package_versions": [
+        {
+          "name": "comfyui-frontend-package",
+          "installed": "1.51.9",
+          "required": "1.51.9"
+        },
+        {
+          "name": "comfyui-workflow-templates",
+          "installed": "0.11.50",
+          "required": "0.11.50"
+        },
+        {
+          "name": "comfyui-embedded-docs",
+          "installed": "0.5.10",
+          "required": "0.5.10"
+        },
+        {
+          "name": "comfy-kitchen",
+          "installed": "0.2.31",
+          "required": "0.2.31"
+        },
+        {
+          "name": "comfy-aimdo",
+          "installed": "0.4.15",
+          "required": "0.4.15"
+        }
+      ],
+      "python_version": "3.12.3 (main, Jul 15 2026, 23:46:41) [GCC 13.3.0]",
+      "pytorch_version": "2.13.0+cu130",
+      "embedded_python": false,
+      "deploy_environment": "local-git",
+      "argv": [
+        "main.py",
+        "--listen",
+        "127.0.0.1",
+        "--port",
+        "8188"
+      ]
+    },
+    "devices": [
+      {
+        "name": "cuda:0 NVIDIA GeForce RTX 3090 : cudaMallocAsync",
+        "type": "cuda",
+        "index": 0,
+        "vram_total": 25288769536,
+        "vram_free": 14789471482,
+        "torch_vram_total": 872415232,
+        "torch_vram_free": 13855994
+      }
+    ]
+  },
+  "server_composite_max_channel_difference": 1,
+  "output_sha256": {
+    "raw": "adc46595fe130fc27b8d4afba6e59fce5c5e6e303dbee345637f143ad9fdc302",
+    "server-composite": "a6057a6f781d0ddb04ba27a3de33bce867c49e8feb6afe26aa4bdc206caa17ed"
+  },
+  "outside_mask_changed_pixels": 0
+}

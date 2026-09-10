@@ -1,6 +1,8 @@
 # Run and gap-input comparison
 
-Prepared 2026-09-09. **Connection inputs reviewed with reservations. No generation calls.**
+Prepared 2026-09-09. **Connection inputs reviewed with reservations.** Twelve
+subsequent requests are retained separately in `../run-gap-control-v1/`.
+This directory remains the unchanged preparation snapshot.
 
 Review response: the user considers testing the leg connection worthwhile,
 but has not accepted the cuff positions as correct. They identified that the

@@ -1,0 +1,618 @@
+{
+  "status": "draft inputs awaiting visual review; no generation",
+  "camera": {
+    "version": 1,
+    "status": "draft geometry and camera for visual review; not finished artwork",
+    "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+    "camera_yaw_degrees": 35,
+    "camera_elevation_degrees": 8,
+    "canvas": [
+      256,
+      256
+    ],
+    "generation_canvas": [
+      1024,
+      1024
+    ],
+    "ground_y": 214,
+    "support": [
+      "near",
+      "near",
+      "near",
+      "near",
+      "near",
+      "flight",
+      "far",
+      "far",
+      "far",
+      "far",
+      "far",
+      "flight"
+    ],
+    "sole_directions_degrees": {
+      "near": [
+        -25,
+        0,
+        0,
+        0,
+        15,
+        65,
+        100,
+        115,
+        125,
+        115,
+        70,
+        -20
+      ],
+      "far": [
+        100,
+        115,
+        125,
+        115,
+        70,
+        -20,
+        -25,
+        0,
+        0,
+        0,
+        15,
+        65
+      ]
+    },
+    "near": {
+      "suffix": "l",
+      "sole_heel": [
+        175,
+        197
+      ],
+      "sole_toe": [
+        195,
+        181
+      ]
+    },
+    "far": {
+      "suffix": "r",
+      "sole_heel": [
+        63,
+        176
+      ],
+      "sole_toe": [
+        68,
+        194
+      ]
+    },
+    "notes": "Heel/toe anchors are estimated on the source boot soles, independently of ankle-to-toe rig rays. Proposed sole directions are authored from the contact/passing/recovery phases, not measured ground truth. The existing transform supplies heel travel and constant sole length; proposed directions replace inherited painted-boot angles. Support soles are placed at the ground using projected sole endpoints; other feet only move up if they would penetrate it, with six pixels of flight clearance. No whole-character bbox normalization is used. A three-dimensional boot is projected from one fixed camera; its opening determines the calf endpoint. The camera, anchors and new foot directions need review. Surface colors identify faces, not depth. No full-character depth map is claimed."
+  },
+  "surfaces": {
+    "sole": [
+      151,
+      102,
+      212
+    ],
+    "edge": [
+      69,
+      65,
+      81
+    ],
+    "side": [
+      50,
+      151,
+      191
+    ],
+    "toe": [
+      240,
+      155,
+      56
+    ],
+    "heel": [
+      190,
+      91,
+      112
+    ],
+    "upper": [
+      183,
+      150,
+      106
+    ],
+    "cuff": [
+      94,
+      179,
+      109
+    ]
+  },
+  "notes": "Boxy boot proxy plus 2D leg placeholders. Surface IDs are not depth.",
+  "frames": [
+    {
+      "name": "reference_01",
+      "annotations": {
+        "far": {
+          "heel": [
+            90.23564298104579,
+            195.6022729032323
+          ],
+          "toe": [
+            86.99162731017442,
+            214.0
+          ],
+          "cuff": [
+            100.4445685405516,
+            202.96031550115083
+          ],
+          "pitch_degrees": -101.8356187393908,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": -4.097036619322182
+        },
+        "near": {
+          "heel": [
+            158.00476075668516,
+            214.0
+          ],
+          "toe": [
+            181.21756618767918,
+            203.17569106026554
+          ],
+          "cuff": [
+            154.91500059946466,
+            191.5255893604358
+          ],
+          "pitch_degrees": 25.0016015043162,
+          "visible_sole_pixels": 49,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 2.8149757728439795
+        }
+      }
+    },
+    {
+      "name": "reference_02",
+      "annotations": {
+        "far": {
+          "heel": [
+            93.81179669173521,
+            173.80005127457176
+          ],
+          "toe": [
+            85.9166360151119,
+            190.73127798412537
+          ],
+          "cuff": [
+            102.53478924293367,
+            184.75331459370028
+          ],
+          "pitch_degrees": -118.3341578515786,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        },
+        "near": {
+          "heel": [
+            162.43974305600167,
+            214.0
+          ],
+          "toe": [
+            188.0522400057331,
+            214.0
+          ],
+          "cuff": [
+            165.9462397654734,
+            192.18520263224462
+          ],
+          "pitch_degrees": 4.608699603911585,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 3.2677148118871457
+        }
+      }
+    },
+    {
+      "name": "reference_03",
+      "annotations": {
+        "far": {
+          "heel": [
+            103.45719515109398,
+            163.59418292425613
+          ],
+          "toe": [
+            92.7419030416986,
+            178.89720599194865
+          ],
+          "cuff": [
+            110.85129796551779,
+            176.54276023882954
+          ],
+          "pitch_degrees": -128.39354023383044,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        },
+        "near": {
+          "heel": [
+            149.35186153906693,
+            214.0
+          ],
+          "toe": [
+            174.96435848879833,
+            214.0
+          ],
+          "cuff": [
+            152.85835824853865,
+            192.18520263224462
+          ],
+          "pitch_degrees": 4.608699603911584,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 3.2741352187374844
+        }
+      }
+    },
+    {
+      "name": "reference_04",
+      "annotations": {
+        "far": {
+          "heel": [
+            112.55113130057805,
+            170.90331118758724
+          ],
+          "toe": [
+            104.65597062395476,
+            187.83453789714082
+          ],
+          "cuff": [
+            121.2741238517765,
+            181.85657450671573
+          ],
+          "pitch_degrees": -118.3341578515786,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        },
+        "near": {
+          "heel": [
+            130.14806441937876,
+            214.0
+          ],
+          "toe": [
+            155.76056136911015,
+            214.0
+          ],
+          "cuff": [
+            133.65456112885047,
+            192.18520263224462
+          ],
+          "pitch_degrees": 4.608699603911584,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 2.922516855356008
+        }
+      }
+    },
+    {
+      "name": "reference_05",
+      "annotations": {
+        "far": {
+          "heel": [
+            132.6655589262465,
+            190.13348391148716
+          ],
+          "toe": [
+            139.05502249338093,
+            207.688390784617
+          ],
+          "cuff": [
+            143.7053346700454,
+            189.07595028907485
+          ],
+          "pitch_degrees": -65.47839434973719,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        },
+        "near": {
+          "heel": [
+            115.29055173113785,
+            207.3709979967793
+          ],
+          "toe": [
+            140.0303240106334,
+            214.0
+          ],
+          "cuff": [
+            122.51603554995171,
+            187.955187801913
+          ],
+          "pitch_degrees": -8.02789151543752,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": -2.0960759169171297
+        }
+      }
+    },
+    {
+      "name": "reference_06",
+      "annotations": {
+        "far": {
+          "heel": [
+            169.39028768703662,
+            200.25197787551116
+          ],
+          "toe": [
+            186.94519456016644,
+            193.86251430837672
+          ],
+          "cuff": [
+            168.09388906045118,
+            183.70419071494356
+          ],
+          "pitch_degrees": 20.891252057448927,
+          "visible_sole_pixels": 17,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        },
+        "near": {
+          "heel": [
+            98.19857392413454,
+            184.78719456900598
+          ],
+          "toe": [
+            109.02288286386899,
+            208.0
+          ],
+          "cuff": [
+            113.1216640292796,
+            181.36551565219136
+          ],
+          "pitch_degrees": -59.435928404715966,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": -6.526593001691225
+        }
+      }
+    },
+    {
+      "name": "reference_07",
+      "annotations": {
+        "far": {
+          "heel": [
+            179.74798869350926,
+            214.0
+          ],
+          "toe": [
+            196.67921540306287,
+            206.1048393233767
+          ],
+          "cuff": [
+            177.49434340037305,
+            197.60735229383386
+          ],
+          "pitch_degrees": 25.00160150431618,
+          "visible_sole_pixels": 25,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0.9633013788810558
+        },
+        "near": {
+          "heel": [
+            90.58529882917703,
+            182.49098419717603
+          ],
+          "toe": [
+            86.13773540835636,
+            207.71436976727304
+          ],
+          "cuff": [
+            104.58179221607341,
+            192.57890128129807
+          ],
+          "pitch_degrees": -101.83561873939081,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        }
+      }
+    },
+    {
+      "name": "reference_08",
+      "annotations": {
+        "far": {
+          "heel": [
+            179.77489146194733,
+            214.0
+          ],
+          "toe": [
+            198.4564331542167,
+            214.0
+          ],
+          "cuff": [
+            182.33250092112536,
+            198.08846871376966
+          ],
+          "pitch_degrees": 4.608699603911585,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 1.0740449019738776
+        },
+        "near": {
+          "heel": [
+            103.87665470857405,
+            156.7622918265073
+          ],
+          "toe": [
+            93.05234576883959,
+            179.97509725750132
+          ],
+          "cuff": [
+            115.83592572540627,
+            171.77927639726542
+          ],
+          "pitch_degrees": -118.33415785157862,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        }
+      }
+    },
+    {
+      "name": "reference_09",
+      "annotations": {
+        "far": {
+          "heel": [
+            160.6130946107981,
+            214.0
+          ],
+          "toe": [
+            179.2946363030675,
+            214.0
+          ],
+          "cuff": [
+            163.17070406997613,
+            198.08846871376966
+          ],
+          "pitch_degrees": 4.608699603911584,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": -0.1588554054943927
+        },
+        "near": {
+          "heel": [
+            115.58618503574766,
+            146.64067833813408
+          ],
+          "toe": [
+            100.89546030926867,
+            167.62120757385213
+          ],
+          "cuff": [
+            125.72354087607414,
+            164.39324942867268
+          ],
+          "pitch_degrees": -128.39354023383046,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        }
+      }
+    },
+    {
+      "name": "reference_10",
+      "annotations": {
+        "far": {
+          "heel": [
+            146.66142955820536,
+            214.0
+          ],
+          "toe": [
+            165.34297125047476,
+            214.0
+          ],
+          "cuff": [
+            149.21903901738338,
+            198.08846871376966
+          ],
+          "pitch_degrees": 4.608699603911584,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0.33268278064474543
+        },
+        "near": {
+          "heel": [
+            127.63860278191845,
+            154.12777062618252
+          ],
+          "toe": [
+            116.814293842184,
+            177.34057605717655
+          ],
+          "cuff": [
+            139.59787379875067,
+            169.14475519694062
+          ],
+          "pitch_degrees": -118.3341578515786,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        }
+      }
+    },
+    {
+      "name": "reference_11",
+      "annotations": {
+        "far": {
+          "heel": [
+            123.54217415843905,
+            209.1648612181639
+          ],
+          "toe": [
+            141.58715775389805,
+            214.0
+          ],
+          "cuff": [
+            128.81238180250105,
+            195.00313117066116
+          ],
+          "pitch_degrees": -8.02789151543751,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": -5.305520632785942
+        },
+        "near": {
+          "heel": [
+            130.1456209307187,
+            177.29686389173406
+          ],
+          "toe": [
+            138.9056108083941,
+            201.36473827529824
+          ],
+          "cuff": [
+            145.28121451402427,
+            175.84697944833812
+          ],
+          "pitch_degrees": -65.47839434973717,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        }
+      }
+    },
+    {
+      "name": "reference_12",
+      "annotations": {
+        "far": {
+          "heel": [
+            98.17997570788943,
+            191.06877329044642
+          ],
+          "toe": [
+            106.07513638451273,
+            208.0
+          ],
+          "cuff": [
+            109.06475318678665,
+            188.57302922193605
+          ],
+          "pitch_degrees": -59.43592840471591,
+          "visible_sole_pixels": 0,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": -10.339287217543756
+        },
+        "near": {
+          "heel": [
+            151.50073825150884,
+            193.3999035670729
+          ],
+          "toe": [
+            175.56861263507304,
+            184.6399136893975
+          ],
+          "cuff": [
+            149.7233685667148,
+            170.7127958777633
+          ],
+          "pitch_degrees": 20.8912520574489,
+          "visible_sole_pixels": 33,
+          "sole_pin_error": 0.0,
+          "sole_ground_shift_y": 0
+        }
+      }
+    }
+  ]
+}
