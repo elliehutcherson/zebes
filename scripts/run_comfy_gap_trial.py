@@ -49,10 +49,10 @@ def asset_path(root, remote_name):
     return path, relative
 
 
-def upload(server, path, relative):
+def upload(server, path, relative, remote_root="zebes-run-gap-control-v1"):
     boundary = "zebes_" + uuid.uuid4().hex
     body = bytearray()
-    for name, value in {"type": "input", "subfolder": "zebes-run-gap-control-v1/" + str(relative.parent), "overwrite": "false"}.items():
+    for name, value in {"type": "input", "subfolder": remote_root + "/" + str(relative.parent), "overwrite": "false"}.items():
         body.extend(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
     body.extend(f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="{path.name}"\r\nContent-Type: image/png\r\n\r\n'.encode())
     body.extend(path.read_bytes())

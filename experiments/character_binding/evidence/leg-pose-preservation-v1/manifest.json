@@ -1,0 +1,120 @@
+{
+  "status": "prepared for input review; nothing uploaded or generated",
+  "provider_calls": 0,
+  "source_trial": "experiments/character_binding/evidence/leg-ownership-trial-v1",
+  "source_manifest_sha256": "8649c97f2079ffd5eba769b85ed5d2a09a2b7587cda8c907b3695b553ff507bd",
+  "fixed_crop": [
+    88,
+    136,
+    184,
+    232
+  ],
+  "working_canvas": [
+    256,
+    256
+  ],
+  "requested_canvas": [
+    1024,
+    1024
+  ],
+  "landmarks_working": {
+    "hip": [
+      141.0,
+      149.0
+    ],
+    "knee": [
+      154.8091089711108,
+      171.09457435377726
+    ],
+    "cuff": [
+      139.59787379875067,
+      169.14475519694062
+    ],
+    "proxy_ankle": [
+      129.82840842352968,
+      161.82447126345573
+    ],
+    "heel": [
+      127.63860278191845,
+      154.12777062618252
+    ],
+    "toe": [
+      116.814293842184,
+      177.34057605717655
+    ]
+  },
+  "landmarks_1024": {
+    "hip": [
+      565.3333333333334,
+      138.66666666666666
+    ],
+    "knee": [
+      712.6304956918484,
+      374.34212644029077
+    ],
+    "cuff": [
+      550.3773205200072,
+      353.5440554340333
+    ],
+    "proxy_ankle": [
+      446.1696898509833,
+      275.4610268101945
+    ],
+    "heel": [
+      422.81176300713014,
+      193.36288667928025
+    ],
+    "toe": [
+      307.35246764996265,
+      440.9661446098832
+    ]
+  },
+  "sole_angle_screen_degrees": 115.0,
+  "registration": "inverse fixed crop only; no per-result fitting, rotation, warp or silhouette clipping",
+  "canny": {
+    "source": "edit-input.png",
+    "thresholds": [
+      100,
+      200
+    ],
+    "opencv": "4.13.0",
+    "note": "actual image edges; no labeled skeleton, fake depth or ordinal surface map"
+  },
+  "remote_asset_prefix": "zebes-leg-pose-v1",
+  "file_sha256": {
+    "edit-input.png": "b3d50deb9a553c77673bd2892fc424b80dc51aa9edeb21a826f5e4fc4c7540a9",
+    "identity.png": "d5f638c33fc13f59d7abc234f1662ecba598dfc10fcbb1060d3db8433c0ef522",
+    "landmarks.png": "7f367733e3042a52dc1f02d6fbeddd1e0ad561ae2da6fc73d9326653382631f0",
+    "canny.png": "9767583fc84b64eecf5071c9e6a59857629d09cf838eae3ba1217462f2e8c778",
+    "source-part.png": "cef07654b9f46bf161c19de326969e0f29eacb801a5dbb899616382d30ab31f3",
+    "builtin-prompt.txt": "515eb3f4b54f08bf45a4d095034289c8810a2e14f17f7726c67c78da9369c8b2",
+    "canny-0.65.json": "f0f0e4bc703d7190d03722a0e87ed0727b4323eb011d0a230b37247019493e98",
+    "canny-0.85.json": "bfe1002da4881bbed4bdda23cfda89a378c569a090aa324e59302064bb2f6279"
+  },
+  "jobs": [
+    {
+      "name": "builtin",
+      "provider": "built-in image_gen",
+      "prompt": "builtin-prompt.txt",
+      "references": [
+        "edit-input.png",
+        "identity.png",
+        "landmarks.png"
+      ],
+      "status": "prepared"
+    },
+    {
+      "name": "canny-0.65",
+      "provider": "derry ComfyUI",
+      "graph": "canny-0.65.json",
+      "status": "prepared"
+    },
+    {
+      "name": "canny-0.85",
+      "provider": "derry ComfyUI",
+      "graph": "canny-0.85.json",
+      "status": "prepared"
+    }
+  ],
+  "comfy_node_schema_verified": "ControlNetLoader/ControlNetApplyAdvanced via live object_info, 2026-09-10"
+}

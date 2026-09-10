@@ -37,16 +37,22 @@ finish as useful visual reference. Keep the intended knee flexion and make
 the shin/calf continue through the boot shaft; do not straighten the entire
 folded leg or adopt the malformed result as ground truth.
 
-The guide itself had an avoidable contradiction: the shaft followed foot
-rotation, independently of the calf. The pose-10 mismatch at the cuff was
-29.5° (up to about 60.2° elsewhere). V3 introduces a shin-aligned shaft and an
-explicit proxy ankle, leaving sole positions and foot directions intact.
-All 24 calf/shaft chains are collinear in the corrected control geometry.
-[Comparison and exact measurements](../experiments/character_binding/evidence/shin-alignment-review-v1/README.md).
-This removes an input defect, not a guarantee that a model will draw valid
-anatomy. Corrected guide inputs require the existing visual review before
-further generation. Independent-layer completion and explicit binding are
-the chosen route; the earlier combined-image preference is superseded.
+The user's follow-up clarifies the actual defect: the guide's calf is already
+nearly horizontal and its toe points down; the **generated** calf curves down
+and the toe turns right. The later v3 cuff-axis adjustment is a separate input
+experiment and did not fix that output. Its 29.5° guide-axis measurement is
+not evidence of the cause. [Diagnostic comparison](../experiments/character_binding/evidence/shin-alignment-review-v1/README.md).
+
+The user requested the next experiment. [Pose-preservation inputs and plan](../experiments/character_binding/evidence/leg-pose-preservation-v1/README.md)
+are now prepared and shown, with zero uploads or generation requests. Keep
+the approved **v2** pose target byte-identical: one built-in surface repaint
+with a contour/landmark reference, then two local Canny-controlled redraws
+with the same seed/settings except denoise 0.65/0.85. Use real image edges for
+Canny, retain full raw outputs, and compare calf shape plus actual output
+ankle/heel/toe locations before judging material finish. No post-hoc pose
+fitting or silhouette clipping. The linked plan records exact input roles,
+graphs, registration, evaluation and the dedicated local runner.
+Independent-layer completion and explicit binding remain the selected route.
 
 The user's 2026-09-09 direction is to resolve motion, foot attachment and
 missing artwork. Head flicker is deferred. Compare an established biped rig
@@ -82,7 +88,7 @@ order becomes ambiguous in the flattened picture. The
 [complete-leg diagnostic](../experiments/character_binding/evidence/leg-ownership-review-v1/README.md)
 separates the two chains and shows the intended overlap.
 
-Next is an E1 refinement on pose 10: compare one whole-frame redraw with an
+The completed E1 refinement on pose 10 compared one whole-frame redraw with an
 explicit A/B leg-identity and occlusion guide against two independently
 completed leg layers. Compose the standing far leg, folded near leg and coat
 in known order. The latter is favored because the compositor owns the overlap;
@@ -102,8 +108,9 @@ improves the apparent crossing; independent layers make overlap ownership
 deterministic but the folded boot shifts about 11 working pixels downward.
 The standing leg stays much closer to its guide. Preserve that raw result and
 calibrate part-to-rig attachment explicitly before reusing it. The combined
-route is the better immediate visual candidate in this limited trial, not a
-proof that image labels enforce anatomy. [Results and exact prompts](../experiments/character_binding/evidence/leg-ownership-trial-v1/README.md).
+route was the better visual candidate in this limited trial; the user has
+since selected independent layers. Neither result proves pose preservation.
+[Results and exact prompts](../experiments/character_binding/evidence/leg-ownership-trial-v1/README.md).
 
 Use an existing authoring rig for the independent comparison rather than
 expanding the custom editor. Retain Zebes' editable pose representation and

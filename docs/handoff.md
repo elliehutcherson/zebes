@@ -91,16 +91,28 @@ fabric folds and boot finish. That generated part is an appearance reference,
 not accepted geometry. Do not revert to whole-character rendering on the basis
 of the earlier one-frame comparison.
 
-The input guide contributed to the problem: its boot shaft rotated with the
-sole, then the calf connected to the cuff independently. Pose 10's near calf
-and shaft differed by 29.5°, creating an extra bend at the boot opening.
-V3 keeps the knee bend but aligns the calf and shaft along one knee-to-proxy-ankle
-line; the foot can turn at the ankle. Sole pins, camera and stoutness are held.
-All 24 guide legs are now collinear through the cuff. The original puppet has
-not been rebound or changed. [Guide comparison and measurements](../experiments/character_binding/evidence/shin-alignment-review-v1/README.md).
-These corrected inputs have not been sent for generation. Review the new
-independent-leg guide before the next redraw; preserve the successful finish
-without treating the rejected part as an anatomical or training target.
+**Latest correction from the user:** the original guide already shows an
+almost-horizontal calf and downward-pointing toe. The generated leg instead
+curves downward into a boot whose toe turns right. V3's small cuff-axis change
+does not fix this output distortion. Its 29.5° measurement describes guide
+axes; it does not establish the cause of the generated anatomy. Keep v3 as a
+separate unsubmitted diagnostic, not the next test's pose authority.
+
+**Next experiment started; inputs prepared, zero requests:**
+[Isolated-leg pose preservation](../experiments/character_binding/evidence/leg-pose-preservation-v1/README.md).
+The user asked to start and asked about a fresh conversation. The exact new
+inputs have been shown for review. Use the byte-identical **v2** pose-10 near
+leg. Prepare three results: one built-in repaint with a contour/landmark
+reference, and two local SDXL+Canny results at denoise 0.65/0.85. The latter
+use actual image edges, not a skeleton or depth surrogate. Keep original
+appearance, stoutness, crop and sole direction fixed. Inspect raw calf shape,
+actual ankle/heel/toe positions and foot orientation before judging finish.
+No fitting or clipping may conceal drift. The prompt, graphs, hashes and
+evaluation plan are retained in that directory. The built-in call and dedicated
+`scripts/run_comfy_leg_pose_trial.py` runner are ready. The latter verifies
+input hashes and uploads, resumes known jobs and refuses ambiguous resubmission.
+No new model requests or uploads have run. A fresh conversation can continue
+from this paragraph and the linked plan.
 
 The user identified a knee-to-boot assignment error in stout redraw pose 10:
 the forward knee of the folded near leg is interpreted as belonging to the

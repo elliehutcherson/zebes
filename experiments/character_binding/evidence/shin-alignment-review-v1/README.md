@@ -4,7 +4,15 @@
 folded leg's shin angle, while liking the trouser folds and boot finish.
 No new image-generation request has been made for this correction.
 
-The issue partly exists in our input geometry. In v2 the whole boot, including
+Subsequent user clarification: the original guide already reads as the intended
+nearly horizontal calf with its toe pointing down. The generated calf curves
+down and turns the toe right. The small cuff-axis adjustment below does not
+fix that larger output distortion. Its cause has not been established; these
+guide measurements should not be presented as an explanation of the model's
+error. The next test holds the original v2 pose fixed; see
+`../leg-pose-preservation-v1/README.md`.
+
+There is a separate mismatch in our input geometry. In v2 the whole boot, including
 its shaft, rotates from its sole direction; a separate 2D calf then connects
 the knee to the resulting cuff. Those directions need not agree. The pose-10
 near leg changes direction by **29.5° at the cuff**. Across the twelve frames,
