@@ -39,6 +39,15 @@ class BootViewGuidesTest(unittest.TestCase):
         self.assertGreater(counts["near"], 0)
         self.assertEqual(counts["far"], 0)
 
+    def test_stouter_boot_adds_volume_without_moving_the_reviewed_pins(self):
+        path = Path(__file__).resolve().parents[1] / "experiments/character_binding/inputs/boot-view-guide-v2.json"
+        stout = json.loads(path.read_text())
+        original, _, before = render_boot([45, 75], [80, 55], self.config)
+        larger, _, after = render_boot([45, 75], [80, 55], {**stout, "canvas": [128, 128]})
+        self.assertGreater(sum(larger.getchannel("A").getdata()), sum(original.getchannel("A").getdata()))
+        for key in ("heel", "toe", "cuff"):
+            self.assertEqual(before[key], after[key])
+
 
 if __name__ == "__main__":
     unittest.main()

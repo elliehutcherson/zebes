@@ -85,6 +85,26 @@ Do not reinterpret a clean render or passing code tests as accepted animation.
 
 ## Next
 
+The user approved the boot view guides for generation and requested stouter
+legs and boots. That amendment is implemented in
+[`boot-view-guide-v2.json`](../experiments/character_binding/inputs/boot-view-guide-v2.json).
+Four built-in image-generation redraws (poses 1/7/10/12) are complete:
+[review and retained evidence](../experiments/character_binding/evidence/stout-boot-redraw-v1/review.html).
+They produce rounded leather boots and shaded stout trousers, preserve the
+broad contact/tucked/airborne states, and expose local registration changes.
+The airborne result's lowest boot is about 11 working pixels higher than its
+guide. All raw outputs are 1254×1254 and uniformly mapped to the fixed canvas.
+The original mask clips some newly drawn boot shapes; the review includes a
+separately labeled broader compositing comparison that recovers the tucked boot.
+[Method, prompts and limitations](../experiments/character_binding/evidence/stout-boot-redraw-v1/README.md).
+
+The brown geometry, original character and editing-region guide were the model
+inputs. Colorful surface labels were only for human inspection. The user's
+approval covers the view directions with the requested stout adjustment;
+do not ask them to approve that same change again. This is still four-pose
+evidence, not a twelve-frame result. Next work is consistent whole-leg coverage
+and registration across the full cycle; keep strict/raw/broader evidence distinct.
+
 The [connection experiment](../experiments/character_binding/evidence/run-gap-control-v1/review.html)
 is complete: twelve local ComfyUI requests, comparing blank/blur/shaped inputs
 for poses 5 and 10 at denoise 0.35/0.60. The prefill supplies most of the useful
@@ -101,9 +121,8 @@ and hides the far sole; support poses have flatter soles. Full-leg/boot masks
 and knee/cuff/sole anchors can be overlaid. These are boxy geometry guides,
 not final art or a validated replacement rig.
 [Configuration and reproduction](../experiments/character_binding/evidence/boot-view-guides-v1/README.md).
-The next user review concerns this new camera, foot orientation, boot proportions
-and leg shape before sending those new inputs for redraw. No generation has
-used the new boot guides. The original mouse puppet document is unchanged.
+That earlier view review is now complete with the stout amendment described
+above. The original mouse puppet document is unchanged.
 
 The [earlier input review](../experiments/character_binding/evidence/run-gap-inputs-v1/review.html)
 retains the official Spineboy run benchmark and exact connection-test inputs.

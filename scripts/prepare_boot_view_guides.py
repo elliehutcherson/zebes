@@ -61,9 +61,17 @@ def render_boot(heel, toe, config):
     face_ids = [None] * len(depths)
     # A sole, toe box and shaft. Deliberately simple geometry exposes the view
     # change without pretending to reproduce the final leather drawing.
-    triangles = box(-0.08, 1.5, 0, 0.10, -0.32, 0.32, bottom="sole")
-    triangles += box(0, 1.40, 0.10, 0.36, -0.29, 0.29)
-    triangles += box(0.02, 0.56, 0.32, 1.05, -0.26, 0.26, top="cuff")
+    proportions = config.get("proportions", {})
+    sole_thickness = proportions.get("sole_thickness", 0.10)
+    foot_depth = proportions.get("foot_depth", 0.58) / 2
+    toe_height = proportions.get("toe_box_height", 0.36)
+    shaft_width = proportions.get("shaft_width", 0.54) / 2
+    shaft_depth = proportions.get("shaft_depth", 0.52) / 2
+    if min(sole_thickness, foot_depth, shaft_width, shaft_depth) <= 0 or not sole_thickness < toe_height < 1.05 or toe_height < .32:
+        raise ValueError("boot proportions must be positive and overlap from sole through shaft")
+    triangles = box(-0.08, 1.5, 0, sole_thickness, -foot_depth - .03, foot_depth + .03, bottom="sole")
+    triangles += box(0, 1.40, sole_thickness, toe_height, -foot_depth, foot_depth)
+    triangles += box(.29 - shaft_width, .29 + shaft_width, 0.32, 1.05, -shaft_depth, shaft_depth, top="cuff")
     for a, b, c, label in triangles:
         a, b, c = project(a), project(b), project(c)
         area = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
@@ -98,7 +106,7 @@ def prepare(document, config, render, output):
         raise ValueError("guide output exists; create a new revision")
     output.mkdir(parents=True)
     size = tuple(config["canvas"])
-    manifest = {"status": "draft inputs awaiting visual review; no generation", "camera": config,
+    manifest = {"status": config.get("status", "draft inputs awaiting visual review; no generation"), "camera": config,
                 "surfaces": SURFACES, "notes": "Boxy boot proxy plus 2D leg placeholders. Surface IDs are not depth.", "frames": []}
     if len(document["frames"]) != 12 or any(len(config["sole_directions_degrees"][side]) != 12 for side in ("near", "far")):
         raise ValueError("guide requires twelve explicit foot directions per side")
@@ -128,8 +136,9 @@ def prepare(document, config, render, output):
             leg = Image.new("RGBA", size)
             draw = ImageDraw.Draw(leg)
             knee = frame["pose"]["knee_" + suffix]
-            capsule(draw, frame["pose"]["hip_c"], knee, 11, (49, 43, 33, 255))
-            capsule(draw, knee, annotations[side]["cuff"], 9, (55, 48, 36, 255))
+            proportions = config.get("proportions", {})
+            capsule(draw, frame["pose"]["hip_c"], knee, proportions.get("thigh_width", 11), (49, 43, 33, 255))
+            capsule(draw, knee, annotations[side]["cuff"], proportions.get("calf_width", 9), (55, 48, 36, 255))
             proxy[side + "_leg"] = leg
             identifiers[side + "_leg"] = Image.new("RGBA", size, (208, 193, 93, 0))
             identifiers[side + "_leg"].putalpha(leg.getchannel("A"))

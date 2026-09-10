@@ -1,0 +1,42 @@
+<div id="stout-boot-review">
+  <div class="viz-controls">
+    <label class="form-label">Pose<select class="form-select" data-pose><option value="0">1 · contact</option><option value="1">7 · opposite contact</option><option value="2" selected>10 · tucked leg</option><option value="3">12 · airborne</option></select></label>
+    <label class="form-label">Composite region<select class="form-select" data-region><option value="broader">Broader comparison</option><option value="original">Original mask</option></select></label>
+    <label class="form-label">Detail<select class="form-select" data-detail><option value="legs">Legs close-up</option><option value="full">Whole character</option><option value="native">48px sprite</option></select></label>
+  </div>
+  <div class="columns">
+    <div><div>Stouter guide</div><canvas data-kind="guide" width="256" height="168" aria-label="Stouter material guide"></canvas></div>
+    <div><div>Generated redraw</div><canvas data-kind="raw" width="256" height="168" aria-label="Generated whole-frame result"></canvas></div>
+    <div><div>Composite</div><canvas data-kind="composite" width="256" height="168" aria-label="Generated legs with original protected artwork"></canvas></div>
+  </div>
+  <label class="form-check"><input class="form-check-input" type="checkbox" data-mask><span class="form-check-label">Show composite region</span></label>
+  <div class="text-small" data-note>Four-pose pilot · Broader region is a later compositing comparison, not the mask sent to the model</div>
+  <div role="alert" data-error hidden></div>
+</div>
+<style>
+#stout-boot-review .columns {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+#stout-boot-review canvas {display:block;width:100%;height:auto;image-rendering:pixelated}
+#stout-boot-review[data-native="true"] canvas {width:48px;margin:12px auto}
+#stout-boot-review [hidden] {display:none!important}
+@media(max-width:560px){#stout-boot-review .columns {grid-template-columns:1fr} #stout-boot-review canvas {max-width:340px;margin:auto}}
+</style>
+<script>
+(async()=>{
+const root=document.getElementById('stout-boot-review'),$=s=>root.querySelector(s),all=s=>Array.from(root.querySelectorAll(s));
+const data=<!-- STOUT_BOOT_DATA -->;
+const load=url=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Review image failed to load'));im.src=url;});
+try{
+const rows=await Promise.all(data.map(async row=>{const result={};for(const [key,url]of Object.entries(row))if(key!=='name')result[key]=await load(url);return result;}));
+const swatch=document.createElement('span');swatch.hidden=true;root.appendChild(swatch);
+function color(token){swatch.style.color=`var(${token})`;return getComputedStyle(swatch).color;}
+function paint(canvas,row,kind){const region=$('[data-region]').value,detail=$('[data-detail]').value;const full=document.createElement('canvas');full.width=full.height=256;const fx=full.getContext('2d');
+ fx.drawImage(kind==='raw'?row.raw:row.base,0,0);if(kind!=='raw')fx.drawImage(row[kind==='guide'?'guide':region],0,0);
+ if(kind==='composite'&&$('[data-mask]').checked){const overlay=document.createElement('canvas');overlay.width=overlay.height=256;const ox=overlay.getContext('2d');ox.drawImage(row[region+'_mask'],0,0);const pixels=ox.getImageData(0,0,256,256);for(let i=0;i<pixels.data.length;i+=4)pixels.data[i+3]=pixels.data[i];ox.putImageData(pixels,0,0);ox.globalCompositeOperation='source-in';ox.fillStyle=color('--orange');ox.fillRect(0,0,256,256);fx.globalAlpha=.35;fx.drawImage(overlay,0,0);}
+ canvas.width=detail==='native'?48:256;canvas.height=detail==='native'?48:detail==='legs'?168:256;const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;
+ if(detail==='native')ctx.drawImage(full,0,0,48,48);else if(detail==='legs')ctx.drawImage(full,65,137,145,95,0,0,256,168);else ctx.drawImage(full,0,0);
+}
+function draw(){root.dataset.native=String($('[data-detail]').value==='native');const row=rows[Number($('[data-pose]').value)];for(const canvas of all('canvas[data-kind]'))paint(canvas,row,canvas.dataset.kind);$('[data-note]').textContent=$('[data-region]').value==='broader'?'Four-pose pilot · Broader region is a later compositing comparison, not the mask sent to the model':'Four-pose pilot · Original mask exactly preserves black-region pixels; it can clip newly drawn boot shapes';}
+for(const control of all('select,input'))control.onchange=draw;draw();new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
+}catch(error){$('[data-error]').hidden=false;$('[data-error]').textContent=error.message;}
+})();
+</script>

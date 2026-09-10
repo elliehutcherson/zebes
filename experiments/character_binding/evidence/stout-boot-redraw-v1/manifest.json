@@ -1,0 +1,160 @@
+{
+  "method": "built-in image_gen full-leg/boot redraw from stouter material guides",
+  "model_id": null,
+  "model_note": "the built-in tool does not expose a model identifier or seed",
+  "authorization": "user approved v1 views as generator inputs with the requested stouter v2 legs and boots",
+  "surface_id_image_sent": false,
+  "mask_delivery": "ordinary reference image; not a hard provider inpainting mask",
+  "provider_calls": 4,
+  "identity_sha256": "d5f638c33fc13f59d7abc234f1662ecba598dfc10fcbb1060d3db8433c0ef522",
+  "frames": [
+    {
+      "name": "reference_01",
+      "status": "complete",
+      "prompt": "Use case: precise-object-edit\nAsset: one finished pixel-art mouse animation frame on a plain white 1024 x 1024 canvas.\nImage 1 is the EDIT TARGET: the exact posed mouse. Its lower legs and boots are rough material-colored geometry guides. Image 2 is the finished character APPEARANCE REFERENCE only; do not copy its pose. Image 3 is an editing-region guide: white permits redraw, black means preserve.\nReplace the rough dark trouser shapes and block-shaped brown boots in Image 1 with beautifully finished artwork matching Image 2. Draw thick, stout trouser legs and chunky rounded brown leather boots, with convincing volume, restrained fabric folds, leather shading, boot cuffs, toe boxes and dark soles. Keep the substantial thickness of the guide. The calf must enter the boot opening coherently, without a gap or severed ankle.\nThe entire legs and boots inside the white region may be redrawn. Preserve their guide pose, knee bends, foot directions, heel/toe locations, overlaps and the surfaces visible to the camera. The guide shows the required view of each boot, including whether its underside is visible. Keep the near and far legs distinct. Round and finish the crude corners; do not simply texture the cuboids. Match the character's existing pixel clusters and outline style.\nPreserve every other part of Image 1: head, ears, face, green hood, coat, red scarf, belt, arms, hands and tail. Do not redesign or reposition the character. Do not change its scale, canvas, camera or motion phase. Do not create extra limbs. Do not paint the mask or guide colors. Keep the white negative spaces between legs and the fixed clothing boundaries.\nReturn only one finished frame, on the same whole 1024 x 1024 plain white canvas. No checkerboard, text, labels, ground line, ground shadow, scene or sprite sheet.\nPose-specific requirement: Keep the forward boot on screen-right extended with its underside visible; the trailing boot on screen-left points downward and does not expose its underside.\n",
+      "edit_input_sha256": "63f55a6f3dd33820e65a2da5828a7781653cd2f4c39f533023d788555ae8a116",
+      "mask_sha256": "11a217491612fafa251cb4fddd02eb0321ec02c556e0f300476b352b102c9169",
+      "raw_source": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-126cb73f-7dbb-4669-8c72-4996454de9c2.png",
+      "raw_sha256": "bffeb8e4ba8ff46e40ff6501771fa10cf1a39b155015deba20701a6bbed0e36e",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "outside_mask_changed_pixels": 0,
+      "registration": "uniform whole-canvas scale to 256; no per-character fitting",
+      "wider_comparison": {
+        "status": "post-hoc comparison; not the provider's input mask",
+        "region": [
+          40,
+          148,
+          220,
+          230
+        ],
+        "protected_parts": [
+          "body",
+          "head",
+          "tail",
+          "near_arm",
+          "far_arm"
+        ],
+        "additional_nonwhite_pixels": 227,
+        "caveat": "Existing protected-part pixels remain exact; newly drawn pixels outside their old silhouettes may still appear."
+      }
+    },
+    {
+      "name": "reference_07",
+      "status": "complete",
+      "prompt": "Use case: precise-object-edit\nAsset: one finished pixel-art mouse animation frame on a plain white 1024 x 1024 canvas.\nImage 1 is the EDIT TARGET: the exact posed mouse. Its lower legs and boots are rough material-colored geometry guides. Image 2 is the finished character APPEARANCE REFERENCE only; do not copy its pose. Image 3 is an editing-region guide: white permits redraw, black means preserve.\nReplace the rough dark trouser shapes and block-shaped brown boots in Image 1 with beautifully finished artwork matching Image 2. Draw thick, stout trouser legs and chunky rounded brown leather boots, with convincing volume, restrained fabric folds, leather shading, boot cuffs, toe boxes and dark soles. Keep the substantial thickness of the guide. The calf must enter the boot opening coherently, without a gap or severed ankle.\nThe entire legs and boots inside the white region may be redrawn. Preserve their guide pose, knee bends, foot directions, heel/toe locations, overlaps and the surfaces visible to the camera. The guide shows the required view of each boot, including whether its underside is visible. Keep the near and far legs distinct. Round and finish the crude corners; do not simply texture the cuboids. Match the character's existing pixel clusters and outline style.\nPreserve every other part of Image 1: head, ears, face, green hood, coat, red scarf, belt, arms, hands and tail. Do not redesign or reposition the character. Do not change its scale, canvas, camera or motion phase. Do not create extra limbs. Do not paint the mask or guide colors. Keep the white negative spaces between legs and the fixed clothing boundaries.\nReturn only one finished frame, on the same whole 1024 x 1024 plain white canvas. No checkerboard, text, labels, ground line, ground shadow, scene or sprite sheet.\nPose-specific requirement: Keep the opposing contact phase exactly as drawn. The forward boot on screen-right exposes its underside and the trailing boot on screen-left does not; preserve this phase's different leg overlap and hand pose.\n",
+      "edit_input_sha256": "8a55d51e147b25bb80f96ec99c2b19d2bd223831dcc8ed653a672c223cceebc9",
+      "mask_sha256": "650c5bac8f52d280ecee20760b01e45685c51da5cfb5d66287b4fe6fdf9137e5",
+      "raw_source": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-6908132c-7829-4fa1-96a9-6ded1d0844f5.png",
+      "raw_sha256": "5a7f8da69ac2bb5ec034ab84a980115e530c43de62d6a7a682ee17405100376d",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "outside_mask_changed_pixels": 0,
+      "registration": "uniform whole-canvas scale to 256; no per-character fitting",
+      "wider_comparison": {
+        "status": "post-hoc comparison; not the provider's input mask",
+        "region": [
+          40,
+          146,
+          220,
+          230
+        ],
+        "protected_parts": [
+          "body",
+          "head",
+          "tail",
+          "near_arm",
+          "far_arm"
+        ],
+        "additional_nonwhite_pixels": 186,
+        "caveat": "Existing protected-part pixels remain exact; newly drawn pixels outside their old silhouettes may still appear."
+      }
+    },
+    {
+      "name": "reference_10",
+      "status": "complete",
+      "prompt": "Use case: precise-object-edit\nAsset: one finished pixel-art mouse animation frame on a plain white 1024 x 1024 canvas.\nImage 1 is the EDIT TARGET: the exact posed mouse. Its lower legs and boots are rough material-colored geometry guides. Image 2 is the finished character APPEARANCE REFERENCE only; do not copy its pose. Image 3 is an editing-region guide: white permits redraw, black means preserve.\nReplace the rough dark trouser shapes and block-shaped brown boots in Image 1 with beautifully finished artwork matching Image 2. Draw thick, stout trouser legs and chunky rounded brown leather boots, with convincing volume, restrained fabric folds, leather shading, boot cuffs, toe boxes and dark soles. Keep the substantial thickness of the guide. The calf must enter the boot opening coherently, without a gap or severed ankle.\nThe entire legs and boots inside the white region may be redrawn. Preserve their guide pose, knee bends, foot directions, heel/toe locations, overlaps and the surfaces visible to the camera. The guide shows the required view of each boot, including whether its underside is visible. Keep the near and far legs distinct. Round and finish the crude corners; do not simply texture the cuboids. Match the character's existing pixel clusters and outline style.\nPreserve every other part of Image 1: head, ears, face, green hood, coat, red scarf, belt, arms, hands and tail. Do not redesign or reposition the character. Do not change its scale, canvas, camera or motion phase. Do not create extra limbs. Do not paint the mask or guide colors. Keep the white negative spaces between legs and the fixed clothing boundaries.\nReturn only one finished frame, on the same whole 1024 x 1024 plain white canvas. No checkerboard, text, labels, ground line, ground shadow, scene or sprite sheet.\nPose-specific requirement: Keep one boot planted flat at the low point on screen-right, and the other leg folded back with its boot tucked high on screen-left. Do not turn this into a wide split stride or place both feet at the same height.\n",
+      "edit_input_sha256": "de8f686af34e3148d80085403362fd3b2704889fce9e1d4219bd8d7ee3d04778",
+      "mask_sha256": "b1857ca766db0cacc658890ee1f469f0de8c3cf2d2e5d61b8a9b42dbb2220205",
+      "raw_source": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-83cc4312-3d0c-462f-a2c3-ccd13b3c6780.png",
+      "raw_sha256": "a5dcebc39bc63b3051e6d0ef94cf2eee000bd91bd7de7176f9b427446369eecf",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "outside_mask_changed_pixels": 0,
+      "registration": "uniform whole-canvas scale to 256; no per-character fitting",
+      "wider_comparison": {
+        "status": "post-hoc comparison; not the provider's input mask",
+        "region": [
+          40,
+          141,
+          220,
+          230
+        ],
+        "protected_parts": [
+          "body",
+          "head",
+          "tail",
+          "near_arm",
+          "far_arm"
+        ],
+        "additional_nonwhite_pixels": 422,
+        "caveat": "Existing protected-part pixels remain exact; newly drawn pixels outside their old silhouettes may still appear."
+      }
+    },
+    {
+      "name": "reference_12",
+      "status": "complete",
+      "prompt": "Use case: precise-object-edit\nAsset: one finished pixel-art mouse animation frame on a plain white 1024 x 1024 canvas.\nImage 1 is the EDIT TARGET: the exact posed mouse. Its lower legs and boots are rough material-colored geometry guides. Image 2 is the finished character APPEARANCE REFERENCE only; do not copy its pose. Image 3 is an editing-region guide: white permits redraw, black means preserve.\nReplace the rough dark trouser shapes and block-shaped brown boots in Image 1 with beautifully finished artwork matching Image 2. Draw thick, stout trouser legs and chunky rounded brown leather boots, with convincing volume, restrained fabric folds, leather shading, boot cuffs, toe boxes and dark soles. Keep the substantial thickness of the guide. The calf must enter the boot opening coherently, without a gap or severed ankle.\nThe entire legs and boots inside the white region may be redrawn. Preserve their guide pose, knee bends, foot directions, heel/toe locations, overlaps and the surfaces visible to the camera. The guide shows the required view of each boot, including whether its underside is visible. Keep the near and far legs distinct. Round and finish the crude corners; do not simply texture the cuboids. Match the character's existing pixel clusters and outline style.\nPreserve every other part of Image 1: head, ears, face, green hood, coat, red scarf, belt, arms, hands and tail. Do not redesign or reposition the character. Do not change its scale, canvas, camera or motion phase. Do not create extra limbs. Do not paint the mask or guide colors. Keep the white negative spaces between legs and the fixed clothing boundaries.\nReturn only one finished frame, on the same whole 1024 x 1024 plain white canvas. No checkerboard, text, labels, ground line, ground shadow, scene or sprite sheet.\nPose-specific requirement: Both feet are airborne. Preserve their different heights and directions from the guide; do not lower either boot, add a ground shadow or turn this into a grounded contact pose.\n",
+      "edit_input_sha256": "fc27830a034f2d21a3f168cbafebdf631a4498dc80a9898d28819ab79326a604",
+      "mask_sha256": "fdcc87fa0232ae35f34546ca17f9cdc519a6d403f8d866456d615ffa2aaf2b50",
+      "raw_source": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-33769e03-d2c8-49ae-956a-49691924e64a.png",
+      "raw_sha256": "865eece752baec44d113bf50c732c87af6537f46e08ec638bf08fd1233bc185c",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ],
+      "outside_mask_changed_pixels": 0,
+      "registration": "uniform whole-canvas scale to 256; no per-character fitting",
+      "wider_comparison": {
+        "status": "post-hoc comparison; not the provider's input mask",
+        "region": [
+          40,
+          137,
+          220,
+          230
+        ],
+        "protected_parts": [
+          "body",
+          "head",
+          "tail",
+          "near_arm",
+          "far_arm"
+        ],
+        "additional_nonwhite_pixels": 414,
+        "caveat": "Existing protected-part pixels remain exact; newly drawn pixels outside their old silhouettes may still appear."
+      }
+    }
+  ]
+}

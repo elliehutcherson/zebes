@@ -47,7 +47,15 @@ continued experiments: twelve connection-control requests have now completed.
 [Results and new boot-guide review](../experiments/character_binding/evidence/run-gap-control-v1/review.html)
 show that the prefill supplies most of the connection; restricted generation
 adds little at 48px. No complete-cycle batch was run. The new guides allow
-changing boot surfaces and full-leg redraws; they await visual input review.
+changing boot surfaces and full-leg redraws. The user approved those views with
+stouter legs/boots; v2 implements the requested proportions and four full-leg
+redraws are now complete. [Results and compositing comparison](../experiments/character_binding/evidence/stout-boot-redraw-v1/review.html).
+The source guide supplies pose/volume, the original mouse supplies appearance,
+and the mask describes the editable region. Surface-ID colors are an inspection
+view only. Results retain broad poses but still move local geometry; the narrow
+mask can also clip a newly drawn boot. Keep the later broader composite clearly
+separate from the actual mask sent to the provider. A full cycle is not yet
+generated or accepted.
 
 Use an existing authoring rig for the independent comparison rather than
 expanding the custom editor. Retain Zebes' editable pose representation and

@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "status": "user approved the views for generation and requested stouter legs and boots",
+  "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+  "camera_yaw_degrees": 35,
+  "camera_elevation_degrees": 8,
+  "canvas": [256, 256],
+  "generation_canvas": [1024, 1024],
+  "ground_y": 214,
+  "support": ["near", "near", "near", "near", "near", "flight", "far", "far", "far", "far", "far", "flight"],
+  "sole_directions_degrees": {
+    "near": [-25, 0, 0, 0, 15, 65, 100, 115, 125, 115, 70, -20],
+    "far": [100, 115, 125, 115, 70, -20, -25, 0, 0, 0, 15, 65]
+  },
+  "proportions": {
+    "thigh_width": 15,
+    "calf_width": 13,
+    "shaft_width": 0.76,
+    "shaft_depth": 0.72,
+    "foot_depth": 0.78,
+    "toe_box_height": 0.48,
+    "sole_thickness": 0.13
+  },
+  "near": {"suffix": "l", "sole_heel": [175, 197], "sole_toe": [195, 181]},
+  "far": {"suffix": "r", "sole_heel": [63, 176], "sole_toe": [68, 194]},
+  "notes": "The user reviewed v1 and approved it as generator input subject to thicker, stouter legs and boots. V2 widens thigh and calf silhouettes and increases boot shaft width, depth, toe-box height and sole thickness. Camera, foot lengths, phase directions, heel travel and support registration remain as reviewed. The brown geometry image guides pose and volume; the actual mouse supplies style and identity. Surface-ID colors are only a human inspection view, not a depth map or a generation input."
+}
