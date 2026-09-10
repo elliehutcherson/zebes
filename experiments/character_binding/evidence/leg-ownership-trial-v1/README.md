@@ -12,6 +12,12 @@ test, not a complete twelve-frame animation or an accepted production asset.
 
 ## Findings
 
+User review, 2026-09-10: independent rendering is the selected direction, but
+the isolated folded leg's shin/calf angle is rejected. Its fabric and boot
+finish are useful references. The part must not be treated as accepted anatomy.
+The later input audit found a cuff-direction mismatch already present in the
+guide; see `../shin-alignment-review-v1/` for the correction.
+
 The pose-10 labeled-guide result gives the folded calf a more readable
 horizontal connection to the high boot, crossing in front of the nearly
 vertical standing leg. This appears to improve the knee-to-boot assignment

@@ -1,0 +1,28 @@
+{
+  "version": 3,
+  "status": "corrected lower-leg guide for review; no generation submitted",
+  "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+  "camera_yaw_degrees": 35,
+  "camera_elevation_degrees": 8,
+  "canvas": [256, 256],
+  "generation_canvas": [1024, 1024],
+  "ground_y": 214,
+  "shaft_alignment": "shin",
+  "support": ["near", "near", "near", "near", "near", "flight", "far", "far", "far", "far", "far", "flight"],
+  "sole_directions_degrees": {
+    "near": [-25, 0, 0, 0, 15, 65, 100, 115, 125, 115, 70, -20],
+    "far": [100, 115, 125, 115, 70, -20, -25, 0, 0, 0, 15, 65]
+  },
+  "proportions": {
+    "thigh_width": 15,
+    "calf_width": 13,
+    "shaft_width": 0.76,
+    "shaft_depth": 0.72,
+    "foot_depth": 0.78,
+    "toe_box_height": 0.48,
+    "sole_thickness": 0.13
+  },
+  "near": {"suffix": "l", "sole_heel": [175, 197], "sole_toe": [195, 181]},
+  "far": {"suffix": "r", "sole_heel": [63, 176], "sole_toe": [68, 194]},
+  "notes": "The user selected independent leg rendering and rejected the folded leg's kinked shin while liking its fabric and boot finish. In v2 the boot shaft rotated rigidly with the foot and the calf was connected to its opening afterward. V3 aligns the boot shaft with the knee-to-proxy-ankle line and places the cuff on that same line. Sole positions, foot pitch, camera, stoutness and target knees remain fixed. The knee still bends; the lower leg stays continuous through the boot shaft, and the foot changes direction at the ankle. These corrected input guides require visual review before new generation."
+}

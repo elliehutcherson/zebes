@@ -48,6 +48,25 @@ class BootViewGuidesTest(unittest.TestCase):
         for key in ("heel", "toe", "cuff"):
             self.assertEqual(before[key], after[key])
 
+    def test_shaft_follows_shin_without_moving_the_sole_in_every_pose(self):
+        root = Path(__file__).resolve().parents[1] / "experiments/character_binding"
+        previous = json.loads((root / "evidence/boot-view-guides-v2/manifest.json").read_text())
+        document = json.loads((root / "puppet_documents/mouse_run_reference_v2.json").read_text())
+        config = json.loads((root / "inputs/boot-view-guide-v3.json").read_text())
+        for frame, guide in zip(document["frames"], previous["frames"], strict=True):
+            for side, suffix in (("near", "l"), ("far", "r")):
+                pins = guide["annotations"][side]
+                knee = frame["pose"]["knee_" + suffix]
+                _, _, aligned = render_boot(pins["heel"], pins["toe"], config, knee)
+                self.assertLess(aligned["calf_shaft_angle_degrees"], 1e-4)
+                self.assertEqual(aligned["heel"], pins["heel"])
+                self.assertEqual(aligned["toe"], pins["toe"])
+                self.assertLess(math.dist(aligned["cuff"], aligned["ankle"]), math.dist(knee, aligned["ankle"]))
+
+    def test_shin_alignment_requires_an_explicit_knee(self):
+        with self.assertRaisesRegex(ValueError, "target knee"):
+            render_boot([45, 75], [80, 55], {**self.config, "shaft_alignment": "shin"})
+
 
 if __name__ == "__main__":
     unittest.main()

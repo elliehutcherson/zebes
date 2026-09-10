@@ -31,6 +31,23 @@ still depend on art review. Twelve frames alone do not guarantee smooth motion.
 
 ## Immediate priority and proposed revision
 
+On 2026-09-10 the user selected **independent rendering** and rejected the
+isolated folded leg's kinked lower leg, while approving its folds and boot
+finish as useful visual reference. Keep the intended knee flexion and make
+the shin/calf continue through the boot shaft; do not straighten the entire
+folded leg or adopt the malformed result as ground truth.
+
+The guide itself had an avoidable contradiction: the shaft followed foot
+rotation, independently of the calf. The pose-10 mismatch at the cuff was
+29.5° (up to about 60.2° elsewhere). V3 introduces a shin-aligned shaft and an
+explicit proxy ankle, leaving sole positions and foot directions intact.
+All 24 calf/shaft chains are collinear in the corrected control geometry.
+[Comparison and exact measurements](../experiments/character_binding/evidence/shin-alignment-review-v1/README.md).
+This removes an input defect, not a guarantee that a model will draw valid
+anatomy. Corrected guide inputs require the existing visual review before
+further generation. Independent-layer completion and explicit binding are
+the chosen route; the earlier combined-image preference is superseded.
+
 The user's 2026-09-09 direction is to resolve motion, foot attachment and
 missing artwork. Head flicker is deferred. Compare an established biped rig
 and motion source with the current tracing, and test rough completion before

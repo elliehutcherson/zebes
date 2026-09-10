@@ -44,7 +44,8 @@ def main():
         complete, tint, paths = {}, {}, {}
         for side, suffix in (("far", "r"), ("near", "l")):
             anchors = guide["annotations"][side]
-            boot, _, _ = render_boot(anchors["heel"], anchors["toe"], config)
+            knee = frame["pose"]["knee_" + suffix]
+            boot, _, _ = render_boot(anchors["heel"], anchors["toe"], config, knee)
             leg = Image.new("RGBA", tuple(config["canvas"]))
             draw = ImageDraw.Draw(leg)
             hip, knee, cuff = frame["pose"]["hip_c"], frame["pose"]["knee_" + suffix], anchors["cuff"]

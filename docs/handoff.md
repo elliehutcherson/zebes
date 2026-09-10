@@ -1,6 +1,6 @@
 # Active handoff
 
-Updated 2026-09-09. **Get the twelve-frame green-coated mouse run working.**
+Updated 2026-09-10. **Get the twelve-frame green-coated mouse run working.**
 This is the project's current priority. Old track sequencing and art/experiment
 gates are suspended; they are not prerequisites for this work.
 
@@ -85,6 +85,23 @@ Do not reinterpret a clean render or passing code tests as accepted animation.
 
 ## Next
 
+**Current direction: independently rendered layers**, selected by the user on
+2026-09-10. They rejected the isolated folded leg's shin angle while liking the
+fabric folds and boot finish. That generated part is an appearance reference,
+not accepted geometry. Do not revert to whole-character rendering on the basis
+of the earlier one-frame comparison.
+
+The input guide contributed to the problem: its boot shaft rotated with the
+sole, then the calf connected to the cuff independently. Pose 10's near calf
+and shaft differed by 29.5°, creating an extra bend at the boot opening.
+V3 keeps the knee bend but aligns the calf and shaft along one knee-to-proxy-ankle
+line; the foot can turn at the ankle. Sole pins, camera and stoutness are held.
+All 24 guide legs are now collinear through the cuff. The original puppet has
+not been rebound or changed. [Guide comparison and measurements](../experiments/character_binding/evidence/shin-alignment-review-v1/README.md).
+These corrected inputs have not been sent for generation. Review the new
+independent-leg guide before the next redraw; preserve the successful finish
+without treating the rejected part as an anatomical or training target.
+
 The user identified a knee-to-boot assignment error in stout redraw pose 10:
 the forward knee of the folded near leg is interpreted as belonging to the
 far leg that reaches the planted boot. The visual finish is the best result
@@ -100,8 +117,9 @@ The labeled-guide package makes pose 10's folded calf crossing more readable.
 Independent legs establish ownership structurally, but the folded boot ends
 about 11 working pixels lower than its guide after the fixed crop is inverted;
 the standing leg is much closer. No later fitting hides this difference.
-The combined route is the more promising immediate visual candidate; the
-isolated route needs part-to-rig calibration and boot-view checks. Pose 4 has
+The combined route was the more promising immediate visual candidate in that
+comparison; the user's subsequent choice is the independent route above.
+It needs part-to-rig calibration and boot-view checks. Pose 4 has
 only one sample and partly hidden connections. Neither route is a validated
 twelve-frame result. [Prompts, registration and findings](../experiments/character_binding/evidence/leg-ownership-trial-v1/README.md).
 Keep the current style/stoutness and distinguish correct ownership from exact

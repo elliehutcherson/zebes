@@ -42,7 +42,7 @@ def camera_point(point, pitch, yaw, elevation):
             ce * sy * x + se * y + ce * cy * z)
 
 
-def render_boot(heel, toe, config):
+def render_boot(heel, toe, config, knee=None):
     yaw, elevation = map(math.radians, (config["camera_yaw_degrees"], config["camera_elevation_degrees"]))
     dx, dy = toe[0] - heel[0], toe[1] - heel[1]
     if math.hypot(dx, dy) < 1:
@@ -71,9 +71,38 @@ def render_boot(heel, toe, config):
         raise ValueError("boot proportions must be positive and overlap from sole through shaft")
     triangles = box(-0.08, 1.5, 0, sole_thickness, -foot_depth - .03, foot_depth + .03, bottom="sole")
     triangles += box(0, 1.40, sole_thickness, toe_height, -foot_depth, foot_depth)
-    triangles += box(.29 - shaft_width, .29 + shaft_width, 0.32, 1.05, -shaft_depth, shaft_depth, top="cuff")
-    for a, b, c, label in triangles:
-        a, b, c = project(a), project(b), project(c)
+    projected_triangles = [(project(a), project(b), project(c), label) for a, b, c, label in triangles]
+    ankle = project((.29, .32, 0))
+    alignment = config.get("shaft_alignment", "foot")
+    if alignment not in ("foot", "shin"):
+        raise ValueError("shaft_alignment must be foot or shin")
+    if alignment == "shin":
+        if knee is None:
+            raise ValueError("shin-aligned boot requires the target knee")
+        # Invert the camera's XY-plane projection to obtain a 3D shaft axis
+        # whose screen projection points exactly from ankle toward knee.
+        screen_x, screen_y = knee[0] - ankle[0], knee[1] - ankle[1]
+        if math.hypot(screen_x, screen_y) <= 1e-6:
+            raise ValueError("knee and boot ankle coincide")
+        world_x = screen_x / math.cos(yaw)
+        world_y = (math.sin(elevation) * math.sin(yaw) * world_x - screen_y) / math.cos(elevation)
+        length = math.hypot(world_x, world_y)
+        up = (world_x / length, world_y / length)
+        across = (up[1], -up[0])
+        def shaft_project(point):
+            x, y, z = point
+            offset = camera_point((across[0] * x + up[0] * y, across[1] * x + up[1] * y, z), 0, yaw, elevation)
+            return [ankle[i] + scale * offset[i] for i in range(3)]
+        cuff = shaft_project((0, .73, 0))[:2]
+        if math.dist(cuff, ankle[:2]) >= math.dist(knee, ankle[:2]):
+            raise ValueError("boot shaft reaches past the knee; revise the guide proportions")
+        shaft = box(-shaft_width, shaft_width, 0, .73, -shaft_depth, shaft_depth, top="cuff")
+        projected_triangles.extend((shaft_project(a), shaft_project(b), shaft_project(c), label) for a, b, c, label in shaft)
+    else:
+        shaft = box(.29 - shaft_width, .29 + shaft_width, .32, 1.05, -shaft_depth, shaft_depth, top="cuff")
+        projected_triangles.extend((project(a), project(b), project(c), label) for a, b, c, label in shaft)
+        cuff = project((.29, 1.05, 0))[:2]
+    for a, b, c, label in projected_triangles:
         area = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
         if abs(area) < 1e-8:
             continue
@@ -93,12 +122,22 @@ def render_boot(heel, toe, config):
                 depths[index], face_ids[index] = depth, label
                 material.putpixel((x, y), MATERIALS[label] + (255,))
                 surface.putpixel((x, y), SURFACES[label] + (255,))
-    cuff = project((0.29, 1.05, 0))[:2]
     projected = project((1.5, 0, 0))[:2]
     if math.dist(projected, toe) > 1e-6:
         raise ValueError("projection did not preserve sole anchors")
-    return material, surface, {"heel": heel, "toe": toe, "cuff": cuff, "pitch_degrees": math.degrees(pitch),
-                                "visible_sole_pixels": face_ids.count("sole"), "sole_pin_error": math.dist(projected, toe)}
+    annotations = {"heel": heel, "toe": toe, "ankle": ankle[:2], "cuff": cuff, "shaft_alignment": alignment,
+                   "pitch_degrees": math.degrees(pitch), "visible_sole_pixels": face_ids.count("sole"),
+                   "sole_pin_error": math.dist(projected, toe)}
+    if knee is not None:
+        calf = [cuff[i] - knee[i] for i in (0, 1)]
+        shaft_axis = [ankle[i] - cuff[i] for i in (0, 1)]
+        denominator = math.hypot(*calf) * math.hypot(*shaft_axis)
+        if denominator <= 1e-8:
+            raise ValueError("collapsed calf or shaft axis")
+        cosine = sum(a * b for a, b in zip(calf, shaft_axis)) / denominator
+        annotations["calf_shaft_angle_degrees"] = math.degrees(math.acos(max(-1, min(1, cosine))))
+        annotations["knee"] = list(knee)
+    return material, surface, annotations
 
 
 def prepare(document, config, render, output):
@@ -131,11 +170,11 @@ def prepare(document, config, render, output):
                 shift = min(0, shift)
             heel[1] += shift
             toe[1] += shift
-            proxy[side + "_boot"], identifiers[side + "_boot"], annotations[side] = render_boot(heel, toe, config)
+            knee = frame["pose"]["knee_" + suffix]
+            proxy[side + "_boot"], identifiers[side + "_boot"], annotations[side] = render_boot(heel, toe, config, knee)
             annotations[side]["sole_ground_shift_y"] = shift
             leg = Image.new("RGBA", size)
             draw = ImageDraw.Draw(leg)
-            knee = frame["pose"]["knee_" + suffix]
             proportions = config.get("proportions", {})
             capsule(draw, frame["pose"]["hip_c"], knee, proportions.get("thigh_width", 11), (49, 43, 33, 255))
             capsule(draw, knee, annotations[side]["cuff"], proportions.get("calf_width", 9), (55, 48, 36, 255))
