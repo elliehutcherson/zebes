@@ -94,14 +94,18 @@ shows both complete chains and their overlap. Draw order is correct; the
 flattened brown guide merges both legs, and its surface-ID view labels both
 trouser legs yellow. The previous high-boot/low-boot check missed this error.
 
-Next proposed comparison is focused on pose 10: one redraw with an explicit
-leg-identity/occlusion guide, versus two independently generated complete leg
-layers composited far then near. Check each knee continues into its own calf
-and boot, then verify the opposite crossing in pose 4 before scaling to twelve
-frames. Separate-leg completion is the favored E1 direction. Retain the current
-art style and stoutness; do not advance to temporal polish or training merely
-because this crossing failed. New actual input images must still be shown
-before generation. No generation used the new ownership diagnostics.
+That comparison has now run: three pose-10 image requests plus the planned
+one-image pose-4 follow-up. [Results](../experiments/character_binding/evidence/leg-ownership-trial-v1/review.html).
+The labeled-guide package makes pose 10's folded calf crossing more readable.
+Independent legs establish ownership structurally, but the folded boot ends
+about 11 working pixels lower than its guide after the fixed crop is inverted;
+the standing leg is much closer. No later fitting hides this difference.
+The combined route is the more promising immediate visual candidate; the
+isolated route needs part-to-rig calibration and boot-view checks. Pose 4 has
+only one sample and partly hidden connections. Neither route is a validated
+twelve-frame result. [Prompts, registration and findings](../experiments/character_binding/evidence/leg-ownership-trial-v1/README.md).
+Keep the current style/stoutness and distinguish correct ownership from exact
+pose following. New actual generation setups still need visible input review.
 
 The user approved the boot view guides for generation and requested stouter
 legs and boots. That amendment is implemented in
@@ -116,8 +120,10 @@ The original mask clips some newly drawn boot shapes; the review includes a
 separately labeled broader compositing comparison that recovers the tucked boot.
 [Method, prompts and limitations](../experiments/character_binding/evidence/stout-boot-redraw-v1/README.md).
 
-The brown geometry, original character and editing-region guide were the model
-inputs. Colorful surface labels were only for human inspection. The user's
+The brown geometry, original character and editing-region guide were the stout
+pilot's model inputs. Boot-face surface labels were only for human inspection;
+the newer A/B leg-identity diagrams were supplied in the ownership experiment.
+The user's
 approval covers the view directions with the requested stout adjustment;
 do not ask them to approve that same change again. This is still four-pose
 evidence, not a twelve-frame result. Correct leg ownership before full-cycle
@@ -178,6 +184,17 @@ procedural prefills and unreviewed generated frames are not training targets.
 Define whether training should improve reusable-part completion, pose obedience
 or temporal consistency before choosing a model and dataset. Reserve held-out
 poses/sequences to evaluate improvement rather than memorization.
+
+Future garment motion, requested by the user and explicitly deferred for this
+leg trial: the coat/cloak hem should lift when contacted by a raised knee or
+extended thigh, then settle toward a resting/running-neutral shape with lag.
+Running motion can keep cloth flared even without direct knee contact. Keep
+upper-coat attachment, front/back hems and any removable cape separately
+controllable. A cape attaches at the shoulders/back and needs its own trailing
+and settling response, not direct copying of knee motion. Author or bake the
+cloth into a closed twelve-frame cycle once leg ownership is stable. Current
+coat artwork was retained as the occluder in this experiment; cloth motion has
+not been implemented.
 
 ## Tools and retained evidence
 

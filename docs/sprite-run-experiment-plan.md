@@ -79,6 +79,15 @@ Keep the successful style and stoutness. E2 remains a fallback for deformation
 of valid parts, E4 for stronger local conditioning if needed, and E5 for later
 sequence consistency; none should obscure a known incorrect limb connection.
 
+The user approved this comparison and it is now complete: three requests for
+pose 10 plus one combined-guide pose-4 follow-up. The labeled-guide package
+improves the apparent crossing; independent layers make overlap ownership
+deterministic but the folded boot shifts about 11 working pixels downward.
+The standing leg stays much closer to its guide. Preserve that raw result and
+calibrate part-to-rig attachment explicitly before reusing it. The combined
+route is the better immediate visual candidate in this limited trial, not a
+proof that image labels enforce anatomy. [Results and exact prompts](../experiments/character_binding/evidence/leg-ownership-trial-v1/README.md).
+
 Use an existing authoring rig for the independent comparison rather than
 expanding the custom editor. Retain Zebes' editable pose representation and
 import sampled joints through an adapter. A template must still be fitted to
@@ -150,6 +159,18 @@ provide an established mechanism for selecting different drawings on a bone.
 ## Future direction: resolution and equipment layers
 
 Recorded 2026-09-09; this is not the current experiment's implementation scope.
+
+The user also requested future coat/cloak and cape motion, while keeping it
+out of the crossed-leg experiment. Give the hem a resting shape and a neutral
+running shape, lift it where knees/thighs actually contact it, and let it settle
+with lag rather than snapping to each leg angle. A moving character can retain
+some flare even when no knee is underneath. Separate upper-coat anchoring from
+front/back hem shapes; the current rigid body image alone cannot express this.
+A removable cape should attach to the shoulders/back and have separate trailing
+and gravity/settling motion. Its response may be authored or simulated as an
+offline aid, then baked into the twelve frames with a clean loop boundary.
+Complete underlying leg/body art prevents newly exposed areas from becoming
+gaps. No garment physics or new runtime format is required for the present trial.
 The intended pipeline must produce a defined logical sprite resolution and
 pixel grid, with explicit registration and reproducible processing of whatever
 native canvas a generator returns. A requested canvas size alone is not a

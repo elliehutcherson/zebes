@@ -1,0 +1,9 @@
+Use case: precise-object-edit
+Render finished pixel-art clothing matching the original mouse reference: thick dark brown trousers and stout rounded brown leather boots with cuffs, dark soles, restrained fabric folds and leather shading. Match the original pixel clusters, palette, texture and outlines. Keep the substantial proportions of the geometry. Round crude cuboid corners rather than simply texturing boxes.
+Return one image on the same plain white 1024 x 1024 canvas. Preserve the guide's placement and scale; do not center, enlarge, crop or rearrange it. No text, labels, arrows, colored guide lines, checkerboard, ground shadow or scenery in the output.
+
+Image 1 is the exact whole-mouse EDIT TARGET with rough lower-body geometry. Image 2 supplies character APPEARANCE ONLY. Image 3 is a magnified leg-identity cutaway: ORANGE A and BLUE B are labels, not costume colors. Image 4 is the editable-region guide: white allows redraw, black means preserve.
+Redraw only the legs and boots, keeping the original upper character, coat, scarf, belt, hands, ears, face and tail unchanged. Crucially preserve WHICH KNEE CONNECTS TO WHICH BOOT:
+A is the NEAR folded leg. Its thigh travels down-right to the forward knee, then its calf bends BACK LEFT to the HIGH boot. This folded knee/calf lies IN FRONT of the standing leg.
+B is the FAR standing leg, behind A. B continues almost vertically down to the LOW planted boot on screen-right. Do not connect A's projecting knee to B's low boot. Preserve a readable overlap edge where A's horizontal folded calf crosses B's vertical leg. Draw both legs in the original trouser colors, with natural shading, not orange/blue.
+The high boot belongs to A and the low boot belongs to B. Keep the high/low positions and the crossed topology; do not substitute a generic running stride. The diagnostic cutaway includes portions hidden by the coat, which should remain hidden in this full-character output.

@@ -1,0 +1,8 @@
+Use case: precise-object-edit
+Render finished pixel-art clothing matching the original mouse reference: thick dark brown trousers and stout rounded brown leather boots with cuffs, dark soles, restrained fabric folds and leather shading. Match the original pixel clusters, palette, texture and outlines. Keep the substantial proportions of the geometry. Round crude cuboid corners rather than simply texturing boxes.
+Return one image on the same plain white 1024 x 1024 canvas. Preserve the guide's placement and scale; do not center, enlarge, crop or rearrange it. No text, labels, arrows, colored guide lines, checkerboard, ground shadow or scenery in the output.
+
+Image 1 is the EDIT TARGET: exactly ONE COMPLETE FOLDED TROUSER LEG AND BOOT, isolated on white. Image 2 is an appearance reference for materials and style only. Do not draw that character or copy its full-body pose.
+Keep this ONE leg folded in the exact triangular arrangement of Image 1. Starting at the hip attachment at the top, the thigh goes DOWN-RIGHT to its projecting knee. The calf doubles BACK LEFT from that knee into the high boot. The knee, folded calf and high boot all belong to this one leg. Preserve the negative space inside the bend where present. Do not unfold or straighten the leg. Draw its complete hidden surfaces too, because a separate coat layer will cover them later.
+
+Output only the single connected trouser-leg/boot asset. Exactly one hip attachment, one knee, one calf and one boot. No torso, face, mouse body, arms, tail, skirt, cape, second leg or second boot. Preserve the full white canvas and the existing asset position, size and boot direction. Finish the exposed fabric at the top as an attachment area, not a waist or second limb.

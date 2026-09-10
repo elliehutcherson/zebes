@@ -1,0 +1,261 @@
+{
+  "experiment": "reference_04 combined leg IDs opposite-crossing follow-up",
+  "authorization": "user explicitly approved this three-image experiment",
+  "provider_calls": 1,
+  "model_id": null,
+  "identity_sha256": "d5f638c33fc13f59d7abc234f1662ecba598dfc10fcbb1060d3db8433c0ef522",
+  "source_ownership": {
+    "source_guide_config": {
+      "version": 2,
+      "status": "user approved the views for generation and requested stouter legs and boots",
+      "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+      "camera_yaw_degrees": 35,
+      "camera_elevation_degrees": 8,
+      "canvas": [
+        256,
+        256
+      ],
+      "generation_canvas": [
+        1024,
+        1024
+      ],
+      "ground_y": 214,
+      "support": [
+        "near",
+        "near",
+        "near",
+        "near",
+        "near",
+        "flight",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "flight"
+      ],
+      "sole_directions_degrees": {
+        "near": [
+          -25,
+          0,
+          0,
+          0,
+          15,
+          65,
+          100,
+          115,
+          125,
+          115,
+          70,
+          -20
+        ],
+        "far": [
+          100,
+          115,
+          125,
+          115,
+          70,
+          -20,
+          -25,
+          0,
+          0,
+          0,
+          15,
+          65
+        ]
+      },
+      "proportions": {
+        "thigh_width": 15,
+        "calf_width": 13,
+        "shaft_width": 0.76,
+        "shaft_depth": 0.72,
+        "foot_depth": 0.78,
+        "toe_box_height": 0.48,
+        "sole_thickness": 0.13
+      },
+      "near": {
+        "suffix": "l",
+        "sole_heel": [
+          175,
+          197
+        ],
+        "sole_toe": [
+          195,
+          181
+        ]
+      },
+      "far": {
+        "suffix": "r",
+        "sole_heel": [
+          63,
+          176
+        ],
+        "sole_toe": [
+          68,
+          194
+        ]
+      },
+      "notes": "The user reviewed v1 and approved it as generator input subject to thicker, stouter legs and boots. V2 widens thigh and calf silhouettes and increases boot shaft width, depth, toe-box height and sole thickness. Camera, foot lengths, phase directions, heel travel and support registration remain as reviewed. The brown geometry image guides pose and volume; the actual mouse supplies style and identity. Surface-ID colors are only a human inspection view, not a depth map or a generation input."
+    },
+    "frames": [
+      {
+        "name": "reference_10",
+        "draw_order": [
+          "far_leg",
+          "far_boot",
+          "near_leg",
+          "near_boot"
+        ],
+        "paths": {
+          "far": [
+            [
+              141.0,
+              149.0
+            ],
+            [
+              145.14273269133324,
+              173.85639614799945
+            ],
+            [
+              149.21903901738338,
+              198.08846871376966
+            ],
+            [
+              146.66142955820536,
+              214.0
+            ],
+            [
+              165.34297125047476,
+              214.0
+            ]
+          ],
+          "near": [
+            [
+              141.0,
+              149.0
+            ],
+            [
+              154.8091089711108,
+              171.09457435377726
+            ],
+            [
+              139.59787379875067,
+              169.14475519694062
+            ],
+            [
+              127.63860278191845,
+              154.12777062618252
+            ],
+            [
+              116.814293842184,
+              177.34057605717655
+            ]
+          ]
+        },
+        "near": "A",
+        "far": "B",
+        "status": "diagnostic; generation inputs still to be selected"
+      },
+      {
+        "name": "reference_04",
+        "draw_order": [
+          "far_leg",
+          "far_boot",
+          "near_leg",
+          "near_boot"
+        ],
+        "paths": {
+          "far": [
+            [
+              141.0,
+              152.0
+            ],
+            [
+              152.04728717688863,
+              169.95184166244402
+            ],
+            [
+              121.2741238517765,
+              181.85657450671573
+            ],
+            [
+              112.55113130057805,
+              170.90331118758724
+            ],
+            [
+              104.65597062395476,
+              187.83453789714082
+            ]
+          ],
+          "near": [
+            [
+              141.0,
+              152.0
+            ],
+            [
+              141.46030363237037,
+              177.77700341274016
+            ],
+            [
+              133.65456112885047,
+              192.18520263224462
+            ],
+            [
+              130.14806441937876,
+              214.0
+            ],
+            [
+              155.76056136911015,
+              214.0
+            ]
+          ]
+        },
+        "near": "A",
+        "far": "B",
+        "status": "diagnostic; generation inputs still to be selected"
+      }
+    ],
+    "provider_calls": 0
+  },
+  "isolated_crop": [
+    88,
+    136,
+    184,
+    232
+  ],
+  "registration": "fixed crop before generation, inverse whole-canvas scaling only",
+  "composite_order": [
+    "far_arm",
+    "far",
+    "near",
+    "tail",
+    "body",
+    "near_arm",
+    "head"
+  ],
+  "entries": [
+    {
+      "name": "combined",
+      "status": "complete",
+      "prompt": "Use case: precise-object-edit\nRender finished pixel-art clothing matching the original mouse reference: thick dark brown trousers and stout rounded brown leather boots with cuffs, dark soles, restrained fabric folds and leather shading. Match the original pixel clusters, palette, texture and outlines. Keep the substantial proportions of the geometry. Round crude cuboid corners rather than simply texturing boxes.\nReturn one image on the same plain white 1024 x 1024 canvas. Preserve the guide's placement and scale; do not center, enlarge, crop or rearrange it. No text, labels, arrows, colored guide lines, checkerboard, ground shadow or scenery in the output.\n\nImage 1 is the exact whole-mouse EDIT TARGET with rough lower-body geometry. Image 2 supplies character APPEARANCE ONLY. Image 3 is a magnified leg-identity cutaway: ORANGE A and BLUE B are labels, not costume colors. Image 4 is the editable-region guide: white allows redraw, black means preserve.\nRedraw only the legs and boots, preserving the entire original upper character and coat. Crucially keep the connections shown in the cutaway:\nA is the NEAR STANDING LEG IN FRONT. It continues nearly vertically downward to the LOW planted boot. Its continuous shin must remain visible in front of the crossing folded calf.\nB is the FAR FOLDED LEG BEHIND A. B's thigh goes down-right to its forward-projecting knee, then B's calf doubles BACK LEFT behind A's vertical leg and ends in the HIGH boot. The projecting folded knee belongs to B's high boot, never to A's low boot.\nThis is the opposite overlap from a foreground-folded-leg pose. Preserve the cutaway's visible/hidden boundaries, with the orange standing leg covering the blue folded calf at the crossing. Final trousers use the original dark brown colors and natural overlap shading, not orange or blue. Keep both boot positions and the existing camera, canvas and character placement.\n",
+      "reference_paths": [
+        "edit-input.png",
+        "../identity.png",
+        "ownership-guide.png",
+        "region-guide.png"
+      ],
+      "input_sha256": "544ec7ba79655e88384274ee59351e00cc5d882eefa7b26383b49d1a2962cd8c",
+      "crop": null,
+      "raw_sha256": "6684a18c012917a2fa83d2b3d39d0ca5c5e3eeb64d1dbf5f41aed811cc6328ba",
+      "raw_source": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-2d78a0a1-4939-4b9d-b0a8-bc0fc39642e8.png",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+Use case: precise-object-edit
+Render finished pixel-art clothing matching the original mouse reference: thick dark brown trousers and stout rounded brown leather boots with cuffs, dark soles, restrained fabric folds and leather shading. Match the original pixel clusters, palette, texture and outlines. Keep the substantial proportions of the geometry. Round crude cuboid corners rather than simply texturing boxes.
+Return one image on the same plain white 1024 x 1024 canvas. Preserve the guide's placement and scale; do not center, enlarge, crop or rearrange it. No text, labels, arrows, colored guide lines, checkerboard, ground shadow or scenery in the output.
+
+Image 1 is the exact whole-mouse EDIT TARGET with rough lower-body geometry. Image 2 supplies character APPEARANCE ONLY. Image 3 is a magnified leg-identity cutaway: ORANGE A and BLUE B are labels, not costume colors. Image 4 is the editable-region guide: white allows redraw, black means preserve.
+Redraw only the legs and boots, preserving the entire original upper character and coat. Crucially keep the connections shown in the cutaway:
+A is the NEAR STANDING LEG IN FRONT. It continues nearly vertically downward to the LOW planted boot. Its continuous shin must remain visible in front of the crossing folded calf.
+B is the FAR FOLDED LEG BEHIND A. B's thigh goes down-right to its forward-projecting knee, then B's calf doubles BACK LEFT behind A's vertical leg and ends in the HIGH boot. The projecting folded knee belongs to B's high boot, never to A's low boot.
+This is the opposite overlap from a foreground-folded-leg pose. Preserve the cutaway's visible/hidden boundaries, with the orange standing leg covering the blue folded calf at the crossing. Final trousers use the original dark brown colors and natural overlap shading, not orange or blue. Keep both boot positions and the existing camera, canvas and character placement.

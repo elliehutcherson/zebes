@@ -1,0 +1,50 @@
+<div id="ownership-trial-review">
+  <div class="viz-controls">
+    <label class="form-label">View<select class="form-select" data-view><option value="comparison">Pose 10 comparison</option><option value="parts">Independent leg drawings</option><option value="opposite">Pose 4 follow-up</option></select></label>
+    <label class="form-label" data-detail-label>Detail<select class="form-select" data-detail><option value="legs">Legs close-up</option><option value="full">Whole character</option><option value="native">48px sprite</option></select></label>
+  </div>
+  <div data-comparison class="three-columns">
+    <div><div>Previous redraw</div><canvas data-group="comparison" data-index="0" aria-label="Previous confused leg connection"></canvas></div>
+    <div><div>With leg-identity guide</div><canvas data-group="comparison" data-index="1" aria-label="New labeled-guide redraw"></canvas></div>
+    <div><div>Independent legs, composited</div><canvas data-group="comparison" data-index="2" aria-label="Two generated leg layers composited in the known order"></canvas></div>
+  </div>
+  <div data-parts class="two-columns" hidden>
+    <div><div>A: folded leg guide</div><canvas data-group="parts" data-index="0" aria-label="Folded leg geometry"></canvas></div>
+    <div><div>A: generated leg</div><canvas data-group="parts" data-index="1" aria-label="Generated complete folded leg"></canvas></div>
+    <div><div>B: standing leg guide</div><canvas data-group="parts" data-index="2" aria-label="Standing leg geometry"></canvas></div>
+    <div><div>B: generated leg</div><canvas data-group="parts" data-index="3" aria-label="Generated complete standing leg"></canvas></div>
+  </div>
+  <div data-opposite class="two-columns" hidden>
+    <div><div>Pose 4 guide</div><canvas data-group="opposite" data-index="0" aria-label="Opposite crossing guide"></canvas></div>
+    <div><div>Labeled-guide redraw</div><canvas data-group="opposite" data-index="1" aria-label="Opposite crossing redraw"></canvas></div>
+  </div>
+  <div class="text-small" data-note>Pose 10: A folds in front of standing B · Fixed registration; no fitting after generation</div>
+  <div data-error role="alert" hidden></div>
+</div>
+<style>
+#ownership-trial-review .three-columns {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+#ownership-trial-review .two-columns {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:12px}
+#ownership-trial-review canvas {display:block;width:100%;height:auto;image-rendering:pixelated}
+#ownership-trial-review[data-native="true"] canvas {width:48px;margin:12px auto}
+#ownership-trial-review [hidden] {display:none!important}
+#ownership-trial-review [data-note] {margin-top:12px}
+@media(max-width:560px){#ownership-trial-review .three-columns,#ownership-trial-review .two-columns {grid-template-columns:1fr} #ownership-trial-review canvas {max-width:340px;margin:auto}}
+</style>
+<script>
+(async()=>{
+const root=document.getElementById('ownership-trial-review'),$=s=>root.querySelector(s),all=s=>Array.from(root.querySelectorAll(s));
+const data=<!-- OWNERSHIP_TRIAL_DATA -->;
+const load=url=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Review image failed to load'));im.src=url;});
+try{
+const images={};for(const [group,urls]of Object.entries(data))images[group]=await Promise.all(urls.map(load));
+function draw(){const view=$('[data-view]').value,detail=$('[data-detail]').value;root.dataset.native=String(detail==='native'&&view!=='parts');$('[data-detail-label]').hidden=view==='parts';
+ for(const group of ['comparison','parts','opposite'])$('[data-'+group+']').hidden=group!==view;
+ for(const canvas of all('canvas')){if(canvas.dataset.group!==view)continue;const image=images[view][Number(canvas.dataset.index)];const small=detail==='native'&&view!=='parts';canvas.width=canvas.height=small?48:256;const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;
+  if(view==='parts')ctx.drawImage(image,0,0,256,256);else if(detail==='legs')ctx.drawImage(image,88,136,96,96,0,0,256,256);else ctx.drawImage(image,0,0,canvas.width,canvas.height);
+ }
+ $('[data-note]').textContent=view==='parts'?'Both legs use the same 96px source crop · Placement changes are retained, not corrected':view==='opposite'?'Pose 4: A stands in front of folded B · One follow-up request':'Pose 10: A folds in front of standing B · Fixed registration; no fitting after generation';
+}
+for(const control of all('select'))control.onchange=draw;draw();
+}catch(error){$('[data-error]').hidden=false;$('[data-error]').textContent=error.message;}
+})();
+</script>

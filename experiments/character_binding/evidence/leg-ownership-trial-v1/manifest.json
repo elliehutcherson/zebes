@@ -1,0 +1,318 @@
+{
+  "experiment": "pose 10 combined leg IDs versus independently completed legs",
+  "authorization": "user explicitly approved this three-image experiment",
+  "provider_calls": 3,
+  "model_id": null,
+  "identity_sha256": "d5f638c33fc13f59d7abc234f1662ecba598dfc10fcbb1060d3db8433c0ef522",
+  "source_ownership": {
+    "source_guide_config": {
+      "version": 2,
+      "status": "user approved the views for generation and requested stouter legs and boots",
+      "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+      "camera_yaw_degrees": 35,
+      "camera_elevation_degrees": 8,
+      "canvas": [
+        256,
+        256
+      ],
+      "generation_canvas": [
+        1024,
+        1024
+      ],
+      "ground_y": 214,
+      "support": [
+        "near",
+        "near",
+        "near",
+        "near",
+        "near",
+        "flight",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "flight"
+      ],
+      "sole_directions_degrees": {
+        "near": [
+          -25,
+          0,
+          0,
+          0,
+          15,
+          65,
+          100,
+          115,
+          125,
+          115,
+          70,
+          -20
+        ],
+        "far": [
+          100,
+          115,
+          125,
+          115,
+          70,
+          -20,
+          -25,
+          0,
+          0,
+          0,
+          15,
+          65
+        ]
+      },
+      "proportions": {
+        "thigh_width": 15,
+        "calf_width": 13,
+        "shaft_width": 0.76,
+        "shaft_depth": 0.72,
+        "foot_depth": 0.78,
+        "toe_box_height": 0.48,
+        "sole_thickness": 0.13
+      },
+      "near": {
+        "suffix": "l",
+        "sole_heel": [
+          175,
+          197
+        ],
+        "sole_toe": [
+          195,
+          181
+        ]
+      },
+      "far": {
+        "suffix": "r",
+        "sole_heel": [
+          63,
+          176
+        ],
+        "sole_toe": [
+          68,
+          194
+        ]
+      },
+      "notes": "The user reviewed v1 and approved it as generator input subject to thicker, stouter legs and boots. V2 widens thigh and calf silhouettes and increases boot shaft width, depth, toe-box height and sole thickness. Camera, foot lengths, phase directions, heel travel and support registration remain as reviewed. The brown geometry image guides pose and volume; the actual mouse supplies style and identity. Surface-ID colors are only a human inspection view, not a depth map or a generation input."
+    },
+    "frames": [
+      {
+        "name": "reference_10",
+        "draw_order": [
+          "far_leg",
+          "far_boot",
+          "near_leg",
+          "near_boot"
+        ],
+        "paths": {
+          "far": [
+            [
+              141.0,
+              149.0
+            ],
+            [
+              145.14273269133324,
+              173.85639614799945
+            ],
+            [
+              149.21903901738338,
+              198.08846871376966
+            ],
+            [
+              146.66142955820536,
+              214.0
+            ],
+            [
+              165.34297125047476,
+              214.0
+            ]
+          ],
+          "near": [
+            [
+              141.0,
+              149.0
+            ],
+            [
+              154.8091089711108,
+              171.09457435377726
+            ],
+            [
+              139.59787379875067,
+              169.14475519694062
+            ],
+            [
+              127.63860278191845,
+              154.12777062618252
+            ],
+            [
+              116.814293842184,
+              177.34057605717655
+            ]
+          ]
+        },
+        "near": "A",
+        "far": "B",
+        "status": "diagnostic; generation inputs still to be selected"
+      },
+      {
+        "name": "reference_04",
+        "draw_order": [
+          "far_leg",
+          "far_boot",
+          "near_leg",
+          "near_boot"
+        ],
+        "paths": {
+          "far": [
+            [
+              141.0,
+              152.0
+            ],
+            [
+              152.04728717688863,
+              169.95184166244402
+            ],
+            [
+              121.2741238517765,
+              181.85657450671573
+            ],
+            [
+              112.55113130057805,
+              170.90331118758724
+            ],
+            [
+              104.65597062395476,
+              187.83453789714082
+            ]
+          ],
+          "near": [
+            [
+              141.0,
+              152.0
+            ],
+            [
+              141.46030363237037,
+              177.77700341274016
+            ],
+            [
+              133.65456112885047,
+              192.18520263224462
+            ],
+            [
+              130.14806441937876,
+              214.0
+            ],
+            [
+              155.76056136911015,
+              214.0
+            ]
+          ]
+        },
+        "near": "A",
+        "far": "B",
+        "status": "diagnostic; generation inputs still to be selected"
+      }
+    ],
+    "provider_calls": 0
+  },
+  "isolated_crop": [
+    88,
+    136,
+    184,
+    232
+  ],
+  "registration": "fixed crop before generation, inverse whole-canvas scaling only",
+  "composite_order": [
+    "far_arm",
+    "far",
+    "near",
+    "tail",
+    "body",
+    "near_arm",
+    "head"
+  ],
+  "entries": [
+    {
+      "name": "combined",
+      "status": "complete",
+      "prompt": "Use case: precise-object-edit\nRender finished pixel-art clothing matching the original mouse reference: thick dark brown trousers and stout rounded brown leather boots with cuffs, dark soles, restrained fabric folds and leather shading. Match the original pixel clusters, palette, texture and outlines. Keep the substantial proportions of the geometry. Round crude cuboid corners rather than simply texturing boxes.\nReturn one image on the same plain white 1024 x 1024 canvas. Preserve the guide's placement and scale; do not center, enlarge, crop or rearrange it. No text, labels, arrows, colored guide lines, checkerboard, ground shadow or scenery in the output.\n\nImage 1 is the exact whole-mouse EDIT TARGET with rough lower-body geometry. Image 2 supplies character APPEARANCE ONLY. Image 3 is a magnified leg-identity cutaway: ORANGE A and BLUE B are labels, not costume colors. Image 4 is the editable-region guide: white allows redraw, black means preserve.\nRedraw only the legs and boots, keeping the original upper character, coat, scarf, belt, hands, ears, face and tail unchanged. Crucially preserve WHICH KNEE CONNECTS TO WHICH BOOT:\nA is the NEAR folded leg. Its thigh travels down-right to the forward knee, then its calf bends BACK LEFT to the HIGH boot. This folded knee/calf lies IN FRONT of the standing leg.\nB is the FAR standing leg, behind A. B continues almost vertically down to the LOW planted boot on screen-right. Do not connect A's projecting knee to B's low boot. Preserve a readable overlap edge where A's horizontal folded calf crosses B's vertical leg. Draw both legs in the original trouser colors, with natural shading, not orange/blue.\nThe high boot belongs to A and the low boot belongs to B. Keep the high/low positions and the crossed topology; do not substitute a generic running stride. The diagnostic cutaway includes portions hidden by the coat, which should remain hidden in this full-character output.\n",
+      "reference_paths": [
+        "edit-input.png",
+        "../identity.png",
+        "ownership-guide.png",
+        "region-guide.png"
+      ],
+      "input_sha256": "de8f686af34e3148d80085403362fd3b2704889fce9e1d4219bd8d7ee3d04778",
+      "crop": null,
+      "raw_sha256": "a0931d03161c9d047f738e1091cb03900475dab8e9af1d4d0ec4133a84b26c07",
+      "raw_source": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-1266c42b-ee4d-41f8-b7bd-e75e2ec84d88.png",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ]
+    },
+    {
+      "name": "near",
+      "status": "complete",
+      "prompt": "Use case: precise-object-edit\nRender finished pixel-art clothing matching the original mouse reference: thick dark brown trousers and stout rounded brown leather boots with cuffs, dark soles, restrained fabric folds and leather shading. Match the original pixel clusters, palette, texture and outlines. Keep the substantial proportions of the geometry. Round crude cuboid corners rather than simply texturing boxes.\nReturn one image on the same plain white 1024 x 1024 canvas. Preserve the guide's placement and scale; do not center, enlarge, crop or rearrange it. No text, labels, arrows, colored guide lines, checkerboard, ground shadow or scenery in the output.\n\nImage 1 is the EDIT TARGET: exactly ONE COMPLETE FOLDED TROUSER LEG AND BOOT, isolated on white. Image 2 is an appearance reference for materials and style only. Do not draw that character or copy its full-body pose.\nKeep this ONE leg folded in the exact triangular arrangement of Image 1. Starting at the hip attachment at the top, the thigh goes DOWN-RIGHT to its projecting knee. The calf doubles BACK LEFT from that knee into the high boot. The knee, folded calf and high boot all belong to this one leg. Preserve the negative space inside the bend where present. Do not unfold or straighten the leg. Draw its complete hidden surfaces too, because a separate coat layer will cover them later.\n\nOutput only the single connected trouser-leg/boot asset. Exactly one hip attachment, one knee, one calf and one boot. No torso, face, mouse body, arms, tail, skirt, cape, second leg or second boot. Preserve the full white canvas and the existing asset position, size and boot direction. Finish the exposed fabric at the top as an attachment area, not a waist or second limb.\n",
+      "reference_paths": [
+        "edit-input.png",
+        "../identity.png"
+      ],
+      "input_sha256": "b3d50deb9a553c77673bd2892fc424b80dc51aa9edeb21a826f5e4fc4c7540a9",
+      "crop": [
+        88,
+        136,
+        184,
+        232
+      ],
+      "raw_sha256": "29b6b77154417fcab29c445c5aa17815302e85c83fde000faf1559dbc451fc99",
+      "raw_source": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-9cb42d9d-f6bd-42ea-bd9b-73de7bec574e.png",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ]
+    },
+    {
+      "name": "far",
+      "status": "complete",
+      "prompt": "Use case: precise-object-edit\nRender finished pixel-art clothing matching the original mouse reference: thick dark brown trousers and stout rounded brown leather boots with cuffs, dark soles, restrained fabric folds and leather shading. Match the original pixel clusters, palette, texture and outlines. Keep the substantial proportions of the geometry. Round crude cuboid corners rather than simply texturing boxes.\nReturn one image on the same plain white 1024 x 1024 canvas. Preserve the guide's placement and scale; do not center, enlarge, crop or rearrange it. No text, labels, arrows, colored guide lines, checkerboard, ground shadow or scenery in the output.\n\nImage 1 is the EDIT TARGET: exactly ONE COMPLETE STANDING TROUSER LEG AND BOOT, isolated on white. Image 2 is an appearance reference for materials and style only. Do not draw that character or copy its full-body pose.\nKeep this ONE leg nearly vertical in the exact pose of Image 1: hip attachment at top, subtle knee bend, calf continuing down into the low boot with its sole flat and toe pointing right. Do not add a second projecting knee or a folded leg. Draw its complete hidden surfaces too, because another leg and a separate coat layer will overlap it later.\n\nOutput only the single connected trouser-leg/boot asset. Exactly one hip attachment, one knee, one calf and one boot. No torso, face, mouse body, arms, tail, skirt, cape, second leg or second boot. Preserve the full white canvas and the existing asset position, size and boot direction. Finish the exposed fabric at the top as an attachment area, not a waist or second limb.\n",
+      "reference_paths": [
+        "edit-input.png",
+        "../identity.png"
+      ],
+      "input_sha256": "2b784584a7cbced08ce3a97922b388b3a031a60e9d362ddd0f7119f5d07dc2d7",
+      "crop": [
+        88,
+        136,
+        184,
+        232
+      ],
+      "raw_sha256": "76f0c8c59cd7fc28d6dfc5bde518cabc79a650445bedd76eb9387bc56c7f8be3",
+      "raw_source": "/Users/ellie/.codex/generated_images/01a0835f-3844-7cd3-90bb-4a63fb804b6f/exec-08f3e608-0672-4c68-a417-aeb89f86d2e2.png",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        255,
+        255
+      ]
+    }
+  ],
+  "composition": {
+    "status": "complete",
+    "post_generation_fitting": false,
+    "method": "far leg, then near leg, then original coat and remaining parts; see explicit order"
+  }
+}
