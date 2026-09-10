@@ -85,6 +85,24 @@ Do not reinterpret a clean render or passing code tests as accepted animation.
 
 ## Next
 
+The user identified a knee-to-boot assignment error in stout redraw pose 10:
+the forward knee of the folded near leg is interpreted as belonging to the
+far leg that reaches the planted boot. The visual finish is the best result
+so far in the user's assessment, but the pose is not anatomically correct.
+[Leg ownership diagnostic](../experiments/character_binding/evidence/leg-ownership-review-v1/reference_10/ownership-review.png)
+shows both complete chains and their overlap. Draw order is correct; the
+flattened brown guide merges both legs, and its surface-ID view labels both
+trouser legs yellow. The previous high-boot/low-boot check missed this error.
+
+Next proposed comparison is focused on pose 10: one redraw with an explicit
+leg-identity/occlusion guide, versus two independently generated complete leg
+layers composited far then near. Check each knee continues into its own calf
+and boot, then verify the opposite crossing in pose 4 before scaling to twelve
+frames. Separate-leg completion is the favored E1 direction. Retain the current
+art style and stoutness; do not advance to temporal polish or training merely
+because this crossing failed. New actual input images must still be shown
+before generation. No generation used the new ownership diagnostics.
+
 The user approved the boot view guides for generation and requested stouter
 legs and boots. That amendment is implemented in
 [`boot-view-guide-v2.json`](../experiments/character_binding/inputs/boot-view-guide-v2.json).
@@ -102,8 +120,8 @@ The brown geometry, original character and editing-region guide were the model
 inputs. Colorful surface labels were only for human inspection. The user's
 approval covers the view directions with the requested stout adjustment;
 do not ask them to approve that same change again. This is still four-pose
-evidence, not a twelve-frame result. Next work is consistent whole-leg coverage
-and registration across the full cycle; keep strict/raw/broader evidence distinct.
+evidence, not a twelve-frame result. Correct leg ownership before full-cycle
+coverage and registration; keep strict/raw/broader evidence distinct.
 
 The [connection experiment](../experiments/character_binding/evidence/run-gap-control-v1/review.html)
 is complete: twelve local ComfyUI requests, comparing blank/blur/shaped inputs

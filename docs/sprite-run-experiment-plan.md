@@ -57,6 +57,28 @@ mask can also clip a newly drawn boot. Keep the later broader composite clearly
 separate from the actual mask sent to the provider. A full cycle is not yet
 generated or accepted.
 
+**Current defect: leg ownership at the crossing.** The user identified that
+pose 10 assigns the foreground folded knee to the standing leg. Keeping one
+boot high and one low did not establish correct anatomy. Both trouser legs
+share the same brown guide colors and yellow surface label; the correct draw
+order becomes ambiguous in the flattened picture. The
+[complete-leg diagnostic](../experiments/character_binding/evidence/leg-ownership-review-v1/README.md)
+separates the two chains and shows the intended overlap.
+
+Next is an E1 refinement on pose 10: compare one whole-frame redraw with an
+explicit A/B leg-identity and occlusion guide against two independently
+completed leg layers. Compose the standing far leg, folded near leg and coat
+in known order. The latter is favored because the compositor owns the overlap;
+the model still must follow each isolated leg's geometry. The labeled guide is
+only an ordinary image reference, not a trained semantic ControlNet signal.
+Use one candidate per approach/part initially (three generated images total),
+after review of their actual inputs. Verify knee→calf→boot assignment and
+registration in the isolated layers and final composite. Then check pose 4,
+where the folded/standing roles reverse, before expanding to the full cycle.
+Keep the successful style and stoutness. E2 remains a fallback for deformation
+of valid parts, E4 for stronger local conditioning if needed, and E5 for later
+sequence consistency; none should obscure a known incorrect limb connection.
+
 Use an existing authoring rig for the independent comparison rather than
 expanding the custom editor. Retain Zebes' editable pose representation and
 import sampled joints through an adapter. A template must still be fitted to

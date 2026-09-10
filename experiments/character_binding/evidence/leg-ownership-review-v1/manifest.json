@@ -1,0 +1,213 @@
+{
+  "source_guide_config": {
+    "version": 2,
+    "status": "user approved the views for generation and requested stouter legs and boots",
+    "document_sha256": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+    "camera_yaw_degrees": 35,
+    "camera_elevation_degrees": 8,
+    "canvas": [
+      256,
+      256
+    ],
+    "generation_canvas": [
+      1024,
+      1024
+    ],
+    "ground_y": 214,
+    "support": [
+      "near",
+      "near",
+      "near",
+      "near",
+      "near",
+      "flight",
+      "far",
+      "far",
+      "far",
+      "far",
+      "far",
+      "flight"
+    ],
+    "sole_directions_degrees": {
+      "near": [
+        -25,
+        0,
+        0,
+        0,
+        15,
+        65,
+        100,
+        115,
+        125,
+        115,
+        70,
+        -20
+      ],
+      "far": [
+        100,
+        115,
+        125,
+        115,
+        70,
+        -20,
+        -25,
+        0,
+        0,
+        0,
+        15,
+        65
+      ]
+    },
+    "proportions": {
+      "thigh_width": 15,
+      "calf_width": 13,
+      "shaft_width": 0.76,
+      "shaft_depth": 0.72,
+      "foot_depth": 0.78,
+      "toe_box_height": 0.48,
+      "sole_thickness": 0.13
+    },
+    "near": {
+      "suffix": "l",
+      "sole_heel": [
+        175,
+        197
+      ],
+      "sole_toe": [
+        195,
+        181
+      ]
+    },
+    "far": {
+      "suffix": "r",
+      "sole_heel": [
+        63,
+        176
+      ],
+      "sole_toe": [
+        68,
+        194
+      ]
+    },
+    "notes": "The user reviewed v1 and approved it as generator input subject to thicker, stouter legs and boots. V2 widens thigh and calf silhouettes and increases boot shaft width, depth, toe-box height and sole thickness. Camera, foot lengths, phase directions, heel travel and support registration remain as reviewed. The brown geometry image guides pose and volume; the actual mouse supplies style and identity. Surface-ID colors are only a human inspection view, not a depth map or a generation input."
+  },
+  "frames": [
+    {
+      "name": "reference_10",
+      "draw_order": [
+        "far_leg",
+        "far_boot",
+        "near_leg",
+        "near_boot"
+      ],
+      "paths": {
+        "far": [
+          [
+            141.0,
+            149.0
+          ],
+          [
+            145.14273269133324,
+            173.85639614799945
+          ],
+          [
+            149.21903901738338,
+            198.08846871376966
+          ],
+          [
+            146.66142955820536,
+            214.0
+          ],
+          [
+            165.34297125047476,
+            214.0
+          ]
+        ],
+        "near": [
+          [
+            141.0,
+            149.0
+          ],
+          [
+            154.8091089711108,
+            171.09457435377726
+          ],
+          [
+            139.59787379875067,
+            169.14475519694062
+          ],
+          [
+            127.63860278191845,
+            154.12777062618252
+          ],
+          [
+            116.814293842184,
+            177.34057605717655
+          ]
+        ]
+      },
+      "near": "A",
+      "far": "B",
+      "status": "diagnostic; generation inputs still to be selected"
+    },
+    {
+      "name": "reference_04",
+      "draw_order": [
+        "far_leg",
+        "far_boot",
+        "near_leg",
+        "near_boot"
+      ],
+      "paths": {
+        "far": [
+          [
+            141.0,
+            152.0
+          ],
+          [
+            152.04728717688863,
+            169.95184166244402
+          ],
+          [
+            121.2741238517765,
+            181.85657450671573
+          ],
+          [
+            112.55113130057805,
+            170.90331118758724
+          ],
+          [
+            104.65597062395476,
+            187.83453789714082
+          ]
+        ],
+        "near": [
+          [
+            141.0,
+            152.0
+          ],
+          [
+            141.46030363237037,
+            177.77700341274016
+          ],
+          [
+            133.65456112885047,
+            192.18520263224462
+          ],
+          [
+            130.14806441937876,
+            214.0
+          ],
+          [
+            155.76056136911015,
+            214.0
+          ]
+        ]
+      },
+      "near": "A",
+      "far": "B",
+      "status": "diagnostic; generation inputs still to be selected"
+    }
+  ],
+  "provider_calls": 0
+}
