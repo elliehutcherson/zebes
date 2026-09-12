@@ -1,8 +1,8 @@
 # Game runtime plan
 
 **Status: Milestones 1, 2, and 3 are complete. Runtime expansion is parked as of
-2026-09-08 while the [twelve-frame mouse run](sprite-run-experiment-plan.md) is
-repaired.** Earlier milestone gates below record verification history; they do
+2026-09-08 while character animation is completed. The current work is the
+[run from the accepted storybook 3D mouse](mouse-3d-plan.md).** Earlier milestone gates below record verification history; they do
 not define the current animation work sequence.
 
 Design for the Zebes game runtime: the executable that loads a shipped level
@@ -451,8 +451,8 @@ collision stability were accepted live on 2026-08-29.
 **Post-M3 — Character animation.** Frame-set processing, retained recipes,
 transactional bundles and headless curation are implemented. The remaining
 problem is a convincing run animation. Follow
-[`sprite-run-experiment-plan.md`](sprite-run-experiment-plan.md), starting with
-source calibration and user review of the actual inputs before generation.
+[the 3D mouse plan of record](mouse-3d-plan.md), starting from the accepted
+saved Blender model and authoring its run before production import.
 
 **M4 — The thread split.** `GameEngine` moves onto its own `EngineRunner`
 with the D4 slots carrying input and frames; `AssetEngine` owns level

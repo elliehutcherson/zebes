@@ -1,0 +1,9 @@
+{
+  "model": "tencent/Hunyuan3D-2",
+  "revision": "9cd649ba6913f7a852e3286bad86bfa9a2d83dcf",
+  "subfolder": "hunyuan3d-dit-v2-0",
+  "sha256": {
+    "config.yaml": "70bbfcdd18b9686ee56fe011c3a059b222eae1f5450f904577c50f0e107a8a53",
+    "model.fp16.safetensors": "360bc281fc956d4acac0c3d36d5ec0ebf8cdddbf4b8892e894d12419388d479b"
+  }
+}

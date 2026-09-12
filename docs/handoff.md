@@ -1,260 +1,77 @@
 # Active handoff
 
-Updated 2026-09-10. **Get the twelve-frame green-coated mouse run working.**
-This is the project's current priority. Old track sequencing and art/experiment
-gates are suspended; they are not prerequisites for this work.
+Updated 2026-09-12. **The storybook 3D mouse is an accepted success.**
+The user said, “You did it. This is clearly the way. This is fantastic,”
+requested that this become the plan of record, and asked for a running
+animation from this model.
 
-The accumulated work was pushed to `main` on 2026-09-09 at `7695426`.
-The longer-term direction now explicitly includes a defined sprite resolution
-and removable clothing/equipment bound to a complete underlying character.
-See the future-direction section of the experiment plan; it does not displace
-the current run-animation work.
+## Plan of record and accepted master
 
-The user approved [the experiment plan](sprite-run-experiment-plan.md), with one
-explicit requirement: show the actual source artwork, skeleton alignment,
-twelve posed frames and any conditioning maps before sending generation
-requests. On 2026-09-08 the user accepted the current tracing and binding as
-a starting point for experiments, with foot directions recorded as a known
-issue. The approved pilot uses those poses unchanged.
+Read [Mouse 3D authoring and run animation](mouse-3d-plan.md). It is the active
+work list. The old layered-2D, painted-part and procedural-mouse plans are
+superseded; do not resume their approval gates or regenerate this character.
 
-**The first generation experiment is complete:** four pilot requests plus one
-fresh twelve-frame batch. The
-[comparison](../experiments/character_binding/evidence/pose-cleanup-cycle-v2/review.html)
-shows the original puppet, whole redraw and protected-pixel composite in
-synchronized playback. The white-matte batch follows the broad poses and
-closes more gaps, but frames 5, 10 and 11 still need leg/boot work. Exact
-identifying pixels vary in the whole redraw; masking preserves them but
-retains more seams. [Findings and provenance](history/posed-mouse-cleanup-2026-09-08.md).
+- [Accepted Blender master](../experiments/mouse_3d/storybook-neutral-v1/result/neutral-mouse.blend)
+- [Textured GLB](../experiments/mouse_3d/storybook-neutral-v1/result/neutral-mouse.glb)
+- [Acceptance decision and exact hashes](../experiments/mouse_3d/storybook-neutral-v1/acceptance.json)
+- [Neutral model review](../experiments/mouse_3d/storybook-neutral-v1/result/review.html)
+- [Asset inputs, raw geometry, source snapshots and evidence](../experiments/mouse_3d/storybook-neutral-v1/README.md)
+- [Implementation and reproduction](../experiments/storybook_mouse/README.md)
+- [Success record](history/storybook-3d-success-2026-09-12.md)
 
-## Current work
+The master contains `Mouse_Neutral`, 80,000 triangles, a packed 2048px color
+texture and the 20-bone `Mouse_Study_Rig`. It has no linked external model
+libraries; the GLB embeds its texture. The accepted Blender SHA-256 is:
 
-The existing puppet's source skeleton and motion tracks disagreed. Arm sides
-were mapped inconsistently with the leg phase. The frame nearest the source's
-arms had the wrong leg phase. Centering the clip could not fix this:
-`rebase_frames` only translates joint centers, while `anchor_frame` only chooses
-the opening frame.
+```text
+32f9bb3c460bc09086cac0afcfb29e26941e2bea5bb8e726459e6caa223672c9
+```
 
-A new `retarget_frames` command makes the selected frame exactly the source
-skeleton and transfers bone-angle changes through the remaining frames.
-Rigid bones retain source lengths. Explicitly stretchable bones retain relative
-length changes. Invalid/collapsed or ambiguous skeletons fail without partial
-changes. The editor distinguishes this operation from merely centering a clip
-and no longer calls a 1.00 bone-length ratio a matching pose.
+All source/model files needed to continue are in this repository. Hunyuan
+weights and the remote temporary generation workspace are unnecessary for
+animating the saved model.
 
-The current candidate is
-[`mouse_run_reference_v2.json`](../experiments/character_binding/puppet_documents/mouse_run_reference_v2.json).
-It uses the unchanged
-[`interactive-run-source-v1.png`](../experiments/character_binding/inputs/interactive-run-source-v1.png),
-23 source joints, corrected near/far arm assignments, complete arm meshes,
-separate rigid boots, two legs, head, body and an independently bound tail.
-There are twelve frames, previewing at 12 fps. The source drawing is the bind
-pose, not an instruction to force one of the supplied human poses to match it.
-The older `test-puppet.json` and `mouse_interactive_run_v1.json` remain comparison
-inputs.
+## Next conversation: make the run
 
-The user rejected v1's inherited motion and supplied the actual twelve-pose
-sheet. That unchanged image is now
-[`run-pose-reference-12.png`](../experiments/character_binding/inputs/run-pose-reference-12.png).
-[`run-pose-trace-v1.json`](../experiments/character_binding/inputs/run-pose-trace-v1.json)
-records manual joint-center traces in the twelve original cells, in order.
-The old `rig-bench.json` and v1 motion are no longer pose authorities. In
-particular, the old far thigh jumped 93 degrees from frame 7 to 8, and pose 10
-did not retain the supplied folded leg.
+This is an accepted milestone and a workstream change; follow `AGENTS.md` and
+start a fresh conversation for animation. The user has requested the run.
+Do not ask for another approval of the model or plan.
 
-`scripts/retarget_run_reference.py` now takes limb directions directly from
-that trace, keeps the torso/head artwork rigid, and transfers them to the
-mouse. Both legs use one fixed reference-to-mouse scale, preserving the traced
-knee/ankle positions relative to the hips and the drawing's foreshortening. The
-four thigh/shin bones explicitly scale their bind artwork to these projections.
-The mean of the two bind leg lengths sets the shared scale once; it is never
-recomputed per frame. Equal fixed segment lengths were tried and discarded
-because they changed the foot heights. A second pass moves
-the whole body to the annotated support boot at a fixed ground row; poses 6
-and 12 are authored flight phases. It never seats every frame on its bounds.
+1. Verify the master hash, load the saved `.blend`, and save a working copy
+   in a new run directory. Preserve the accepted bundle unchanged.
+2. Inspect the rig and actual paw contacts. The character faces approximately
+   -Y, Z is up; the older procedural mouse used different axes. Set one
+   orthographic game camera, fixed scale/origin and common ground.
+3. Author run keys and a closed cycle in 3D. Preserve bone lengths and limb
+   ownership; use explicit stance contacts and recovery trajectories. Make
+   only the rig/weight changes that actual motion defects require.
+4. Render a 512px master sequence and 96/128px previews with full playback,
+   pause/scrub and useful contact/rig diagnostics. Compare full sampling and
+   a 12-sample version of the same action.
+5. Validate geometry/contact/loop/export behavior and get the visible run
+   verdict before production import.
 
-Source-space labels in this candidate: `_l` is the near arm (reaching toward
-screen-left in the source) and near leg (reaching toward screen-right);
-`_r` is the far pair. Review part labels and colors rather than guessing from
-where a limb happens to point.
+The current action `Neutral_and_two_body_checks` has neutral/reach/step keys
+at frames 1/13/25, 12fps. It is not a run. Hands, tufts, facial controls and
+clothing remain refinement work, but they do not block trying locomotion.
+Keep the accepted appearance; do not restart neutral-art exploration.
 
-The candidate's poses are accepted for experimentation, not as final animation.
-Flat dark fills under the coat are rough completion, not approved final artwork.
-Joint placement hidden by clothing is an authored estimate. Foot directions
-need later attention; alternative pose sets remain available if useful.
-Do not reinterpret a clean render or passing code tests as accepted animation.
+## Verification and tools
 
-## Next
+The ten focused input/artifact tests pass. They check input/raw hashes,
+bounded watertight cleanup, nonempty packed texture, mesh/UV/skin data,
+constant bone lengths, connected chains, fixed head/support paw, ground and
+transparent sprite margins. The user's verdict establishes artistic acceptance.
 
-**Current direction: independently rendered layers**, selected by the user on
-2026-09-10. They rejected the isolated folded leg's shin angle while liking the
-fabric folds and boot finish. That generated part is an appearance reference,
-not accepted geometry. Do not revert to whole-character rendering on the basis
-of the earlier one-frame comparison.
+```bash
+build/tileset-venv/bin/python -m unittest tests.storybook_shape_test tests.storybook_neutral_asset_test
+git diff --check
+```
 
-**Latest correction from the user:** the original guide already shows an
-almost-horizontal calf and downward-pointing toe. The generated leg instead
-curves downward into a boot whose toe turns right. V3's small cuff-axis change
-does not fix this output distortion. Its 29.5° measurement describes guide
-axes; it does not establish the cause of the generated anatomy. Keep v3 as a
-separate unsubmitted diagnostic, not the next test's pose authority.
+Derry has Blender 4.0.2 and the RTX 3090. Eevee works with `DISPLAY=:0`.
+Its distribution Blender requires NumPy on its Python path for GLB export;
+the implementation README records the existing runtime/dependency paths.
+Use a new remote run directory and keep the working ComfyUI installation intact.
 
-**Next experiment started; inputs prepared, zero requests:**
-[Isolated-leg pose preservation](../experiments/character_binding/evidence/leg-pose-preservation-v1/README.md).
-The user asked to start and asked about a fresh conversation. The exact new
-inputs have been shown for review. Use the byte-identical **v2** pose-10 near
-leg. Prepare three results: one built-in repaint with a contour/landmark
-reference, and two local SDXL+Canny results at denoise 0.65/0.85. The latter
-use actual image edges, not a skeleton or depth surrogate. Keep original
-appearance, stoutness, crop and sole direction fixed. Inspect raw calf shape,
-actual ankle/heel/toe positions and foot orientation before judging finish.
-No fitting or clipping may conceal drift. The prompt, graphs, hashes and
-evaluation plan are retained in that directory. The built-in call and dedicated
-`scripts/run_comfy_leg_pose_trial.py` runner are ready. The latter verifies
-input hashes and uploads, resumes known jobs and refuses ambiguous resubmission.
-No new model requests or uploads have run. A fresh conversation can continue
-from this paragraph and the linked plan.
-
-The user identified a knee-to-boot assignment error in stout redraw pose 10:
-the forward knee of the folded near leg is interpreted as belonging to the
-far leg that reaches the planted boot. The visual finish is the best result
-so far in the user's assessment, but the pose is not anatomically correct.
-[Leg ownership diagnostic](../experiments/character_binding/evidence/leg-ownership-review-v1/reference_10/ownership-review.png)
-shows both complete chains and their overlap. Draw order is correct; the
-flattened brown guide merges both legs, and its surface-ID view labels both
-trouser legs yellow. The previous high-boot/low-boot check missed this error.
-
-That comparison has now run: three pose-10 image requests plus the planned
-one-image pose-4 follow-up. [Results](../experiments/character_binding/evidence/leg-ownership-trial-v1/review.html).
-The labeled-guide package makes pose 10's folded calf crossing more readable.
-Independent legs establish ownership structurally, but the folded boot ends
-about 11 working pixels lower than its guide after the fixed crop is inverted;
-the standing leg is much closer. No later fitting hides this difference.
-The combined route was the more promising immediate visual candidate in that
-comparison; the user's subsequent choice is the independent route above.
-It needs part-to-rig calibration and boot-view checks. Pose 4 has
-only one sample and partly hidden connections. Neither route is a validated
-twelve-frame result. [Prompts, registration and findings](../experiments/character_binding/evidence/leg-ownership-trial-v1/README.md).
-Keep the current style/stoutness and distinguish correct ownership from exact
-pose following. New actual generation setups still need visible input review.
-
-The user approved the boot view guides for generation and requested stouter
-legs and boots. That amendment is implemented in
-[`boot-view-guide-v2.json`](../experiments/character_binding/inputs/boot-view-guide-v2.json).
-Four built-in image-generation redraws (poses 1/7/10/12) are complete:
-[review and retained evidence](../experiments/character_binding/evidence/stout-boot-redraw-v1/review.html).
-They produce rounded leather boots and shaded stout trousers, preserve the
-broad contact/tucked/airborne states, and expose local registration changes.
-The airborne result's lowest boot is about 11 working pixels higher than its
-guide. All raw outputs are 1254×1254 and uniformly mapped to the fixed canvas.
-The original mask clips some newly drawn boot shapes; the review includes a
-separately labeled broader compositing comparison that recovers the tucked boot.
-[Method, prompts and limitations](../experiments/character_binding/evidence/stout-boot-redraw-v1/README.md).
-
-The brown geometry, original character and editing-region guide were the stout
-pilot's model inputs. Boot-face surface labels were only for human inspection;
-the newer A/B leg-identity diagrams were supplied in the ownership experiment.
-The user's
-approval covers the view directions with the requested stout adjustment;
-do not ask them to approve that same change again. This is still four-pose
-evidence, not a twelve-frame result. Correct leg ownership before full-cycle
-coverage and registration; keep strict/raw/broader evidence distinct.
-
-The [connection experiment](../experiments/character_binding/evidence/run-gap-control-v1/review.html)
-is complete: twelve local ComfyUI requests, comparing blank/blur/shaped inputs
-for poses 5 and 10 at denoise 0.35/0.60. The prefill supplies most of the useful
-connection. Generated repairs change only 3–11 pixels beyond their input at
-48px and retain rough seams. The protected-boot control cannot fix perspective,
-so no complete-cycle batch was run. All outputs are 1024×1024, with original
-pixels restored exactly outside the mask. Requests totalled about 148 seconds
-including loading and polling. [Results and provenance](../experiments/character_binding/evidence/run-gap-control-v1/README.md).
-
-The same review's **New boot guides** view now shows twelve unsubmitted
-lower-body inputs. A small 3D boot proxy uses a fixed camera and changing sole
-directions, with a connected 2D calf placeholder. Pose 1 exposes the near sole
-and hides the far sole; support poses have flatter soles. Full-leg/boot masks
-and knee/cuff/sole anchors can be overlaid. These are boxy geometry guides,
-not final art or a validated replacement rig.
-[Configuration and reproduction](../experiments/character_binding/evidence/boot-view-guides-v1/README.md).
-That earlier view review is now complete with the stout amendment described
-above. The original mouse puppet document is unchanged.
-
-The [earlier input review](../experiments/character_binding/evidence/run-gap-inputs-v1/review.html)
-retains the official Spineboy run benchmark and exact connection-test inputs.
-The user considers trying the leg connection worthwhile, but identified a more
-fundamental boot-view problem: the leading boot in pose 1 exposes its underside
-while the trailing boot does not. The same two painted boot views cannot be
-reused in every pose. Cuff estimates remain uncertain. Keep this masked trial
-as a connection control; the next meaningful art candidate needs pose-dependent
-boot/lower-leg drawings and an editable region covering the entire boot.
-Review the new silhouettes/surface guides before that generation setup. See
-the experiment plan's boot-view amendment and artist reference sheets.
-The Spine sample is a motion benchmark, not yet a replacement mouse binding.
-Head flicker remains deferred.
-
-1. The user's 2026-09-09 priority is motion and missing leg/boot connections;
-   head flicker is deferred. Compare an established biped rig and motion source
-   with the supplied tracing before expanding custom authoring tools. The
-   current pose set remains the accepted experimental control.
-2. Use the completed connection comparison as evidence that input geometry
-   matters. Move to whole-leg/boot redraws after review of the new guides;
-   do not continue polishing the boot-protected control or head flicker.
-   Prefer reusable completed views where possible.
-   Show the exact input maps for any subsequent generator trial. Distinguish
-   an ordinal layer-order preview from real depth; never pass a diagnostic
-   skeleton to an edge/depth model as though it were the expected input.
-3. Follow the approved experiments where visible defects justify them.
-   Retrying an old technique with corrected binding/maps is allowed after
-   input review; old stop decisions are historical evidence.
-4. Keep production imports and runtime changes separate until an animation
-   works. Existing asset-format and lifetime invariants still apply.
-
-Post-training is a possible later branch, as the user reiterated on 2026-09-09.
-Keep exact inputs, model settings and accepted target artwork now. These
-procedural prefills and unreviewed generated frames are not training targets.
-Define whether training should improve reusable-part completion, pose obedience
-or temporal consistency before choosing a model and dataset. Reserve held-out
-poses/sequences to evaluate improvement rather than memorization.
-
-Future garment motion, requested by the user and explicitly deferred for this
-leg trial: the coat/cloak hem should lift when contacted by a raised knee or
-extended thigh, then settle toward a resting/running-neutral shape with lag.
-Running motion can keep cloth flared even without direct knee contact. Keep
-upper-coat attachment, front/back hems and any removable cape separately
-controllable. A cape attaches at the shoulders/back and needs its own trailing
-and settling response, not direct copying of knee motion. Author or bake the
-cloth into a closed twelve-frame cycle once leg ownership is stable. Current
-coat artwork was retained as the occluder in this experiment; cloth motion has
-not been implemented.
-
-## Tools and retained evidence
-
-- `build/dev/bin/serve_puppet_editor` opens the existing editor.
-- `puppet_edit` applies named document commands; `render_layered_puppet`
-  supplies actual C++ frames and part masks.
-- [Puppet README](../experiments/character_binding/README.md) documents commands.
-- Generated command lists live with their disposable renders in `out/`.
-  `retarget_run_reference.py` regenerates the current transfer and ground
-  commands from the retained trace and source binding.
-- `experiments/character_binding/out/043-run-binding-before/` is the prior
-  render; `out/044-run-calibration-review/` contains the superseded calibration
-  review. `out/045-run-reference-v2/review.html` compares the actual supplied
-  drawing, its trace and the current C++ mouse render, starting on pose 10.
-- [Historical findings](../experiments/character_binding/FINDINGS.md) retain
-  previous failures and corrected interpretations.
-- [Current input-review measurements](../experiments/character_binding/evidence/run-reference-v2-review.json)
-  retain the supplied image/trace/document hashes, transferred directions and
-  sole rows. They are diagnostics, not art approval.
-- [Previous handoff](history/handoff-before-run-calibration-2026-09-08.md) retains
-  editor debt, runtime invariants and earlier verification details.
-- [Roadmap](roadmap.md) keeps unrelated work parked.
-
-## Verification of this change
-
-The four affected puppet-document test executables, the renderer's 26 focused
-tests, the two embedded-page tests and three reference-transfer tests pass.
-Scoped C++ lint and the proof tool's direct clang-tidy check pass; the repository
-lint wrapper does not accept `scripts/` translation units. `git diff --check`
-passes. Browser review exercised playback, frame selection and the layer-order
-view. The later cleanup experiment added sixteen image requests, three focused
-Python checks and exact decoded-frame verification of all three APNG previews.
-No production import was performed.
+[Earlier handoff and failed-route context](history/character-art-handoff-before-3d-acceptance-2026-09-12.md)
+are archived evidence, not a competing work list.

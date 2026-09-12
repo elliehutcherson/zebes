@@ -1,0 +1,24 @@
+{
+  "raw_sha256": "59ce0431a090a894a506d9f054e2d6f56f28a9dcd60a39c2de6104ce7f63a844",
+  "raw_faces": 515508,
+  "raw_components": 15,
+  "removed_fragment_faces": 1232,
+  "removed_degenerate_or_duplicate_faces": 2,
+  "filled_triangle_quad_faces": 2,
+  "faces": 514276,
+  "vertices": 257136,
+  "watertight": true,
+  "bounds": [
+    [
+      -0.6819152235984802,
+      -0.9999179840087891,
+      -0.5620754361152649
+    ],
+    [
+      0.6852671504020691,
+      0.994610071182251,
+      0.5347608327865601
+    ]
+  ],
+  "reason": "Inspected main component contains the whole character. Small components include a thigh surface fragment and zero-area debris."
+}

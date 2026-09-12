@@ -6,6 +6,11 @@ active backlog.
 
 | Record | Closed | Result | Current source |
 |---|---|---|---|
+| [`storybook-3d-success-2026-09-12.md`](storybook-3d-success-2026-09-12.md) | 2026-09-12 | User accepted the neutral 3D mouse and made its workflow the plan of record | [`../mouse-3d-plan.md`](../mouse-3d-plan.md) |
+| [`mouse-storybook-neutral-plan-2026-09-12.md`](mouse-storybook-neutral-plan-2026-09-12.md) | 2026-09-12 | Initial design and neutral-model implementation plan; checkpoint accepted | [`../mouse-3d-plan.md`](../mouse-3d-plan.md) |
+| [`character-art-handoff-before-3d-acceptance-2026-09-12.md`](character-art-handoff-before-3d-acceptance-2026-09-12.md) | 2026-09-12 | Earlier character-art chronology and failed-route context | [`../handoff.md`](../handoff.md) |
+| [`sprite-run-experiment-plan-through-2026-09-12.md`](sprite-run-experiment-plan-through-2026-09-12.md) | 2026-09-12 | Layered/pose-generated 2D route superseded by accepted 3D model | [`../mouse-3d-plan.md`](../mouse-3d-plan.md) |
+| [`sprite-sequence-milestone-through-2026-09-12.md`](sprite-sequence-milestone-through-2026-09-12.md) | 2026-09-12 | Profile, atlas and painted-part sequence experiments superseded | [`../mouse-3d-plan.md`](../mouse-3d-plan.md) |
 | [`handoff.md`](handoff.md) | 2026-08-29 | Prior chronological handoffs | [`../handoff.md`](../handoff.md) |
 | [`terrain-derived-artwork.md`](terrain-derived-artwork.md) | 2026-08-24 | Derived terrain artwork accepted | [`../environment-artwork-plan.md`](../environment-artwork-plan.md) |
 | [`asset-deletion.md`](asset-deletion.md) | 2026-08-24 | Reference-safe deletion accepted | [`../architecture.md`](../architecture.md) |

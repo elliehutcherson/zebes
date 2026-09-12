@@ -1,0 +1,31 @@
+{
+  "stage": "Neutral model and two body-pose checks",
+  "frame_names": [
+    "neutral",
+    "reach",
+    "step"
+  ],
+  "sprite_sizes": [
+    96,
+    128,
+    512
+  ],
+  "raw_faces": 515508,
+  "clean_faces": 514276,
+  "study_faces": 80000,
+  "shape_inference_seconds": 80.43966902489774,
+  "color_method": "Authored 3D color fields baked to UV texture",
+  "limits": [
+    "Temporary body binding",
+    "No facial or finger controls",
+    "Hands, tufts and facial topology need refinement"
+  ],
+  "sha256": {
+    "neutral-mouse.blend": "32f9bb3c460bc09086cac0afcfb29e26941e2bea5bb8e726459e6caa223672c9",
+    "neutral-mouse.glb": "0f6940d6b4a0f3188051d0db195d2d43299f57c935ecf033e561a67a4aad2258",
+    "study-basecolor.png": "52c29b7e8b532e2f51a48117b4c8b521ec73f9643170a7874e34d7de8a0a381e",
+    "sprites-96.png": "675c705c7c00bedbbb7590a0401622755e5cbe0e6742fabd3820772fe9b95019",
+    "sprites-128.png": "48beab4aac0dddf269724df7184fee35871e184007aa7f7c1fa6f45e995947c6",
+    "sprites-512.png": "95f9b7ab0975afb4bc01b71bbbb2fd8468d0453587128d4cebf9609928a4c92a"
+  }
+}

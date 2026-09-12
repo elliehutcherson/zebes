@@ -1,0 +1,38 @@
+{
+  "imported_faces": 515496,
+  "study_faces": 80000,
+  "study_vertices": 40006,
+  "source_bounds": [
+    [
+      -0.6819152235984802,
+      -0.5347608327865601,
+      -0.9999179840087891
+    ],
+    [
+      0.6852671504020691,
+      0.5620754361152649,
+      0.994610071182251
+    ]
+  ],
+  "uniform_scale": 2.1558984787447057,
+  "normalization_translation": [
+    -0.0016759634017944336,
+    -0.013657301664352417,
+    0.9999179840087891
+  ],
+  "height": 4.3,
+  "projection": {
+    "method": "Fixed frontal reference projection; reverse/occluded areas use a plain authored fur color",
+    "projected_vertices": 15001,
+    "projection_mask_bounds": [
+      108,
+      40,
+      405,
+      472
+    ],
+    "pixels_per_world_unit": 100.45702191635215,
+    "world_center_x": -1.6033649444580078e-05
+  },
+  "source_mesh": "/tmp/zebes-storybook-20260912/shape-v2/raw.glb",
+  "status": "Neutral geometry study; provisional colors; no rig or facial controls yet"
+}

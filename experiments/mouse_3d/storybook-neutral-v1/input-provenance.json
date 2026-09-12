@@ -1,0 +1,29 @@
+{
+  "reference": "../storybook-direction-v1/concept-sheet.png",
+  "reference_sha256": "4c85bbba07714a8798ae62c0b442d158b46c31d3b5bd30e0d21884a3b0b02582",
+  "image_generation_tool": "built-in image_gen.imagegen",
+  "image_generation_calls": [
+    {
+      "prompt": "input-prompt.txt",
+      "prompt_sha256": "fb3e921f670f7e843b42a5145c3a59564169ffefb2b9e68a3954018220939c1e",
+      "output": "input-raw.png",
+      "output_sha256": "49f137ff9493d257428408456291f10be8fd0f5dfee664b617bceec15a78b38a",
+      "original_output": "/Users/ellie/.codex/generated_images/01a095d6-e81f-7a52-91a1-ad475a39fb98/exec-032e0f22-a2a9-41ca-9d06-df7ac08a6ee9.png",
+      "assessment": "Character reference retained; painted checkerboard is not actual transparency"
+    },
+    {
+      "prompt": "background-prompt.txt",
+      "prompt_sha256": "6453275a252304453dc5ce79e0cfe01f14e0efa9882747d474ab02d4469feeae",
+      "input": "input-raw.png",
+      "output": "input-clean.png",
+      "output_sha256": "1af2a544448aa53021472f0a6e3ec00135a4dfe32d2138ce84f65bbe8dcea620",
+      "original_output": "/Users/ellie/.codex/generated_images/01a095d6-e81f-7a52-91a1-ad475a39fb98/exec-3d0e34e1-1f05-46d7-80a5-40b67625b563.png",
+      "assessment": "White-background image selected for standard foreground preprocessing"
+    }
+  ],
+  "shape_trial": "raw-shape/receipt.json",
+  "prepared_inputs": "prepared/inputs.json",
+  "cleanup": "cleanup/cleanup.json",
+  "final_study": "result/inspection.json",
+  "review": "result/review.json"
+}

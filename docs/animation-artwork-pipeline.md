@@ -1,8 +1,8 @@
 # Animation artwork pipeline plan
 
 **Status: frame-set processing, recipe/bundle lifecycle, and headless curation
-are complete. The first Blender player proved the pipeline but its appearance
-was rejected. Current work is the [twelve-frame mouse run](sprite-run-experiment-plan.md).**
+are complete. The neutral storybook 3D mouse was accepted on 2026-09-12.
+Current work is a [run from that accepted model](mouse-3d-plan.md).**
 
 As of 2026-09-08, old artwork/experiment gates and track sequencing are
 suspended while the animation is repaired. The feasibility attempts and gates

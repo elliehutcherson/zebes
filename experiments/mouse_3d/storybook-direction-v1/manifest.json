@@ -1,0 +1,22 @@
+{
+  "kind": "design-reference",
+  "selected_anchor": "reference-02.png",
+  "selection": "User selected Image 2 — storybook adventurer",
+  "generation": {
+    "tool": "built-in image_gen.imagegen",
+    "calls": 1,
+    "prompt": "prompt.txt",
+    "input_images": ["reference-02.png"],
+    "output": "concept-sheet.png",
+    "default_output": "/Users/ellie/.codex/generated_images/01a095d6-e81f-7a52-91a1-ad475a39fb98/exec-fc8b01d1-af66-4ea4-ad16-2d47cfa63b08.png",
+    "postprocessing": "none; copied byte-for-byte",
+    "status": "2D concept proposal; not a verified turnaround or 3D asset"
+  },
+  "sha256": {
+    "reference-01.png": "1412f3bab092a3150458e4fae36014e1cbdb0ce01b9894ad0771dff0bd61b314",
+    "reference-02.png": "4cbf60db69c5d96dc7852a327b91ef1f1964298d980b40168e33b5abd9787664",
+    "reference-03.png": "ef3f0f6f8038456f8b50dbf68b2a6afdf2db6272ba3c63a8c9de769ef177261c",
+    "concept-sheet.png": "4c85bbba07714a8798ae62c0b442d158b46c31d3b5bd30e0d21884a3b0b02582",
+    "prompt.txt": "b560915adabd7af11993c8de16b9c8cb3971c54276583ad4e0eaeabd36003df3"
+  }
+}

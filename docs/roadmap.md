@@ -1,22 +1,24 @@
 # Roadmap
 
-Updated 2026-09-08.
+Updated 2026-09-12.
 
-## Current priority: a working twelve-frame mouse run
+## Current priority: run animation from the accepted 3D mouse
 
-The project is stalled on animation. Finish the green-coated mouse's run before
-resuming environment polish, runtime threading or the old track/gate sequence.
+The user accepted the neutral storybook mouse and the 3D-to-sprite workflow as
+a success. Animate this saved model before resuming environment polish,
+runtime threading or the older track/gate sequence.
 
-The [approved experiment plan](sprite-run-experiment-plan.md) is the work list;
-[handoff.md](handoff.md) is the current state. First repair and review the source
-skeleton, limb mapping and twelve poses. The user must see and approve the
-actual artwork/pose/conditioning inputs before generation. Corrected retries of
-earlier methods are allowed when they answer a remaining problem.
+The [3D mouse plan of record](mouse-3d-plan.md) is the work list;
+[handoff.md](handoff.md) identifies the accepted master and the next-conversation
+handoff. Load the saved Blender model, make a run working copy, author grounded
+locomotion and export consistent sprite frames. Do not regenerate the accepted
+character or resume the superseded per-frame/layered-part generation route.
 
-Success is a run the user can see working, with consistent identity and smooth
-motion. Old art gates, one-arm prerequisite chains and numerical acceptance
-thresholds are suspended. Diagnostics remain useful for explaining defects;
-software validation and asset integrity remain engineering requirements.
+The next success is a run the user can see working, with stable identity,
+readable limb motion and convincing ground contact. Rig/weight fixes should
+address actual motion defects. Hand, tuft, facial and garment polish are not
+prerequisites. Software validation and protection of the accepted model remain
+engineering requirements.
 
 ## Parked work
 

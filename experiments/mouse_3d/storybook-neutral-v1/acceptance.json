@@ -1,0 +1,39 @@
+{
+  "status": "accepted_success",
+  "accepted_on": "2026-09-12",
+  "user_verdict": "You did it. This is clearly the way. This is fantastic.",
+  "user_direction": "Document this as a success, make it the new plan of record, preserve the model in the repo, and try a running animation from this 3D model.",
+  "accepted_scope": [
+    "Neutral storybook mouse as the character baseline",
+    "Reference-to-3D, Blender cleanup/rig/materials, and offline sprite-export workflow",
+    "Use this saved model as the foundation for running animation"
+  ],
+  "next_milestone": "Running animation and sprite exports from a working copy of the accepted Blender master",
+  "plan_of_record": "../../../docs/mouse-3d-plan.md",
+  "authoritative_model": "result/neutral-mouse.blend",
+  "verified_portability": {
+    "linked_blender_libraries": 0,
+    "blender_texture_packed": true,
+    "glb_texture_embedded": true,
+    "texture_size": [2048, 2048],
+    "mesh_object": "Mouse_Neutral",
+    "vertices": 39998,
+    "triangles": 80000,
+    "armature": "Mouse_Study_Rig",
+    "bones": 20
+  },
+  "sha256": {
+    "result/neutral-mouse.blend": "32f9bb3c460bc09086cac0afcfb29e26941e2bea5bb8e726459e6caa223672c9",
+    "result/neutral-mouse.glb": "0f6940d6b4a0f3188051d0db195d2d43299f57c935ecf033e561a67a4aad2258",
+    "result/study-basecolor.png": "52c29b7e8b532e2f51a48117b4c8b521ec73f9643170a7874e34d7de8a0a381e",
+    "result/sprites-96.png": "675c705c7c00bedbbb7590a0401622755e5cbe0e6742fabd3820772fe9b95019",
+    "result/sprites-128.png": "48beab4aac0dddf269724df7184fee35871e184007aa7f7c1fa6f45e995947c6",
+    "result/sprites-512.png": "95f9b7ab0975afb4bc01b71bbbb2fd8468d0453587128d4cebf9609928a4c92a"
+  },
+  "validation": "Ten focused input/artifact tests pass; this user verdict establishes artistic acceptance of the baseline.",
+  "remaining_work": [
+    "Running animation and its visual acceptance",
+    "Targeted rig/weight fixes where locomotion exposes defects",
+    "Later hand, tuft, facial and garment refinement"
+  ]
+}

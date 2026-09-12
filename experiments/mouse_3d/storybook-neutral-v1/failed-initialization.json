@@ -1,0 +1,45 @@
+{
+  "model": {
+    "model": "tencent/Hunyuan3D-2",
+    "revision": "9cd649ba6913f7a852e3286bad86bfa9a2d83dcf",
+    "subfolder": "hunyuan3d-dit-v2-0",
+    "sha256": {
+      "config.yaml": "70bbfcdd18b9686ee56fe011c3a059b222eae1f5450f904577c50f0e107a8a53",
+      "model.fp16.safetensors": "360bc281fc956d4acac0c3d36d5ec0ebf8cdddbf4b8892e894d12419388d479b"
+    }
+  },
+  "input": {
+    "source_sha256": "1af2a544448aa53021472f0a6e3ec00135a4dfe32d2138ce84f65bbe8dcea620",
+    "masked_sha256": "1489a700601e30401eb55f6484b45525d9b89e4ca4d23f5fb1c6403af2e9874f",
+    "conditioning_sha256": "55fdc50efc94cb8ecab6528f1931a5cde36c2d5ad1aeae8f38775de306194d36",
+    "mask_sha256": "ecbf2f404a7238a49c0c09420b92814f1c6e1a59f785a2c357affec0fc47fd71",
+    "processor": "Hunyuan ImageProcessorV2, 512px, border_ratio=0.15",
+    "background_remover": "Hunyuan BackgroundRemover / rembg default u2net",
+    "source_size": [
+      1145,
+      1374
+    ]
+  },
+  "seed": 42,
+  "steps": 50,
+  "resolution": 384,
+  "guidance_scale": 5.5,
+  "num_chunks": 8000,
+  "code_revision": "f8db63096c8282cb27354314d896feba5ba6ff8a",
+  "runner_sha256": "39aee42fab3d508158c231447a34c61d56f876a8d93310f6ed92e1ecb5500bd9",
+  "device": "NVIDIA GeForce RTX 3090",
+  "initial_free_bytes": 9459859456,
+  "gpu_total_bytes": 25288769536,
+  "packages": {
+    "torch": "2.13.0",
+    "torchvision": "0.28.0",
+    "transformers": "4.48.3",
+    "diffusers": "0.32.2",
+    "trimesh": "4.6.2",
+    "scikit-image": "0.25.2"
+  },
+  "status": "failed",
+  "elapsed_seconds": 24.149005773942918,
+  "error_type": "AttributeError",
+  "error": "'Hunyuan3DDiTFlowMatchingPipeline' object has no attribute 'components'"
+}

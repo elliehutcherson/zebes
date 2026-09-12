@@ -1,0 +1,12 @@
+{
+  "source_sha256": "1af2a544448aa53021472f0a6e3ec00135a4dfe32d2138ce84f65bbe8dcea620",
+  "masked_sha256": "1489a700601e30401eb55f6484b45525d9b89e4ca4d23f5fb1c6403af2e9874f",
+  "conditioning_sha256": "55fdc50efc94cb8ecab6528f1931a5cde36c2d5ad1aeae8f38775de306194d36",
+  "mask_sha256": "ecbf2f404a7238a49c0c09420b92814f1c6e1a59f785a2c357affec0fc47fd71",
+  "processor": "Hunyuan ImageProcessorV2, 512px, border_ratio=0.15",
+  "background_remover": "Hunyuan BackgroundRemover / rembg default u2net",
+  "source_size": [
+    1145,
+    1374
+  ]
+}

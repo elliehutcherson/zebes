@@ -1,0 +1,37 @@
+# Isolated additions used with Derry's existing torch 2.13.0 / torchvision 0.28.0.
+# They must not be installed into the working ComfyUI environment.
+accelerate==1.2.1
+antlr4-python3-runtime==4.9.3
+attrs==26.1.0
+coloredlogs==15.0.1
+diffusers==0.32.2
+flatbuffers==24.12.23
+huggingface-hub==0.28.1
+humanfriendly==10.0
+imageio==2.37.0
+importlib-metadata==8.6.1
+jsonschema==4.23.0
+jsonschema-specifications==2025.9.1
+lazy-loader==0.4
+llvmlite==0.44.0
+networkx==3.4.2
+numba==0.61.2
+numpy==1.26.4
+omegaconf==2.3.0
+onnxruntime==1.20.1
+opencv-python-headless==4.10.0.84
+platformdirs==4.3.6
+pooch==1.8.2
+pymatting==1.1.13
+pymeshlab==2023.12.post3
+referencing==0.37.0
+rembg==2.0.61
+rpds-py==2026.6.3
+scikit-image==0.25.2
+scipy==1.15.3
+tifffile==2025.5.10
+tokenizers==0.21.4
+transformers==4.48.3
+trimesh==4.6.2
+typing-extensions==4.16.0
+zipp==4.1.0
