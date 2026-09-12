@@ -1,9 +1,16 @@
 # Isolated folded leg: preserve the approved pose
 
-Prepared 2026-09-10. **Zero generation requests; nothing uploaded.**
-The user asked to start this experiment and asked whether to move to a fresh
-conversation. Actual new reference/control images are shown in
-`input-review.png` before generation, as they requested.
+Completed 2026-09-10: one built-in request and two local ComfyUI requests.
+Actual reference/control images were retained in `input-review.png` before
+generation, as requested. `review.png`, `summary.json` and `assessment.json`
+separate fixed-registration measurements from the surface/view judgment.
+
+**Closed without an accepted candidate; further work paused by the user.**
+[Session closeout](../../../../docs/history/sprite-boot-control-2026-09-10.md)
+records both comparisons and corrects the initial, unsupported claim that the
+built-in result had enlarged and recentered the part after canvas mapping.
+The actual built-in wording is in `results/builtin/submitted-prompt.txt`;
+`builtin-prompt.txt` retains the original prepared wording.
 
 ## Question and control
 
@@ -106,3 +113,17 @@ The preparation script makes no provider calls. Three focused tests cover the
 approved target/crop, the local pair's single changed parameter, and both
 sampler conditionings with the encoded prefill. Three runner tests cover changed
 input rejection, ambiguous submission refusal and resumption without fitting.
+
+## Results
+
+The built-in edit changed more of the contour (0.930 IoU) and repainted the
+boot as a rounded front/three-quarter view. Both Canny results held the authored
+silhouette very closely (0.987 and 0.986 IoU, about 0.1 working-pixel centroid
+drift), proving that registration and outer pose can be controlled. They still
+used internal shading/lacing associated with a familiar viewer-facing boot.
+
+No candidate passed the view-direction gate. This separates two concerns that
+the earlier reviews had conflated: a contour score cannot establish which 3D
+surfaces are visible. The next experiment therefore isolates the boot and
+supplies actual z-buffer depth from the reviewed fixed-camera proxy rather than
+adding more prose or denoise values. See `../boot-surface-control-v1/README.md`.

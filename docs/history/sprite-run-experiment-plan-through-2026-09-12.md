@@ -280,7 +280,7 @@ into later pipeline choices.
   [authoring boundaries](../architecture/editor-and-authoring.md).
 - The entire [character-binding findings and 41-entry decision ledger](../../experiments/character_binding/FINDINGS.md),
   including the later corrections to earlier conclusions.
-- [Coherent-sheet gate](../animation-artwork-pipeline.md#gate-run-record-2026-08-29),
+- [Coherent-sheet gate](animation-sheet-gate-2026-08-29.md),
   [independent-frame pilots](../history/animation-pose-conditioned-experiment.md),
   and [Codex skeleton-conditioning closeout](../history/codex-pose-conditioning-2026-09-06.md).
 - [Layer deformation diagnosis and fallback proposals](../character-layer-deformation-experiment.md),

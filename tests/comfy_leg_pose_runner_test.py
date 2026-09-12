@@ -18,6 +18,14 @@ class ComfyLegPoseRunnerTest(unittest.TestCase):
         source = Path(__file__).resolve().parents[1] / "experiments/character_binding/evidence/leg-pose-preservation-v1"
         self.trial = Path(self.temp.name) / "trial"
         shutil.copytree(source, self.trial, ignore=shutil.ignore_patterns("results"))
+        manifest_path = self.trial / "manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["provider_calls"] = 0
+        for job in manifest["jobs"]:
+            job["status"] = "prepared"
+            for key in ("prompt_id", "raw_sha256", "raw_source", "raw_size"):
+                job.pop(key, None)
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
         self.args = SimpleNamespace(trial=self.trial, name="canny-0.65", server="http://127.0.0.1:8189", timeout=1)
 
     def receipt(self, status, **extra):

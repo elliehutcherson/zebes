@@ -86,6 +86,9 @@ deliberately uses only two workers by default to limit heat and contention.
   or active-plan section. Do not ingest complete design documents when targeted
   headings or ranges answer the task.
 - `docs/history/` is non-normative. Open it only for explicit archaeology.
+- Start experiment work from `experiments/README.md`. Default searches omit
+  evidence, versioned bundles, and implementation history; read linked records
+  directly or use `rg --no-ignore` on the specific evidence path.
 - Move completed plans to history; active documents contain current contracts,
   remaining work, and links to evidence rather than implementation chronology.
 - Start a new conversation after a major commit, accepted/rejected gate, or

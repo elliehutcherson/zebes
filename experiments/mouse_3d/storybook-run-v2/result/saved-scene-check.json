@@ -1,0 +1,12 @@
+{
+  "reopened_saved_blend": true,
+  "source_data_unchanged": true,
+  "samples_checked": 193,
+  "max_joint_reload_error": 0,
+  "max_contact_marker_error": 2.2839159045154957e-06,
+  "max_weight_sum_error": 4.470348358154297e-08,
+  "max_bone_scale_error": 2.6226043701171875e-06,
+  "max_head_rotation_difference": 4.214684778958144e-08,
+  "contact_markers_parented_to_foot_bones": true,
+  "blend_sha256": "0586310bfac9c865d39ddf81f411f53b589b4d82266df72f36e6996bda1d560c"
+}

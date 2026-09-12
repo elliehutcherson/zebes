@@ -451,9 +451,8 @@ input, and shared scene-composition dependency slices pass headlessly. The live
 Catacombs run/jump review across production walls, ceilings, slopes, and camera
 follow was accepted on 2026-08-29. The simulation/asset thread split remains
 Milestone 4 and must use a bounded I/O executor rather than blocking worker
-engines. The algorithm, sparse-grid performance contract, multiple-contact
-policy, phased implementation, and gates live in the
-[Milestone 2 movement plan](../engine-runtime-plan.md#milestone-2-movement-and-collision-implementation-plan);
+engines. Current ownership and verification boundaries live in the
+[runtime architecture](../architecture/runtime.md);
 [`handoff.md`](../handoff.md) remains the concise resume point.
 
 **Milestone 3 — complete.** The loaded level owns one frozen Blueprint graph

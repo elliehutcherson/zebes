@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "status": "authored atlas candidate; recovery profile is the accepted starting point, other shapes await visual review",
+  "shaft_length": 12,
+  "shaft_width": 13,
+  "heel_drop_working_px": {"reference_01": {"near": 3, "far": 0}},
+  "heel_drop_rationale": "Pose 1's original trailing toe extends 2.29px below the leading heel. Lower the uncertain leading heel by an explicit 3px, keeping all traced ankles/toes unchanged. This is an authored correction requiring review, not a traced measurement.",
+  "contact_policy": "C++ translates the complete character to the named sole anchor at y=214. Flat phases change only the uncertain heel height to the traced toe height. Flight interpolates neighboring support translations, bounded by six pixels of geometric clearance for both boots.",
+  "frames": [
+    {"name": "reference_01", "near": ["sole_visible", "heel"], "far": ["profile", "none"]},
+    {"name": "reference_02", "near": ["profile", "flat"], "far": ["profile", "none"]},
+    {"name": "reference_03", "near": ["profile", "flat"], "far": ["profile", "none"]},
+    {"name": "reference_04", "near": ["profile", "flat"], "far": ["profile", "none"]},
+    {"name": "reference_05", "near": ["profile", "toe"], "far": ["profile", "none"]},
+    {"name": "reference_06", "near": ["profile", "none"], "far": ["sole_visible", "none"]},
+    {"name": "reference_07", "near": ["profile", "none"], "far": ["sole_visible", "heel"]},
+    {"name": "reference_08", "near": ["profile", "none"], "far": ["profile", "flat"]},
+    {"name": "reference_09", "near": ["profile", "none"], "far": ["profile", "flat"]},
+    {"name": "reference_10", "near": ["profile", "none"], "far": ["profile", "flat"]},
+    {"name": "reference_11", "near": ["profile", "none"], "far": ["profile", "toe"]},
+    {"name": "reference_12", "near": ["sole_visible", "none"], "far": ["profile", "none"]}
+  ]
+}

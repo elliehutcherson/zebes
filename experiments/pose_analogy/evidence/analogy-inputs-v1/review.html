@@ -1,0 +1,73 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pose analogy request v1</title>
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 24px; background: #fbfafc; color: #1b1b22; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 24px 0 8px; }
+  p.note { margin: 0 0 16px; color: #55525f; max-width: 76ch; }
+  nav { margin-bottom: 16px; }
+  button { font: inherit; padding: 6px 14px; margin-right: 6px; border: 1px solid #c9c6d4;
+           background: #fff; border-radius: 6px; cursor: pointer; }
+  button[aria-pressed="true"] { background: #1b1b22; color: #fff; border-color: #1b1b22; }
+  section { display: none; }
+  section.on { display: block; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 1000px;
+          margin-bottom: 22px; }
+  .pair img { width: 100%; border: 1px solid #ddd9e6; background: #fff; display: block; }
+  .pair figcaption { color: #55525f; font-size: 12px; margin-bottom: 4px; }
+  .art { outline: 2px solid #1d7a4d; outline-offset: 2px; }
+  .strip { overflow-x: auto; }
+  .strip img { max-width: none; border: 1px solid #ddd9e6; background: #fff; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 3px;
+         background: #e8f6ee; color: #1d6b42; margin-left: 6px; }
+</style>
+<h1>Pose analogy request v1 — not submitted</h1>
+<p class="note">
+  Five poses, sampled every other frame so the set covers near support, far support
+  and one flight phase. Each pose has a reference image and a mouse image on the same
+  grid: one cell is a twelfth of that character's own running height, with the origin
+  on its hip column and ground row, so a joint in a given cell sits in the same place
+  in both. Orange is near limbs, blue is far. Dashed lines with hollow dots are joints
+  nobody could see in the artwork. The green ring is the foot on the ground.
+  <b>Exactly one mouse image carries the character artwork</b>, marked below; the other
+  four are grid and skeleton only.
+</p>
+<nav>
+  <button data-view="request" aria-pressed="true">The five requests</button>
+  <button data-view="trace" aria-pressed="false">Trace check (all 10)</button>
+  <button data-view="targets" aria-pressed="false">Mouse targets (all 10)</button>
+</nav>
+<section id="request" class="on"></section>
+<section id="trace">
+  <p class="note">The hand-placed trace over the unmodified sprites, all ten frames.</p>
+  <div class="strip"><img src="trace-check.png" alt="traced skeletons over the reference run"></div>
+</section>
+<section id="targets">
+  <p class="note">All ten transferred mouse skeletons, grounded on one row.</p>
+  <div class="strip"><img src="target-skeletons.png" alt="transferred mouse skeletons"></div>
+</section>
+<script>
+  fetch("manifest.json").then(response => response.json()).then(manifest => {
+    document.getElementById("request").innerHTML = manifest.request_frames.map((name, index) => {
+      const art = name === manifest.artwork_card;
+      return `<h2>${name} <span style="font-weight:400;color:#6a6676">` +
+             `${manifest.request_supports[index]} support</span>` +
+             (art ? '<span class="tag">carries the character artwork</span>' : '') + `</h2>` +
+             `<div class="pair">` +
+             `<figure style="margin:0"><figcaption>reference</figcaption>` +
+             `<img src="request/reference-${name}.png" alt="reference ${name}"></figure>` +
+             `<figure style="margin:0"><figcaption>mouse target</figcaption>` +
+             `<img class="${art ? 'art' : ''}" src="request/mouse-${name}.png" ` +
+             `alt="mouse ${name}"></figure></div>`;
+    }).join("");
+  });
+  document.querySelectorAll("nav button").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("nav button").forEach(other =>
+        other.setAttribute("aria-pressed", String(other === button)));
+      document.querySelectorAll("section").forEach(section =>
+        section.classList.toggle("on", section.id === button.dataset.view));
+    });
+  });
+</script>

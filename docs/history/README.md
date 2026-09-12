@@ -6,6 +6,8 @@ active backlog.
 
 | Record | Closed | Result | Current source |
 |---|---|---|---|
+| [Coherent-sheet animation gate](animation-sheet-gate-2026-08-29.md) | 2026-08-29 | Generated sheet passed structural checks but failed live motion review; exact digests retained | [Frame-set pipeline](../animation-artwork-pipeline.md) |
+| [Headless level review](headless-level-review-through-2026-09-12.md) | 2026-09-12 | Completed reviewer implementation and Catacombs measurements compacted out of active docs | [Headless curation](../headless-curation.md) |
 | [`storybook-3d-success-2026-09-12.md`](storybook-3d-success-2026-09-12.md) | 2026-09-12 | User accepted the neutral 3D mouse and made its workflow the plan of record | [`../mouse-3d-plan.md`](../mouse-3d-plan.md) |
 | [`mouse-storybook-neutral-plan-2026-09-12.md`](mouse-storybook-neutral-plan-2026-09-12.md) | 2026-09-12 | Initial design and neutral-model implementation plan; checkpoint accepted | [`../mouse-3d-plan.md`](../mouse-3d-plan.md) |
 | [`character-art-handoff-before-3d-acceptance-2026-09-12.md`](character-art-handoff-before-3d-acceptance-2026-09-12.md) | 2026-09-12 | Earlier character-art chronology and failed-route context | [`../handoff.md`](../handoff.md) |

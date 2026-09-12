@@ -1,0 +1,1097 @@
+{
+  "status": "profile starting point approved; generated artwork pending review",
+  "provider": "built-in imagegen",
+  "provider_request_count": 5,
+  "generated_leg_count": 24,
+  "raw_sizes": {
+    "sheet": [
+      1536,
+      1024
+    ],
+    "single": [
+      1536,
+      1024
+    ],
+    "near-01-06": [
+      1536,
+      1024
+    ],
+    "far-01-06": [
+      1536,
+      1024
+    ],
+    "far-07-12": [
+      1536,
+      1024
+    ]
+  },
+  "raw_sha256": {
+    "sheet": "5127a40fc27e1a551a74cfe6166aa9744c8ef4b0068096ba660e4cbe80dd82df",
+    "single": "a5830e4849e693d6bf683eed039a554d5cef302c86ba838eb28db9feda266a38",
+    "near-01-06": "63de72647a6fdba5d9b46535572a271d4ed9e49dc32868b072cca3f166f5bd25",
+    "far-01-06": "9e95a7c3d1e876a155f2ff5d6d596fe36ff4e6badb39e97552129eaa97867a4d",
+    "far-07-12": "81485b2cd6cc359ea62cb97d78ef7107fe9363a0b2094595a748c20e172bafb5"
+  },
+  "prompt_sha256": {
+    "sheet": "5f2d365b51fd36617507e00ddd3b0748ec2d3302002fb00a48da4465d50d5a60",
+    "single": "2aff897524857752200850676bd9a16bc3ab18977b078f35ef3d89184c187f86",
+    "near-01-06": "17ad6ebffe08529555a8c2c499fc224c0656da6dc2af70ae527505dd2f5b96ce",
+    "far-01-06": "17ad6ebffe08529555a8c2c499fc224c0656da6dc2af70ae527505dd2f5b96ce",
+    "far-07-12": "17ad6ebffe08529555a8c2c499fc224c0656da6dc2af70ae527505dd2f5b96ce"
+  },
+  "input_manifest_sha256": "4bda02f8bc7a473bca05d87d0bc8ab5327921fb0d87428bb6a2af97da2c656b1",
+  "review_source_sha256": "2e833fbbeea95c461d83919000f0781b544a4294d37dca072855179362813f31",
+  "review_template_sha256": "5aca4d052238f81554d5df7033d78a828d07614f3f740be8a55eacf9c8d1c76d",
+  "normalization": "one uniform whole-canvas scale; fixed grid cells and world crop; no local fitting, warping or silhouette clipping",
+  "alpha_extraction": "RGB minimum < 220; threshold sensitivity retained; raw white-background outputs unchanged",
+  "single_control_foreground_in_other_cells": 0,
+  "records": [
+    {
+      "name": "reference_07",
+      "side": "near",
+      "kind": "sheet",
+      "iou": 0.807348972389454,
+      "area_ratio": 1.2231869254341163,
+      "centroid_delta_working_px": [
+        -0.5868179579094175,
+        1.1217979447307869
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.8167087542087542,
+          "area_ratio": 1.2045454545454546,
+          "centroid_delta_working_px": [
+            -0.6102829225046662,
+            1.1183967082313586
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.8131408244402595,
+          "area_ratio": 1.2127170582226763,
+          "centroid_delta_working_px": [
+            -0.6053786174219482,
+            1.131686720348199
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.7954638332652227,
+          "area_ratio": 1.2438712972420838,
+          "centroid_delta_working_px": [
+            -0.6817791251258996,
+            1.2023347933371582
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_08",
+      "side": "near",
+      "kind": "sheet",
+      "iou": 0.8348101265822785,
+      "area_ratio": 1.172077922077922,
+      "centroid_delta_working_px": [
+        -0.023665392778966066,
+        0.28524591751738626
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.8503665373005606,
+          "area_ratio": 1.1433566433566433,
+          "centroid_delta_working_px": [
+            -0.053105915491244104,
+            0.2910926993495764
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.8403146927493089,
+          "area_ratio": 1.1615884115884116,
+          "centroid_delta_working_px": [
+            -0.006141729695812614,
+            0.26781104296692604
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.8247401247401247,
+          "area_ratio": 1.192057942057942,
+          "centroid_delta_working_px": [
+            0.0013253559765189493,
+            0.2762527122992253
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_09",
+      "side": "near",
+      "kind": "sheet",
+      "iou": 0.8262310606060606,
+      "area_ratio": 1.1939704209328783,
+      "centroid_delta_working_px": [
+        0.1396131805545906,
+        0.7040951024405757
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.8341323106423778,
+          "area_ratio": 1.1763367463026166,
+          "centroid_delta_working_px": [
+            0.19485144451559222,
+            0.7218307631540171
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.8318605206591831,
+          "area_ratio": 1.1814562002275313,
+          "centroid_delta_working_px": [
+            0.16183614570547888,
+            0.729549023570911
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.8225616921269095,
+          "area_ratio": 1.2056313993174061,
+          "centroid_delta_working_px": [
+            0.08479545935797717,
+            0.7082118585183821
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_10",
+      "side": "near",
+      "kind": "sheet",
+      "iou": 0.7266811279826464,
+      "area_ratio": 1.2185061315496097,
+      "centroid_delta_working_px": [
+        0.7187532192802877,
+        -2.8537322231979942
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.7300505605627611,
+          "area_ratio": 1.193422519509476,
+          "centroid_delta_working_px": [
+            0.776217965640825,
+            -2.8583626619845006
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.727411610650371,
+          "area_ratio": 1.205964325529543,
+          "centroid_delta_working_px": [
+            0.7717996768624289,
+            -2.8740497109358927
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.7218045112781954,
+          "area_ratio": 1.233835005574136,
+          "centroid_delta_working_px": [
+            0.719522432403366,
+            -2.8947293503254485
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_10",
+      "side": "near",
+      "kind": "single",
+      "iou": 0.2113742548735299,
+      "area_ratio": 1.0955964325529544,
+      "centroid_delta_working_px": [
+        -0.6273892851237974,
+        -15.935379371641304
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.2109972344232959,
+          "area_ratio": 1.0746934225195095,
+          "centroid_delta_working_px": [
+            -0.6299153876221908,
+            -15.871534234678066
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.21096156964488405,
+          "area_ratio": 1.0813823857302118,
+          "centroid_delta_working_px": [
+            -0.6210190899791996,
+            -15.899047655989605
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.2116275355374541,
+          "area_ratio": 1.1142697881828316,
+          "centroid_delta_working_px": [
+            -0.6766835201324284,
+            -15.961295725900854
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_11",
+      "side": "near",
+      "kind": "sheet",
+      "iou": 0.7735380447053511,
+      "area_ratio": 1.2315340909090908,
+      "centroid_delta_working_px": [
+        -0.4833071196392922,
+        -1.4250838838209035
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.7808627810922442,
+          "area_ratio": 1.2048295454545455,
+          "centroid_delta_working_px": [
+            -0.45065271912713456,
+            -1.428744828621035
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.7799086757990867,
+          "area_ratio": 1.2147727272727273,
+          "centroid_delta_working_px": [
+            -0.4486648524534331,
+            -1.3895952036737782
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.7662135056830844,
+          "area_ratio": 1.2514204545454546,
+          "centroid_delta_working_px": [
+            -0.5304612527086903,
+            -1.3901119595500973
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_12",
+      "side": "near",
+      "kind": "sheet",
+      "iou": 0.711743119266055,
+      "area_ratio": 1.246868978805395,
+      "centroid_delta_working_px": [
+        0.9333563899610908,
+        -1.376612335649412
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.7185116279069768,
+          "area_ratio": 1.2247109826589595,
+          "centroid_delta_working_px": [
+            0.8818248731108724,
+            -1.4083400117084608
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.7150249491776012,
+          "area_ratio": 1.235067437379576,
+          "centroid_delta_working_px": [
+            0.9014930683932647,
+            -1.4046827046492183
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.7107709130672498,
+          "area_ratio": 1.2608381502890174,
+          "centroid_delta_working_px": [
+            0.9153571172245591,
+            -1.403159315633431
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_01",
+      "side": "near",
+      "kind": "near-01-06",
+      "iou": 0.10542422963275644,
+      "area_ratio": 1.4589201877934272,
+      "centroid_delta_working_px": [
+        -19.698618554987732,
+        1.7563571021192814
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.10503933659366362,
+          "area_ratio": 1.439906103286385,
+          "centroid_delta_working_px": [
+            -19.66891757019674,
+            1.8123581943787457
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.10523526918185672,
+          "area_ratio": 1.4481220657276996,
+          "centroid_delta_working_px": [
+            -19.693201087978125,
+            1.7830366812100777
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.1063852131905062,
+          "area_ratio": 1.4730046948356808,
+          "centroid_delta_working_px": [
+            -19.703961431270216,
+            1.7525872098460553
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_02",
+      "side": "near",
+      "kind": "near-01-06",
+      "iou": 0.6257059990841093,
+      "area_ratio": 1.3921832884097034,
+      "centroid_delta_working_px": [
+        -3.4246415894528184,
+        1.6330274351608125
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.6242106884336979,
+          "area_ratio": 1.3688230008984725,
+          "centroid_delta_working_px": [
+            -3.4501812868238915,
+            1.5657362300302253
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.623678970745903,
+          "area_ratio": 1.3811769991015275,
+          "centroid_delta_working_px": [
+            -3.4431363210432977,
+            1.6324041981128516
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.6304380779142035,
+          "area_ratio": 1.4159928122192273,
+          "centroid_delta_working_px": [
+            -3.3629290548706905,
+            1.6363124313033381
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_03",
+      "side": "near",
+      "kind": "near-01-06",
+      "iou": 0.6977176669484362,
+      "area_ratio": 1.4093090211132437,
+      "centroid_delta_working_px": [
+        0.6337240724439113,
+        3.6069474315716405
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.7047358522824414,
+          "area_ratio": 1.392274472168906,
+          "centroid_delta_working_px": [
+            0.625429943410694,
+            3.5377424907296984
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.7027763583716573,
+          "area_ratio": 1.3985124760076775,
+          "centroid_delta_working_px": [
+            0.6388287400116326,
+            3.556202293186928
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.6918955123911588,
+          "area_ratio": 1.4241842610364683,
+          "centroid_delta_working_px": [
+            0.5680875920244688,
+            3.5071896130704516
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_04",
+      "side": "near",
+      "kind": "near-01-06",
+      "iou": 0.16859151393422045,
+      "area_ratio": 1.4626984126984126,
+      "centroid_delta_working_px": [
+        -10.815822919268385,
+        -11.320521952073761
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.16685613237337374,
+          "area_ratio": 1.4439153439153438,
+          "centroid_delta_working_px": [
+            -10.804103291901015,
+            -11.31232073302428
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.16765335684595037,
+          "area_ratio": 1.4523809523809523,
+          "centroid_delta_working_px": [
+            -10.822790354757558,
+            -11.269160378176764
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.17789119880492968,
+          "area_ratio": 1.5031746031746032,
+          "centroid_delta_working_px": [
+            -10.697828006011733,
+            -11.12829179307532
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_05",
+      "side": "near",
+      "kind": "near-01-06",
+      "iou": 0.423836181496759,
+      "area_ratio": 1.4259538152610443,
+      "centroid_delta_working_px": [
+        7.703992523517769,
+        -9.96954726139198
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.42733512384362876,
+          "area_ratio": 1.4011044176706828,
+          "centroid_delta_working_px": [
+            7.718549223767155,
+            -9.995751907666502
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.4252038547071905,
+          "area_ratio": 1.4129016064257027,
+          "centroid_delta_working_px": [
+            7.690559716214295,
+            -9.944946601113998
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.4247296112247881,
+          "area_ratio": 1.4467871485943775,
+          "centroid_delta_working_px": [
+            7.690009517598497,
+            -9.93878637380891
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_06",
+      "side": "near",
+      "kind": "near-01-06",
+      "iou": 0.36703044227455484,
+      "area_ratio": 1.3919597989949748,
+      "centroid_delta_working_px": [
+        11.646568129455943,
+        -8.045720026123405
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.3685050798258345,
+          "area_ratio": 1.3690954773869346,
+          "centroid_delta_working_px": [
+            11.612152199795077,
+            -8.111910672835648
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.36817788045047645,
+          "area_ratio": 1.3809045226130654,
+          "centroid_delta_working_px": [
+            11.610559072655846,
+            -8.033469567634398
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.36740804106073566,
+          "area_ratio": 1.4097989949748744,
+          "centroid_delta_working_px": [
+            11.67987652574044,
+            -8.077507525150267
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_01",
+      "side": "far",
+      "kind": "far-01-06",
+      "iou": 0.5509533201840894,
+      "area_ratio": 1.4936575052854122,
+      "centroid_delta_working_px": [
+        -0.7950414005257755,
+        -4.467270842030146
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.5529938629955217,
+          "area_ratio": 1.4743657505285412,
+          "centroid_delta_working_px": [
+            -0.8587125649000171,
+            -4.417879813571517
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.55183228788379,
+          "area_ratio": 1.4844080338266386,
+          "centroid_delta_working_px": [
+            -0.7998439688336703,
+            -4.459185457466219
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.5493555229238049,
+          "area_ratio": 1.5095137420718816,
+          "centroid_delta_working_px": [
+            -0.8087165627350288,
+            -4.475223704703879
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_02",
+      "side": "far",
+      "kind": "far-01-06",
+      "iou": 0.5477815699658704,
+      "area_ratio": 1.43293991416309,
+      "centroid_delta_working_px": [
+        0.04688732740626733,
+        -4.863889366474751
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.550025920165889,
+          "area_ratio": 1.4061158798283262,
+          "centroid_delta_working_px": [
+            0.048390107631817614,
+            -4.818400571154413
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.5506547208821503,
+          "area_ratio": 1.4141630901287554,
+          "centroid_delta_working_px": [
+            0.056525852019248646,
+            -4.808935537652971
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.5461160940937553,
+          "area_ratio": 1.4506437768240343,
+          "centroid_delta_working_px": [
+            -0.03499861911777202,
+            -4.843386129593412
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_03",
+      "side": "far",
+      "kind": "far-01-06",
+      "iou": 0.3933850431728377,
+      "area_ratio": 1.5956924754634678,
+      "centroid_delta_working_px": [
+        -0.6965160704806834,
+        -9.167182251978275
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.3943578322197476,
+          "area_ratio": 1.5602508178844057,
+          "centroid_delta_working_px": [
+            -0.6560891110522107,
+            -9.117157546573537
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.3941627358490566,
+          "area_ratio": 1.578516902944384,
+          "centroid_delta_working_px": [
+            -0.6854619987456232,
+            -9.085638665544138
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.3950167565204721,
+          "area_ratio": 1.6101417666303162,
+          "centroid_delta_working_px": [
+            -0.74034602815982,
+            -9.14048833395313
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_04",
+      "side": "far",
+      "kind": "far-01-06",
+      "iou": 0.46836865767501606,
+      "area_ratio": 1.4425747863247864,
+      "centroid_delta_working_px": [
+        -0.8646008890408154,
+        -6.969548413794854
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.46874492612437085,
+          "area_ratio": 1.4161324786324787,
+          "centroid_delta_working_px": [
+            -0.7175916522389514,
+            -7.032071029477663
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.46890647714424166,
+          "area_ratio": 1.4289529914529915,
+          "centroid_delta_working_px": [
+            -0.7836576403866218,
+            -6.973003035386213
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.4678036340452662,
+          "area_ratio": 1.4596688034188035,
+          "centroid_delta_working_px": [
+            -0.929199020964802,
+            -6.964116835182708
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_05",
+      "side": "far",
+      "kind": "far-01-06",
+      "iou": 0.5650994575045208,
+      "area_ratio": 1.5789630512514898,
+      "centroid_delta_working_px": [
+        -3.4575412389186226,
+        -2.936065871155222
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.5665934870106111,
+          "area_ratio": 1.5515494636471991,
+          "centroid_delta_working_px": [
+            -3.5130092707785536,
+            -3.0392355413188454
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.5658181818181818,
+          "area_ratio": 1.5661501787842669,
+          "centroid_delta_working_px": [
+            -3.468893374369358,
+            -2.978624463239015
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.5624551328068916,
+          "area_ratio": 1.5941597139451729,
+          "centroid_delta_working_px": [
+            -3.466484911944562,
+            -2.9284410680271407
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_06",
+      "side": "far",
+      "kind": "far-01-06",
+      "iou": 0.6181035807591824,
+      "area_ratio": 1.5213122605363985,
+      "centroid_delta_working_px": [
+        -0.8117151941370082,
+        -2.605556671268218
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.6223429014740108,
+          "area_ratio": 1.503831417624521,
+          "centroid_delta_working_px": [
+            -0.7640041974766234,
+            -2.518229128535509
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.6210412482620115,
+          "area_ratio": 1.512691570881226,
+          "centroid_delta_working_px": [
+            -0.8117694028823195,
+            -2.5637603207788686
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.6147877681424008,
+          "area_ratio": 1.5416666666666667,
+          "centroid_delta_working_px": [
+            -0.8704048876462593,
+            -2.6730868799834298
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_07",
+      "side": "far",
+      "kind": "far-07-12",
+      "iou": 0.3887905604719764,
+      "area_ratio": 1.5366379310344827,
+      "centroid_delta_working_px": [
+        -10.869933984620602,
+        -7.447853895632832
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.38663171690694625,
+          "area_ratio": 1.5081896551724139,
+          "centroid_delta_working_px": [
+            -10.93770313685684,
+            -7.526220545771707
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.3866492767370168,
+          "area_ratio": 1.5204741379310345,
+          "centroid_delta_working_px": [
+            -10.912879713580494,
+            -7.509918986289989
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.3886549707602339,
+          "area_ratio": 1.5588362068965518,
+          "centroid_delta_working_px": [
+            -10.853537545826839,
+            -7.41017284286103
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_08",
+      "side": "far",
+      "kind": "far-07-12",
+      "iou": 0.5174543501611171,
+      "area_ratio": 1.5160284951024043,
+      "centroid_delta_working_px": [
+        -6.270198283651283,
+        -5.930188895121759
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.5204081632653061,
+          "area_ratio": 1.4877560106856633,
+          "centroid_delta_working_px": [
+            -6.32775893406658,
+            -5.929552283015241
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.5199025182778229,
+          "area_ratio": 1.4991095280498665,
+          "centroid_delta_working_px": [
+            -6.273656483585256,
+            -5.871257908657725
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.5162450066577896,
+          "area_ratio": 1.5349510240427426,
+          "centroid_delta_working_px": [
+            -6.295629681192963,
+            -5.903409396900585
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_09",
+      "side": "far",
+      "kind": "far-07-12",
+      "iou": 0.5386511965192168,
+      "area_ratio": 1.5283603431839847,
+      "centroid_delta_working_px": [
+        -3.6981466165083816,
+        -7.280224741598971
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.5378965922444183,
+          "area_ratio": 1.4952335557673975,
+          "centroid_delta_working_px": [
+            -3.7058237075065534,
+            -7.443550379507428
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.536428675719083,
+          "area_ratio": 1.5078646329837941,
+          "centroid_delta_working_px": [
+            -3.704918191484353,
+            -7.444756142927332
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.5353753235547886,
+          "area_ratio": 1.5445662535748332,
+          "centroid_delta_working_px": [
+            -3.7203001469868155,
+            -7.2705357186196125
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_10",
+      "side": "far",
+      "kind": "far-07-12",
+      "iou": 0.3052645194670806,
+      "area_ratio": 1.550808897876643,
+      "centroid_delta_working_px": [
+        -8.627028239732411,
+        -8.021264842361333
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.30461498235063406,
+          "area_ratio": 1.5224974721941356,
+          "centroid_delta_working_px": [
+            -8.58922953249484,
+            -8.030734938045882
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.3060692888773118,
+          "area_ratio": 1.5348837209302326,
+          "centroid_delta_working_px": [
+            -8.581152143272973,
+            -8.030938811778043
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.3056875080241366,
+          "area_ratio": 1.570778564206269,
+          "centroid_delta_working_px": [
+            -8.627248461756508,
+            -7.999856483761022
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_11",
+      "side": "far",
+      "kind": "far-07-12",
+      "iou": 0.19225791269561124,
+      "area_ratio": 1.5231573705179282,
+      "centroid_delta_working_px": [
+        14.332599632530858,
+        -7.969208990423795
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.19136536631779258,
+          "area_ratio": 1.4942729083665338,
+          "centroid_delta_working_px": [
+            14.303295732251797,
+            -7.987666066279786
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.19194312796208532,
+          "area_ratio": 1.504980079681275,
+          "centroid_delta_working_px": [
+            14.303433848985264,
+            -7.931544174064825
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.19565471323443523,
+          "area_ratio": 1.548804780876494,
+          "centroid_delta_working_px": [
+            14.324959967205132,
+            -7.915704064769855
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    },
+    {
+      "name": "reference_12",
+      "side": "far",
+      "kind": "far-07-12",
+      "iou": 0.4808246828143022,
+      "area_ratio": 1.457177033492823,
+      "centroid_delta_working_px": [
+        9.506215107551427,
+        -8.140233060150706
+      ],
+      "foreground_threshold": 220,
+      "threshold_sensitivity": [
+        {
+          "iou": 0.48357903955626913,
+          "area_ratio": 1.431578947368421,
+          "centroid_delta_working_px": [
+            9.638310054883192,
+            -8.27756385448916
+          ],
+          "foreground_threshold": 180
+        },
+        {
+          "iou": 0.4822180287414719,
+          "area_ratio": 1.442822966507177,
+          "centroid_delta_working_px": [
+            9.589080381347088,
+            -8.229835919519473
+          ],
+          "foreground_threshold": 200
+        },
+        {
+          "iou": 0.47863370015721024,
+          "area_ratio": 1.4751196172248804,
+          "centroid_delta_working_px": [
+            9.541253936155513,
+            -8.121705075060476
+          ],
+          "foreground_threshold": 240
+        }
+      ]
+    }
+  ],
+  "coverage": "All 24 leg poses use generated appearance in fixed world coordinates. This is a complete twelve-frame profile draft, not accepted final artwork.",
+  "material_route": {
+    "source": "near-01-06-raw.png",
+    "source_sha256": "63de72647a6fdba5d9b46535572a271d4ed9e49dc32868b072cca3f166f5bd25",
+    "sample_rectangles": {
+      "cloth": [
+        1320,
+        265,
+        1340,
+        290
+      ],
+      "leather": [
+        1318,
+        324,
+        1342,
+        346
+      ]
+    },
+    "source_script_sha256": "7822132799af536efe44431aa5782c6854fdd592daec6a1cc884d96858421c13",
+    "meaning": "Two fixed generated material samples shade C++ control polygons. Alpha follows the controls by construction; this is not raw model performance.",
+    "pose_dependent_generation_requests": 0
+  }
+}

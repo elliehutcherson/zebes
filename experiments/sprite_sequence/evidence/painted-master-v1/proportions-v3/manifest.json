@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "canvas": [
+    512,
+    512
+  ],
+  "fps": 12,
+  "frames": [
+    "reference_01",
+    "reference_02",
+    "reference_03",
+    "reference_04",
+    "reference_05",
+    "reference_06",
+    "reference_07",
+    "reference_08",
+    "reference_09",
+    "reference_10",
+    "reference_11",
+    "reference_12"
+  ],
+  "proportions": true,
+  "part_donors": {
+    "far_arm": "near_arm"
+  },
+  "raw_sha256": {
+    "legs-1-raw.png": "56d1c4acd21f7968168e7facdea19a6cacf5da3b7497a809ebef908d61499c24",
+    "legs-2-raw.png": "4f7e5969269578e0fcccb9ea298880efb76a66cbf2347c18d334d3923d9479ad",
+    "legs-3-raw.png": "a0b5898c82243637bc7b89d980e88925b23d92faa45d5d184affee3e8514fba9",
+    "upper-raw.png": "4e7f5a4b1d926f106a01af775ed994dd49478e3a2693a718d2a3c6a1eeabd508"
+  },
+  "source_sha256": {
+    "experiments/sprite_sequence/painted-landmarks-v2.json": "b77e4a51fb9de37f57d53a785db1c9bed81046155a8ae22b6cde026742759eff",
+    "experiments/character_binding/puppet_documents/mouse_run_reference_v2.json": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+    "scripts/render_sprite_painted.py": "cac4a04ce9fd31d3451dd0e67bc6305ae662a79adcbe7a58e075becfa837f1cc",
+    "scripts/sprite_painted_registration.cc": "42262b505dbe80696873b5ed0fb1f58b4471d0a2410878f250415439e513270b",
+    "experiments/sprite_sequence/evidence/painted-master-v1/geometry-registration-v2.json": "755f02fe77223c53a6863f5310e6f71d41a1d5f5a5f923862a0cee298c02ea79"
+  },
+  "sampling": "C++ inverse thin-plate mesh from explicit semantic pairs; two pins use similarity; native RGB/alpha artwork registered directly at 512px with bicubic interpolation, followed by coat deformation and whole-character grounding. No guide clipping or procedural paint.",
+  "background": "Separate extraction: alpha=clamp((245-minRGB)/35), white unmatte; raw bytes untouched.",
+  "reuse": "Twelve near-phase complete paintings supply both sides through their own original pose targets; far uses donor six phases later. Head, coat, arms and tail reuse five complete paintings.",
+  "status": "full-resolution candidate; visual review and contact diagnostics required"
+}

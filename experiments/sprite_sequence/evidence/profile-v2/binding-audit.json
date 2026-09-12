@@ -1,0 +1,482 @@
+[
+  {
+    "name": "reference_01",
+    "side": "near",
+    "legacy_ankle": [
+      160.18321538162203,
+      205.6957312320428
+    ],
+    "target_ankle": [
+      161.713663456666,
+      199.728845075184
+    ],
+    "legacy_ankle_error_px": 6.160032607001259,
+    "new_ankle_error_px": 2.6203521364587025e-13,
+    "new_toe_error_px": 2.8421709430404007e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 9.54166404439055e-15,
+      "knee_l->ankle_l": 1.2722218725854067e-14,
+      "ankle_l->toe_l": 4.6118042881220995e-14
+    }
+  },
+  {
+    "name": "reference_01",
+    "side": "far",
+    "legacy_ankle": [
+      92.91089768011837,
+      200.31761212443016
+    ],
+    "target_ankle": [
+      105.096316675112,
+      191.443379692518
+    ],
+    "legacy_ankle_error_px": 15.074363579904574,
+    "new_ankle_error_px": 2.9673135796061134e-13,
+    "new_toe_error_px": 2.6203521364587025e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 0.0,
+      "knee_r->ankle_r": 2.5444437451708134e-14,
+      "ankle_r->toe_r": 2.5444437451708134e-14
+    }
+  },
+  {
+    "name": "reference_02",
+    "side": "near",
+    "legacy_ankle": [
+      166.95103450032204,
+      207.35168080220788
+    ],
+    "target_ankle": [
+      166.31669978037,
+      199.331881398888
+    ],
+    "legacy_ankle_error_px": 8.044846984649663,
+    "new_ankle_error_px": 2.813605685961325e-13,
+    "new_toe_error_px": 6.233367514443361e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 0.0,
+      "knee_l->ankle_l": 1.2722218725854067e-14,
+      "ankle_l->toe_l": 3.339582415536693e-14
+    }
+  },
+  {
+    "name": "reference_02",
+    "side": "far",
+    "legacy_ankle": [
+      95.4090226659156,
+      179.4139605365363
+    ],
+    "target_ankle": [
+      110.619960263556,
+      171.253359824296
+    ],
+    "legacy_ankle_error_px": 17.261750391658634,
+    "new_ankle_error_px": 2.957087310546287e-13,
+    "new_toe_error_px": 3.1776437161565096e-14,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 2.5444437451708134e-14,
+      "knee_r->ankle_r": 2.5444437451708134e-14,
+      "ankle_r->toe_r": 2.5444437451708134e-14
+    }
+  },
+  {
+    "name": "reference_03",
+    "side": "near",
+    "legacy_ankle": [
+      153.8631529833873,
+      207.35168080220788
+    ],
+    "target_ankle": [
+      153.428198074,
+      199.395221354962
+    ],
+    "legacy_ankle_error_px": 7.968339394683719,
+    "new_ankle_error_px": 3.639754730461873e-13,
+    "new_toe_error_px": 2.6812987050722663e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 2.5444437451708134e-14,
+      "knee_l->ankle_l": 0.0,
+      "ankle_l->toe_l": 1.749305074804934e-14
+    }
+  },
+  {
+    "name": "reference_03",
+    "side": "far",
+    "legacy_ankle": [
+      104.27036468211901,
+      169.59733663500265
+    ],
+    "target_ankle": [
+      120.286336543334,
+      161.190019868222
+    ],
+    "legacy_ankle_error_px": 18.088513755315038,
+    "new_ankle_error_px": 2.330753469956438e-13,
+    "new_toe_error_px": 6.233367514443361e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 3.81666561775622e-14,
+      "knee_r->ankle_r": 0.0,
+      "ankle_r->toe_r": 0.0
+    }
+  },
+  {
+    "name": "reference_04",
+    "side": "near",
+    "legacy_ankle": [
+      134.65935586369912,
+      207.35168080220788
+    ],
+    "target_ankle": [
+      134.555749146815,
+      199.871577766517
+    ],
+    "legacy_ankle_error_px": 7.480820528280006,
+    "new_ankle_error_px": 4.556346636343676e-13,
+    "new_toe_error_px": 4.865013002195067e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 2.5444437451708134e-14,
+      "knee_l->ankle_l": 1.2722218725854067e-14,
+      "ankle_l->toe_l": 2.8624992133171654e-14
+    }
+  },
+  {
+    "name": "reference_04",
+    "side": "far",
+    "legacy_ankle": [
+      114.14835727475844,
+      176.5172204495518
+    ],
+    "target_ankle": [
+      129.492409190741,
+      169.491538030074
+    ],
+    "legacy_ankle_error_px": 16.876022714482446,
+    "new_ankle_error_px": 3.410605131648481e-13,
+    "new_toe_error_px": 3.377881604366369e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 0.0,
+      "knee_r->ankle_r": 2.5444437451708134e-14,
+      "ankle_r->toe_r": 2.5444437451708134e-14
+    }
+  },
+  {
+    "name": "reference_05",
+    "side": "near",
+    "legacy_ankle": [
+      120.81794349278856,
+      202.34482074633232
+    ],
+    "target_ankle": [
+      121.667247440445,
+      199.252488663628
+    ],
+    "legacy_ankle_error_px": 3.206841889652079,
+    "new_ankle_error_px": 5.240704272917405e-13,
+    "new_toe_error_px": 4.272719814472597e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 1.2722218725854067e-14,
+      "knee_l->ankle_l": 0.0,
+      "ankle_l->toe_l": 4.4527765540489235e-14
+    }
+  },
+  {
+    "name": "reference_05",
+    "side": "far",
+    "legacy_ankle": [
+      136.88888704953908,
+      192.17079035357204
+    ],
+    "target_ankle": [
+      141,
+      175.31669978037
+    ],
+    "legacy_ankle_error_px": 17.34824540814275,
+    "new_ankle_error_px": 1.7053025658242404e-13,
+    "new_toe_error_px": 1.6077746776921858e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 1.2722218725854067e-14,
+      "knee_r->ankle_r": 0.0,
+      "ankle_r->toe_r": 2.5444437451708134e-14
+    }
+  },
+  {
+    "name": "reference_06",
+    "side": "near",
+    "legacy_ankle": [
+      104.20148786255447,
+      186.86449300054275
+    ],
+    "target_ankle": [
+      109.239049366445,
+      186.506719648592
+    ],
+    "legacy_ankle_error_px": 5.050250258833308,
+    "new_ankle_error_px": 3.7517733012589603e-13,
+    "new_toe_error_px": 3.2155493553843715e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 0.0,
+      "knee_l->ankle_l": 2.5444437451708134e-14,
+      "ankle_l->toe_l": 0.0
+    }
+  },
+  {
+    "name": "reference_06",
+    "side": "far",
+    "legacy_ankle": [
+      171.35479717546872,
+      194.35001770139382
+    ],
+    "target_ankle": [
+      160.793056191925,
+      185.586112383851
+    ],
+    "legacy_ankle_error_px": 13.724299946384246,
+    "new_ankle_error_px": 4.840042710704439e-13,
+    "new_toe_error_px": 4.591667681496435e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 6.3611093629270335e-15,
+      "knee_r->ankle_r": 1.2722218725854067e-14,
+      "ankle_r->toe_r": 3.180554681463517e-14
+    }
+  },
+  {
+    "name": "reference_07",
+    "side": "near",
+    "legacy_ankle": [
+      94.25308781300086,
+      188.95574034039387
+    ],
+    "target_ankle": [
+      101.874191248519,
+      186.681557898296
+    ],
+    "legacy_ankle_error_px": 7.953183221503989,
+    "new_ankle_error_px": 6.137049377255489e-13,
+    "new_toe_error_px": 2.842170943040401e-14,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 2.5444437451708134e-14,
+      "knee_l->ankle_l": 0.0,
+      "ankle_l->toe_l": 0.0
+    }
+  },
+  {
+    "name": "reference_07",
+    "side": "far",
+    "legacy_ankle": [
+      181.33693533078363,
+      207.94293561003116
+    ],
+    "target_ankle": [
+      169.999128839333,
+      199.109755972295
+    ],
+    "legacy_ankle_error_px": 14.372575223323645,
+    "new_ankle_error_px": 4.0394838843985483e-13,
+    "new_toe_error_px": 2.1645329030274947e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 1.90833280887811e-14,
+      "knee_r->ankle_r": 1.2722218725854067e-14,
+      "ankle_r->toe_r": 2.2263882770244617e-14
+    }
+  },
+  {
+    "name": "reference_08",
+    "side": "near",
+    "legacy_ankle": [
+      106.06646035018528,
+      164.45899246378053
+    ],
+    "target_ankle": [
+      112.000871160667,
+      165.650323500592
+    ],
+    "legacy_ankle_error_px": 6.05280937307897,
+    "new_ankle_error_px": 3.8657704262548816e-13,
+    "new_toe_error_px": 4.957531570685322e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 1.2722218725854067e-14,
+      "knee_l->ankle_l": 0.0,
+      "ankle_l->toe_l": 2.5444437451708134e-14
+    }
+  },
+  {
+    "name": "reference_08",
+    "side": "far",
+    "legacy_ankle": [
+      183.06538982173075,
+      209.1507714175298
+    ],
+    "target_ankle": [
+      169.078521574592,
+      199.712792295999
+    ],
+    "legacy_ankle_error_px": 16.87329052856227,
+    "new_ankle_error_px": 1.530555893832145e-13,
+    "new_toe_error_px": 3.694822225952521e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 1.2722218725854067e-14,
+      "knee_r->ankle_r": 0.0,
+      "ankle_r->toe_r": 5.088887490341627e-14
+    }
+  },
+  {
+    "name": "reference_09",
+    "side": "near",
+    "legacy_ankle": [
+      116.70104495877058,
+      154.87103526680713
+    ],
+    "target_ankle": [
+      123.968765602297,
+      155.285465382666
+    ],
+    "legacy_ankle_error_px": 7.279527160006399,
+    "new_ankle_error_px": 5.754957536315881e-13,
+    "new_toe_error_px": 2.428351918216984e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 1.2722218725854067e-14,
+      "knee_l->ankle_l": 0.0,
+      "ankle_l->toe_l": 0.0
+    }
+  },
+  {
+    "name": "reference_09",
+    "side": "far",
+    "legacy_ankle": [
+      163.9035929705815,
+      209.1507714175298
+    ],
+    "target_ankle": [
+      152.047287176889,
+      199.474614090221
+    ],
+    "legacy_ankle_error_px": 15.303594600497572,
+    "new_ankle_error_px": 3.7057375295732124e-13,
+    "new_toe_error_px": 2.2914314707516465e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 0.0,
+      "knee_r->ankle_r": 0.0,
+      "ankle_r->toe_r": 1.90833280887811e-14
+    }
+  },
+  {
+    "name": "reference_10",
+    "side": "near",
+    "legacy_ankle": [
+      129.82840842352968,
+      161.82447126345573
+    ],
+    "target_ankle": [
+      135.476356411556,
+      163.269412603481
+    ],
+    "legacy_ankle_error_px": 5.829851794991404,
+    "new_ankle_error_px": 3.5612299842971617e-13,
+    "new_toe_error_px": 2.9158236044229387e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 0.0,
+      "knee_l->ankle_l": 2.5444437451708134e-14,
+      "ankle_l->toe_l": 0.0
+    }
+  },
+  {
+    "name": "reference_10",
+    "side": "far",
+    "legacy_ankle": [
+      149.95192791798877,
+      209.1507714175298
+    ],
+    "target_ankle": [
+      137.777874573407,
+      199.173095928369
+    ],
+    "legacy_ankle_error_px": 15.74044418063616,
+    "new_ankle_error_px": 5.339954392427426e-13,
+    "new_toe_error_px": 2.428351918216984e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 0.0,
+      "knee_r->ankle_r": 1.2722218725854067e-14,
+      "ankle_r->toe_r": 2.5444437451708134e-14
+    }
+  },
+  {
+    "name": "reference_11",
+    "side": "near",
+    "legacy_ankle": [
+      135.93582713839524,
+      180.09002228803277
+    ],
+    "target_ankle": [
+      141.920607264741,
+      174.77700341274
+    ],
+    "legacy_ankle_error_px": 8.002859659516746,
+    "new_ankle_error_px": 3.314512409159136e-13,
+    "new_toe_error_px": 3.4693117685644956e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 6.3611093629270335e-15,
+      "knee_l->ankle_l": 2.5444437451708134e-14,
+      "ankle_l->toe_l": 0.0
+    }
+  },
+  {
+    "name": "reference_11",
+    "side": "far",
+    "legacy_ankle": [
+      127.57380761641267,
+      205.49880944502954
+    ],
+    "target_ankle": [
+      118.445122013852,
+      198.252488663628
+    ],
+    "legacy_ankle_error_px": 11.655130445317647,
+    "new_ankle_error_px": 6.228505924585513e-13,
+    "new_toe_error_px": 2.4116620165382783e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 2.5444437451708134e-14,
+      "knee_r->ankle_r": 0.0,
+      "ankle_r->toe_r": 3.1805546814635168e-15
+    }
+  },
+  {
+    "name": "reference_12",
+    "side": "near",
+    "legacy_ankle": [
+      154.19409162185767,
+      185.30828353661417
+    ],
+    "target_ankle": [
+      157.110627132963,
+      182.74489785437
+    ],
+    "legacy_ankle_error_px": 3.882927445043601,
+    "new_ankle_error_px": 6.259232221039281e-13,
+    "new_toe_error_px": 4.963638160851638e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_l": 6.3611093629270335e-15,
+      "knee_l->ankle_l": 1.2722218725854067e-14,
+      "ankle_l->toe_l": 1.2722218725854067e-14
+    }
+  },
+  {
+    "name": "reference_12",
+    "side": "far",
+    "legacy_ankle": [
+      102.5584510762144,
+      192.58393744379723
+    ],
+    "target_ankle": [
+      102.79479851326,
+      185.046416016221
+    ],
+    "legacy_ankle_error_px": 7.541225986679403,
+    "new_ankle_error_px": 3.377881604366369e-13,
+    "new_toe_error_px": 3.43714720612747e-13,
+    "trace_direction_error_degrees": {
+      "hip_c->knee_r": 2.5444437451708134e-14,
+      "knee_r->ankle_r": 0.0,
+      "ankle_r->toe_r": 1.2722218725854067e-14
+    }
+  }
+]

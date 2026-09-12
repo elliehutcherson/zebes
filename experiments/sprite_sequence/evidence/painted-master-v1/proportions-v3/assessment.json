@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "review_date": "2026-09-12",
+  "result": "proportions-v3",
+  "visual_status": "not_accepted_as_satisfactory_animation",
+  "user_verdict": "we are still pretty far off the mark here.",
+  "scope": "The assembled twelve-frame animation after the proportion correction. This does not withdraw the earlier preference for complete generated leg artwork.",
+  "prior_user_feedback": [
+    "mapped-v3 legs are too narrow",
+    "The left/back arm is far too large"
+  ],
+  "measured_changes": {
+    "thigh_midpoint_width_mean_increase_percent": 30,
+    "calf_midpoint_width_mean_increase_percent": 40,
+    "back_arm_painted_area_reduction_percent": [
+      41,
+      46
+    ],
+    "qualification": "Measured differences from mapped-v3, not validated target proportions; folded cross sections may include adjacent segments."
+  },
+  "technical_findings": {
+    "canvas": [
+      512,
+      512
+    ],
+    "frames": 12,
+    "fps": 12,
+    "focused_tests_passed": 25,
+    "inverted_cells_over_sampled_opaque_artwork": 0,
+    "leg_pixels_below_row_428_at_alpha_32_128_224": 0,
+    "new_generation_requests_during_proportion_correction": 0
+  },
+  "conclusion": "Full-resolution rendering and deterministic control were demonstrated. A satisfactory painted run was not achieved. Passing structural checks and changing proportions did not establish visual success.",
+  "reporting_correction": "Earlier wording such as 'corrected them' and 'correction complete' overstated the outcome. The remaining gap must not be described as minor polish or merely awaiting a first review.",
+  "unknowns": "The latest feedback does not enumerate every remaining defect or specify the next geometry/art change. Previously noted fold continuity, sole visibility, arm deformation, coat response and paw/muzzle spacing are assistant observations, not a complete user diagnosis.",
+  "next_work": "Begin any next attempt with a full-size visual comparison against the source and preferred complete leg paintings. Reassess overall silhouette, proportions and motion; do not assume another width multiplier or additional frames will close the gap.",
+  "evidence_policy": "Preserve all raw generations, prompts, mappings, failed attempts and prior verification receipts unchanged. This assessment supersedes acceptance/status wording in the earlier verification and review.",
+  "reviewed_artifact_sha256": {
+    "frames-512.png": "c1b57b16a54cea6330fb0738dadc300d523372a61ce3918c1f0d415b2fe4a328",
+    "before-after-512.png": "3b0e4032e607289b8d9bc161b986c81d5d89e2dc26ca59bb35612e9e0acca564",
+    "summary.json": "3deb3ab91eab58b408e98e74370bb186008d7b7aa52a6ac885d64e88e07ca745",
+    "verification.json": "35f5c0ebbbb3d41eb5c965e9bfeb182a014b7610f5bd33a9bde2611670fdc43f"
+  }
+}

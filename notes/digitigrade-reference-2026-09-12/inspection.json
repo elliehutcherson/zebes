@@ -1,0 +1,1504 @@
+{
+  "source": "/tmp/zebes-digitigrade-reference-20260912/low_poly_raptor_oga/low_poly_raptor.blend",
+  "fps": 30.0,
+  "scene_frames": [
+    1,
+    24
+  ],
+  "embedded_texts": [],
+  "objects": [
+    {
+      "name": "cam_prev",
+      "type": "CAMERA",
+      "location": [
+        -1.7608593702316284,
+        0.8249803185462952,
+        0.453825980424881
+      ],
+      "scale": [
+        1.000000238418579,
+        1.0000001192092896,
+        1.0000001192092896
+      ],
+      "hidden": false,
+      "action": null
+    },
+    {
+      "name": "cam_ortho",
+      "type": "CAMERA",
+      "location": [
+        -5.447979927062988,
+        -5.9160990715026855,
+        3.5480751991271973
+      ],
+      "scale": [
+        1.0000001192092896,
+        1.0000001192092896,
+        1.0
+      ],
+      "hidden": false,
+      "action": null
+    },
+    {
+      "name": "raptor_skeleton",
+      "type": "ARMATURE",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "hidden": false,
+      "action": "oga_preview"
+    },
+    {
+      "name": "raptor_scaly",
+      "type": "MESH",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.9999999403953552,
+        0.9999999403953552,
+        1.0
+      ],
+      "hidden": false,
+      "action": null
+    },
+    {
+      "name": "raptor_feathered",
+      "type": "MESH",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.9999999403953552,
+        0.9999999403953552,
+        1.0
+      ],
+      "hidden": false,
+      "action": null
+    }
+  ],
+  "actions": {
+    "attack_1": {
+      "range": [
+        0.0,
+        16.0
+      ],
+      "curves": 410,
+      "keyed_channels": [
+        "pose.bones[\"arm_lower.l\"].location",
+        "pose.bones[\"arm_lower.l\"].rotation_quaternion",
+        "pose.bones[\"arm_lower.l\"].scale",
+        "pose.bones[\"arm_lower.r\"].location",
+        "pose.bones[\"arm_lower.r\"].rotation_quaternion",
+        "pose.bones[\"arm_lower.r\"].scale",
+        "pose.bones[\"arm_upper.l\"].location",
+        "pose.bones[\"arm_upper.l\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.l\"].scale",
+        "pose.bones[\"arm_upper.r\"].location",
+        "pose.bones[\"arm_upper.r\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.r\"].scale",
+        "pose.bones[\"finger1.l\"].location",
+        "pose.bones[\"finger1.l\"].rotation_quaternion",
+        "pose.bones[\"finger1.l\"].scale",
+        "pose.bones[\"finger1.l.001\"].location",
+        "pose.bones[\"finger1.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger1.l.001\"].scale",
+        "pose.bones[\"finger1.r\"].location",
+        "pose.bones[\"finger1.r\"].rotation_quaternion",
+        "pose.bones[\"finger1.r\"].scale",
+        "pose.bones[\"finger1.r.001\"].location",
+        "pose.bones[\"finger1.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger1.r.001\"].scale",
+        "pose.bones[\"finger2.l\"].location",
+        "pose.bones[\"finger2.l\"].rotation_quaternion",
+        "pose.bones[\"finger2.l\"].scale",
+        "pose.bones[\"finger2.l.001\"].location",
+        "pose.bones[\"finger2.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.l.001\"].scale",
+        "pose.bones[\"finger2.r\"].location",
+        "pose.bones[\"finger2.r\"].rotation_quaternion",
+        "pose.bones[\"finger2.r\"].scale",
+        "pose.bones[\"finger2.r.001\"].location",
+        "pose.bones[\"finger2.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.r.001\"].scale",
+        "pose.bones[\"finger3.l\"].location",
+        "pose.bones[\"finger3.l\"].rotation_quaternion",
+        "pose.bones[\"finger3.l\"].scale",
+        "pose.bones[\"finger3.l.001\"].location",
+        "pose.bones[\"finger3.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.l.001\"].scale",
+        "pose.bones[\"finger3.r\"].location",
+        "pose.bones[\"finger3.r\"].rotation_quaternion",
+        "pose.bones[\"finger3.r\"].scale",
+        "pose.bones[\"finger3.r.001\"].location",
+        "pose.bones[\"finger3.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.r.001\"].scale",
+        "pose.bones[\"foot.l\"].location",
+        "pose.bones[\"foot.l\"].rotation_quaternion",
+        "pose.bones[\"foot.l\"].scale",
+        "pose.bones[\"foot.r\"].location",
+        "pose.bones[\"foot.r\"].rotation_quaternion",
+        "pose.bones[\"foot.r\"].scale",
+        "pose.bones[\"hand.l\"].location",
+        "pose.bones[\"hand.l\"].rotation_quaternion",
+        "pose.bones[\"hand.l\"].scale",
+        "pose.bones[\"hand.r\"].location",
+        "pose.bones[\"hand.r\"].rotation_quaternion",
+        "pose.bones[\"hand.r\"].scale",
+        "pose.bones[\"head\"].location",
+        "pose.bones[\"head\"].rotation_quaternion",
+        "pose.bones[\"head\"].scale",
+        "pose.bones[\"hip.l\"].location",
+        "pose.bones[\"hip.l\"].rotation_quaternion",
+        "pose.bones[\"hip.l\"].scale",
+        "pose.bones[\"hip.r\"].location",
+        "pose.bones[\"hip.r\"].rotation_quaternion",
+        "pose.bones[\"hip.r\"].scale",
+        "pose.bones[\"jaw\"].location",
+        "pose.bones[\"jaw\"].rotation_quaternion",
+        "pose.bones[\"jaw\"].scale",
+        "pose.bones[\"leg1.l\"].location",
+        "pose.bones[\"leg1.l\"].rotation_quaternion",
+        "pose.bones[\"leg1.l\"].scale",
+        "pose.bones[\"leg1.r\"].location",
+        "pose.bones[\"leg1.r\"].rotation_quaternion",
+        "pose.bones[\"leg1.r\"].scale",
+        "pose.bones[\"leg2.l\"].location",
+        "pose.bones[\"leg2.l\"].rotation_quaternion",
+        "pose.bones[\"leg2.l\"].scale",
+        "pose.bones[\"leg2.r\"].location",
+        "pose.bones[\"leg2.r\"].rotation_quaternion",
+        "pose.bones[\"leg2.r\"].scale",
+        "pose.bones[\"neck1\"].location",
+        "pose.bones[\"neck1\"].rotation_quaternion",
+        "pose.bones[\"neck1\"].scale",
+        "pose.bones[\"neck2\"].location",
+        "pose.bones[\"neck2\"].rotation_quaternion",
+        "pose.bones[\"neck2\"].scale",
+        "pose.bones[\"root\"].location",
+        "pose.bones[\"root\"].rotation_quaternion",
+        "pose.bones[\"root\"].scale",
+        "pose.bones[\"shoulder.l\"].location",
+        "pose.bones[\"shoulder.l\"].rotation_quaternion",
+        "pose.bones[\"shoulder.l\"].scale",
+        "pose.bones[\"shoulder.r\"].location",
+        "pose.bones[\"shoulder.r\"].rotation_quaternion",
+        "pose.bones[\"shoulder.r\"].scale",
+        "pose.bones[\"spine\"].location",
+        "pose.bones[\"spine\"].rotation_quaternion",
+        "pose.bones[\"spine\"].scale",
+        "pose.bones[\"tail0\"].location",
+        "pose.bones[\"tail0\"].rotation_quaternion",
+        "pose.bones[\"tail0\"].scale",
+        "pose.bones[\"tail1\"].location",
+        "pose.bones[\"tail1\"].rotation_quaternion",
+        "pose.bones[\"tail1\"].scale",
+        "pose.bones[\"tail2\"].location",
+        "pose.bones[\"tail2\"].rotation_quaternion",
+        "pose.bones[\"tail2\"].scale",
+        "pose.bones[\"tail3\"].location",
+        "pose.bones[\"tail3\"].rotation_quaternion",
+        "pose.bones[\"tail3\"].scale",
+        "pose.bones[\"thigh.l\"].location",
+        "pose.bones[\"thigh.l\"].rotation_quaternion",
+        "pose.bones[\"thigh.l\"].scale",
+        "pose.bones[\"thigh.r\"].location",
+        "pose.bones[\"thigh.r\"].rotation_quaternion",
+        "pose.bones[\"thigh.r\"].scale",
+        "pose.bones[\"torso\"].location",
+        "pose.bones[\"torso\"].rotation_quaternion",
+        "pose.bones[\"torso\"].scale"
+      ],
+      "key_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        13.0,
+        14.0,
+        15.0,
+        16.0
+      ]
+    },
+    "attack_2": {
+      "range": [
+        0.0,
+        24.0
+      ],
+      "curves": 390,
+      "keyed_channels": [
+        "pose.bones[\"arm_lower.l\"].location",
+        "pose.bones[\"arm_lower.l\"].rotation_quaternion",
+        "pose.bones[\"arm_lower.l\"].scale",
+        "pose.bones[\"arm_lower.r\"].location",
+        "pose.bones[\"arm_lower.r\"].rotation_quaternion",
+        "pose.bones[\"arm_lower.r\"].scale",
+        "pose.bones[\"arm_upper.l\"].location",
+        "pose.bones[\"arm_upper.l\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.l\"].scale",
+        "pose.bones[\"arm_upper.r\"].location",
+        "pose.bones[\"arm_upper.r\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.r\"].scale",
+        "pose.bones[\"finger1.l\"].location",
+        "pose.bones[\"finger1.l\"].rotation_quaternion",
+        "pose.bones[\"finger1.l\"].scale",
+        "pose.bones[\"finger1.l.001\"].location",
+        "pose.bones[\"finger1.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger1.l.001\"].scale",
+        "pose.bones[\"finger1.r\"].location",
+        "pose.bones[\"finger1.r\"].rotation_quaternion",
+        "pose.bones[\"finger1.r\"].scale",
+        "pose.bones[\"finger1.r.001\"].location",
+        "pose.bones[\"finger1.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger1.r.001\"].scale",
+        "pose.bones[\"finger2.l\"].location",
+        "pose.bones[\"finger2.l\"].rotation_quaternion",
+        "pose.bones[\"finger2.l\"].scale",
+        "pose.bones[\"finger2.l.001\"].location",
+        "pose.bones[\"finger2.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.l.001\"].scale",
+        "pose.bones[\"finger2.r\"].location",
+        "pose.bones[\"finger2.r\"].rotation_quaternion",
+        "pose.bones[\"finger2.r\"].scale",
+        "pose.bones[\"finger2.r.001\"].location",
+        "pose.bones[\"finger2.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.r.001\"].scale",
+        "pose.bones[\"finger3.l\"].location",
+        "pose.bones[\"finger3.l\"].rotation_quaternion",
+        "pose.bones[\"finger3.l\"].scale",
+        "pose.bones[\"finger3.l.001\"].location",
+        "pose.bones[\"finger3.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.l.001\"].scale",
+        "pose.bones[\"finger3.r\"].location",
+        "pose.bones[\"finger3.r\"].rotation_quaternion",
+        "pose.bones[\"finger3.r\"].scale",
+        "pose.bones[\"finger3.r.001\"].location",
+        "pose.bones[\"finger3.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.r.001\"].scale",
+        "pose.bones[\"foot.l\"].location",
+        "pose.bones[\"foot.l\"].rotation_quaternion",
+        "pose.bones[\"foot.l\"].scale",
+        "pose.bones[\"foot.r\"].location",
+        "pose.bones[\"foot.r\"].rotation_quaternion",
+        "pose.bones[\"foot.r\"].scale",
+        "pose.bones[\"hand.l\"].location",
+        "pose.bones[\"hand.l\"].rotation_quaternion",
+        "pose.bones[\"hand.l\"].scale",
+        "pose.bones[\"hand.r\"].location",
+        "pose.bones[\"hand.r\"].rotation_quaternion",
+        "pose.bones[\"hand.r\"].scale",
+        "pose.bones[\"head\"].location",
+        "pose.bones[\"head\"].rotation_quaternion",
+        "pose.bones[\"head\"].scale",
+        "pose.bones[\"hip.l\"].location",
+        "pose.bones[\"hip.l\"].rotation_quaternion",
+        "pose.bones[\"hip.l\"].scale",
+        "pose.bones[\"hip.r\"].location",
+        "pose.bones[\"hip.r\"].rotation_quaternion",
+        "pose.bones[\"hip.r\"].scale",
+        "pose.bones[\"jaw\"].location",
+        "pose.bones[\"jaw\"].rotation_quaternion",
+        "pose.bones[\"jaw\"].scale",
+        "pose.bones[\"leg1.l\"].location",
+        "pose.bones[\"leg1.l\"].rotation_quaternion",
+        "pose.bones[\"leg1.l\"].scale",
+        "pose.bones[\"leg1.r\"].location",
+        "pose.bones[\"leg1.r\"].rotation_quaternion",
+        "pose.bones[\"leg1.r\"].scale",
+        "pose.bones[\"leg2.l\"].location",
+        "pose.bones[\"leg2.l\"].rotation_quaternion",
+        "pose.bones[\"leg2.l\"].scale",
+        "pose.bones[\"leg2.r\"].location",
+        "pose.bones[\"leg2.r\"].rotation_quaternion",
+        "pose.bones[\"leg2.r\"].scale",
+        "pose.bones[\"neck1\"].location",
+        "pose.bones[\"neck1\"].rotation_quaternion",
+        "pose.bones[\"neck1\"].scale",
+        "pose.bones[\"neck2\"].location",
+        "pose.bones[\"neck2\"].rotation_quaternion",
+        "pose.bones[\"neck2\"].scale",
+        "pose.bones[\"root\"].location",
+        "pose.bones[\"root\"].rotation_quaternion",
+        "pose.bones[\"root\"].scale",
+        "pose.bones[\"spine\"].location",
+        "pose.bones[\"spine\"].rotation_quaternion",
+        "pose.bones[\"spine\"].scale",
+        "pose.bones[\"tail0\"].location",
+        "pose.bones[\"tail0\"].rotation_quaternion",
+        "pose.bones[\"tail0\"].scale",
+        "pose.bones[\"tail1\"].location",
+        "pose.bones[\"tail1\"].rotation_quaternion",
+        "pose.bones[\"tail1\"].scale",
+        "pose.bones[\"tail2\"].location",
+        "pose.bones[\"tail2\"].rotation_quaternion",
+        "pose.bones[\"tail2\"].scale",
+        "pose.bones[\"tail3\"].location",
+        "pose.bones[\"tail3\"].rotation_quaternion",
+        "pose.bones[\"tail3\"].scale",
+        "pose.bones[\"thigh.l\"].location",
+        "pose.bones[\"thigh.l\"].rotation_quaternion",
+        "pose.bones[\"thigh.l\"].scale",
+        "pose.bones[\"thigh.r\"].location",
+        "pose.bones[\"thigh.r\"].rotation_quaternion",
+        "pose.bones[\"thigh.r\"].scale",
+        "pose.bones[\"torso\"].location",
+        "pose.bones[\"torso\"].rotation_quaternion",
+        "pose.bones[\"torso\"].scale"
+      ],
+      "key_times": [
+        0.0,
+        5.0,
+        7.0,
+        9.0,
+        10.0,
+        12.0,
+        13.0,
+        14.0,
+        15.0,
+        16.0,
+        18.0,
+        19.0,
+        22.0,
+        24.0
+      ]
+    },
+    "oga_preview": {
+      "range": [
+        0.0,
+        0.0
+      ],
+      "curves": 287,
+      "keyed_channels": [
+        "pose.bones[\"arm_lower.l\"].location",
+        "pose.bones[\"arm_lower.l\"].rotation_quaternion",
+        "pose.bones[\"arm_lower.r\"].location",
+        "pose.bones[\"arm_lower.r\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.l\"].location",
+        "pose.bones[\"arm_upper.l\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.r\"].location",
+        "pose.bones[\"arm_upper.r\"].rotation_quaternion",
+        "pose.bones[\"finger1.l\"].location",
+        "pose.bones[\"finger1.l\"].rotation_quaternion",
+        "pose.bones[\"finger1.l.001\"].location",
+        "pose.bones[\"finger1.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger1.r\"].location",
+        "pose.bones[\"finger1.r\"].rotation_quaternion",
+        "pose.bones[\"finger1.r.001\"].location",
+        "pose.bones[\"finger1.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.l\"].location",
+        "pose.bones[\"finger2.l\"].rotation_quaternion",
+        "pose.bones[\"finger2.l.001\"].location",
+        "pose.bones[\"finger2.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.r\"].location",
+        "pose.bones[\"finger2.r\"].rotation_quaternion",
+        "pose.bones[\"finger2.r.001\"].location",
+        "pose.bones[\"finger2.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.l\"].location",
+        "pose.bones[\"finger3.l\"].rotation_quaternion",
+        "pose.bones[\"finger3.l.001\"].location",
+        "pose.bones[\"finger3.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.r\"].location",
+        "pose.bones[\"finger3.r\"].rotation_quaternion",
+        "pose.bones[\"finger3.r.001\"].location",
+        "pose.bones[\"finger3.r.001\"].rotation_quaternion",
+        "pose.bones[\"foot.l\"].location",
+        "pose.bones[\"foot.l\"].rotation_quaternion",
+        "pose.bones[\"foot.r\"].location",
+        "pose.bones[\"foot.r\"].rotation_quaternion",
+        "pose.bones[\"hand.l\"].location",
+        "pose.bones[\"hand.l\"].rotation_quaternion",
+        "pose.bones[\"hand.r\"].location",
+        "pose.bones[\"hand.r\"].rotation_quaternion",
+        "pose.bones[\"head\"].location",
+        "pose.bones[\"head\"].rotation_quaternion",
+        "pose.bones[\"hip.l\"].location",
+        "pose.bones[\"hip.l\"].rotation_quaternion",
+        "pose.bones[\"hip.r\"].location",
+        "pose.bones[\"hip.r\"].rotation_quaternion",
+        "pose.bones[\"jaw\"].location",
+        "pose.bones[\"jaw\"].rotation_quaternion",
+        "pose.bones[\"leg1.l\"].location",
+        "pose.bones[\"leg1.l\"].rotation_quaternion",
+        "pose.bones[\"leg1.r\"].location",
+        "pose.bones[\"leg1.r\"].rotation_quaternion",
+        "pose.bones[\"leg2.l\"].location",
+        "pose.bones[\"leg2.l\"].rotation_quaternion",
+        "pose.bones[\"leg2.r\"].location",
+        "pose.bones[\"leg2.r\"].rotation_quaternion",
+        "pose.bones[\"neck1\"].location",
+        "pose.bones[\"neck1\"].rotation_quaternion",
+        "pose.bones[\"neck2\"].location",
+        "pose.bones[\"neck2\"].rotation_quaternion",
+        "pose.bones[\"root\"].location",
+        "pose.bones[\"root\"].rotation_quaternion",
+        "pose.bones[\"shoulder.l\"].location",
+        "pose.bones[\"shoulder.l\"].rotation_quaternion",
+        "pose.bones[\"shoulder.r\"].location",
+        "pose.bones[\"shoulder.r\"].rotation_quaternion",
+        "pose.bones[\"spine\"].location",
+        "pose.bones[\"spine\"].rotation_quaternion",
+        "pose.bones[\"tail0\"].location",
+        "pose.bones[\"tail0\"].rotation_quaternion",
+        "pose.bones[\"tail1\"].location",
+        "pose.bones[\"tail1\"].rotation_quaternion",
+        "pose.bones[\"tail2\"].location",
+        "pose.bones[\"tail2\"].rotation_quaternion",
+        "pose.bones[\"tail3\"].location",
+        "pose.bones[\"tail3\"].rotation_quaternion",
+        "pose.bones[\"thigh.l\"].location",
+        "pose.bones[\"thigh.l\"].rotation_quaternion",
+        "pose.bones[\"thigh.r\"].location",
+        "pose.bones[\"thigh.r\"].rotation_quaternion",
+        "pose.bones[\"torso\"].location",
+        "pose.bones[\"torso\"].rotation_quaternion"
+      ],
+      "key_times": [
+        0.0
+      ]
+    },
+    "PoseLib": {
+      "range": [
+        1.0,
+        1.0
+      ],
+      "curves": 7,
+      "keyed_channels": [
+        "pose.bones[\"foot.l\"].rotation_quaternion",
+        "pose.bones[\"foot.l\"].scale"
+      ],
+      "key_times": [
+        1.0
+      ]
+    },
+    "run": {
+      "range": [
+        0.0,
+        18.0
+      ],
+      "curves": 410,
+      "keyed_channels": [
+        "pose.bones[\"arm_lower.l\"].location",
+        "pose.bones[\"arm_lower.l\"].rotation_quaternion",
+        "pose.bones[\"arm_lower.l\"].scale",
+        "pose.bones[\"arm_lower.r\"].location",
+        "pose.bones[\"arm_lower.r\"].rotation_quaternion",
+        "pose.bones[\"arm_lower.r\"].scale",
+        "pose.bones[\"arm_upper.l\"].location",
+        "pose.bones[\"arm_upper.l\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.l\"].scale",
+        "pose.bones[\"arm_upper.r\"].location",
+        "pose.bones[\"arm_upper.r\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.r\"].scale",
+        "pose.bones[\"finger1.l\"].location",
+        "pose.bones[\"finger1.l\"].rotation_quaternion",
+        "pose.bones[\"finger1.l\"].scale",
+        "pose.bones[\"finger1.l.001\"].location",
+        "pose.bones[\"finger1.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger1.l.001\"].scale",
+        "pose.bones[\"finger1.r\"].location",
+        "pose.bones[\"finger1.r\"].rotation_quaternion",
+        "pose.bones[\"finger1.r\"].scale",
+        "pose.bones[\"finger1.r.001\"].location",
+        "pose.bones[\"finger1.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger1.r.001\"].scale",
+        "pose.bones[\"finger2.l\"].location",
+        "pose.bones[\"finger2.l\"].rotation_quaternion",
+        "pose.bones[\"finger2.l\"].scale",
+        "pose.bones[\"finger2.l.001\"].location",
+        "pose.bones[\"finger2.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.l.001\"].scale",
+        "pose.bones[\"finger2.r\"].location",
+        "pose.bones[\"finger2.r\"].rotation_quaternion",
+        "pose.bones[\"finger2.r\"].scale",
+        "pose.bones[\"finger2.r.001\"].location",
+        "pose.bones[\"finger2.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.r.001\"].scale",
+        "pose.bones[\"finger3.l\"].location",
+        "pose.bones[\"finger3.l\"].rotation_quaternion",
+        "pose.bones[\"finger3.l\"].scale",
+        "pose.bones[\"finger3.l.001\"].location",
+        "pose.bones[\"finger3.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.l.001\"].scale",
+        "pose.bones[\"finger3.r\"].location",
+        "pose.bones[\"finger3.r\"].rotation_quaternion",
+        "pose.bones[\"finger3.r\"].scale",
+        "pose.bones[\"finger3.r.001\"].location",
+        "pose.bones[\"finger3.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.r.001\"].scale",
+        "pose.bones[\"foot.l\"].location",
+        "pose.bones[\"foot.l\"].rotation_quaternion",
+        "pose.bones[\"foot.l\"].scale",
+        "pose.bones[\"foot.r\"].location",
+        "pose.bones[\"foot.r\"].rotation_quaternion",
+        "pose.bones[\"foot.r\"].scale",
+        "pose.bones[\"hand.l\"].location",
+        "pose.bones[\"hand.l\"].rotation_quaternion",
+        "pose.bones[\"hand.l\"].scale",
+        "pose.bones[\"hand.r\"].location",
+        "pose.bones[\"hand.r\"].rotation_quaternion",
+        "pose.bones[\"hand.r\"].scale",
+        "pose.bones[\"head\"].location",
+        "pose.bones[\"head\"].rotation_quaternion",
+        "pose.bones[\"head\"].scale",
+        "pose.bones[\"hip.l\"].location",
+        "pose.bones[\"hip.l\"].rotation_quaternion",
+        "pose.bones[\"hip.l\"].scale",
+        "pose.bones[\"hip.r\"].location",
+        "pose.bones[\"hip.r\"].rotation_quaternion",
+        "pose.bones[\"hip.r\"].scale",
+        "pose.bones[\"jaw\"].location",
+        "pose.bones[\"jaw\"].rotation_quaternion",
+        "pose.bones[\"jaw\"].scale",
+        "pose.bones[\"leg1.l\"].location",
+        "pose.bones[\"leg1.l\"].rotation_quaternion",
+        "pose.bones[\"leg1.l\"].scale",
+        "pose.bones[\"leg1.r\"].location",
+        "pose.bones[\"leg1.r\"].rotation_quaternion",
+        "pose.bones[\"leg1.r\"].scale",
+        "pose.bones[\"leg2.l\"].location",
+        "pose.bones[\"leg2.l\"].rotation_quaternion",
+        "pose.bones[\"leg2.l\"].scale",
+        "pose.bones[\"leg2.r\"].location",
+        "pose.bones[\"leg2.r\"].rotation_quaternion",
+        "pose.bones[\"leg2.r\"].scale",
+        "pose.bones[\"neck1\"].location",
+        "pose.bones[\"neck1\"].rotation_quaternion",
+        "pose.bones[\"neck1\"].scale",
+        "pose.bones[\"neck2\"].location",
+        "pose.bones[\"neck2\"].rotation_quaternion",
+        "pose.bones[\"neck2\"].scale",
+        "pose.bones[\"root\"].location",
+        "pose.bones[\"root\"].rotation_quaternion",
+        "pose.bones[\"root\"].scale",
+        "pose.bones[\"shoulder.l\"].location",
+        "pose.bones[\"shoulder.l\"].rotation_quaternion",
+        "pose.bones[\"shoulder.l\"].scale",
+        "pose.bones[\"shoulder.r\"].location",
+        "pose.bones[\"shoulder.r\"].rotation_quaternion",
+        "pose.bones[\"shoulder.r\"].scale",
+        "pose.bones[\"spine\"].location",
+        "pose.bones[\"spine\"].rotation_quaternion",
+        "pose.bones[\"spine\"].scale",
+        "pose.bones[\"tail0\"].location",
+        "pose.bones[\"tail0\"].rotation_quaternion",
+        "pose.bones[\"tail0\"].scale",
+        "pose.bones[\"tail1\"].location",
+        "pose.bones[\"tail1\"].rotation_quaternion",
+        "pose.bones[\"tail1\"].scale",
+        "pose.bones[\"tail2\"].location",
+        "pose.bones[\"tail2\"].rotation_quaternion",
+        "pose.bones[\"tail2\"].scale",
+        "pose.bones[\"tail3\"].location",
+        "pose.bones[\"tail3\"].rotation_quaternion",
+        "pose.bones[\"tail3\"].scale",
+        "pose.bones[\"thigh.l\"].location",
+        "pose.bones[\"thigh.l\"].rotation_quaternion",
+        "pose.bones[\"thigh.l\"].scale",
+        "pose.bones[\"thigh.r\"].location",
+        "pose.bones[\"thigh.r\"].rotation_quaternion",
+        "pose.bones[\"thigh.r\"].scale",
+        "pose.bones[\"torso\"].location",
+        "pose.bones[\"torso\"].rotation_quaternion",
+        "pose.bones[\"torso\"].scale"
+      ],
+      "key_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        13.0,
+        14.0,
+        15.0,
+        16.0,
+        18.0
+      ]
+    },
+    "walk": {
+      "range": [
+        0.0,
+        26.0
+      ],
+      "curves": 404,
+      "keyed_channels": [
+        "pose.bones[\"arm_lower.l\"].location",
+        "pose.bones[\"arm_lower.l\"].rotation_quaternion",
+        "pose.bones[\"arm_lower.l\"].scale",
+        "pose.bones[\"arm_lower.r\"].location",
+        "pose.bones[\"arm_lower.r\"].rotation_quaternion",
+        "pose.bones[\"arm_lower.r\"].scale",
+        "pose.bones[\"arm_upper.l\"].location",
+        "pose.bones[\"arm_upper.l\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.l\"].scale",
+        "pose.bones[\"arm_upper.r\"].location",
+        "pose.bones[\"arm_upper.r\"].rotation_quaternion",
+        "pose.bones[\"arm_upper.r\"].scale",
+        "pose.bones[\"finger1.l\"].location",
+        "pose.bones[\"finger1.l\"].rotation_quaternion",
+        "pose.bones[\"finger1.l\"].scale",
+        "pose.bones[\"finger1.l.001\"].location",
+        "pose.bones[\"finger1.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger1.l.001\"].scale",
+        "pose.bones[\"finger1.r\"].location",
+        "pose.bones[\"finger1.r\"].rotation_quaternion",
+        "pose.bones[\"finger1.r\"].scale",
+        "pose.bones[\"finger1.r.001\"].location",
+        "pose.bones[\"finger1.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger1.r.001\"].scale",
+        "pose.bones[\"finger2.l\"].location",
+        "pose.bones[\"finger2.l\"].rotation_quaternion",
+        "pose.bones[\"finger2.l\"].scale",
+        "pose.bones[\"finger2.l.001\"].location",
+        "pose.bones[\"finger2.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.l.001\"].scale",
+        "pose.bones[\"finger2.r\"].location",
+        "pose.bones[\"finger2.r\"].rotation_quaternion",
+        "pose.bones[\"finger2.r\"].scale",
+        "pose.bones[\"finger2.r.001\"].location",
+        "pose.bones[\"finger2.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger2.r.001\"].scale",
+        "pose.bones[\"finger3.l\"].location",
+        "pose.bones[\"finger3.l\"].rotation_quaternion",
+        "pose.bones[\"finger3.l\"].scale",
+        "pose.bones[\"finger3.l.001\"].location",
+        "pose.bones[\"finger3.l.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.l.001\"].scale",
+        "pose.bones[\"finger3.r\"].location",
+        "pose.bones[\"finger3.r\"].rotation_quaternion",
+        "pose.bones[\"finger3.r\"].scale",
+        "pose.bones[\"finger3.r.001\"].location",
+        "pose.bones[\"finger3.r.001\"].rotation_quaternion",
+        "pose.bones[\"finger3.r.001\"].scale",
+        "pose.bones[\"foot.l\"].location",
+        "pose.bones[\"foot.l\"].rotation_quaternion",
+        "pose.bones[\"foot.l\"].scale",
+        "pose.bones[\"foot.r\"].location",
+        "pose.bones[\"foot.r\"].rotation_quaternion",
+        "pose.bones[\"foot.r\"].scale",
+        "pose.bones[\"hand.l\"].location",
+        "pose.bones[\"hand.l\"].rotation_quaternion",
+        "pose.bones[\"hand.l\"].scale",
+        "pose.bones[\"hand.r\"].location",
+        "pose.bones[\"hand.r\"].rotation_quaternion",
+        "pose.bones[\"hand.r\"].scale",
+        "pose.bones[\"head\"].location",
+        "pose.bones[\"head\"].rotation_quaternion",
+        "pose.bones[\"head\"].scale",
+        "pose.bones[\"hip.l\"].location",
+        "pose.bones[\"hip.l\"].rotation_quaternion",
+        "pose.bones[\"hip.l\"].scale",
+        "pose.bones[\"hip.r\"].location",
+        "pose.bones[\"hip.r\"].rotation_quaternion",
+        "pose.bones[\"hip.r\"].scale",
+        "pose.bones[\"jaw\"].location",
+        "pose.bones[\"jaw\"].rotation_quaternion",
+        "pose.bones[\"jaw\"].scale",
+        "pose.bones[\"leg1.l\"].location",
+        "pose.bones[\"leg1.l\"].rotation_quaternion",
+        "pose.bones[\"leg1.l\"].scale",
+        "pose.bones[\"leg1.r\"].location",
+        "pose.bones[\"leg1.r\"].rotation_quaternion",
+        "pose.bones[\"leg1.r\"].scale",
+        "pose.bones[\"leg2.l\"].location",
+        "pose.bones[\"leg2.l\"].rotation_quaternion",
+        "pose.bones[\"leg2.l\"].scale",
+        "pose.bones[\"leg2.r\"].location",
+        "pose.bones[\"leg2.r\"].rotation_quaternion",
+        "pose.bones[\"leg2.r\"].scale",
+        "pose.bones[\"neck1\"].location",
+        "pose.bones[\"neck1\"].rotation_quaternion",
+        "pose.bones[\"neck1\"].scale",
+        "pose.bones[\"neck2\"].location",
+        "pose.bones[\"neck2\"].rotation_quaternion",
+        "pose.bones[\"neck2\"].scale",
+        "pose.bones[\"root\"].location",
+        "pose.bones[\"root\"].rotation_quaternion",
+        "pose.bones[\"root\"].scale",
+        "pose.bones[\"shoulder.l\"].location",
+        "pose.bones[\"shoulder.l\"].rotation_quaternion",
+        "pose.bones[\"shoulder.r\"].location",
+        "pose.bones[\"shoulder.r\"].rotation_quaternion",
+        "pose.bones[\"spine\"].location",
+        "pose.bones[\"spine\"].rotation_quaternion",
+        "pose.bones[\"spine\"].scale",
+        "pose.bones[\"tail0\"].location",
+        "pose.bones[\"tail0\"].rotation_quaternion",
+        "pose.bones[\"tail0\"].scale",
+        "pose.bones[\"tail1\"].location",
+        "pose.bones[\"tail1\"].rotation_quaternion",
+        "pose.bones[\"tail1\"].scale",
+        "pose.bones[\"tail2\"].location",
+        "pose.bones[\"tail2\"].rotation_quaternion",
+        "pose.bones[\"tail2\"].scale",
+        "pose.bones[\"tail3\"].location",
+        "pose.bones[\"tail3\"].rotation_quaternion",
+        "pose.bones[\"tail3\"].scale",
+        "pose.bones[\"thigh.l\"].location",
+        "pose.bones[\"thigh.l\"].rotation_quaternion",
+        "pose.bones[\"thigh.l\"].scale",
+        "pose.bones[\"thigh.r\"].location",
+        "pose.bones[\"thigh.r\"].rotation_quaternion",
+        "pose.bones[\"thigh.r\"].scale",
+        "pose.bones[\"torso\"].location",
+        "pose.bones[\"torso\"].rotation_quaternion",
+        "pose.bones[\"torso\"].scale"
+      ],
+      "key_times": [
+        0.0,
+        1.0,
+        3.0,
+        4.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        12.0,
+        13.0,
+        14.0,
+        15.0,
+        16.0,
+        18.0,
+        19.0,
+        20.0,
+        21.0,
+        24.0,
+        25.0,
+        26.0
+      ]
+    }
+  },
+  "rigs": {
+    "raptor_skeleton": {
+      "root": {
+        "head": [
+          -0.0057560233399271965,
+          0.05906461179256439,
+          0.4621812105178833
+        ],
+        "tail": [
+          -0.0057560233399271965,
+          0.05906461179256439,
+          0.5677565336227417
+        ],
+        "length": 0.1055753231048584,
+        "parent": null,
+        "deform": true,
+        "constraints": []
+      },
+      "spine": {
+        "head": [
+          1.3056914943740513e-16,
+          0.06002962589263916,
+          0.5880311727523804
+        ],
+        "tail": [
+          -6.803303781386516e-17,
+          -0.15068423748016357,
+          0.693606436252594
+        ],
+        "length": 0.23568297922611237,
+        "parent": "root",
+        "deform": true,
+        "constraints": []
+      },
+      "torso": {
+        "head": [
+          -6.803303781386516e-17,
+          -0.15068423748016357,
+          0.693606436252594
+        ],
+        "tail": [
+          3.391701486950674e-18,
+          -0.3813791275024414,
+          0.6686630845069885
+        ],
+        "length": 0.2320394515991211,
+        "parent": "spine",
+        "deform": true,
+        "constraints": [
+          {
+            "name": "IK",
+            "type": "IK",
+            "target": null,
+            "subtarget": "",
+            "chain_count": 2
+          }
+        ]
+      },
+      "neck1": {
+        "head": [
+          3.391701486950674e-18,
+          -0.3813791275024414,
+          0.6686630845069885
+        ],
+        "tail": [
+          4.070040460851829e-18,
+          -0.44247862696647644,
+          0.7114328145980835
+        ],
+        "length": 0.07458148896694183,
+        "parent": "torso",
+        "deform": true,
+        "constraints": []
+      },
+      "neck2": {
+        "head": [
+          4.070040460851829e-18,
+          -0.44247862696647644,
+          0.7114328145980835
+        ],
+        "tail": [
+          -1.7636847235835137e-17,
+          -0.45469850301742554,
+          0.8305767774581909
+        ],
+        "length": 0.11976897716522217,
+        "parent": "neck1",
+        "deform": true,
+        "constraints": []
+      },
+      "head": {
+        "head": [
+          -1.7636847235835137e-17,
+          -0.45469850301742554,
+          0.8305767774581909
+        ],
+        "tail": [
+          4.070042942393666e-18,
+          -0.4699733555316925,
+          0.9283359050750732
+        ],
+        "length": 0.09894527494907379,
+        "parent": "neck2",
+        "deform": true,
+        "constraints": [
+          {
+            "name": "IK",
+            "type": "IK",
+            "target": null,
+            "subtarget": "",
+            "chain_count": 3
+          }
+        ]
+      },
+      "jaw": {
+        "head": [
+          -1.3140222288464199e-17,
+          -0.4965647757053375,
+          0.8508277535438538
+        ],
+        "tail": [
+          -2.1908156456152756e-17,
+          -0.7632492184638977,
+          0.8113404512405396
+        ],
+        "length": 0.2695919871330261,
+        "parent": "head",
+        "deform": true,
+        "constraints": []
+      },
+      "shoulder.l": {
+        "head": [
+          3.391701486950674e-18,
+          -0.3813791275024414,
+          0.6686630845069885
+        ],
+        "tail": [
+          0.12728330492973328,
+          -0.32148292660713196,
+          0.561318576335907
+        ],
+        "length": 0.1769503802061081,
+        "parent": "torso",
+        "deform": true,
+        "constraints": []
+      },
+      "arm_upper.l": {
+        "head": [
+          0.12728330492973328,
+          -0.32148292660713196,
+          0.561318576335907
+        ],
+        "tail": [
+          0.10268047451972961,
+          -0.2108103632926941,
+          0.4022211730480194
+        ],
+        "length": 0.19536036252975464,
+        "parent": "shoulder.l",
+        "deform": true,
+        "constraints": []
+      },
+      "arm_lower.l": {
+        "head": [
+          0.10268047451972961,
+          -0.2108103632926941,
+          0.4022211730480194
+        ],
+        "tail": [
+          0.11195691674947739,
+          -0.3917316198348999,
+          0.40014880895614624
+        ],
+        "length": 0.18117070198059082,
+        "parent": "arm_upper.l",
+        "deform": true,
+        "constraints": []
+      },
+      "hand.l": {
+        "head": [
+          0.11195691674947739,
+          -0.3917316198348999,
+          0.40014880895614624
+        ],
+        "tail": [
+          0.10925229638814926,
+          -0.41333678364753723,
+          0.35207492113113403
+        ],
+        "length": 0.05277494713664055,
+        "parent": "arm_lower.l",
+        "deform": true,
+        "constraints": [
+          {
+            "name": "IK",
+            "type": "IK",
+            "target": null,
+            "subtarget": "",
+            "chain_count": 3
+          }
+        ]
+      },
+      "finger1.l": {
+        "head": [
+          0.09156109392642975,
+          -0.419905424118042,
+          0.34669768810272217
+        ],
+        "tail": [
+          0.06892959028482437,
+          -0.4039246737957001,
+          0.2823375165462494
+        ],
+        "length": 0.07006990909576416,
+        "parent": "hand.l",
+        "deform": true,
+        "constraints": []
+      },
+      "finger1.l.001": {
+        "head": [
+          0.06892959028482437,
+          -0.4039246737957001,
+          0.2823375165462494
+        ],
+        "tail": [
+          0.07437855005264282,
+          -0.328085720539093,
+          0.3248785734176636
+        ],
+        "length": 0.08712618052959442,
+        "parent": "finger1.l",
+        "deform": true,
+        "constraints": []
+      },
+      "finger2.l": {
+        "head": [
+          0.10742785036563873,
+          -0.4202554523944855,
+          0.34235191345214844
+        ],
+        "tail": [
+          0.09970413893461227,
+          -0.4279292821884155,
+          0.25089243054389954
+        ],
+        "length": 0.09210518002510071,
+        "parent": "hand.l",
+        "deform": true,
+        "constraints": []
+      },
+      "finger2.l.001": {
+        "head": [
+          0.09970413893461227,
+          -0.4279292821884155,
+          0.25089243054389954
+        ],
+        "tail": [
+          0.09970413893461227,
+          -0.2907160520553589,
+          0.254487544298172
+        ],
+        "length": 0.13726025819778442,
+        "parent": "finger2.l",
+        "deform": true,
+        "constraints": []
+      },
+      "finger3.l": {
+        "head": [
+          0.12059055268764496,
+          -0.4098529517650604,
+          0.3415759205818176
+        ],
+        "tail": [
+          0.12626388669013977,
+          -0.4145174026489258,
+          0.26041311025619507
+        ],
+        "length": 0.08149436861276627,
+        "parent": "hand.l",
+        "deform": true,
+        "constraints": []
+      },
+      "finger3.l.001": {
+        "head": [
+          0.12626388669013977,
+          -0.4145174026489258,
+          0.26041311025619507
+        ],
+        "tail": [
+          0.12134255468845367,
+          -0.3001125454902649,
+          0.28910356760025024
+        ],
+        "length": 0.11805006861686707,
+        "parent": "finger3.l",
+        "deform": true,
+        "constraints": []
+      },
+      "shoulder.r": {
+        "head": [
+          -3.391701486950674e-18,
+          -0.3813791275024414,
+          0.6686630845069885
+        ],
+        "tail": [
+          -0.12728330492973328,
+          -0.32148292660713196,
+          0.561318576335907
+        ],
+        "length": 0.1769503802061081,
+        "parent": "torso",
+        "deform": true,
+        "constraints": []
+      },
+      "arm_upper.r": {
+        "head": [
+          -0.12728330492973328,
+          -0.32148292660713196,
+          0.561318576335907
+        ],
+        "tail": [
+          -0.10268047451972961,
+          -0.2108103632926941,
+          0.4022211730480194
+        ],
+        "length": 0.19536042213439941,
+        "parent": "shoulder.r",
+        "deform": true,
+        "constraints": []
+      },
+      "arm_lower.r": {
+        "head": [
+          -0.10268047451972961,
+          -0.2108103632926941,
+          0.4022211730480194
+        ],
+        "tail": [
+          -0.11195691674947739,
+          -0.3917316198348999,
+          0.40014880895614624
+        ],
+        "length": 0.18117079138755798,
+        "parent": "arm_upper.r",
+        "deform": true,
+        "constraints": []
+      },
+      "hand.r": {
+        "head": [
+          -0.11195691674947739,
+          -0.3917316198348999,
+          0.40014880895614624
+        ],
+        "tail": [
+          -0.10925229638814926,
+          -0.41333678364753723,
+          0.35207492113113403
+        ],
+        "length": 0.05277497321367264,
+        "parent": "arm_lower.r",
+        "deform": true,
+        "constraints": [
+          {
+            "name": "IK",
+            "type": "IK",
+            "target": null,
+            "subtarget": "",
+            "chain_count": 3
+          }
+        ]
+      },
+      "finger2.r": {
+        "head": [
+          -0.10742785036563873,
+          -0.4202554523944855,
+          0.34235191345214844
+        ],
+        "tail": [
+          -0.09970413893461227,
+          -0.4279292821884155,
+          0.25089243054389954
+        ],
+        "length": 0.09210523962974548,
+        "parent": "hand.r",
+        "deform": true,
+        "constraints": []
+      },
+      "finger2.r.001": {
+        "head": [
+          -0.09970413893461227,
+          -0.4279292821884155,
+          0.25089243054389954
+        ],
+        "tail": [
+          -0.09970413893461227,
+          -0.2907160520553589,
+          0.254487544298172
+        ],
+        "length": 0.1372603178024292,
+        "parent": "finger2.r",
+        "deform": true,
+        "constraints": []
+      },
+      "finger3.r": {
+        "head": [
+          -0.12059055268764496,
+          -0.4098529517650604,
+          0.3415759205818176
+        ],
+        "tail": [
+          -0.12626388669013977,
+          -0.4145174026489258,
+          0.26041311025619507
+        ],
+        "length": 0.08149444311857224,
+        "parent": "hand.r",
+        "deform": true,
+        "constraints": []
+      },
+      "finger3.r.001": {
+        "head": [
+          -0.12626388669013977,
+          -0.4145174026489258,
+          0.26041311025619507
+        ],
+        "tail": [
+          -0.12134255468845367,
+          -0.3001125454902649,
+          0.28910356760025024
+        ],
+        "length": 0.11805013567209244,
+        "parent": "finger3.r",
+        "deform": true,
+        "constraints": []
+      },
+      "finger1.r": {
+        "head": [
+          -0.09156109392642975,
+          -0.419905424118042,
+          0.34669768810272217
+        ],
+        "tail": [
+          -0.06892959028482437,
+          -0.4039246737957001,
+          0.2823375165462494
+        ],
+        "length": 0.07006996124982834,
+        "parent": "hand.r",
+        "deform": true,
+        "constraints": []
+      },
+      "finger1.r.001": {
+        "head": [
+          -0.06892959028482437,
+          -0.4039246737957001,
+          0.2823375165462494
+        ],
+        "tail": [
+          -0.07437855005264282,
+          -0.328085720539093,
+          0.3248785734176636
+        ],
+        "length": 0.0871262177824974,
+        "parent": "finger1.r",
+        "deform": true,
+        "constraints": []
+      },
+      "hip.l": {
+        "head": [
+          1.3056914943740513e-16,
+          0.06002962589263916,
+          0.5880311727523804
+        ],
+        "tail": [
+          0.120681993663311,
+          -0.03138779476284981,
+          0.5321401357650757
+        ],
+        "length": 0.1613849252462387,
+        "parent": "root",
+        "deform": true,
+        "constraints": []
+      },
+      "thigh.l": {
+        "head": [
+          0.120681993663311,
+          -0.03138779476284981,
+          0.5321401357650757
+        ],
+        "tail": [
+          0.11781099438667297,
+          -4.470348358154297e-08,
+          0.3269466757774353
+        ],
+        "length": 0.20759999752044678,
+        "parent": "hip.l",
+        "deform": true,
+        "constraints": []
+      },
+      "leg1.l": {
+        "head": [
+          0.11781099438667297,
+          -4.470348358154297e-08,
+          0.3269466757774353
+        ],
+        "tail": [
+          0.07302002608776093,
+          0.18327371776103973,
+          0.24060237407684326
+        ],
+        "length": 0.20748694241046906,
+        "parent": "thigh.l",
+        "deform": true,
+        "constraints": []
+      },
+      "leg2.l": {
+        "head": [
+          0.07302002608776093,
+          0.18327371776103973,
+          0.24060237407684326
+        ],
+        "tail": [
+          0.07353193312883377,
+          0.1948281079530716,
+          0.1077650934457779
+        ],
+        "length": 0.1333397775888443,
+        "parent": "leg1.l",
+        "deform": true,
+        "constraints": []
+      },
+      "foot.l": {
+        "head": [
+          0.07353193312883377,
+          0.1948281079530716,
+          0.1077650934457779
+        ],
+        "tail": [
+          0.12002500146627426,
+          0.13283735513687134,
+          0.014778956770896912
+        ],
+        "length": 0.12104076892137527,
+        "parent": "leg2.l",
+        "deform": true,
+        "constraints": [
+          {
+            "name": "IK",
+            "type": "IK",
+            "target": null,
+            "subtarget": "",
+            "chain_count": 4
+          }
+        ]
+      },
+      "hip.r": {
+        "head": [
+          -1.3056914943740513e-16,
+          0.06002962589263916,
+          0.5880311727523804
+        ],
+        "tail": [
+          -0.120681993663311,
+          -0.03138779476284981,
+          0.5321401357650757
+        ],
+        "length": 0.1613849252462387,
+        "parent": "root",
+        "deform": true,
+        "constraints": []
+      },
+      "thigh.r": {
+        "head": [
+          -0.120681993663311,
+          -0.03138779476284981,
+          0.5321401357650757
+        ],
+        "tail": [
+          -0.11781099438667297,
+          -4.470348358154297e-08,
+          0.3269466757774353
+        ],
+        "length": 0.20760002732276917,
+        "parent": "hip.r",
+        "deform": true,
+        "constraints": []
+      },
+      "leg1.r": {
+        "head": [
+          -0.11781099438667297,
+          -4.470348358154297e-08,
+          0.3269466757774353
+        ],
+        "tail": [
+          -0.07302002608776093,
+          0.18327371776103973,
+          0.24060237407684326
+        ],
+        "length": 0.20748694241046906,
+        "parent": "thigh.r",
+        "deform": true,
+        "constraints": []
+      },
+      "leg2.r": {
+        "head": [
+          -0.07302002608776093,
+          0.18327371776103973,
+          0.24060237407684326
+        ],
+        "tail": [
+          -0.07353193312883377,
+          0.1948281079530716,
+          0.1077650934457779
+        ],
+        "length": 0.13333982229232788,
+        "parent": "leg1.r",
+        "deform": true,
+        "constraints": []
+      },
+      "foot.r": {
+        "head": [
+          -0.07353193312883377,
+          0.1948281079530716,
+          0.1077650934457779
+        ],
+        "tail": [
+          -0.12002500146627426,
+          0.13283735513687134,
+          0.014778956770896912
+        ],
+        "length": 0.12104080617427826,
+        "parent": "leg2.r",
+        "deform": true,
+        "constraints": [
+          {
+            "name": "IK",
+            "type": "IK",
+            "target": null,
+            "subtarget": "",
+            "chain_count": 4
+          }
+        ]
+      },
+      "tail0": {
+        "head": [
+          1.3056914943740513e-16,
+          0.06002962589263916,
+          0.5880311727523804
+        ],
+        "tail": [
+          1.3550512805841116e-16,
+          0.5373581647872925,
+          0.6102608442306519
+        ],
+        "length": 0.47784584760665894,
+        "parent": "root",
+        "deform": true,
+        "constraints": []
+      },
+      "tail1": {
+        "head": [
+          1.3550512805841116e-16,
+          0.5373581647872925,
+          0.6102608442306519
+        ],
+        "tail": [
+          1.3947983016340197e-16,
+          0.8131415843963623,
+          0.6281613111495972
+        ],
+        "length": 0.276363730430603,
+        "parent": "tail0",
+        "deform": true,
+        "constraints": []
+      },
+      "tail2": {
+        "head": [
+          1.3947983016340197e-16,
+          0.8131415843963623,
+          0.6281613111495972
+        ],
+        "tail": [
+          1.4295382991744707e-16,
+          1.0860199928283691,
+          0.6438068151473999
+        ],
+        "length": 0.2733265459537506,
+        "parent": "tail1",
+        "deform": true,
+        "constraints": []
+      },
+      "tail3": {
+        "head": [
+          1.4295382991744707e-16,
+          1.0860199928283691,
+          0.6438068151473999
+        ],
+        "tail": [
+          1.4752766224883249e-16,
+          1.4133827686309814,
+          0.6644055247306824
+        ],
+        "length": 0.3280102014541626,
+        "parent": "tail2",
+        "deform": true,
+        "constraints": []
+      }
+    }
+  }
+}

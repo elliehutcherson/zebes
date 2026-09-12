@@ -1,0 +1,25 @@
+{
+  "status": "complete candidate; final visual acceptance open",
+  "candidate": "mapped-v3",
+  "focused_tests": {
+    "command": "build/tileset-venv/bin/python -m unittest tests.sprite_painted_test tests.sprite_boot_atlas_test tests.sprite_sequence_test",
+    "tests": 22,
+    "result": "passed"
+  },
+  "cpp_lint": {
+    "wrapper_result": "scripts/lint.sh rejects translation units outside src/ and tests/",
+    "direct_command": "/usr/local/opt/llvm/bin/clang-tidy scripts/sprite_sequence_geometry.cc scripts/sprite_painted_registration.cc -- -std=c++20 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+    "result": "passed; only suppressed non-user-code warnings"
+  },
+  "patch": "git diff --check and separate untracked-source whitespace checks passed",
+  "raw_integrity": "all five earlier raw hashes verified; all four new raw copies equal their original tool files byte-for-byte",
+  "artifact_checks": "mapped-v3/summary.json",
+  "browser_review": [
+    "512px full character and independent legs displayed",
+    "frame scrubbing and previous/next controls",
+    "registered versus fixed raw placement versus previous atlas",
+    "512px and secondary 96px display selectors",
+    "C++ anchor overlay"
+  ],
+  "production_changes": false
+}

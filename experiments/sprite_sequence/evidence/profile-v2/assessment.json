@@ -1,0 +1,20 @@
+{
+  "status": "profile accepted as starting point; no final artwork accepted",
+  "user_feedback": "Yes, use this profile as the starting point",
+  "feedback_scope": "Enlarged frame-10 geometry control, raised heel and downward toe in side profile",
+  "observations": [
+    "The new control has a visible lateral sole edge and bent shaft/foot relationship, unlike the earlier oblique proxy.",
+    "The generated sheets maintain a similar leather and trouser design. They enlarge silhouettes and shift poses; the full raw batch is rejected as a reliable registered frame asset source.",
+    "The initial six-pose sheet is better registered than the single-leg sample. This did not generalize to all four sheets.",
+    "The deterministic material route keeps the exact control silhouette and uses one material pair for every frame. Its angular boot shapes and simplistic shading are draft-quality.",
+    "The unchanged coat hides much of the recovery leg. Use isolated legs for anatomy review; do not infer correct anatomy from an occluded composite."
+  ],
+  "unresolved": [
+    "Heel estimates outside the reviewed recovery profile remain provisional.",
+    "The all-profile test does not solve sole-visible contact views.",
+    "Ground calibration still comes from the old puppet and is not recalculated from new contacts.",
+    "Upper-body source seams and head changes are unchanged.",
+    "A final logical pixel resolution and final art acceptance remain open."
+  ],
+  "decision": "Keep C++ pose/part geometry authoritative. Prefer a reusable authored view atlas with generated appearance donation. Do not continue unconstrained per-frame or multi-sheet pose prompting as the production path."
+}

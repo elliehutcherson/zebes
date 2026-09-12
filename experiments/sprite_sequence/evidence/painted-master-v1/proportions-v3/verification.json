@@ -1,0 +1,13 @@
+{
+  "candidate": "proportions-v3",
+  "tests": {"command": "build/tileset-venv/bin/python -m unittest tests.sprite_painted_test tests.sprite_boot_atlas_test tests.sprite_sequence_test", "passed": 25},
+  "lint": "Edited standalone C++ translation unit passes direct clang-tidy with repository configuration; wrapper excludes scripts/",
+  "raw_integrity": "All five previous raw hashes and all four full-resolution raw hashes match",
+  "protected_parts": "All twelve head, body, near-arm and tail PNGs are pixel-identical to mapped-v3",
+  "geometry": "Original semantic targets, sole pins, draw order and global translations retained",
+  "contact_and_mesh": "Zero inverted cells over sampled opaque artwork; zero leg pixels below row 428 at alpha 32/128/224",
+  "apng": "All five 512px APNGs decode exactly to their twelve retained frame PNGs",
+  "browser": "Before/after master view, frame selection and independent back-arm/leg views checked",
+  "new_generation_requests": 0,
+  "status": "Proportion correction complete; user visual acceptance remains open"
+}

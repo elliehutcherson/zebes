@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "master_canvas": [
+    512,
+    512
+  ],
+  "fps": 12,
+  "leg_cells": {
+    "size": [
+      768,
+      576
+    ],
+    "world_crop": [
+      80,
+      128,
+      208,
+      224
+    ],
+    "world_scale": 6,
+    "order": [
+      "reference_01",
+      "reference_02",
+      "reference_03",
+      "reference_04",
+      "reference_05",
+      "reference_06",
+      "reference_07",
+      "reference_08",
+      "reference_09",
+      "reference_10",
+      "reference_11",
+      "reference_12"
+    ]
+  },
+  "upper_cells": {
+    "size": [
+      512,
+      512
+    ],
+    "world_scale": 2,
+    "order": [
+      "head",
+      "body",
+      "near_arm",
+      "far_arm",
+      "tail"
+    ],
+    "pose": "reference_01"
+  },
+  "contract": "C++ owns geometry, heel anatomy, views, contact and cyclic coat response. New raw paintings require explicit semantic registration; no bounds fitting.",
+  "source_hashes": {
+    "experiments/character_binding/puppet_documents/mouse_run_reference_v2.json": "d47cf569b4ad08853aa7dd3f7973e7ca9efcb720c7401fbf65105a2569d7db42",
+    "experiments/character_binding/inputs/run-pose-trace-v1.json": "1bb5764b43469806330e9cfbea3c84479569d1967fabdbe846d79ce8fdaf548a",
+    "experiments/sprite_sequence/heel-landmarks-v1.json": "dbf4b09abc040baf2d885b052ade30b783bf474826df2def9ed951bcc49753be",
+    "experiments/sprite_sequence/boot-atlas-v1.json": "c6f4a74c9037b49bd388ef11c1a665779dacf81fc0a28bcca6f15305c32738a3",
+    "experiments/character_binding/inputs/interactive-run-source-v1.png": "1946cadf51cee9979814806a8977aba57ba1311ec86545852c40b3965efa8af5",
+    "scripts/prepare_sprite_painted.py": "9b94ca09f47ee0d3f0e943c8b5a856a039fdcb36deba469bfeba992e559cc3ab",
+    "scripts/sprite_sequence_geometry.cc": "47e830e19d23b37cffe54cf1d3cfe23193d99f4d95b6af0e4d67145f1af604d2"
+  },
+  "prior_raw_hashes": {
+    "experiments/sprite_sequence/evidence/profile-v2/far-01-06-raw.png": "9e95a7c3d1e876a155f2ff5d6d596fe36ff4e6badb39e97552129eaa97867a4d",
+    "experiments/sprite_sequence/evidence/profile-v2/far-07-12-raw.png": "81485b2cd6cc359ea62cb97d78ef7107fe9363a0b2094595a748c20e172bafb5",
+    "experiments/sprite_sequence/evidence/profile-v2/near-01-06-raw.png": "63de72647a6fdba5d9b46535572a271d4ed9e49dc32868b072cca3f166f5bd25",
+    "experiments/sprite_sequence/evidence/profile-v2/sheet-raw.png": "5127a40fc27e1a551a74cfe6166aa9744c8ef4b0068096ba660e4cbe80dd82df",
+    "experiments/sprite_sequence/evidence/profile-v2/single-raw.png": "a5830e4849e693d6bf683eed039a554d5cef302c86ba838eb28db9feda266a38"
+  },
+  "input_hashes": {
+    "all-anchors.png": "9ea38f5afeb8216fc92cd7f8931cae13ab36ef12e8f9b8b38608d276c0e59ff0",
+    "all-poses.png": "d42d95ca16b773c9326e8182d8513711995a3e52ba621652a5c789b2edb986bb",
+    "legs-1-guide.png": "979eed9506d062d443d6879181472b549e38dfacfce5030231cf0106f28d2622",
+    "legs-2-guide.png": "29056dd860313f8471621cbd589419c71e7108ae4534e4b2b7ec18c0e61018c9",
+    "legs-3-guide.png": "5a594e175ca5d3b05c291c55b1016115796b86b7a386106011ee5b9f6081e75b",
+    "upper-guide.png": "764fb8e0f080f49c4fc30820ea25dabcddf275b0eb19ccf8d12df35f6fbde812"
+  }
+}

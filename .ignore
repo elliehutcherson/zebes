@@ -5,3 +5,13 @@
 /include/
 /notes/
 /old/
+
+# Closed plans, experiment evidence, and frozen source snapshots are opt-in.
+# Keep experiment implementations, authored specs, and README indexes searchable.
+/docs/history/
+/experiments/*/out/
+/experiments/*/evidence/
+/experiments/*/inputs/
+/experiments/mouse_3d/*/
+/experiments/*/HISTORY.md
+/experiments/character_binding/FINDINGS.md

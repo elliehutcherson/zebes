@@ -106,7 +106,8 @@ def run(args):
             receipt.update(status="execution_failed", error=item["status"])
             write_json(receipt_path, receipt)
             raise RuntimeError(str(item["status"]))
-        images = item["outputs"]["16"]["images"]
+        output_node = str(job.get("output_node", "16"))
+        images = item["outputs"][output_node]["images"]
         if len(images) != 1:
             raise ValueError("expected exactly one raw output")
         raw = request(args.server, "/view?" + urllib.parse.urlencode(images[0]), raw=True)
@@ -134,7 +135,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--server", default="http://127.0.0.1:8189")
     parser.add_argument("--trial", type=Path, required=True)
-    parser.add_argument("--name", choices=("canny-0.65", "canny-0.85"), required=True)
+    parser.add_argument("--name", required=True, help="declared derry ComfyUI job name from the trial manifest")
     parser.add_argument("--timeout", type=float, default=900)
     run(parser.parse_args())
 

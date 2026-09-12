@@ -1,0 +1,180 @@
+{
+  "version": 2,
+  "source_image": "reference-run-10.png",
+  "neutral_image": "reference-neutral.png",
+  "source_size": [800, 80],
+  "cell_size": [80, 80],
+  "sheet_source": {
+    "file": "samus_sprite_sheet.png",
+    "row_label": "09: Moving right - not aiming",
+    "run_cells": {"x0": 18, "y0": 1202, "pitch": 96, "count": 10},
+    "neutral_cell": {"x0": 18, "y0": 1074}
+  },
+  "notes": "FIRST PASS, LARGELY UNVERIFIED. Read off 42px sprites by eye at 22x. Reviewed afterwards against the artwork and found substantially wrong: the far arm was drawn straight down the middle of the chest where no arm is painted, a far toe landed in empty background, knees sat at mid-thigh and the hip sat at the waist. Only head_top, paw_l (the cannon muzzle) and the two toes follow readable silhouette edges; everything else is inference. Correct this file with scripts/trace_sprite_sheet.py rather than trusting it. Every joint absent from a frame's confidence map is estimated. _l is the near pair and _r the far pair, matching run-pose-trace-v1.json. Near/far leg ownership is not readable from this artwork at all: both legs share one palette and the shading encodes a light direction, not depth. Ownership below is assigned by kinematic continuity across the cycle, anchored on the two flight frames, and is the single thing most worth a human correcting. The cannon arm is treated as the near arm throughout because it is drawn over the torso; unlike the legs it does not change sides at the half cycle. Support labels come from which foot reaches the lowest occupied row; reference_04 and reference_09 reach only row 64 while the rest reach 65 to 66, so both read as flight.",
+  "confidence_absent_means": "estimated",
+  "ground_y": 67,
+  "bones": [
+    {"start_joint": "hip_c", "end_joint": "neck"},
+    {"start_joint": "neck", "end_joint": "head_top"},
+    {"start_joint": "neck", "end_joint": "shoulder_l"},
+    {"start_joint": "shoulder_l", "end_joint": "elbow_l"},
+    {"start_joint": "elbow_l", "end_joint": "wrist_l"},
+    {"start_joint": "wrist_l", "end_joint": "paw_l"},
+    {"start_joint": "hip_c", "end_joint": "knee_l"},
+    {"start_joint": "knee_l", "end_joint": "ankle_l"},
+    {"start_joint": "ankle_l", "end_joint": "toe_l"},
+    {"start_joint": "neck", "end_joint": "shoulder_r"},
+    {"start_joint": "shoulder_r", "end_joint": "elbow_r"},
+    {"start_joint": "elbow_r", "end_joint": "wrist_r"},
+    {"start_joint": "wrist_r", "end_joint": "paw_r"},
+    {"start_joint": "hip_c", "end_joint": "knee_r"},
+    {"start_joint": "knee_r", "end_joint": "ankle_r"},
+    {"start_joint": "ankle_r", "end_joint": "toe_r"}
+  ],
+  "neutral": {
+    "name": "reference_neutral",
+    "support": "both",
+    "pose": {
+      "hip_c": [38, 48], "neck": [38, 37], "head_top": [38, 25],
+      "shoulder_l": [34, 38], "elbow_l": [32, 41], "wrist_l": [31, 43], "paw_l": [27, 47],
+      "shoulder_r": [42, 38], "elbow_r": [44, 43], "wrist_r": [44, 47], "paw_r": [44, 49],
+      "knee_l": [43, 55], "ankle_l": [45, 61], "toe_l": [50, 66],
+      "knee_r": [35, 55], "ankle_r": [34, 62], "toe_r": [32, 66]
+    },
+    "confidence": {
+      "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+    }
+  },
+  "frames": [
+    {
+      "name": "reference_01", "cell": [0, 0, 80, 80], "support": "near", "lowest_row": 66,
+      "pose": {
+        "hip_c": [41, 49], "neck": [41, 36], "head_top": [43, 25],
+        "shoulder_l": [43, 39], "elbow_l": [45, 41], "wrist_l": [46, 42], "paw_l": [50, 43],
+        "shoulder_r": [38, 38], "elbow_r": [36, 43], "wrist_r": [37, 46], "paw_r": [38, 48],
+        "knee_l": [41, 55], "ankle_l": [39, 61], "toe_l": [45, 66],
+        "knee_r": [38, 52], "ankle_r": [34, 55], "toe_r": [31, 55]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    },
+    {
+      "name": "reference_02", "cell": [80, 0, 80, 80], "support": "near", "lowest_row": 66,
+      "pose": {
+        "hip_c": [41, 48], "neck": [41, 36], "head_top": [42, 25],
+        "shoulder_l": [44, 38], "elbow_l": [46, 40], "wrist_l": [47, 41], "paw_l": [49, 43],
+        "shoulder_r": [38, 38], "elbow_r": [35, 43], "wrist_r": [36, 46], "paw_r": [37, 48],
+        "knee_l": [36, 54], "ankle_l": [32, 61], "toe_l": [29, 65],
+        "knee_r": [45, 52], "ankle_r": [44, 58], "toe_r": [48, 60]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    },
+    {
+      "name": "reference_03", "cell": [160, 0, 80, 80], "support": "near", "lowest_row": 65,
+      "pose": {
+        "hip_c": [40, 48], "neck": [40, 35], "head_top": [42, 23],
+        "shoulder_l": [43, 36], "elbow_l": [45, 35], "wrist_l": [47, 34], "paw_l": [51, 33],
+        "shoulder_r": [37, 37], "elbow_r": [34, 41], "wrist_r": [34, 45], "paw_r": [35, 47],
+        "knee_l": [35, 53], "ankle_l": [33, 61], "toe_l": [29, 65],
+        "knee_r": [46, 51], "ankle_r": [48, 57], "toe_r": [50, 60]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    },
+    {
+      "name": "reference_04", "cell": [240, 0, 80, 80], "support": "flight", "lowest_row": 64,
+      "pose": {
+        "hip_c": [40, 47], "neck": [40, 34], "head_top": [42, 22],
+        "shoulder_l": [43, 37], "elbow_l": [45, 35], "wrist_l": [47, 33], "paw_l": [51, 30],
+        "shoulder_r": [37, 38], "elbow_r": [34, 42], "wrist_r": [34, 46], "paw_r": [35, 48],
+        "knee_l": [36, 49], "ankle_l": [31, 51], "toe_l": [28, 53],
+        "knee_r": [45, 53], "ankle_r": [48, 59], "toe_r": [53, 62]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    },
+    {
+      "name": "reference_05", "cell": [320, 0, 80, 80], "support": "far", "lowest_row": 65,
+      "pose": {
+        "hip_c": [40, 47], "neck": [40, 35], "head_top": [42, 24],
+        "shoulder_l": [43, 37], "elbow_l": [45, 37], "wrist_l": [46, 37], "paw_l": [50, 37],
+        "shoulder_r": [37, 38], "elbow_r": [34, 42], "wrist_r": [35, 46], "paw_r": [36, 48],
+        "knee_l": [36, 50], "ankle_l": [31, 52], "toe_l": [28, 53],
+        "knee_r": [45, 53], "ankle_r": [47, 60], "toe_r": [54, 63]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    },
+    {
+      "name": "reference_06", "cell": [400, 0, 80, 80], "support": "far", "lowest_row": 66,
+      "pose": {
+        "hip_c": [41, 49], "neck": [40, 36], "head_top": [41, 25],
+        "shoulder_l": [40, 39], "elbow_l": [42, 42], "wrist_l": [43, 43], "paw_l": [47, 44],
+        "shoulder_r": [36, 38], "elbow_r": [34, 42], "wrist_r": [35, 46], "paw_r": [36, 48],
+        "knee_l": [38, 51], "ankle_l": [34, 54], "toe_l": [31, 54],
+        "knee_r": [42, 55], "ankle_r": [39, 61], "toe_r": [34, 66]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    },
+    {
+      "name": "reference_07", "cell": [480, 0, 80, 80], "support": "far", "lowest_row": 66,
+      "pose": {
+        "hip_c": [40, 48], "neck": [39, 36], "head_top": [41, 25],
+        "shoulder_l": [39, 40], "elbow_l": [41, 43], "wrist_l": [43, 45], "paw_l": [46, 47],
+        "shoulder_r": [35, 38], "elbow_r": [33, 42], "wrist_r": [34, 46], "paw_r": [35, 47],
+        "knee_l": [44, 53], "ankle_l": [42, 58], "toe_l": [45, 60],
+        "knee_r": [36, 54], "ankle_r": [32, 61], "toe_r": [29, 65]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    },
+    {
+      "name": "reference_08", "cell": [560, 0, 80, 80], "support": "far", "lowest_row": 65,
+      "pose": {
+        "hip_c": [40, 48], "neck": [39, 35], "head_top": [41, 23],
+        "shoulder_l": [42, 38], "elbow_l": [45, 36], "wrist_l": [47, 34], "paw_l": [53, 32],
+        "shoulder_r": [36, 38], "elbow_r": [34, 42], "wrist_r": [35, 46], "paw_r": [36, 48],
+        "knee_l": [44, 53], "ankle_l": [45, 59], "toe_l": [48, 61],
+        "knee_r": [35, 53], "ankle_r": [31, 61], "toe_r": [29, 65]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    },
+    {
+      "name": "reference_09", "cell": [640, 0, 80, 80], "support": "flight", "lowest_row": 64,
+      "pose": {
+        "hip_c": [40, 47], "neck": [39, 34], "head_top": [41, 22],
+        "shoulder_l": [42, 37], "elbow_l": [45, 35], "wrist_l": [47, 33], "paw_l": [53, 30],
+        "shoulder_r": [36, 37], "elbow_r": [34, 41], "wrist_r": [35, 45], "paw_r": [36, 47],
+        "knee_l": [45, 53], "ankle_l": [47, 60], "toe_l": [53, 63],
+        "knee_r": [36, 50], "ankle_r": [31, 53], "toe_r": [28, 55]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    },
+    {
+      "name": "reference_10", "cell": [720, 0, 80, 80], "support": "near", "lowest_row": 65,
+      "pose": {
+        "hip_c": [40, 47], "neck": [39, 35], "head_top": [41, 24],
+        "shoulder_l": [42, 38], "elbow_l": [44, 37], "wrist_l": [46, 37], "paw_l": [49, 38],
+        "shoulder_r": [36, 38], "elbow_r": [34, 42], "wrist_r": [35, 46], "paw_r": [36, 48],
+        "knee_l": [45, 53], "ankle_l": [47, 59], "toe_l": [54, 63],
+        "knee_r": [36, 49], "ankle_r": [31, 52], "toe_r": [28, 54]
+      },
+      "confidence": {
+        "head_top": "observed", "paw_l": "observed", "toe_l": "observed", "toe_r": "observed"
+      }
+    }
+  ]
+}

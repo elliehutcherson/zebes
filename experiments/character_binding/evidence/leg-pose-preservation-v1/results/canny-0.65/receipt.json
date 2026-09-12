@@ -1,0 +1,84 @@
+{
+  "status": "complete",
+  "reviewed_graph_sha256": "f0f0e4bc703d7190d03722a0e87ed0727b4323eb011d0a230b37247019493e98",
+  "client_id": "eca387fd-ada8-49a6-bd2c-9e44f31bcaa2",
+  "input_sha256": {
+    "zebes-leg-pose-v1/identity.png": "d5f638c33fc13f59d7abc234f1662ecba598dfc10fcbb1060d3db8433c0ef522",
+    "zebes-leg-pose-v1/edit-input.png": "b3d50deb9a553c77673bd2892fc424b80dc51aa9edeb21a826f5e4fc4c7540a9",
+    "zebes-leg-pose-v1/canny.png": "9767583fc84b64eecf5071c9e6a59857629d09cf838eae3ba1217462f2e8c778"
+  },
+  "uploads": {
+    "zebes-leg-pose-v1/identity.png": "zebes-leg-pose-v1/identity.png",
+    "zebes-leg-pose-v1/edit-input.png": "zebes-leg-pose-v1/edit-input.png",
+    "zebes-leg-pose-v1/canny.png": "zebes-leg-pose-v1/canny.png"
+  },
+  "submitted_at_epoch": 1789079806.8717282,
+  "system_before": {
+    "system": {
+      "os": "linux",
+      "ram_total": 67325104128,
+      "ram_free": 45869826048,
+      "comfyui_version": "0.34.0",
+      "required_frontend_version": "1.51.9",
+      "installed_templates_version": "0.11.50",
+      "required_templates_version": "0.11.50",
+      "comfy_package_versions": [
+        {
+          "name": "comfyui-frontend-package",
+          "installed": "1.51.9",
+          "required": "1.51.9"
+        },
+        {
+          "name": "comfyui-workflow-templates",
+          "installed": "0.11.50",
+          "required": "0.11.50"
+        },
+        {
+          "name": "comfyui-embedded-docs",
+          "installed": "0.5.10",
+          "required": "0.5.10"
+        },
+        {
+          "name": "comfy-kitchen",
+          "installed": "0.2.31",
+          "required": "0.2.31"
+        },
+        {
+          "name": "comfy-aimdo",
+          "installed": "0.4.15",
+          "required": "0.4.15"
+        }
+      ],
+      "python_version": "3.12.3 (main, Jul 15 2026, 23:46:41) [GCC 13.3.0]",
+      "pytorch_version": "2.13.0+cu130",
+      "embedded_python": false,
+      "deploy_environment": "local-git",
+      "argv": [
+        "main.py",
+        "--listen",
+        "127.0.0.1",
+        "--port",
+        "8188"
+      ]
+    },
+    "devices": [
+      {
+        "name": "cuda:0 NVIDIA GeForce RTX 3090 : cudaMallocAsync",
+        "type": "cuda",
+        "index": 0,
+        "vram_total": 25288769536,
+        "vram_free": 14789471482,
+        "torch_vram_total": 872415232,
+        "torch_vram_free": 13855994
+      }
+    ]
+  },
+  "prompt_id": "dacbf158-98ca-47f0-822c-14dd2df6e730",
+  "elapsed_seconds": 22.3797767162323,
+  "raw_sha256": "065721014fc5e0df04f4cc1cb072ed0ffbd13f5b896337fe4114625079ed53cb",
+  "raw_size": [
+    1024,
+    1024
+  ],
+  "post_generation_fitting": false
+}

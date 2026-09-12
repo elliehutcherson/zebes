@@ -1,0 +1,7 @@
+{
+  "status": "complete; all candidates rejected after run-phase review",
+  "canny-only": "Rejected: preserves the contour but again invents a lace-up, front/three-quarter boot.",
+  "depth-0.45": "Rejected: initially misclassified as promising. It does not read as the required side-profile recovery foot with the heel lifted; it follows an incorrect oblique boot proxy.",
+  "depth-0.80": "Rejected: view control is strong but the output collapses toward the boxy proxy and loses useful material definition.",
+  "decision": "Do not repeat these graphs. Audit the twelve running phases against the source trace, add an explicit heel/sole contact representation, and replace the oblique proxy with a side-profile recovery-foot control before any new generation."
+}

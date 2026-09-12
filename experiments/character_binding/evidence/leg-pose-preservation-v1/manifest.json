@@ -1,6 +1,6 @@
 {
-  "status": "prepared for input review; nothing uploaded or generated",
-  "provider_calls": 0,
+  "status": "complete and evaluated; no candidate accepted for expansion",
+  "provider_calls": 3,
   "source_trial": "experiments/character_binding/evidence/leg-ownership-trial-v1",
   "source_manifest_sha256": "8649c97f2079ffd5eba769b85ed5d2a09a2b7587cda8c907b3695b553ff507bd",
   "fixed_crop": [
@@ -101,19 +101,29 @@
         "identity.png",
         "landmarks.png"
       ],
-      "status": "prepared"
+      "status": "complete",
+      "raw_source": "built-in image_gen output copied into retained results",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "97f70613a74210c55ba7e7be999dba48c1325c12706f7819227b632c4919b5bd"
     },
     {
       "name": "canny-0.65",
       "provider": "derry ComfyUI",
       "graph": "canny-0.65.json",
-      "status": "prepared"
+      "status": "complete",
+      "prompt_id": "dacbf158-98ca-47f0-822c-14dd2df6e730",
+      "raw_sha256": "065721014fc5e0df04f4cc1cb072ed0ffbd13f5b896337fe4114625079ed53cb"
     },
     {
       "name": "canny-0.85",
       "provider": "derry ComfyUI",
       "graph": "canny-0.85.json",
-      "status": "prepared"
+      "status": "complete",
+      "prompt_id": "c74b67c3-3245-456b-a261-e03a642472dc",
+      "raw_sha256": "7f1a1b5e6de507c3e7e46a9306b2bee6463dcc9804af11572d1ee47b1c9b8eba"
     }
   ],
   "comfy_node_schema_verified": "ControlNetLoader/ControlNetApplyAdvanced via live object_info, 2026-09-10"

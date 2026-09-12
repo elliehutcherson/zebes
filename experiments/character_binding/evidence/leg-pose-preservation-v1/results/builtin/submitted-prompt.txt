@@ -1,0 +1,8 @@
+Use case: precise-object-edit
+Asset type: reusable 2D sprite-animation part
+Input images: Image 1 is the edit target and exact pose authority: ONE isolated folded trouser leg and boot. Image 2 supplies the original mouse's palette, pixel-art style and clothing materials ONLY. Image 3 is a contour/landmark reference of Image 1, not artwork to copy into the result.
+Primary request: Paint fabric folds and leather shading onto Image 1 while preserving its silhouette, placement, size and boot orientation.
+Geometry invariants: Keep the calf almost horizontal, extending LEFT from the knee into the cuff. Keep the sole's heel-to-toe direction DOWN and slightly LEFT, exactly as shown by the arrow. Do not curl the calf downward, sag the ankle, turn the toe right, or substitute a familiar running-leg pose. The knee is the intended bend. Folds may shade the cloth but must not bend the underlying lower leg.
+Subject and style: One stout dark-brown trouser leg and one stout brown leather boot, with cuff, dark sole and restrained pixel clusters matching Image 2. Keep the existing thickness and the complete hip attachment. Add no other body parts, coat, mouse face or scenery.
+Composition: Keep the entire 1024 x 1024 white canvas and its empty space. Do not recenter or enlarge the asset.
+Output constraints: Return only the finished part on plain white, without annotations, arrows, labels, guide lines, checkerboard or cast shadow. Geometry preservation takes priority over polishing or rounding the guide's shape.

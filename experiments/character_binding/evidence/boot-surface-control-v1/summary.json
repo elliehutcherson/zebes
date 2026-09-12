@@ -1,0 +1,107 @@
+{
+  "status": "three results measured; boot view requires visual decision",
+  "pose_authority_sha256": "0bfdb52972b8334539bd3533bd7f0983420ef65194e93212d865460fbccb07f5",
+  "fixed_crop": [
+    88,
+    136,
+    184,
+    232
+  ],
+  "metric_scope": "Registration and silhouette only; not anatomy, surface visibility, leg ownership, or finish.",
+  "candidates": [
+    {
+      "name": "canny-only",
+      "raw_size": [
+        1024,
+        1024
+      ],
+      "raw_sha256": "3ea783e9ba7ae31bcc3660b2918c50d61c105b3bfc0845ec832416e5da0e81cc",
+      "registration": "whole square canvas scaled to 1024, then inverse fixed crop; no bounds fitting",
+      "silhouette_iou": 0.9854295164029677,
+      "target_foreground_pixels_1024": 66329,
+      "candidate_foreground_pixels_1024": 66937,
+      "area_ratio": 1.0091664279576054,
+      "added_pixels_1024": 793,
+      "missing_pixels_1024": 185,
+      "centroid_drift_working_pixels": 0.021487735975924665,
+      "target_bounds_working": [
+        113.03125,
+        152.03125,
+        146.03125,
+        181.0
+      ],
+      "candidate_bounds_working": [
+        112.84375,
+        151.84375,
+        145.9375,
+        181.09375
+      ],
+      "view_direction": "manual review required; silhouette metrics cannot establish visible boot surfaces"
+    },
+    {
+      "name": "depth-0.45",
+      "raw_size": [
+        1024,
+        1024
+      ],
+      "raw_sha256": "1232dbb6f4a652d4ff51c572ea0860af2af038ce50c8674f823c9d114f7bad39",
+      "registration": "whole square canvas scaled to 1024, then inverse fixed crop; no bounds fitting",
+      "silhouette_iou": 0.9871441552831116,
+      "target_foreground_pixels_1024": 66329,
+      "candidate_foreground_pixels_1024": 67066,
+      "area_ratio": 1.011111278626242,
+      "added_pixels_1024": 800,
+      "missing_pixels_1024": 63,
+      "centroid_drift_working_pixels": 0.020334711535597943,
+      "target_bounds_working": [
+        113.03125,
+        152.03125,
+        146.03125,
+        181.0
+      ],
+      "candidate_bounds_working": [
+        112.84375,
+        151.84375,
+        146.03125,
+        181.09375
+      ],
+      "view_direction": "manual review required; silhouette metrics cannot establish visible boot surfaces"
+    },
+    {
+      "name": "depth-0.80",
+      "raw_size": [
+        1024,
+        1024
+      ],
+      "raw_sha256": "c89835886e7657c177a8eec0c615589ed3f9a3a9bc70771b81152d55f0d94906",
+      "registration": "whole square canvas scaled to 1024, then inverse fixed crop; no bounds fitting",
+      "silhouette_iou": 0.9877481666964765,
+      "target_foreground_pixels_1024": 66329,
+      "candidate_foreground_pixels_1024": 67033,
+      "area_ratio": 1.0106137586877535,
+      "added_pixels_1024": 763,
+      "missing_pixels_1024": 59,
+      "centroid_drift_working_pixels": 0.017661295190766785,
+      "target_bounds_working": [
+        113.03125,
+        152.03125,
+        146.03125,
+        181.0
+      ],
+      "candidate_bounds_working": [
+        112.84375,
+        151.84375,
+        146.03125,
+        181.09375
+      ],
+      "view_direction": "manual review required; silhouette metrics cannot establish visible boot surfaces"
+    }
+  ],
+  "visual_assessment": {
+    "status": "complete; all candidates rejected after run-phase review",
+    "canny-only": "Rejected: preserves the contour but again invents a lace-up, front/three-quarter boot.",
+    "depth-0.45": "Rejected: initially misclassified as promising. It does not read as the required side-profile recovery foot with the heel lifted; it follows an incorrect oblique boot proxy.",
+    "depth-0.80": "Rejected: view control is strong but the output collapses toward the boxy proxy and loses useful material definition.",
+    "decision": "Do not repeat these graphs. Audit the twelve running phases against the source trace, add an explicit heel/sole contact representation, and replace the oblique proxy with a side-profile recovery-foot control before any new generation."
+  }
+}

@@ -1,11 +1,10 @@
 # Character-binding experiment: results and open problems
 
-**Historical experiment record.** The user approved renewed experiments on
-2026-09-08, beginning with a corrected source skeleton and limb mapping.
-Current work is in [the run plan](../../docs/sprite-run-experiment-plan.md) and
-[handoff](../../docs/handoff.md). Earlier gates and blanket closure decisions
-below are not active requirements. Actual input images and conditioning maps
-must be reviewed before generation. Numerical history is retained verbatim.
+**Historical experiment record.** The accepted 3D mouse superseded this route
+on 2026-09-12. "Current" findings and proposed next steps below describe the
+earlier 2D work; they are not active requirements. Use [README.md](README.md)
+for the experiment index and [the 3D plan](../../docs/mouse-3d-plan.md) for
+current work. Numerical history is retained verbatim.
 
 Written 2026-09-01 as a handoff. Everything below is measured unless it says
 otherwise. Where a claim is a guess, it says so.

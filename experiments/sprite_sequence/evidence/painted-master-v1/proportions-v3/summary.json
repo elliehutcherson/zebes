@@ -1,0 +1,984 @@
+{
+  "canvas": [
+    512,
+    512
+  ],
+  "frames": 12,
+  "fps": 12,
+  "generation_requests": 0,
+  "contacts": [
+    {
+      "name": "reference_01",
+      "support": "near / heel",
+      "contact_pin_y_master": 427.9999999999992,
+      "ankle_sole_fraction": [
+        0.22000000000002495,
+        0.2199999999999929
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_02",
+      "support": "near / flat",
+      "contact_pin_y_master": 427.999999999999,
+      "ankle_sole_fraction": [
+        0.22000000000001502,
+        0.21999999999999922
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_03",
+      "support": "near / flat",
+      "contact_pin_y_master": 428.00000000000045,
+      "ankle_sole_fraction": [
+        0.2200000000000154,
+        0.21999999999999667
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_04",
+      "support": "near / flat",
+      "contact_pin_y_master": 428.0,
+      "ankle_sole_fraction": [
+        0.21999999999998102,
+        0.21999999999998168
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_05",
+      "support": "near / toe",
+      "contact_pin_y_master": 428.00000000000006,
+      "ankle_sole_fraction": [
+        0.220000000000003,
+        0.21999999999999825
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 426,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_06",
+      "support": "flight",
+      "contact_pin_y_master": null,
+      "ankle_sole_fraction": [
+        0.21999999999998945,
+        0.22000000000001557
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 417,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 416,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 416,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_07",
+      "support": "far / heel",
+      "contact_pin_y_master": 428.00000000000006,
+      "ankle_sole_fraction": [
+        0.22000000000002123,
+        0.2200000000000297
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 426,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_08",
+      "support": "far / flat",
+      "contact_pin_y_master": 427.9999999999998,
+      "ankle_sole_fraction": [
+        0.2199999999999937,
+        0.21999999999998668
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_09",
+      "support": "far / flat",
+      "contact_pin_y_master": 427.9999999999996,
+      "ankle_sole_fraction": [
+        0.22000000000001196,
+        0.2199999999999866
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_10",
+      "support": "far / flat",
+      "contact_pin_y_master": 427.99999999999983,
+      "ankle_sole_fraction": [
+        0.21999999999999068,
+        0.21999999999999378
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 428,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_11",
+      "support": "far / toe",
+      "contact_pin_y_master": 428.00000000000034,
+      "ankle_sole_fraction": [
+        0.21999999999998443,
+        0.2200000000000052
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 427,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 426,
+          "pixels_below_428": 0
+        }
+      }
+    },
+    {
+      "name": "reference_12",
+      "support": "flight",
+      "contact_pin_y_master": null,
+      "ankle_sole_fraction": [
+        0.21999999999997916,
+        0.22000000000001677
+      ],
+      "alpha_thresholds": {
+        "32": {
+          "bottom_row": 414,
+          "pixels_below_428": 0
+        },
+        "128": {
+          "bottom_row": 414,
+          "pixels_below_428": 0
+        },
+        "224": {
+          "bottom_row": 413,
+          "pixels_below_428": 0
+        }
+      }
+    }
+  ],
+  "mesh_audit": [
+    {
+      "frame": "reference_01",
+      "name": "far_leg",
+      "sampled_art_cells": 290,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.155863240751779,
+      "p95_local_anisotropy": 1.6104106930999351
+    },
+    {
+      "frame": "reference_01",
+      "name": "near_leg",
+      "sampled_art_cells": 356,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.280090933914828,
+      "p95_local_anisotropy": 1.693650402002365
+    },
+    {
+      "frame": "reference_01",
+      "name": "head",
+      "sampled_art_cells": 1485,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087264,
+      "p95_local_anisotropy": 1.0000000001475897
+    },
+    {
+      "frame": "reference_01",
+      "name": "body",
+      "sampled_art_cells": 1149,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993323,
+      "p95_local_anisotropy": 1.0000000001993237
+    },
+    {
+      "frame": "reference_01",
+      "name": "near_arm",
+      "sampled_art_cells": 153,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.138687541434425,
+      "p95_local_anisotropy": 2.031227717112954
+    },
+    {
+      "frame": "reference_01",
+      "name": "far_arm",
+      "sampled_art_cells": 200,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.634028617045793,
+      "p95_local_anisotropy": 4.209210464899348
+    },
+    {
+      "frame": "reference_01",
+      "name": "tail",
+      "sampled_art_cells": 74,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440288,
+      "p95_local_anisotropy": 1.0000000001166074
+    },
+    {
+      "frame": "reference_02",
+      "name": "far_leg",
+      "sampled_art_cells": 255,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.440119589128953,
+      "p95_local_anisotropy": 1.9510768837380519
+    },
+    {
+      "frame": "reference_02",
+      "name": "near_leg",
+      "sampled_art_cells": 275,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.3483295443872136,
+      "p95_local_anisotropy": 1.8284537766026232
+    },
+    {
+      "frame": "reference_02",
+      "name": "head",
+      "sampled_art_cells": 1481,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087295,
+      "p95_local_anisotropy": 1.000000000147594
+    },
+    {
+      "frame": "reference_02",
+      "name": "body",
+      "sampled_art_cells": 1145,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993323,
+      "p95_local_anisotropy": 1.000000000199324
+    },
+    {
+      "frame": "reference_02",
+      "name": "near_arm",
+      "sampled_art_cells": 188,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.2305318181108977,
+      "p95_local_anisotropy": 2.166507885244936
+    },
+    {
+      "frame": "reference_02",
+      "name": "far_arm",
+      "sampled_art_cells": 205,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.570061963620662,
+      "p95_local_anisotropy": 4.15326441311093
+    },
+    {
+      "frame": "reference_02",
+      "name": "tail",
+      "sampled_art_cells": 71,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001018452,
+      "p95_local_anisotropy": 1.0000000001018452
+    },
+    {
+      "frame": "reference_03",
+      "name": "far_leg",
+      "sampled_art_cells": 311,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.84461818815903,
+      "p95_local_anisotropy": 2.140257420524514
+    },
+    {
+      "frame": "reference_03",
+      "name": "near_leg",
+      "sampled_art_cells": 277,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.0368266415998164,
+      "p95_local_anisotropy": 1.5747457985050037
+    },
+    {
+      "frame": "reference_03",
+      "name": "head",
+      "sampled_art_cells": 1475,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087293,
+      "p95_local_anisotropy": 1.0000000001475895
+    },
+    {
+      "frame": "reference_03",
+      "name": "body",
+      "sampled_art_cells": 1144,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.000000000199321,
+      "p95_local_anisotropy": 1.000000000140949
+    },
+    {
+      "frame": "reference_03",
+      "name": "near_arm",
+      "sampled_art_cells": 180,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 3.022052411456777,
+      "p95_local_anisotropy": 2.9344223981135564
+    },
+    {
+      "frame": "reference_03",
+      "name": "far_arm",
+      "sampled_art_cells": 201,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 5.866977030587539,
+      "p95_local_anisotropy": 5.294580038855202
+    },
+    {
+      "frame": "reference_03",
+      "name": "tail",
+      "sampled_art_cells": 76,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440266,
+      "p95_local_anisotropy": 1.000000000144023
+    },
+    {
+      "frame": "reference_04",
+      "name": "far_leg",
+      "sampled_art_cells": 259,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.685576155548301,
+      "p95_local_anisotropy": 2.0357913866658697
+    },
+    {
+      "frame": "reference_04",
+      "name": "near_leg",
+      "sampled_art_cells": 252,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.4461622559279093,
+      "p95_local_anisotropy": 1.743611217989535
+    },
+    {
+      "frame": "reference_04",
+      "name": "head",
+      "sampled_art_cells": 1485,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087293,
+      "p95_local_anisotropy": 1.000000000147594
+    },
+    {
+      "frame": "reference_04",
+      "name": "body",
+      "sampled_art_cells": 1145,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993294,
+      "p95_local_anisotropy": 1.0000000001993208
+    },
+    {
+      "frame": "reference_04",
+      "name": "near_arm",
+      "sampled_art_cells": 169,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 3.5255311605568926,
+      "p95_local_anisotropy": 3.4214983247086663
+    },
+    {
+      "frame": "reference_04",
+      "name": "far_arm",
+      "sampled_art_cells": 187,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 6.750374836184745,
+      "p95_local_anisotropy": 6.129177327814267
+    },
+    {
+      "frame": "reference_04",
+      "name": "tail",
+      "sampled_art_cells": 72,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440266,
+      "p95_local_anisotropy": 1.000000000101845
+    },
+    {
+      "frame": "reference_05",
+      "name": "far_leg",
+      "sampled_art_cells": 251,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.5792009772706246,
+      "p95_local_anisotropy": 2.1821085252201433
+    },
+    {
+      "frame": "reference_05",
+      "name": "near_leg",
+      "sampled_art_cells": 266,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.2305550589990233,
+      "p95_local_anisotropy": 1.887540986017202
+    },
+    {
+      "frame": "reference_05",
+      "name": "head",
+      "sampled_art_cells": 1484,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087264,
+      "p95_local_anisotropy": 1.000000000147594
+    },
+    {
+      "frame": "reference_05",
+      "name": "body",
+      "sampled_art_cells": 1148,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993326,
+      "p95_local_anisotropy": 1.0000000001993237
+    },
+    {
+      "frame": "reference_05",
+      "name": "near_arm",
+      "sampled_art_cells": 190,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.252422926231592,
+      "p95_local_anisotropy": 2.1479897765981044
+    },
+    {
+      "frame": "reference_05",
+      "name": "far_arm",
+      "sampled_art_cells": 219,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.80605966766216,
+      "p95_local_anisotropy": 4.357229260737895
+    },
+    {
+      "frame": "reference_05",
+      "name": "tail",
+      "sampled_art_cells": 75,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.000000000144029,
+      "p95_local_anisotropy": 1.0000000001440263
+    },
+    {
+      "frame": "reference_06",
+      "name": "far_leg",
+      "sampled_art_cells": 371,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.1858013416308895,
+      "p95_local_anisotropy": 1.8945458917290166
+    },
+    {
+      "frame": "reference_06",
+      "name": "near_leg",
+      "sampled_art_cells": 305,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.6597684332734746,
+      "p95_local_anisotropy": 1.8772007406305686
+    },
+    {
+      "frame": "reference_06",
+      "name": "head",
+      "sampled_art_cells": 1482,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087233,
+      "p95_local_anisotropy": 1.000000000147594
+    },
+    {
+      "frame": "reference_06",
+      "name": "body",
+      "sampled_art_cells": 1142,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993323,
+      "p95_local_anisotropy": 1.000000000199324
+    },
+    {
+      "frame": "reference_06",
+      "name": "near_arm",
+      "sampled_art_cells": 155,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.0624422753797567,
+      "p95_local_anisotropy": 1.9625091092619378
+    },
+    {
+      "frame": "reference_06",
+      "name": "far_arm",
+      "sampled_art_cells": 215,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.783845830490159,
+      "p95_local_anisotropy": 4.418943777723117
+    },
+    {
+      "frame": "reference_06",
+      "name": "tail",
+      "sampled_art_cells": 72,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440266,
+      "p95_local_anisotropy": 1.0000000001440226
+    },
+    {
+      "frame": "reference_07",
+      "name": "far_leg",
+      "sampled_art_cells": 306,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.669810093725839,
+      "p95_local_anisotropy": 2.0907218777550947
+    },
+    {
+      "frame": "reference_07",
+      "name": "near_leg",
+      "sampled_art_cells": 278,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.4248196446598334,
+      "p95_local_anisotropy": 1.6613683593267417
+    },
+    {
+      "frame": "reference_07",
+      "name": "head",
+      "sampled_art_cells": 1484,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087293,
+      "p95_local_anisotropy": 1.0000000002087204
+    },
+    {
+      "frame": "reference_07",
+      "name": "body",
+      "sampled_art_cells": 1146,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993294,
+      "p95_local_anisotropy": 1.0000000001993248
+    },
+    {
+      "frame": "reference_07",
+      "name": "near_arm",
+      "sampled_art_cells": 125,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.606232631400705,
+      "p95_local_anisotropy": 2.493842365277806
+    },
+    {
+      "frame": "reference_07",
+      "name": "far_arm",
+      "sampled_art_cells": 214,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.619315382714327,
+      "p95_local_anisotropy": 4.257111073353684
+    },
+    {
+      "frame": "reference_07",
+      "name": "tail",
+      "sampled_art_cells": 71,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440303,
+      "p95_local_anisotropy": 1.0000000001440204
+    },
+    {
+      "frame": "reference_08",
+      "name": "far_leg",
+      "sampled_art_cells": 240,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 3.2441287636195324,
+      "p95_local_anisotropy": 2.45583881175756
+    },
+    {
+      "frame": "reference_08",
+      "name": "near_leg",
+      "sampled_art_cells": 275,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.1292679481779246,
+      "p95_local_anisotropy": 1.767389304582361
+    },
+    {
+      "frame": "reference_08",
+      "name": "head",
+      "sampled_art_cells": 1485,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087233,
+      "p95_local_anisotropy": 1.0000000001475895
+    },
+    {
+      "frame": "reference_08",
+      "name": "body",
+      "sampled_art_cells": 1142,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993268,
+      "p95_local_anisotropy": 1.0000000001409457
+    },
+    {
+      "frame": "reference_08",
+      "name": "near_arm",
+      "sampled_art_cells": 165,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.996336502160251,
+      "p95_local_anisotropy": 1.9052406911814623
+    },
+    {
+      "frame": "reference_08",
+      "name": "far_arm",
+      "sampled_art_cells": 210,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.601081775381414,
+      "p95_local_anisotropy": 4.185583655448694
+    },
+    {
+      "frame": "reference_08",
+      "name": "tail",
+      "sampled_art_cells": 74,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440266,
+      "p95_local_anisotropy": 1.0000000001440226
+    },
+    {
+      "frame": "reference_09",
+      "name": "far_leg",
+      "sampled_art_cells": 273,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.153447222096189,
+      "p95_local_anisotropy": 1.5774602658651757
+    },
+    {
+      "frame": "reference_09",
+      "name": "near_leg",
+      "sampled_art_cells": 238,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.3140127744404544,
+      "p95_local_anisotropy": 1.9811499362476361
+    },
+    {
+      "frame": "reference_09",
+      "name": "head",
+      "sampled_art_cells": 1486,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087261,
+      "p95_local_anisotropy": 1.0000000002087193
+    },
+    {
+      "frame": "reference_09",
+      "name": "body",
+      "sampled_art_cells": 1150,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.000000000199332,
+      "p95_local_anisotropy": 1.000000000199324
+    },
+    {
+      "frame": "reference_09",
+      "name": "near_arm",
+      "sampled_art_cells": 177,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 3.134776575324977,
+      "p95_local_anisotropy": 3.0565953852533436
+    },
+    {
+      "frame": "reference_09",
+      "name": "far_arm",
+      "sampled_art_cells": 214,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.62594494789533,
+      "p95_local_anisotropy": 4.226455761286739
+    },
+    {
+      "frame": "reference_09",
+      "name": "tail",
+      "sampled_art_cells": 73,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440312,
+      "p95_local_anisotropy": 1.0000000001440235
+    },
+    {
+      "frame": "reference_10",
+      "name": "far_leg",
+      "sampled_art_cells": 262,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.1240177319631193,
+      "p95_local_anisotropy": 1.6387355849803125
+    },
+    {
+      "frame": "reference_10",
+      "name": "near_leg",
+      "sampled_art_cells": 226,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 3.1616852281193375,
+      "p95_local_anisotropy": 2.1724346403974097
+    },
+    {
+      "frame": "reference_10",
+      "name": "head",
+      "sampled_art_cells": 1487,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087293,
+      "p95_local_anisotropy": 1.0000000002087204
+    },
+    {
+      "frame": "reference_10",
+      "name": "body",
+      "sampled_art_cells": 1148,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993352,
+      "p95_local_anisotropy": 1.0000000001993234
+    },
+    {
+      "frame": "reference_10",
+      "name": "near_arm",
+      "sampled_art_cells": 186,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.774737859050864,
+      "p95_local_anisotropy": 2.706466864220008
+    },
+    {
+      "frame": "reference_10",
+      "name": "far_arm",
+      "sampled_art_cells": 215,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.804886846029496,
+      "p95_local_anisotropy": 4.387289429211677
+    },
+    {
+      "frame": "reference_10",
+      "name": "tail",
+      "sampled_art_cells": 74,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440266,
+      "p95_local_anisotropy": 1.0000000001166072
+    },
+    {
+      "frame": "reference_11",
+      "name": "far_leg",
+      "sampled_art_cells": 271,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.98622377215913,
+      "p95_local_anisotropy": 1.6987080077098957
+    },
+    {
+      "frame": "reference_11",
+      "name": "near_leg",
+      "sampled_art_cells": 276,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 3.1897943304404954,
+      "p95_local_anisotropy": 2.241938844885855
+    },
+    {
+      "frame": "reference_11",
+      "name": "head",
+      "sampled_art_cells": 1487,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087288,
+      "p95_local_anisotropy": 1.0000000001475942
+    },
+    {
+      "frame": "reference_11",
+      "name": "body",
+      "sampled_art_cells": 1142,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993323,
+      "p95_local_anisotropy": 1.0000000001993212
+    },
+    {
+      "frame": "reference_11",
+      "name": "near_arm",
+      "sampled_art_cells": 190,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.2825332500501943,
+      "p95_local_anisotropy": 2.2290173834948046
+    },
+    {
+      "frame": "reference_11",
+      "name": "far_arm",
+      "sampled_art_cells": 208,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.5434300998998545,
+      "p95_local_anisotropy": 4.138405923771981
+    },
+    {
+      "frame": "reference_11",
+      "name": "tail",
+      "sampled_art_cells": 72,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440268,
+      "p95_local_anisotropy": 1.0000000001440266
+    },
+    {
+      "frame": "reference_12",
+      "name": "far_leg",
+      "sampled_art_cells": 318,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.259081512793301,
+      "p95_local_anisotropy": 1.8026567038546495
+    },
+    {
+      "frame": "reference_12",
+      "name": "near_leg",
+      "sampled_art_cells": 337,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 2.1979431636451947,
+      "p95_local_anisotropy": 1.6608507693075858
+    },
+    {
+      "frame": "reference_12",
+      "name": "head",
+      "sampled_art_cells": 1486,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000002087233,
+      "p95_local_anisotropy": 1.000000000147594
+    },
+    {
+      "frame": "reference_12",
+      "name": "body",
+      "sampled_art_cells": 1150,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001993326,
+      "p95_local_anisotropy": 1.0000000001409495
+    },
+    {
+      "frame": "reference_12",
+      "name": "near_arm",
+      "sampled_art_cells": 167,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.988180975793929,
+      "p95_local_anisotropy": 1.9059251726854796
+    },
+    {
+      "frame": "reference_12",
+      "name": "far_arm",
+      "sampled_art_cells": 202,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 4.658300660286891,
+      "p95_local_anisotropy": 4.237797681340213
+    },
+    {
+      "frame": "reference_12",
+      "name": "tail",
+      "sampled_art_cells": 74,
+      "inverted_art_cells": 0,
+      "maximum_local_anisotropy": 1.0000000001440266,
+      "p95_local_anisotropy": 1.000000000144025
+    }
+  ],
+  "maximum_semantic_residual_raw_px": 5.3251089542e-12,
+  "maximum_leg_correction_master_px": 19.30693451115116,
+  "decoded_frames_verified": {
+    "frames": 12,
+    "legs": 12,
+    "raw-frames": 12,
+    "raw-legs": 12,
+    "overlays": 12
+  },
+  "apng_bytes": {
+    "frames": 1609474,
+    "legs": 253190,
+    "raw-frames": 1611596,
+    "raw-legs": 253004,
+    "overlays": 1557912
+  },
+  "raw_hashes_verified": {
+    "legs-1-raw.png": "56d1c4acd21f7968168e7facdea19a6cacf5da3b7497a809ebef908d61499c24",
+    "legs-2-raw.png": "4f7e5969269578e0fcccb9ea298880efb76a66cbf2347c18d334d3923d9479ad",
+    "legs-3-raw.png": "a0b5898c82243637bc7b89d980e88925b23d92faa45d5d184affee3e8514fba9",
+    "upper-raw.png": "4e7f5a4b1d926f106a01af775ed994dd49478e3a2693a718d2a3c6a1eeabd508"
+  },
+  "interpretation": "C++ pins and imposed registration are not proof of model pose obedience or aesthetic acceptance. Native painted parts and all raw outputs are retained."
+}

@@ -1,0 +1,15 @@
+{
+  "region_vertex_indices": [],
+  "changed_weight_indices": [],
+  "outside_region_weight_sha256_before_after": [
+    "6083bcd5cf9e140faf85181a957b413f49c92a2f0b495d7eecb143f9b2425de8",
+    "6083bcd5cf9e140faf85181a957b413f49c92a2f0b495d7eecb143f9b2425de8"
+  ],
+  "geometry_rest_rig_uv_texture_unchanged": true,
+  "uv_sha256": "28b60d5d759ec36338495c4ceeefa770599ea74d061d9784141f385ad527245d",
+  "images": {
+    "Study_BaseColor": "52c29b7e8b532e2f51a48117b4c8b521ec73f9643170a7874e34d7de8a0a381e"
+  },
+  "region_bounds": [],
+  "weights": []
+}

@@ -1,0 +1,80 @@
+[
+  {
+    "asset": "legs-1",
+    "tool": "built-in imagegen",
+    "source": "/Users/ellie/.codex/generated_images/01a08df4-8281-7e12-8912-f94ed0551110/exec-ed9c1d96-2b24-4644-8140-50ed18840489.png",
+    "raw": "legs-1-raw.png",
+    "prompt": "legs-1-prompt.txt",
+    "seconds": 25.982,
+    "seed": null,
+    "model_revision": null,
+    "input_roles": [
+      "exact guide",
+      "retained complete painted legs",
+      "original character"
+    ],
+    "inputs": [
+      "legs-1-guide.png",
+      "../profile-v2/near-01-06-raw.png",
+      "../../../character_binding/inputs/interactive-run-source-v1.png"
+    ]
+  },
+  {
+    "asset": "legs-2",
+    "tool": "built-in imagegen",
+    "source": "/Users/ellie/.codex/generated_images/01a08df4-8281-7e12-8912-f94ed0551110/exec-c095ef08-655e-4b21-8849-51c2f8070924.png",
+    "raw": "legs-2-raw.png",
+    "prompt": "legs-2-prompt.txt",
+    "seconds": 21.926,
+    "seed": null,
+    "model_revision": null,
+    "input_roles": [
+      "exact guide",
+      "retained complete painted legs",
+      "original character"
+    ],
+    "inputs": [
+      "legs-2-guide.png",
+      "../profile-v2/sheet-raw.png",
+      "../../../character_binding/inputs/interactive-run-source-v1.png"
+    ]
+  },
+  {
+    "asset": "legs-3",
+    "tool": "built-in imagegen",
+    "source": "/Users/ellie/.codex/generated_images/01a08df4-8281-7e12-8912-f94ed0551110/exec-1dda513d-bda8-4e7c-9979-76a2a3113fca.png",
+    "raw": "legs-3-raw.png",
+    "prompt": "legs-3-prompt.txt",
+    "seconds": 25.01,
+    "seed": null,
+    "model_revision": null,
+    "input_roles": [
+      "exact guide",
+      "retained complete painted legs",
+      "original character"
+    ],
+    "inputs": [
+      "legs-3-guide.png",
+      "../profile-v2/sheet-raw.png",
+      "../../../character_binding/inputs/interactive-run-source-v1.png"
+    ]
+  },
+  {
+    "asset": "upper",
+    "tool": "built-in imagegen",
+    "source": "/Users/ellie/.codex/generated_images/01a08df4-8281-7e12-8912-f94ed0551110/exec-66eabfa7-eb31-4c17-82b6-9a3c506f10bd.png",
+    "raw": "upper-raw.png",
+    "prompt": "upper-prompt.txt",
+    "seconds": 24.809,
+    "seed": null,
+    "model_revision": null,
+    "input_roles": [
+      "exact separated part guide",
+      "original character"
+    ],
+    "inputs": [
+      "upper-guide.png",
+      "../../../character_binding/inputs/interactive-run-source-v1.png"
+    ]
+  }
+]

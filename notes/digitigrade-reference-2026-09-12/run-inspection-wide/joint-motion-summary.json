@@ -1,0 +1,14 @@
+{
+  "thigh.l -> leg1.l": {
+    "min_degrees_between_segments": 33.70480035336564,
+    "max_degrees_between_segments": 120.78136734683308
+  },
+  "leg1.l -> leg2.l": {
+    "min_degrees_between_segments": 19.93552999429265,
+    "max_degrees_between_segments": 90.82426485793488
+  },
+  "leg2.l -> foot.l": {
+    "min_degrees_between_segments": 19.8666535637244,
+    "max_degrees_between_segments": 57.51502915914601
+  }
+}

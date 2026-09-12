@@ -42,7 +42,7 @@ def camera_point(point, pitch, yaw, elevation):
             ce * sy * x + se * y + ce * cy * z)
 
 
-def render_boot(heel, toe, config, knee=None):
+def render_boot(heel, toe, config, knee=None, include_depth=False):
     yaw, elevation = map(math.radians, (config["camera_yaw_degrees"], config["camera_elevation_degrees"]))
     dx, dy = toe[0] - heel[0], toe[1] - heel[1]
     if math.hypot(dx, dy) < 1:
@@ -137,7 +137,17 @@ def render_boot(heel, toe, config, knee=None):
         cosine = sum(a * b for a, b in zip(calf, shaft_axis)) / denominator
         annotations["calf_shaft_angle_degrees"] = math.degrees(math.acos(max(-1, min(1, cosine))))
         annotations["knee"] = list(knee)
-    return material, surface, annotations
+    if not include_depth:
+        return material, surface, annotations
+    visible = [value for value in depths if math.isfinite(value)]
+    if not visible or max(visible) - min(visible) <= 1e-8:
+        raise ValueError("boot depth is empty or collapsed")
+    low, high = min(visible), max(visible)
+    depth = Image.new("L", size)
+    depth.putdata([0 if not math.isfinite(value) else round(32 + 223 * (value - low) / (high - low)) for value in depths])
+    annotations["depth_range_camera_pixels"] = [low, high]
+    annotations["depth_convention"] = "black background; brighter boot pixels are nearer the fixed camera"
+    return material, surface, depth, annotations
 
 
 def prepare(document, config, render, output):

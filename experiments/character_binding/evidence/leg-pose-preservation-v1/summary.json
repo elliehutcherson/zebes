@@ -1,0 +1,107 @@
+{
+  "status": "three results measured; boot view requires visual decision",
+  "pose_authority_sha256": "b3d50deb9a553c77673bd2892fc424b80dc51aa9edeb21a826f5e4fc4c7540a9",
+  "fixed_crop": [
+    88,
+    136,
+    184,
+    232
+  ],
+  "metric_scope": "Registration and silhouette only; not anatomy, surface visibility, leg ownership, or finish.",
+  "candidates": [
+    {
+      "name": "builtin",
+      "raw_size": [
+        1254,
+        1254
+      ],
+      "raw_sha256": "97f70613a74210c55ba7e7be999dba48c1325c12706f7819227b632c4919b5bd",
+      "registration": "whole square canvas scaled to 1024, then inverse fixed crop; no bounds fitting",
+      "silhouette_iou": 0.9301311296662936,
+      "target_foreground_pixels_1024": 134859,
+      "candidate_foreground_pixels_1024": 134209,
+      "area_ratio": 0.9951801511208003,
+      "added_pixels_1024": 4545,
+      "missing_pixels_1024": 5195,
+      "centroid_drift_working_pixels": 0.3525814152149618,
+      "target_bounds_working": [
+        113.03125,
+        140.96875,
+        163.0,
+        181.0
+      ],
+      "candidate_bounds_working": [
+        110.59375,
+        140.96875,
+        163.09375,
+        182.125
+      ],
+      "view_direction": "manual review required; silhouette metrics cannot establish visible boot surfaces"
+    },
+    {
+      "name": "canny-0.65",
+      "raw_size": [
+        1024,
+        1024
+      ],
+      "raw_sha256": "065721014fc5e0df04f4cc1cb072ed0ffbd13f5b896337fe4114625079ed53cb",
+      "registration": "whole square canvas scaled to 1024, then inverse fixed crop; no bounds fitting",
+      "silhouette_iou": 0.986538405138282,
+      "target_foreground_pixels_1024": 134859,
+      "candidate_foreground_pixels_1024": 136081,
+      "area_ratio": 1.0090613158928956,
+      "added_pixels_1024": 1529,
+      "missing_pixels_1024": 307,
+      "centroid_drift_working_pixels": 0.06184208352242714,
+      "target_bounds_working": [
+        113.03125,
+        140.96875,
+        163.0,
+        181.0
+      ],
+      "candidate_bounds_working": [
+        112.84375,
+        140.96875,
+        163.0,
+        181.0
+      ],
+      "view_direction": "manual review required; silhouette metrics cannot establish visible boot surfaces"
+    },
+    {
+      "name": "canny-0.85",
+      "raw_size": [
+        1024,
+        1024
+      ],
+      "raw_sha256": "7f1a1b5e6de507c3e7e46a9306b2bee6463dcc9804af11572d1ee47b1c9b8eba",
+      "registration": "whole square canvas scaled to 1024, then inverse fixed crop; no bounds fitting",
+      "silhouette_iou": 0.9855961198906887,
+      "target_foreground_pixels_1024": 134859,
+      "candidate_foreground_pixels_1024": 136157,
+      "area_ratio": 1.009624867454156,
+      "added_pixels_1024": 1632,
+      "missing_pixels_1024": 334,
+      "centroid_drift_working_pixels": 0.0674297932958942,
+      "target_bounds_working": [
+        113.03125,
+        140.96875,
+        163.0,
+        181.0
+      ],
+      "candidate_bounds_working": [
+        112.84375,
+        140.96875,
+        163.0,
+        181.0
+      ],
+      "view_direction": "manual review required; silhouette metrics cannot establish visible boot surfaces"
+    }
+  ],
+  "visual_assessment": {
+    "status": "complete; no candidate accepted for expansion",
+    "builtin": "Rejected: repaints the boot as a rounded front/three-quarter view and changes the contour despite the landmark instructions.",
+    "canny-0.65": "Rejected for view: excellent outer-pose retention, but internal shading and lacing still imply a familiar viewer-facing boot.",
+    "canny-0.85": "Rejected for view and finish: outer-pose retention remains high, but stronger redraw adds noisy frontal boot detail.",
+    "decision": "Canny proves that contour and registration can be controlled, but cannot establish visible surfaces. Test actual fixed-camera proxy depth on an isolated boot."
+  }
+}

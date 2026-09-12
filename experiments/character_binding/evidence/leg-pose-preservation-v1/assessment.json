@@ -1,0 +1,7 @@
+{
+  "status": "complete; no candidate accepted for expansion",
+  "builtin": "Rejected: repaints the boot as a rounded front/three-quarter view and changes the contour despite the landmark instructions.",
+  "canny-0.65": "Rejected for view: excellent outer-pose retention, but internal shading and lacing still imply a familiar viewer-facing boot.",
+  "canny-0.85": "Rejected for view and finish: outer-pose retention remains high, but stronger redraw adds noisy frontal boot detail.",
+  "decision": "Canny proves that contour and registration can be controlled, but cannot establish visible surfaces. Test actual fixed-camera proxy depth on an isolated boot."
+}

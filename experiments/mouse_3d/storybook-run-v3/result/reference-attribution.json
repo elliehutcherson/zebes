@@ -1,0 +1,29 @@
+{
+  "title": "Low Spec Velociraptor",
+  "creator": "pistachio",
+  "license": "CC BY 4.0",
+  "source_url": "https://opengameart.org/content/low-spec-velociraptor",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "modifications": "Diagnostic side camera and flat material; original rig and action unchanged.",
+  "samples": 16,
+  "fps": 30,
+  "cycle_seconds": 0.5333333333333333,
+  "source_frame_sha256": {
+    "run-00.png": "a01a306659898ee85ad26575f6c79898e987461532fba45b9dafa60b7f9f0533",
+    "run-01.png": "65fdaeb885641f0868c6f634e14fe178162e196d253d1d58183c591d392d9017",
+    "run-02.png": "ffbcbb6a1589dbe1b26ac10eff95ef2df5ec6f062df241fa051be197c437cee1",
+    "run-03.png": "16e3f150ea491133baeb05b568fa2d6de6345376f6bab36e19d2811057a95af5",
+    "run-04.png": "5d5d028822f3aef46f2d8aeaadf49cd3f68a185f713674531e08372d8291191f",
+    "run-05.png": "cb34404d399d46d00fec22c9d6431fc391c439f8d032c884966715870b12a52e",
+    "run-06.png": "6fdb67bc408fa7b76abf27eaf0a3faf748de3e26419dc1cb65e21b0267054811",
+    "run-07.png": "ddc2d4b654687b7b04f6ac01e48ffbbde1a3c661b2e533bdc68b81bcbc8d8750",
+    "run-08.png": "bf7b228ffb82f302e34f5cb243d0672d22026f4c66bc22d3750a9878aa1e07a5",
+    "run-09.png": "9ff6498da02d0f20ce65ebad30adf43880e5d857d2dade910f98d24d9b66972d",
+    "run-10.png": "aa0c9de7fb24165addc67abd7dd2c6972e6471fcb154551c9f7108aa60977c57",
+    "run-11.png": "bfd3a768b937cd69b190c9490938a60cf983fc2cf76a20d0ff0c5cfb91ed21cb",
+    "run-12.png": "b678907ccaf0add1fc80456ed8ccc102ff7a901b6dfdb34358fa1dd58cd451c2",
+    "run-13.png": "e91b368bb126c4f868daf649b122a8bce8444b6893c0b109386e86b9f9c06411",
+    "run-14.png": "15e8d933cdc084757a9ae2c53b2b0945861e81d1dd6c7515c44d8d120f19ab55",
+    "run-15.png": "8e0ebdab1eecf4af719eb3ff28ff088c0798bef6475b4afbbcd25538cfd4b0ae"
+  }
+}

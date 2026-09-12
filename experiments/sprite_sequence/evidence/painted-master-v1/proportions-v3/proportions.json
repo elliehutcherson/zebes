@@ -1,0 +1,671 @@
+{
+  "measurements": [
+    {
+      "frame": "reference_01",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 34.5,
+      "after_px": 46.75,
+      "ratio": 1.355072463768116
+    },
+    {
+      "frame": "reference_01",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 30.75,
+      "after_px": 42.75,
+      "ratio": 1.3902439024390243
+    },
+    {
+      "frame": "reference_01",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 25.0,
+      "after_px": 29.5,
+      "ratio": 1.18
+    },
+    {
+      "frame": "reference_01",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 38.25,
+      "after_px": 51.0,
+      "ratio": 1.3333333333333333
+    },
+    {
+      "frame": "reference_01",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 32.25,
+      "after_px": 45.25,
+      "ratio": 1.4031007751937985
+    },
+    {
+      "frame": "reference_01",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 25.0,
+      "after_px": 28.0,
+      "ratio": 1.12
+    },
+    {
+      "frame": "reference_01",
+      "part": "far_arm",
+      "before_area": 5502,
+      "after_area": 3220,
+      "ratio": 0.5852417302798982
+    },
+    {
+      "frame": "reference_02",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 30.5,
+      "after_px": 40.0,
+      "ratio": 1.3114754098360655
+    },
+    {
+      "frame": "reference_02",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 31.0,
+      "after_px": 66.25,
+      "ratio": 2.1370967741935485
+    },
+    {
+      "frame": "reference_02",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 23.0,
+      "after_px": 26.0,
+      "ratio": 1.1304347826086956
+    },
+    {
+      "frame": "reference_02",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 27.0,
+      "after_px": 38.5,
+      "ratio": 1.4259259259259258
+    },
+    {
+      "frame": "reference_02",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 27.75,
+      "after_px": 40.0,
+      "ratio": 1.4414414414414414
+    },
+    {
+      "frame": "reference_02",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 23.0,
+      "after_px": 26.75,
+      "ratio": 1.1630434782608696
+    },
+    {
+      "frame": "reference_02",
+      "part": "far_arm",
+      "before_area": 5613,
+      "after_area": 3258,
+      "ratio": 0.5804382683057189
+    },
+    {
+      "frame": "reference_03",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 82.0,
+      "after_px": 88.0,
+      "ratio": 1.0731707317073171
+    },
+    {
+      "frame": "reference_03",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 76.75,
+      "after_px": 83.25,
+      "ratio": 1.0846905537459284
+    },
+    {
+      "frame": "reference_03",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 25.0,
+      "after_px": 57.5,
+      "ratio": 2.3
+    },
+    {
+      "frame": "reference_03",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 29.75,
+      "after_px": 41.0,
+      "ratio": 1.3781512605042017
+    },
+    {
+      "frame": "reference_03",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 30.0,
+      "after_px": 42.0,
+      "ratio": 1.4
+    },
+    {
+      "frame": "reference_03",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 23.0,
+      "after_px": 27.0,
+      "ratio": 1.173913043478261
+    },
+    {
+      "frame": "reference_03",
+      "part": "far_arm",
+      "before_area": 5992,
+      "after_area": 3221,
+      "ratio": 0.5375500667556742
+    },
+    {
+      "frame": "reference_04",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 81.0,
+      "after_px": 87.0,
+      "ratio": 1.0740740740740742
+    },
+    {
+      "frame": "reference_04",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 53.0,
+      "after_px": 60.0,
+      "ratio": 1.1320754716981132
+    },
+    {
+      "frame": "reference_04",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 22.0,
+      "after_px": 63.0,
+      "ratio": 2.8636363636363638
+    },
+    {
+      "frame": "reference_04",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 33.0,
+      "after_px": 45.0,
+      "ratio": 1.3636363636363635
+    },
+    {
+      "frame": "reference_04",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 27.25,
+      "after_px": 40.0,
+      "ratio": 1.4678899082568808
+    },
+    {
+      "frame": "reference_04",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 22.5,
+      "after_px": 25.25,
+      "ratio": 1.1222222222222222
+    },
+    {
+      "frame": "reference_04",
+      "part": "far_arm",
+      "before_area": 5542,
+      "after_area": 2991,
+      "ratio": 0.5396968603392277
+    },
+    {
+      "frame": "reference_05",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 64.75,
+      "after_px": 70.75,
+      "ratio": 1.0926640926640927
+    },
+    {
+      "frame": "reference_05",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 65.0,
+      "after_px": 70.75,
+      "ratio": 1.0884615384615384
+    },
+    {
+      "frame": "reference_05",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 24.5,
+      "after_px": 28.0,
+      "ratio": 1.1428571428571428
+    },
+    {
+      "frame": "reference_05",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 32.75,
+      "after_px": 44.75,
+      "ratio": 1.366412213740458
+    },
+    {
+      "frame": "reference_05",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 28.75,
+      "after_px": 40.75,
+      "ratio": 1.4173913043478261
+    },
+    {
+      "frame": "reference_05",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 24.5,
+      "after_px": 28.5,
+      "ratio": 1.163265306122449
+    },
+    {
+      "frame": "reference_05",
+      "part": "far_arm",
+      "before_area": 6205,
+      "after_area": 3452,
+      "ratio": 0.5563255439161966
+    },
+    {
+      "frame": "reference_06",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 42.5,
+      "after_px": 55.0,
+      "ratio": 1.2941176470588236
+    },
+    {
+      "frame": "reference_06",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 29.25,
+      "after_px": 51.75,
+      "ratio": 1.7692307692307692
+    },
+    {
+      "frame": "reference_06",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 24.5,
+      "after_px": 27.5,
+      "ratio": 1.1224489795918366
+    },
+    {
+      "frame": "reference_06",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 31.25,
+      "after_px": 44.25,
+      "ratio": 1.416
+    },
+    {
+      "frame": "reference_06",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 30.0,
+      "after_px": 42.0,
+      "ratio": 1.4
+    },
+    {
+      "frame": "reference_06",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 23.0,
+      "after_px": 26.25,
+      "ratio": 1.141304347826087
+    },
+    {
+      "frame": "reference_06",
+      "part": "far_arm",
+      "before_area": 6211,
+      "after_area": 3452,
+      "ratio": 0.5557881178554178
+    },
+    {
+      "frame": "reference_07",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 28.25,
+      "after_px": 39.75,
+      "ratio": 1.407079646017699
+    },
+    {
+      "frame": "reference_07",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 31.75,
+      "after_px": 44.75,
+      "ratio": 1.4094488188976377
+    },
+    {
+      "frame": "reference_07",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 25.25,
+      "after_px": 29.75,
+      "ratio": 1.1782178217821782
+    },
+    {
+      "frame": "reference_07",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 33.0,
+      "after_px": 44.75,
+      "ratio": 1.356060606060606
+    },
+    {
+      "frame": "reference_07",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 31.25,
+      "after_px": 42.75,
+      "ratio": 1.368
+    },
+    {
+      "frame": "reference_07",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 25.75,
+      "after_px": 30.0,
+      "ratio": 1.1650485436893203
+    },
+    {
+      "frame": "reference_07",
+      "part": "far_arm",
+      "before_area": 6028,
+      "after_area": 3422,
+      "ratio": 0.5676841406768414
+    },
+    {
+      "frame": "reference_08",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 22.0,
+      "after_px": 32.25,
+      "ratio": 1.4659090909090908
+    },
+    {
+      "frame": "reference_08",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 25.25,
+      "after_px": 36.75,
+      "ratio": 1.4554455445544554
+    },
+    {
+      "frame": "reference_08",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 21.0,
+      "after_px": 25.0,
+      "ratio": 1.1904761904761905
+    },
+    {
+      "frame": "reference_08",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 30.5,
+      "after_px": 40.5,
+      "ratio": 1.3278688524590163
+    },
+    {
+      "frame": "reference_08",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 76.0,
+      "after_px": 82.25,
+      "ratio": 1.082236842105263
+    },
+    {
+      "frame": "reference_08",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 22.75,
+      "after_px": 28.0,
+      "ratio": 1.2307692307692308
+    },
+    {
+      "frame": "reference_08",
+      "part": "far_arm",
+      "before_area": 5935,
+      "after_area": 3392,
+      "ratio": 0.5715248525695029
+    },
+    {
+      "frame": "reference_09",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 29.0,
+      "after_px": 40.25,
+      "ratio": 1.3879310344827587
+    },
+    {
+      "frame": "reference_09",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 29.0,
+      "after_px": 41.0,
+      "ratio": 1.4137931034482758
+    },
+    {
+      "frame": "reference_09",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 22.0,
+      "after_px": 26.0,
+      "ratio": 1.1818181818181819
+    },
+    {
+      "frame": "reference_09",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 72.5,
+      "after_px": 78.5,
+      "ratio": 1.0827586206896551
+    },
+    {
+      "frame": "reference_09",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 49.25,
+      "after_px": 60.75,
+      "ratio": 1.233502538071066
+    },
+    {
+      "frame": "reference_09",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 53.5,
+      "after_px": 56.75,
+      "ratio": 1.060747663551402
+    },
+    {
+      "frame": "reference_09",
+      "part": "far_arm",
+      "before_area": 5837,
+      "after_area": 3356,
+      "ratio": 0.5749528867568957
+    },
+    {
+      "frame": "reference_10",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 31.5,
+      "after_px": 44.5,
+      "ratio": 1.4126984126984128
+    },
+    {
+      "frame": "reference_10",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 28.25,
+      "after_px": 40.75,
+      "ratio": 1.4424778761061947
+    },
+    {
+      "frame": "reference_10",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 23.0,
+      "after_px": 25.0,
+      "ratio": 1.0869565217391304
+    },
+    {
+      "frame": "reference_10",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 72.0,
+      "after_px": 79.25,
+      "ratio": 1.1006944444444444
+    },
+    {
+      "frame": "reference_10",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 37.75,
+      "after_px": 50.75,
+      "ratio": 1.3443708609271523
+    },
+    {
+      "frame": "reference_10",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 46.5,
+      "after_px": 50.75,
+      "ratio": 1.0913978494623655
+    },
+    {
+      "frame": "reference_10",
+      "part": "far_arm",
+      "before_area": 6219,
+      "after_area": 3447,
+      "ratio": 0.5542691751085383
+    },
+    {
+      "frame": "reference_11",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 31.0,
+      "after_px": 44.0,
+      "ratio": 1.4193548387096775
+    },
+    {
+      "frame": "reference_11",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 28.0,
+      "after_px": 40.75,
+      "ratio": 1.4553571428571428
+    },
+    {
+      "frame": "reference_11",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 22.5,
+      "after_px": 25.75,
+      "ratio": 1.1444444444444444
+    },
+    {
+      "frame": "reference_11",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 68.25,
+      "after_px": 74.0,
+      "ratio": 1.0842490842490842
+    },
+    {
+      "frame": "reference_11",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 66.75,
+      "after_px": 73.5,
+      "ratio": 1.101123595505618
+    },
+    {
+      "frame": "reference_11",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 26.25,
+      "after_px": 29.5,
+      "ratio": 1.1238095238095238
+    },
+    {
+      "frame": "reference_11",
+      "part": "far_arm",
+      "before_area": 5808,
+      "after_area": 3345,
+      "ratio": 0.5759297520661157
+    },
+    {
+      "frame": "reference_12",
+      "part": "far_leg",
+      "section": "thigh",
+      "before_px": 33.0,
+      "after_px": 44.5,
+      "ratio": 1.3484848484848484
+    },
+    {
+      "frame": "reference_12",
+      "part": "far_leg",
+      "section": "calf",
+      "before_px": 29.5,
+      "after_px": 42.0,
+      "ratio": 1.423728813559322
+    },
+    {
+      "frame": "reference_12",
+      "part": "far_leg",
+      "section": "boot_shaft",
+      "before_px": 23.25,
+      "after_px": 26.0,
+      "ratio": 1.118279569892473
+    },
+    {
+      "frame": "reference_12",
+      "part": "near_leg",
+      "section": "thigh",
+      "before_px": 36.0,
+      "after_px": 47.75,
+      "ratio": 1.3263888888888888
+    },
+    {
+      "frame": "reference_12",
+      "part": "near_leg",
+      "section": "calf",
+      "before_px": 31.25,
+      "after_px": 55.25,
+      "ratio": 1.768
+    },
+    {
+      "frame": "reference_12",
+      "part": "near_leg",
+      "section": "boot_shaft",
+      "before_px": 25.0,
+      "after_px": 28.0,
+      "ratio": 1.12
+    },
+    {
+      "frame": "reference_12",
+      "part": "far_arm",
+      "before_area": 5456,
+      "after_area": 3189,
+      "ratio": 0.5844941348973607
+    }
+  ],
+  "unchanged_parts": [
+    "head",
+    "body",
+    "near_arm",
+    "tail"
+  ],
+  "method": "Connected alpha>=128 width at each segment midpoint, 0.25px sampling; painted area for back arm. Pose and ground translations unchanged."
+}

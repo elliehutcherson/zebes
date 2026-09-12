@@ -1,0 +1,94 @@
+{
+  "status": "complete and evaluated; all candidates rejected because the proxy encodes the wrong recovery-foot view",
+  "provider_calls": 3,
+  "question": "Does actual proxy depth prevent a down-left boot from being repainted as a front-facing boot?",
+  "architecture": "authored proxy owns pose/view/registration; diffusion owns appearance only",
+  "source_config": "experiments/character_binding/inputs/boot-view-guide-v2.json",
+  "source_config_sha256": "23ff447476159af2a7e87d63cd17a9d3fa86737144c4752ddf1f29b46c2ba2c7",
+  "source_guide_manifest": "experiments/character_binding/evidence/boot-view-guides-v2/manifest.json",
+  "source_guide_manifest_sha256": "6ebc15142eeb16e9c2b39b8fc64dd5cc6c2028446e250526ee368c67b7e6fb84",
+  "fixed_crop": [
+    88,
+    136,
+    184,
+    232
+  ],
+  "working_canvas": [
+    256,
+    256
+  ],
+  "requested_canvas": [
+    1024,
+    1024
+  ],
+  "remote_asset_prefix": "zebes-boot-surface-v1",
+  "depth": {
+    "source": "3D z-buffer from the reviewed fixed-camera boot proxy",
+    "heel": [
+      127.63860278191845,
+      154.12777062618252
+    ],
+    "toe": [
+      116.814293842184,
+      177.34057605717655
+    ],
+    "ankle": [
+      129.82840842352968,
+      161.82447126345573
+    ],
+    "cuff": [
+      139.59787379875067,
+      169.14475519694062
+    ],
+    "shaft_alignment": "foot",
+    "pitch_degrees": -118.3341578515786,
+    "visible_sole_pixels": 0,
+    "sole_pin_error": 0.0,
+    "depth_range_camera_pixels": [
+      -11.244715855373993,
+      13.95351536752835
+    ],
+    "depth_convention": "black background; brighter boot pixels are nearer the fixed camera"
+  },
+  "registration": "whole 1024 canvas maps back to the fixed 96px crop; no bounds fitting, rotation, warp, or clipping",
+  "file_sha256": {
+    "edit-input.png": "0bfdb52972b8334539bd3533bd7f0983420ef65194e93212d865460fbccb07f5",
+    "surfaces-review.png": "078c27112cbea77664e69e657bd51c35dd665e332d58511b3437a2ce8cb881c8",
+    "depth.png": "2c844431edc25235aff033d17fc16f4120ffd5a064c0f300474d9408ac8a0d46",
+    "canny.png": "def8a0b4a088764d05d121114aa6bb831eea7e6fcb3b83c052cc050433cbfc52",
+    "identity.png": "d5f638c33fc13f59d7abc234f1662ecba598dfc10fcbb1060d3db8433c0ef522",
+    "prompt.txt": "768b54ff349c436b51b46bc685022459ebc8f432b6371c68b54935951c4146fd",
+    "canny-only.json": "392bf478960d3d22834957c394fdd60c02aeb360dc6b8ce623d0529a8817ef6c",
+    "depth-0.45.json": "ce56888f60badfd6f6ee937a993fb56708e04b08c01f51e13bb8d5b8868281e3",
+    "depth-0.80.json": "9be22d79ab9eafbab686e936e8b863dfa3838395c551f0141559cd94d0a9ae57"
+  },
+  "jobs": [
+    {
+      "name": "canny-only",
+      "provider": "derry ComfyUI",
+      "graph": "canny-only.json",
+      "output_node": "19",
+      "status": "complete",
+      "prompt_id": "754f3cfd-e5a1-4050-a551-9bed7218e04e",
+      "raw_sha256": "3ea783e9ba7ae31bcc3660b2918c50d61c105b3bfc0845ec832416e5da0e81cc"
+    },
+    {
+      "name": "depth-0.45",
+      "provider": "derry ComfyUI",
+      "graph": "depth-0.45.json",
+      "output_node": "19",
+      "status": "complete",
+      "prompt_id": "7672cf2c-cb31-41d4-9648-2332fbdf74bd",
+      "raw_sha256": "1232dbb6f4a652d4ff51c572ea0860af2af038ce50c8674f823c9d114f7bad39"
+    },
+    {
+      "name": "depth-0.80",
+      "provider": "derry ComfyUI",
+      "graph": "depth-0.80.json",
+      "output_node": "19",
+      "status": "complete",
+      "prompt_id": "efd310e9-c111-4dcd-8f5b-25ab8eab89a4",
+      "raw_sha256": "c89835886e7657c177a8eec0c615589ed3f9a3a9bc70771b81152d55f0d94906"
+    }
+  ]
+}

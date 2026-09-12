@@ -1,0 +1,80 @@
+{
+  "frame_count": 12,
+  "leg_count": 24,
+  "contacts": [
+    {
+      "name": "reference_01",
+      "support": "near_heel",
+      "translation_y": 5.5289451608858,
+      "clearance": 1.9628743075372768e-13
+    },
+    {
+      "name": "reference_02",
+      "support": "near_flat",
+      "translation_y": 11.5440187307495,
+      "clearance": 4.973799150320701e-13
+    },
+    {
+      "name": "reference_03",
+      "support": "near_flat",
+      "translation_y": 11.1797575895162,
+      "clearance": -2.1316282072803006e-13
+    },
+    {
+      "name": "reference_04",
+      "support": "near_flat",
+      "translation_y": 10.201419774277,
+      "clearance": 1.4210854715202004e-14
+    },
+    {
+      "name": "reference_05",
+      "support": "near_toe",
+      "translation_y": 7.78405916544904,
+      "clearance": -3.197442310920451e-14
+    },
+    {
+      "name": "reference_06",
+      "support": "flight",
+      "translation_y": 6.68362665199223,
+      "clearance": 5.99999999999977
+    },
+    {
+      "name": "reference_07",
+      "support": "far_heel",
+      "translation_y": 7.02561759072194,
+      "clearance": 5.240252676230739e-14
+    },
+    {
+      "name": "reference_08",
+      "support": "far_flat",
+      "translation_y": 12.5106479995269,
+      "clearance": 1.0835776720341528e-13
+    },
+    {
+      "name": "reference_09",
+      "support": "far_flat",
+      "translation_y": 10.2064914052868,
+      "clearance": 2.113864638886298e-13
+    },
+    {
+      "name": "reference_10",
+      "support": "far_flat",
+      "translation_y": 10.8664337378509,
+      "clearance": 9.769962616701378e-14
+    },
+    {
+      "name": "reference_11",
+      "support": "far_toe",
+      "translation_y": 7.89750589444117,
+      "clearance": -1.7319479184152442e-13
+    },
+    {
+      "name": "reference_12",
+      "support": "flight",
+      "translation_y": 6.71322552766348,
+      "clearance": 7.433440364016508
+    }
+  ],
+  "maximum_ground_penetration_px": 2.1316282072803006e-13,
+  "interpretation": "Exact authored control is imposed by C++; this does not score generator obedience or imply final art acceptance."
+}

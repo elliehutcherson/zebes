@@ -89,12 +89,6 @@ target_link_libraries(config game_view)
 target_link_libraries(config nlohmann_json::nlohmann_json)
 target_link_libraries(config status_macros)
 
-add_library(logging logging.cc)
-target_link_libraries(logging absl::log)
-target_link_libraries(logging absl::log_sink)
-target_link_libraries(logging absl::flags)
-target_link_libraries(logging absl::strings)
-
 add_library(image_io image_io.cc)
 target_link_libraries(image_io absl::status)
 target_link_libraries(image_io absl::statusor)

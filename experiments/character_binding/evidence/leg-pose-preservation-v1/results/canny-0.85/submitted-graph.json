@@ -1,0 +1,198 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "1",
+        1
+      ],
+      "lora_name": "pixel-art-xl.safetensors",
+      "strength_model": 0.8,
+      "strength_clip": 0.8
+    }
+  },
+  "3": {
+    "class_type": "IPAdapterModelLoader",
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    }
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "zebes-leg-pose-v1/identity.png"
+    }
+  },
+  "6": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "model": [
+        "2",
+        0
+      ],
+      "ipadapter": [
+        "3",
+        0
+      ],
+      "clip_vision": [
+        "4",
+        0
+      ],
+      "image": [
+        "5",
+        0
+      ],
+      "weight": 0.3,
+      "weight_type": "linear",
+      "combine_embeds": "concat",
+      "start_at": 0.0,
+      "end_at": 1.0,
+      "embeds_scaling": "V only"
+    }
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "zebes-leg-pose-v1/edit-input.png"
+    }
+  },
+  "8": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "7",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    }
+  },
+  "9": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "pixel art game asset, one isolated folded dark brown trouser leg and brown leather boot, stout proportions, thigh slanting down right to knee, calf extending horizontally left, boot toe pointing down left, bent knee, fabric folds, leather shading, cuff, dark sole, consistent dark pixel outline, plain white background",
+      "clip": [
+        "2",
+        1
+      ]
+    }
+  },
+  "10": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "whole character, mouse face, torso, second leg, second boot, coat, cape, curved shin, bent calf, sagging ankle, toe pointing right, changed silhouette, moved boot, text, arrows, labels, checkerboard, cast shadow, scenery, photorealistic",
+      "clip": [
+        "2",
+        1
+      ]
+    }
+  },
+  "11": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "zebes-leg-pose-v1/canny.png"
+    }
+  },
+  "12": {
+    "class_type": "ControlNetLoader",
+    "inputs": {
+      "control_net_name": "xinsir-controlnet-canny-sdxl-1.0.safetensors"
+    }
+  },
+  "13": {
+    "class_type": "ControlNetApplyAdvanced",
+    "inputs": {
+      "positive": [
+        "9",
+        0
+      ],
+      "negative": [
+        "10",
+        0
+      ],
+      "control_net": [
+        "12",
+        0
+      ],
+      "image": [
+        "11",
+        0
+      ],
+      "strength": 1.0,
+      "start_percent": 0.0,
+      "end_percent": 1.0,
+      "vae": [
+        "1",
+        2
+      ]
+    }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "6",
+        0
+      ],
+      "seed": 17290401,
+      "steps": 30,
+      "cfg": 5.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "positive": [
+        "13",
+        0
+      ],
+      "negative": [
+        "13",
+        1
+      ],
+      "latent_image": [
+        "8",
+        0
+      ],
+      "denoise": 0.85
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "15",
+        0
+      ],
+      "filename_prefix": "zebes-leg-pose-v1/canny-0.85-raw"
+    }
+  }
+}

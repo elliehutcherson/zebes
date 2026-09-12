@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "status": "authored diagnostic estimates; not user-approved landmark ground truth",
+  "coordinate_space": "original source cell pixels, same as run-pose-trace-v1.json",
+  "uncertainty_source_pixels": 5,
+  "view": "profile",
+  "notes": "Heel estimates read from the supplied line drawings. The ankle and toe remain the existing trace. Profile on all frames is a deliberate view ablation, not a replacement for the desired sole-visible contact boot. Support modes are phase annotations, not inferred from image bounds.",
+  "frames": [
+    {"name":"reference_01", "near":[145,254], "far":[24,220], "contact":"near_heel"},
+    {"name":"reference_02", "near":[157,267], "far":[38,186], "contact":"near_toe"},
+    {"name":"reference_03", "near":[131,273], "far":[61,176], "contact":"near_toe"},
+    {"name":"reference_04", "near":[64,273], "far":[53,192], "contact":"near_toe"},
+    {"name":"reference_05", "near":[41,264], "far":[85,206], "contact":"near_toe"},
+    {"name":"reference_06", "near":[26,255], "far":[134,246], "contact":"flight"},
+    {"name":"reference_07", "near":[19,216], "far":[155,257], "contact":"far_heel"},
+    {"name":"reference_08", "near":[40,180], "far":[160,270], "contact":"far_toe"},
+    {"name":"reference_09", "near":[75,159], "far":[125,271], "contact":"far_toe"},
+    {"name":"reference_10", "near":[91,174], "far":[95,269], "contact":"far_toe"},
+    {"name":"reference_11", "near":[110,205], "far":[59,266], "contact":"far_toe"},
+    {"name":"reference_12", "near":[144,237], "far":[33,254], "contact":"flight"}
+  ]
+}
