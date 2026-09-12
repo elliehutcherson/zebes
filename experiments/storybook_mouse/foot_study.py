@@ -7,17 +7,16 @@ binding, or geometry outside the measured lower-leg region is changed.
 import argparse
 import hashlib
 import json
-import math
 from pathlib import Path
 import shutil
 import struct
 import sys
 
 import bpy
-from mathutils import Matrix, Quaternion, Vector
+from mathutils import Quaternion, Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from animate_run import inherited_head, point_bone, project, rotated_bone, two_bone_joint
+from rig_support import inherited_head, point_bone, project, reset, rotated_bone, two_bone_joint
 from inspect_run_master import MASTER_SHA256
 
 
@@ -62,12 +61,6 @@ def state(obj, rig):
         'images': {im.name: hashlib.sha256(im.packed_file.data).hexdigest()
                    for im in bpy.data.images if im.packed_file},
     }
-
-
-def reset(rig):
-    for bone in rig.pose.bones:
-        bone.matrix_basis = Matrix.Identity(4)
-    bpy.context.view_layer.update()
 
 
 def revise(obj, rig, original):
@@ -336,7 +329,7 @@ def main():
         'comparison_pixels': comparison, 'side_pixels': side_pixels, 'checks': checks,
     }
     (args.out/'study.json').write_text(json.dumps(report, indent=2)+'\n')
-    for name in ('foot_study.py', 'animate_run.py', 'inspect_run_master.py', 'run_motion.py'):
+    for name in ('foot_study.py', 'rig_support.py', 'inspect_run_master.py'):
         shutil.copyfile(Path(__file__).with_name(name), args.out/name)
     print(json.dumps({'out': str(args.out), 'changed_vertices': len(changes['vertices']),
                       'changed_weights': len(changes['weights']), 'changed_bones': report['changed_bones'],

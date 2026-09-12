@@ -1,9 +1,12 @@
 import copy
 import json
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.trace_sprite_sheet import (JOINTS, png_size, scaffold, support_conflict,
+from scripts.trace_sprite_sheet import (JOINTS, png_size, support_conflict,
                                         validate)
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,8 +46,6 @@ class PngSizeTest(unittest.TestCase):
         self.assertEqual(png_size(STRIP), SHEET)
 
     def test_a_file_that_is_not_a_png_fails_rather_than_returning_a_guess(self):
-        import tempfile
-
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "not.png"
             path.write_bytes(b"GIF89a" + b"\0" * 40)
@@ -57,7 +58,6 @@ class PngSizeTest(unittest.TestCase):
 
     def test_a_png_declaring_no_pixels_fails(self):
         import struct
-        import tempfile
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "empty.png"
@@ -67,18 +67,30 @@ class PngSizeTest(unittest.TestCase):
                 png_size(path)
 
 
-class ScaffoldTest(unittest.TestCase):
-    def test_a_fresh_scaffold_lays_cells_left_to_right(self):
-        blank = scaffold((240, 80), 3, (80, 80))
-        self.assertEqual([frame["cell"] for frame in blank["frames"]],
-                         [[0, 0, 80, 80], [80, 0, 80, 80], [160, 0, 80, 80]])
-        self.assertEqual([frame["name"] for frame in blank["frames"]],
-                         ["reference_01", "reference_02", "reference_03"])
+class TraceCliTest(unittest.TestCase):
+    def run_trace(self, path):
+        return subprocess.run([sys.executable, str(ROOT / "scripts/trace_sprite_sheet.py"),
+                               "--sheet", str(STRIP), "--trace", str(path)],
+                              capture_output=True, text=True, timeout=10)
 
-    def test_a_fresh_scaffold_has_no_joints_to_mistake_for_traced(self):
-        for frame in scaffold((240, 80), 3, (80, 80))["frames"]:
-            self.assertEqual(frame["pose"], {})
-            self.assertEqual(frame["confidence"], {})
+    def test_valid_trace_exits_successfully_without_changing_files(self):
+        before = TRACE.read_bytes(), STRIP.read_bytes()
+        result = self.run_trace(TRACE)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 10 frames", result.stdout)
+        self.assertEqual((TRACE.read_bytes(), STRIP.read_bytes()), before)
+
+    def test_invalid_trace_returns_named_error_without_repairing_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "trace.json"
+            trace = complete_trace()
+            del trace["frames"][0]["pose"]["knee_l"]
+            path.write_text(json.dumps(trace))
+            before = path.read_bytes()
+            result = self.run_trace(path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("still unplaced: knee_l", result.stderr)
+            self.assertEqual(path.read_bytes(), before)
 
 
 class ValidateTest(unittest.TestCase):

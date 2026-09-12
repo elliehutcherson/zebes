@@ -17,8 +17,8 @@ from mathutils import Quaternion, Vector
 from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from animate_run import inherited_head, point_bone, project, rotated_bone, two_bone_joint
-from foot_study import camera, foot_geometry, render, reset, smooth, state
+from rig_support import inherited_head, point_bone, project, reset, rotated_bone, two_bone_joint
+from foot_study import camera, foot_geometry, render, smooth, state
 import run_motion_v3 as motion
 
 SIDES = (('left', 0., -1), ('right', .5, 1))
@@ -340,7 +340,7 @@ def main():
               'max_weight_sum_error': max(abs(sum(w.values())-1) for w in authored['weights']),
               'side_pixels': side_pixels, 'side_paw_pixels': side_paw_pixels, 'checks': checks}
     (args.out/'motion.json').write_text(json.dumps(report, indent=2)+'\n')
-    for name in ('animate_run_v3.py', 'run_motion_v3.py', 'foot_study.py', 'animate_run.py',
+    for name in ('animate_run_v3.py', 'run_motion_v3.py', 'foot_study.py', 'rig_support.py',
                  'run_motion.py', 'inspect_run_master.py'):
         shutil.copyfile(Path(__file__).with_name(name), args.out/name)
     if digest(args.study) != expected:

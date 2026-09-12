@@ -44,48 +44,6 @@ target_link_libraries(puppet_document_test
 target_include_directories(puppet_document_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(puppet_document_test)
 
-add_executable(puppet_editor_workspace_test puppet_editor_workspace_test.cc)
-target_link_libraries(puppet_editor_workspace_test
-  macros
-  puppet_editor_workspace
-  puppet_document_json
-  skeleton_rig
-  gtest_main
-)
-target_include_directories(puppet_editor_workspace_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(puppet_editor_workspace_test)
-
-add_executable(puppet_editor_page_test puppet_editor_page_test.cc)
-target_link_libraries(puppet_editor_page_test
-  macros
-  puppet_editor_page
-  gtest_main
-)
-target_include_directories(puppet_editor_page_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(puppet_editor_page_test)
-
-add_executable(puppet_build_json_test puppet_build_json_test.cc)
-target_link_libraries(puppet_build_json_test
-  macros
-  puppet_build_json
-  nlohmann_json::nlohmann_json
-  gtest_main
-)
-target_include_directories(puppet_build_json_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(puppet_build_json_test)
-
-add_executable(puppet_editor_session_test puppet_editor_session_test.cc)
-target_link_libraries(puppet_editor_session_test
-  macros
-  puppet_editor_session
-  puppet_document_json
-  skeleton_rig
-  image_io
-  gtest_main
-)
-target_include_directories(puppet_editor_session_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(puppet_editor_session_test)
-
 add_executable(puppet_document_json_test puppet_document_json_test.cc)
 target_link_libraries(puppet_document_json_test
   macros

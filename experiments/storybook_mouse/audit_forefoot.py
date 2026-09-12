@@ -10,7 +10,7 @@ import bpy
 from mathutils import Quaternion
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from animate_run import fingerprint, paw_geometry
+from rig_support import fingerprint, paw_geometry
 from inspect_run_master import MASTER_SHA256
 
 

@@ -7,7 +7,7 @@ observations, attribution, inputs, hashes, and reproduction.
 | Directory | Status and purpose |
 |---|---|
 | [storybook_mouse](storybook_mouse/README.md) | Blender implementation for the accepted character and subsequent animation studies |
-| [mouse_3d](mouse_3d/README.md) | Preserved character, foot-study, and run bundles; also earlier procedural evidence |
+| [mouse_3d](mouse_3d/README.md) | Preserved character, foot-study, and run bundles; earlier procedural evidence with generators retired |
 | [character_binding](character_binding/README.md) | Superseded 2D/proxy route; retained puppet inputs, tools, and failure evidence |
 | [sprite_sequence](sprite_sequence/README.md) | Superseded profile/atlas/painted-part route; final painted run rejected |
 | [pose_analogy](pose_analogy/README.md) | Superseded grid/skeleton conditioning proposal; inputs prepared, never submitted |
@@ -24,3 +24,9 @@ directly or opt into a bounded search:
 ```bash
 rg --no-ignore -n 'support' experiments/mouse_3d/storybook-run-v3/README.md
 ```
+
+The puppet and sprite-trace authoring servers and superseded procedural
+character generators are retired. Keep offline image cleanup/deformation,
+registration, palette/alpha processing, and ComfyUI tools available; current
+character authoring uses the storybook Blender implementation. See the
+[asset tools](../scripts/README.md) for the retained tooling boundaries.

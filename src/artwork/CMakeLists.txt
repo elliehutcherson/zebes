@@ -203,64 +203,6 @@ target_link_libraries(puppet_document_json
   nlohmann_json::nlohmann_json
 )
 
-# The editor page is authored as real HTML so it gets an editor, a formatter and
-# a linter, then embedded so the tool stays one binary. --page overrides it for
-# live editing without a rebuild.
-set(PUPPET_EDITOR_HTML_HEADER ${CMAKE_CURRENT_BINARY_DIR}/puppet_editor_html.h)
-add_custom_command(
-  OUTPUT ${PUPPET_EDITOR_HTML_HEADER}
-  COMMAND ${CMAKE_COMMAND}
-          -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/puppet_editor.html
-          -DOUTPUT=${PUPPET_EDITOR_HTML_HEADER}
-          -DSYMBOL=kPuppetEditorHtml
-          -P ${CMAKE_SOURCE_DIR}/cmake/embed_text_file.cmake
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/puppet_editor.html
-          ${CMAKE_SOURCE_DIR}/cmake/embed_text_file.cmake
-  COMMENT "Embedding puppet_editor.html"
-  VERBATIM
-)
-
-add_library(puppet_editor_page puppet_editor_page.cc ${PUPPET_EDITOR_HTML_HEADER})
-target_include_directories(puppet_editor_page PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-
-add_library(puppet_build_json puppet_build_json.cc)
-target_link_libraries(puppet_build_json
-  PUBLIC
-  layered_puppet
-  PRIVATE
-  profile_silhouette
-  nlohmann_json::nlohmann_json
-)
-
-add_library(puppet_editor_session puppet_editor_session.cc)
-target_link_libraries(puppet_editor_session
-  PUBLIC
-  image_io
-  layered_puppet
-  layered_puppet_spec
-  puppet_document
-  absl::span
-  absl::status
-  absl::statusor
-  PRIVATE
-  puppet_document_json
-  status_macros
-  absl::strings
-)
-
-add_library(puppet_editor_workspace puppet_editor_workspace.cc)
-target_link_libraries(puppet_editor_workspace
-  PUBLIC
-  puppet_editor_session
-  absl::status
-  absl::statusor
-  PRIVATE
-  puppet_document
-  puppet_document_json
-  status_macros
-  absl::strings
-)
-
 add_library(layered_puppet_spec layered_puppet_spec.cc)
 target_link_libraries(layered_puppet_spec
   PUBLIC

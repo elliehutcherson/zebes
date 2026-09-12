@@ -17,7 +17,10 @@ Each bundle retains its source copies, results, checks, hashes, and reproduction
 record. The generated review labels predate later user verdicts; the plan owns
 the current verdict. Preserve all bundles when making a new revision.
 
-`build_mouse.py`, `forms.py`, and `motion.py` reproduce the earlier procedural
-mouse. Their versions and rejected bind/shadow drafts remain evidence, with
-details in [HISTORY.md](HISTORY.md). They are not the accepted model's rig or
-motion implementation.
+The earlier procedural generators (`build_mouse.py`, `forms.py`, and
+`motion.py`) are retired from the live tree. Checkpoint `ede7b18` and the
+versioned bundles retain their source for historical reproduction. Procedural
+versions and rejected bind/shadow drafts remain evidence, with details in
+[HISTORY.md](HISTORY.md). Artifact and source-hash tests remain in
+[mouse_3d_asset_test.py](../../tests/mouse_3d_asset_test.py); they do not depend
+on the retired live generators.

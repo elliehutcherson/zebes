@@ -96,25 +96,21 @@ projection and near/far is a fact about the original 3D pose that the artist
 either encoded or did not. If limb ownership is the blocker, a 2D sheet is
 structurally the wrong source for it.
 
-## Fixing the trace
+## Validate the retained trace
 
-`scripts/trace_sprite_sheet.py` serves `scripts/sprite_trace_editor.html` on
-loopback. It opens the existing trace so it is corrected rather than restarted.
+The browser trace editor and authoring server are retired. Their implementation
+is available at Git checkpoint `ede7b18`. Retained trace data and all reference
+artwork remain unchanged.
 
 ```bash
-scripts/trace_sprite_sheet.py   # then open http://127.0.0.1:8771/
+scripts/trace_sprite_sheet.py \
+  --sheet experiments/pose_analogy/inputs/reference-run-10.png \
+  --trace experiments/pose_analogy/inputs/reference-run-trace-v1.json
 ```
 
-Click to place, drag to adjust, arrow keys nudge one source pixel. `e` marks a
-joint guessed, `[` and `]` step frames, `1`/`2`/`3` set the support foot, and one
-button swaps the near and far legs for a frame — the correction this reference
-needs most, since ownership is the thing the artwork cannot tell you.
-
-A save is refused, with the offending joint named, when any joint is unplaced,
-unmarked, outside its own cell, or off the sheet, or when no frame has a foot on
-the ground. The previous file is copied to `.bak` first. Point `--sheet` and
-`--trace` at any other sheet to start a different reference; the grid panel lays
-out the cells.
+This command checks joint placement, observed/estimated confidence, source-cell
+bounds, and support-foot consistency. It prints a result and exits without
+modifying files. The re-trace findings below record the earlier editor session.
 
 ## The user's re-trace, 2026-09-12
 

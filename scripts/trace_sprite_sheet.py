@@ -1,27 +1,13 @@
 #!/usr/bin/env python3
-"""Serve the sprite trace editor on loopback so joints are placed by hand.
+"""Validate sprite-sheet joint traces without changing the trace or its artwork.
 
-The Samus trace this replaces was read off 42px sprites by eye, and roughly half
-of it was inference presented as measurement: a far arm drawn down the middle of
-the chest where no arm is painted, a far toe landing in empty background, knees
-at mid-thigh. The fix is not a steadier eye, it is letting the person who can see
-the artwork place the joints and say which ones they actually saw.
-
-Every joint therefore carries a confidence of "observed" or "estimated". A trace
-that claims a joint without saying which is rejected rather than written, because
-an unmarked guess is exactly the failure this tool exists to end.
-
-Run it, open the printed address, correct the frames, press save:
-
-    scripts/trace_sprite_sheet.py \
-        --sheet experiments/pose_analogy/inputs/reference-run-10.png \
-        --trace experiments/pose_analogy/inputs/reference-run-trace-v1.json
+Joints must carry observed/estimated confidence, stay inside their source cells,
+and identify support consistently. This is an offline replacement for the
+retired browser tracing server.
 """
 
 import argparse
 import json
-import shutil
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 JOINTS = ["hip_c", "neck", "head_top",
@@ -30,21 +16,13 @@ JOINTS = ["hip_c", "neck", "head_top",
           "knee_l", "ankle_l", "toe_l", "knee_r", "ankle_r", "toe_r"]
 SUPPORTS = {"near", "far", "flight"}
 CONFIDENCE = {"observed", "estimated"}
-MAXIMUM_BODY = 8 * 1024 * 1024
-
-
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
 def png_size(path):
-    """Width and height from the PNG header.
-
-    Reading eight bytes of IHDR keeps this tool on the standard library, so it
-    runs under whatever python3 is on PATH. Pillow lives only in the build venv,
-    and a tracing tool that cannot start without a built tree is a tool nobody
-    reaches for.
-    """
-    header = path.read_bytes()[:24]
+    """Read dimensions from the PNG header without loading the image payload."""
+    with path.open("rb") as source:
+        header = source.read(24)
     if len(header) < 24 or header[:8] != PNG_SIGNATURE or header[12:16] != b"IHDR":
         raise ValueError(f"{path} is not a PNG")
     width = int.from_bytes(header[16:20], "big")
@@ -52,21 +30,6 @@ def png_size(path):
     if width <= 0 or height <= 0:
         raise ValueError(f"{path} reports an empty image")
     return width, height
-
-
-def scaffold(sheet_size, count, cell):
-    width, height = cell
-    return {
-        "version": 1,
-        "source_size": list(sheet_size),
-        "cell_size": list(cell),
-        "notes": "Traced by hand in scripts/sprite_trace_editor.html.",
-        "ground_y": height - 1,
-        "frames": [{"name": f"reference_{index + 1:02d}",
-                    "cell": [width * index, 0, width, height],
-                    "support": "flight", "pose": {}, "confidence": {}}
-                   for index in range(count)],
-    }
 
 
 def validate(trace, sheet_size):
@@ -149,64 +112,6 @@ def support_conflict(frame):
             f"while the other reaches {rival:g}. Either flip the support or swap the legs.")
 
 
-def page_bytes(page):
-    return page.read_bytes()
-
-
-def build_handler(sheet, trace_path, page, sheet_size):
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *_):
-            pass
-
-        def send(self, code, body, content_type):
-            self.send_response(code)
-            self.send_header("content-type", content_type)
-            self.send_header("content-length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-        def do_GET(self):
-            route = self.path.split("?")[0].lstrip("/")
-            if route in ("", "index.html"):
-                self.send(200, page_bytes(page), "text/html; charset=utf-8")
-            elif route == "sheet.png":
-                self.send(200, sheet.read_bytes(), "image/png")
-            elif route == "trace":
-                if trace_path.is_file():
-                    body = trace_path.read_bytes()
-                else:
-                    body = json.dumps(scaffold(sheet_size, 1, sheet_size)).encode()
-                self.send(200, body, "application/json; charset=utf-8")
-            else:
-                self.send(404, b"no such route", "text/plain; charset=utf-8")
-
-        def do_POST(self):
-            if self.path.split("?")[0].lstrip("/") != "trace":
-                self.send(404, b"no such route", "text/plain; charset=utf-8")
-                return
-            length = int(self.headers.get("content-length") or 0)
-            if length <= 0 or length > MAXIMUM_BODY:
-                self.send(413, b"body too large or empty", "text/plain; charset=utf-8")
-                return
-            try:
-                trace = validate(json.loads(self.rfile.read(length)), sheet_size)
-            except (ValueError, json.JSONDecodeError) as error:
-                self.send(400, f"not saved: {error}".encode(), "text/plain; charset=utf-8")
-                return
-            if trace_path.is_file():
-                shutil.copyfile(trace_path, trace_path.with_suffix(trace_path.suffix + ".bak"))
-            trace_path.parent.mkdir(parents=True, exist_ok=True)
-            trace_path.write_text(json.dumps(trace, indent=2) + "\n")
-            guessed = sum(1 for frame in trace["frames"]
-                          for value in frame["confidence"].values() if value == "estimated")
-            total = len(trace["frames"]) * len(JOINTS)
-            self.send(200, f"saved {trace_path.name}: {len(trace['frames'])} frames, "
-                           f"{guessed}/{total} joints marked guessed".encode(),
-                      "text/plain; charset=utf-8")
-
-    return Handler
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     root = Path(__file__).resolve().parent.parent
@@ -214,26 +119,14 @@ def main():
                         default=root / "experiments/pose_analogy/inputs/reference-run-10.png")
     parser.add_argument("--trace", type=Path,
                         default=root / "experiments/pose_analogy/inputs/reference-run-trace-v1.json")
-    parser.add_argument("--page", type=Path, default=root / "scripts/sprite_trace_editor.html")
-    parser.add_argument("--port", type=int, default=8771)
     args = parser.parse_args()
-    for path in [args.sheet, args.page]:
-        if not path.is_file():
-            raise SystemExit(f"missing {path}")
-
-    sheet_size = png_size(args.sheet)
-    server = ThreadingHTTPServer(
-        ("127.0.0.1", args.port),
-        build_handler(args.sheet, args.trace, args.page, sheet_size))
-    # serve_forever never returns, so an unflushed address line is an address the
-    # user never sees whenever stdout is a pipe rather than a terminal.
-    print(f"tracing {args.sheet.name} ({sheet_size[0]}x{sheet_size[1]}) into {args.trace}",
-          flush=True)
-    print(f"open http://127.0.0.1:{args.port}/  (ctrl-c to stop)", flush=True)
     try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nstopped")
+        trace = validate(json.loads(args.trace.read_text()), png_size(args.sheet))
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    estimated = sum(value == "estimated" for frame in trace["frames"]
+                    for value in frame["confidence"].values())
+    print(f"Validated {len(trace['frames'])} frames; {estimated} estimated joints.")
 
 
 if __name__ == "__main__":

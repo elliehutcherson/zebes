@@ -1,30 +1,35 @@
 # Active handoff
 
-Updated 2026-09-12. **The repository cleanup pass is complete; animation
-remains paused.** Run 03 was rejected as a running animation.
+Updated 2026-09-12. **Next: consolidate retained sprite-processing logic.**
+Obsolete authoring servers and procedural character generators are retired,
+and the storybook Blender tools share `rig_support.py`.
+Animation remains paused after run 03 was rejected.
 
-## Read next
+## Next implementation
 
-- [Roadmap](roadmap.md): remaining work and sequencing.
-- [3D mouse plan](mouse-3d-plan.md): accepted source, current verdict, and the
-  contract for the next animation revision.
-- [Experiment index](../experiments/README.md): retained evidence and live tools.
-- [Architecture](architecture.md): read only the relevant domain section.
+Identify a bounded piece of useful Python sprite processing to consolidate
+under the [existing C++ postprocessor](../src/artwork/generated_artwork_postprocessor.cc).
+Start with the [asset-tool index](../scripts/README.md#prepare-generated-artwork-for-import)
+and check callers before choosing the scope. Python and C++ matte/resize
+policies differ: capture intended pixels in regression fixtures before
+changing implementations.
 
-Verification: 54 focused tests, CMake configuration, documentation links, and
-`git diff --check` passed. All six storybook bundles (1,220 files) matched their
-pre-cleanup hashes. No engine behavior changed.
+Prefer C++ for reusable processing, with Python at Blender/model-library
+boundaries and for thin orchestration; see the [style guide](style-guide.md).
+Retired generators are available at `ede7b18` and in frozen source snapshots;
+do not port them. The experiment indexes own the retirement and reproduction
+notes. The [storybook README](../experiments/storybook_mouse/README.md#verification)
+owns current animation-tool verification commands.
 
-The accepted neutral master, positively reviewed foot study, and all three run
-bundles must remain unchanged. Their READMEs own reproduction and measurements;
-the plan owns decisions. Do not copy their chronology or hashes into this file.
+## Preserve and consult
 
-## Context discipline
+Keep the accepted neutral master, foot study, all three run bundles, and
+reference evidence unchanged. The [3D plan](mouse-3d-plan.md) owns decisions;
+bundle records own hashes and reproduction. The [experiment index](../experiments/README.md)
+and [asset tools](../scripts/README.md) identify retained capabilities.
 
-Keep this handoff to entry points, current blockers, and the next action.
-Completed milestones belong in history or version control. Default searches
-exclude archived docs and experiment evidence; use a linked path or a bounded
-`rg --no-ignore` search when those records are needed.
-
-Continue animation when the user resumes that workstream; the
-[plan](mouse-3d-plan.md#next-run) records the deferred direction.
+ComfyUI integration, useful 2D image manipulation, Sprite playback, frame-set
+import, and prop/parallax processing remain in scope for maintenance.
+Keep the current asset-storage layout.
+Read only relevant [architecture](architecture.md) sections and use bounded
+`rg --no-ignore` searches for historical evidence.

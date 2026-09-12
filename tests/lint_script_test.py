@@ -22,19 +22,22 @@ class LintScriptTest(unittest.TestCase):
         (self.root / "build" / "dev" / "compile_commands.json").touch()
         shutil.copy2(SCRIPT_PATH, self.root / "scripts" / "lint.sh")
         self.event_log = self.root / "events.log"
-        self.generated_header = self.root / "build" / "dev" / "puppet_editor_html.h"
         self.fake_bin = self.root / "bin"
         self.fake_bin.mkdir()
         self.write_executable(
             self.fake_bin / "cmake",
             """
             #!/usr/bin/env bash
-            printf 'prepare %s\\n' "${!#}" >>"${EVENT_LOG}"
-            if [[ "${FAIL_PREPARE:-}" == 1 ]]; then
-              printf 'generation failed\\n' >&2
+            if [[ "${1}" != --preset ]]; then
+              printf 'unexpected build during lint\\n' >&2
+              exit 8
+            fi
+            printf 'configure\\n' >>"${EVENT_LOG}"
+            if [[ "${FAIL_CONFIGURE:-}" == 1 ]]; then
+              printf 'configuration failed\\n' >&2
               exit 9
             fi
-            touch "${GENERATED_HEADER}"
+            touch build/dev/compile_commands.json
             """,
         )
         self.fake_tidy = self.root / "fake-clang-tidy"
@@ -44,10 +47,6 @@ class LintScriptTest(unittest.TestCase):
             #!/usr/bin/env bash
             source_file="${!#}"
             name="$(basename "${source_file}")"
-            if [[ "${name}" == puppet_editor_page.cc && ! -f "${GENERATED_HEADER}" ]]; then
-              printf 'missing generated header\\n' >&2
-              exit 8
-            fi
             printf 'start %s\n' "${name}" >>"${EVENT_LOG}"
             sleep 0.2
             printf 'finish %s\n' "${name}" >>"${EVENT_LOG}"
@@ -62,10 +61,6 @@ class LintScriptTest(unittest.TestCase):
             self.root / "run-clang-tidy",
             """
             #!/usr/bin/env bash
-            if [[ ! -f "${GENERATED_HEADER}" ]]; then
-              printf 'missing generated header\\n' >&2
-              exit 8
-            fi
             printf 'analyze all\\n' >>"${EVENT_LOG}"
             """,
         )
@@ -96,7 +91,6 @@ class LintScriptTest(unittest.TestCase):
             {
                 "CLANG_TIDY": str(self.fake_tidy),
                 "EVENT_LOG": str(self.event_log),
-                "GENERATED_HEADER": str(self.generated_header),
                 "PATH": str(self.fake_bin) + os.pathsep + env.get("PATH", ""),
             }
         )
@@ -184,28 +178,23 @@ class LintScriptTest(unittest.TestCase):
         )
         self.assertNotIn("(cached)", second.stdout)
 
-    def test_scoped_page_lint_prepares_its_generated_header(self):
-        page = self.root / "src" / "artwork" / "puppet_editor_page.cc"
-        page.parent.mkdir()
-        page.touch()
-        result = self.run_script(["artwork/puppet_editor_page.cc"])
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.event_log.read_text().splitlines(),
-                         ["prepare puppet_editor_page", "start puppet_editor_page.cc",
-                          "finish puppet_editor_page.cc"])
-
-    def test_full_lint_prepares_generated_input_before_analysis(self):
+    def test_full_lint_runs_without_building_authoring_tools(self):
         result = self.run_script([], options=["--all"])
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.event_log.read_text().splitlines(),
-                         ["prepare puppet_editor_page", "analyze all"])
+        self.assertEqual(self.event_log.read_text().splitlines(), ["analyze all"])
 
-    def test_failed_generation_stops_analysis(self):
-        result = self.run_script([], {"FAIL_PREPARE": "1"}, options=["--all"])
+    def test_missing_compile_database_configures_before_analysis(self):
+        (self.root / "build" / "dev" / "compile_commands.json").unlink()
+        result = self.run_script([], options=["--all"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.event_log.read_text().splitlines(), ["configure", "analyze all"])
+
+    def test_failed_configuration_stops_analysis(self):
+        (self.root / "build" / "dev" / "compile_commands.json").unlink()
+        result = self.run_script([], {"FAIL_CONFIGURE": "1"}, options=["--all"])
         self.assertEqual(result.returncode, 9, result.stderr)
-        self.assertEqual(self.event_log.read_text().splitlines(),
-                         ["prepare puppet_editor_page"])
-        self.assertIn("generation failed", result.stderr)
+        self.assertEqual(self.event_log.read_text().splitlines(), ["configure"])
+        self.assertIn("configuration failed", result.stderr)
 
 
 if __name__ == "__main__":

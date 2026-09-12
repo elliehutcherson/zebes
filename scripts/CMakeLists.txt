@@ -285,22 +285,3 @@ target_link_libraries(puppet_edit
   absl::statusor
   absl::strings
 )
-
-add_executable(serve_puppet_editor serve_puppet_editor.cc)
-target_link_libraries(serve_puppet_editor
-  PRIVATE
-  loopback_http_server
-  puppet_build_json
-  puppet_document
-  puppet_document_json
-  puppet_editor_page
-  puppet_editor_session
-  puppet_editor_workspace
-  status_macros
-  absl::flags
-  absl::flags_parse
-  absl::status
-  absl::statusor
-  absl::strings
-  nlohmann_json::nlohmann_json
-)

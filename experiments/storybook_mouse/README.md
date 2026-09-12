@@ -12,6 +12,7 @@ rejection; reproduce or revise only in a new output directory.
 | `scripts/run_storybook_shape.py` | Explicit download, foreground preparation, and bounded Hunyuan shape request |
 | `clean_mesh.py`, `inspect_mesh.py` | Local mesh cleanup, normalization, Blender inspection/export |
 | `study_rig.py`, `study_material.py` | Neutral rig and baked authored material |
+| `rig_support.py` | Shared Blender posing, rigid-paw queries, projection, and source fingerprints |
 | `inspect_run_master.py`, `audit_forefoot.py` | Accepted-master validation and rigid toe-pivot measurements |
 | `run_motion{,_v2,_v3}.py` | Separate retained motion definitions for runs 01–03 |
 | `animate_run.py`, `finalize_run.py` | Run 01/02 authoring and saved-file verification |
@@ -84,3 +85,15 @@ git diff --check
 These checks cover inputs, preservation, local edits, saved-scene measurements,
 contacts, bones, loop closure, and decoded exports. They do not establish
 artistic acceptance.
+
+After changing live Blender rig code, also run:
+
+```bash
+blender --background --threads 4 --python-exit-code 1 \
+  --python tests/tools/storybook_rig_test.py
+```
+
+This suite reposes the saved master and foot study in memory and compares live
+joint positions with the retained run/study measurements. It does not save or
+render over existing assets. New result packages include `rig_support.py`;
+frozen source copies inside earlier bundles remain unchanged.

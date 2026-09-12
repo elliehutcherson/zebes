@@ -4,6 +4,11 @@ Zebes follows the [Google C++ Style Guide](https://google.github.io/styleguide/c
 with the project-specific rules below. This is the guide for people working on
 Zebes, and it is the source of truth for the rules it states.
 
+Prefer C++ for reusable engine and asset-processing logic. Keep Python at
+tool/library boundaries such as Blender and model pipelines, and for thin
+offline orchestration. Reuse existing C++ processors before adding another
+implementation in a script; retire superseded spikes instead of porting them.
+
 Some sections are marked up so that `scripts/sync_rules.py` can extract them into
 `.claude/rules/`, where Claude Code loads them automatically when someone edits a
 matching file. Those generated files are copies. **Edit this document, then run:**

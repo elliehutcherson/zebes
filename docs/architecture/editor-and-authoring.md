@@ -58,6 +58,11 @@ Animation editor work accepts imported frame sheets. Offline generation
 experiments may supply reviewable artwork without introducing a runtime
 dependency or a production generation transport.
 
+The standalone browser puppet editor and sprite-tracing authoring server are
+retired. Offline image cleanup/deformation, batch document tools, and ComfyUI
+workflow clients remain available. The 3D authoring direction does not change
+the game's 2D Sprite/frame-set contracts.
+
 Background workers receive copied immutable inputs and return values/events.
 The editor thread alone mutates managers and GPU state. Cancelling a request does
 not invent completion; the engine still retires its operation exactly once.

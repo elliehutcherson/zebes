@@ -1,5 +1,22 @@
 # Asset tools
 
+## Retained image and generation tools
+
+Character authoring uses the [storybook Blender tools](../experiments/storybook_mouse/README.md).
+The browser puppet editor and sprite-trace server are retired; Git checkpoint
+`ede7b18` retains their implementation for historical reproduction.
+
+- Keep sprite/frame-set import, registration, palette/alpha processing,
+  compositing, matte removal, resizing, pixelization, and image review tools.
+- Keep the batch profile/layer deformation and `puppet_edit`/
+  `render_layered_puppet` tools for offline image correction and old inputs.
+- `trace_sprite_sheet.py --sheet image.png --trace trace.json` validates joint
+  positions, confidence, and foot support without opening a server or saving.
+- `run_comfy_gap_trial.py` and `run_comfy_leg_pose_trial.py` retain reviewed
+  workflow submission, upload verification, receipts, and resumable polling.
+  Their current preparation/output paths are 2D image trials; future prop,
+  scene, or 3D workflows can reuse the transport without reviving puppet UI.
+
 ## Where art lives
 
 | Directory | Holds | Read by |

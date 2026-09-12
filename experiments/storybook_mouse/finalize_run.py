@@ -12,7 +12,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from animate_run import fingerprint
+from rig_support import fingerprint
 from inspect_run_master import MASTER_SHA256
 
 
@@ -105,7 +105,8 @@ def main():
     if max(max_joint_error, max_marker_error, max_weight_error, max_scale_error, max_head_shape_error) > 2e-5:
         raise ValueError(f'Saved-scene invariant failed: {result}')
     (out/'saved-scene-check.json').write_text(json.dumps(result, indent=2)+'\n')
-    shutil.copyfile(__file__, out/Path(__file__).name)
+    for name in ('finalize_run.py', 'rig_support.py'):
+        shutil.copyfile(Path(__file__).with_name(name), out/name)
     print(json.dumps(result), flush=True)
 
 
